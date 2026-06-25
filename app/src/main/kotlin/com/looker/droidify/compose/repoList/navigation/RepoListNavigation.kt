@@ -24,13 +24,13 @@ fun NavController.navigateToRepoList() {
 fun NavGraphBuilder.repoList(
     onRepoClick: (Int) -> Unit,
     onBackClick: () -> Unit,
-    onNavigateToExternalApps: () -> Unit,
+    onAddRepo: () -> Unit,
 ) {
     composable<RepoList> {
         RepoListScreen(
             onRepoClick = onRepoClick,
             onBackClick = onBackClick,
-            onNavigateToExternalApps = onNavigateToExternalApps,
+            onAddRepo = onAddRepo,
             viewModel = hiltViewModel(),
         )
     }

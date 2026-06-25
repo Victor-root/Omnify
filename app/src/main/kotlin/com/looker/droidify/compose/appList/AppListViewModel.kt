@@ -114,6 +114,18 @@ class AppListViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyMap())
 
+    /**
+     * Installed packageName -> the real on-device versionName (e.g. "6.5.5-c"). Read from the
+     * package manager, so the Installed/Updates tabs show what's actually installed rather than the
+     * catalogue's version (which can differ, e.g. a fork installed over the upstream package).
+     */
+    val installedVersionNames: StateFlow<Map<String, String>> = installedRepository
+        .getAllStream()
+        .map { items -> items.associate { it.packageName to it.version } }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyMap())
+
     // appId -> latest available versionCode (re-queried whenever the catalogue changes)
     private val suggestedVersions: StateFlow<Map<Int, Long>> = catalogChanges
         .mapLatest { appRepository.suggestedVersionCodes() }

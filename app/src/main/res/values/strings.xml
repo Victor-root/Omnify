@@ -183,6 +183,7 @@
     <string name="proxy_type">Proxy type</string>
     <string name="recently_updated">Recently updated</string>
     <string name="repositories">Repositories</string>
+    <string name="repo_section_fdroid">F-Droid / Droidify repositories</string>
     <string name="repository">Repository</string>
     <string name="repository_not_found">The repository wasn\'t found</string>
     <string name="repository_unsigned_DESC">No signature found. Couldn\'t verify the app list</string>
@@ -298,7 +299,6 @@
     <string name="theme_color_wallpaper">Wallpaper</string>
     <!-- External app sources (GitHub / GitLab / Codeberg) -->
     <string name="tab_external">External</string>
-    <string name="external_apps_title">External apps</string>
     <string name="external_add">Add</string>
     <string name="external_remove">Remove</string>
     <string name="external_check_updates">Check for updates</string>
@@ -315,4 +315,12 @@
     <string name="external_download_failed">Download failed for %1$s</string>
     <string name="external_invalid_apk">Downloaded file isn\'t a valid APK</string>
     <string name="external_cant_launch">%1$s has no launchable activity</string>
+    <string name="external_repo_latest">Latest on %1$s: %2$s</string>
+    <string name="external_installed_version">Installed: %1$s</string>
+    <string name="external_preinstall_notice">Install the app to show its real name, icon and version — until then, these come from the repository.</string>
+    <string name="external_add_source">Add external source</string>
+    <string name="install_failed_signature_mismatch">%1$s is already installed from a different source. Uninstall it first, then install this version.</string>
+    <string name="signature_conflict_title">Uninstall required</string>
+    <string name="installer_unknown">Unknown source</string>
+    <string name="installed_version_source">Installed: %1$s · from %2$s</string>
 </resources>

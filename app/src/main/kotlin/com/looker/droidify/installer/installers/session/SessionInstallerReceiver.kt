@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.util.Log
+import android.widget.Toast
 import com.looker.droidify.R
 import com.looker.droidify.data.model.toPackageName
 import com.looker.droidify.installer.InstallManager
@@ -90,12 +91,31 @@ class SessionInstallerReceiver : BroadcastReceiver() {
 
                 else -> {
                     installManager.remove(packageName.toPackageName())
+                    // A signature conflict (STATUS_FAILURE_CONFLICT, "signatures do not match") means
+                    // the app is already installed from a different source/signer. Android can't
+                    // update across signers, so the raw message is useless to the user — tell them to
+                    // uninstall the existing copy first, both as a toast (they're usually still in the
+                    // app) and in the notification.
+                    val isSignatureConflict =
+                        status == PackageInstaller.STATUS_FAILURE_CONFLICT &&
+                            message?.contains("signature", ignoreCase = true) == true
+                    val shownMessage = if (isSignatureConflict) {
+                        context.getString(
+                            R.string.install_failed_signature_mismatch,
+                            (appName ?: packageName).toString(),
+                        )
+                    } else {
+                        message
+                    }
+                    if (isSignatureConflict) {
+                        Toast.makeText(context, shownMessage, Toast.LENGTH_LONG).show()
+                    }
                     val notification = context.createInstallNotification(
                         appName = appName.toString(),
                         state = InstallState.Failed,
                         isUninstall = isUninstall,
                     ) {
-                        setContentText(message)
+                        setContentText(shownMessage)
                     }
                     notificationManager?.installNotification(
                         packageName = packageName,

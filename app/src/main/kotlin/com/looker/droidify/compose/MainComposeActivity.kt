@@ -32,8 +32,8 @@ import com.looker.droidify.compose.repoDetail.navigation.navigateToRepoDetail
 import com.looker.droidify.compose.repoDetail.navigation.repoDetail
 import com.looker.droidify.compose.repoEdit.navigation.navigateToRepoEdit
 import com.looker.droidify.compose.repoEdit.navigation.repoEdit
-import com.looker.droidify.compose.externalApps.navigation.externalApps
-import com.looker.droidify.compose.externalApps.navigation.navigateToExternalApps
+import com.looker.droidify.compose.externalApps.navigation.externalAppDetail
+import com.looker.droidify.compose.externalApps.navigation.navigateToExternalAppDetail
 import com.looker.droidify.compose.repoList.navigation.navigateToRepoList
 import com.looker.droidify.compose.repoList.navigation.repoList
 import com.looker.droidify.compose.settings.navigation.navigateToSettings
@@ -228,6 +228,9 @@ class MainComposeActivity : ComponentActivity() {
                             onAppClick = { packageName ->
                                 navController.navigateToAppDetail(packageName)
                             },
+                            onExternalAppClick = { appKey ->
+                                navController.navigateToExternalAppDetail(appKey)
+                            },
                             onNavigateToRepos = { navController.navigateToRepoList() },
                             onNavigateToSettings = { navController.navigateToSettings() },
                         )
@@ -235,10 +238,10 @@ class MainComposeActivity : ComponentActivity() {
                         repoList(
                             onRepoClick = { repoId -> navController.navigateToRepoDetail(repoId) },
                             onBackClick = { navController.popBackStack() },
-                            onNavigateToExternalApps = { navController.navigateToExternalApps() },
+                            onAddRepo = { navController.navigateToRepoEdit() },
                         )
 
-                        externalApps(onBackClick = { navController.popBackStack() })
+                        externalAppDetail(onBackClick = { navController.popBackStack() })
 
                         appDetail(
                             onBackClick = { navController.popBackStack() },

@@ -4,25 +4,25 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import androidx.navigation.navOptions
-import com.looker.droidify.compose.externalApps.ExternalAppsScreen
+import androidx.navigation.toRoute
+import com.looker.droidify.compose.externalApps.ExternalAppDetailScreen
 import kotlinx.serialization.Serializable
 
+/** Detail screen for a single tracked external app, addressed by its [ExternalApp.key]. */
 @Serializable
-object ExternalApps
+data class ExternalAppDetail(val appKey: String)
 
-fun NavController.navigateToExternalApps() {
-    this.navigate(
-        ExternalApps,
-        navOptions {
-            launchSingleTop = true
-            restoreState = true
-        },
-    )
+fun NavController.navigateToExternalAppDetail(appKey: String) {
+    this.navigate(ExternalAppDetail(appKey))
 }
 
-fun NavGraphBuilder.externalApps(onBackClick: () -> Unit) {
-    composable<ExternalApps> {
-        ExternalAppsScreen(viewModel = hiltViewModel(), onBackClick = onBackClick)
+fun NavGraphBuilder.externalAppDetail(onBackClick: () -> Unit) {
+    composable<ExternalAppDetail> { backStackEntry ->
+        val route = backStackEntry.toRoute<ExternalAppDetail>()
+        ExternalAppDetailScreen(
+            appKey = route.appKey,
+            viewModel = hiltViewModel(),
+            onBackClick = onBackClick,
+        )
     }
 }

@@ -28,6 +28,29 @@ class ExternalApi @Inject constructor(
         latestRelease(app.provider, app.owner, app.repo, app.includePrereleases)
 
     /**
+     * The project README as HTML, for display on the detail screen. GitHub renders it for us
+     * (Accept: application/vnd.github.html); the other providers have no equally simple endpoint, so
+     * they return null for now. Returns null on any failure or when there is no README.
+     */
+    suspend fun readmeHtml(app: ExternalApp): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            when (app.provider) {
+                SourceProvider.GITHUB -> {
+                    val response = httpClient.get(
+                        "https://api.github.com/repos/${app.owner}/${app.repo}/readme",
+                    ) {
+                        header("Accept", "application/vnd.github.html")
+                        header("X-GitHub-Api-Version", "2022-11-28")
+                    }
+                    if (response.status.isSuccess()) response.bodyAsText() else null
+                }
+
+                SourceProvider.GITLAB, SourceProvider.CODEBERG -> null
+            }
+        }.getOrNull()
+    }
+
+    /**
      * Fetches the release Droidify should offer for the project: the newest non-draft release
      * (optionally including pre-releases). Returns null on network/HTTP/parse failure or when the
      * project has no matching release.

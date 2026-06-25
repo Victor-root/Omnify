@@ -47,7 +47,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -91,7 +90,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.looker.droidify.R
-import com.looker.droidify.compose.externalApps.ExternalAppCard
+import com.looker.droidify.compose.components.CatalogCard
+import com.looker.droidify.compose.externalApps.ExternalGridCard
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.datastore.extension.sortOrderName
@@ -103,6 +103,7 @@ import com.looker.droidify.sync.v2.model.DefaultName
 fun AppListScreen(
     viewModel: AppListViewModel,
     onAppClick: (String) -> Unit,
+    onExternalAppClick: (String) -> Unit,
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
 ) {
@@ -112,23 +113,30 @@ fun AppListScreen(
     val sortOrder by viewModel.sortOrderFlow.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val updatesCount by viewModel.updatesCount.collectAsStateWithLifecycle()
+    val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
     var searchExpanded by rememberSaveable { mutableStateOf(false) }
 
     // The External tab is backed by its own ViewModel (Obtainium-style sources: GitHub/GitLab/
-    // Codeberg). Adding sources lives on the Repos screen; here we browse them with the full install
-    // lifecycle (progress bar + Install/Update/Open/Uninstall), just like the F-Droid tabs.
+    // Codeberg). It shows the same 2-column card grid as the F-Droid tabs; tapping a card opens the
+    // external detail screen, where the install lifecycle lives — exactly like the other tabs.
     val externalViewModel: ExternalAppsViewModel = hiltViewModel()
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
-    val externalDownloads by externalViewModel.downloads.collectAsStateWithLifecycle()
-    val externalInstallStates by externalViewModel.installStates.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
-    LaunchedEffect(selectedTab) {
-        if (selectedTab == AppTab.EXTERNAL) {
-            externalViewModel.refresh()
-            externalViewModel.refreshInstalled()
-        }
+    // External-repo updates surface in the Updates tab too (no difference from F-Droid repos), so we
+    // refresh release tags on screen entry — not only when the External tab is open.
+    LaunchedEffect(Unit) {
+        externalViewModel.refresh()
+        externalViewModel.refreshInstalled()
     }
+    // Replace stored repo names with the real installed app names (e.g. "GlassKeep"). Keyed on the
+    // count so it runs once apps load and converges (label-only changes don't change the count).
+    LaunchedEffect(externalApps.size) {
+        externalViewModel.reconcileInstalledLabels()
+    }
+    // Disabled sources are hidden from the catalogue and updates, exactly like a disabled F-Droid repo.
+    val enabledExternalApps = remember(externalApps) { externalApps.filter { it.enabled } }
+    val externalUpdates = remember(enabledExternalApps) { enabledExternalApps.filter { it.hasUpdate } }
 
     Scaffold(
         snackbarHost = { SnackbarHost(externalViewModel.snackbarHostState) },
@@ -151,7 +159,7 @@ fun AppListScreen(
                 )
                 AppTabRow(
                     selectedTab = selectedTab,
-                    updatesCount = updatesCount,
+                    updatesCount = updatesCount + externalUpdates.size,
                     onSelectTab = viewModel::selectTab,
                 )
                 if (searchExpanded) {
@@ -171,27 +179,17 @@ fun AppListScreen(
             contentPadding = contentPadding,
         ) {
             if (selectedTab == AppTab.EXTERNAL) {
-                if (externalApps.isEmpty()) {
+                if (enabledExternalApps.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "external-empty") {
                         ExternalTabEmpty()
                     }
                 }
-                items(
-                    items = externalApps,
-                    key = { it.key },
-                    // Full-width rows: the lifecycle card (progress bar + action buttons) needs the
-                    // space, unlike the 2-column catalogue cards.
-                    span = { GridItemSpan(maxLineSpan) },
-                ) { app ->
-                    ExternalAppCard(
+                // Same 2-column grid as the catalogue tabs; install happens on the detail screen.
+                items(items = enabledExternalApps, key = { it.key }) { app ->
+                    ExternalGridCard(
                         app = app,
-                        downloadStatus = externalDownloads[app.key],
-                        installState = externalInstallStates[app.key],
                         isInstalled = app.key in externalInstalledKeys,
-                        onInstallOrUpdate = { externalViewModel.installOrUpdate(app) },
-                        onLaunch = { externalViewModel.launch(app) },
-                        onUninstall = { externalViewModel.uninstall(app) },
-                        onCancel = { externalViewModel.cancel(app) },
+                        onClick = { onExternalAppClick(app.key) },
                         modifier = Modifier.animateItem(),
                     )
                 }
@@ -202,7 +200,12 @@ fun AppListScreen(
                     NewAppsShowcase(apps = newApps, onAppClick = onAppClick)
                 }
             }
-            if (apps.isEmpty() && selectedTab != AppTab.AVAILABLE) {
+            val showEmpty = when (selectedTab) {
+                AppTab.INSTALLED -> apps.isEmpty()
+                AppTab.UPDATES -> apps.isEmpty() && externalUpdates.isEmpty()
+                else -> false
+            }
+            if (showEmpty) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "empty-tab") {
                     EmptyTabMessage(tab = selectedTab)
                 }
@@ -213,9 +216,25 @@ fun AppListScreen(
             ) { app ->
                 AppCard(
                     app = app,
+                    versionLabel = appVersionLabel(app, selectedTab, installedVersionNames),
                     onClick = { onAppClick(app.packageName.name) },
                     modifier = Modifier.animateItem(),
                 )
+            }
+            // External-repo updates, shown alongside the F-Droid ones on the Updates tab.
+            if (selectedTab == AppTab.UPDATES) {
+                items(
+                    items = externalUpdates,
+                    key = { "ext-${it.key}" },
+                ) { app ->
+                    ExternalGridCard(
+                        app = app,
+                        isInstalled = app.key in externalInstalledKeys,
+                        version = "${app.installedTag} → ${app.latestTag}",
+                        onClick = { onExternalAppClick(app.key) },
+                        modifier = Modifier.animateItem(),
+                    )
+                }
             }
         }
     }
@@ -445,7 +464,7 @@ private fun AppListTopBar(
                 onClick = onNavigateToRepos,
                 modifier = Modifier.size(smallContainerSize(Narrow)),
             ) {
-                Icon(painterResource(R.drawable.ic_tabler_server), contentDescription = "Repos")
+                Icon(painterResource(R.drawable.ic_tabler_box), contentDescription = "Repos")
             }
             Spacer(Modifier.width(4.dp))
             IconButton(
@@ -551,81 +570,72 @@ private fun ShowcaseCard(
     }
 }
 
-/** A catalogue app as a grid card: large icon, name, summary and version — neutral colours, no
- *  accent tint. Tapping opens the detail screen (install happens there). */
+/**
+ * The version string to show on a card for the given [tab]: the real installed version on the
+ * Installed tab, "installed → available" on the Updates tab, and the available (catalogue) version
+ * elsewhere. The installed version comes from the package manager, so a fork installed over an
+ * upstream package shows its actual version (e.g. "6.5.5-c") rather than the catalogue's.
+ */
+private fun appVersionLabel(
+    app: AppMinimal,
+    tab: AppTab,
+    installedVersionNames: Map<String, String>,
+): String {
+    val installed = installedVersionNames[app.packageName.name]
+    return when (tab) {
+        AppTab.INSTALLED -> installed ?: app.suggestedVersion
+        AppTab.UPDATES ->
+            if (installed != null && installed != app.suggestedVersion) {
+                "$installed → ${app.suggestedVersion}"
+            } else {
+                app.suggestedVersion
+            }
+        else -> app.suggestedVersion
+    }
+}
+
+/** A catalogue app as a grid card (shared [CatalogCard] chrome): large icon, name, summary and
+ *  version. Tapping opens the detail screen (install happens there). */
 @Composable
 private fun AppCard(
     app: AppMinimal,
+    versionLabel: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(6.dp)
-            .clickable(onClick = onClick),
+    CatalogCard(
+        name = app.name,
+        summary = app.summary,
+        version = versionLabel,
+        onClick = onClick,
+        modifier = modifier,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            var icon by remember(app.appId) { mutableStateOf(app.icon?.path) }
-            if (icon != null) {
-                AsyncImage(
-                    model = icon,
-                    onError = { icon = app.fallbackIcon?.path },
+        var icon by remember(app.appId) { mutableStateOf(app.icon?.path) }
+        if (icon != null) {
+            AsyncImage(
+                model = icon,
+                onError = { icon = app.fallbackIcon?.path },
+                contentDescription = null,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(MaterialTheme.shapes.medium),
+            )
+        } else {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = MaterialTheme.shapes.medium,
+                    ),
+            ) {
+                Image(
+                    painter = painterResource(android.R.mipmap.sym_def_app_icon),
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(MaterialTheme.shapes.medium),
-                )
-            } else {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(64.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            shape = MaterialTheme.shapes.medium,
-                        ),
-                ) {
-                    Image(
-                        painter = painterResource(android.R.mipmap.sym_def_app_icon),
-                        contentDescription = null,
-                        modifier = Modifier.padding(8.dp),
-                    )
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = app.name,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            app.summary?.let {
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.padding(8.dp),
                 )
             }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = app.suggestedVersion,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
         }
     }
 }

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.SystemClock
 import androidx.compose.material3.SnackbarHostState
+import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.R
@@ -73,6 +74,20 @@ class ExternalAppsViewModel @Inject constructor(
         }.toMap()
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
 
+    /** Per-app real installed versionName (read from the package manager), keyed by
+     *  [ExternalApp.key] — so the detail shows the version actually on the device vs. the repo's. */
+    val installedVersions: StateFlow<Map<String, String>> = combine(
+        repository.apps,
+        installManager.state,
+        installedRefresh,
+    ) { apps, _, _ ->
+        apps.mapNotNull { app ->
+            val pkg = app.packageName ?: return@mapNotNull null
+            val version = installedVersionName(pkg) ?: return@mapNotNull null
+            app.key to version
+        }.toMap()
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
+
     /** Live download progress per app (drives the per-card progress bar). */
     private val _downloads = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
     val downloads: StateFlow<Map<String, DownloadStatus>> = _downloads
@@ -84,6 +99,17 @@ class ExternalAppsViewModel @Inject constructor(
     private val downloadJobs = mutableMapOf<String, Job>()
 
     val snackbarHostState = SnackbarHostState()
+
+    /** README (HTML) of the app shown on the detail screen, or null while loading / when none. */
+    private val _readme = MutableStateFlow<String?>(null)
+    val readme: StateFlow<String?> = _readme
+
+    fun loadReadme(app: ExternalApp) {
+        viewModelScope.launch {
+            _readme.value = null
+            _readme.value = externalApi.readmeHtml(app)
+        }
+    }
 
     /** Adds a project from any GitHub/GitLab/Codeberg URL after confirming it has a release. */
     fun addSource(url: String, includePrereleases: Boolean) {
@@ -148,10 +174,11 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    /** Re-checks every tracked app for a newer release tag (e.g. on opening the screen). */
+    /** Re-checks every enabled app for a newer release tag (e.g. on opening the screen). Disabled
+     *  sources are skipped, like a disabled repository. */
     fun refresh() {
         viewModelScope.launch {
-            apps.value.forEach { app ->
+            apps.value.filter { it.enabled }.forEach { app ->
                 val release = externalApi.latestReleaseFor(app)
                 if (release != null && release.tag != app.latestTag) {
                     repository.upsertApp(app.copy(latestTag = release.tag))
@@ -160,9 +187,33 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
+    /** Enables or disables a source — like toggling an F-Droid repo. Disabled sources are hidden
+     *  from the External tab and the Updates tab, and skipped when checking for new releases. */
+    fun setSourceEnabled(app: ExternalApp, enabled: Boolean) {
+        viewModelScope.launch { repository.upsertApp(app.copy(enabled = enabled)) }
+    }
+
     /** Forces a re-query of which tracked apps are installed (e.g. after returning to the screen). */
     fun refreshInstalled() {
         installedRefresh.value++
+    }
+
+    /**
+     * Replaces each installed app's stored label with the real on-device app name (e.g. "GlassKeep"
+     * instead of the repo name "glasskeep-enhanced"). Reads the package manager off the main thread;
+     * one upsert per changed label, so it converges and is safe to call on every screen open.
+     */
+    fun reconcileInstalledLabels() {
+        viewModelScope.launch {
+            val updated = withContext(Dispatchers.Default) {
+                apps.value.mapNotNull { app ->
+                    val pkg = app.packageName ?: return@mapNotNull null
+                    val realLabel = installedLabel(pkg) ?: return@mapNotNull null
+                    if (realLabel != app.label) app.copy(label = realLabel) else null
+                }
+            }
+            updated.forEach { repository.upsertApp(it) }
+        }
     }
 
     fun remove(key: String) {
@@ -234,10 +285,13 @@ class ExternalAppsViewModel @Inject constructor(
                 snack(context.getString(R.string.external_invalid_apk))
                 return
             }
+            // Read the real icon + app name from the APK we just downloaded (releases carry neither).
+            val realLabel = cacheIconAndReadLabel(releaseFile.absolutePath, app.key)
             installManager.install(InstallItem(PackageName(packageName), cacheFileName))
             repository.upsertApp(
                 app.copy(
                     packageName = packageName,
+                    label = realLabel ?: app.label,
                     installedTag = release.tag,
                     latestTag = release.tag,
                 ),
@@ -251,12 +305,38 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
+    /** Reads the APK at [apkPath]: caches its real launcher icon (best-effort) and returns its real
+     *  app label (e.g. "GlassKeep"), so the UI isn't stuck with the repo name. Null on failure. */
+    private fun cacheIconAndReadLabel(apkPath: String, key: String): String? {
+        val pm = context.packageManager
+        val info = runCatching { pm.getPackageArchiveInfo(apkPath, 0) }.getOrNull() ?: return null
+        val appInfo = info.applicationInfo?.apply {
+            sourceDir = apkPath
+            publicSourceDir = apkPath
+        } ?: return null
+        runCatching { appInfo.loadIcon(pm).toBitmap() }.getOrNull()?.let {
+            ExternalIconCache.save(context, key, it)
+        }
+        return runCatching { appInfo.loadLabel(pm).toString() }
+            .getOrNull()
+            ?.takeIf { it.isNotBlank() }
+    }
+
     private fun isInstalled(packageName: String): Boolean = try {
         context.packageManager.getPackageInfo(packageName, 0)
         true
     } catch (e: PackageManager.NameNotFoundException) {
         false
     }
+
+    private fun installedVersionName(packageName: String): String? = runCatching {
+        context.packageManager.getPackageInfo(packageName, 0).versionName
+    }.getOrNull()
+
+    private fun installedLabel(packageName: String): String? = runCatching {
+        val pm = context.packageManager
+        pm.getApplicationInfo(packageName, 0).loadLabel(pm).toString()
+    }.getOrNull()?.takeIf { it.isNotBlank() }
 
     private fun updateDownload(key: String, status: DownloadStatus) {
         _downloads.value = _downloads.value + (key to status)

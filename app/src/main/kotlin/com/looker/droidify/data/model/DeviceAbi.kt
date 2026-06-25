@@ -10,14 +10,18 @@ private val devicePrimaryAbi: String? = Build.SUPPORTED_64_BIT_ABIS?.firstOrNull
     ?: Build.SUPPORTED_32_BIT_ABIS?.firstOrNull()
 
 /**
- * Whether this device can install [this] release: its declared SDK range must include the running
- * version and, when it carries native code, it must ship a library for one of the device's ABIs.
+ * Whether this device can install [this] release: the running SDK must be at least the release's
+ * minSdk and, when it carries native code, it must ship a library for one of the device's ABIs.
+ *
+ * We deliberately do NOT reject on maxSdkVersion: Android has ignored maxSdkVersion at install and
+ * runtime since API 21, so an app declaring e.g. maxSdkVersion=30 still installs and runs on Android
+ * 15. Rejecting it here made apps whose maxSdkVersion was below the device's SDK look "up to date"
+ * (only a Launch button) even when a newer version existed — they appeared in the Updates tab but
+ * couldn't actually be updated.
  */
 fun Package.isInstallableOnDevice(sdk: Int = Build.VERSION.SDK_INT): Boolean {
     val min = manifest.usesSDKs.min
-    val max = manifest.usesSDKs.max
     if (min > 0 && sdk < min) return false
-    if (max > 0 && sdk > max) return false
     val abis = platforms.value
     return abis.isEmpty() || abis.any { it in deviceAbis }
 }

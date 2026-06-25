@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -99,7 +101,34 @@ fun AppDetailScreen(
     val installState by viewModel.installState.collectAsStateWithLifecycle()
     val downloadStatus by viewModel.downloadStatus.collectAsStateWithLifecycle()
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
+    val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
+    val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
+
+    if (signatureConflict) {
+        val conflictAppName = (state as? AppDetailState.Success)?.app?.metadata?.name
+            ?: viewModel.packageName
+        AlertDialog(
+            onDismissRequest = viewModel::dismissSignatureConflict,
+            title = { Text(stringResource(R.string.signature_conflict_title)) },
+            text = {
+                Text(stringResource(R.string.install_failed_signature_mismatch, conflictAppName))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.uninstall()
+                        viewModel.dismissSignatureConflict()
+                    },
+                ) { Text(stringResource(R.string.uninstall)) }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissSignatureConflict) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -144,6 +173,7 @@ fun AppDetailScreen(
                     customButtons = customButtons,
                     installState = installState,
                     downloadStatus = downloadStatus,
+                    installedInfo = installedInfo,
                     isFavourite = isFavourite,
                     onToggleFavourite = viewModel::toggleFavourite,
                     onInstallOrUpdate = viewModel::installOrUpdate,
@@ -224,6 +254,7 @@ private fun AppDetail(
     customButtons: List<CustomButton>,
     installState: InstallState?,
     downloadStatus: DownloadStatus?,
+    installedInfo: InstalledInfo?,
     isFavourite: Boolean,
     onToggleFavourite: () -> Unit,
     onInstallOrUpdate: () -> Unit,
@@ -267,6 +298,21 @@ private fun AppDetail(
             onCancel = onCancel,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
+
+        // The real installed version + its source, so it's clear which build is on the device (e.g. a
+        // fork installed over the upstream package keeps its own version).
+        installedInfo?.let { info ->
+            Text(
+                text = stringResource(
+                    R.string.installed_version_source,
+                    info.version,
+                    info.source,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
 
         if (customButtons.isNotEmpty()) {
             Spacer(modifier = Modifier.height(12.dp))

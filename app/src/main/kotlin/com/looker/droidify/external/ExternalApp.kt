@@ -23,6 +23,9 @@ data class ExternalApp(
     val latestTag: String? = null,
     /** Whether to consider pre-releases when picking the latest release. */
     val includePrereleases: Boolean = false,
+    /** Whether this source is active. Disabled sources are hidden from the External tab and updates,
+     *  and skipped when checking for new releases — exactly like a disabled F-Droid repository. */
+    val enabled: Boolean = true,
 ) {
     /** Stable identity for lists / de-duplication (provider-scoped, so the same owner/repo on two
      *  providers stays distinct). */
@@ -36,6 +39,18 @@ data class ExternalApp(
             SourceProvider.GITHUB -> "https://github.com/$owner/$repo"
             SourceProvider.GITLAB -> "https://gitlab.com/$owner/$repo"
             SourceProvider.CODEBERG -> "https://codeberg.org/$owner/$repo"
+        }
+
+    /**
+     * A logo to show *before* the app is installed: the source account's avatar. GitHub exposes a
+     * stable per-owner avatar at `github.com/<owner>.png` (for AdAway that's the AdAway logo). The
+     * other providers have no equally stable by-name URL, so we fall back to a placeholder until the
+     * app is installed (then the real launcher icon is used).
+     */
+    val iconUrl: String?
+        get() = when (provider) {
+            SourceProvider.GITHUB -> "https://github.com/$owner.png"
+            SourceProvider.GITLAB, SourceProvider.CODEBERG -> null
         }
 
     /** A newer release than the one installed is available. */

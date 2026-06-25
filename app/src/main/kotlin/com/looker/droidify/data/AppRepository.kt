@@ -1,5 +1,6 @@
 package com.looker.droidify.data
 
+import android.os.Build
 import com.looker.droidify.data.local.dao.AppDao
 import com.looker.droidify.data.local.dao.RepoDao
 import com.looker.droidify.data.local.model.toApp
@@ -49,9 +50,16 @@ class AppRepository @Inject constructor(
         )
     }
 
-    /** Latest available versionCode for every app, keyed by appId — used to detect updates. */
+    /**
+     * Highest versionCode *installable on this device* for every app, keyed by appId — used to
+     * detect updates so the Updates tab matches what the detail screen will actually install (it
+     * filters by ABI + minSdk, unlike a device-blind MAX which over-reports for multi-ABI apps).
+     */
     suspend fun suggestedVersionCodes(): Map<Int, Long> = withContext(Dispatchers.Default) {
-        appDao.suggestedVersionCodesAll()
+        appDao.deviceCompatibleVersionCodes(
+            sdk = Build.VERSION.SDK_INT,
+            abis = Build.SUPPORTED_ABIS.toList(),
+        )
     }
 
     /** Emits whenever the catalogue (apps/versions) changes, e.g. after a sync. */

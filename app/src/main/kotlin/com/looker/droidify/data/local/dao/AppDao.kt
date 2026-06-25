@@ -254,16 +254,43 @@ interface AppDao {
     )
     suspend fun suggestedVersionNamesAll(): Map<Int, String>
 
-    // Batch fetch the latest (max) versionCode for every app, keyed by appId.
-    @MapInfo(keyColumn = "appId", valueColumn = "versionCode")
-    @Query(
-        """
-        SELECT v.appId AS appId, MAX(v.versionCode) AS versionCode
-        FROM version v
-        GROUP BY appId
-        """,
-    )
-    suspend fun suggestedVersionCodesAll(): Map<Int, Long>
+    data class AppVersionCodeRow(val appId: Int, val versionCode: Long)
+
+    @RawQuery
+    suspend fun _rawDeviceCompatibleVersionCodes(
+        query: SimpleSQLiteQuery,
+    ): List<AppVersionCodeRow>
+
+    /**
+     * Highest *installable-on-this-device* versionCode per app, keyed by appId — used to detect
+     * updates. Mirrors [com.looker.droidify.data.model.selectForDevice] / isInstallableOnDevice: a
+     * version counts only when the running [sdk] is at least its minSdk and, if it ships native
+     * code, it targets one of the device's [abis] (no native code = universal). versionCodes are
+     * unique per app, so MAX(compatible) is exactly the version selectForDevice would install.
+     *
+     * Multi-ABI apps (e.g. RustDesk) publish one APK per ABI under *different* versionCodes, so a
+     * device-blind MAX picks another architecture's higher code and wrongly flags an update that the
+     * detail screen then refuses to install.
+     */
+    suspend fun deviceCompatibleVersionCodes(sdk: Int, abis: List<String>): Map<Int, Long> {
+        // nativeCode is a JSON string list, e.g. ["arm64-v8a"] or []. "No native code" = it contains
+        // no quoted element. We use GLOB (not LIKE) so the only wildcard is '*': '_' and '-' are
+        // literals, so "x86_64" / "armeabi-v7a" match exactly and "x86" can't match "x86_64". The
+        // ABIs are bound as args, and GLOB is case-sensitive — both index and Build.SUPPORTED_ABIS
+        // use canonical lowercase names.
+        val abiMatch = abis.joinToString(" OR ") { "nativeCode GLOB ('*\"' || ? || '\"*')" }
+        val compatible = if (abis.isEmpty()) {
+            "nativeCode NOT GLOB '*\"*'"
+        } else {
+            "(nativeCode NOT GLOB '*\"*' OR $abiMatch)"
+        }
+        val query = SimpleSQLiteQuery(
+            "SELECT appId, MAX(versionCode) AS versionCode FROM version " +
+                "WHERE minSdkVersion <= ? AND $compatible GROUP BY appId",
+            (listOf<Any>(sdk) + abis).toTypedArray(),
+        )
+        return _rawDeviceCompatibleVersionCodes(query).associate { it.appId to it.versionCode }
+    }
 
     @Transaction
     @Query("SELECT * FROM app WHERE packageName = :packageName")

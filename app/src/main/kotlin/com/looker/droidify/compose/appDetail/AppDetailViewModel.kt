@@ -2,12 +2,16 @@ package com.looker.droidify.compose.appDetail
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.App
@@ -68,6 +72,16 @@ class AppDetailViewModel @Inject constructor(
         .map { it[PackageName(packageName)] }
         .asStateFlow(null)
 
+    /**
+     * The real installed version + where it was installed from, or null when not installed. Read
+     * from the package manager (re-read on any install/uninstall) so the detail screen shows what's
+     * actually on the device — e.g. a fork installed over the upstream package keeps its own version.
+     */
+    val installedInfo: StateFlow<InstalledInfo?> = installManager.state
+        .map { readInstalledInfo() }
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(null)
+
     /** Whether this app is in the user's favourites. */
     val isFavourite: StateFlow<Boolean> = settingsRepository.get { favouriteApps }
         .map { packageName in it }
@@ -85,6 +99,18 @@ class AppDetailViewModel @Inject constructor(
      * running. Drives the progress bar shown before the system install starts.
      */
     val downloadStatus: StateFlow<DownloadStatus?> = _downloadStatus
+
+    /**
+     * Set when the freshly-downloaded APK is signed by a different key than the copy already
+     * installed on the device. Android can't update across signers, so the UI shows a dialog asking
+     * the user to uninstall the existing app first, instead of firing a doomed system install.
+     */
+    private val _signatureConflict = MutableStateFlow(false)
+    val signatureConflict: StateFlow<Boolean> = _signatureConflict
+
+    fun dismissSignatureConflict() {
+        _signatureConflict.value = false
+    }
 
     private var downloadJob: Job? = null
 
@@ -204,7 +230,16 @@ class AppDetailViewModel @Inject constructor(
                 DownloadResult.Ready
             }
             when (result) {
-                DownloadResult.Ready -> installManager.install(packageName installFrom cacheFileName)
+                DownloadResult.Ready -> {
+                    val releaseFile = Cache.getReleaseFile(context, cacheFileName)
+                    if (installedWithDifferentSignature(packageName, releaseFile)) {
+                        // The user must uninstall the existing (differently-signed) copy first; the
+                        // detail screen shows a dialog explaining this.
+                        _signatureConflict.value = true
+                    } else {
+                        installManager.install(packageName installFrom cacheFileName)
+                    }
+                }
                 is DownloadResult.Failed -> {
                     Log.w(TAG, "${result.message} (url=$url)")
                     toast(result.message)
@@ -220,10 +255,80 @@ class AppDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * True when [packageName] is already installed but signed by a different key than [apkFile].
+     * Android refuses to update an app across signers (INSTALL_FAILED_UPDATE_INCOMPATIBLE), so we
+     * detect it here rather than letting the system installer fail. Returns false when the app isn't
+     * installed or when either set of signatures can't be read (don't block on uncertainty).
+     */
+    @Suppress("DEPRECATION", "PackageManagerGetSignatures")
+    private fun installedWithDifferentSignature(packageName: String, apkFile: File): Boolean {
+        val pm = context.packageManager
+        val installedSignatures = signaturesOf { flags ->
+            runCatching { pm.getPackageInfo(packageName, flags) }.getOrNull()
+        }
+        if (installedSignatures.isEmpty()) return false
+        val apkSignatures = signaturesOf { flags ->
+            runCatching { pm.getPackageArchiveInfo(apkFile.absolutePath, flags) }.getOrNull()
+        }
+        if (apkSignatures.isEmpty()) return false
+        return installedSignatures.intersect(apkSignatures).isEmpty()
+    }
+
+    /** Signing certificates of a package, as hex strings, using the right API for the SDK level. */
+    @Suppress("DEPRECATION", "PackageManagerGetSignatures", "NewApi")
+    private fun signaturesOf(getInfo: (flags: Int) -> PackageInfo?): Set<String> {
+        val usesNewApi = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+        val flags = if (usesNewApi) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            PackageManager.GET_SIGNATURES
+        }
+        val info = getInfo(flags) ?: return emptySet()
+        val signatures = if (usesNewApi) info.signingInfo?.apkContentsSigners else info.signatures
+        return signatures?.mapNotNull { it?.toCharsString() }?.toSet().orEmpty()
+    }
+
+    private fun readInstalledInfo(): InstalledInfo? {
+        val info = runCatching {
+            context.packageManager.getPackageInfo(packageName, 0)
+        }.getOrNull() ?: return null
+        return InstalledInfo(
+            version = info.versionName.orEmpty(),
+            source = installerSourceLabel(),
+        )
+    }
+
+    /** Friendly name of the app that installed this package (Play, F-Droid, Droid-ify…), the raw
+     *  installer id, or a generic label for a sideloaded app with no recorded installer. */
+    private fun installerSourceLabel(): String {
+        val installer = runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                context.packageManager.getInstallSourceInfo(packageName).installingPackageName
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getInstallerPackageName(packageName)
+            }
+        }.getOrNull()
+        return when (installer) {
+            null, "" -> context.getString(R.string.installer_unknown)
+            "com.android.vending" -> "Google Play"
+            "org.fdroid.fdroid", "org.fdroid.basic" -> "F-Droid"
+            context.packageName -> "Droid-ify"
+            else -> installer
+        }
+    }
+
     private fun toast(message: String) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 }
+
+/** The version of this app currently installed on the device, and where it was installed from. */
+data class InstalledInfo(
+    val version: String,
+    val source: String,
+)
 
 private const val TAG = "AppDetailViewModel"
 

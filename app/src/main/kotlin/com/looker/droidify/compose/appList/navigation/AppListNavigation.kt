@@ -24,6 +24,7 @@ fun NavController.navigateToAppList() {
 
 fun NavGraphBuilder.appList(
     onAppClick: (String) -> Unit = { _ -> },
+    onExternalAppClick: (String) -> Unit = { _ -> },
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
 ) {
@@ -31,6 +32,7 @@ fun NavGraphBuilder.appList(
         val viewModel: AppListViewModel = hiltViewModel()
         AppListScreen(
             onAppClick = onAppClick,
+            onExternalAppClick = onExternalAppClick,
             viewModel = viewModel,
             onNavigateToRepos = onNavigateToRepos,
             onNavigateToSettings = onNavigateToSettings,

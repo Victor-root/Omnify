@@ -69,6 +69,7 @@
     <string name="saving_details">Enregistrement des détails…</string>
     <string name="recently_updated">Récemment mis à jour</string>
     <string name="repositories">Dépôts</string>
+    <string name="repo_section_fdroid">Dépôts F-Droid / Droidify</string>
     <string name="unknown">Inconnu</string>
     <string name="always">Toujours</string>
     <string name="application">Application</string>
@@ -285,7 +286,6 @@
     <string name="theme_color_wallpaper">Fond d\'écran</string>
     <!-- Sources d\'apps externes (GitHub / GitLab / Codeberg) -->
     <string name="tab_external">Externe</string>
-    <string name="external_apps_title">Apps externes</string>
     <string name="external_add">Ajouter</string>
     <string name="external_remove">Retirer</string>
     <string name="external_check_updates">Rechercher des mises à jour</string>
@@ -302,4 +302,12 @@
     <string name="external_download_failed">Échec du téléchargement de %1$s</string>
     <string name="external_invalid_apk">Le fichier téléchargé n\'est pas un APK valide</string>
     <string name="external_cant_launch">%1$s n\'a pas d\'activité lançable</string>
+    <string name="external_repo_latest">Dernière sur %1$s : %2$s</string>
+    <string name="external_installed_version">Installé : %1$s</string>
+    <string name="external_preinstall_notice">Installez l\'app pour afficher son vrai nom, son icône et sa version — en attendant, ce sont ceux du dépôt.</string>
+    <string name="external_add_source">Ajouter une source externe</string>
+    <string name="install_failed_signature_mismatch">%1$s est déjà installé depuis une autre source. Désinstallez-le d\'abord, puis installez cette version.</string>
+    <string name="signature_conflict_title">Désinstallation nécessaire</string>
+    <string name="installer_unknown">Source inconnue</string>
+    <string name="installed_version_source">Installé : %1$s · via %2$s</string>
 </resources>
