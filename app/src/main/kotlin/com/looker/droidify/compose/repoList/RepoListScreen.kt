@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -28,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -44,18 +47,33 @@ fun RepoListScreen(
     viewModel: RepoListViewModel,
     onRepoClick: (Int) -> Unit,
     onBackClick: () -> Unit,
+    onNavigateToExternalApps: () -> Unit,
 ) {
     val repos by viewModel.stream.collectAsStateWithLifecycle()
+    val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(text = stringResource(R.string.repositories)) },
-                navigationIcon = { BackButton(onBackClick) },
-            )
+            Column {
+                TopAppBar(
+                    title = { Text(text = stringResource(R.string.repositories)) },
+                    navigationIcon = { BackButton(onBackClick) },
+                    actions = {
+                        IconButton(onClick = onNavigateToExternalApps) {
+                            Icon(
+                                painterResource(R.drawable.ic_tabler_package),
+                                contentDescription = stringResource(R.string.external_apps_title),
+                            )
+                        }
+                    },
+                )
+                if (isSyncing) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
         },
     ) { contentPadding ->
         LazyColumn(contentPadding = contentPadding) {
-            items(repos) { repo ->
+            items(repos, key = { it.id }) { repo ->
                 RepoItem(
                     onClick = { onRepoClick(repo.id) },
                     onToggle = { viewModel.toggleRepo(repo) },

@@ -12,8 +12,8 @@ Simple guide to build Droid-ify from source.
 
 ```bash
 # Clone the repository
-git clone https://github.com/Iamlooker/Droid-ify.git
-cd Droid-ify
+git clone https://github.com/Victor-root/Droidify-enhanced.git
+cd Droidify-enhanced
 
 # Build debug APK
 ./gradlew assembleDebug
@@ -27,7 +27,7 @@ cd Droid-ify
 ## Android Studio
 
 1. Open Android Studio
-2. **File** → **Open** → Select `Droid-ify` folder
+2. **File** → **Open** → Select `Droidify-enhanced` folder
 3. Wait for sync to complete
 4. **Build** → **Build Bundle(s) / APK(s)** → **Build APK(s)**
 

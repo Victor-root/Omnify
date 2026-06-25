@@ -175,11 +175,14 @@ private fun RepoDetails(
 
         AnimatedVisibility(repo.description.isNotEmpty()) {
             val handler = LocalUriHandler.current
+            // Parsing the HTML description is expensive; do it once per description instead of on
+            // every recomposition.
+            val description = remember(repo.description) {
+                repo.description.toAnnotatedString(onUrlClick = { handler.openUri(it) })
+            }
             Column {
                 Text(
-                    text = repo.description.toAnnotatedString(
-                        onUrlClick = { handler.openUri(it) },
-                    ),
+                    text = description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

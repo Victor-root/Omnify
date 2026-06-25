@@ -20,3 +20,8 @@ local.properties
 /app/release/
 /app/alpha/
 /.kotlin/
+
+# Signing — never commit the keystore or its passwords
+keystore.properties
+*.jks
+*.keystore

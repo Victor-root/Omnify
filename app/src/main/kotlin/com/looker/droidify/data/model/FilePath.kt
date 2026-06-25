@@ -11,21 +11,13 @@ fun FilePath(
     path: String?,
 ): FilePath? {
     if (path.isNullOrBlank()) return null
-    val builder = cachedBaseBuilders.getOrPut(baseUrl) { StringBuilder(baseUrl) }
-    val builderLength = builder.length
-
-    if (!baseUrl.endsWith("/") && !path.startsWith("/")) {
-        builder.append("/")
-    } else if (baseUrl.endsWith("/") && path.startsWith("/")) {
-        builder.deleteCharAt(builder.length - 1)
+    // Join base + path with exactly one separator. Built directly (no shared StringBuilder):
+    // this runs concurrently from several DB-mapping threads, and a cached, mutable builder
+    // shared per baseUrl raced and crashed with StringIndexOutOfBoundsException.
+    val joined = when {
+        !baseUrl.endsWith("/") && !path.startsWith("/") -> "$baseUrl/$path"
+        baseUrl.endsWith("/") && path.startsWith("/") -> baseUrl.dropLast(1) + path
+        else -> baseUrl + path
     }
-    builder.append(path)
-
-    return try {
-        FilePath(builder.toString())
-    } finally {
-        builder.setLength(builderLength)
-    }
+    return FilePath(joined)
 }
-
-private val cachedBaseBuilders = mutableMapOf<String, StringBuilder>()

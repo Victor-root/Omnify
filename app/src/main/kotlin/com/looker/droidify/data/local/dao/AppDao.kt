@@ -212,7 +212,9 @@ interface AppDao {
                 SortOrder.UPDATED -> append("app.lastUpdated DESC")
                 SortOrder.ADDED -> append("app.added DESC")
                 SortOrder.SIZE -> append("version.apk_size DESC")
-                SortOrder.NAME -> Unit
+                // Order alphabetically by the (localised) name, case-insensitively. Appending
+                // nothing here left a dangling "ORDER BY" and crashed the query (SQLITE_ERROR).
+                SortOrder.NAME -> append("COALESCE(n_loc.name, n_en.name) COLLATE NOCASE")
             }
         }
 
@@ -252,12 +254,30 @@ interface AppDao {
     )
     suspend fun suggestedVersionNamesAll(): Map<Int, String>
 
+    // Batch fetch the latest (max) versionCode for every app, keyed by appId.
+    @MapInfo(keyColumn = "appId", valueColumn = "versionCode")
+    @Query(
+        """
+        SELECT v.appId AS appId, MAX(v.versionCode) AS versionCode
+        FROM version v
+        GROUP BY appId
+        """,
+    )
+    suspend fun suggestedVersionCodesAll(): Map<Int, Long>
+
     @Transaction
     @Query("SELECT * FROM app WHERE packageName = :packageName")
     fun queryAppEntity(packageName: String): Flow<List<AppEntityRelations>>
 
     @Query("SELECT COUNT(*) FROM app")
     suspend fun count(): Int
+
+    /**
+     * Emits on any change to the app or version tables (e.g. after a sync). Used to trigger
+     * reactive re-queries of the catalogue; the numeric value itself is not meaningful.
+     */
+    @Query("SELECT (SELECT COUNT(*) FROM app) + (SELECT COUNT(*) FROM version)")
+    fun catalogSizeStream(): Flow<Int>
 
     @Query("DELETE FROM app WHERE id = :id")
     suspend fun delete(id: Int)

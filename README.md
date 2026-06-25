@@ -11,10 +11,11 @@
 
 > **Clutterfree F-Droid client**
 
-[![GitHub stars](https://img.shields.io/github/stars/Iamlooker/Droid-ify?color=%2359a14f&style=for-the-badge)](https://github.com/Iamlooker/Droid-ify/stargazers)
-[![GitHub downloads](https://img.shields.io/github/downloads/Iamlooker/Droid-ify/total.svg?color=%236f9645&style=for-the-badge)](https://github.com/Iamlooker/Droid-ify/releases/)
-[![GitHub latest release](https://img.shields.io/github/v/release/Iamlooker/Droid-ify?display_name=tag&color=%23d97706&style=for-the-badge)](https://github.com/Iamlooker/Droid-ify/releases/latest)
-[![F-Droid latest release](https://img.shields.io/f-droid/v/com.looker.droidify?color=%23ea9010&style=for-the-badge)](https://f-droid.org/packages/com.looker.droidify)
+> _Enhanced fork maintained by [Victor-root](https://github.com/Victor-root) — based on [Droid-ify](https://github.com/Droid-ify/client) by LooKeR._
+
+[![GitHub stars](https://img.shields.io/github/stars/Victor-root/Droidify-enhanced?color=%2359a14f&style=for-the-badge)](https://github.com/Victor-root/Droidify-enhanced/stargazers)
+[![GitHub downloads](https://img.shields.io/github/downloads/Victor-root/Droidify-enhanced/total.svg?color=%236f9645&style=for-the-badge)](https://github.com/Victor-root/Droidify-enhanced/releases/)
+[![GitHub latest release](https://img.shields.io/github/v/release/Victor-root/Droidify-enhanced?display_name=tag&color=%23d97706&style=for-the-badge)](https://github.com/Victor-root/Droidify-enhanced/releases/latest)
 </div>
 <div align="left">
 
@@ -28,15 +29,7 @@
 
 ### Get Started
 
-**Download**: [GitHub Releases](https://github.com/Iamlooker/Droid-ify/releases/latest) • [F-Droid](https://f-droid.org/packages/com.looker.droidify)
-
-**Signature:**
-```
-ED:88:59:C5:5A:F3:11:16:26:58:B9:4A:F9:82:B9:F0:91:DC:D2:76:28:D4:DE:34:86:D1:21:7E:BF:3C:99:35
-```
-
-> [!Note]
-> Signature for older versions on F-Droid might be different
+**Download**: [GitHub Releases](https://github.com/Victor-root/Droidify-enhanced/releases/latest)
 
 **Build**: See [Building Guide](docs/building.md) for development setup
 
@@ -51,9 +44,10 @@ ED:88:59:C5:5A:F3:11:16:26:58:B9:4A:F9:82:B9:F0:91:DC:D2:76:28:D4:DE:34:86:D1:21
 ### License
 
 ```
-Droid-ify
+Droidify Enhanced — a fork of Droid-ify
 
-Copyright (C) 2025 LooKeR
+Copyright (C) 2025 LooKeR (original Droid-ify)
+Copyright (C) 2026 Victor-root (Droidify Enhanced fork)
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or

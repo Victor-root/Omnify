@@ -137,6 +137,8 @@
     <string name="light">Light</string>
     <string name="link_copied_to_clipboard">Link copied</string>
     <string name="links">Links</string>
+    <string name="issue_tracker">Issue tracker</string>
+    <string name="translation">Translation</string>
     <string name="material_you">Material You</string>
     <string name="material_you_desc">Use Material You colours</string>
     <string name="merging_FORMAT">Merging %s</string>
@@ -290,4 +292,27 @@
     <string name="custom_buttons_export">Export buttons</string>
     <string name="custom_buttons_import">Import buttons</string>
     <string name="custom_buttons_imported">Custom buttons imported</string>
+    <string name="theme_color">Theme color</string>
+    <string name="theme_color_DESC">Choose the accent color of the app</string>
+    <string name="theme_color_default">Default</string>
+    <string name="theme_color_wallpaper">Wallpaper</string>
+    <!-- External app sources (GitHub / GitLab / Codeberg) -->
+    <string name="tab_external">External</string>
+    <string name="external_apps_title">External apps</string>
+    <string name="external_add">Add</string>
+    <string name="external_remove">Remove</string>
+    <string name="external_check_updates">Check for updates</string>
+    <string name="external_source_url_label">Project URL (GitHub, GitLab, Codeberg)</string>
+    <string name="external_include_prereleases">Include pre-releases</string>
+    <string name="external_empty_hint">Add a project (e.g. github.com/owner/repo) to install and update its release APKs directly, like Obtainium.</string>
+    <string name="external_empty_tab">No external apps yet.\nAdd sources from the Repositories screen.</string>
+    <string name="external_invalid_url">Not a valid project URL (GitHub, GitLab or Codeberg)</string>
+    <string name="external_already_added">%1$s is already in your list</string>
+    <string name="external_no_release">No release found for %1$s (or rate-limited)</string>
+    <string name="external_added">Added %1$s</string>
+    <string name="external_unreachable">Couldn\'t reach %1$s</string>
+    <string name="external_no_apk">The latest %1$s release has no APK</string>
+    <string name="external_download_failed">Download failed for %1$s</string>
+    <string name="external_invalid_apk">Downloaded file isn\'t a valid APK</string>
+    <string name="external_cant_launch">%1$s has no launchable activity</string>
 </resources>

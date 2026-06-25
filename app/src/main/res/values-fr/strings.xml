@@ -279,4 +279,27 @@
     <string name="custom_buttons_export">Exporter boutons</string>
     <string name="custom_buttons_import">Importer boutons</string>
     <string name="custom_buttons_imported">Boutons persos importés</string>
+    <string name="theme_color">Couleur du thème</string>
+    <string name="theme_color_DESC">Choisir la couleur d\'accentuation de l\'app</string>
+    <string name="theme_color_default">Par défaut</string>
+    <string name="theme_color_wallpaper">Fond d\'écran</string>
+    <!-- Sources d\'apps externes (GitHub / GitLab / Codeberg) -->
+    <string name="tab_external">Externe</string>
+    <string name="external_apps_title">Apps externes</string>
+    <string name="external_add">Ajouter</string>
+    <string name="external_remove">Retirer</string>
+    <string name="external_check_updates">Rechercher des mises à jour</string>
+    <string name="external_source_url_label">URL du projet (GitHub, GitLab, Codeberg)</string>
+    <string name="external_include_prereleases">Inclure les préversions</string>
+    <string name="external_empty_hint">Ajoutez un projet (ex. github.com/auteur/depot) pour installer et mettre à jour ses APK de release directement, comme Obtainium.</string>
+    <string name="external_empty_tab">Aucune app externe pour l\'instant.\nAjoutez des sources depuis l\'écran Dépôts.</string>
+    <string name="external_invalid_url">URL de projet invalide (GitHub, GitLab ou Codeberg)</string>
+    <string name="external_already_added">%1$s est déjà dans votre liste</string>
+    <string name="external_no_release">Aucune release trouvée pour %1$s (ou limite d\'API atteinte)</string>
+    <string name="external_added">%1$s ajouté</string>
+    <string name="external_unreachable">Impossible de joindre %1$s</string>
+    <string name="external_no_apk">La dernière release de %1$s ne contient pas d\'APK</string>
+    <string name="external_download_failed">Échec du téléchargement de %1$s</string>
+    <string name="external_invalid_apk">Le fichier téléchargé n\'est pas un APK valide</string>
+    <string name="external_cant_launch">%1$s n\'a pas d\'activité lançable</string>
 </resources>

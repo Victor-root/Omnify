@@ -49,6 +49,15 @@ class AppRepository @Inject constructor(
         )
     }
 
+    /** Latest available versionCode for every app, keyed by appId — used to detect updates. */
+    suspend fun suggestedVersionCodes(): Map<Int, Long> = withContext(Dispatchers.Default) {
+        appDao.suggestedVersionCodesAll()
+    }
+
+    /** Emits whenever the catalogue (apps/versions) changes, e.g. after a sync. */
+    val catalogChanges: Flow<Int>
+        get() = appDao.catalogSizeStream()
+
     val categories: Flow<List<DefaultName>>
         get() = repoDao.categories().map { it.map { category -> category.defaultName } }
 

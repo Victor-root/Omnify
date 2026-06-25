@@ -22,6 +22,12 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
+/**
+ * Default accent color seed: Material Red 500 (#F44336).
+ * The whole MD3 theme (light & dark) is generated from this single seed color.
+ */
+val DEFAULT_THEME_COLOR: Int = 0xFFF44336.toInt()
+
 @Serializable
 @OptIn(ExperimentalTime::class)
 data class Settings(
@@ -32,6 +38,7 @@ data class Settings(
     val ignoreSignature: Boolean = false,
     val theme: Theme = Theme.SYSTEM,
     val dynamicTheme: Boolean = false,
+    val themeColor: Int = DEFAULT_THEME_COLOR,
     val installerType: InstallerType = InstallerType.Default,
     val legacyInstallerComponent: LegacyInstallerComponent? = null,
     val autoUpdate: Boolean = false,

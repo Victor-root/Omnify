@@ -47,19 +47,24 @@
 
         </receiver>
 
+        <!--
+          Compose entry point — the launcher and deeplink handler. The legacy Views
+          MainActivity has been removed; the migration to Jetpack Compose is ongoing.
+        -->
         <activity
-            android:name=".MainActivity"
+            android:name=".compose.MainComposeActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.SHOW_APP_INFO" />
-            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.SHOW_APP_INFO" />
             </intent-filter>
 
             <intent-filter>
@@ -155,19 +160,6 @@
             </intent-filter>
 
         </activity>
-
-        <service
-            android:name=".service.SyncService"
-            android:foregroundServiceType="dataSync" />
-
-        <service
-            android:name=".service.SyncService$Job"
-            android:exported="false"
-            android:permission="android.permission.BIND_JOB_SERVICE" />
-
-        <service
-            android:name=".service.DownloadService"
-            android:foregroundServiceType="dataSync" />
 
         <receiver
             android:name=".installer.installers.session.SessionInstallerReceiver"

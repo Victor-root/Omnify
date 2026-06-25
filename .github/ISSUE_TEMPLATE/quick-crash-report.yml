@@ -14,7 +14,7 @@ body:
       label: Before you submit
       description: Quick checks
       options:
-        - label: I have searched the issue tracker for [open](https://github.com/Droid-ify/client/issues) and [closed](https://github.com/Droid-ify/client/issues?q=is%3Aissue+is%3Aclosed) issues that are similar to the feature request I want to file, without success.
+        - label: I have searched the issue tracker for [open](https://github.com/Victor-root/Droidify-enhanced/issues) and [closed](https://github.com/Victor-root/Droidify-enhanced/issues?q=is%3Aissue+is%3Aclosed) issues that are similar to the feature request I want to file, without success.
           required: true
         - label: I'm on the latest version
           required: true

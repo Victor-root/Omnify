@@ -1,0 +1,33 @@
+# Hand-authored Baseline Profile.
+#
+# ART uses this to AOT-compile the listed methods at install time, so the first cold-start scroll
+# is already compiled instead of being interpreted/JIT-compiled while the user scrolls (the cause of
+# the "janky right after a cold start, then smooth" behaviour of a Compose UI without a profile).
+#
+# Format: HSPL<class>-><method> with wildcards. H = hot, S = startup, P = post-startup.
+# `**` matches any package/class path and `**(**)**` matches any method + signature.
+# The Android Gradle Plugin compiles this into the APK and remaps it through R8 for minified builds.
+#
+# These are broad rules covering the app code plus the rendering / state / image-loading stack that
+# every screen and the scrolling grid exercise. A profile *measured* on-device (via Macrobenchmark)
+# would be tighter, but this already removes the cold-start jank without needing a benchmark run.
+
+# --- App code ---
+HSPLcom/looker/droidify/**->**(**)**
+
+# --- Jetpack Compose: recomposition, layout/draw, lazy lists, components, animations ---
+HSPLandroidx/compose/runtime/**->**(**)**
+HSPLandroidx/compose/ui/**->**(**)**
+HSPLandroidx/compose/foundation/**->**(**)**
+HSPLandroidx/compose/material3/**->**(**)**
+HSPLandroidx/compose/animation/**->**(**)**
+
+# --- Lifecycle + Navigation (startup + screen transitions) ---
+HSPLandroidx/lifecycle/**->**(**)**
+HSPLandroidx/navigation/**->**(**)**
+
+# --- Coil 3: icon loading/decoding for the grid ---
+HSPLcoil3/**->**(**)**
+
+# --- Kotlin coroutines / flows: the StateFlow pipeline behind every screen ---
+HSPLkotlinx/coroutines/**->**(**)**

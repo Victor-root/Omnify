@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -30,6 +31,7 @@ class SessionInstaller(private val context: Context) : Installer {
         private val flags = if (SdkCheck.isSnowCake) PendingIntent.FLAG_MUTABLE else 0
         private val sessionParams =
             PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                setInstallReason(PackageManager.INSTALL_REASON_USER)
                 sdkAbove(sdk = Build.VERSION_CODES.S) {
                     setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
                 }
@@ -55,6 +57,7 @@ class SessionInstaller(private val context: Context) : Installer {
             override fun onProgressChanged(sessionId: Int, progress: Float) {}
             override fun onFinished(sessionId: Int, success: Boolean) {
                 if (sessionId == id) {
+                    log("Session $sessionId finished: success=$success", "SessionInstaller", Log.INFO)
                     cont.resume(
                         if (success) InstallState.Installed else InstallState.Failed,
                     )

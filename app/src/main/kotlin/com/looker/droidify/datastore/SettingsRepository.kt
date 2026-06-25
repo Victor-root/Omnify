@@ -37,6 +37,8 @@ interface SettingsRepository {
 
     suspend fun setDynamicTheme(enable: Boolean)
 
+    suspend fun setThemeColor(color: Int)
+
     suspend fun setInstallerType(installerType: InstallerType)
 
     suspend fun setLegacyInstallerComponent(component: LegacyInstallerComponent?)

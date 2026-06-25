@@ -87,6 +87,9 @@ class PreferenceSettingsRepository(
     override suspend fun setDynamicTheme(enable: Boolean) =
         DYNAMIC_THEME.update(enable)
 
+    override suspend fun setThemeColor(color: Int) =
+        THEME_COLOR.update(color)
+
     override suspend fun setInstallerType(installerType: InstallerType) =
         INSTALLER_TYPE.update(installerType.name)
 
@@ -230,6 +233,7 @@ class PreferenceSettingsRepository(
         val ignoreSignature = preferences[IGNORE_SIGNATURE] ?: false
         val theme = Theme.valueOf(preferences[THEME] ?: Theme.SYSTEM.name)
         val dynamicTheme = preferences[DYNAMIC_THEME] ?: false
+        val themeColor = preferences[THEME_COLOR] ?: DEFAULT_THEME_COLOR
         val autoUpdate = preferences[AUTO_UPDATE] ?: false
         val autoSync = AutoSync.valueOf(preferences[AUTO_SYNC] ?: AutoSync.WIFI_ONLY.name)
         val sortOrder = SortOrder.valueOf(preferences[SORT_ORDER] ?: SortOrder.UPDATED.name)
@@ -257,6 +261,7 @@ class PreferenceSettingsRepository(
             ignoreSignature = ignoreSignature,
             theme = theme,
             dynamicTheme = dynamicTheme,
+            themeColor = themeColor,
             installerType = installerType,
             legacyInstallerComponent = legacyInstallerComponent,
             autoUpdate = autoUpdate,
@@ -289,6 +294,7 @@ class PreferenceSettingsRepository(
         val UNSTABLE_UPDATES = booleanPreferencesKey("key_unstable_updates")
         val IGNORE_SIGNATURE = booleanPreferencesKey("key_ignore_signature")
         val DYNAMIC_THEME = booleanPreferencesKey("key_dynamic_theme")
+        val THEME_COLOR = intPreferencesKey("key_theme_color")
         val AUTO_UPDATE = booleanPreferencesKey("key_auto_updates")
         val PROXY_HOST = stringPreferencesKey("key_proxy_host")
         val PROXY_PORT = intPreferencesKey("key_proxy_port")
@@ -323,6 +329,7 @@ class PreferenceSettingsRepository(
             set(UNSTABLE_UPDATES, settings.unstableUpdate)
             set(THEME, settings.theme.name)
             set(DYNAMIC_THEME, settings.dynamicTheme)
+            set(THEME_COLOR, settings.themeColor)
             when (settings.legacyInstallerComponent) {
                 is LegacyInstallerComponent.Component -> {
                     set(LEGACY_INSTALLER_COMPONENT_TYPE, "component")

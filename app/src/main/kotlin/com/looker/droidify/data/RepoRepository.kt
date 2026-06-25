@@ -26,9 +26,12 @@ import com.looker.droidify.sync.v2.model.IndexV2
 import com.looker.droidify.work.SyncWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -104,7 +107,7 @@ class RepoRepository @Inject constructor(
             description = description,
             icon = icon,
         )
-    }
+    }.flowOn(Dispatchers.Default)
 
     suspend fun deleteRepo(id: Int) {
         repoDao.delete(id)
@@ -128,7 +131,7 @@ class RepoRepository @Inject constructor(
                 icon = icon,
             )
         }
-    }
+    }.distinctUntilChanged().flowOn(Dispatchers.Default)
 
     val addresses: Flow<Set<String>>
         get() = combine(
@@ -136,7 +139,7 @@ class RepoRepository @Inject constructor(
             repoDao.mirrors(),
         ) { repos, mirrors ->
             repos.map { it.address }.toSet() + mirrors.map { it.url }
-        }
+        }.flowOn(Dispatchers.Default)
 
     fun getEnabledRepos(): Flow<List<Repo>> = settingsRepository
         .get { enabledRepoIds }

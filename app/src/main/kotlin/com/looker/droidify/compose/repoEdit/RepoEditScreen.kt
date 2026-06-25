@@ -30,7 +30,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -42,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 
@@ -52,9 +52,9 @@ fun RepoEditScreen(
     onBackClick: () -> Unit,
     viewModel: RepoEditViewModel = hiltViewModel(),
 ) {
-    val isLoading by viewModel.isLoading.collectAsState()
-    val errorState by viewModel.errorState.collectAsState()
-    val authEnabled by viewModel.authEnabled.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val errorState by viewModel.errorState.collectAsStateWithLifecycle()
+    val authEnabled by viewModel.authEnabled.collectAsStateWithLifecycle()
     val isFormValid by remember { derivedStateOf { !errorState.hasError } }
 
     val snackbarHostState = remember { SnackbarHostState() }

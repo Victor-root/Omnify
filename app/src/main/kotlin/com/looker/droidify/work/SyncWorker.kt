@@ -14,6 +14,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.hasKeyWithValueOfType
@@ -26,6 +27,8 @@ import com.looker.droidify.utility.common.toForegroundInfo
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
@@ -165,5 +168,15 @@ class SyncWorker @AssistedInject constructor(
             WorkManager.getInstance(context).cancelAllWorkByTag(TAG)
             Log.i(TAG, "All sync work cancelled")
         }
+
+        /**
+         * Emits `true` while any sync (manual, repo-enable, periodic) is actively running. Drives
+         * the in-app progress bar so the user sees the catalog is loading — notably on first launch,
+         * where the list would otherwise look empty/broken until the first sync finishes.
+         */
+        fun isSyncing(context: Context): Flow<Boolean> =
+            WorkManager.getInstance(context)
+                .getWorkInfosByTagFlow(TAG)
+                .map { infos -> infos.any { it.state == WorkInfo.State.RUNNING } }
     }
 }

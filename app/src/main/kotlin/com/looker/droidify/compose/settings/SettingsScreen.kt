@@ -16,7 +16,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -34,6 +36,7 @@ import com.looker.droidify.compose.settings.components.SelectionSettingItem
 import com.looker.droidify.compose.settings.components.SettingHeader
 import com.looker.droidify.compose.settings.components.SwitchSettingItem
 import com.looker.droidify.compose.settings.components.TextInputSettingItem
+import com.looker.droidify.compose.settings.components.ThemeColorPickerDialog
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.InstallerType
@@ -48,14 +51,22 @@ import java.util.*
 import kotlin.time.Duration
 
 private const val BACKUP_MIME_TYPE = "application/json"
-private const val SETTINGS_BACKUP_NAME = "droidify_settings"
-private const val REPO_BACKUP_NAME = "droidify_repos"
-private const val CUSTOM_BUTTONS_BACKUP_NAME = "custom_buttons"
+private const val SETTINGS_BACKUP_NAME = "droidify_settings.json"
+private const val REPO_BACKUP_NAME = "droidify_repos.json"
+private const val CUSTOM_BUTTONS_BACKUP_NAME = "custom_buttons.json"
+
+// Backups are JSON. Older exports were written without a file extension, and file managers then
+// report them as application/octet-stream (or text/plain) — which made the backup file appear
+// greyed out / unselectable in the import picker. Accept those types too so any backup is pickable.
+private val IMPORT_MIME_TYPES = arrayOf("application/json", "application/octet-stream", "text/plain")
 
 private const val FOXY_DROID_TITLE = "FoxyDroid"
 private const val FOXY_DROID_URL = "https://github.com/kitsunyan/foxy-droid"
 private const val DROID_IFY_TITLE = "Droid-ify"
 private const val DROID_IFY_URL = "https://github.com/Droid-ify/client"
+private const val DROID_IFY_AUTHOR = "LooKeR"
+private const val DROIDIFY_ENHANCED_TITLE = "Droidify Enhanced"
+private const val DROIDIFY_ENHANCED_URL = "https://github.com/Victor-root/Droidify-enhanced"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,6 +125,8 @@ fun SettingsScreen(
         }
     }
 
+    var showColorPicker by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -157,15 +170,12 @@ fun SettingsScreen(
                 )
             }
 
-            if (SdkCheck.isSnowCake) {
-                item {
-                    SwitchSettingItem(
-                        title = stringResource(R.string.material_you),
-                        description = stringResource(R.string.material_you_desc),
-                        checked = settings.dynamicTheme,
-                        onCheckedChange = viewModel::setDynamicTheme,
-                    )
-                }
+            item {
+                ActionSettingItem(
+                    title = stringResource(R.string.theme_color),
+                    description = stringResource(R.string.theme_color_DESC),
+                    onClick = { showColorPicker = true },
+                )
             }
 
             item {
@@ -330,7 +340,7 @@ fun SettingsScreen(
                 ActionSettingItem(
                     title = stringResource(R.string.import_settings_title),
                     description = stringResource(R.string.import_settings_DESC),
-                    onClick = { importSettingsLauncher.launch(arrayOf(BACKUP_MIME_TYPE)) },
+                    onClick = { importSettingsLauncher.launch(IMPORT_MIME_TYPES) },
                 )
             }
 
@@ -346,7 +356,7 @@ fun SettingsScreen(
                 ActionSettingItem(
                     title = stringResource(R.string.import_repos_title),
                     description = stringResource(R.string.import_repos_DESC),
-                    onClick = { importReposLauncher.launch(arrayOf(BACKUP_MIME_TYPE)) },
+                    onClick = { importReposLauncher.launch(IMPORT_MIME_TYPES) },
                 )
             }
 
@@ -367,7 +377,7 @@ fun SettingsScreen(
                     onUpdateButton = viewModel::updateCustomButton,
                     onRemoveButton = viewModel::removeCustomButton,
                     onExport = { exportCustomButtonsLauncher.launch(CUSTOM_BUTTONS_BACKUP_NAME) },
-                    onImport = { importCustomButtonsLauncher.launch(arrayOf(BACKUP_MIME_TYPE)) },
+                    onImport = { importCustomButtonsLauncher.launch(IMPORT_MIME_TYPES) },
                 )
             }
 
@@ -384,11 +394,37 @@ fun SettingsScreen(
             item {
                 ActionSettingItem(
                     title = DROID_IFY_TITLE,
-                    description = BuildConfig.VERSION_NAME,
+                    description = DROID_IFY_AUTHOR,
                     onClick = { context.openLink(DROID_IFY_URL) },
                 )
             }
+
+            item {
+                ActionSettingItem(
+                    title = DROIDIFY_ENHANCED_TITLE,
+                    description = BuildConfig.VERSION_NAME,
+                    onClick = { context.openLink(DROIDIFY_ENHANCED_URL) },
+                )
+            }
         }
+    }
+
+    if (showColorPicker) {
+        ThemeColorPickerDialog(
+            selectedColor = settings.themeColor,
+            dynamicEnabled = settings.dynamicTheme,
+            showWallpaperOption = SdkCheck.isSnowCake,
+            onColorSelected = { color ->
+                if (settings.dynamicTheme) viewModel.setDynamicTheme(false)
+                viewModel.setThemeColor(color)
+                showColorPicker = false
+            },
+            onWallpaperSelected = {
+                viewModel.setDynamicTheme(true)
+                showColorPicker = false
+            },
+            onDismiss = { showColorPicker = false },
+        )
     }
 }
 

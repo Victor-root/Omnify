@@ -3,7 +3,6 @@
   <ManuallySuppressedIssues/>
   <CurrentIssues>
     <ID>AnnotationOnSeparateLine:PackageItemResolver.kt$PackageItemResolver$@Suppress("DEPRECATION") Manifest.permission.PROCESS_OUTGOING_CALLS</ID>
-    <ID>ComplexCondition:IndexV1Parser.kt$IndexV1Parser$permission.isNotEmpty() &amp;&amp; SdkCheck.sdk &gt;= minSdk &amp;&amp; ( maxSdk &lt;= 0 || SdkCheck.sdk &lt;= maxSdk )</ID>
     <ID>CyclomaticComplexMethod:AppDao.kt$AppDao$private fun searchQueryMinimal( sortOrder: SortOrder, searchQuery: String?, repoId: Int?, categoriesToInclude: List&lt;DefaultName&gt;?, categoriesToExclude: List&lt;DefaultName&gt;?, antiFeaturesToInclude: List&lt;Tag&gt;?, antiFeaturesToExclude: List&lt;Tag&gt;?, locale: String, ): SimpleSQLiteQuery</ID>
     <ID>CyclomaticComplexMethod:AppDetailAdapter.kt$AppDetailAdapter$fun setProducts( context: Context, packageName: String, suggestedRepo: String? = null, products: List&lt;Pair&lt;Product, Repository&gt;&gt;, rblogs: List&lt;RBLogEntity&gt;, downloads: Long, installedItem: InstalledItem?, isFavourite: Boolean, allowIncompatibleVersion: Boolean, )</ID>
     <ID>CyclomaticComplexMethod:AppDetailAdapter.kt$AppDetailAdapter$override fun onBindViewHolder( holder: RecyclerView.ViewHolder, position: Int, payloads: List&lt;Any&gt;, )</ID>
@@ -17,20 +16,12 @@
     <ID>CyclomaticComplexMethod:EditRepositoryFragment.kt$EditRepositoryFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>CyclomaticComplexMethod:EntrySyncable.kt$EntrySyncable$@OptIn(ExperimentalSerializationApi::class) override suspend fun sync( repo: Repo, block: (SyncState) -&gt; Unit, )</ID>
     <ID>CyclomaticComplexMethod:IndexDao.kt$IndexDao$@Transaction suspend fun insertIndex( fingerprint: Fingerprint, index: IndexV2, expectedRepoId: Int = 0, )</ID>
-    <ID>CyclomaticComplexMethod:IndexV1Parser.kt$IndexV1Parser$fun parse(repositoryId: Long, inputStream: InputStream, callback: Callback)</ID>
-    <ID>CyclomaticComplexMethod:IndexV1Parser.kt$IndexV1Parser$private fun JsonParser.parseProduct(repositoryId: Long): Product</ID>
-    <ID>CyclomaticComplexMethod:IndexV1Parser.kt$IndexV1Parser$private fun JsonParser.parseRelease(): Release</ID>
-    <ID>CyclomaticComplexMethod:MainActivity.kt$MainActivity$private fun handleIntent(intent: Intent?)</ID>
     <ID>CyclomaticComplexMethod:MessageDialog.kt$MessageDialog$override fun onCreateDialog(savedInstanceState: Bundle?): AlertDialog</ID>
     <ID>CyclomaticComplexMethod:PreferenceSettingsRepository.kt$PreferenceSettingsRepository$private fun mapSettings(preferences: Preferences): Settings</ID>
     <ID>CyclomaticComplexMethod:Preferences.kt$fun Configuration.getThemeRes(theme: Theme, dynamicTheme: Boolean)</ID>
-    <ID>CyclomaticComplexMethod:ProductSerialization.kt$fun JsonParser.product(): Product</ID>
     <ID>CyclomaticComplexMethod:ReleaseItem.kt$@OptIn(ExperimentalTime::class) @Composable fun ReleaseItem( release: Release, repository: Repository, installedItem: InstalledItem?, reproducible: Reproducible, showSignature: Boolean, suggested: Boolean, enabled: Boolean, onClick: () -&gt; Unit, onLongClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
-    <ID>CyclomaticComplexMethod:ReleaseSerialization.kt$fun JsonParser.release(): Release</ID>
     <ID>CyclomaticComplexMethod:RepositorySerialization.kt$fun JsonParser.repository(): Repository</ID>
-    <ID>CyclomaticComplexMethod:RepositoryUpdater.kt$RepositoryUpdater$fun processFile( context: Context, repository: Repository, indexType: IndexType, unstable: Boolean, file: File, mergerFile: File = Cache.getTemporaryFile(context), lastModified: String, entityTag: String, callback: (Stage, Long, Long?) -&gt; Unit, ): Boolean</ID>
     <ID>CyclomaticComplexMethod:ScreenshotEntity.kt$fun List&lt;ScreenshotEntity&gt;.toScreenshots(locale: String, baseAddress: String): Screenshots</ID>
-    <ID>CyclomaticComplexMethod:SyncService.kt$SyncService$private fun publishForegroundState(force: Boolean, state: State)</ID>
     <ID>CyclomaticComplexMethod:TabsFragment.kt$TabsFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>EmptyFunctionBlock:LegacyInstaller.kt$LegacyInstaller${}</ID>
     <ID>EmptyFunctionBlock:ProtoToPreferenceMigration.kt$ProtoToPreferenceMigration${ }</ID>
@@ -62,14 +53,10 @@
     <ID>LongMethod:EditRepositoryFragment.kt$EditRepositoryFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:EntrySyncable.kt$EntrySyncable$@OptIn(ExperimentalSerializationApi::class) override suspend fun sync( repo: Repo, block: (SyncState) -&gt; Unit, )</ID>
     <ID>LongMethod:IndexDao.kt$IndexDao$@Transaction suspend fun insertIndex( fingerprint: Fingerprint, index: IndexV2, expectedRepoId: Int = 0, )</ID>
-    <ID>LongMethod:IndexV1Parser.kt$IndexV1Parser$private fun JsonParser.parseProduct(repositoryId: Long): Product</ID>
     <ID>LongMethod:IndexV2MergerTest.kt$IndexV2MergerTest$@Test @DisplayName("Should merge simple package addition") fun testSimplePackageAddition()</ID>
     <ID>LongMethod:MessageDialog.kt$MessageDialog$override fun onCreateDialog(savedInstanceState: Bundle?): AlertDialog</ID>
-    <ID>LongMethod:ProductSerialization.kt$fun JsonParser.product(): Product</ID>
     <ID>LongMethod:ReleaseItem.kt$@OptIn(ExperimentalTime::class) @Composable fun ReleaseItem( release: Release, repository: Repository, installedItem: InstalledItem?, reproducible: Reproducible, showSignature: Boolean, suggested: Boolean, enabled: Boolean, onClick: () -&gt; Unit, onLongClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
-    <ID>LongMethod:ReleaseSerialization.kt$fun JsonParser.release(): Release</ID>
     <ID>LongMethod:RepoEditScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun RepoEditScreen( repoId: Int?, onBackClick: () -&gt; Unit, viewModel: RepoEditViewModel = hiltViewModel(), )</ID>
-    <ID>LongMethod:RepositoryUpdater.kt$RepositoryUpdater$fun processFile( context: Context, repository: Repository, indexType: IndexType, unstable: Boolean, file: File, mergerFile: File = Cache.getTemporaryFile(context), lastModified: String, entityTag: String, callback: (Stage, Long, Long?) -&gt; Unit, ): Boolean</ID>
     <ID>LongMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( viewModel: SettingsViewModel, onBackClick: () -&gt; Unit, )</ID>
     <ID>LongMethod:TabsFragment.kt$TabsFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongParameterList:AppDao.kt$AppDao$( sortOrder: SortOrder, searchQuery: String?, repoId: Int?, categoriesToInclude: List&lt;DefaultName&gt;?, categoriesToExclude: List&lt;DefaultName&gt;?, antiFeaturesToInclude: List&lt;Tag&gt;?, antiFeaturesToExclude: List&lt;Tag&gt;?, locale: String, )</ID>
@@ -77,7 +64,6 @@
     <ID>LongParameterList:RBLogEntity.kt$RBData$( val repository: String, val tag: String, val commit: String, val timestamp: Long, val reproducible: Boolean?, val error: String?, @SerialName("appid") val appId: String, @SerialName("apk_url") val apkUrl: String, @SerialName("version_code") val versionCode: Int, @SerialName("version_name") val versionName: String, )</ID>
     <ID>LongParameterList:ReleaseItem.kt$( release: Release, repository: Repository, installedItem: InstalledItem?, reproducible: Reproducible, showSignature: Boolean, suggested: Boolean, enabled: Boolean, onClick: () -&gt; Unit, onLongClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
     <ID>LongParameterList:RepoModule.kt$RepoModule$( repoDao: RepoDao, appDao: AppDao, authDao: AuthDao, indexDao: IndexDao, settingsRepository: SettingsRepository, encryptionStorage: EncryptionStorage, downloader: Downloader, @ApplicationContext context: Context, @IoDispatcher syncDispatcher: CoroutineDispatcher, )</ID>
-    <ID>LongParameterList:RepositoryUpdater.kt$RepositoryUpdater$( context: Context, repository: Repository, indexType: IndexType, unstable: Boolean, file: File, mergerFile: File = Cache.getTemporaryFile(context), lastModified: String, entityTag: String, callback: (Stage, Long, Long?) -&gt; Unit, )</ID>
     <ID>LoopWithTooManyJumpStatements:AnnotatedString.kt$for</ID>
     <ID>MatchingDeclarationName:AppDetailNavigation.kt$AppDetail</ID>
     <ID>MatchingDeclarationName:AppListNavigation.kt$AppList</ID>
@@ -115,10 +101,8 @@
     <ID>NestedBlockDepth:Cache.kt$Cache$private fun cleanupDir(dir: File, duration: Duration)</ID>
     <ID>NestedBlockDepth:DividerItemDecoration.kt$DividerItemDecoration$override fun onDraw(c: Canvas, parent: RecyclerView, state: RecyclerView.State)</ID>
     <ID>NestedBlockDepth:EditRepositoryFragment.kt$EditRepositoryFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
-    <ID>NestedBlockDepth:IndexV1Parser.kt$IndexV1Parser$private fun JsonParser.collectPermissions(permissions: LinkedHashSet&lt;String&gt;, minSdk: Int)</ID>
     <ID>NestedBlockDepth:LocalSyncable.kt$LocalSyncable$override suspend fun sync(repo: Repo, block: (SyncState) -&gt; Unit)</ID>
     <ID>NestedBlockDepth:MessageDialog.kt$MessageDialog$override fun onCreateDialog(savedInstanceState: Bundle?): AlertDialog</ID>
-    <ID>NestedBlockDepth:OemRepositoryParser.kt$OemRepositoryParser$fun parse(inputStream: InputStream): List&lt;Repository&gt;</ID>
     <ID>NestedBlockDepth:PackageItemResolver.kt$PackageItemResolver$private fun load( context: Context, localCache: LocalCache, packageName: String, nonLocalized: CharSequence?, resId: Int, ): CharSequence?</ID>
     <ID>NestedBlockDepth:RepositoryFragment.kt$RepositoryFragment$private fun setupView(repository: Repository?, appCount: Int)</ID>
     <ID>ParameterNaming:DropdownSettingItem.kt$onValueSelected</ID>
@@ -148,7 +132,6 @@
     <ID>SwallowedException:SettingsExporter.kt$SettingsExporter$e: SerializationException</ID>
     <ID>ThrowingExceptionsWithoutMessageOrCause:Cache.kt$Cache$RuntimeException()</ID>
     <ID>ThrowingExceptionsWithoutMessageOrCause:Cache.kt$Cache.Provider$IllegalArgumentException()</ID>
-    <ID>ThrowsCount:RepositoryUpdater.kt$RepositoryUpdater$fun processFile( context: Context, repository: Repository, indexType: IndexType, unstable: Boolean, file: File, mergerFile: File = Cache.getTemporaryFile(context), lastModified: String, entityTag: String, callback: (Stage, Long, Long?) -&gt; Unit, ): Boolean</ID>
     <ID>TooGenericExceptionCaught:AppDetailAdapter.kt$AppDetailAdapter$e: Exception</ID>
     <ID>TooGenericExceptionCaught:AppDetailFragment.kt$AppDetailFragment$e: Exception</ID>
     <ID>TooGenericExceptionCaught:Cache.kt$Cache$e: Exception</ID>
@@ -171,7 +154,6 @@
     <ID>TooGenericExceptionCaught:RBLogWorker.kt$RBLogWorker$e: Exception</ID>
     <ID>TooGenericExceptionCaught:RepoEditViewModel.kt$RepoEditViewModel$e: Exception</ID>
     <ID>TooGenericExceptionCaught:Repository.kt$Repository.Companion$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:RepositoryUpdater.kt$RepositoryUpdater$e: Exception</ID>
     <ID>TooGenericExceptionCaught:SyncWorker.kt$SyncWorker$t: Throwable</ID>
     <ID>TooGenericExceptionCaught:V1Syncable.kt$V1Syncable$t: Throwable</ID>
     <ID>TooGenericExceptionThrown:Cache.kt$Cache$throw RuntimeException()</ID>
@@ -181,8 +163,6 @@
     <ID>TooManyFunctions:Database.kt$Database$ProductAdapter</ID>
     <ID>TooManyFunctions:Database.kt$Database$RepositoryAdapter</ID>
     <ID>TooManyFunctions:IndexDao.kt$IndexDao</ID>
-    <ID>TooManyFunctions:IndexV1Parser.kt$IndexV1Parser</ID>
-    <ID>TooManyFunctions:MainActivity.kt$MainActivity : AppCompatActivity</ID>
     <ID>TooManyFunctions:PreferenceSettingsRepository.kt$PreferenceSettingsRepository : SettingsRepository</ID>
     <ID>TooManyFunctions:RepoDao.kt$RepoDao</ID>
     <ID>TooManyFunctions:SettingsRepository.kt$SettingsRepository</ID>

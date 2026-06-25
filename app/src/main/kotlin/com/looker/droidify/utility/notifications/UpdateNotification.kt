@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.view.ContextThemeWrapper
 import androidx.core.app.NotificationCompat
-import com.looker.droidify.MainActivity
+import com.looker.droidify.compose.MainComposeActivity
 import com.looker.droidify.R
 import com.looker.droidify.model.ProductItem
 import com.looker.droidify.utility.common.Constants
@@ -37,7 +37,7 @@ fun updatesAvailableNotification(
         PendingIntent.getActivity(
             context,
             0,
-            Intent(context, MainActivity::class.java).setAction(MainActivity.ACTION_UPDATES),
+            Intent(context, MainComposeActivity::class.java).setAction(MainComposeActivity.ACTION_UPDATES),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         ),
     )
