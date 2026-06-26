@@ -254,7 +254,13 @@ interface AppDao {
     )
     suspend fun suggestedVersionNamesAll(): Map<Int, String>
 
-    data class AppVersionCodeRow(val appId: Int, val versionCode: Long)
+    data class AppVersionCodeRow(
+        val appId: Int,
+        val versionCode: Long,
+        // Signing-certificate fingerprint(s) of that exact version (lowercase hex SHA-256), in the
+        // same format as the installed app's stored signature so the two can be compared directly.
+        val signer: List<String>,
+    )
 
     @RawQuery
     suspend fun _rawDeviceCompatibleVersionCodes(
@@ -262,17 +268,23 @@ interface AppDao {
     ): List<AppVersionCodeRow>
 
     /**
-     * Highest *installable-on-this-device* versionCode per app, keyed by appId — used to detect
-     * updates. Mirrors [com.looker.droidify.data.model.selectForDevice] / isInstallableOnDevice: a
-     * version counts only when the running [sdk] is at least its minSdk and, if it ships native
-     * code, it targets one of the device's [abis] (no native code = universal). versionCodes are
-     * unique per app, so MAX(compatible) is exactly the version selectForDevice would install.
+     * Highest *installable-on-this-device* version per app, with the signing-certificate
+     * fingerprint(s) of that exact version — used to detect updates and to tell whether an update can
+     * actually replace the installed app. Mirrors [com.looker.droidify.data.model.selectForDevice] /
+     * isInstallableOnDevice: a version counts only when the running [sdk] is at least its minSdk and,
+     * if it ships native code, it targets one of the device's [abis] (no native code = universal).
+     * versionCodes are unique per app, so MAX(compatible) is exactly the version selectForDevice
+     * would install.
      *
      * Multi-ABI apps (e.g. RustDesk) publish one APK per ABI under *different* versionCodes, so a
      * device-blind MAX picks another architecture's higher code and wrongly flags an update that the
      * detail screen then refuses to install.
+     *
+     * The bare `signer` column is read from the same row the `MAX(versionCode)` came from — SQLite's
+     * documented behaviour for a query with a single MAX() aggregate — so the fingerprint always
+     * belongs to the selected version, not some other row in the group.
      */
-    suspend fun deviceCompatibleVersionCodes(sdk: Int, abis: List<String>): Map<Int, Long> {
+    suspend fun deviceCompatibleVersions(sdk: Int, abis: List<String>): List<AppVersionCodeRow> {
         // nativeCode is a JSON string list, e.g. ["arm64-v8a"] or []. "No native code" = it contains
         // no quoted element. We use GLOB (not LIKE) so the only wildcard is '*': '_' and '-' are
         // literals, so "x86_64" / "armeabi-v7a" match exactly and "x86" can't match "x86_64". The
@@ -285,11 +297,11 @@ interface AppDao {
             "(nativeCode NOT GLOB '*\"*' OR $abiMatch)"
         }
         val query = SimpleSQLiteQuery(
-            "SELECT appId, MAX(versionCode) AS versionCode FROM version " +
+            "SELECT appId, MAX(versionCode) AS versionCode, signer FROM version " +
                 "WHERE minSdkVersion <= ? AND $compatible GROUP BY appId",
             (listOf<Any>(sdk) + abis).toTypedArray(),
         )
-        return _rawDeviceCompatibleVersionCodes(query).associate { it.appId to it.versionCode }
+        return _rawDeviceCompatibleVersionCodes(query)
     }
 
     @Transaction

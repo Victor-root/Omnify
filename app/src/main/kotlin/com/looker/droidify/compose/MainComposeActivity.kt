@@ -39,6 +39,7 @@ import com.looker.droidify.compose.repoList.navigation.repoList
 import com.looker.droidify.compose.settings.navigation.navigateToSettings
 import com.looker.droidify.compose.settings.navigation.settings
 import com.looker.droidify.compose.theme.DroidifyTheme
+import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.extension.getThemeRes
@@ -52,11 +53,13 @@ import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.deeplinkType
 import com.looker.droidify.utility.common.getInstallPackageName
 import com.looker.droidify.utility.common.requestNotificationPermission
+import com.looker.droidify.work.SyncWorker
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -68,6 +71,9 @@ class MainComposeActivity : ComponentActivity() {
 
     @Inject
     lateinit var repository: RepoRepository
+
+    @Inject
+    lateinit var appRepository: AppRepository
 
     @Inject
     lateinit var installer: InstallManager
@@ -168,7 +174,10 @@ class MainComposeActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         applyAccentColor(themeState)
         enableEdgeToEdge()
-        lifecycleScope.launch {
+        // Off the main thread: this seeds repos and queries the catalog/installed state, and the
+        // start-up frame is already busy — doing DB work here would jank the UI (and starve the
+        // WorkManager scheduler that has to dispatch the sync).
+        lifecycleScope.launch(Dispatchers.Default) {
             if (repository.repos.first().isEmpty()) {
                 Repository.defaultRepositories.forEach {
                     repository.insertRepo(it.address, it.fingerprint, null, null, it.name, it.description)
@@ -183,6 +192,15 @@ class MainComposeActivity : ComponentActivity() {
             repository.repos.first()
                 .filter { it.address in enabledByDefault && !it.enabled }
                 .forEach { repository.enableRepository(it, enable = true) }
+
+            // Self-heal an empty catalog. A schema migration recreates the database: the repo rows
+            // are re-seeded but the catalog isn't, and because a repo's enabled flag lives in
+            // DataStore (which survives the reset) the re-seeded repos can look "already enabled" —
+            // so the filter above syncs nothing and the list would stay blank until the next 12 h
+            // periodic sync. When there are enabled repos but no apps, kick one full sync now.
+            if (appRepository.appCount() == 0 && repository.getEnabledRepos().first().isNotEmpty()) {
+                SyncWorker.enqueueUserSync(this@MainComposeActivity)
+            }
         }
         requestNotificationPermission(request = notificationPermission::launch)
         setContent {

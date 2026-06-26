@@ -51,16 +51,24 @@ class AppRepository @Inject constructor(
     }
 
     /**
-     * Highest versionCode *installable on this device* for every app, keyed by appId — used to
-     * detect updates so the Updates tab matches what the detail screen will actually install (it
-     * filters by ABI + minSdk, unlike a device-blind MAX which over-reports for multi-ABI apps).
+     * Highest version *installable on this device* for every app, keyed by appId — used to detect
+     * updates so the Updates tab matches what the detail screen will actually install (it filters by
+     * ABI + minSdk, unlike a device-blind MAX which over-reports for multi-ABI apps). Each entry also
+     * carries that version's signer fingerprint(s) so callers can tell whether the update can replace
+     * the installed app in place (same signer) or not (different signer).
      */
-    suspend fun suggestedVersionCodes(): Map<Int, Long> = withContext(Dispatchers.Default) {
-        appDao.deviceCompatibleVersionCodes(
+    suspend fun suggestedVersions(): Map<Int, SuggestedVersion> = withContext(Dispatchers.Default) {
+        appDao.deviceCompatibleVersions(
             sdk = Build.VERSION.SDK_INT,
             abis = Build.SUPPORTED_ABIS.toList(),
-        )
+        ).associate { row ->
+            row.appId to SuggestedVersion(row.versionCode, row.signer.toSet())
+        }
     }
+
+    /** Number of apps currently in the catalogue. 0 means it's empty — e.g. before the first sync,
+     *  or after a schema migration reset the database. */
+    suspend fun appCount(): Int = withContext(Dispatchers.Default) { appDao.count() }
 
     /** Emits whenever the catalogue (apps/versions) changes, e.g. after a sync. */
     val catalogChanges: Flow<Int>
@@ -86,3 +94,13 @@ class AppRepository @Inject constructor(
         return !wasInFavourites
     }
 }
+
+/**
+ * The catalogue version that would be installed for an app on this device: its versionCode and the
+ * signing-certificate fingerprint(s) of that exact version (lowercase hex SHA-256, same format as an
+ * installed app's stored signature).
+ */
+data class SuggestedVersion(
+    val versionCode: Long,
+    val signers: Set<String>,
+)

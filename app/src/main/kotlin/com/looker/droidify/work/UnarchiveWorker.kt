@@ -79,9 +79,10 @@ class UnarchiveWorker @AssistedInject constructor(
             if (repo != null) app.packages.orEmpty().map { pkg -> pkg to repo } else emptyList()
         }
         val suggested = apps.maxOfOrNull { it.metadata.suggestedVersionCode } ?: 0L
-        // TODO: once the Room model stores APK signatures (VersionEntity.toPackages currently sets
-        //  signer = emptySet()), also require the chosen release's signature to match the archived
-        //  app's, as the legacy worker did, instead of trusting the enabled repos.
+        // Releases now carry their signer fingerprint (pkg.manifest.signer). To fully match the
+        // legacy worker we'd also reject releases whose signer differs from the archived app's own
+        // signature — but reading that requires the archived PackageInfo (MATCH_ARCHIVED_PACKAGES),
+        // which the installed-apps scan doesn't capture, so for now we still trust the enabled repos.
         val target = candidates.selectForDevice(suggested)
         if (target == null) {
             Log.e(TAG, "doWork: no compatible release found for $packageName")

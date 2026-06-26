@@ -6,34 +6,27 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.clearText
@@ -48,11 +41,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults.IconButtonWidthOption.Companion.Narrow
@@ -69,7 +62,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,6 +72,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -97,7 +90,7 @@ import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.datastore.extension.sortOrderName
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.supportedSortOrders
-import com.looker.droidify.sync.v2.model.DefaultName
+import kotlin.math.roundToInt
 
 @Composable
 fun AppListScreen(
@@ -110,12 +103,27 @@ fun AppListScreen(
     val apps by viewModel.displayedApps.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     val newApps by viewModel.newApps.collectAsStateWithLifecycle()
+    val recentlyUpdatedApps by viewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
+    val categoryCarousels by viewModel.categoryCarousels.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val selectedCategories by viewModel.selectedCategories.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrderFlow.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val updatesCount by viewModel.updatesCount.collectAsStateWithLifecycle()
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
     var searchExpanded by rememberSaveable { mutableStateOf(false) }
+
+    // Show just enough per-category carousels to fill (roughly) one screen of the Discover home; the
+    // categories list then appears as soon as you scroll. Derived from the available height.
+    val screenHeightDp = LocalConfiguration.current.screenHeightDp
+    val carouselCount = remember(screenHeightDp) {
+        val available = (screenHeightDp - DISCOVER_CHROME_DP).coerceAtLeast(0)
+        val rows = (available.toFloat() / DISCOVER_CAROUSEL_DP).roundToInt()
+        (rows - DISCOVER_STANDARD_CAROUSELS).coerceIn(0, DISCOVER_MAX_CATEGORY_CAROUSELS)
+    }
+    LaunchedEffect(carouselCount) { viewModel.setCarouselCount(carouselCount) }
+
 
     // The External tab is backed by its own ViewModel (Obtainium-style sources: GitHub/GitLab/
     // Codeberg). It shows the same 2-column card grid as the F-Droid tabs; tapping a card opens the
@@ -137,6 +145,12 @@ fun AppListScreen(
     // Disabled sources are hidden from the catalogue and updates, exactly like a disabled F-Droid repo.
     val enabledExternalApps = remember(externalApps) { externalApps.filter { it.enabled } }
     val externalUpdates = remember(enabledExternalApps) { enabledExternalApps.filter { it.hasUpdate } }
+
+    // First launch: the catalogue is still empty and a sync is running. Show a full-screen fetching
+    // state (like F-Droid) instead of an empty grid + thin banner. `newApps` is empty exactly when the
+    // catalogue has no apps, so it doubles as the "nothing loaded yet" signal. The External tab has
+    // its own content, so it's excluded.
+    val catalogLoading = isSyncing && newApps.isEmpty() && selectedTab != AppTab.EXTERNAL
 
     Scaffold(
         snackbarHost = { SnackbarHost(externalViewModel.snackbarHostState) },
@@ -167,12 +181,17 @@ fun AppListScreen(
                     SearchBar(state = viewModel.searchQuery)
                     Spacer(Modifier.height(8.dp))
                 }
-                if (isSyncing) {
+                // While the full-screen fetching state is up, the thin banner is redundant.
+                if (isSyncing && !catalogLoading) {
                     SyncBanner()
                 }
             }
         },
     ) { contentPadding ->
+        if (catalogLoading) {
+            RepoFetchingState(modifier = Modifier.padding(contentPadding))
+            return@Scaffold
+        }
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             state = gridState,
@@ -195,9 +214,68 @@ fun AppListScreen(
                 }
                 return@LazyVerticalGrid
             }
-            if (selectedTab == AppTab.AVAILABLE && newApps.isNotEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }, key = "new-apps-showcase") {
-                    NewAppsShowcase(apps = newApps, onAppClick = onAppClick)
+            if (selectedTab == AppTab.AVAILABLE) {
+                val installedPackages = installedVersionNames.keys
+                if (selectedCategories.isEmpty()) {
+                    // Full Discover home: carousels + the categories card.
+                    if (newApps.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-new") {
+                            DiscoverCarousel(
+                                title = stringResource(R.string.whats_new),
+                                apps = newApps,
+                                installedPackages = installedPackages,
+                                onAppClick = onAppClick,
+                                onSeeAll = { viewModel.setSortOrder(SortOrder.ADDED) },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                            )
+                        }
+                    }
+                    if (recentlyUpdatedApps.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-updated") {
+                            DiscoverCarousel(
+                                title = stringResource(R.string.discover_recently_updated),
+                                apps = recentlyUpdatedApps,
+                                installedPackages = installedPackages,
+                                onAppClick = onAppClick,
+                                onSeeAll = { viewModel.setSortOrder(SortOrder.UPDATED) },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                            )
+                        }
+                    }
+                    // Large screens only (empty otherwise): a carousel per category fills the space.
+                    categoryCarousels.forEach { row ->
+                        item(
+                            span = { GridItemSpan(maxLineSpan) },
+                            key = "cat-carousel-${row.category}",
+                        ) {
+                            DiscoverCarousel(
+                                title = row.category,
+                                apps = row.apps,
+                                installedPackages = installedPackages,
+                                onAppClick = onAppClick,
+                                onSeeAll = { viewModel.toggleCategory(row.category) },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                            )
+                        }
+                    }
+                    if (categories.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "categories") {
+                            DiscoverCategories(
+                                categories = categories,
+                                onCategoryClick = viewModel::toggleCategory,
+                                modifier = Modifier.padding(bottom = 8.dp),
+                            )
+                        }
+                    }
+                } else {
+                    // Browsing a category: show the active filter (removable) above the results.
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "selected-categories") {
+                        DiscoverSelectedCategories(
+                            selected = selectedCategories,
+                            onToggle = viewModel::toggleCategory,
+                            modifier = Modifier.padding(bottom = 8.dp),
+                        )
+                    }
                 }
             }
             val showEmpty = when (selectedTab) {
@@ -267,6 +345,36 @@ private fun AppTabRow(
                 },
             )
         }
+    }
+}
+
+/**
+ * Full-screen state shown on first launch while the catalogue is being fetched — mirrors F-Droid: a
+ * centred label above the Material 3 expressive wavy loading indicator (themed with the app's accent),
+ * instead of an empty grid.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun RepoFetchingState(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.fetching_repositories),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(28.dp))
+        CircularWavyProgressIndicator(
+            modifier = Modifier.size(64.dp),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
     }
 }
 
@@ -379,23 +487,6 @@ fun SearchBar(
     )
 }
 
-@Composable
-fun CategoriesList(
-    categories: List<DefaultName>,
-    modifier: Modifier = Modifier,
-    content: @Composable (DefaultName) -> Unit,
-) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        items(categories) { category ->
-            content(category)
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AppListTopBar(
@@ -476,98 +567,6 @@ private fun AppListTopBar(
             Spacer(Modifier.width(4.dp))
         },
     )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CategoryChip(
-    category: String,
-    selected: Boolean,
-    onToggle: () -> Unit,
-) {
-    FilterChip(
-        selected = selected,
-        onClick = onToggle,
-        label = { Text(category) },
-    )
-}
-
-/** Horizontal "What's new" showcase shown at the top of the home. */
-@Composable
-private fun NewAppsShowcase(
-    apps: List<AppMinimal>,
-    onAppClick: (String) -> Unit,
-) {
-    Column(modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
-        Text(
-            text = stringResource(R.string.whats_new),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            items(items = apps, key = { it.appId }) { app ->
-                ShowcaseCard(
-                    app = app,
-                    onClick = { onAppClick(app.packageName.name) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ShowcaseCard(
-    app: AppMinimal,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .width(88.dp)
-            .clip(MaterialTheme.shapes.medium)
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        var icon by remember(app.appId) { mutableStateOf(app.icon?.path) }
-        if (icon != null) {
-            AsyncImage(
-                model = icon,
-                onError = { icon = app.fallbackIcon?.path },
-                contentDescription = null,
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(MaterialTheme.shapes.medium),
-            )
-        } else {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        shape = MaterialTheme.shapes.medium,
-                    ),
-            ) {
-                Image(
-                    painter = painterResource(android.R.mipmap.sym_def_app_icon),
-                    contentDescription = null,
-                    modifier = Modifier.padding(8.dp),
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = app.name,
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
 }
 
 /**
@@ -656,3 +655,15 @@ private fun ExternalTabEmpty() {
         )
     }
 }
+
+/** Approximate height of one Discover carousel (title + a row of icons + spacing), in dp. */
+private const val DISCOVER_CAROUSEL_DP = 170
+
+/** Approximate height taken by the top app bar + tab row above the Discover content, in dp. */
+private const val DISCOVER_CHROME_DP = 112
+
+/** The always-present carousels (What's new + Recently updated) that already fill part of the screen. */
+private const val DISCOVER_STANDARD_CAROUSELS = 2
+
+/** Upper bound on per-category carousels, so a very tall screen can't request an absurd number. */
+private const val DISCOVER_MAX_CATEGORY_CAROUSELS = 8

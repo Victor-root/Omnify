@@ -2,6 +2,7 @@ package com.looker.droidify.compose.appDetail
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
@@ -32,6 +33,9 @@ import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.percentBy
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
+import com.looker.droidify.utility.common.extension.calculateHash
+import com.looker.droidify.utility.common.extension.getPackageArchiveInfoCompat
+import com.looker.droidify.utility.common.extension.singleSignature
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -39,6 +43,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
@@ -105,11 +110,11 @@ class AppDetailViewModel @Inject constructor(
      * installed on the device. Android can't update across signers, so the UI shows a dialog asking
      * the user to uninstall the existing app first, instead of firing a doomed system install.
      */
-    private val _signatureConflict = MutableStateFlow(false)
-    val signatureConflict: StateFlow<Boolean> = _signatureConflict
+    private val _signatureConflict = MutableStateFlow<SignatureConflict?>(null)
+    val signatureConflict: StateFlow<SignatureConflict?> = _signatureConflict
 
     fun dismissSignatureConflict() {
-        _signatureConflict.value = false
+        _signatureConflict.value = null
     }
 
     private var downloadJob: Job? = null
@@ -225,6 +230,22 @@ class AppDetailViewModel @Inject constructor(
                     partialFile.delete()
                     return@withContext DownloadResult.Failed("APK verification failed (hash mismatch)")
                 }
+                // Signature gate: the index declares which signing key each release is signed with.
+                // Refuse an APK whose actual signer isn't one the index expects — the old Droidify did
+                // this and the Compose rewrite had dropped it. Only block on a *proven* mismatch (the
+                // index declares a signer, the APK has a single readable signer, and it differs), and
+                // honour the "ignore signatures" setting as an escape hatch.
+                val expectedSigners = pkg.manifest.signer
+                if (expectedSigners.isNotEmpty() && !settingsRepository.get { ignoreSignature }.first()) {
+                    val apkSigner = apkSignerHash(partialFile)
+                    if (apkSigner != null && expectedSigners.none { it.equals(apkSigner, ignoreCase = true) }) {
+                        Log.w(TAG, "Signer mismatch for $packageName: apk=$apkSigner expected=$expectedSigners")
+                        partialFile.delete()
+                        return@withContext DownloadResult.Failed(
+                            context.getString(R.string.invalid_signature_error_DESC),
+                        )
+                    }
+                }
                 partialFile.copyTo(Cache.getReleaseFile(context, cacheFileName), overwrite = true)
                 partialFile.delete()
                 DownloadResult.Ready
@@ -233,9 +254,12 @@ class AppDetailViewModel @Inject constructor(
                 DownloadResult.Ready -> {
                     val releaseFile = Cache.getReleaseFile(context, cacheFileName)
                     if (installedWithDifferentSignature(packageName, releaseFile)) {
-                        // The user must uninstall the existing (differently-signed) copy first; the
-                        // detail screen shows a dialog explaining this.
-                        _signatureConflict.value = true
+                        // Different signer: Android can't update across keys. The detail screen shows a
+                        // dialog — offering to uninstall the existing copy first, unless it's a system
+                        // app, which can't be removed (so there's nothing the user can do, and we must
+                        // not keep telling them to uninstall in a loop).
+                        _signatureConflict.value =
+                            SignatureConflict(isSystemApp = isSystemApp(packageName))
                     } else {
                         installManager.install(packageName installFrom cacheFileName)
                     }
@@ -254,6 +278,17 @@ class AppDetailViewModel @Inject constructor(
             _downloadStatus.value = null
         }
     }
+
+    /**
+     * The downloaded APK's signing-certificate fingerprint (lowercase SHA-256 hex — the same format
+     * the index stores in [Package.manifest] signer), or null if it can't be read (e.g. the APK has
+     * multiple signers, which we don't try to match against the index).
+     */
+    private fun apkSignerHash(apkFile: File): String? =
+        context.packageManager
+            .getPackageArchiveInfoCompat(apkFile.absolutePath)
+            ?.singleSignature
+            ?.calculateHash()
 
     /**
      * True when [packageName] is already installed but signed by a different key than [apkFile].
@@ -288,6 +323,13 @@ class AppDetailViewModel @Inject constructor(
         val signatures = if (usesNewApi) info.signingInfo?.apkContentsSigners else info.signatures
         return signatures?.mapNotNull { it?.toCharsString() }?.toSet().orEmpty()
     }
+
+    /** True when [packageName] is a system app (or an update to one). Those can't be uninstalled, so a
+     *  differently-signed catalogue version can never replace them — there's no point offering it. */
+    private fun isSystemApp(packageName: String): Boolean = runCatching {
+        val flags = context.packageManager.getApplicationInfo(packageName, 0).flags
+        (flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
+    }.getOrDefault(false)
 
     private fun readInstalledInfo(): InstalledInfo? {
         val info = runCatching {
@@ -328,6 +370,12 @@ class AppDetailViewModel @Inject constructor(
 data class InstalledInfo(
     val version: String,
     val source: String,
+)
+
+/** A blocked update because the installed app is signed by a different key. [isSystemApp] means it
+ *  can't be uninstalled, so the update can never be applied — the dialog says so instead of looping. */
+data class SignatureConflict(
+    val isSystemApp: Boolean,
 )
 
 private const val TAG = "AppDetailViewModel"

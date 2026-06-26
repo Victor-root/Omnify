@@ -224,6 +224,7 @@
     <string name="sync_repositories_automatically">Sync repositories automatically</string>
     <string name="syncing">Syncing</string>
     <string name="syncing_FORMAT">Syncing %s…</string>
+    <string name="fetching_repositories">Fetching application repositories…</string>
     <string name="system">System</string>
     <string name="tap_to_install_DESC">Tap to install</string>
     <string name="tap_to_resume_updates">Open the app to resume updates</string>
@@ -250,6 +251,8 @@
     <string name="waiting_to_start_download">Download queued…</string>
     <string name="waiting_to_start_installation">Installation queued…</string>
     <string name="whats_new">What\'s new</string>
+    <string name="discover_recently_updated">Recently updated</string>
+    <string name="categories">Categories</string>
     <string name="website">Project website</string>
     <string name="prefs_language_title">Language</string>
     <string name="prefs_personalization">Personalization</string>
@@ -321,6 +324,9 @@
     <string name="external_add_source">Add external source</string>
     <string name="install_failed_signature_mismatch">%1$s is already installed from a different source. Uninstall it first, then install this version.</string>
     <string name="signature_conflict_title">Uninstall required</string>
+    <string name="signature_conflict_system_title">Can\'t be replaced</string>
+    <string name="signature_conflict_system_app">%1$s is a system app signed with a different key, so it can\'t be uninstalled or replaced by this version.</string>
+    <string name="uninstall_failed">Couldn\'t uninstall %1$s</string>
     <string name="installer_unknown">Unknown source</string>
     <string name="installed_version_source">Installed: %1$s · from %2$s</string>
 </resources>

@@ -20,6 +20,7 @@ import com.looker.droidify.utility.common.cache.Cache
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.decodeFromStream
 
 class EntrySyncable(
     private val context: Context,
@@ -86,6 +87,9 @@ class EntrySyncable(
                     url = indexPath,
                     fileName = "diff_${repo.versionInfo?.timestamp}.json",
                     diff = true,
+                    // Fetch the diff into a clean file too, so a re-download never appends onto a
+                    // partial/stale diff and corrupts it.
+                    clean = true,
                     onProgress = { bytes, total ->
                         val percent = (bytes percentBy total)
                         block(SyncState.IndexDownload.Progress(repo.id, percent))
@@ -119,13 +123,22 @@ class EntrySyncable(
                     repo = repo,
                     url = indexPath,
                     fileName = INDEX_V2_NAME,
+                    // Full index download: start from an empty file so we never append onto a stale
+                    // index left in the cache (e.g. after the database was reset), which would corrupt
+                    // it and leave the catalog empty.
+                    clean = true,
                     onProgress = { bytes, total ->
                         val percent = (bytes percentBy total)
                         block(SyncState.IndexDownload.Progress(repo.id, percent))
                     },
                 )
                 try {
-                    JsonParser.decodeFromString<IndexV2>(newIndexFile.readBytes().decodeToString())
+                    // Parse straight from the file. The full index is tens of MB; reading it into a
+                    // ByteArray and then a String first (readBytes().decodeToString()) roughly triples
+                    // the peak memory and can OOM on low-heap devices during a fresh full sync.
+                    newIndexFile.inputStream().buffered().use { stream ->
+                        JsonParser.decodeFromStream<IndexV2>(stream)
+                    }
                 } catch (t: Throwable) {
                     block(SyncState.JsonParsing.Failure(repo.id, t))
                     return@withContext

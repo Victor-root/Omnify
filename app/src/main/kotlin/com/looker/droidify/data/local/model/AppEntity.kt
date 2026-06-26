@@ -109,6 +109,11 @@ data class AppEntityRelations(
     )
     val versions: List<VersionEntity>?,
     @Relation(
+        parentColumn = "id",
+        entityColumn = "appId",
+    )
+    val antiFeatures: List<AntiFeatureAppRelation>,
+    @Relation(
         parentColumn = "packageName",
         entityColumn = "packageName",
     )
@@ -174,5 +179,5 @@ fun AppEntityRelations.toApp(
     graphics = graphics?.toGraphics(locale, repo.address),
     donation = donation?.toDonation(),
     preferredSigner = app.preferredSigner ?: "",
-    packages = versions?.toPackages(locale, installed),
+    packages = versions?.toPackages(locale, installed, antiFeatures),
 )

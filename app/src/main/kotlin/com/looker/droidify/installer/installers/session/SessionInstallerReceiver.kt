@@ -99,15 +99,20 @@ class SessionInstallerReceiver : BroadcastReceiver() {
                     val isSignatureConflict =
                         status == PackageInstaller.STATUS_FAILURE_CONFLICT &&
                             message?.contains("signature", ignoreCase = true) == true
-                    val shownMessage = if (isSignatureConflict) {
-                        context.getString(
+                    val shownMessage = when {
+                        isSignatureConflict -> context.getString(
                             R.string.install_failed_signature_mismatch,
                             (appName ?: packageName).toString(),
                         )
-                    } else {
-                        message
+                        // A failed uninstall (e.g. a system app: DELETE_FAILED_INTERNAL_ERROR) would
+                        // otherwise fail silently and the user would just retry — say so clearly.
+                        isUninstall -> context.getString(
+                            R.string.uninstall_failed,
+                            (appName ?: packageName).toString(),
+                        )
+                        else -> message
                     }
-                    if (isSignatureConflict) {
+                    if (isSignatureConflict || isUninstall) {
                         Toast.makeText(context, shownMessage, Toast.LENGTH_LONG).show()
                     }
                     val notification = context.createInstallNotification(

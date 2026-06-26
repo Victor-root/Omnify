@@ -21,11 +21,17 @@ class V1Syncable(
 ) : Syncable<IndexV1> {
     override suspend fun sync(repo: Repo, block: (SyncState) -> Unit) = withContext(dispatcher) {
         try {
+            val versionInfo = repo.versionInfo
             val jar = downloader.downloadIndex(
                 context = context,
                 repo = repo,
                 url = repo.address.removeSuffix("/") + "/$INDEX_V1_NAME",
                 fileName = INDEX_V1_NAME,
+                // With no prior sync timestamp (first sync, or the DB was reset) the server sends the
+                // whole index, so start from an empty file: this avoids appending onto a stale cached
+                // index left behind by a database reset, which would corrupt it. With a timestamp we
+                // keep the existing file so an unchanged index (304) is preserved.
+                clean = versionInfo == null || versionInfo.timestamp <= 0L,
                 onProgress = { bytes, total ->
                     val percent = (bytes percentBy total)
                     block(SyncState.IndexDownload.Progress(repo.id, percent))

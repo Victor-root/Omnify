@@ -1,12 +1,14 @@
 package com.looker.droidify.compose.appList
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledRepository
+import com.looker.droidify.data.SuggestedVersion
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
@@ -26,6 +28,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
@@ -106,13 +109,23 @@ class AppListViewModel @Inject constructor(
         _selectedTab.value = tab
     }
 
-    // installed packageName -> installed versionCode (reactive to install/uninstall)
-    private val installedVersions: StateFlow<Map<String, Long>> = installedRepository
+    // A single snapshot of the installed apps — versionCode, signing fingerprint and system-app
+    // status — reactive to install/uninstall. Everything the Installed/Updates tabs need, derived
+    // from one package-table subscription.
+    private val installedInfo: StateFlow<InstalledInfo> = installedRepository
         .getAllStream()
-        .map { items -> items.associate { it.packageName to it.versionCode } }
+        .map { items ->
+            InstalledInfo(
+                versions = items.associate { it.packageName to it.versionCode },
+                signatures = items.associate { it.packageName to it.signature },
+                systemApps = items.mapNotNullTo(mutableSetOf()) {
+                    it.packageName.takeIf { pkg -> isSystemApp(pkg) }
+                },
+            )
+        }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyMap())
+        .asStateFlow(InstalledInfo())
 
     /**
      * Installed packageName -> the real on-device versionName (e.g. "6.5.5-c"). Read from the
@@ -126,9 +139,10 @@ class AppListViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyMap())
 
-    // appId -> latest available versionCode (re-queried whenever the catalogue changes)
-    private val suggestedVersions: StateFlow<Map<Int, Long>> = catalogChanges
-        .mapLatest { appRepository.suggestedVersionCodes() }
+    // appId -> the catalogue version we'd install on this device (versionCode + signer fingerprints),
+    // re-queried whenever the catalogue changes.
+    private val suggestedVersions: StateFlow<Map<Int, SuggestedVersion>> = catalogChanges
+        .mapLatest { appRepository.suggestedVersions() }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyMap())
@@ -140,36 +154,61 @@ class AppListViewModel @Inject constructor(
     val displayedApps: StateFlow<List<AppMinimal>> = combine(
         appsState,
         _selectedTab,
-        installedVersions,
+        installedInfo,
         suggestedVersions,
     ) { apps, tab, installed, suggested ->
         when (tab) {
             AppTab.AVAILABLE -> apps
-            AppTab.INSTALLED -> apps.filter { it.packageName.name in installed }
+            AppTab.INSTALLED -> apps.filter { it.packageName.name in installed.versions }
             AppTab.UPDATES -> apps.filter { hasUpdate(it, installed, suggested) }
             // The External tab renders its own (non-F-Droid) list, so the catalogue list is empty.
             AppTab.EXTERNAL -> emptyList()
         }
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
 
-    /** Number of installed apps with an available update (shown on the Updates tab). */
+    /** Number of installed apps with an available, installable update (shown on the Updates tab). */
     val updatesCount: StateFlow<Int> = combine(
         appsState,
-        installedVersions,
+        installedInfo,
         suggestedVersions,
     ) { apps, installed, suggested ->
         apps.count { hasUpdate(it, installed, suggested) }
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(0)
 
+    /**
+     * Whether [app] has a newer catalogue version worth offering.
+     *
+     * We hide an update only when it provably can't be carried out: the newer version is signed by a
+     * different key than what's installed (Android refuses an in-place update across signers) *and*
+     * the installed app is a system app, which can't be uninstalled to clear the conflict. For a
+     * normal app the same conflict is resolvable — uninstall then reinstall, which the detail screen
+     * offers — so the update still shows. When either signature is unknown we never hide a legitimate
+     * update.
+     */
     private fun hasUpdate(
         app: AppMinimal,
-        installed: Map<String, Long>,
-        suggested: Map<Int, Long>,
+        installed: InstalledInfo,
+        suggested: Map<Int, SuggestedVersion>,
     ): Boolean {
-        val installedCode = installed[app.packageName.name] ?: return false
-        val latestCode = suggested[app.appId.toInt()] ?: return false
-        return latestCode > installedCode
+        val pkg = app.packageName.name
+        val installedCode = installed.versions[pkg] ?: return false
+        val suggestedVersion = suggested[app.appId.toInt()] ?: return false
+        if (suggestedVersion.versionCode <= installedCode) return false
+
+        // A newer version exists. Suppress it only when it can't replace the installed app.
+        val installedSigner = installed.signatures[pkg]
+        val catalogueSigners = suggestedVersion.signers
+        val signerConflict = !installedSigner.isNullOrEmpty() &&
+            catalogueSigners.isNotEmpty() &&
+            catalogueSigners.none { it.equals(installedSigner, ignoreCase = true) }
+        if (signerConflict && pkg in installed.systemApps) return false
+        return true
     }
+
+    private fun isSystemApp(packageName: String): Boolean = runCatching {
+        val flags = context.packageManager.getApplicationInfo(packageName, 0).flags
+        (flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
+    }.getOrDefault(false)
 
     fun toggleCategory(category: DefaultName) {
         val currentCategories = _selectedCategories.value
@@ -187,12 +226,49 @@ class AppListViewModel @Inject constructor(
     /** True while any sync runs (first launch, manual, repo-enable, periodic) — drives the bar. */
     val isSyncing: StateFlow<Boolean> = SyncWorker.isSyncing(context).asStateFlow(false)
 
-    /** A small "What's new" showcase (most recently added apps) for the top of the home. */
+    /** "What's new" carousel on the Discover home — the most recently added apps. */
     val newApps: StateFlow<List<AppMinimal>> = catalogChanges
-        .mapLatest { appRepository.apps(sortOrder = SortOrder.ADDED).take(NEW_APPS_COUNT) }
+        .mapLatest { appRepository.apps(sortOrder = SortOrder.ADDED).take(DISCOVER_ROW_COUNT) }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
+
+    /** "Recently updated" carousel on the Discover home. */
+    val recentlyUpdatedApps: StateFlow<List<AppMinimal>> = catalogChanges
+        .mapLatest { appRepository.apps(sortOrder = SortOrder.UPDATED).take(DISCOVER_ROW_COUNT) }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyList())
+
+    /** How many per-category carousels the Discover home should show — set from the visible height so
+     *  the carousels fill roughly one screen, then the categories list follows. 0 disables them. */
+    private val _carouselCount = MutableStateFlow(0)
+
+    fun setCarouselCount(count: Int) {
+        _carouselCount.value = count
+    }
+
+    /** Per-category carousels for the Discover home: one row of apps per category, for as many
+     *  categories as [setCarouselCount] asks (empty when 0, so no extra queries run). */
+    val categoryCarousels: StateFlow<List<CategoryCarousel>> =
+        combine(catalogChanges, _carouselCount) { catalog, count -> catalog to count }
+            .distinctUntilChanged()
+            .mapLatest { (_, count) ->
+                if (count <= 0) {
+                    emptyList()
+                } else {
+                    appRepository.categories.first().take(count).mapNotNull { category ->
+                        val apps = appRepository.apps(
+                            sortOrder = SortOrder.UPDATED,
+                            categoriesToInclude = listOf(category),
+                        ).take(DISCOVER_ROW_COUNT)
+                        if (apps.isEmpty()) null else CategoryCarousel(category, apps)
+                    }
+                }
+            }
+            .distinctUntilChanged()
+            .flowOn(Dispatchers.Default)
+            .asStateFlow(emptyList())
 
     /** Persists the chosen sort order; [appsState] re-queries automatically. */
     fun setSortOrder(order: SortOrder) {
@@ -208,10 +284,16 @@ class AppListViewModel @Inject constructor(
     }
 }
 
-private const val NEW_APPS_COUNT = 12
+private const val DISCOVER_ROW_COUNT = 16
 
 /** How often catalogue changes are allowed to refresh the lists (throttles the first-sync flood). */
 private const val CATALOG_REFRESH_MS = 500L
+
+/** One Discover carousel: a category and a row of its apps. */
+data class CategoryCarousel(
+    val category: DefaultName,
+    val apps: List<AppMinimal>,
+)
 
 private data class AppQuery(
     val search: String,
@@ -219,6 +301,20 @@ private data class AppQuery(
     val sortOrder: SortOrder,
     val favOnly: Boolean,
     val favSet: Set<String>,
+)
+
+/**
+ * A snapshot of the installed apps used to drive the Installed/Updates tabs, all derived from one
+ * package-table subscription:
+ *  - [versions]   packageName -> installed versionCode (compared against the catalogue)
+ *  - [signatures] packageName -> installed signing-cert fingerprint (lowercase hex SHA-256)
+ *  - [systemApps] packages that are system apps (or updates to one) — can't be uninstalled, so a
+ *                 differently-signed catalogue version can never replace them.
+ */
+private data class InstalledInfo(
+    val versions: Map<String, Long> = emptyMap(),
+    val signatures: Map<String, String> = emptyMap(),
+    val systemApps: Set<String> = emptySet(),
 )
 
 enum class AppTab { AVAILABLE, INSTALLED, UPDATES, EXTERNAL }
