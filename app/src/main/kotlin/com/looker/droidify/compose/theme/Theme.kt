@@ -1,7 +1,18 @@
 package com.looker.droidify.compose.theme
 
+import android.app.Activity
+import android.content.ContextWrapper
 import android.os.Build
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -9,8 +20,18 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
 private val lightScheme = lightColorScheme(
     primary = primaryLight,
@@ -291,6 +312,7 @@ private fun ColorScheme.withNeutralSurfaces(dark: Boolean): ColorScheme = if (da
 fun DroidifyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
+    edgeToEdge: Boolean = true,
     content:
     @Composable()
     () -> Unit,
@@ -307,9 +329,80 @@ fun DroidifyTheme(
         else -> context.toComposeColorScheme(if (darkTheme) darkScheme else lightScheme)
     }.withNeutralSurfaces(darkTheme)
 
+    // The header and system bars use one fixed accent red in BOTH light and dark mode. Material 3
+    // lightens `primary` in dark mode, but `inversePrimary` there is exactly the light-mode primary,
+    // so the bar colour stays identical. Title/icons use a colour that contrasts with it.
+    val barColor = if (darkTheme) colorScheme.inversePrimary else colorScheme.primary
+    val onBarColor = if (barColor.luminance() > 0.5f) Color.Black else Color.White
+
+    // System-bar icons must stay legible. The status bar always sits behind the accent-coloured top
+    // bar, so its icons contrast with the accent. The navigation bar is an opaque accent overlay when
+    // edge-to-edge is off (so its icons contrast with the accent), but transparent over the app
+    // background when on (so they must contrast with that background instead).
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        val accentIsDark = barColor.luminance() <= 0.5f
+        SideEffect {
+            // Find the Activity safely (some OEM contexts are wrappers); never crash on a bad cast.
+            val window = generateSequence(view.context) { (it as? ContextWrapper)?.baseContext }
+                .filterIsInstance<Activity>()
+                .firstOrNull()
+                ?.window
+            if (window != null) {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = !accentIsDark
+                controller.isAppearanceLightNavigationBars =
+                    if (edgeToEdge) !darkTheme else !accentIsDark
+            }
+        }
+    }
+
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        content = content,
-    )
+    ) {
+        // Opacity of the status-bar scrim, driven by the current screen's scroll (see
+        // LocalStatusBarScrimAlpha). Held here so the scrim itself can live above every screen.
+        val statusBarScrimAlpha = remember { mutableFloatStateOf(0f) }
+        CompositionLocalProvider(
+            LocalAccentBarColor provides barColor,
+            LocalOnAccentBarColor provides onBarColor,
+            LocalEdgeToEdge provides edgeToEdge,
+            LocalStatusBarScrimAlpha provides statusBarScrimAlpha,
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                content()
+                // When edge-to-edge is OFF, paint an opaque accent bar over the navigation-bar area so
+                // it looks like a solid coloured bar matching the top bar. When ON, leave it out so the
+                // app shows through the transparent navigation bar (immersive, content behind it).
+                if (!edgeToEdge) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .windowInsetsBottomHeight(WindowInsets.navigationBars)
+                            .background(barColor),
+                    )
+                }
+                // Under edge-to-edge, a faint scrim over the status bar keeps it perceptible once a
+                // collapsing header has slid away and the content sits behind it. It stays invisible
+                // (alpha 0) while the accent header still covers the status bar, and fades in only as
+                // the content takes over — so the red header is never tinted. A light scrim in light
+                // mode and a light-on-dark one in dark mode keep it integrated with the background.
+                if (edgeToEdge) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .windowInsetsTopHeight(WindowInsets.statusBars)
+                            .graphicsLayer { alpha = statusBarScrimAlpha.floatValue }
+                            .background(
+                                if (darkTheme) Color.White.copy(alpha = 0.10f)
+                                else Color.Black.copy(alpha = 0.14f),
+                            ),
+                    )
+                }
+            }
+        }
+    }
 }

@@ -39,6 +39,8 @@ interface SettingsRepository {
 
     suspend fun setThemeColor(color: Int)
 
+    suspend fun setEdgeToEdge(enable: Boolean)
+
     suspend fun setInstallerType(installerType: InstallerType)
 
     suspend fun setLegacyInstallerComponent(component: LegacyInstallerComponent?)

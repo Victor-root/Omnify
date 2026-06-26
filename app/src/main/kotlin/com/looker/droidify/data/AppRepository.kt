@@ -6,6 +6,7 @@ import com.looker.droidify.data.local.dao.RepoDao
 import com.looker.droidify.data.local.model.toApp
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.AppMinimal
+import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
@@ -15,9 +16,12 @@ import com.looker.droidify.sync.v2.model.Tag
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import java.util.Locale
 import javax.inject.Inject
 
 class AppRepository @Inject constructor(
@@ -70,12 +74,42 @@ class AppRepository @Inject constructor(
      *  or after a schema migration reset the database. */
     suspend fun appCount(): Int = withContext(Dispatchers.Default) { appDao.count() }
 
+    /**
+     * Top apps by download count for the Discover home's "Most downloaded" carousel. Empty until the
+     * download-stats worker has fetched data (or if stats are disabled), and guarded so a query
+     * failure simply yields no carousel rather than crashing the home screen.
+     */
+    suspend fun mostDownloadedApps(limit: Int): List<AppMinimal> = withContext(Dispatchers.Default) {
+        val currentLocale = localeStream.first()
+        runCatching { appDao.mostDownloaded(locale = currentLocale, limit = limit) }
+            .getOrDefault(emptyList())
+    }
+
     /** Emits whenever the catalogue (apps/versions) changes, e.g. after a sync. */
     val catalogChanges: Flow<Int>
         get() = appDao.catalogSizeStream()
 
-    val categories: Flow<List<DefaultName>>
-        get() = repoDao.categories().map { it.map { category -> category.defaultName } }
+    /** Emits whenever the download-stats table changes (the stats worker inserted a monthly file),
+     *  so the "Most downloaded" carousel refreshes as soon as stats arrive. */
+    val downloadStatsChanges: Flow<Int>
+        get() = appDao.downloadStatsCountStream()
+
+    /** Categories with their localized display names (see [RepoDao.categoriesLocalized]). The user's
+     *  language is resolved once on collection; changing it recreates the activity anyway. */
+    val categories: Flow<List<CatalogCategory>>
+        get() = flow {
+            emitAll(repoDao.categoriesLocalized(languagePrefix(localeStream.first())))
+        }
+
+    /** A SQL LIKE pattern (e.g. "fr%") for the user's language, so any region variant matches. */
+    private fun languagePrefix(language: String): String {
+        val lang = if (language == "system") {
+            Locale.getDefault().language
+        } else {
+            language.substringBefore('-').substringBefore('_')
+        }
+        return "$lang%"
+    }
 
     fun getApp(packageName: PackageName): Flow<List<App>> = combine(
         appDao.queryAppEntity(packageName.name),

@@ -39,6 +39,7 @@ data class Settings(
     val theme: Theme = Theme.SYSTEM,
     val dynamicTheme: Boolean = false,
     val themeColor: Int = DEFAULT_THEME_COLOR,
+    val edgeToEdge: Boolean = true,
     val installerType: InstallerType = InstallerType.Default,
     val legacyInstallerComponent: LegacyInstallerComponent? = null,
     val autoUpdate: Boolean = false,

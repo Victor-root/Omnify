@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.externalApps
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,10 +9,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,8 +29,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,8 +42,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.theme.AccentBarHeight
+import com.looker.droidify.compose.theme.accentTopAppBarColors
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ExternalAppDetailScreen(
     appKey: String,
@@ -65,10 +77,16 @@ fun ExternalAppDetailScreen(
 
     Scaffold(
         topBar = {
-            // No title here: the app name sits next to the logo in the header below, so showing it
-            // in the bar too would just duplicate it.
             TopAppBar(
-                title = { },
+                colors = accentTopAppBarColors(),
+                expandedHeight = AccentBarHeight,
+                title = {
+                    Text(
+                        text = app?.label.orEmpty(),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = { BackButton(onBackClick) },
             )
         },
@@ -79,13 +97,16 @@ fun ExternalAppDetailScreen(
             Spacer(Modifier.padding(contentPadding))
             return@Scaffold
         }
-        // A compact, fixed top (icon, name, versions, repo link, actions); the README fills all the
-        // remaining space and scrolls on its own (a WebView), so there is no nested scrolling and no
-        // wasted room. Source management (removing the source) lives on the Repositories screen.
+        // Everything (the icon/name/versions/actions block AND the README) scrolls as one — only the
+        // top bar stays fixed. The WebView reports its content height (below) so it can be sized
+        // exactly instead of owning a second, separate scroll.
+        val density = LocalDensity.current
+        var readmeHeightPx by remember(app.key) { mutableStateOf(0) }
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(contentPadding),
+                .padding(contentPadding)
+                .verticalScroll(rememberScrollState()),
         ) {
             Row(
                 modifier = Modifier
@@ -155,19 +176,36 @@ fun ExternalAppDetailScreen(
             Spacer(Modifier.height(12.dp))
             HorizontalDivider()
 
-            // README — fills the remaining space and scrolls internally. GitHub leaves repo-relative
-            // image paths un-rewritten, so the WebView resolves them against the raw content host.
+            // README — sized to its content (it doesn't scroll itself) so it scrolls with the rest.
+            // GitHub leaves repo-relative image paths un-rewritten, so the WebView resolves them
+            // against the raw content host. While it loads, show a spinner instead of empty space.
             val currentReadme = readme
             if (currentReadme != null) {
                 ReadmeWebView(
                     html = currentReadme,
                     baseUrl = "https://raw.githubusercontent.com/${app.owner}/${app.repo}/HEAD/",
+                    onContentHeight = { readmeHeightPx = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        // Until the content height is known, give it a sensible height so it can render
+                        // and measure; then snap to the exact height.
+                        .height(
+                            if (readmeHeightPx > 0) {
+                                with(density) { readmeHeightPx.toDp() }
+                            } else {
+                                600.dp
+                            },
+                        ),
                 )
             } else {
-                Spacer(Modifier.weight(1f))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(40.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
+                }
             }
         }
     }

@@ -20,11 +20,15 @@ import androidx.compose.ui.viewinterop.AndroidView
  *
  * JavaScript and file/content access are disabled — the content is static markup, so the attack
  * surface stays minimal. Repo-relative image paths resolve against [baseUrl].
+ *
+ * The WebView does NOT scroll itself: it reports its full content height via [onContentHeight] so the
+ * caller can size it exactly and let the whole screen scroll as one (only the top bar stays fixed).
  */
 @Composable
 fun ReadmeWebView(
     html: String,
     baseUrl: String,
+    onContentHeight: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -50,7 +54,24 @@ fun ReadmeWebView(
                     allowContentAccess = false
                 }
                 setBackgroundColor(AndroidColor.TRANSPARENT)
+                // The parent scroll owns scrolling; the WebView is sized to its content.
+                isVerticalScrollBarEnabled = false
+                isNestedScrollingEnabled = false
+                overScrollMode = WebView.OVER_SCROLL_NEVER
+                fun reportHeight() {
+                    val pixels = (contentHeight * resources.displayMetrics.density).toInt()
+                    if (pixels > 0) onContentHeight(pixels)
+                }
                 webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView, url: String?) {
+                        // Report once the text is laid out, then a few more times as images load and
+                        // grow the document (the height can only be read after a layout pass).
+                        reportHeight()
+                        view.postDelayed({ reportHeight() }, 250)
+                        view.postDelayed({ reportHeight() }, 750)
+                        view.postDelayed({ reportHeight() }, 1500)
+                    }
+
                     // Open tapped links in the browser instead of navigating inside the README.
                     override fun shouldOverrideUrlLoading(
                         view: WebView,

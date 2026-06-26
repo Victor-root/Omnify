@@ -32,6 +32,7 @@ import com.looker.droidify.utility.common.extension.getDrawableCompat
 import com.looker.droidify.utility.common.extension.getInstalledPackagesCompat
 import com.looker.droidify.utility.extension.toInstalledItem
 import com.looker.droidify.work.CleanUpWorker
+import com.looker.droidify.work.DownloadStatsWorker
 import com.looker.droidify.work.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import io.ktor.client.HttpClient
@@ -75,6 +76,7 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
         listenApplications()
         checkLanguage()
         updatePreference()
+        scheduleDownloadStats()
         appScope.launch { installer() }
     }
 
@@ -151,6 +153,26 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
 
     private fun forceSyncAll() {
         SyncWorker.enqueueUserSync(this)
+    }
+
+    /**
+     * Powers the Discover home's "Most downloaded" carousel: the download-stats worker was never
+     * scheduled, so the stats table stayed empty and the carousel never had data. On launch we fetch
+     * once if it's never run (so the carousel appears promptly), then keep it fresh in the background.
+     * Honours the privacy setting — cancelled when the user turns stats off.
+     */
+    private fun scheduleDownloadStats() {
+        appScope.launch {
+            val settings = settingsRepository.getInitial()
+            if (!settings.dlStatsEnabled) {
+                DownloadStatsWorker.cancelPeriodic(this@Droidify)
+                return@launch
+            }
+            if (settings.lastModifiedDownloadStats == null) {
+                DownloadStatsWorker.fetchDownloadStats(this@Droidify)
+            }
+            DownloadStatsWorker.schedulePeriodic(this@Droidify)
+        }
     }
 
     class BootReceiver : BroadcastReceiver() {

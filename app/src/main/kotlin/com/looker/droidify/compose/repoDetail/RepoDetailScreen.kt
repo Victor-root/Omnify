@@ -61,6 +61,8 @@ import com.looker.droidify.compose.repoDetail.components.LastUpdatedCard
 import com.looker.droidify.compose.repoList.GrayScaleColorFilter
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.utility.text.toAnnotatedString
+import com.looker.droidify.compose.theme.AccentBarHeight
+import com.looker.droidify.compose.theme.accentTopAppBarColors
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,19 +90,21 @@ fun RepoDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = accentTopAppBarColors(),
+                expandedHeight = AccentBarHeight,
                 title = { Text(stringResource(R.string.repository)) },
                 navigationIcon = { BackButton(onBackClick) },
                 actions = {
                     IconButton(onClick = { onEditClick(viewModel.repoId) }) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit",
+                            contentDescription = stringResource(R.string.edit),
                         )
                     }
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete",
+                            contentDescription = stringResource(R.string.delete),
                         )
                     }
                 },
@@ -276,19 +280,19 @@ private fun DeleteRepositoryDialog(
                     .padding(12.dp),
             )
         },
-        title = { Text("Delete Repository") },
-        text = { Text("Are you sure you want to delete this repository?") },
+        title = { Text(stringResource(R.string.delete_repository)) },
+        text = { Text(stringResource(R.string.delete_repository_confirm)) },
         confirmButton = {
             Button(
                 onClick = onConfirm,
                 colors = ButtonDefaults.errorButtonColors(),
             ) {
-                Text("Delete")
+                Text(stringResource(R.string.delete))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         },
     )

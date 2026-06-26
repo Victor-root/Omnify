@@ -5,27 +5,40 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.cleanUpIntervals
@@ -47,6 +60,8 @@ import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.extension.openLink
 import com.looker.droidify.utility.common.isIgnoreBatteryEnabled
 import com.looker.droidify.utility.common.requestBatteryFreedom
+import com.looker.droidify.compose.theme.AccentBarHeight
+import com.looker.droidify.compose.theme.accentTopAppBarColors
 import java.util.*
 import kotlin.time.Duration
 
@@ -61,12 +76,14 @@ private const val CUSTOM_BUTTONS_BACKUP_NAME = "custom_buttons.json"
 private val IMPORT_MIME_TYPES = arrayOf("application/json", "application/octet-stream", "text/plain")
 
 private const val FOXY_DROID_TITLE = "FoxyDroid"
+private const val FOXY_DROID_AUTHOR = "kitsunyan"
 private const val FOXY_DROID_URL = "https://github.com/kitsunyan/foxy-droid"
-private const val DROID_IFY_TITLE = "Droid-ify"
+private const val DROID_IFY_ORIGINAL = "Original Droid-ify"
 private const val DROID_IFY_URL = "https://github.com/Droid-ify/client"
 private const val DROID_IFY_AUTHOR = "LooKeR"
-private const val DROIDIFY_ENHANCED_TITLE = "Droidify Enhanced"
-private const val DROIDIFY_ENHANCED_URL = "https://github.com/Victor-root/Droidify-enhanced"
+private const val AUTHOR_NAME = "Victor-root"
+private const val AUTHOR_REPO_URL = "https://github.com/Victor-root/Droidify-enhanced"
+private const val AUTHOR_GITHUB_URL = "https://github.com/Victor-root"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,7 +96,10 @@ fun SettingsScreen(
     val customButtons by viewModel.customButtons.collectAsStateWithLifecycle()
     val isBackgroundAllowed by viewModel.isBackgroundAllowed.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
+    // Re-check on every resume — in particular when returning from the system battery-optimisation
+    // dialog — so the warning banner clears as soon as the user grants access, not only after a
+    // second tap (startActivity is async, so checking right after requesting it sees the old state).
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.updateBackgroundAccessState(context.isIgnoreBatteryEnabled())
     }
 
@@ -130,6 +150,8 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = accentTopAppBarColors(),
+                expandedHeight = AccentBarHeight,
                 title = { Text(text = stringResource(R.string.settings)) },
                 navigationIcon = { BackButton(onBackClick) },
             )
@@ -146,15 +168,19 @@ fun SettingsScreen(
                     WarningBanner(
                         title = stringResource(R.string.require_background_access),
                         description = stringResource(R.string.require_background_access_DESC),
-                        onClick = {
-                            context.requestBatteryFreedom()
-                            viewModel.updateBackgroundAccessState(context.isIgnoreBatteryEnabled())
-                        },
+                        // The state refreshes on resume (see LifecycleEventEffect above) once the user
+                        // returns from the system dialog, so the banner clears on its own.
+                        onClick = { context.requestBatteryFreedom() },
                     )
                 }
             }
 
-            item { SettingHeader(title = stringResource(R.string.prefs_personalization)) }
+            item {
+                SettingHeader(
+                    title = stringResource(R.string.prefs_personalization),
+                    icon = painterResource(R.drawable.ic_themes),
+                )
+            }
 
             item {
                 LanguageSetting(
@@ -187,7 +213,21 @@ fun SettingsScreen(
                 )
             }
 
-            item { SettingHeader(title = stringResource(R.string.updates)) }
+            item {
+                SwitchSettingItem(
+                    title = stringResource(R.string.edge_to_edge),
+                    description = stringResource(R.string.edge_to_edge_summary),
+                    checked = settings.edgeToEdge,
+                    onCheckedChange = viewModel::setEdgeToEdge,
+                )
+            }
+
+            item {
+                SettingHeader(
+                    title = stringResource(R.string.updates),
+                    icon = painterResource(R.drawable.ic_new_releases),
+                )
+            }
 
             item {
                 SwitchSettingItem(
@@ -234,7 +274,12 @@ fun SettingsScreen(
                 )
             }
 
-            item { SettingHeader(title = stringResource(R.string.sync_repositories)) }
+            item {
+                SettingHeader(
+                    title = stringResource(R.string.sync_repositories),
+                    icon = painterResource(R.drawable.ic_sync),
+                )
+            }
 
             item {
                 AutoSyncSetting(
@@ -278,7 +323,12 @@ fun SettingsScreen(
                 )
             }
 
-            item { SettingHeader(title = stringResource(R.string.install_types)) }
+            item {
+                SettingHeader(
+                    title = stringResource(R.string.install_types),
+                    icon = painterResource(R.drawable.ic_apk_install),
+                )
+            }
 
             item {
                 InstallerTypeSetting(
@@ -307,7 +357,12 @@ fun SettingsScreen(
                 }
             }
 
-            item { SettingHeader(title = stringResource(R.string.proxy)) }
+            item {
+                SettingHeader(
+                    title = stringResource(R.string.proxy),
+                    icon = painterResource(R.drawable.ic_proxy),
+                )
+            }
 
             item {
                 ProxyTypeSetting(
@@ -334,7 +389,12 @@ fun SettingsScreen(
                 }
             }
 
-            item { SettingHeader(title = stringResource(R.string.import_export)) }
+            item {
+                SettingHeader(
+                    title = stringResource(R.string.import_export),
+                    icon = painterResource(R.drawable.ic_save),
+                )
+            }
 
             item {
                 ActionSettingItem(
@@ -368,7 +428,12 @@ fun SettingsScreen(
                 )
             }
 
-            item { SettingHeader(title = stringResource(R.string.custom_buttons_section)) }
+            item {
+                SettingHeader(
+                    title = stringResource(R.string.custom_buttons_section),
+                    icon = painterResource(R.drawable.ic_tabler_plus),
+                )
+            }
 
             item {
                 CustomButtonsSettingItem(
@@ -381,29 +446,51 @@ fun SettingsScreen(
                 )
             }
 
-            item { SettingHeader(title = stringResource(R.string.credits)) }
+            item {
+                SettingHeader(
+                    title = stringResource(R.string.author),
+                    icon = painterResource(R.drawable.ic_person),
+                )
+            }
+
+            item {
+                AuthorRow(
+                    icon = painterResource(R.drawable.ic_person),
+                    title = AUTHOR_NAME,
+                    subtitle = null,
+                    onClick = { context.openLink(AUTHOR_REPO_URL) },
+                )
+            }
+
+            item {
+                AuthorRow(
+                    icon = painterResource(R.drawable.ic_github),
+                    title = stringResource(R.string.follow_on_github),
+                    subtitle = null,
+                    onClick = { context.openLink(AUTHOR_GITHUB_URL) },
+                )
+            }
+
+            item {
+                SettingHeader(
+                    title = stringResource(R.string.special_credits),
+                    icon = painterResource(R.drawable.ic_copyright),
+                )
+            }
 
             item {
                 ActionSettingItem(
-                    title = stringResource(R.string.special_credits),
-                    description = FOXY_DROID_TITLE,
+                    title = FOXY_DROID_TITLE,
+                    description = FOXY_DROID_AUTHOR,
                     onClick = { context.openLink(FOXY_DROID_URL) },
                 )
             }
 
             item {
                 ActionSettingItem(
-                    title = DROID_IFY_TITLE,
-                    description = DROID_IFY_AUTHOR,
+                    title = DROID_IFY_AUTHOR,
+                    description = DROID_IFY_ORIGINAL,
                     onClick = { context.openLink(DROID_IFY_URL) },
-                )
-            }
-
-            item {
-                ActionSettingItem(
-                    title = DROIDIFY_ENHANCED_TITLE,
-                    description = BuildConfig.VERSION_NAME,
-                    onClick = { context.openLink(DROIDIFY_ENHANCED_URL) },
                 )
             }
         }
@@ -425,6 +512,42 @@ fun SettingsScreen(
             },
             onDismiss = { showColorPicker = false },
         )
+    }
+}
+
+/** A credits/author row with a leading icon, a title and an optional subtitle (e.g. the maintainer's
+ *  name with "original version by …", or a "Follow on GitHub" link). */
+@Composable
+private fun AuthorRow(
+    icon: Painter,
+    title: String,
+    subtitle: String?,
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Icon(
+            painter = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(28.dp),
+        )
+        Spacer(Modifier.width(20.dp))
+        Column {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

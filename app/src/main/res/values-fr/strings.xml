@@ -4,6 +4,8 @@
     <string name="action_failed">L’action a échoué</string>
     <string name="already_exists">Existe déjà</string>
     <string name="anti_features">Anti-fonctionnalités</string>
+    <string name="requires_google_services">Nécessite les services Google</string>
+    <string name="requires_google_services_summary">Cette application utilise les services Google Play et peut ne pas fonctionner pleinement sans eux (ou microG).</string>
     <string name="compiled_for_debugging">Compilé pour le débogage</string>
     <string name="amoled">Noir</string>
     <string name="application_not_found">Appli non trouvée</string>
@@ -78,11 +80,31 @@
     <string name="versions">Versions</string>
     <string name="waiting_to_start_download">En attente du lancement du téléchargement…</string>
     <string name="whats_new">Quoi de neuf</string>
+    <string name="discover_new_apps">Nouvelles applications</string>
     <string name="discover_recently_updated">Récemment mis à jour</string>
+    <string name="discover_most_downloaded">Les plus téléchargés</string>
+    <string name="no_installed_apps">Aucune application installée</string>
+    <string name="everything_up_to_date">Tout est à jour</string>
+    <string name="delete_repository">Supprimer le dépôt</string>
+    <string name="delete_repository_confirm">Voulez-vous vraiment supprimer ce dépôt ?</string>
+    <string name="edit">Modifier</string>
+    <string name="sort">Trier</string>
+    <string name="sync">Synchroniser</string>
+    <string name="screenshot">Capture d\'écran</string>
+    <string name="close">Fermer</string>
+    <string name="issue_tracker">Suivi des problèmes</string>
+    <string name="translation">Traduction</string>
+    <string name="proxy_restart_required">Redémarrage requis pour appliquer les changements.</string>
+    <string name="tap_to_resume_updates">Ouvrez l\'application pour reprendre les mises à jour</string>
+    <string name="download_statistics_summary">Récupère et affiche le nombre de téléchargements mensuels depuis IzzyOnDroid. Le désactiver efface les statistiques de téléchargement existantes.</string>
+    <string name="reproducibility_logs">Journaux de reproductibilité</string>
+    <string name="reproducibility_logs_summary">Récupère et affiche les journaux de vérification des compilations reproductibles depuis IzzyOnDroid. Le désactiver efface les journaux de reproductibilité existants.</string>
     <string name="categories">Catégories</string>
     <string name="website">Site internet du projet</string>
     <string name="update">Mettre à jour</string>
     <string name="updates">Mises à jour</string>
+    <!-- Libellé court réservé à l\'onglet pour qu\'il ne passe jamais sur 2 lignes -->
+    <string name="tab_updates_short">MàJ</string>
     <string name="unknown_FORMAT">Inconnu : %s</string>
     <string name="unknown_error_DESC">Erreur inconnue</string>
     <string name="add_repository">Ajouter un dépôt</string>
@@ -189,6 +211,8 @@
     <string name="material_you_desc">Utiliser les couleurs Material You</string>
     <string name="material_you">Material You</string>
     <string name="favourites">Favoris</string>
+    <string name="more_options">Plus</string>
+    <string name="no_favourites">Aucun favori pour l\'instant. Touchez le cœur d\'une app pour l\'ajouter ici.</string>
     <string name="repository_unreachable">Dépôt inaccessible</string>
     <string name="force_clean_up">Forcer nettoyage</string>
     <string name="force_clean_up_DESC">Nettoyer les fichiers redondants</string>
@@ -204,6 +228,8 @@
     <string name="shizuku_not_installed">Shizuku/Sui n\'est pas installé</string>
     <string name="contains_nsfw">Contient des contenus non adaptés pour le travail</string>
     <string name="special_credits">Crédits spéciaux</string>
+    <string name="author">Auteur</string>
+    <string name="follow_on_github">Suivre sur GitHub</string>
     <string name="home_screen_swiping">Balayage de page</string>
     <string name="home_screen_swiping_DESC">Balayer à gauche ou à droite pour changer de page</string>
     <string name="repository_not_found">Le dépôt n\'a pas été trouvé</string>
@@ -287,6 +313,8 @@
     <string name="theme_color_DESC">Choisir la couleur d\'accentuation de l\'app</string>
     <string name="theme_color_default">Par défaut</string>
     <string name="theme_color_wallpaper">Fond d\'écran</string>
+    <string name="edge_to_edge">Bord à bord</string>
+    <string name="edge_to_edge_summary">Afficher l\'app derrière la barre d\'état et la barre de navigation. Désactivé, les barres restent pleines avec la couleur d\'accentuation.</string>
     <!-- Sources d\'apps externes (GitHub / GitLab / Codeberg) -->
     <string name="tab_external">Externe</string>
     <string name="external_add">Ajouter</string>

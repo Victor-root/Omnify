@@ -8,6 +8,7 @@ import com.looker.droidify.data.local.model.CategoryEntity
 import com.looker.droidify.data.local.model.LocalizedRepoIconEntity
 import com.looker.droidify.data.local.model.MirrorEntity
 import com.looker.droidify.data.local.model.RepoEntity
+import com.looker.droidify.data.model.CatalogCategory
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -30,8 +31,26 @@ interface RepoDao {
         String,
         >
 
-    @Query("SELECT * FROM category GROUP BY category.defaultName")
-    fun categories(): Flow<List<CategoryEntity>>
+    /**
+     * One row per category with its localized display name: the name whose locale matches the user's
+     * language ([langPrefix], e.g. "fr%"), else the en-US name, else any English name, else any name.
+     * [CatalogCategory.defaultName] stays the English key used for filtering and the icon mapping.
+     */
+    @Query(
+        """
+        SELECT category.defaultName AS defaultName,
+            COALESCE(
+                MAX(CASE WHEN locale LIKE :langPrefix THEN name END),
+                MAX(CASE WHEN locale = 'en-US' THEN name END),
+                MAX(CASE WHEN locale LIKE 'en%' THEN name END),
+                MAX(name)
+            ) AS name
+        FROM category
+        GROUP BY category.defaultName
+        ORDER BY name COLLATE NOCASE
+        """,
+    )
+    fun categoriesLocalized(langPrefix: String): Flow<List<CatalogCategory>>
 
     @Query(
         """

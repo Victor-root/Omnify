@@ -119,6 +119,15 @@ class AppDetailViewModel @Inject constructor(
 
     private var downloadJob: Job? = null
 
+    /** Repo the user picked to install from via the version tabs, or null to auto-pick across every
+     *  repo that offers this app. */
+    private val _preferredRepoId = MutableStateFlow<Int?>(null)
+
+    /** Choose which repo the install/update action pulls from when several offer this app. */
+    fun setPreferredRepo(repoId: Int) {
+        _preferredRepoId.value = repoId
+    }
+
     val state: StateFlow<AppDetailState> = appRepository
         .getApp(PackageName(packageName))
         .map { apps ->
@@ -170,9 +179,19 @@ class AppDetailViewModel @Inject constructor(
     fun installOrUpdate() {
         if (_downloadStatus.value != null) return
         val current = state.value as? AppDetailState.Success ?: return
-        // Pick the release that actually runs on this device's CPU/SDK (see [selectForDevice]):
-        // installing e.g. the arm64 VLC APK on an x86 device fails with NO_MATCHING_ABIS.
-        val target = current.packages.selectForDevice(current.app.metadata.suggestedVersionCode)
+        // When several repos offer this app and the user picked one via the version tabs, install that
+        // repo's best release; otherwise pick across all repos. Either way, [selectForDevice] picks the
+        // release that actually runs on this device's CPU/SDK (installing e.g. the arm64 VLC APK on an
+        // x86 device fails with NO_MATCHING_ABIS). Fall back to the full set if the chosen repo has
+        // nothing installable here.
+        val preferredRepoId = _preferredRepoId.value
+        val pool = if (preferredRepoId == null) {
+            current.packages
+        } else {
+            current.packages.filter { it.second.id == preferredRepoId }
+        }
+        val target = pool.selectForDevice(current.app.metadata.suggestedVersionCode)
+            ?: current.packages.selectForDevice(current.app.metadata.suggestedVersionCode)
         if (target == null) {
             toast("No version of this app is compatible with your device")
             return
@@ -192,6 +211,16 @@ class AppDetailViewModel @Inject constructor(
             // the server would return an error instead of the APK.
             val url = repo.address.removeSuffix("/") + "/" + pkg.apk.name.removePrefix("/")
             val result = withContext(Dispatchers.IO) {
+                // Reuse an already-downloaded, hash-verified APK instead of fetching it again — e.g.
+                // after the user uninstalled a differently-signed copy and tapped install a second
+                // time. The cache file is keyed by the APK hash, so a different version can't be
+                // mistaken for this one.
+                val cachedRelease = Cache.getReleaseFile(context, cacheFileName)
+                if (cachedRelease.exists() &&
+                    cachedRelease.sha256Hex().equals(pkg.apk.hash, ignoreCase = true)
+                ) {
+                    return@withContext DownloadResult.Ready
+                }
                 val partialFile = Cache.getPartialReleaseFile(context, cacheFileName)
                 // Sliding-window speed estimate + throttled UI updates (the callback fires
                 // very frequently; we only push a new state a few times per second).

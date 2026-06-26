@@ -12,33 +12,32 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
-import com.looker.droidify.compose.components.CatalogCard
+import com.looker.droidify.compose.components.AppTile
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.InstallingRow
+import com.looker.droidify.compose.components.TileIconSize
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.installer.model.InstallState
 
 /**
- * An external app as a 2-column grid card — identical chrome to the F-Droid catalogue cards
- * ([CatalogCard]). Tapping opens the external detail screen, where the install lifecycle lives, so
- * the External tab looks and behaves exactly like the other tabs.
+ * An external app as a tile — identical to the F-Droid catalogue tiles ([AppTile]). Tapping opens the
+ * external detail screen, where the install lifecycle lives, so the External tab looks and behaves
+ * exactly like the other tabs.
  */
 @Composable
-fun ExternalGridCard(
+fun ExternalAppTile(
     app: ExternalApp,
     isInstalled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    version: String = app.latestTag ?: app.installedTag ?: "—",
 ) {
-    CatalogCard(
+    AppTile(
         name = app.label,
-        summary = app.path,
-        version = version,
+        isInstalled = isInstalled,
         onClick = onClick,
         modifier = modifier,
     ) {
-        ExternalAppIcon(app = app, isInstalled = isInstalled, size = 64.dp)
+        ExternalAppIcon(app = app, isInstalled = isInstalled, size = TileIconSize)
     }
 }
 

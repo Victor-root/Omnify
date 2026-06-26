@@ -6,6 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.ForeignKey.Companion.CASCADE
 import androidx.room.Index
 import com.looker.droidify.sync.v2.model.FileV2
+import java.util.Locale
 
 @Entity(
     tableName = "localized_app_name",
@@ -91,13 +92,24 @@ sealed interface LocalizedEntityData {
 
 fun <T : LocalizedEntityData> List<T>.findLocale(locale: String): T {
     require(isNotEmpty()) { "List of localized data cannot be empty" }
-    var bestMatch: T? = null
-    var englishMatch: T? = null
-    for (i in indices) {
-        val match = get(i)
-        val l = match.locale
-        if (l == locale || l.startsWith(locale)) bestMatch = match
-        if (l == "en-US" || l == "en") englishMatch = match
+    // The stored preference may be "system" (follow the device) or a code like "fr" / "fr-rFR"; reduce
+    // it to a language prefix ("fr") so any region variant in the index ("fr-FR", "fr-CA") matches.
+    // Without this the raw "system" never matched any index locale and everything fell back to English.
+    val lang = if (locale == "system") {
+        Locale.getDefault().language
+    } else {
+        locale.substringBefore('-').substringBefore('_')
     }
-    return bestMatch ?: englishMatch ?: first()
+    var exact: T? = null
+    var langMatch: T? = null
+    var englishMatch: T? = null
+    for (item in this) {
+        val l = item.locale
+        when {
+            l == locale -> exact = item
+            l.substringBefore('-').substringBefore('_').equals(lang, ignoreCase = true) -> langMatch = item
+            l == "en-US" || l == "en" -> englishMatch = item
+        }
+    }
+    return exact ?: langMatch ?: englishMatch ?: first()
 }

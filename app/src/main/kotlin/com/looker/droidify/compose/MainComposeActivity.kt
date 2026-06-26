@@ -1,6 +1,7 @@
 package com.looker.droidify.compose
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -50,6 +51,7 @@ import com.looker.droidify.installer.model.installFrom
 import com.looker.droidify.model.Repository
 import com.looker.droidify.utility.common.DeeplinkType
 import com.looker.droidify.utility.common.SdkCheck
+import com.looker.droidify.utility.common.sdkAbove
 import com.looker.droidify.utility.common.deeplinkType
 import com.looker.droidify.utility.common.getInstallPackageName
 import com.looker.droidify.utility.common.requestNotificationPermission
@@ -98,6 +100,7 @@ class MainComposeActivity : ComponentActivity() {
         val theme: Theme,
         val dynamicTheme: Boolean,
         val themeColor: Int,
+        val edgeToEdge: Boolean,
     )
 
     /**
@@ -108,7 +111,7 @@ class MainComposeActivity : ComponentActivity() {
     private fun collectThemeChanges(): ThemeState {
         val entryPoint = EntryPointAccessors.fromApplication(this, SettingsEntryPoint::class.java)
         val themeFlow = entryPoint.settingsRepository()
-            .get { ThemeState(theme, dynamicTheme, themeColor) }
+            .get { ThemeState(theme, dynamicTheme, themeColor, edgeToEdge) }
         val initial = runBlocking { themeFlow.first() }
         setTheme(
             resources.configuration.getThemeRes(
@@ -173,7 +176,18 @@ class MainComposeActivity : ComponentActivity() {
         val themeState = collectThemeChanges()
         super.onCreate(savedInstanceState)
         applyAccentColor(themeState)
+        // Always draw edge-to-edge at the window level (reliable on every version, including the
+        // Android 15+ forced enforcement). The "Edge-to-edge" setting is honoured purely in Compose:
+        // when off, DroidifyTheme paints an opaque accent bar over the navigation bar so it looks like
+        // a solid coloured bar; when on, the app shows through the transparent bars.
         enableEdgeToEdge()
+        // Stop the system tinting the bars: under edge-to-edge it enforces a translucent contrast scrim
+        // on 3-button navigation, which darkened our accent navigation-bar overlay so it no longer
+        // matched the header. We colour the bars ourselves, so opt out and keep the exact accent.
+        sdkAbove(Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
         // Off the main thread: this seeds repos and queries the catalog/installed state, and the
         // start-up frame is already busy — doing DB work here would jank the UI (and starve the
         // WorkManager scheduler that has to dispatch the sync).
@@ -212,6 +226,7 @@ class MainComposeActivity : ComponentActivity() {
             DroidifyTheme(
                 darkTheme = darkTheme,
                 dynamicColor = themeState.dynamicTheme,
+                edgeToEdge = themeState.edgeToEdge,
             ) {
                 val navController = rememberNavController()
                 // Handle the launching deeplink, then any that arrive while we're running.

@@ -106,8 +106,15 @@ class ExternalAppsViewModel @Inject constructor(
 
     fun loadReadme(app: ExternalApp) {
         viewModelScope.launch {
-            _readme.value = null
-            _readme.value = externalApi.readmeHtml(app)
+            // Show the cached README instantly (if any) so a re-open isn't blocked on the network,
+            // then refresh in the background and update the disk cache.
+            val cached = withContext(Dispatchers.IO) { ReadmeCache.load(context, app.key) }
+            _readme.value = cached
+            val fresh = externalApi.readmeHtml(app)
+            if (fresh != null) {
+                _readme.value = fresh
+                withContext(Dispatchers.IO) { ReadmeCache.save(context, app.key, fresh) }
+            }
         }
     }
 

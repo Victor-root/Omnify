@@ -11,6 +11,8 @@
     <string name="always">Always</string>
     <string name="amoled">Black</string>
     <string name="anti_features">Anti-features</string>
+    <string name="requires_google_services">Requires Google services</string>
+    <string name="requires_google_services_summary">This app uses Google Play services and may not work fully without them (or microG).</string>
     <string name="application">App</string>
     <string name="application_not_found">App wasn\'t found</string>
     <string name="author_email">Author email</string>
@@ -67,6 +69,8 @@
     <string name="export_repos_DESC">Export repositories to a file</string>
     <string name="enable_repo">Enable repository</string>
     <string name="favourites">Favourites</string>
+    <string name="more_options">More</string>
+    <string name="no_favourites">No favourites yet. Tap the heart on an app to add it here.</string>
     <string name="file_format_error_DESC">Invalid file format</string>
     <string name="fingerprint">Fingerprint</string>
     <string name="force_clean_up">Force cleanup</string>
@@ -209,6 +213,8 @@
     <string name="source_code">Source code</string>
     <string name="source_code_no_longer_available">Source code no longer available</string>
     <string name="special_credits">Special credits</string>
+    <string name="author">Author</string>
+    <string name="follow_on_github">Follow on GitHub</string>
     <string name="suggested">Suggested</string>
     <string name="switch_to_default_installer">Switch to default</string>
 
@@ -241,6 +247,8 @@
     <string name="ignore_signature_summary">Ignore signature verification when installing an app</string>
     <string name="update">Update</string>
     <string name="updates">Updates</string>
+    <!-- Short label used only on the tab so it never wraps to a second line -->
+    <string name="tab_updates_short">Updates</string>
     <string name="upstream_source_code_is_not_free">Upstream source code is non-free</string>
     <string name="username">Username</string>
     <string name="username_missing">Username missing</string>
@@ -251,7 +259,18 @@
     <string name="waiting_to_start_download">Download queued…</string>
     <string name="waiting_to_start_installation">Installation queued…</string>
     <string name="whats_new">What\'s new</string>
+    <string name="discover_new_apps">New apps</string>
     <string name="discover_recently_updated">Recently updated</string>
+    <string name="discover_most_downloaded">Most downloaded</string>
+    <string name="no_installed_apps">No installed apps found</string>
+    <string name="everything_up_to_date">Everything is up to date</string>
+    <string name="delete_repository">Delete repository</string>
+    <string name="delete_repository_confirm">Are you sure you want to delete this repository?</string>
+    <string name="edit">Edit</string>
+    <string name="sort">Sort</string>
+    <string name="sync">Sync</string>
+    <string name="screenshot">Screenshot</string>
+    <string name="close">Close</string>
     <string name="categories">Categories</string>
     <string name="website">Project website</string>
     <string name="prefs_language_title">Language</string>
@@ -300,6 +319,8 @@
     <string name="theme_color_DESC">Choose the accent color of the app</string>
     <string name="theme_color_default">Default</string>
     <string name="theme_color_wallpaper">Wallpaper</string>
+    <string name="edge_to_edge">Edge-to-edge</string>
+    <string name="edge_to_edge_summary">Draw the app behind the status and navigation bars. When off, the bars stay solid with the accent color.</string>
     <!-- External app sources (GitHub / GitLab / Codeberg) -->
     <string name="tab_external">External</string>
     <string name="external_add">Add</string>

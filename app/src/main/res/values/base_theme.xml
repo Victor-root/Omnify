@@ -3,7 +3,9 @@
     <style name="Base.MainTheme.Light" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorSurface">?android:attr/colorBackground</item>
         <item name="android:colorPrimaryDark">?android:attr/colorBackground</item>
-        <item name="android:colorBackground">@color/md_theme_l_background</item>
+        <!-- The launch/splash background (shown before onCreate swaps to the real theme). Pure white to
+             match the app, instead of the faintly green md_theme_l_background (#F8FAF0). -->
+        <item name="android:colorBackground">@android:color/white</item>
     </style>
     <style name="MainTheme" parent="Base.MainTheme.Light">
         <item name="colorError">@color/md_theme_l_error</item>

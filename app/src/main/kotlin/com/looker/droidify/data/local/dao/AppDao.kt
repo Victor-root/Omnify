@@ -80,6 +80,67 @@ interface AppDao {
     @RawQuery
     suspend fun _rawQueryAppMinimal(query: SimpleSQLiteQuery): List<AppMinimalRow>
 
+    /**
+     * Top apps by total download count (IzzyOnDroid stats), most-downloaded first — the data behind
+     * F-Droid v2's "Most downloaded" carousel. The inner JOIN to the aggregated download_stats means
+     * only apps that *both* have stats and exist in the catalogue come back, so the carousel is simply
+     * empty until the stats worker has fetched data. Built as a raw query (reusing the proven
+     * [_rawQueryAppMinimal] SELECT) so a typo can't break the build — at worst it yields no rows.
+     */
+    suspend fun mostDownloaded(locale: String, limit: Int): List<AppMinimal> {
+        val query = SimpleSQLiteQuery(
+            """
+            SELECT
+                app.id AS appId,
+                app.packageName AS packageName,
+                COALESCE(n_loc.name, n_en.name) AS name,
+                COALESCE(s_loc.summary, s_en.summary) AS summary,
+                repo.address AS baseAddress,
+                COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName,
+                (
+                    SELECT v.versionName FROM version v
+                    WHERE v.appId = app.id
+                    ORDER BY v.versionCode DESC
+                    LIMIT 1
+                ) AS suggestedVersion
+            FROM app
+            JOIN repository AS repo ON app.repoId = repo.id
+            JOIN (
+                SELECT packageName, SUM(downloads) AS total
+                FROM download_stats
+                GROUP BY packageName
+            ) AS ds ON ds.packageName = app.packageName
+            LEFT JOIN localized_app_name AS n_loc ON n_loc.appId = app.id AND n_loc.locale = ?
+            LEFT JOIN localized_app_name AS n_en ON n_en.appId = app.id AND n_en.locale = 'en-US'
+            LEFT JOIN localized_app_summary AS s_loc ON s_loc.appId = app.id AND s_loc.locale = ?
+            LEFT JOIN localized_app_summary AS s_en ON s_en.appId = app.id AND s_en.locale = 'en-US'
+            LEFT JOIN localized_app_icon AS i_loc ON i_loc.appId = app.id AND i_loc.locale = ?
+            LEFT JOIN localized_app_icon AS i_en ON i_en.appId = app.id AND i_en.locale = 'en-US'
+            GROUP BY app.packageName
+            ORDER BY ds.total DESC
+            LIMIT ?
+            """.trimIndent(),
+            // Explicit Any[] so the mixed String/Int args don't infer a reified intersection type
+            // (matches deviceCompatibleVersions' `listOf<Any>(...)`).
+            arrayOf<Any>(locale, locale, locale, limit),
+        )
+        return _rawQueryAppMinimal(query).map {
+            AppMinimal(
+                appId = it.appId.toLong(),
+                packageName = PackageName(it.packageName),
+                name = it.name,
+                summary = it.summary,
+                icon = FilePath(it.baseAddress, it.iconName),
+                suggestedVersion = it.suggestedVersion ?: "",
+            )
+        }
+    }
+
+    /** Emits on any change to the download-stats table (e.g. after the stats worker inserts a monthly
+     *  file), so the "Most downloaded" carousel re-queries once data lands. Value isn't meaningful. */
+    @Query("SELECT COUNT(*) FROM download_stats")
+    fun downloadStatsCountStream(): Flow<Int>
+
     private fun searchQueryMinimal(
         sortOrder: SortOrder,
         searchQuery: String?,
