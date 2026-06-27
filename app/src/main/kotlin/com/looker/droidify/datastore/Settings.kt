@@ -7,6 +7,7 @@ import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyPreference
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.Theme
+import com.looker.droidify.datastore.model.TranslationEngine
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
@@ -60,6 +61,16 @@ data class Settings(
     /** Optional GitHub personal access token (no scopes needed). When set, external-source requests to
      *  api.github.com are authenticated, raising the rate limit from 60 to 5000 requests/hour. */
     val githubToken: String = "",
+    /** Backend for the "Translate" button on app descriptions. */
+    val translationEngine: TranslationEngine = TranslationEngine.GOOGLE,
+    /** Base URL of the user's LibreTranslate instance (used only when [translationEngine] is
+     *  LIBRETRANSLATE), e.g. "https://translate.example.org". */
+    val libreTranslateUrl: String = "",
+    /** Optional API key for the LibreTranslate instance (some require one). */
+    val libreTranslateApiKey: String = "",
+    /** Automatically translate an app's description on open when it isn't already in the device
+     *  language. */
+    val autoTranslate: Boolean = false,
 )
 
 @OptIn(ExperimentalSerializationApi::class)

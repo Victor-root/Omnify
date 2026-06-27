@@ -19,6 +19,7 @@ import com.looker.droidify.datastore.model.ProxyPreference
 import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.Theme
+import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.utility.common.Exporter
 import com.looker.droidify.utility.common.extension.updateAsMutable
 import kotlinx.coroutines.flow.Flow
@@ -213,6 +214,18 @@ class PreferenceSettingsRepository(
     override suspend fun setGithubToken(token: String) =
         GITHUB_TOKEN.update(token)
 
+    override suspend fun setTranslationEngine(engine: TranslationEngine) =
+        TRANSLATION_ENGINE.update(engine.name)
+
+    override suspend fun setLibreTranslateUrl(url: String) =
+        LIBRETRANSLATE_URL.update(url)
+
+    override suspend fun setLibreTranslateApiKey(key: String) =
+        LIBRETRANSLATE_API_KEY.update(key)
+
+    override suspend fun setAutoTranslate(enable: Boolean) =
+        AUTO_TRANSLATE.update(enable)
+
     private fun mapSettings(preferences: Preferences): Settings {
         val installerType =
             InstallerType.valueOf(preferences[INSTALLER_TYPE] ?: InstallerType.Default.name)
@@ -260,6 +273,12 @@ class PreferenceSettingsRepository(
         val downloadStatisticsEnabled = preferences[DOWNLOAD_STATISTICS_ENABLED] ?: true
         val reproducibilityLogsEnabled = preferences[REPRODUCIBILITY_LOGS_ENABLED] ?: true
         val githubToken = preferences[GITHUB_TOKEN] ?: ""
+        val translationEngine = TranslationEngine.valueOf(
+            preferences[TRANSLATION_ENGINE] ?: TranslationEngine.GOOGLE.name,
+        )
+        val libreTranslateUrl = preferences[LIBRETRANSLATE_URL] ?: ""
+        val libreTranslateApiKey = preferences[LIBRETRANSLATE_API_KEY] ?: ""
+        val autoTranslate = preferences[AUTO_TRANSLATE] ?: false
 
         return Settings(
             language = language,
@@ -288,6 +307,10 @@ class PreferenceSettingsRepository(
             dlStatsEnabled = downloadStatisticsEnabled,
             rbLogsEnabled = reproducibilityLogsEnabled,
             githubToken = githubToken,
+            translationEngine = translationEngine,
+            libreTranslateUrl = libreTranslateUrl,
+            libreTranslateApiKey = libreTranslateApiKey,
+            autoTranslate = autoTranslate,
         )
     }
 
@@ -326,6 +349,10 @@ class PreferenceSettingsRepository(
             stringPreferencesKey("key_legacy_installer_component_type")
         val ENABLED_REPO_IDS = stringSetPreferencesKey("key_enabled_repo_ids")
         val GITHUB_TOKEN = stringPreferencesKey("key_github_token")
+        val TRANSLATION_ENGINE = stringPreferencesKey("key_translation_engine")
+        val LIBRETRANSLATE_URL = stringPreferencesKey("key_libretranslate_url")
+        val LIBRETRANSLATE_API_KEY = stringPreferencesKey("key_libretranslate_api_key")
+        val AUTO_TRANSLATE = booleanPreferencesKey("key_auto_translate")
 
         // Enums
         val THEME = stringPreferencesKey("key_theme")
@@ -385,6 +412,10 @@ class PreferenceSettingsRepository(
             set(DOWNLOAD_STATISTICS_ENABLED, settings.dlStatsEnabled)
             set(REPRODUCIBILITY_LOGS_ENABLED, settings.rbLogsEnabled)
             set(GITHUB_TOKEN, settings.githubToken)
+            set(TRANSLATION_ENGINE, settings.translationEngine.name)
+            set(LIBRETRANSLATE_URL, settings.libreTranslateUrl)
+            set(LIBRETRANSLATE_API_KEY, settings.libreTranslateApiKey)
+            set(AUTO_TRANSLATE, settings.autoTranslate)
             return this.toPreferences()
         }
     }

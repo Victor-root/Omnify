@@ -55,6 +55,7 @@ import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
+import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.extension.openLink
@@ -75,6 +76,16 @@ private const val CUSTOM_BUTTONS_BACKUP_NAME = "custom_buttons.json"
 // report them as application/octet-stream (or text/plain) — which made the backup file appear
 // greyed out / unselectable in the import picker. Accept those types too so any backup is pickable.
 private val IMPORT_MIME_TYPES = arrayOf("application/json", "application/octet-stream", "text/plain")
+
+/** Localised label for a translation engine choice in the dropdown. */
+@Composable
+private fun translationEngineLabel(engine: TranslationEngine): String = stringResource(
+    when (engine) {
+        TranslationEngine.GOOGLE -> R.string.translation_engine_google
+        TranslationEngine.LIBRETRANSLATE -> R.string.translation_engine_libretranslate
+        TranslationEngine.MLKIT -> R.string.translation_engine_mlkit
+    },
+)
 
 private const val FOXY_DROID_TITLE = "FoxyDroid"
 private const val FOXY_DROID_AUTHOR = "kitsunyan"
@@ -428,6 +439,54 @@ fun SettingsScreen(
                     helpText = stringResource(R.string.github_token_help),
                     onValueChange = viewModel::setGithubToken,
                 )
+            }
+
+            item {
+                SettingHeader(title = stringResource(R.string.translation_section))
+            }
+
+            item {
+                SelectionSettingItem(
+                    title = stringResource(R.string.translation_engine),
+                    icon = painterResource(R.drawable.ic_language),
+                    selectedValue = settings.translationEngine,
+                    values = TranslationEngine.entries.toList(),
+                    onValueSelected = viewModel::setTranslationEngine,
+                    valueToString = { translationEngineLabel(it) },
+                )
+            }
+
+            item {
+                SwitchSettingItem(
+                    title = stringResource(R.string.auto_translate),
+                    description = stringResource(R.string.auto_translate_DESC),
+                    checked = settings.autoTranslate,
+                    onCheckedChange = viewModel::setAutoTranslate,
+                )
+            }
+
+            if (settings.translationEngine == TranslationEngine.LIBRETRANSLATE) {
+                item {
+                    TextInputSettingItem(
+                        title = stringResource(R.string.libretranslate_url),
+                        value = settings.libreTranslateUrl,
+                        icon = painterResource(R.drawable.ic_public),
+                        onValueChange = viewModel::setLibreTranslateUrl,
+                    )
+                }
+                item {
+                    TextInputSettingItem(
+                        title = stringResource(R.string.libretranslate_api_key),
+                        value = settings.libreTranslateApiKey,
+                        valueDisplay = if (settings.libreTranslateApiKey.isBlank()) {
+                            stringResource(R.string.unspecified)
+                        } else {
+                            stringResource(R.string.github_token_set)
+                        },
+                        icon = painterResource(R.drawable.ic_public),
+                        onValueChange = viewModel::setLibreTranslateApiKey,
+                    )
+                }
             }
 
             item {

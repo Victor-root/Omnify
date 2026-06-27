@@ -26,16 +26,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -107,6 +110,14 @@ fun AppDetailScreen(
     val downloadStatus by viewModel.downloadStatus.collectAsStateWithLifecycle()
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
+    val descriptionTranslation by viewModel.descriptionTranslation.collectAsStateWithLifecycle()
+    // Auto-translate on open when the setting is on (the ViewModel decides if it's actually needed).
+    val autoTranslateApp = (state as? AppDetailState.Success)?.app
+    LaunchedEffect(autoTranslateApp?.metadata?.packageName?.name) {
+        autoTranslateApp?.let {
+            viewModel.maybeAutoTranslate(it.metadata.summary, it.metadata.description.raw)
+        }
+    }
     val uriHandler = LocalUriHandler.current
     val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
 
@@ -163,11 +174,31 @@ fun AppDetailScreen(
                         is AppDetailState.Error -> {}
                         is AppDetailState.Success -> {
                             val app = (state as AppDetailState.Success).app
-                            Text(text = app.metadata.name)
+                            // Ellipsise so a long app name can't run under the translate action.
+                            Text(
+                                text = app.metadata.name,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
                 },
                 navigationIcon = { BackButton(onBackClick) },
+                actions = {
+                    val successApp = (state as? AppDetailState.Success)?.app
+                    if (successApp != null && successApp.metadata.description.isNotBlank()) {
+                        TranslateAction(
+                            translation = descriptionTranslation,
+                            onTranslate = {
+                                viewModel.translateDescription(
+                                    successApp.metadata.summary,
+                                    successApp.metadata.description.raw,
+                                )
+                            },
+                            onShowOriginal = viewModel::showOriginalDescription,
+                        )
+                    }
+                },
             )
         },
     ) { padding ->
@@ -211,6 +242,7 @@ fun AppDetailScreen(
                         } catch (_: Exception) {
                         }
                     },
+                    descriptionTranslation = descriptionTranslation,
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -272,6 +304,51 @@ private fun PrimaryActions(
     }
 }
 
+/**
+ * The top-bar Translate toggle: tap to translate the summary + description into the device language,
+ * tap again to revert to the original. While translating, the icon is ringed by the app's wavy
+ * progress indicator (in the bar's colour). Nothing is fetched or downloaded until the user taps.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun TranslateAction(
+    translation: DescriptionTranslation,
+    onTranslate: () -> Unit,
+    onShowOriginal: () -> Unit,
+) {
+    when (translation) {
+        DescriptionTranslation.Loading -> Box(
+            modifier = Modifier.size(48.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularWavyProgressIndicator(
+                modifier = Modifier.size(36.dp),
+                color = LocalContentColor.current,
+            )
+            Icon(
+                imageVector = Icons.Filled.Translate,
+                contentDescription = stringResource(R.string.translating),
+                modifier = Modifier.size(18.dp),
+            )
+        }
+
+        is DescriptionTranslation.Translated -> IconButton(onClick = onShowOriginal) {
+            Icon(
+                imageVector = Icons.Filled.Translate,
+                contentDescription = stringResource(R.string.show_original),
+            )
+        }
+
+        // Original or Failed: tapping (re)translates.
+        else -> IconButton(onClick = onTranslate) {
+            Icon(
+                imageVector = Icons.Filled.Translate,
+                contentDescription = stringResource(R.string.translate),
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppDetail(
@@ -289,6 +366,7 @@ private fun AppDetail(
     onUninstall: () -> Unit,
     onCancel: () -> Unit,
     onCustomButtonClick: (url: String) -> Unit,
+    descriptionTranslation: DescriptionTranslation,
     modifier: Modifier = Modifier,
 ) {
     val installedPackage = app.packages?.firstOrNull { it.installed }
@@ -387,8 +465,11 @@ private fun AppDetail(
 
         Spacer(modifier = Modifier.height(8.dp))
         if (app.metadata.summary.isNotBlank()) {
+            // The bold summary is translated together with the description, so it switches too.
+            val shownSummary = (descriptionTranslation as? DescriptionTranslation.Translated)
+                ?.summary?.takeIf { it.isNotBlank() } ?: app.metadata.summary
             Text(
-                text = app.metadata.summary,
+                text = shownSummary,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -404,11 +485,22 @@ private fun AppDetail(
             val description = remember(app.metadata.description) {
                 app.metadata.description.toAnnotatedString(onUrlClick = { handler.openUri(it) })
             }
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
+            // Show the translation when one is ready (the toggle lives in the top bar); otherwise the
+            // original formatted text.
+            val translated = descriptionTranslation as? DescriptionTranslation.Translated
+            if (translated != null && translated.description.isNotBlank()) {
+                Text(
+                    text = translated.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            } else {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
         }
         val suggestedPackage = installablePackage ?: packages.firstOrNull()?.first
 

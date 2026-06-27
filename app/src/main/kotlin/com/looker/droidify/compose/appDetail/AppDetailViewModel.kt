@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
+import androidx.core.text.HtmlCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -31,6 +32,7 @@ import com.looker.droidify.network.DataSize
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.percentBy
+import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.utility.common.extension.calculateHash
@@ -41,6 +43,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -53,6 +57,21 @@ import java.io.File
 import java.security.MessageDigest
 import javax.inject.Inject
 
+/** UI state of the description "Translate" toggle on the app detail screen. */
+sealed interface DescriptionTranslation {
+    /** Showing the original description. */
+    data object Original : DescriptionTranslation
+
+    /** Translation in progress (covers the first-use ML Kit model download too). */
+    data object Loading : DescriptionTranslation
+
+    /** Showing the translated summary + description. */
+    data class Translated(val summary: String, val description: String) : DescriptionTranslation
+
+    /** The translation couldn't be produced (offline, bad config, unsupported language…). */
+    data object Failed : DescriptionTranslation
+}
+
 @HiltViewModel
 class AppDetailViewModel @Inject constructor(
     private val appRepository: AppRepository,
@@ -61,9 +80,77 @@ class AppDetailViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val installManager: InstallManager,
     private val downloader: Downloader,
+    private val translationManager: TranslationManager,
     @param:ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
+
+    /** State of the description "Translate" toggle. */
+    private val _descriptionTranslation =
+        MutableStateFlow<DescriptionTranslation>(DescriptionTranslation.Original)
+    val descriptionTranslation: StateFlow<DescriptionTranslation> = _descriptionTranslation
+
+    /** Translates the summary + description (HTML) into the device language. Never throws. */
+    fun translateDescription(summary: String, descriptionHtml: String) {
+        if (summary.isBlank() && descriptionHtml.isBlank()) return
+        viewModelScope.launch { translateBoth(summary, descriptionHtml, notifyError = true) }
+    }
+
+    /** When the auto-translate setting is on, translates on screen entry — but only if the description
+     *  is actually in another language (detected on-device), so a description already in the user's
+     *  language is left alone. */
+    fun maybeAutoTranslate(summary: String, descriptionHtml: String) {
+        if (_descriptionTranslation.value != DescriptionTranslation.Original) return
+        if (descriptionHtml.isBlank()) return
+        viewModelScope.launch {
+            if (!settingsRepository.getInitial().autoTranslate) return@launch
+            val target = java.util.Locale.getDefault().language
+            val detected = runCatching {
+                translationManager.detectLanguage(plainText(descriptionHtml))
+            }.getOrNull()
+            if (detected != null && detected != "und" && detected != target) {
+                translateBoth(summary, descriptionHtml, notifyError = false)
+            }
+        }
+    }
+
+    private suspend fun translateBoth(
+        summary: String,
+        descriptionHtml: String,
+        notifyError: Boolean,
+    ) {
+        _descriptionTranslation.value = DescriptionTranslation.Loading
+        val target = java.util.Locale.getDefault().language
+        val description = plainText(descriptionHtml)
+        val result = runCatching {
+            coroutineScope {
+                val translatedSummary = async {
+                    if (summary.isBlank()) "" else translationManager.translate(summary, target)
+                }
+                val translatedDescription = async {
+                    if (description.isBlank()) "" else translationManager.translate(description, target)
+                }
+                DescriptionTranslation.Translated(
+                    summary = translatedSummary.await(),
+                    description = translatedDescription.await(),
+                )
+            }
+        }
+        _descriptionTranslation.value = result.getOrElse {
+            if (notifyError) {
+                Toast.makeText(context, R.string.translation_failed, Toast.LENGTH_SHORT).show()
+            }
+            DescriptionTranslation.Failed
+        }
+    }
+
+    /** Strips the description's HTML to plain text for translation/detection. */
+    private fun plainText(html: String): String =
+        HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
+
+    fun showOriginalDescription() {
+        _descriptionTranslation.value = DescriptionTranslation.Original
+    }
 
     val packageName: String = requireNotNull(savedStateHandle["packageName"]) {
         "Required argument 'packageName' was not found in SavedStateHandle"

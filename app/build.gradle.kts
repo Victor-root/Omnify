@@ -240,6 +240,10 @@ dependencies {
     implementation(libs.bundles.room)
     ksp(libs.room.compiler)
 
+    // On-device translation engine (optional, user-selectable). Models download on first use.
+    implementation(libs.mlkit.translate)
+    implementation(libs.mlkit.language.id)
+
     implementation(libs.work.ktx)
 
     // Installs the bundled baseline profile (src/main/baseline-prof.txt) so ART AOT-compiles the

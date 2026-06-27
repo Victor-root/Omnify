@@ -27,6 +27,7 @@ import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.Theme
+import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.installer.installers.initSui
 import com.looker.droidify.installer.installers.isMagiskGranted
 import com.looker.droidify.installer.installers.isShizukuAlive
@@ -269,6 +270,30 @@ class SettingsViewModel @Inject constructor(
     fun setGithubToken(token: String) {
         viewModelScope.launch {
             settingsRepository.setGithubToken(token.trim())
+        }
+    }
+
+    fun setTranslationEngine(engine: TranslationEngine) {
+        viewModelScope.launch {
+            settingsRepository.setTranslationEngine(engine)
+        }
+    }
+
+    fun setLibreTranslateUrl(url: String) {
+        viewModelScope.launch {
+            settingsRepository.setLibreTranslateUrl(url.trim())
+        }
+    }
+
+    fun setLibreTranslateApiKey(key: String) {
+        viewModelScope.launch {
+            settingsRepository.setLibreTranslateApiKey(key.trim())
+        }
+    }
+
+    fun setAutoTranslate(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAutoTranslate(enabled)
         }
     }
 
