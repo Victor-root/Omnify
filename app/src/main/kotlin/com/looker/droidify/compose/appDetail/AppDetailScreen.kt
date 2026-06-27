@@ -463,11 +463,19 @@ private fun AppDetail(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Versions offered by the selected repo (one repo lists each version once, so no dedup needed).
-        // This screen is a single (non-lazy) scroll column, so every row composes eagerly; apps with
-        // many versions froze the UI, so cap to the newest releases (already sorted newest-first).
+        // Versions offered by the selected repo. Multi-ABI apps (Brave, VLC, …) ship one APK per
+        // architecture under the SAME versionName but DIFFERENT version codes, so the raw list showed
+        // the same "version" several times — including builds this device can't even install. Collapse
+        // to one row per versionName, keeping the build the device can actually install (primary ABI
+        // first); versions with no compatible build are dropped. This screen is a single (non-lazy)
+        // scroll column, so every row composes eagerly; cap to the newest releases (sorted below).
         val shownPackages = remember(packages, selectedRepoId) {
-            packages.filter { it.second.id == selectedRepoId }
+            packages
+                .filter { it.second.id == selectedRepoId }
+                .groupBy { it.first.manifest.versionName }
+                .values
+                .mapNotNull { variants -> variants.selectForDevice(Long.MAX_VALUE) }
+                .sortedByDescending { it.first.manifest.versionCode }
         }
         // The release the Install button would pull from the selected repo gets the "suggested" badge,
         // so the badge always matches what tapping Install actually does for this repo.

@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
 
 private val lightScheme = lightColorScheme(
     primary = primaryLight,
@@ -308,25 +309,44 @@ private fun ColorScheme.withNeutralSurfaces(dark: Boolean): ColorScheme = if (da
     )
 }
 
+/**
+ * Uses the chosen accent colour RAW (vivid) for the primary roles, like the MaterialFiles fork,
+ * instead of the muted tone-40 the Material You generator produces from it. [onPrimary] flips between
+ * black and white by the accent's luminance so text stays legible on bright accents (yellow, lime),
+ * and [inversePrimary] is set to the same colour so the accent bar is identical in light and dark.
+ */
+private fun ColorScheme.withVividAccent(argb: Int): ColorScheme {
+    val accent = Color(argb)
+    val onAccent = if (accent.luminance() > 0.5f) Color.Black else Color.White
+    return copy(
+        primary = accent,
+        onPrimary = onAccent,
+        inversePrimary = accent,
+    )
+}
+
 @Composable
 fun DroidifyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
+    accentColor: Int = DEFAULT_THEME_COLOR,
     edgeToEdge: Boolean = true,
     content:
     @Composable()
     () -> Unit,
 ) {
     val context = LocalContext.current
+    val useDynamic = dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        useDynamic ->
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
 
-        // The activity theme is recolored from the user's chosen accent color at runtime
-        // (see MainComposeActivity.applyAccentColor); read it back so Compose follows the
-        // generated palette.
+        // The activity theme is recolored from the chosen accent at runtime (see
+        // MainComposeActivity.applyAccentColor); read it back for the surface/container roles, but use
+        // the accent RAW (vivid) for primary instead of the muted tone-40 Material You derives from it
+        // — that washed-out tone is what made the colours look dull. Mirrors the MaterialFiles fork.
         else -> context.toComposeColorScheme(if (darkTheme) darkScheme else lightScheme)
+            .withVividAccent(accentColor)
     }.withNeutralSurfaces(darkTheme)
 
     // The header and system bars use one fixed accent red in BOTH light and dark mode. Material 3

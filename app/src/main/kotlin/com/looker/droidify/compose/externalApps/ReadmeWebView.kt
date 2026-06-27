@@ -84,7 +84,7 @@ fun ReadmeWebView(
                         openExternally(url)
 
                     private fun openExternally(url: String): Boolean {
-                        runCatching { uriHandler.openUri(url) }
+                        runCatching { uriHandler.openUri(humanizeGitHubMarkdownUrl(url)) }
                         return true
                     }
                 }
@@ -99,6 +99,28 @@ fun ReadmeWebView(
         },
         onRelease = { it.destroy() },
     )
+}
+
+/**
+ * A README often links to a sibling Markdown file as a repo-relative path; the WebView resolves it
+ * against the raw-content [baseUrl], so tapping it would open unstyled raw text in the browser.
+ * Rewrite such raw `.md`/`.markdown` links to their human github.com "blob" page so they open
+ * rendered. Anything that isn't a raw Markdown link is returned unchanged.
+ */
+private fun humanizeGitHubMarkdownUrl(url: String): String {
+    val rawPrefix = "https://raw.githubusercontent.com/"
+    if (!url.startsWith(rawPrefix)) return url
+    val path = url.substringBefore('?').substringBefore('#')
+    if (!path.endsWith(".md", ignoreCase = true) &&
+        !path.endsWith(".markdown", ignoreCase = true)
+    ) {
+        return url
+    }
+    // raw.githubusercontent.com/{owner}/{repo}/{ref}/{file…} -> github.com/{owner}/{repo}/blob/{ref}/{file…}
+    val parts = path.removePrefix(rawPrefix).split("/", limit = 4)
+    if (parts.size < 4) return url
+    val (owner, repo, ref, filePath) = parts
+    return "https://github.com/$owner/$repo/blob/$ref/$filePath"
 }
 
 private fun wrapReadmeHtml(

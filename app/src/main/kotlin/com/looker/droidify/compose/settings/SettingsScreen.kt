@@ -176,14 +176,12 @@ fun SettingsScreen(
             }
 
             item {
-                SettingHeader(
-                    title = stringResource(R.string.prefs_personalization),
-                    icon = painterResource(R.drawable.ic_themes),
-                )
+                SettingHeader(title = stringResource(R.string.prefs_personalization))
             }
 
             item {
                 LanguageSetting(
+                    icon = painterResource(R.drawable.ic_language),
                     selectedLanguage = settings.language,
                     onLanguageSelected = viewModel::setLanguage,
                 )
@@ -191,6 +189,7 @@ fun SettingsScreen(
 
             item {
                 ThemeSetting(
+                    icon = painterResource(R.drawable.ic_themes),
                     selectedTheme = settings.theme,
                     onThemeSelected = viewModel::setTheme,
                 )
@@ -200,6 +199,7 @@ fun SettingsScreen(
                 ActionSettingItem(
                     title = stringResource(R.string.theme_color),
                     description = stringResource(R.string.theme_color_DESC),
+                    icon = painterResource(R.drawable.ic_tune),
                     onClick = { showColorPicker = true },
                 )
             }
@@ -208,6 +208,7 @@ fun SettingsScreen(
                 SwitchSettingItem(
                     title = stringResource(R.string.home_screen_swiping),
                     description = stringResource(R.string.home_screen_swiping_DESC),
+                    icon = painterResource(R.drawable.ic_tabler_arrows_horizontal),
                     checked = settings.homeScreenSwiping,
                     onCheckedChange = viewModel::setHomeScreenSwiping,
                 )
@@ -217,22 +218,21 @@ fun SettingsScreen(
                 SwitchSettingItem(
                     title = stringResource(R.string.edge_to_edge),
                     description = stringResource(R.string.edge_to_edge_summary),
+                    icon = painterResource(R.drawable.ic_tabler_maximize),
                     checked = settings.edgeToEdge,
                     onCheckedChange = viewModel::setEdgeToEdge,
                 )
             }
 
             item {
-                SettingHeader(
-                    title = stringResource(R.string.updates),
-                    icon = painterResource(R.drawable.ic_new_releases),
-                )
+                SettingHeader(title = stringResource(R.string.updates))
             }
 
             item {
                 SwitchSettingItem(
                     title = stringResource(R.string.auto_update),
                     description = stringResource(R.string.auto_update_apps),
+                    icon = painterResource(R.drawable.ic_tabler_refresh),
                     checked = settings.autoUpdate,
                     onCheckedChange = viewModel::setAutoUpdate,
                 )
@@ -242,6 +242,7 @@ fun SettingsScreen(
                 SwitchSettingItem(
                     title = stringResource(R.string.notify_about_updates),
                     description = stringResource(R.string.notify_about_updates_summary),
+                    icon = painterResource(R.drawable.ic_tabler_bell),
                     checked = settings.notifyUpdate,
                     onCheckedChange = viewModel::setNotifyUpdates,
                 )
@@ -251,6 +252,7 @@ fun SettingsScreen(
                 SwitchSettingItem(
                     title = stringResource(R.string.unstable_updates),
                     description = stringResource(R.string.unstable_updates_summary),
+                    icon = painterResource(R.drawable.ic_bug_report),
                     checked = settings.unstableUpdate,
                     onCheckedChange = viewModel::setUnstableUpdates,
                 )
@@ -260,6 +262,7 @@ fun SettingsScreen(
                 SwitchSettingItem(
                     title = stringResource(R.string.incompatible_versions),
                     description = stringResource(R.string.incompatible_versions_summary),
+                    icon = painterResource(R.drawable.ic_tabler_alert_triangle),
                     checked = settings.incompatibleVersions,
                     onCheckedChange = viewModel::setIncompatibleUpdates,
                 )
@@ -269,20 +272,19 @@ fun SettingsScreen(
                 SwitchSettingItem(
                     title = stringResource(R.string.ignore_signature),
                     description = stringResource(R.string.ignore_signature_summary),
+                    icon = painterResource(R.drawable.ic_verified_off),
                     checked = settings.ignoreSignature,
                     onCheckedChange = viewModel::setIgnoreSignature,
                 )
             }
 
             item {
-                SettingHeader(
-                    title = stringResource(R.string.sync_repositories),
-                    icon = painterResource(R.drawable.ic_sync),
-                )
+                SettingHeader(title = stringResource(R.string.sync_repositories))
             }
 
             item {
                 AutoSyncSetting(
+                    icon = painterResource(R.drawable.ic_sync),
                     selectedAutoSync = settings.autoSync,
                     onAutoSyncSelected = viewModel::setAutoSync,
                 )
@@ -290,6 +292,7 @@ fun SettingsScreen(
 
             item {
                 CleanUpIntervalSetting(
+                    icon = painterResource(R.drawable.ic_time),
                     selectedInterval = settings.cleanUpInterval,
                     onIntervalSelected = viewModel::setCleanUpInterval,
                 )
@@ -300,6 +303,7 @@ fun SettingsScreen(
                     ActionSettingItem(
                         title = stringResource(R.string.force_clean_up),
                         description = stringResource(R.string.force_clean_up_DESC),
+                        icon = painterResource(R.drawable.ic_tabler_trash),
                         onClick = { viewModel.forceCleanup(context) },
                     )
                 }
@@ -309,6 +313,7 @@ fun SettingsScreen(
                 SwitchSettingItem(
                     title = stringResource(R.string.download_stats),
                     description = stringResource(R.string.download_statistics_summary),
+                    icon = painterResource(R.drawable.ic_download),
                     checked = settings.dlStatsEnabled,
                     onCheckedChange = viewModel::setDownloadStatisticsEnabled,
                 )
@@ -318,20 +323,19 @@ fun SettingsScreen(
                 SwitchSettingItem(
                     title = stringResource(R.string.reproducibility_logs),
                     description = stringResource(R.string.reproducibility_logs_summary),
+                    icon = painterResource(R.drawable.ic_code),
                     checked = settings.rbLogsEnabled,
                     onCheckedChange = viewModel::setReproducibilityLogsEnabled,
                 )
             }
 
             item {
-                SettingHeader(
-                    title = stringResource(R.string.install_types),
-                    icon = painterResource(R.drawable.ic_apk_install),
-                )
+                SettingHeader(title = stringResource(R.string.install_types))
             }
 
             item {
                 InstallerTypeSetting(
+                    icon = painterResource(R.drawable.ic_apk_install),
                     selectedInstaller = settings.installerType,
                     onInstallerSelected = { viewModel.setInstaller(context, it) },
                 )
@@ -340,6 +344,7 @@ fun SettingsScreen(
             if (settings.installerType == InstallerType.LEGACY) {
                 item {
                     LegacyInstallerComponentSetting(
+                        icon = painterResource(R.drawable.ic_tabler_package),
                         selectedComponent = settings.legacyInstallerComponent,
                         onComponentSelected = viewModel::setLegacyInstallerComponent,
                     )
@@ -351,6 +356,7 @@ fun SettingsScreen(
                     SwitchSettingItem(
                         title = stringResource(R.string.delete_apk_on_install),
                         description = stringResource(R.string.delete_apk_on_install_summary),
+                        icon = painterResource(R.drawable.ic_delete),
                         checked = settings.deleteApkOnInstall,
                         onCheckedChange = viewModel::setDeleteApkOnInstall,
                     )
@@ -358,14 +364,12 @@ fun SettingsScreen(
             }
 
             item {
-                SettingHeader(
-                    title = stringResource(R.string.proxy),
-                    icon = painterResource(R.drawable.ic_proxy),
-                )
+                SettingHeader(title = stringResource(R.string.proxy))
             }
 
             item {
                 ProxyTypeSetting(
+                    icon = painterResource(R.drawable.ic_proxy),
                     selectedProxyType = settings.proxy.type,
                     onProxyTypeSelected = viewModel::setProxyType,
                 )
@@ -376,6 +380,7 @@ fun SettingsScreen(
                     TextInputSettingItem(
                         title = stringResource(R.string.proxy_host),
                         value = settings.proxy.host,
+                        icon = painterResource(R.drawable.ic_public),
                         onValueChange = viewModel::setProxyHost,
                     )
                 }
@@ -384,22 +389,21 @@ fun SettingsScreen(
                     TextInputSettingItem(
                         title = stringResource(R.string.proxy_port),
                         value = settings.proxy.port.toString(),
+                        icon = painterResource(R.drawable.ic_public),
                         onValueChange = viewModel::setProxyPort,
                     )
                 }
             }
 
             item {
-                SettingHeader(
-                    title = stringResource(R.string.import_export),
-                    icon = painterResource(R.drawable.ic_save),
-                )
+                SettingHeader(title = stringResource(R.string.import_export))
             }
 
             item {
                 ActionSettingItem(
                     title = stringResource(R.string.import_settings_title),
                     description = stringResource(R.string.import_settings_DESC),
+                    icon = painterResource(R.drawable.ic_download),
                     onClick = { importSettingsLauncher.launch(IMPORT_MIME_TYPES) },
                 )
             }
@@ -408,6 +412,7 @@ fun SettingsScreen(
                 ActionSettingItem(
                     title = stringResource(R.string.export_settings_title),
                     description = stringResource(R.string.export_settings_DESC),
+                    icon = painterResource(R.drawable.ic_save),
                     onClick = { exportSettingsLauncher.launch(SETTINGS_BACKUP_NAME) },
                 )
             }
@@ -416,6 +421,7 @@ fun SettingsScreen(
                 ActionSettingItem(
                     title = stringResource(R.string.import_repos_title),
                     description = stringResource(R.string.import_repos_DESC),
+                    icon = painterResource(R.drawable.ic_download),
                     onClick = { importReposLauncher.launch(IMPORT_MIME_TYPES) },
                 )
             }
@@ -424,15 +430,13 @@ fun SettingsScreen(
                 ActionSettingItem(
                     title = stringResource(R.string.export_repos_title),
                     description = stringResource(R.string.export_repos_DESC),
+                    icon = painterResource(R.drawable.ic_save),
                     onClick = { exportReposLauncher.launch(REPO_BACKUP_NAME) },
                 )
             }
 
             item {
-                SettingHeader(
-                    title = stringResource(R.string.custom_buttons_section),
-                    icon = painterResource(R.drawable.ic_tabler_plus),
-                )
+                SettingHeader(title = stringResource(R.string.custom_buttons_section))
             }
 
             item {
@@ -447,10 +451,7 @@ fun SettingsScreen(
             }
 
             item {
-                SettingHeader(
-                    title = stringResource(R.string.author),
-                    icon = painterResource(R.drawable.ic_person),
-                )
+                SettingHeader(title = stringResource(R.string.author))
             }
 
             item {
@@ -472,16 +473,14 @@ fun SettingsScreen(
             }
 
             item {
-                SettingHeader(
-                    title = stringResource(R.string.special_credits),
-                    icon = painterResource(R.drawable.ic_copyright),
-                )
+                SettingHeader(title = stringResource(R.string.special_credits))
             }
 
             item {
                 ActionSettingItem(
                     title = FOXY_DROID_TITLE,
                     description = FOXY_DROID_AUTHOR,
+                    icon = painterResource(R.drawable.ic_github),
                     onClick = { context.openLink(FOXY_DROID_URL) },
                 )
             }
@@ -490,6 +489,7 @@ fun SettingsScreen(
                 ActionSettingItem(
                     title = DROID_IFY_AUTHOR,
                     description = DROID_IFY_ORIGINAL,
+                    icon = painterResource(R.drawable.ic_github),
                     onClick = { context.openLink(DROID_IFY_URL) },
                 )
             }
@@ -553,12 +553,14 @@ private fun AuthorRow(
 
 @Composable
 private fun LanguageSetting(
+    icon: Painter,
     selectedLanguage: String,
     onLanguageSelected: (String) -> Unit,
 ) {
     val context = LocalContext.current
     SelectionSettingItem(
         title = stringResource(R.string.prefs_language_title),
+        icon = icon,
         selectedValue = selectedLanguage,
         values = localeCodesList,
         onValueSelected = onLanguageSelected,
@@ -570,11 +572,13 @@ private fun LanguageSetting(
 
 @Composable
 private fun ThemeSetting(
+    icon: Painter,
     selectedTheme: Theme,
     onThemeSelected: (Theme) -> Unit,
 ) {
     SelectionSettingItem(
         title = stringResource(R.string.theme),
+        icon = icon,
         dialogTitle = stringResource(R.string.themes),
         selectedValue = selectedTheme,
         values = Theme.entries,
@@ -593,11 +597,13 @@ private fun ThemeSetting(
 
 @Composable
 private fun AutoSyncSetting(
+    icon: Painter,
     selectedAutoSync: AutoSync,
     onAutoSyncSelected: (AutoSync) -> Unit,
 ) {
     SelectionSettingItem(
         title = stringResource(R.string.sync_repositories_automatically),
+        icon = icon,
         selectedValue = selectedAutoSync,
         values = AutoSync.entries,
         onValueSelected = onAutoSyncSelected,
@@ -614,11 +620,13 @@ private fun AutoSyncSetting(
 
 @Composable
 private fun CleanUpIntervalSetting(
+    icon: Painter,
     selectedInterval: Duration,
     onIntervalSelected: (Duration) -> Unit,
 ) {
     SelectionSettingItem(
         title = stringResource(R.string.cleanup_title),
+        icon = icon,
         selectedValue = selectedInterval,
         values = cleanUpIntervals,
         onValueSelected = onIntervalSelected,
@@ -628,11 +636,13 @@ private fun CleanUpIntervalSetting(
 
 @Composable
 private fun InstallerTypeSetting(
+    icon: Painter,
     selectedInstaller: InstallerType,
     onInstallerSelected: (InstallerType) -> Unit,
 ) {
     SelectionSettingItem(
         title = stringResource(R.string.installer),
+        icon = icon,
         selectedValue = selectedInstaller,
         values = InstallerType.entries,
         onValueSelected = onInstallerSelected,
@@ -649,6 +659,7 @@ private fun InstallerTypeSetting(
 
 @Composable
 private fun LegacyInstallerComponentSetting(
+    icon: Painter,
     selectedComponent: LegacyInstallerComponent?,
     onComponentSelected: (LegacyInstallerComponent?) -> Unit,
 ) {
@@ -657,6 +668,7 @@ private fun LegacyInstallerComponentSetting(
 
     SelectionSettingItem(
         title = stringResource(R.string.legacyInstallerComponent),
+        icon = icon,
         selectedValue = selectedComponent ?: LegacyInstallerComponent.Unspecified,
         values = installerOptions,
         onValueSelected = onComponentSelected,
@@ -679,11 +691,13 @@ private fun LegacyInstallerComponentSetting(
 
 @Composable
 private fun ProxyTypeSetting(
+    icon: Painter,
     selectedProxyType: ProxyType,
     onProxyTypeSelected: (ProxyType) -> Unit,
 ) {
     SelectionSettingItem(
         title = stringResource(R.string.proxy_type),
+        icon = icon,
         selectedValue = selectedProxyType,
         values = ProxyType.entries,
         onValueSelected = onProxyTypeSelected,

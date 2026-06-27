@@ -226,6 +226,7 @@ class MainComposeActivity : ComponentActivity() {
             DroidifyTheme(
                 darkTheme = darkTheme,
                 dynamicColor = themeState.dynamicTheme,
+                accentColor = themeState.themeColor,
                 edgeToEdge = themeState.edgeToEdge,
             ) {
                 val navController = rememberNavController()

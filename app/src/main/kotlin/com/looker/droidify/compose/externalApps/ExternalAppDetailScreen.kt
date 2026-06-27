@@ -39,6 +39,8 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
@@ -61,8 +63,13 @@ fun ExternalAppDetailScreen(
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
-        viewModel.refreshInstalled()
         viewModel.reconcileInstalledLabels()
+    }
+    // Re-query install state on every resume — in particular when returning from the system uninstall
+    // dialog — so the buttons switch from Open/Uninstall back to Install without having to leave and
+    // re-open the screen (installManager.state alone doesn't report a system uninstall).
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshInstalled()
     }
 
     val app = apps.firstOrNull { it.key == appKey }
@@ -126,11 +133,16 @@ fun ExternalAppDetailScreen(
                     )
                     app.latestTag?.let { tag ->
                         Text(
-                            text = stringResource(
-                                R.string.external_repo_latest,
-                                app.provider.label,
-                                tag,
-                            ),
+                            text = stringResource(R.string.external_repo_latest, tag),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    // The tag is the project's own (server) version; the APK file name is the actual
+                    // build offered, shown separately since repos version/name them differently.
+                    app.latestApkName?.let { apkName ->
+                        Text(
+                            text = stringResource(R.string.external_latest_apk, apkName),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

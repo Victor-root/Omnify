@@ -1,7 +1,6 @@
 package com.looker.droidify.compose.settings.components
 
-import android.content.res.Configuration
-import androidx.appcompat.R as AppCompatR
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,8 +24,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,9 +36,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.google.android.material.color.DynamicColors
-import com.google.android.material.color.DynamicColorsOptions
-import com.google.android.material.color.MaterialColors
 import com.looker.droidify.R
 import com.looker.droidify.compose.theme.accentColorPalette
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
@@ -77,14 +73,23 @@ fun ThemeColorPickerDialog(
                 Spacer(Modifier.height(20.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     LabeledSwatch(
-                        color = rememberAccentPreview(DEFAULT_THEME_COLOR),
+                        color = Color(DEFAULT_THEME_COLOR),
                         label = stringResource(R.string.theme_color_default),
                         selected = !dynamicEnabled && selectedColor == DEFAULT_THEME_COLOR,
                         onClick = { onColorSelected(DEFAULT_THEME_COLOR) },
                     )
                     if (showWallpaperOption) {
+                        // Preview the colour Material You actually derives from the wallpaper, NOT the
+                        // current theme's primary (which would just echo the active accent). Only shown
+                        // on Android 12+, where the dynamic scheme is available.
+                        val context = LocalContext.current
+                        val wallpaperColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            dynamicLightColorScheme(context).primary
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        }
                         LabeledSwatch(
-                            color = MaterialTheme.colorScheme.primaryContainer,
+                            color = wallpaperColor,
                             label = stringResource(R.string.theme_color_wallpaper),
                             selected = dynamicEnabled,
                             onClick = onWallpaperSelected,
@@ -96,10 +101,10 @@ fun ThemeColorPickerDialog(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    // Red is offered as "Default" above, so the grid starts at the next color.
-                    accentColorPalette.drop(1).forEach { argb ->
+                    // The default colour is offered as "Default" above, so leave it out of the grid.
+                    accentColorPalette.filter { it != DEFAULT_THEME_COLOR }.forEach { argb ->
                         ColorSwatch(
-                            color = rememberAccentPreview(argb),
+                            color = Color(argb),
                             selected = !dynamicEnabled && selectedColor == argb,
                             onClick = { onColorSelected(argb) },
                         )
@@ -116,28 +121,6 @@ fun ThemeColorPickerDialog(
                 }
             }
         }
-    }
-}
-
-/**
- * The actual accent colour a seed produces in the header — i.e. the Material 3 primary generated from
- * it, read back exactly as the app does at runtime ([toComposeColorScheme] uses colorPrimary), rather
- * than the raw seed (which looks noticeably more orange than the muted generated red). Generated in a
- * forced-light context because the header always shows the light primary (in dark mode it uses
- * inversePrimary, which equals the light primary).
- */
-@Composable
-private fun rememberAccentPreview(seed: Int): Color {
-    val context = LocalContext.current
-    return remember(seed, context) {
-        val lightConfig = Configuration(context.resources.configuration).apply {
-            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
-                Configuration.UI_MODE_NIGHT_NO
-        }
-        val lightContext = context.createConfigurationContext(lightConfig)
-        val options = DynamicColorsOptions.Builder().setContentBasedSource(seed).build()
-        val themed = DynamicColors.wrapContextIfAvailable(lightContext, options)
-        Color(MaterialColors.getColor(themed, AppCompatR.attr.colorPrimary, seed))
     }
 }
 

@@ -51,9 +51,11 @@ class ExternalApi @Inject constructor(
     }
 
     /**
-     * Fetches the release Droidify should offer for the project: the newest non-draft release
-     * (optionally including pre-releases). Returns null on network/HTTP/parse failure or when the
-     * project has no matching release.
+     * Fetches the release Droidify should offer for the project: the newest non-draft release that
+     * actually ships an APK (optionally including pre-releases). Releases with no APK — e.g. a
+     * server-only version bump — are skipped, since there's nothing to install from them and their
+     * tag would otherwise be mistaken for a new app version. Returns null on network/HTTP/parse
+     * failure or when no release in the recent window ships an APK.
      */
     suspend fun latestRelease(
         provider: SourceProvider,
@@ -84,7 +86,12 @@ class ExternalApi @Inject constructor(
                         url = "https://gitlab.com/api/v4/projects/$path/releases?per_page=10",
                     ) ?: return@runCatching null
                     decodeGitlab(text)
-                        .firstOrNull { includePrereleases || !it.upcomingRelease }
+                        .firstOrNull {
+                            (includePrereleases || !it.upcomingRelease) &&
+                                it.assets.links.any { link ->
+                                    link.name.endsWith(".apk", ignoreCase = true)
+                                }
+                        }
                         ?.toRelease()
                 }
             }
@@ -98,7 +105,11 @@ class ExternalApi @Inject constructor(
         json.decodeFromString(ListSerializer(GitlabReleaseDto.serializer()), text)
 
     private fun List<RestReleaseDto>.firstMatching(includePrereleases: Boolean): RestReleaseDto? =
-        firstOrNull { !it.draft && (includePrereleases || !it.prerelease) }
+        firstOrNull {
+            !it.draft &&
+                (includePrereleases || !it.prerelease) &&
+                it.assets.any { asset -> asset.name.endsWith(".apk", ignoreCase = true) }
+        }
 
     private suspend fun getText(url: String, github: Boolean = false): String? {
         val response = httpClient.get(url) {

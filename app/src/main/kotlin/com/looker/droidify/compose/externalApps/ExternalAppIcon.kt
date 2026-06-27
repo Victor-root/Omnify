@@ -4,7 +4,6 @@ import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -17,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -62,34 +62,42 @@ fun ExternalAppIcon(
             runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull()
         }
     }
-    Box(
-        modifier = modifier
-            .size(size)
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-        contentAlignment = Alignment.Center,
-    ) {
-        when {
-            launcherIcon != null -> Image(
-                bitmap = launcherIcon,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-            )
+    // Render exactly like a catalogue icon ([AppMinimalIcon]): the image is clipped to the tile shape
+    // and cropped to fill, with NO box behind it — a background only shows for the placeholder. Drawing
+    // the surface box behind every real icon is what left the ugly rounded rectangle around icons that
+    // aren't full-bleed (e.g. a circular logo).
+    val shape = MaterialTheme.shapes.large
+    when {
+        launcherIcon != null -> Image(
+            bitmap = launcherIcon,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier.size(size).clip(shape),
+        )
 
-            extractedIcon != null -> Image(
-                bitmap = extractedIcon,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-            )
+        extractedIcon != null -> Image(
+            bitmap = extractedIcon,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier.size(size).clip(shape),
+        )
 
-            app.iconUrl != null && !avatarFailed -> AsyncImage(
-                model = app.iconUrl,
-                onError = { avatarFailed = true },
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-            )
+        app.iconUrl != null && !avatarFailed -> AsyncImage(
+            model = app.iconUrl,
+            onError = { avatarFailed = true },
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier.size(size).clip(shape),
+        )
 
-            else -> Icon(
+        else -> Box(
+            modifier = modifier
+                .size(size)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
                 painter = painterResource(R.drawable.ic_tabler_box),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,

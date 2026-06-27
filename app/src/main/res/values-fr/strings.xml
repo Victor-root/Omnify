@@ -333,7 +333,8 @@
     <string name="external_download_failed">Échec du téléchargement de %1$s</string>
     <string name="external_invalid_apk">Le fichier téléchargé n\'est pas un APK valide</string>
     <string name="external_cant_launch">%1$s n\'a pas d\'activité lançable</string>
-    <string name="external_repo_latest">Dernière sur %1$s : %2$s</string>
+    <string name="external_repo_latest">Dernière release : %1$s</string>
+    <string name="external_latest_apk">Dernier APK : %1$s</string>
     <string name="external_installed_version">Installé : %1$s</string>
     <string name="external_preinstall_notice">Installez l\'app pour afficher son vrai nom, son icône et sa version — en attendant, ce sont ceux du dépôt.</string>
     <string name="external_add_source">Ajouter une source externe</string>

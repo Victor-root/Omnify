@@ -339,7 +339,8 @@
     <string name="external_download_failed">Download failed for %1$s</string>
     <string name="external_invalid_apk">Downloaded file isn\'t a valid APK</string>
     <string name="external_cant_launch">%1$s has no launchable activity</string>
-    <string name="external_repo_latest">Latest on %1$s: %2$s</string>
+    <string name="external_repo_latest">Latest release: %1$s</string>
+    <string name="external_latest_apk">Latest APK: %1$s</string>
     <string name="external_installed_version">Installed: %1$s</string>
     <string name="external_preinstall_notice">Install the app to show its real name, icon and version — until then, these come from the repository.</string>
     <string name="external_add_source">Add external source</string>

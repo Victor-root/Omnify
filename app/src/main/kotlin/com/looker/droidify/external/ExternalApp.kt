@@ -17,10 +17,20 @@ data class ExternalApp(
     val label: String = repo,
     /** Resolved from the installed APK's manifest; null until first installed. */
     val packageName: String? = null,
-    /** Release tag the user last installed (e.g. "v1.2.3"). */
+    /** Release tag the user last installed (e.g. "v1.2.3"). Kept for display. */
     val installedTag: String? = null,
-    /** Most recent release tag seen on the provider. */
+    /** Most recent release tag seen on the provider (of a release that ships an APK). For display. */
     val latestTag: String? = null,
+    /** Identity of the APK file the user installed (its upload time / id — see
+     *  [com.looker.droidify.external.apkVersionToken]). Updates are tracked against this, not the tag,
+     *  so a server-only version bump (new tag, same or no APK) isn't mistaken for an update. Null until
+     *  first installed, or for apps installed before APK-token tracking existed. */
+    val installedApkToken: String? = null,
+    /** Identity of the APK in the latest release that actually ships one. */
+    val latestApkToken: String? = null,
+    /** File name of the APK in the latest release (e.g. "GlassKeep-1.5.0.apk"), shown as the "latest
+     *  APK" line — universal across repos and often the real APK version when the tag isn't. */
+    val latestApkName: String? = null,
     /** Whether to consider pre-releases when picking the latest release. */
     val includePrereleases: Boolean = false,
     /** Whether this source is active. Disabled sources are hidden from the External tab and updates,
@@ -53,7 +63,16 @@ data class ExternalApp(
             SourceProvider.GITLAB, SourceProvider.CODEBERG -> null
         }
 
-    /** A newer release than the one installed is available. */
+    /**
+     * A different APK than the one installed is available. Compared by APK identity (the file itself),
+     * so a new release tag with no new APK doesn't count. Falls back to the release tag only for apps
+     * installed before APK-token tracking existed (their token is backfilled on the next install).
+     */
     val hasUpdate: Boolean
-        get() = installedTag != null && latestTag != null && latestTag != installedTag
+        get() = when {
+            installedApkToken != null && latestApkToken != null ->
+                installedApkToken != latestApkToken
+            installedTag != null && latestTag != null -> latestTag != installedTag
+            else -> false
+        }
 }

@@ -3,11 +3,14 @@ package com.looker.droidify.compose.appList
 import android.app.Activity
 import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,11 +27,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
@@ -51,7 +56,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -61,6 +65,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults.IconButtonWidthOption.Companion.Narrow
 import androidx.compose.material3.IconButtonDefaults.smallContainerSize
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -303,17 +308,16 @@ fun AppListScreen(
                         currentSort = sortOrder,
                         onSortSelected = viewModel::setSortOrder,
                         title = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     painter = painterResource(R.drawable.ic_launcher_monochrome),
                                     contentDescription = null,
                                     tint = LocalOnAccentBarColor.current,
-                                    modifier = Modifier.size(28.dp),
+                                    modifier = Modifier.size(60.dp),
                                 )
-                                Text("Droid-ify")
+                                // The monochrome logo has a wide built-in safe-zone margin, so nudge the
+                                // wordmark left to sit right next to the glyph instead of after the gap.
+                                Text("Droid-ify", modifier = Modifier.offset(x = (-12).dp))
                             }
                         },
                         favouritesOnly = favouritesOnly,
@@ -555,11 +559,35 @@ private fun AppTabRow(
         selectedTabIndex = selectedTab.ordinal,
         containerColor = LocalAccentBarColor.current,
         contentColor = LocalOnAccentBarColor.current,
+        // Mark the active tab with a short, thick, rounded white pill centred under its title (not a
+        // full-width bar, not a text underline). Material3's Modifier.tabIndicatorOffset is absent in
+        // this version, so place the pill by hand from the tab's left/width. Unselected tabs are dimmed.
+        indicator = { tabPositions ->
+            val index = selectedTab.ordinal
+            if (index < tabPositions.size) {
+                val pos = tabPositions[index]
+                val pillWidth = 28.dp
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .wrapContentSize(Alignment.BottomStart)
+                        .offset(x = pos.left + (pos.width - pillWidth) / 2, y = (-8).dp)
+                        .width(pillWidth)
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(LocalOnAccentBarColor.current),
+                )
+            }
+        },
+        divider = {},
     ) {
         AppTab.entries.forEach { tab ->
+            val selected = tab == selectedTab
             Tab(
-                selected = tab == selectedTab,
+                selected = selected,
                 onClick = { onSelectTab(tab) },
+                selectedContentColor = LocalOnAccentBarColor.current,
+                unselectedContentColor = LocalOnAccentBarColor.current.copy(alpha = 0.7f),
                 text = {
                     val label = when (tab) {
                         AppTab.AVAILABLE -> stringResource(R.string.available)
@@ -615,28 +643,25 @@ private fun RepoFetchingState(modifier: Modifier = Modifier) {
  * Status strip shown under the tabs while a sync runs. A filled container (not a bare line that
  * blended into the tab indicator) with a spinner + label, so it reads as "syncing", not decoration.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SyncBanner() {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             Text(
                 text = stringResource(R.string.syncing),
                 style = MaterialTheme.typography.bodyMedium,
             )
+            // The same wavy bar shown while an app installs, so the two read as the same kind of work.
+            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -724,6 +749,11 @@ fun SearchBar(
  * The header turned into a search field: a back arrow (folds it away) + a full-width input that
  * auto-focuses so the keyboard opens immediately.
  */
+/** The home bars (main + search) are a little taller than the other screens' compact [AccentBarHeight]
+ *  so the home logo + wordmark have room to be prominent. Shared by both so toggling search doesn't
+ *  change the bar height. */
+private val HomeBarHeight = 64.dp
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchTopBar(
@@ -734,7 +764,7 @@ private fun SearchTopBar(
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     TopAppBar(
         colors = accentTopAppBarColors(),
-        expandedHeight = AccentBarHeight,
+        expandedHeight = HomeBarHeight,
         navigationIcon = {
             IconButton(onClick = onClose) {
                 Icon(
@@ -784,23 +814,29 @@ private fun AppListTopBar(
     onToggleFavourites: () -> Unit,
     title: @Composable () -> Unit,
 ) {
-    // Tapping the magnifier unfolds the search field into the whole header. Fade between the two so it
-    // doesn't pop in abruptly.
-    AnimatedContent(targetState = searchExpanded, label = "search-bar") { isSearch ->
-        if (isSearch) {
+    // QKSMS-style reveal: the main bar stays put and, on tapping the magnifier, the search field
+    // unrolls over it from the right edge (width growing leftward), and rolls back the same way. The
+    // main bar underneath stays fully opaque, so the header never flashes the white background the way
+    // a cross-fade did.
+    Box {
+        AppListMainTopBar(
+            onSync = onSync,
+            onToggleSearch = onToggleSearch,
+            onNavigateToRepos = onNavigateToRepos,
+            onNavigateToSettings = onNavigateToSettings,
+            currentSort = currentSort,
+            onSortSelected = onSortSelected,
+            favouritesOnly = favouritesOnly,
+            onToggleFavourites = onToggleFavourites,
+            title = title,
+        )
+        AnimatedVisibility(
+            visible = searchExpanded,
+            modifier = Modifier.align(Alignment.TopEnd),
+            enter = expandHorizontally(animationSpec = tween(300), expandFrom = Alignment.End),
+            exit = shrinkHorizontally(animationSpec = tween(300), shrinkTowards = Alignment.End),
+        ) {
             SearchTopBar(state = searchState, onClose = onToggleSearch)
-        } else {
-            AppListMainTopBar(
-                onSync = onSync,
-                onToggleSearch = onToggleSearch,
-                onNavigateToRepos = onNavigateToRepos,
-                onNavigateToSettings = onNavigateToSettings,
-                currentSort = currentSort,
-                onSortSelected = onSortSelected,
-                favouritesOnly = favouritesOnly,
-                onToggleFavourites = onToggleFavourites,
-                title = title,
-            )
         }
     }
 }
@@ -823,7 +859,7 @@ private fun AppListMainTopBar(
     val context = LocalContext.current
     TopAppBar(
         colors = accentTopAppBarColors(),
-        expandedHeight = AccentBarHeight,
+        expandedHeight = HomeBarHeight,
         title = title,
         actions = {
             IconButton(

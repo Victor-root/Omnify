@@ -4,9 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -18,13 +17,11 @@ import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 
-private val IndicatorSize = 36.dp
-
 /**
- * Live download progress: the wavy circular indicator (the same one shown while repos load at first
- * launch) — determinate, filling as the download advances — next to "12.3 MB / 45.6 MB · 2.3 MB/s ·
- * 56 %". Falls back to an indeterminate indicator when the server doesn't report a total. Shared by
- * the app-detail screen and the external-apps cards so both show identical progress.
+ * Live download progress: a wavy linear bar — determinate, filling as the download advances — under
+ * "12.3 MB / 45.6 MB · 2.3 MB/s · 56 %", with a Cancel button. Falls back to an indeterminate wavy bar
+ * when the server doesn't report a total. Shared by the app-detail screen and the external-apps cards
+ * so both show identical progress.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -33,47 +30,48 @@ fun DownloadProgressRow(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Column(
         modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        val fraction = status.fraction
-        if (fraction != null) {
-            CircularWavyProgressIndicator(
-                progress = { fraction },
-                modifier = Modifier.size(IndicatorSize),
-            )
-        } else {
-            CircularWavyProgressIndicator(modifier = Modifier.size(IndicatorSize))
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = if (status.hasTotal) {
-                    "${status.readLabel} / ${status.totalLabel}"
-                } else {
-                    status.readLabel
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            val trailing = buildString {
-                status.speedLabel?.let { append(it) }
-                if (status.hasTotal) {
-                    if (isNotEmpty()) append("  ·  ")
-                    append("${status.percent} %")
-                }
-            }
-            if (trailing.isNotEmpty()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = trailing,
-                    style = MaterialTheme.typography.labelSmall,
+                    text = if (status.hasTotal) {
+                        "${status.readLabel} / ${status.totalLabel}"
+                    } else {
+                        status.readLabel
+                    },
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                val trailing = buildString {
+                    status.speedLabel?.let { append(it) }
+                    if (status.hasTotal) {
+                        if (isNotEmpty()) append("  ·  ")
+                        append("${status.percent} %")
+                    }
+                }
+                if (trailing.isNotEmpty()) {
+                    Text(
+                        text = trailing,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            TextButton(onClick = onCancel) {
+                Text(stringResource(R.string.cancel))
             }
         }
-        TextButton(onClick = onCancel) {
-            Text(stringResource(R.string.cancel))
+        val fraction = status.fraction
+        if (fraction != null) {
+            LinearWavyProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -85,20 +83,21 @@ fun InstallingRow(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Column(
         modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        CircularWavyProgressIndicator(modifier = Modifier.size(IndicatorSize))
-        Text(
-            text = stringResource(R.string.installing),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
-        )
-        TextButton(onClick = onCancel) {
-            Text(stringResource(R.string.cancel))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.installing),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onCancel) {
+                Text(stringResource(R.string.cancel))
+            }
         }
+        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
     }
 }

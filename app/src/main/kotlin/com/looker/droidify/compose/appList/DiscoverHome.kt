@@ -93,7 +93,7 @@ fun DiscoverCarousel(
                         Icons.AutoMirrored.Filled.ArrowForward
                     },
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface,
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }
