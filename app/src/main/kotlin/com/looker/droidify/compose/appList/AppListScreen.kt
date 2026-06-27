@@ -267,7 +267,10 @@ fun AppListScreen(
     }
     // Disabled sources are hidden from the catalogue and updates, exactly like a disabled F-Droid repo.
     val enabledExternalApps = remember(externalApps) { externalApps.filter { it.enabled } }
-    val externalUpdates = remember(enabledExternalApps) { enabledExternalApps.filter { it.hasUpdate } }
+    // "Track only" sources keep updating in the background but are kept out of the Updates tab/count.
+    val externalUpdates = remember(enabledExternalApps) {
+        enabledExternalApps.filter { it.hasUpdate && !it.muteUpdates }
+    }
 
     // First launch: the catalogue is still empty and a sync is running. Show a full-screen fetching
     // state (like F-Droid) instead of an empty grid + thin banner. `newApps` is empty exactly when the
@@ -308,7 +311,11 @@ fun AppListScreen(
                         currentSort = sortOrder,
                         onSortSelected = viewModel::setSortOrder,
                         title = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Pull the whole logo+wordmark left, past the top bar's default title inset.
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.offset(x = (-16).dp),
+                            ) {
                                 Icon(
                                     painter = painterResource(R.drawable.ic_launcher_monochrome),
                                     contentDescription = null,
@@ -627,6 +634,15 @@ private fun RepoFetchingState(modifier: Modifier = Modifier) {
         Text(
             text = stringResource(R.string.fetching_repositories),
             style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(12.dp))
+        // Reassure first-time users: the initial catalogue download is slow, so make it clear nothing
+        // is frozen and they shouldn't force-close the app thinking it crashed.
+        Text(
+            text = stringResource(R.string.first_sync_hint),
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )

@@ -18,6 +18,7 @@ import com.looker.droidify.data.model.Repo
 import com.looker.droidify.database.RepositoryExporter
 import com.looker.droidify.model.Repository
 import com.looker.droidify.datastore.CustomButtonRepository
+import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.datastore.Settings
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.model.AutoSync
@@ -57,6 +58,7 @@ class SettingsViewModel @Inject constructor(
     private val repositoryExporter: RepositoryExporter,
     private val repoRepository: RepoRepository,
     private val customButtonRepository: CustomButtonRepository,
+    private val externalAppRepository: ExternalAppRepository,
     private val handler: StringHandler,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -264,6 +266,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setGithubToken(token: String) {
+        viewModelScope.launch {
+            settingsRepository.setGithubToken(token.trim())
+        }
+    }
+
     fun exportSettings(uri: Uri) {
         viewModelScope.launch {
             settingsRepository.export(uri)
@@ -325,6 +333,23 @@ class SettingsViewModel @Inject constructor(
             repoRepository.repos.first()
                 .filter { it.address.normalizeRepoAddress() in enabledAddresses && !it.enabled }
                 .forEach { repoRepository.enableRepository(it, enable = true) }
+        }
+    }
+
+    fun exportExternalSources(uri: Uri) {
+        viewModelScope.launch {
+            externalAppRepository.exportToUri(uri).onFailure {
+                showSnackbar(R.string.file_format_error_DESC)
+            }
+        }
+    }
+
+    fun importExternalSources(uri: Uri) {
+        viewModelScope.launch {
+            externalAppRepository.importFromUri(uri).fold(
+                onSuccess = { count -> if (count > 0) showSnackbar(R.string.external_imported) },
+                onFailure = { showSnackbar(R.string.file_format_error_DESC) },
+            )
         }
     }
 

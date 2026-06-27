@@ -46,6 +46,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import com.looker.droidify.external.apkVersionLabel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -142,7 +143,10 @@ fun ExternalAppDetailScreen(
                     // build offered, shown separately since repos version/name them differently.
                     app.latestApkName?.let { apkName ->
                         Text(
-                            text = stringResource(R.string.external_latest_apk, apkName),
+                            text = stringResource(
+                                R.string.external_latest_apk,
+                                apkVersionLabel(apkName),
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

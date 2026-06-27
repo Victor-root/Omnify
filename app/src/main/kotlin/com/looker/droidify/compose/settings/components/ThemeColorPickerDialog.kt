@@ -1,6 +1,5 @@
 package com.looker.droidify.compose.settings.components
 
-import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,8 +23,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +38,7 @@ import androidx.compose.ui.window.Dialog
 import com.looker.droidify.R
 import com.looker.droidify.compose.theme.accentColorPalette
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
+import com.looker.droidify.utility.common.wallpaperAccentColor
 
 /**
  * "Palette" theme picker: lets the user choose the app's accent color from a grid of Material
@@ -79,15 +79,13 @@ fun ThemeColorPickerDialog(
                         onClick = { onColorSelected(DEFAULT_THEME_COLOR) },
                     )
                     if (showWallpaperOption) {
-                        // Preview the colour Material You actually derives from the wallpaper, NOT the
-                        // current theme's primary (which would just echo the active accent). Only shown
-                        // on Android 12+, where the dynamic scheme is available.
+                        // Preview the colour from the ACTUAL wallpaper (read via WallpaperManager), so
+                        // it's right even on OEM skins like ColorOS where the system dynamic accent
+                        // doesn't follow the wallpaper. Falls back to the current primary if unreadable.
                         val context = LocalContext.current
-                        val wallpaperColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            dynamicLightColorScheme(context).primary
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        }
+                        val wallpaperColor = remember(context) { context.wallpaperAccentColor() }
+                            ?.let { Color(it) }
+                            ?: MaterialTheme.colorScheme.primary
                         LabeledSwatch(
                             color = wallpaperColor,
                             label = stringResource(R.string.theme_color_wallpaper),

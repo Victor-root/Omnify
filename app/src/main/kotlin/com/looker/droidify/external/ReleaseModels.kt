@@ -96,15 +96,20 @@ data class GitlabLinkDto(
 /**
  * Picks the APK asset best suited to this device from a release's [assets].
  *
- * Release assets carry no ABI metadata, only file names, so we match the device's ABIs (most
+ * Release assets carry no ABI metadata, only file names, so we first narrow to the user's optional
+ * name [filter] (a regex — e.g. to force a particular split), then match the device's ABIs (most
  * preferred first) against the name, then fall back to a universal build, then the only/first APK.
  * Returns null when the release ships no APK.
  */
 fun selectApkAsset(
     assets: List<ReleaseAsset>,
     deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
+    filter: String? = null,
 ): ReleaseAsset? {
-    val apks = assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
+    val apks = applyApkFilter(
+        assets.filter { it.name.endsWith(".apk", ignoreCase = true) },
+        filter,
+    )
     if (apks.size <= 1) return apks.firstOrNull()
 
     // Try each ABI the device supports, in preference order, with a few common name aliases.
@@ -124,26 +129,88 @@ fun selectApkAsset(
 }
 
 /**
+ * Restricts [apks] to those whose file name matches the user's APK [filter] (a regex). A blank or
+ * invalid pattern, or one that matches nothing, leaves the list untouched — better to offer *an* APK
+ * than refuse everything over a typo (the ABI logic still picks the right one).
+ */
+private fun applyApkFilter(apks: List<ReleaseAsset>, filter: String?): List<ReleaseAsset> {
+    val pattern = filter?.trim()?.takeIf { it.isNotEmpty() } ?: return apks
+    val regex = runCatching { Regex(pattern, RegexOption.IGNORE_CASE) }.getOrNull() ?: return apks
+    return apks.filter { regex.containsMatchIn(it.name) }.ifEmpty { apks }
+}
+
+/** ABI tokens we recognise in APK file names, used to tell a foreign-architecture build apart from a
+ *  universal one. */
+private val KNOWN_ABI_TOKENS = listOf(
+    "arm64-v8a", "arm64", "aarch64",
+    "armeabi-v7a", "armeabi", "armv7", "arm32", "armhf",
+    "x86_64", "x64", "x86",
+)
+
+/**
+ * True when this APK's file name advertises an ABI the device does *not* support. A name carrying no
+ * recognised ABI token is treated as universal (returns false), so a plain "app-release.apk" is never
+ * rejected. Used to spot a release that ships only foreign-architecture APKs.
+ */
+private fun ReleaseAsset.isForeignAbi(deviceAbis: List<String>): Boolean {
+    val name = name.lowercase()
+    val carriesAbi = KNOWN_ABI_TOKENS.any { name.contains(it) }
+    if (!carriesAbi) return false
+    val deviceAliases = deviceAbis.flatMap { abiAliases(it) }
+    return deviceAliases.none { name.contains(it) }
+}
+
+/**
+ * Whether this release ships an APK that can actually run on the device, after the user's name
+ * [filter]: at least one APK that isn't a foreign-architecture build. Drives the "fall back to an
+ * older release" logic — when the newest release has only, say, an x86 APK, [ExternalApi] keeps
+ * looking down the list for one this device can install.
+ */
+fun Release.hasCompatibleApk(
+    deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
+    filter: String? = null,
+): Boolean {
+    val apks = applyApkFilter(
+        assets.filter { it.name.endsWith(".apk", ignoreCase = true) },
+        filter,
+    )
+    return apks.any { !it.isForeignAbi(deviceAbis) }
+}
+
+/**
  * A stable identity for the APK this release would install: the file's upload time (GitHub/Gitea),
  * falling back to its provider id, then its name. This tracks the actual APK rather than the release
  * tag — the tag is the project's own (server) version and can change with no new APK, so comparing
  * tags falsely flags updates. The token changes only when the APK file itself is re-uploaded.
  * Returns null when the release ships no APK.
  */
-fun Release.apkVersionToken(deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList()): String? {
-    val apk = selectApkAsset(assets, deviceAbis) ?: return null
+fun Release.apkVersionToken(
+    deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
+    filter: String? = null,
+): String? {
+    val apk = selectApkAsset(assets, deviceAbis, filter) ?: return null
     return apk.updatedAt ?: apk.id?.toString() ?: apk.name
 }
 
 /** The file name of the APK this release would install (e.g. "GlassKeep-1.5.0.apk"), shown as the
  *  "latest APK" line. Universal across repos — whatever the file is actually called — and often
  *  carries the real APK version when the tag doesn't. Null when the release ships no APK. */
-fun Release.apkFileName(deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList()): String? =
-    selectApkAsset(assets, deviceAbis)?.name
+fun Release.apkFileName(
+    deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
+    filter: String? = null,
+): String? =
+    selectApkAsset(assets, deviceAbis, filter)?.name
+
+private val versionInFileName = Regex("""\d+(?:\.\d+)+""")
+
+/** Pulls a dotted version number out of an APK file name (e.g. "GlassKeep-v1.4.6.apk" -> "1.4.6") for
+ *  a tidy "latest APK" line, falling back to the whole file name when none is present. */
+fun apkVersionLabel(fileName: String): String =
+    versionInFileName.find(fileName)?.value ?: fileName
 
 private fun abiAliases(abi: String): List<String> = when (abi) {
     "arm64-v8a" -> listOf("arm64-v8a", "arm64", "aarch64")
-    "armeabi-v7a" -> listOf("armeabi-v7a", "armeabi", "armv7", "arm32")
+    "armeabi-v7a" -> listOf("armeabi-v7a", "armeabi", "armv7", "arm32", "armhf")
     "x86_64" -> listOf("x86_64", "x64")
     "x86" -> listOf("x86")
     else -> listOf(abi.lowercase())

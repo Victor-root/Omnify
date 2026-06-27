@@ -13,6 +13,10 @@
     <string name="anti_features">Anti-features</string>
     <string name="requires_google_services">Requires Google services</string>
     <string name="requires_google_services_summary">This app uses Google Play services and may not work fully without them (or microG).</string>
+    <string name="allow_unknown_sources">Allow installing apps</string>
+    <string name="allow_unknown_sources_DESC">Droid-ify needs permission to install apps. Allow it now so you\'re not interrupted at your first install.</string>
+    <string name="allow">Allow</string>
+    <string name="later">Later</string>
     <string name="application">App</string>
     <string name="application_not_found">App wasn\'t found</string>
     <string name="author_email">Author email</string>
@@ -67,6 +71,17 @@
     <string name="import_repos_DESC">Import repositories from a file</string>
     <string name="export_repos_title">Export repositories</string>
     <string name="export_repos_DESC">Export repositories to a file</string>
+    <string name="import_external_title">Import external sources</string>
+    <string name="import_external_DESC">Import external app sources from a file</string>
+    <string name="export_external_title">Export external sources</string>
+    <string name="export_external_DESC">Export external app sources to a file</string>
+    <string name="external_sources_title">External sources</string>
+    <string name="github_token">GitHub token</string>
+    <string name="github_token_set">Configured</string>
+    <string name="github_token_unset">Not set · 60 requests/hour</string>
+    <string name="help">Help</string>
+    <string name="github_token_help">To raise the limit, create a token on github.com:\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic), give it a name\n3. Tick NO boxes. With no scope selected, the token grants strictly nothing on your account; it only identifies you so the limit rises to 5000 requests/hour\n4. Generate token, copy it, and paste it above</string>
+    <string name="external_imported">External sources imported</string>
     <string name="enable_repo">Enable repository</string>
     <string name="favourites">Favourites</string>
     <string name="more_options">More</string>
@@ -231,6 +246,7 @@
     <string name="syncing">Syncing</string>
     <string name="syncing_FORMAT">Syncing %s…</string>
     <string name="fetching_repositories">Fetching application repositories…</string>
+    <string name="first_sync_hint">The first launch can take a few minutes while the catalogue downloads. Please wait — don\'t close the app.</string>
     <string name="system">System</string>
     <string name="tap_to_install_DESC">Tap to install</string>
     <string name="tap_to_resume_updates">Open the app to resume updates</string>
@@ -324,10 +340,20 @@
     <!-- External app sources (GitHub / GitLab / Codeberg) -->
     <string name="tab_external">External</string>
     <string name="external_add">Add</string>
+    <string name="external_adding">Adding the repository…</string>
+    <string name="external_rate_limited">GitHub hourly limit reached. If you have a GitHub account, add a token in Settings › External sources to raise it to 5000/hour.</string>
     <string name="external_remove">Remove</string>
     <string name="external_check_updates">Check for updates</string>
     <string name="external_source_url_label">Project URL (GitHub, GitLab, Codeberg)</string>
     <string name="external_include_prereleases">Include pre-releases</string>
+    <string name="external_edit_source">Edit source</string>
+    <string name="external_custom_name">Custom name (optional)</string>
+    <string name="external_apk_filter">APK filter (regex, optional)</string>
+    <string name="external_apk_filter_hint">Leave empty to pick the APK automatically by your device\'s architecture. Example: arm64</string>
+    <string name="external_icon_label">Icon</string>
+    <string name="external_icon_searching">Looking for icons in the repository…</string>
+    <string name="external_mute_updates">Don\'t show updates for this source</string>
+    <string name="external_save">Save</string>
     <string name="external_empty_hint">Add a project (e.g. github.com/owner/repo) to install and update its release APKs directly, like Obtainium.</string>
     <string name="external_empty_tab">No external apps yet.\nAdd sources from the Repositories screen.</string>
     <string name="external_invalid_url">Not a valid project URL (GitHub, GitLab or Codeberg)</string>

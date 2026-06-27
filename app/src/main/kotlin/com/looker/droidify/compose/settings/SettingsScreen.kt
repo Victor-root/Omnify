@@ -68,6 +68,7 @@ import kotlin.time.Duration
 private const val BACKUP_MIME_TYPE = "application/json"
 private const val SETTINGS_BACKUP_NAME = "droidify_settings.json"
 private const val REPO_BACKUP_NAME = "droidify_repos.json"
+private const val EXTERNAL_BACKUP_NAME = "droidify_external_sources.json"
 private const val CUSTOM_BUTTONS_BACKUP_NAME = "custom_buttons.json"
 
 // Backups are JSON. Older exports were written without a file extension, and file managers then
@@ -126,6 +127,20 @@ fun SettingsScreen(
     ) { uri ->
         if (uri != null) {
             viewModel.importRepos(uri)
+        } else {
+            viewModel.showSnackbar(R.string.file_format_error_DESC)
+        }
+    }
+
+    val exportExternalLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(BACKUP_MIME_TYPE),
+    ) { uri -> uri?.let { viewModel.exportExternalSources(it) } }
+
+    val importExternalLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            viewModel.importExternalSources(uri)
         } else {
             viewModel.showSnackbar(R.string.file_format_error_DESC)
         }
@@ -396,6 +411,26 @@ fun SettingsScreen(
             }
 
             item {
+                SettingHeader(title = stringResource(R.string.external_sources_title))
+            }
+
+            item {
+                TextInputSettingItem(
+                    title = stringResource(R.string.github_token),
+                    value = settings.githubToken,
+                    valueDisplay = if (settings.githubToken.isBlank()) {
+                        stringResource(R.string.github_token_unset)
+                    } else {
+                        stringResource(R.string.github_token_set)
+                    },
+                    icon = painterResource(R.drawable.ic_github),
+                    dialogTitle = stringResource(R.string.github_token),
+                    helpText = stringResource(R.string.github_token_help),
+                    onValueChange = viewModel::setGithubToken,
+                )
+            }
+
+            item {
                 SettingHeader(title = stringResource(R.string.import_export))
             }
 
@@ -432,6 +467,24 @@ fun SettingsScreen(
                     description = stringResource(R.string.export_repos_DESC),
                     icon = painterResource(R.drawable.ic_save),
                     onClick = { exportReposLauncher.launch(REPO_BACKUP_NAME) },
+                )
+            }
+
+            item {
+                ActionSettingItem(
+                    title = stringResource(R.string.import_external_title),
+                    description = stringResource(R.string.import_external_DESC),
+                    icon = painterResource(R.drawable.ic_download),
+                    onClick = { importExternalLauncher.launch(IMPORT_MIME_TYPES) },
+                )
+            }
+
+            item {
+                ActionSettingItem(
+                    title = stringResource(R.string.export_external_title),
+                    description = stringResource(R.string.export_external_DESC),
+                    icon = painterResource(R.drawable.ic_save),
+                    onClick = { exportExternalLauncher.launch(EXTERNAL_BACKUP_NAME) },
                 )
             }
 

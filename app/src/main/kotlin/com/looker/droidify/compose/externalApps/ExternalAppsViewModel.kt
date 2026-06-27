@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.SystemClock
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.ViewModel
@@ -98,7 +99,26 @@ class ExternalAppsViewModel @Inject constructor(
     private val _busy = MutableStateFlow<Set<String>>(emptySet())
     val busy: StateFlow<Set<String>> = _busy
 
+    /** Drives the Add-source dialog: it stays open with a spinner while the (network) add runs, then
+     *  closes itself on success. */
+    private val _addState = MutableStateFlow(AddSourceState.IDLE)
+    val addState: StateFlow<AddSourceState> = _addState
+
+    /** Acknowledge a finished add so the dialog state resets (called once the dialog has closed). If the
+     *  dialog was dismissed while still adding, cancel the in-flight work so a late success can't leave a
+     *  stale state that would auto-close the next dialog. */
+    fun consumeAddState() {
+        if (_addState.value == AddSourceState.LOADING) addJob?.cancel()
+        _addState.value = AddSourceState.IDLE
+    }
+
     private val downloadJobs = mutableMapOf<String, Job>()
+
+    /** The in-flight "add source" coroutine, so it can be cancelled if the dialog is dismissed mid-add. */
+    private var addJob: Job? = null
+
+    /** When the last network refresh ran (elapsedRealtime), to throttle the per-screen-entry refresh. */
+    private var lastNetworkRefreshAt = 0L
 
     val snackbarHostState = SnackbarHostState()
 
@@ -120,38 +140,89 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
+    /** Launcher-icon candidates found in the source repo, for the icon picker (best first). Empty when
+     *  none were found or the provider isn't supported (then the card uses the account avatar). */
+    suspend fun loadIconCandidates(app: ExternalApp): List<String> =
+        externalApi.fetchIconCandidates(app)
+
     /** Adds a project from any GitHub/GitLab/Codeberg URL after confirming it has a release. */
-    fun addSource(url: String, includePrereleases: Boolean) {
+    fun addSource(
+        url: String,
+        includePrereleases: Boolean,
+        customName: String = "",
+        muteUpdates: Boolean = false,
+        apkFilter: String = "",
+    ) {
         val ref = parseExternalSource(url)
         if (ref == null) {
             snack(context.getString(R.string.external_invalid_url))
             return
         }
+        val trimmedName = customName.trim()
         val app = ExternalApp(
             provider = ref.provider,
             owner = ref.owner,
             repo = ref.repo,
             includePrereleases = includePrereleases,
+            muteUpdates = muteUpdates,
+            apkFilter = apkFilter.trim().ifEmpty { null },
+            label = trimmedName.ifEmpty { ref.repo },
+            nameOverridden = trimmedName.isNotEmpty(),
         )
         if (apps.value.any { it.key == app.key }) {
             snack(context.getString(R.string.external_already_added, app.path))
             return
         }
-        viewModelScope.launch {
-            withBusy(app.key) {
-                val release = externalApi.latestReleaseFor(app)
-                if (release == null) {
-                    snack(context.getString(R.string.external_no_release, app.path))
-                    return@withBusy
+        addJob = viewModelScope.launch {
+            _addState.value = AddSourceState.LOADING
+            var added = false
+            try {
+                withBusy(app.key) {
+                    val release = externalApi.latestReleaseFor(app)
+                    if (release == null) {
+                        // A null release here is often the GitHub rate limit; if so (and no token is
+                        // set) nudge the user toward adding one instead of a generic "no release".
+                        val suggestToken = externalApi.shouldSuggestGithubToken()
+                        snack(
+                            message = if (suggestToken) {
+                                context.getString(R.string.external_rate_limited)
+                            } else {
+                                context.getString(R.string.external_no_release, app.path)
+                            },
+                            long = suggestToken,
+                        )
+                        return@withBusy
+                    }
+                    // Resolve the package id from the repo's build.gradle (Obtainium-style) so an app
+                    // that's already installed is matched and shows its real on-device name + icon right
+                    // away, before the user installs it through us.
+                    val packageId = externalApi.fetchPackageId(app)
+                    // Pull the app's real launcher icon AND its real name from the repo (Obtainium-style),
+                    // so the card shows both before anything is installed.
+                    val meta = externalApi.fetchRepoMetadata(app)
+                    // Name priority: a name the user typed, else the on-device name if it's already
+                    // installed, else the real name read from the repo manifest, else the repo name.
+                    val resolvedLabel = when {
+                        app.nameOverridden -> app.label
+                        else -> packageId?.let { installedLabel(it) } ?: meta.appName ?: app.label
+                    }
+                    repository.addApp(
+                        app.copy(
+                            packageName = packageId,
+                            label = resolvedLabel,
+                            repoIconUrl = meta.iconCandidates.firstOrNull(),
+                            iconChecked = true,
+                            latestTag = release.tag,
+                            latestApkToken = release.apkVersionToken(filter = app.apkFilter),
+                            latestApkName = release.apkFileName(filter = app.apkFilter),
+                        ),
+                    )
+                    snack(context.getString(R.string.external_added, app.repo))
+                    added = true
                 }
-                repository.addApp(
-                    app.copy(
-                        latestTag = release.tag,
-                        latestApkToken = release.apkVersionToken(),
-                        latestApkName = release.apkFileName(),
-                    ),
-                )
-                snack(context.getString(R.string.external_added, app.repo))
+            } finally {
+                // Success closes the dialog; any failure leaves it open (with the error snackbar shown).
+                _addState.value = if (added) AddSourceState.SUCCESS else AddSourceState.IDLE
             }
         }
     }
@@ -190,24 +261,59 @@ class ExternalAppsViewModel @Inject constructor(
     }
 
     /** Re-checks every enabled app for a newer release tag (e.g. on opening the screen). Disabled
-     *  sources are skipped, like a disabled repository. */
+     *  sources are skipped, like a disabled repository. Throttled: this fires on every screen entry,
+     *  and each enabled source costs a GitHub API call, so re-checking more than once every few minutes
+     *  would needlessly burn the anonymous 60-requests/hour budget without surfacing fresher updates. */
     fun refresh() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastNetworkRefreshAt < REFRESH_THROTTLE_MS) return
+        lastNetworkRefreshAt = now
         viewModelScope.launch {
             apps.value.filter { it.enabled }.forEach { app ->
                 val release = externalApi.latestReleaseFor(app) ?: return@forEach
                 // Track the APK file's identity, not just the tag, so updates are detected from the
                 // actual APK (see ExternalApp.hasUpdate); keep its file name for the "latest APK" line.
-                val token = release.apkVersionToken()
-                val apkName = release.apkFileName()
+                val token = release.apkVersionToken(filter = app.apkFilter)
+                val apkName = release.apkFileName(filter = app.apkFilter)
+                // Backfill the package id (from build.gradle) for sources added before this existed, so
+                // an installed app starts showing its real name + icon; the existing label reconcile
+                // then fills in the on-device name. Never overwrites an id already learned from install.
+                val packageId = app.packageName ?: externalApi.fetchPackageId(app)
+                // One-time backfill of the repo icon + real app name for sources added before this
+                // existed. Gated by iconChecked so a repo is scanned at most once (a repo with only
+                // vector icons / no resolvable name must not be re-scanned every refresh — spares the
+                // API rate limit). Never overrides a user-picked icon or name.
+                val needsMeta = !app.iconChecked && !app.iconOverridden && app.repoIconUrl == null
+                val meta = if (needsMeta) externalApi.fetchRepoMetadata(app) else null
+                val repoIcon = meta?.iconCandidates?.firstOrNull() ?: app.repoIconUrl
+                // Only replace the label while it's still the bare repo name (never a user/on-device one).
+                val resolvedLabel = if (
+                    meta?.appName != null &&
+                    !app.nameOverridden &&
+                    app.label == app.repo &&
+                    app.packageName?.let { isInstalled(it) } != true
+                ) {
+                    meta.appName
+                } else {
+                    app.label
+                }
                 if (release.tag != app.latestTag ||
                     token != app.latestApkToken ||
-                    apkName != app.latestApkName
+                    apkName != app.latestApkName ||
+                    packageId != app.packageName ||
+                    repoIcon != app.repoIconUrl ||
+                    resolvedLabel != app.label ||
+                    needsMeta
                 ) {
                     repository.upsertApp(
                         app.copy(
+                            packageName = packageId,
+                            label = resolvedLabel,
                             latestTag = release.tag,
                             latestApkToken = token,
                             latestApkName = apkName,
+                            repoIconUrl = repoIcon,
+                            iconChecked = app.iconChecked || needsMeta,
                         ),
                     )
                 }
@@ -219,6 +325,55 @@ class ExternalAppsViewModel @Inject constructor(
      *  from the External tab and the Updates tab, and skipped when checking for new releases. */
     fun setSourceEnabled(app: ExternalApp, enabled: Boolean) {
         viewModelScope.launch { repository.upsertApp(app.copy(enabled = enabled)) }
+    }
+
+    /** Applies edited per-source settings. Re-fetches the latest release when the pre-release setting
+     *  or the APK filter changed (both affect which release/APK is picked). A blank name reverts to
+     *  the auto-detected one; a blank filter reverts to automatic by-architecture selection. */
+    fun updateSource(
+        app: ExternalApp,
+        customName: String,
+        includePrereleases: Boolean,
+        muteUpdates: Boolean,
+        apkFilter: String,
+        iconUrl: String?,
+    ) {
+        viewModelScope.launch {
+            val trimmedName = customName.trim()
+            val overridden = trimmedName.isNotEmpty()
+            val label = when {
+                overridden -> trimmedName
+                app.packageName != null -> installedLabel(app.packageName) ?: app.repo
+                else -> app.repo
+            }
+            val trimmedFilter = apkFilter.trim().ifEmpty { null }
+            // A different icon than the stored one means the user picked it; mark it overridden so the
+            // refresh backfill won't replace their choice. The edit dialog has already scanned the repo,
+            // so mark it checked regardless (a vector-only repo won't be re-scanned on refresh).
+            val iconChanged = iconUrl != app.repoIconUrl
+            var updated = app.copy(
+                label = label,
+                nameOverridden = overridden,
+                muteUpdates = muteUpdates,
+                includePrereleases = includePrereleases,
+                apkFilter = trimmedFilter,
+                repoIconUrl = iconUrl,
+                iconOverridden = iconChanged || app.iconOverridden,
+                iconChecked = true,
+            )
+            // The release to offer (and its APK) can change when either the pre-release setting or the
+            // APK filter changes, so re-resolve it in that case.
+            if (includePrereleases != app.includePrereleases || trimmedFilter != app.apkFilter) {
+                externalApi.latestReleaseFor(updated)?.let { release ->
+                    updated = updated.copy(
+                        latestTag = release.tag,
+                        latestApkToken = release.apkVersionToken(filter = updated.apkFilter),
+                        latestApkName = release.apkFileName(filter = updated.apkFilter),
+                    )
+                }
+            }
+            repository.upsertApp(updated)
+        }
     }
 
     /** Forces a re-query of which tracked apps are installed (e.g. after returning to the screen). */
@@ -235,6 +390,7 @@ class ExternalAppsViewModel @Inject constructor(
         viewModelScope.launch {
             val updated = withContext(Dispatchers.Default) {
                 apps.value.mapNotNull { app ->
+                    if (app.nameOverridden) return@mapNotNull null
                     val pkg = app.packageName ?: return@mapNotNull null
                     val realLabel = installedLabel(pkg) ?: return@mapNotNull null
                     if (realLabel != app.label) app.copy(label = realLabel) else null
@@ -253,10 +409,18 @@ class ExternalAppsViewModel @Inject constructor(
         try {
             val release = externalApi.latestReleaseFor(app)
             if (release == null) {
-                snack(context.getString(R.string.external_unreachable, app.provider.label))
+                val suggestToken = externalApi.shouldSuggestGithubToken()
+                snack(
+                    message = if (suggestToken) {
+                        context.getString(R.string.external_rate_limited)
+                    } else {
+                        context.getString(R.string.external_unreachable, app.provider.label)
+                    },
+                    long = suggestToken,
+                )
                 return
             }
-            val asset = selectApkAsset(release.assets)
+            val asset = selectApkAsset(release.assets, filter = app.apkFilter)
             if (asset == null) {
                 snack(context.getString(R.string.external_no_apk, app.repo))
                 return
@@ -318,7 +482,7 @@ class ExternalAppsViewModel @Inject constructor(
             installManager.install(InstallItem(PackageName(packageName), cacheFileName))
             // Record which APK file this is (its identity), so future update checks compare the APK,
             // not the tag. We just installed the latest release, so installed and latest match.
-            val token = release.apkVersionToken()
+            val token = release.apkVersionToken(filter = app.apkFilter)
             repository.upsertApp(
                 app.copy(
                     packageName = packageName,
@@ -327,7 +491,7 @@ class ExternalAppsViewModel @Inject constructor(
                     latestTag = release.tag,
                     installedApkToken = token,
                     latestApkToken = token,
-                    latestApkName = release.apkFileName(),
+                    latestApkName = release.apkFileName(filter = app.apkFilter),
                 ),
             )
         } catch (e: CancellationException) {
@@ -394,10 +558,18 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    private fun snack(message: String) {
-        viewModelScope.launch { snackbarHostState.showSnackbar(message) }
+    private fun snack(message: String, long: Boolean = false) {
+        viewModelScope.launch {
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = if (long) SnackbarDuration.Long else SnackbarDuration.Short,
+            )
+        }
     }
 }
+
+/** State of an in-progress "add external source" action, driving the dialog's loading UI. */
+enum class AddSourceState { IDLE, LOADING, SUCCESS }
 
 private val UNSAFE_FILE_CHARS = Regex("[^A-Za-z0-9._-]")
 
@@ -406,3 +578,7 @@ private const val SPEED_WINDOW_MS = 500L
 
 /** Minimum delay between progress UI updates, to avoid flooding recompositions. */
 private const val EMIT_INTERVAL_MS = 150L
+
+/** Minimum gap between automatic network refreshes of external sources (they fire on every screen
+ *  entry and each enabled source is one GitHub API call, so this protects the rate-limit budget). */
+private const val REFRESH_THROTTLE_MS = 10 * 60 * 1000L

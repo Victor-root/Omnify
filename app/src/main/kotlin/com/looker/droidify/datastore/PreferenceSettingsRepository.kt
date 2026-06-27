@@ -210,6 +210,9 @@ class PreferenceSettingsRepository(
         }
     }
 
+    override suspend fun setGithubToken(token: String) =
+        GITHUB_TOKEN.update(token)
+
     private fun mapSettings(preferences: Preferences): Settings {
         val installerType =
             InstallerType.valueOf(preferences[INSTALLER_TYPE] ?: InstallerType.Default.name)
@@ -256,6 +259,7 @@ class PreferenceSettingsRepository(
         val deleteApkOnInstall = preferences[DELETE_APK_ON_INSTALL] ?: false
         val downloadStatisticsEnabled = preferences[DOWNLOAD_STATISTICS_ENABLED] ?: true
         val reproducibilityLogsEnabled = preferences[REPRODUCIBILITY_LOGS_ENABLED] ?: true
+        val githubToken = preferences[GITHUB_TOKEN] ?: ""
 
         return Settings(
             language = language,
@@ -283,6 +287,7 @@ class PreferenceSettingsRepository(
             deleteApkOnInstall = deleteApkOnInstall,
             dlStatsEnabled = downloadStatisticsEnabled,
             rbLogsEnabled = reproducibilityLogsEnabled,
+            githubToken = githubToken,
         )
     }
 
@@ -320,6 +325,7 @@ class PreferenceSettingsRepository(
         val LEGACY_INSTALLER_COMPONENT_TYPE =
             stringPreferencesKey("key_legacy_installer_component_type")
         val ENABLED_REPO_IDS = stringSetPreferencesKey("key_enabled_repo_ids")
+        val GITHUB_TOKEN = stringPreferencesKey("key_github_token")
 
         // Enums
         val THEME = stringPreferencesKey("key_theme")
@@ -378,6 +384,7 @@ class PreferenceSettingsRepository(
             set(DELETE_APK_ON_INSTALL, settings.deleteApkOnInstall)
             set(DOWNLOAD_STATISTICS_ENABLED, settings.dlStatsEnabled)
             set(REPRODUCIBILITY_LOGS_ENABLED, settings.rbLogsEnabled)
+            set(GITHUB_TOKEN, settings.githubToken)
             return this.toPreferences()
         }
     }

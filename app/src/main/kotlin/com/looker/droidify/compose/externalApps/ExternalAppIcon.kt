@@ -27,9 +27,11 @@ import com.looker.droidify.external.ExternalApp
 
 /**
  * Icon for an external app, in priority order:
- *  1. the real launcher icon read from the system, once the app is installed;
- *  2. the source account avatar (e.g. the GitHub owner's logo) before installing;
- *  3. a neutral box placeholder when neither is available.
+ *  1. the real launcher icon read from the system, once the app is installed (or extracted from the
+ *     APK we downloaded);
+ *  2. the launcher icon found in the source repo, or one the user picked, before installing;
+ *  3. the source account avatar (e.g. the GitHub owner's logo) as a fallback;
+ *  4. a neutral box placeholder when none is available.
  *
  * Sized via [size] so the same composable serves the grid cards, the detail header and the
  * management list.
@@ -52,6 +54,7 @@ fun ExternalAppIcon(
             null
         }
     }
+    var repoIconFailed by remember(app.repoIconUrl) { mutableStateOf(false) }
     var avatarFailed by remember(app.iconUrl) { mutableStateOf(false) }
     // The real icon extracted from the app's APK (cached as a PNG), decoded once. Keyed on the file's
     // timestamp so it refreshes if re-extracted. Loaded as a bitmap (not via Coil) since this is a
@@ -77,6 +80,14 @@ fun ExternalAppIcon(
 
         extractedIcon != null -> Image(
             bitmap = extractedIcon,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier.size(size).clip(shape),
+        )
+
+        app.repoIconUrl != null && !repoIconFailed -> AsyncImage(
+            model = app.repoIconUrl,
+            onError = { repoIconFailed = true },
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = modifier.size(size).clip(shape),

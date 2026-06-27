@@ -1,6 +1,7 @@
 package com.looker.droidify.external
 
 import android.content.Context
+import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -76,6 +77,36 @@ class ExternalAppRepository @Inject constructor(
             val updated = _apps.value.filter { it.key != key }
             saveToFile(updated)
             _apps.value = updated
+        }
+    }
+
+    /** Writes the tracked external sources to [uri] as JSON (for the backup feature). */
+    suspend fun exportToUri(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            ensureLoaded()
+            val jsonString = json.encodeToString(ListSerializer(ExternalApp.serializer()), _apps.value)
+            context.contentResolver.openOutputStream(uri)?.use { it.write(jsonString.toByteArray()) }
+                ?: throw IllegalStateException("Cannot open output stream")
+        }
+    }
+
+    /** Merges external sources from a backup [uri], skipping any already tracked (by key). Returns the
+     *  number of newly added sources. */
+    suspend fun importFromUri(uri: Uri): Result<Int> = withContext(Dispatchers.IO) {
+        runCatching {
+            val inputStream = context.contentResolver.openInputStream(uri)
+                ?: throw IllegalStateException("Cannot open input stream")
+            val jsonString = inputStream.bufferedReader().use { it.readText() }
+            val imported = json.decodeFromString(ListSerializer(ExternalApp.serializer()), jsonString)
+            mutex.withLock {
+                ensureLoadedInternal()
+                val existingKeys = _apps.value.map { it.key }.toSet()
+                val newApps = imported.filter { it.key !in existingKeys }
+                val merged = _apps.value + newApps
+                saveToFile(merged)
+                _apps.value = merged
+                newApps.size
+            }
         }
     }
 

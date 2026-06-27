@@ -57,6 +57,9 @@ data class Settings(
     val deleteApkOnInstall: Boolean = false,
     val dlStatsEnabled: Boolean = true,
     val rbLogsEnabled: Boolean = true,
+    /** Optional GitHub personal access token (no scopes needed). When set, external-source requests to
+     *  api.github.com are authenticated, raising the rate limit from 60 to 5000 requests/hour. */
+    val githubToken: String = "",
 )
 
 @OptIn(ExperimentalSerializationApi::class)

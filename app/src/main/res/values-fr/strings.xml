@@ -6,6 +6,10 @@
     <string name="anti_features">Anti-fonctionnalités</string>
     <string name="requires_google_services">Nécessite les services Google</string>
     <string name="requires_google_services_summary">Cette application utilise les services Google Play et peut ne pas fonctionner pleinement sans eux (ou microG).</string>
+    <string name="allow_unknown_sources">Autoriser l\'installation d\'applis</string>
+    <string name="allow_unknown_sources_DESC">Droid-ify a besoin de l\'autorisation d\'installer des applis. Autorisez-la maintenant pour ne pas être interrompu lors de votre première installation.</string>
+    <string name="allow">Autoriser</string>
+    <string name="later">Plus tard</string>
     <string name="compiled_for_debugging">Compilé pour le débogage</string>
     <string name="amoled">Noir</string>
     <string name="application_not_found">Appli non trouvée</string>
@@ -172,6 +176,7 @@
     <string name="syncing">Synchronisation en cours</string>
     <string name="syncing_FORMAT">Synchronisation de %s en cours…</string>
     <string name="fetching_repositories">Récupération des dépôts d\'applications…</string>
+    <string name="first_sync_hint">Le premier démarrage peut prendre quelques minutes, le temps de télécharger le catalogue. Patientez, ne fermez pas l\'application.</string>
     <string name="unstable_updates">Mises à jour instables</string>
     <string name="upstream_source_code_is_not_free">Le code source en amont n’est pas libre</string>
     <string name="username">Nom d’utilisateur</string>
@@ -243,6 +248,17 @@
     <string name="export_settings_DESC">Exporter les paramètres et favoris vers un fichier</string>
     <string name="export_repos_title">Exporter les dépôts</string>
     <string name="import_repos_DESC">Importer les dépôts à partir d\'un fichier</string>
+    <string name="import_external_title">Importer les sources externes</string>
+    <string name="import_external_DESC">Importer les sources d\'apps externes depuis un fichier</string>
+    <string name="export_external_title">Exporter les sources externes</string>
+    <string name="export_external_DESC">Exporter les sources d\'apps externes vers un fichier</string>
+    <string name="external_sources_title">Sources externes</string>
+    <string name="github_token">Jeton GitHub</string>
+    <string name="github_token_set">Configuré</string>
+    <string name="github_token_unset">Non configuré · 60 requêtes/heure</string>
+    <string name="help">Aide</string>
+    <string name="github_token_help">Pour augmenter la limite, créez un jeton sur github.com :\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic), donnez-lui un nom\n3. Ne cochez AUCUNE case. Sans aucune permission cochée, le jeton n\'autorise STRICTEMENT RIEN sur votre compte ; il sert uniquement à vous identifier pour passer à 5000 requêtes/heure\n4. Generate token, copiez-le et collez-le ci-dessus</string>
+    <string name="external_imported">Sources externes importées</string>
     <string name="cannot_open_link">Impossible d\'ouvrir le lien</string>
     <string name="has_tethered_network">Lié à une certaine instance de service de réseau</string>
     <string name="require_background_access">Désactiver l\'optimisation de batterie</string>
@@ -318,10 +334,20 @@
     <!-- Sources d\'apps externes (GitHub / GitLab / Codeberg) -->
     <string name="tab_external">Externe</string>
     <string name="external_add">Ajouter</string>
+    <string name="external_adding">Ajout du dépôt en cours…</string>
+    <string name="external_rate_limited">Limite horaire GitHub atteinte. Si vous avez un compte GitHub, ajoutez un jeton dans Paramètres › Sources externes pour passer à 5000/heure.</string>
     <string name="external_remove">Retirer</string>
     <string name="external_check_updates">Rechercher des mises à jour</string>
     <string name="external_source_url_label">URL du projet (GitHub, GitLab, Codeberg)</string>
     <string name="external_include_prereleases">Inclure les préversions</string>
+    <string name="external_edit_source">Modifier le dépôt</string>
+    <string name="external_custom_name">Nom personnalisé (facultatif)</string>
+    <string name="external_apk_filter">Filtre d\'APK (regex, facultatif)</string>
+    <string name="external_apk_filter_hint">Laissez vide pour choisir l\'APK automatiquement selon l\'architecture de votre appareil. Exemple : arm64</string>
+    <string name="external_icon_label">Icône</string>
+    <string name="external_icon_searching">Recherche d\'icônes dans le dépôt…</string>
+    <string name="external_mute_updates">Ne pas afficher les mises à jour de ce dépôt</string>
+    <string name="external_save">Enregistrer</string>
     <string name="external_empty_hint">Ajoutez un projet (ex. github.com/auteur/depot) pour installer et mettre à jour ses APK de release directement, comme Obtainium.</string>
     <string name="external_empty_tab">Aucune app externe pour l\'instant.\nAjoutez des sources depuis l\'écran Dépôts.</string>
     <string name="external_invalid_url">URL de projet invalide (GitHub, GitLab ou Codeberg)</string>

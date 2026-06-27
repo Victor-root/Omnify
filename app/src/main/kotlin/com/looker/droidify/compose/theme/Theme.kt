@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
+import com.looker.droidify.utility.common.wallpaperAccentColor
 
 private val lightScheme = lightColorScheme(
     primary = primaryLight,
@@ -337,7 +338,17 @@ fun DroidifyTheme(
 ) {
     val context = LocalContext.current
     val useDynamic = dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    // The "wallpaper" option derives the accent from the ACTUAL wallpaper colour (read via
+    // WallpaperManager), so it's right even on OEM skins like ColorOS where the system dynamic accent
+    // doesn't follow the wallpaper. The system dynamic scheme is only a fallback when it can't be read.
+    val wallpaperAccent = remember(useDynamic) {
+        if (useDynamic) context.wallpaperAccentColor() else null
+    }
     val colorScheme = when {
+        useDynamic && wallpaperAccent != null ->
+            context.toComposeColorScheme(if (darkTheme) darkScheme else lightScheme)
+                .withVividAccent(wallpaperAccent)
+
         useDynamic ->
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
 

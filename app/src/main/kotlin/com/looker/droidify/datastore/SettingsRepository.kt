@@ -84,6 +84,8 @@ interface SettingsRepository {
     suspend fun setRBLogsEnabled(enabled: Boolean)
 
     suspend fun clearRbLogLastModified()
+
+    suspend fun setGithubToken(token: String)
 }
 
 inline fun <T> SettingsRepository.get(crossinline block: suspend Settings.() -> T): Flow<T> {

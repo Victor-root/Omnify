@@ -1,6 +1,7 @@
 package com.looker.droidify.work
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
@@ -52,10 +53,21 @@ class SyncWorker @AssistedInject constructor(
                 val repo = repoRepository.getRepo(repoId)
                 if (repo != null) {
                     setForeground(createForegroundInfo(repo.name, -1))
+                    // The progress callback fires on every downloaded chunk; refreshing the foreground
+                    // notification each time floods WorkManager (it logs a "move to foreground" per
+                    // call) and is wasteful. Update only when the whole-percent changes, and at most a
+                    // few times a second.
+                    var lastPercent = -1
+                    var lastEmit = 0L
                     repoRepository.sync(repo) { state ->
                         val progress =
                             if (state is SyncState.IndexDownload.Progress) state.progress else -1
-                        setForegroundAsync(createForegroundInfo(repo.name, progress))
+                        val now = SystemClock.elapsedRealtime()
+                        if (progress != lastPercent && (progress < 0 || now - lastEmit >= 400L)) {
+                            lastPercent = progress
+                            lastEmit = now
+                            setForegroundAsync(createForegroundInfo(repo.name, progress))
+                        }
                     }
                 } else {
                     Log.w(TAG, "Repo not found for id=$repoId; falling back to syncAll")
