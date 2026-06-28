@@ -26,19 +26,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -76,8 +73,10 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
 import com.looker.droidify.compose.appDetail.components.PackageItem
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.InstallingRow
+import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.FilePath
 import com.looker.droidify.data.model.Package
@@ -111,11 +110,25 @@ fun AppDetailScreen(
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
     val descriptionTranslation by viewModel.descriptionTranslation.collectAsStateWithLifecycle()
+    val successState = state as? AppDetailState.Success
+    // The what's-new shown is the device-suitable release's text (falling back to the first package).
+    // Translate the same text so the toggle covers the whole description area, not just summary + body.
+    val suggestedWhatsNew = remember(successState) {
+        successState?.let { s ->
+            (
+                s.packages.selectForDevice(s.app.metadata.suggestedVersionCode)?.first
+                    ?: s.packages.firstOrNull()?.first
+            )?.whatsNew
+        }.orEmpty()
+    }
     // Auto-translate on open when the setting is on (the ViewModel decides if it's actually needed).
-    val autoTranslateApp = (state as? AppDetailState.Success)?.app
-    LaunchedEffect(autoTranslateApp?.metadata?.packageName?.name) {
-        autoTranslateApp?.let {
-            viewModel.maybeAutoTranslate(it.metadata.summary, it.metadata.description.raw)
+    LaunchedEffect(successState?.app?.metadata?.packageName?.name) {
+        successState?.app?.let {
+            viewModel.maybeAutoTranslate(
+                it.metadata.summary,
+                it.metadata.description.raw,
+                suggestedWhatsNew,
+            )
         }
     }
     val uriHandler = LocalUriHandler.current
@@ -185,14 +198,17 @@ fun AppDetailScreen(
                 },
                 navigationIcon = { BackButton(onBackClick) },
                 actions = {
-                    val successApp = (state as? AppDetailState.Success)?.app
-                    if (successApp != null && successApp.metadata.description.isNotBlank()) {
+                    val successApp = successState?.app
+                    if (successApp != null &&
+                        (successApp.metadata.description.isNotBlank() || suggestedWhatsNew.isNotBlank())
+                    ) {
                         TranslateAction(
                             translation = descriptionTranslation,
                             onTranslate = {
                                 viewModel.translateDescription(
                                     successApp.metadata.summary,
                                     successApp.metadata.description.raw,
+                                    suggestedWhatsNew,
                                 )
                             },
                             onShowOriginal = viewModel::showOriginalDescription,
@@ -300,51 +316,6 @@ private fun PrimaryActions(
                     Text(stringResource(R.string.uninstall))
                 }
             }
-        }
-    }
-}
-
-/**
- * The top-bar Translate toggle: tap to translate the summary + description into the device language,
- * tap again to revert to the original. While translating, the icon is ringed by the app's wavy
- * progress indicator (in the bar's colour). Nothing is fetched or downloaded until the user taps.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun TranslateAction(
-    translation: DescriptionTranslation,
-    onTranslate: () -> Unit,
-    onShowOriginal: () -> Unit,
-) {
-    when (translation) {
-        DescriptionTranslation.Loading -> Box(
-            modifier = Modifier.size(48.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            CircularWavyProgressIndicator(
-                modifier = Modifier.size(36.dp),
-                color = LocalContentColor.current,
-            )
-            Icon(
-                imageVector = Icons.Filled.Translate,
-                contentDescription = stringResource(R.string.translating),
-                modifier = Modifier.size(18.dp),
-            )
-        }
-
-        is DescriptionTranslation.Translated -> IconButton(onClick = onShowOriginal) {
-            Icon(
-                imageVector = Icons.Filled.Translate,
-                contentDescription = stringResource(R.string.show_original),
-            )
-        }
-
-        // Original or Failed: tapping (re)translates.
-        else -> IconButton(onClick = onTranslate) {
-            Icon(
-                imageVector = Icons.Filled.Translate,
-                contentDescription = stringResource(R.string.translate),
-            )
         }
     }
 }
@@ -506,7 +477,9 @@ private fun AppDetail(
 
         suggestedPackage?.whatsNew?.takeIf { it.isNotBlank() }?.let { whatsNew ->
             Spacer(modifier = Modifier.height(16.dp))
-            WhatsNewSection(whatsNew = whatsNew)
+            val translatedWhatsNew = (descriptionTranslation as? DescriptionTranslation.Translated)
+                ?.whatsNew?.takeIf { it.isNotBlank() }
+            WhatsNewSection(whatsNew = translatedWhatsNew ?: whatsNew)
         }
 
         if (app.hasLinks()) {

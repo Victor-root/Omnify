@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
+import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
@@ -24,6 +25,7 @@ import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
+import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,6 +48,7 @@ class ExternalAppsViewModel @Inject constructor(
     private val repository: ExternalAppRepository,
     private val downloader: Downloader,
     private val installManager: InstallManager,
+    private val translationManager: TranslationManager,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -126,7 +129,14 @@ class ExternalAppsViewModel @Inject constructor(
     private val _readme = MutableStateFlow<String?>(null)
     val readme: StateFlow<String?> = _readme
 
+    /** State of the README "Translate" toggle on the external detail screen. */
+    private val _readmeTranslation =
+        MutableStateFlow<DescriptionTranslation>(DescriptionTranslation.Original)
+    val readmeTranslation: StateFlow<DescriptionTranslation> = _readmeTranslation
+
     fun loadReadme(app: ExternalApp) {
+        // A different app's README is about to load, so drop any translation left on the previous one.
+        _readmeTranslation.value = DescriptionTranslation.Original
         viewModelScope.launch {
             // Show the cached README instantly (if any) so a re-open isn't blocked on the network,
             // then refresh in the background and update the disk cache.
@@ -138,6 +148,123 @@ class ExternalAppsViewModel @Inject constructor(
                 withContext(Dispatchers.IO) { ReadmeCache.save(context, app.key, fresh) }
             }
         }
+    }
+
+    /** Translates the README's plain text into the device language. Never throws: on failure it shows a
+     *  snackbar and leaves the toggle in the "failed" state (tapping again retries). */
+    fun translateReadme(html: String) {
+        if (html.isBlank()) return
+        viewModelScope.launch {
+            _readmeTranslation.value = DescriptionTranslation.Loading
+            val target = java.util.Locale.getDefault().language
+            val result = runCatching {
+                withContext(Dispatchers.Default) { translateHtml(html, target) }
+            }
+            _readmeTranslation.value = result.fold(
+                onSuccess = { DescriptionTranslation.Translated(summary = "", description = it) },
+                onFailure = { error ->
+                    if (error is CancellationException) throw error
+                    snack(context.getString(R.string.translation_failed))
+                    DescriptionTranslation.Failed
+                },
+            )
+        }
+    }
+
+    fun showOriginalReadme() {
+        _readmeTranslation.value = DescriptionTranslation.Original
+    }
+
+    /** Translates the README while preserving its HTML structure: only the visible text between tags is
+     *  translated (code blocks are left alone), so the rendered result keeps the original's images,
+     *  headings, lists and links. Any segment that can't be mapped keeps its original text. */
+    private suspend fun translateHtml(html: String, target: String): String {
+        // Tokenize into tags (kept verbatim) and the text runs between them.
+        val tokens = mutableListOf<String>()
+        val isTag = mutableListOf<Boolean>()
+        var last = 0
+        for (match in TAG_REGEX.findAll(html)) {
+            if (match.range.first > last) {
+                tokens += html.substring(last, match.range.first)
+                isTag += false
+            }
+            tokens += match.value
+            isTag += true
+            last = match.range.last + 1
+        }
+        if (last < html.length) {
+            tokens += html.substring(last)
+            isTag += false
+        }
+
+        // Choose the text runs to translate: outside code/pre/script/style and containing a letter.
+        val indices = mutableListOf<Int>()
+        var skipDepth = 0
+        for (i in tokens.indices) {
+            if (isTag[i]) {
+                val name = tagName(tokens[i])
+                if (name != null && name in SKIP_TEXT_TAGS) {
+                    when {
+                        tokens[i].startsWith("</") -> if (skipDepth > 0) skipDepth--
+                        !tokens[i].endsWith("/>") -> skipDepth++
+                    }
+                }
+            } else if (skipDepth == 0 && tokens[i].any(Char::isLetter)) {
+                indices += i
+            }
+        }
+        if (indices.isEmpty()) return html
+
+        val translated = translateSegments(indices.map { tokens[it].trim() }, target)
+
+        // Splice the translations back in, keeping each run's surrounding whitespace.
+        val builder = StringBuilder(html.length)
+        val translatableSet = indices.toHashSet()
+        var t = 0
+        for (i in tokens.indices) {
+            if (i in translatableSet) {
+                val original = tokens[i]
+                builder.append(original.takeWhile(Char::isWhitespace))
+                builder.append(translated[t])
+                builder.append(original.takeLastWhile(Char::isWhitespace))
+                t++
+            } else {
+                builder.append(tokens[i])
+            }
+        }
+        return builder.toString()
+    }
+
+    /** Translates [segments] in newline-joined batches (each <= [MAX_TRANSLATE_CHUNK] chars), which the
+     *  engines return line-for-line. On the rare batch that doesn't map 1:1, its segments are translated
+     *  one by one, and any segment that still fails keeps its original text. */
+    private suspend fun translateSegments(segments: List<String>, target: String): List<String> {
+        val out = arrayOfNulls<String>(segments.size)
+        var i = 0
+        while (i < segments.size) {
+            val start = i
+            val batch = StringBuilder()
+            while (i < segments.size) {
+                val seg = segments[i]
+                if (batch.isNotEmpty() && batch.length + 1 + seg.length > MAX_TRANSLATE_CHUNK) break
+                if (batch.isNotEmpty()) batch.append('\n')
+                batch.append(seg)
+                i++
+                if (seg.length >= MAX_TRANSLATE_CHUNK) break
+            }
+            val count = i - start
+            val parts = translationManager.translate(batch.toString(), target).split('\n')
+            if (parts.size == count) {
+                for (j in 0 until count) out[start + j] = parts[j]
+            } else {
+                for (j in 0 until count) {
+                    out[start + j] = runCatching {
+                        translationManager.translate(segments[start + j], target)
+                    }.getOrDefault(segments[start + j])
+                }
+            }
+        }
+        return out.map { it ?: "" }
     }
 
     /** Launcher-icon candidates found in the source repo, for the icon picker (best first). Empty when
@@ -572,6 +699,18 @@ class ExternalAppsViewModel @Inject constructor(
 enum class AddSourceState { IDLE, LOADING, SUCCESS }
 
 private val UNSAFE_FILE_CHARS = Regex("[^A-Za-z0-9._-]")
+
+/** Max characters per translation request (keeps the Google endpoint's URL within limits). */
+private const val MAX_TRANSLATE_CHUNK = 1500
+
+private val TAG_REGEX = Regex("<[^>]+>")
+
+/** HTML tags whose inner text must not be translated, so code stays code. */
+private val SKIP_TEXT_TAGS = setOf("code", "pre", "script", "style")
+
+/** The lowercase element name of an HTML tag token (e.g. `<a href=…>` gives "a"), or null if unreadable. */
+private fun tagName(tag: String): String? =
+    Regex("^</?\\s*([A-Za-z0-9]+)").find(tag)?.groupValues?.get(1)?.lowercase()
 
 /** How often the download speed is recomputed (sliding window length). */
 private const val SPEED_WINDOW_MS = 500L

@@ -17,6 +17,7 @@ import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.App
+import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.data.model.Repo
@@ -57,21 +58,6 @@ import java.io.File
 import java.security.MessageDigest
 import javax.inject.Inject
 
-/** UI state of the description "Translate" toggle on the app detail screen. */
-sealed interface DescriptionTranslation {
-    /** Showing the original description. */
-    data object Original : DescriptionTranslation
-
-    /** Translation in progress (covers the first-use ML Kit model download too). */
-    data object Loading : DescriptionTranslation
-
-    /** Showing the translated summary + description. */
-    data class Translated(val summary: String, val description: String) : DescriptionTranslation
-
-    /** The translation couldn't be produced (offline, bad config, unsupported language…). */
-    data object Failed : DescriptionTranslation
-}
-
 @HiltViewModel
 class AppDetailViewModel @Inject constructor(
     private val appRepository: AppRepository,
@@ -90,16 +76,16 @@ class AppDetailViewModel @Inject constructor(
         MutableStateFlow<DescriptionTranslation>(DescriptionTranslation.Original)
     val descriptionTranslation: StateFlow<DescriptionTranslation> = _descriptionTranslation
 
-    /** Translates the summary + description (HTML) into the device language. Never throws. */
-    fun translateDescription(summary: String, descriptionHtml: String) {
-        if (summary.isBlank() && descriptionHtml.isBlank()) return
-        viewModelScope.launch { translateBoth(summary, descriptionHtml, notifyError = true) }
+    /** Translates the summary + description (HTML) + what's-new into the device language. Never throws. */
+    fun translateDescription(summary: String, descriptionHtml: String, whatsNew: String) {
+        if (summary.isBlank() && descriptionHtml.isBlank() && whatsNew.isBlank()) return
+        viewModelScope.launch { translateBoth(summary, descriptionHtml, whatsNew, notifyError = true) }
     }
 
     /** When the auto-translate setting is on, translates on screen entry — but only if the description
      *  is actually in another language (detected on-device), so a description already in the user's
      *  language is left alone. */
-    fun maybeAutoTranslate(summary: String, descriptionHtml: String) {
+    fun maybeAutoTranslate(summary: String, descriptionHtml: String, whatsNew: String) {
         if (_descriptionTranslation.value != DescriptionTranslation.Original) return
         if (descriptionHtml.isBlank()) return
         viewModelScope.launch {
@@ -109,7 +95,7 @@ class AppDetailViewModel @Inject constructor(
                 translationManager.detectLanguage(plainText(descriptionHtml))
             }.getOrNull()
             if (detected != null && detected != "und" && detected != target) {
-                translateBoth(summary, descriptionHtml, notifyError = false)
+                translateBoth(summary, descriptionHtml, whatsNew, notifyError = false)
             }
         }
     }
@@ -117,6 +103,7 @@ class AppDetailViewModel @Inject constructor(
     private suspend fun translateBoth(
         summary: String,
         descriptionHtml: String,
+        whatsNew: String,
         notifyError: Boolean,
     ) {
         _descriptionTranslation.value = DescriptionTranslation.Loading
@@ -130,9 +117,13 @@ class AppDetailViewModel @Inject constructor(
                 val translatedDescription = async {
                     if (description.isBlank()) "" else translationManager.translate(description, target)
                 }
+                val translatedWhatsNew = async {
+                    if (whatsNew.isBlank()) "" else translationManager.translate(whatsNew, target)
+                }
                 DescriptionTranslation.Translated(
                     summary = translatedSummary.await(),
                     description = translatedDescription.await(),
+                    whatsNew = translatedWhatsNew.await(),
                 )
             }
         }
