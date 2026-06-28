@@ -38,10 +38,12 @@ val LocalStatusBarScrimAlpha = staticCompositionLocalOf<MutableFloatState> { mut
  * screen's TopAppBar uses this so the header and status bar follow the theme colour.
  */
 /**
- * Height of every screen's top bar — shorter than Material's 64dp default so the title sits closer to
- * the status bar and the screen wastes less space. Used app-wide so all headers stay consistent.
+ * Height of the secondary screens' top bar — Settings, Repos, the detail screens and the "see all"
+ * pages, i.e. every back-arrow + title header. A little shorter than Material's 64dp default but tall
+ * enough to breathe. The home screen is deliberately not included: it uses its own taller HomeBarHeight
+ * so the logo + wordmark stay prominent.
  */
-val AccentBarHeight = 48.dp
+val AccentBarHeight = 56.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
