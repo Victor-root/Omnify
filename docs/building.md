@@ -1,6 +1,6 @@
-# Building Droid-ify
+# Building Omnify
 
-Simple guide to build Droid-ify from source.
+Simple guide to build Omnify from source.
 
 ## Prerequisites
 
@@ -12,8 +12,8 @@ Simple guide to build Droid-ify from source.
 
 ```bash
 # Clone the repository
-git clone https://github.com/Victor-root/Droidify-enhanced.git
-cd Droidify-enhanced
+git clone https://github.com/Victor-root/Omnify.git
+cd Omnify
 
 # Build debug APK
 ./gradlew assembleDebug
@@ -27,7 +27,7 @@ cd Droidify-enhanced
 ## Android Studio
 
 1. Open Android Studio
-2. **File** → **Open** → Select `Droidify-enhanced` folder
+2. **File** → **Open** → Select `Omnify` folder
 3. Wait for sync to complete
 4. **Build** → **Build Bundle(s) / APK(s)** → **Build APK(s)**
 

@@ -19,5 +19,5 @@ dependencyResolutionManagement {
 	}
 }
 
-rootProject.name = "Droid-ify"
+rootProject.name = "Omnify"
 include(":app")

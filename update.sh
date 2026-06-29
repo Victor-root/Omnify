@@ -60,7 +60,7 @@ sed -i "s/val latestVersionName = \"[^\"]*\"/val latestVersionName = \"$version_
 # Create a changelog file
 mkdir -p "$changelog_directory"
 git log "$(git describe --tags --abbrev=0)"..HEAD --format="%s: %an" | sed "s/: LooKeR//" >> $changelog_file
-echo "Full changelog: https://github.com/Victor-root/Droidify-enhanced/releases/tag/$git_tag" >> $changelog_file
+echo "Full changelog: https://github.com/Victor-root/Omnify/releases/tag/$git_tag" >> $changelog_file
 
 echo "Version Code: $version_code"
 echo "Version Name: $version_name"

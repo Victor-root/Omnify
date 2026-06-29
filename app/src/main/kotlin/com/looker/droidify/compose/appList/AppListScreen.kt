@@ -324,7 +324,10 @@ fun AppListScreen(
                                 )
                                 // The monochrome logo has a wide built-in safe-zone margin, so nudge the
                                 // wordmark left to sit right next to the glyph instead of after the gap.
-                                Text("Droid-ify", modifier = Modifier.offset(x = (-12).dp))
+                                Text(
+                                    text = stringResource(R.string.application_name),
+                                    modifier = Modifier.offset(x = (-12).dp),
+                                )
                             }
                         },
                         favouritesOnly = favouritesOnly,

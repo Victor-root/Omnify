@@ -7,7 +7,7 @@
     <string name="requires_google_services">Nécessite les services Google</string>
     <string name="requires_google_services_summary">Cette application utilise les services Google Play et peut ne pas fonctionner pleinement sans eux (ou microG).</string>
     <string name="allow_unknown_sources">Autoriser l\'installation d\'applis</string>
-    <string name="allow_unknown_sources_DESC">Droid-ify a besoin de l\'autorisation d\'installer des applis. Autorisez-la maintenant pour ne pas être interrompu lors de votre première installation.</string>
+    <string name="allow_unknown_sources_DESC">Omnify a besoin de l\'autorisation d\'installer des applis. Autorisez-la maintenant pour ne pas être interrompu lors de votre première installation.</string>
     <string name="allow">Autoriser</string>
     <string name="later">Plus tard</string>
     <string name="compiled_for_debugging">Compilé pour le débogage</string>
@@ -75,7 +75,7 @@
     <string name="saving_details">Enregistrement des détails…</string>
     <string name="recently_updated">Récemment mis à jour</string>
     <string name="repositories">Dépôts</string>
-    <string name="repo_section_fdroid">Dépôts F-Droid / Droidify</string>
+    <string name="repo_section_fdroid">Dépôts F-Droid</string>
     <string name="unknown">Inconnu</string>
     <string name="always">Toujours</string>
     <string name="application">Application</string>

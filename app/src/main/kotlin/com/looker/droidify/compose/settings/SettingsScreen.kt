@@ -94,7 +94,7 @@ private const val DROID_IFY_ORIGINAL = "Original Droid-ify"
 private const val DROID_IFY_URL = "https://github.com/Droid-ify/client"
 private const val DROID_IFY_AUTHOR = "LooKeR"
 private const val AUTHOR_NAME = "Victor-root"
-private const val AUTHOR_REPO_URL = "https://github.com/Victor-root/Droidify-enhanced"
+private const val AUTHOR_REPO_URL = "https://github.com/Victor-root/Omnify"
 private const val AUTHOR_GITHUB_URL = "https://github.com/Victor-root"
 
 @OptIn(ExperimentalMaterial3Api::class)

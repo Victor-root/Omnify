@@ -448,7 +448,7 @@ class AppDetailViewModel @Inject constructor(
         )
     }
 
-    /** Friendly name of the app that installed this package (Play, F-Droid, Droid-ify…), the raw
+    /** Friendly name of the app that installed this package (Play, F-Droid, this app…), the raw
      *  installer id, or a generic label for a sideloaded app with no recorded installer. */
     private fun installerSourceLabel(): String {
         val installer = runCatching {
@@ -463,7 +463,7 @@ class AppDetailViewModel @Inject constructor(
             null, "" -> context.getString(R.string.installer_unknown)
             "com.android.vending" -> "Google Play"
             "org.fdroid.fdroid", "org.fdroid.basic" -> "F-Droid"
-            context.packageName -> "Droid-ify"
+            context.packageName -> context.getString(R.string.application_name)
             else -> installer
         }
     }

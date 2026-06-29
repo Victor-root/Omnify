@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
-    <string name="application_name" translatable="false">Droid-ify</string>
+    <string name="application_name" translatable="false">Omnify</string>
     <string name="cleartext_allowed" translatable="false">false</string>
     <string name="action_failed">Action failed</string>
     <string name="add_repository">Add repository</string>
@@ -14,7 +14,7 @@
     <string name="requires_google_services">Requires Google services</string>
     <string name="requires_google_services_summary">This app uses Google Play services and may not work fully without them (or microG).</string>
     <string name="allow_unknown_sources">Allow installing apps</string>
-    <string name="allow_unknown_sources_DESC">Droid-ify needs permission to install apps. Allow it now so you\'re not interrupted at your first install.</string>
+    <string name="allow_unknown_sources_DESC">Omnify needs permission to install apps. Allow it now so you\'re not interrupted at your first install.</string>
     <string name="allow">Allow</string>
     <string name="later">Later</string>
     <string name="application">App</string>
@@ -215,7 +215,7 @@
     <string name="proxy_type">Proxy type</string>
     <string name="recently_updated">Recently updated</string>
     <string name="repositories">Repositories</string>
-    <string name="repo_section_fdroid">F-Droid / Droidify repositories</string>
+    <string name="repo_section_fdroid">F-Droid repositories</string>
     <string name="repository">Repository</string>
     <string name="repository_not_found">The repository wasn\'t found</string>
     <string name="repository_unsigned_DESC">No signature found. Couldn\'t verify the app list</string>
