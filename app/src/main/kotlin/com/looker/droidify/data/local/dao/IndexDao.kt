@@ -45,6 +45,10 @@ import com.looker.droidify.sync.v2.model.IndexV2
 import com.looker.droidify.sync.v2.model.LocalizedIcon
 import com.looker.droidify.sync.v2.model.LocalizedString
 
+/** Max package names per IN(...) lookup. SQLite allows 999 host parameters per statement on older
+ *  Android (pre-3.32); one slot is taken by repoId, so stay safely below that. */
+private const val MAX_IN_CLAUSE_VARIABLES = 900
+
 @Dao
 interface IndexDao {
 
@@ -79,7 +83,12 @@ interface IndexDao {
         }
 
         val packageNames = packageEntries.map { it.key }
-        val existing = appIdsByPackageNames(repoId, packageNames)
+        // SQLite caps host parameters per statement at 999 on older Android (pre-3.32, e.g. Android 11).
+        // A large repo (F-Droid ships thousands of apps) would blow past that in a single IN(...) lookup
+        // and the whole sync would fail, so resolve the existing ids in chunks.
+        val existing = packageNames.chunked(MAX_IN_CLAUSE_VARIABLES).flatMap { chunk ->
+            appIdsByPackageNames(repoId, chunk)
+        }
         val existingIdByPackage = mutableMapOf<String, Int>().apply {
             existing.forEach { put(it.packageName, it.id) }
         }
