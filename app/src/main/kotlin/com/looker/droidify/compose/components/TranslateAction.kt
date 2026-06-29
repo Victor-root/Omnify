@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.compose.theme.LocalIsTelevision
 
 /**
  * UI state of a "Translate" toggle. Shared by the catalogue app detail (summary + description) and the
@@ -49,34 +50,43 @@ fun TranslateAction(
     onTranslate: () -> Unit,
     onShowOriginal: () -> Unit,
 ) {
-    when (translation) {
-        DescriptionTranslation.Loading -> Box(
-            modifier = Modifier.size(48.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            CircularWavyProgressIndicator(
-                modifier = Modifier.size(36.dp),
-                color = LocalContentColor.current,
-            )
+    val loading = translation == DescriptionTranslation.Loading
+    val translated = translation is DescriptionTranslation.Translated
+    // Always an IconButton, in every state: tapping translate flips to Loading, and if that swapped the
+    // button for a plain (non-focusable) spinner the D-pad focus would jump away to the back arrow. By
+    // keeping the same focusable node and only changing its content, focus stays put while translating.
+    val description = when {
+        loading -> stringResource(R.string.translating)
+        translated -> stringResource(R.string.show_original)
+        else -> stringResource(R.string.translate)
+    }
+    IconButton(
+        onClick = {
+            when {
+                loading -> Unit
+                translated -> onShowOriginal()
+                else -> onTranslate()
+            }
+        },
+        // TV: a square button so the focus halo is a clean circle, and the icon scales up on focus.
+        modifier = (if (LocalIsTelevision.current) Modifier.size(48.dp) else Modifier).tvFocusScale(),
+    ) {
+        if (loading) {
+            Box(contentAlignment = Alignment.Center) {
+                CircularWavyProgressIndicator(
+                    modifier = Modifier.size(30.dp),
+                    color = LocalContentColor.current,
+                )
+                Icon(
+                    imageVector = Icons.Filled.Translate,
+                    contentDescription = description,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        } else {
             Icon(
                 imageVector = Icons.Filled.Translate,
-                contentDescription = stringResource(R.string.translating),
-                modifier = Modifier.size(18.dp),
-            )
-        }
-
-        is DescriptionTranslation.Translated -> IconButton(onClick = onShowOriginal) {
-            Icon(
-                imageVector = Icons.Filled.Translate,
-                contentDescription = stringResource(R.string.show_original),
-            )
-        }
-
-        // Original or Failed: tapping (re)translates.
-        else -> IconButton(onClick = onTranslate) {
-            Icon(
-                imageVector = Icons.Filled.Translate,
-                contentDescription = stringResource(R.string.translate),
+                contentDescription = description,
             )
         }
     }

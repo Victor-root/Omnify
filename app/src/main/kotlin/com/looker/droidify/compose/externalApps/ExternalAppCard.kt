@@ -16,6 +16,8 @@ import com.looker.droidify.compose.components.AppTile
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.TileIconSize
+import com.looker.droidify.compose.components.TvTileIconSize
+import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.installer.model.InstallState
 
@@ -31,13 +33,14 @@ fun ExternalAppTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val iconSize = if (LocalIsTelevision.current) TvTileIconSize else TileIconSize
     AppTile(
         name = app.label,
         isInstalled = isInstalled,
         onClick = onClick,
         modifier = modifier,
     ) {
-        ExternalAppIcon(app = app, isInstalled = isInstalled, size = TileIconSize)
+        ExternalAppIcon(app = app, isInstalled = isInstalled, size = iconSize)
     }
 }
 

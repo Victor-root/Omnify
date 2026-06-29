@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.externalApps
 
 import android.graphics.Color as AndroidColor
+import android.view.ViewGroup
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -12,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.viewinterop.AndroidView
+import com.looker.droidify.compose.theme.LocalIsTelevision
 
 /**
  * Renders a project README (GitHub-rendered HTML) in a WebView, so it looks like it does on the web:
@@ -33,6 +35,7 @@ fun ReadmeWebView(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val uriHandler = LocalUriHandler.current
+    val isTelevision = LocalIsTelevision.current
     val document = remember(html, colorScheme) {
         wrapReadmeHtml(
             body = html,
@@ -58,6 +61,14 @@ fun ReadmeWebView(
                 isVerticalScrollBarEnabled = false
                 isNestedScrollingEnabled = false
                 overScrollMode = WebView.OVER_SCROLL_NEVER
+                // On Android TV, keep the D-pad out of the README: a focusable WebView would step
+                // through every link and image inside it. Non-focusable, the remote skips it and the
+                // surrounding page-scroll (see tvPageScroll) just scrolls the README into view to read.
+                if (isTelevision) {
+                    isFocusable = false
+                    isFocusableInTouchMode = false
+                    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                }
                 fun reportHeight() {
                     val pixels = (contentHeight * resources.displayMetrics.density).toInt()
                     if (pixels > 0) onContentHeight(pixels)

@@ -34,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -46,6 +47,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.TranslateAction
+import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.apkVersionLabel
@@ -130,11 +132,15 @@ fun ExternalAppDetailScreen(
         // WebView re-reports its height every time the document reloads, so translating or reverting
         // resizes correctly on its own.
         var readmeHeightPx by remember(app.key) { mutableStateOf(0) }
+        // Hoisted so the README can page-scroll it on TV; viewport height drives the page step.
+        val scrollState = rememberScrollState()
+        var viewportPx by remember { mutableStateOf(0) }
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(contentPadding)
-                .verticalScroll(rememberScrollState()),
+                .onSizeChanged { viewportPx = it.height }
+                .verticalScroll(scrollState),
         ) {
             Row(
                 modifier = Modifier
@@ -216,22 +222,31 @@ fun ExternalAppDetailScreen(
             // GitHub leaves repo-relative image paths un-rewritten, so the WebView resolves them
             // against the raw content host. While it loads, show a spinner instead of empty space.
             if (readmeHtml != null) {
-                ReadmeWebView(
-                    html = readmeHtml,
-                    baseUrl = app.readmeWebBaseUrl,
-                    onContentHeight = { readmeHeightPx = it },
+                // On TV this Box is the single focus stop for the whole README: landing here, the D-pad
+                // pages the screen up/down through it (the WebView itself is non-focusable on TV, so the
+                // remote no longer steps over its links and images). A plain wrapper on touch.
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        // Until the content height is known, give it a sensible height so it can render
-                        // and measure; then snap to the exact height.
-                        .height(
-                            if (readmeHeightPx > 0) {
-                                with(density) { readmeHeightPx.toDp() }
-                            } else {
-                                600.dp
-                            },
-                        ),
-                )
+                        .tvPageScroll(scrollState, (viewportPx * 0.85f).toInt()),
+                ) {
+                    ReadmeWebView(
+                        html = readmeHtml,
+                        baseUrl = app.readmeWebBaseUrl,
+                        onContentHeight = { readmeHeightPx = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // Until the content height is known, give it a sensible height so it can render
+                            // and measure; then snap to the exact height.
+                            .height(
+                                if (readmeHeightPx > 0) {
+                                    with(density) { readmeHeightPx.toDp() }
+                                } else {
+                                    600.dp
+                                },
+                            ),
+                    )
+                }
             } else {
                 Box(
                     modifier = Modifier

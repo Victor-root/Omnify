@@ -44,7 +44,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.clearText
@@ -127,7 +126,8 @@ import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.datastore.extension.sortOrderName
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.supportedSortOrders
-import com.looker.droidify.compose.components.tvFocusOutline
+import com.looker.droidify.compose.components.tvDpadDownTo
+import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalAccentBarColor
 import com.looker.droidify.compose.theme.LocalEdgeToEdge
@@ -135,6 +135,7 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.LocalStatusBarScrimAlpha
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.roundToInt
 
@@ -300,6 +301,49 @@ fun AppListScreen(
     // collapse-on-scroll is only wired up off TV. Other edge-to-edge behaviour is left untouched.
     val collapsibleHeader = edgeToEdge && !isTelevision
 
+    // Android TV must always have a focused element on screen: if a remote key is pressed while nothing
+    // holds focus, input dispatch times out and the system kills the app (an ANR, "does not have a
+    // focused window"). The tab row is present from the very first frame (even during the initial sync),
+    // so it's the natural cold-start landing point. A no-op on touch.
+    val tabsFocusRequester = remember { FocusRequester() }
+    // Returning from a detail screen recreates this whole screen, so focus would otherwise snap back to
+    // the tabs. We remember the tile the user last opened (the id survives navigation via rememberSaveable)
+    // and attach [restoreRequester] to whichever visible grid tile matches, so the remote lands back where
+    // it was. Tiles in the Discover carousels can't be re-targeted (a nested, unsaved horizontal list), so
+    // those fall back to the top of the content grid below.
+    var restoreFocusId by rememberSaveable { mutableStateOf<String?>(null) }
+    val restoreRequester = remember { FocusRequester() }
+    val openApp: (String) -> Unit = { packageName ->
+        restoreFocusId = "app:$packageName"
+        onAppClick(packageName)
+    }
+    val openExternalApp: (String) -> Unit = { key ->
+        restoreFocusId = "ext:$key"
+        onExternalAppClick(key)
+    }
+    if (isTelevision) {
+        // Land focus on (re)entry, retrying briefly because the target isn't attached until the
+        // grid/header is laid out. Preference: the exact last-opened tile, then the content grid (its
+        // first tile), then the tabs — so there is always a focused element, whatever the screen state.
+        LaunchedEffect(restoreFocusId) {
+            val primary = if (restoreFocusId != null) restoreRequester else tabsFocusRequester
+            repeat(20) {
+                if (runCatching { primary.requestFocus() }.isSuccess) return@LaunchedEffect
+                delay(50)
+            }
+            if (restoreFocusId != null) {
+                // The remembered tile isn't in the current list (e.g. opened from a carousel): land on
+                // the content, falling back to the tabs, so a remote press still has somewhere to go.
+                repeat(20) {
+                    val fallback = runCatching { contentFocusRequester.requestFocus() }.isSuccess ||
+                        runCatching { tabsFocusRequester.requestFocus() }.isSuccess
+                    if (fallback) return@LaunchedEffect
+                    delay(50)
+                }
+            }
+        }
+    }
+
     Scaffold(
         // Edge-to-edge: let the header collapse as the grid scrolls. Pinned otherwise (and on TV).
         modifier = if (collapsibleHeader) {
@@ -310,16 +354,7 @@ fun AppListScreen(
         snackbarHost = { SnackbarHost(externalViewModel.snackbarHostState) },
         topBar = {
             Column(
-                modifier = (if (collapsibleHeader) Modifier.collapsingHeader(scrollBehavior) else Modifier)
-                    // D-pad "down" anywhere in the header jumps focus into the content grid (TV).
-                    // Fires only while focus is within this header subtree; a no-op on touch.
-                    .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
-                            runCatching { contentFocusRequester.requestFocus() }.isSuccess
-                        } else {
-                            false
-                        }
-                    },
+                modifier = if (collapsibleHeader) Modifier.collapsingHeader(scrollBehavior) else Modifier,
             ) {
                 // A carousel "see all" page takes over the whole header: a back arrow + the section
                 // title, with no tabs, so it reads as its own screen.
@@ -327,10 +362,12 @@ fun AppListScreen(
                     SectionTopBar(
                         title = sectionTitle(openedSection),
                         onBack = { viewModel.closeSection() },
+                        contentFocusRequester = contentFocusRequester,
                     )
                 } else {
                     AppListTopBar(
                         onSync = viewModel::sync,
+                        contentFocusRequester = contentFocusRequester,
                         searchExpanded = searchExpanded,
                         onToggleSearch = {
                             searchExpanded = !searchExpanded
@@ -368,6 +405,18 @@ fun AppListScreen(
                         selectedTab = selectedTab,
                         updatesCount = updatesCount + externalUpdates.size,
                         onSelectTab = viewModel::selectTab,
+                        // TV: the tab row is the startup focus target (see tabsFocusRequester), and a
+                        // focus group so requesting focus here lands on a tab. "Down" from a tab drops
+                        // into the content grid (the tab row won't release focus down on its own). No
+                        // effect on touch.
+                        modifier = if (isTelevision) {
+                            Modifier
+                                .focusRequester(tabsFocusRequester)
+                                .focusGroup()
+                                .tvDpadDownTo(contentFocusRequester)
+                        } else {
+                            Modifier
+                        },
                     )
                     // While the full-screen fetching state is up, the thin banner is redundant.
                     if (isSyncing && !catalogLoading) {
@@ -387,7 +436,8 @@ fun AppListScreen(
             val direction = LocalLayoutDirection.current
             PaddingValues(
                 start = contentPadding.calculateStartPadding(direction) + TvOverscan,
-                top = contentPadding.calculateTopPadding(),
+                // Extra top gap so a focused first row's highlight doesn't tuck under the pinned header.
+                top = contentPadding.calculateTopPadding() + TvOverscan,
                 end = contentPadding.calculateEndPadding(direction) + TvOverscan,
                 bottom = contentPadding.calculateBottomPadding() + TvOverscan,
             )
@@ -396,8 +446,9 @@ fun AppListScreen(
         }
         LazyVerticalGrid(
             // A tile grid (icon + name), the same density as the Discover carousels, shared by every
-            // tab so the apps look identical everywhere.
-            columns = GridCells.Adaptive(minSize = 100.dp),
+            // tab so the apps look identical everywhere. Bigger cells on TV (larger icons, fewer columns)
+            // to use the screen and stay legible from the couch.
+            columns = GridCells.Adaptive(minSize = if (isTelevision) 150.dp else 100.dp),
             state = gridState,
             contentPadding = gridContentPadding,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -420,7 +471,11 @@ fun AppListScreen(
                     ExternalAppTile(
                         app = app,
                         isInstalled = app.key in externalInstalledKeys,
-                        onClick = { onExternalAppClick(app.key) },
+                        onClick = { openExternalApp(app.key) },
+                        modifier = Modifier.restoreFocusTarget(
+                            isTelevision && restoreFocusId == "ext:${app.key}",
+                            restoreRequester,
+                        ),
                     )
                 }
                 return@LazyVerticalGrid
@@ -441,7 +496,7 @@ fun AppListScreen(
                             title = stringResource(R.string.discover_new_apps),
                             apps = newApps,
                             installedPackages = installedPackages,
-                            onAppClick = onAppClick,
+                            onAppClick = openApp,
                             onSeeAll = { viewModel.openSection(SECTION_WHATS_NEW) },
                             modifier = Modifier.padding(bottom = 8.dp),
                         )
@@ -453,7 +508,7 @@ fun AppListScreen(
                             title = stringResource(R.string.discover_recently_updated),
                             apps = recentlyUpdatedApps,
                             installedPackages = installedPackages,
-                            onAppClick = onAppClick,
+                            onAppClick = openApp,
                             onSeeAll = { viewModel.openSection(SECTION_RECENTLY_UPDATED) },
                             modifier = Modifier.padding(bottom = 8.dp),
                         )
@@ -467,7 +522,7 @@ fun AppListScreen(
                             title = stringResource(R.string.discover_most_downloaded),
                             apps = mostDownloadedApps,
                             installedPackages = installedPackages,
-                            onAppClick = onAppClick,
+                            onAppClick = openApp,
                             onSeeAll = { viewModel.openSection(SECTION_MOST_DOWNLOADED) },
                             modifier = Modifier.padding(bottom = 8.dp),
                         )
@@ -496,7 +551,9 @@ fun AppListScreen(
                             expandedSections,
                             expandedSectionApps,
                             installedPackages,
-                            onAppClick,
+                            openApp,
+                            restoreFocusId.takeIf { isTelevision },
+                            restoreRequester,
                         )
                     }
                 }
@@ -556,7 +613,11 @@ fun AppListScreen(
                     CatalogAppTile(
                         app = app,
                         isInstalled = app.packageName.name in installedPackages,
-                        onClick = { onAppClick(app.packageName.name) },
+                        onClick = { openApp(app.packageName.name) },
+                        modifier = Modifier.restoreFocusTarget(
+                            isTelevision && restoreFocusId == "app:${app.packageName.name}",
+                            restoreRequester,
+                        ),
                     )
                 }
             } else {
@@ -567,7 +628,11 @@ fun AppListScreen(
                     CatalogAppTile(
                         app = app,
                         isInstalled = app.packageName.name in installedPackages,
-                        onClick = { onAppClick(app.packageName.name) },
+                        onClick = { openApp(app.packageName.name) },
+                        modifier = Modifier.restoreFocusTarget(
+                            isTelevision && restoreFocusId == "app:${app.packageName.name}",
+                            restoreRequester,
+                        ),
                     )
                 }
             }
@@ -580,7 +645,11 @@ fun AppListScreen(
                     ExternalAppTile(
                         app = app,
                         isInstalled = app.key in externalInstalledKeys,
-                        onClick = { onExternalAppClick(app.key) },
+                        onClick = { openExternalApp(app.key) },
+                        modifier = Modifier.restoreFocusTarget(
+                            isTelevision && restoreFocusId == "ext:${app.key}",
+                            restoreRequester,
+                        ),
                     )
                 }
             }
@@ -613,8 +682,10 @@ private fun AppTabRow(
     selectedTab: AppTab,
     updatesCount: Int,
     onSelectTab: (AppTab) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     TabRow(
+        modifier = modifier,
         selectedTabIndex = selectedTab.ordinal,
         containerColor = LocalAccentBarColor.current,
         contentColor = LocalOnAccentBarColor.current,
@@ -645,11 +716,8 @@ private fun AppTabRow(
             Tab(
                 selected = selected,
                 onClick = { onSelectTab(tab) },
-                // TV only: outline the focused tab so the remote selection is visible (no-op on touch).
-                modifier = Modifier.tvFocusOutline(
-                    shape = RoundedCornerShape(8.dp),
-                    color = LocalOnAccentBarColor.current,
-                ),
+                // TV only: the focused tab scales up. No-op on touch.
+                modifier = Modifier.tvFocusScale(),
                 selectedContentColor = LocalOnAccentBarColor.current,
                 unselectedContentColor = LocalOnAccentBarColor.current.copy(alpha = 0.7f),
                 text = {
@@ -836,12 +904,15 @@ private val TvOverscan = 24.dp
 private fun SearchTopBar(
     state: TextFieldState,
     onClose: () -> Unit,
+    contentFocusRequester: FocusRequester,
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     TopAppBar(
         colors = accentTopAppBarColors(),
         expandedHeight = HomeBarHeight,
+        // "Down" from the search field drops into the results below (no tabs while searching).
+        modifier = Modifier.tvDpadDownTo(contentFocusRequester),
         navigationIcon = {
             IconButton(onClick = onClose) {
                 Icon(
@@ -880,6 +951,7 @@ private fun SearchTopBar(
 @Composable
 private fun AppListTopBar(
     onSync: () -> Unit,
+    contentFocusRequester: FocusRequester,
     searchExpanded: Boolean,
     onToggleSearch: () -> Unit,
     searchState: TextFieldState,
@@ -913,7 +985,11 @@ private fun AppListTopBar(
             enter = expandHorizontally(animationSpec = tween(300), expandFrom = Alignment.End),
             exit = shrinkHorizontally(animationSpec = tween(300), shrinkTowards = Alignment.End),
         ) {
-            SearchTopBar(state = searchState, onClose = onToggleSearch)
+            SearchTopBar(
+                state = searchState,
+                onClose = onToggleSearch,
+                contentFocusRequester = contentFocusRequester,
+            )
         }
     }
 }
@@ -941,9 +1017,17 @@ private fun AppListMainTopBar(
         actions = {
             IconButton(
                 onClick = onToggleSearch,
-                modifier = Modifier.size(smallContainerSize(Narrow))
-                    // TV only: visible focus ring around the action icon (no-op on touch).
-                    .tvFocusOutline(CircleShape, color = LocalOnAccentBarColor.current),
+                modifier = Modifier
+                    // TV: a square button so the focus halo is a clean circle (the narrow expressive
+                    // size makes it an oval); the focused icon also scales up. Unchanged on touch.
+                    .then(
+                        if (LocalIsTelevision.current) {
+                            Modifier.size(48.dp)
+                        } else {
+                            Modifier.size(smallContainerSize(Narrow))
+                        },
+                    )
+                    .tvFocusScale(),
             ) {
                 Icon(
                     painterResource(R.drawable.ic_tabler_search),
@@ -953,9 +1037,17 @@ private fun AppListMainTopBar(
             Spacer(Modifier.width(4.dp))
             IconButton(
                 onClick = onSync,
-                modifier = Modifier.size(smallContainerSize(Narrow))
-                    // TV only: visible focus ring around the action icon (no-op on touch).
-                    .tvFocusOutline(CircleShape, color = LocalOnAccentBarColor.current),
+                modifier = Modifier
+                    // TV: a square button so the focus halo is a clean circle (the narrow expressive
+                    // size makes it an oval); the focused icon also scales up. Unchanged on touch.
+                    .then(
+                        if (LocalIsTelevision.current) {
+                            Modifier.size(48.dp)
+                        } else {
+                            Modifier.size(smallContainerSize(Narrow))
+                        },
+                    )
+                    .tvFocusScale(),
             ) {
                 Icon(
                     painterResource(R.drawable.ic_tabler_refresh),
@@ -966,9 +1058,17 @@ private fun AppListMainTopBar(
             Box {
                 IconButton(
                     onClick = { sortExpanded = true },
-                    modifier = Modifier.size(smallContainerSize(Narrow))
-                    // TV only: visible focus ring around the action icon (no-op on touch).
-                    .tvFocusOutline(CircleShape, color = LocalOnAccentBarColor.current),
+                    modifier = Modifier
+                    // TV: a square button so the focus halo is a clean circle (the narrow expressive
+                    // size makes it an oval); the focused icon also scales up. Unchanged on touch.
+                    .then(
+                        if (LocalIsTelevision.current) {
+                            Modifier.size(48.dp)
+                        } else {
+                            Modifier.size(smallContainerSize(Narrow))
+                        },
+                    )
+                    .tvFocusScale(),
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.Sort,
@@ -1001,9 +1101,17 @@ private fun AppListMainTopBar(
             Box {
                 IconButton(
                     onClick = { overflowExpanded = true },
-                    modifier = Modifier.size(smallContainerSize(Narrow))
-                    // TV only: visible focus ring around the action icon (no-op on touch).
-                    .tvFocusOutline(CircleShape, color = LocalOnAccentBarColor.current),
+                    modifier = Modifier
+                    // TV: a square button so the focus halo is a clean circle (the narrow expressive
+                    // size makes it an oval); the focused icon also scales up. Unchanged on touch.
+                    .then(
+                        if (LocalIsTelevision.current) {
+                            Modifier.size(48.dp)
+                        } else {
+                            Modifier.size(smallContainerSize(Narrow))
+                        },
+                    )
+                    .tvFocusScale(),
                 ) {
                     Icon(
                         Icons.Filled.MoreVert,
@@ -1084,6 +1192,8 @@ private fun LazyGridScope.expandedAppItems(
     expandedSectionApps: Map<String, List<AppMinimal>>,
     installedPackages: Set<String>,
     onAppClick: (String) -> Unit,
+    restoreFocusId: String?,
+    restoreRequester: FocusRequester,
 ) {
     if (key !in expandedSections) return
     items(
@@ -1094,9 +1204,18 @@ private fun LazyGridScope.expandedAppItems(
             app = app,
             isInstalled = app.packageName.name in installedPackages,
             onClick = { onAppClick(app.packageName.name) },
+            modifier = Modifier.restoreFocusTarget(
+                restoreFocusId == "app:${app.packageName.name}",
+                restoreRequester,
+            ),
         )
     }
 }
+
+/** Attaches [requester] to this element only when [matches] (the tile the user last opened, so focus
+ *  returns to it). A plain `this` otherwise. */
+private fun Modifier.restoreFocusTarget(matches: Boolean, requester: FocusRequester): Modifier =
+    if (matches) focusRequester(requester) else this
 
 /** "Categories" heading above the categories list. */
 @Composable
@@ -1120,10 +1239,16 @@ private fun sectionTitle(key: String?): String = when (key) {
 /** Header for a carousel "see all" page: a back arrow that returns to the Discover home + the title. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SectionTopBar(title: String, onBack: () -> Unit) {
+private fun SectionTopBar(
+    title: String,
+    onBack: () -> Unit,
+    contentFocusRequester: FocusRequester,
+) {
     TopAppBar(
         colors = accentTopAppBarColors(),
         expandedHeight = AccentBarHeight,
+        // No tabs on a section page, so "down" from the back arrow drops straight into the content.
+        modifier = Modifier.tvDpadDownTo(contentFocusRequester),
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(

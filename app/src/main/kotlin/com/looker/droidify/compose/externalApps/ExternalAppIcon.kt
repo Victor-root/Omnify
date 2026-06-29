@@ -4,6 +4,7 @@ import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,7 +24,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.core.graphics.drawable.toBitmap
 import coil3.compose.AsyncImage
 import com.looker.droidify.R
+import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
+
+/** Square pixel size the system fallback icon is rendered at (generous so it stays crisp at any size). */
+private const val LauncherIconPx = 256
 
 /**
  * Icon for an external app, in priority order:
@@ -48,7 +53,12 @@ fun ExternalAppIcon(
     val launcherIcon = remember(packageName, isInstalled) {
         if (isInstalled && packageName != null) {
             runCatching {
-                context.packageManager.getApplicationIcon(packageName).toBitmap().asImageBitmap()
+                // Explicit square output: toBitmap() with no size uses the drawable's intrinsic size,
+                // which renders adaptive icons inconsistently across Android versions (fine on newer
+                // phones, cropped/squished on older TV builds). A square normalises it everywhere.
+                context.packageManager.getApplicationIcon(packageName)
+                    .toBitmap(width = LauncherIconPx, height = LauncherIconPx)
+                    .asImageBitmap()
             }.getOrNull()
         } else {
             null
@@ -65,55 +75,79 @@ fun ExternalAppIcon(
             runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull()
         }
     }
-    // Render exactly like a catalogue icon ([AppMinimalIcon]): the image is clipped to the tile shape
-    // and cropped to fill, with NO box behind it — a background only shows for the placeholder. Drawing
-    // the surface box behind every real icon is what left the ugly rounded rectangle around icons that
-    // aren't full-bleed (e.g. a circular logo).
+    // Icons shown in full (Fit, not Crop, so non-square ones aren't sliced). On TV every icon sits on the
+    // same rounded card so the grid is uniform (a full-bleed icon covers it, a padded or round one sits
+    // centred on it). Off TV there's no box behind real icons — a box behind a circular logo looked like
+    // an ugly rounded rectangle; only the placeholder gets its own background there.
+    val isTelevision = LocalIsTelevision.current
     val shape = MaterialTheme.shapes.large
-    when {
-        launcherIcon != null -> Image(
-            bitmap = launcherIcon,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = modifier.size(size).clip(shape),
-        )
-
-        extractedIcon != null -> Image(
-            bitmap = extractedIcon,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = modifier.size(size).clip(shape),
-        )
-
-        app.repoIconUrl != null && !repoIconFailed -> AsyncImage(
-            model = app.repoIconUrl,
-            onError = { repoIconFailed = true },
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = modifier.size(size).clip(shape),
-        )
-
-        app.iconUrl != null && !avatarFailed -> AsyncImage(
-            model = app.iconUrl,
-            onError = { avatarFailed = true },
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = modifier.size(size).clip(shape),
-        )
-
-        else -> Box(
-            modifier = modifier
-                .size(size)
-                .clip(shape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_tabler_box),
+    Box(
+        modifier = modifier
+            .size(size)
+            .then(
+                if (isTelevision) {
+                    Modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                } else {
+                    Modifier
+                },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        // Off TV the image clips itself to the tile shape; on TV the card already clips, so it just fills.
+        val imageModifier = Modifier
+            .fillMaxSize()
+            .then(if (isTelevision) Modifier else Modifier.clip(shape))
+        when {
+            launcherIcon != null -> Image(
+                bitmap = launcherIcon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(size * 0.5f),
+                contentScale = ContentScale.Fit,
+                modifier = imageModifier,
             )
+
+            extractedIcon != null -> Image(
+                bitmap = extractedIcon,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = imageModifier,
+            )
+
+            app.repoIconUrl != null && !repoIconFailed -> AsyncImage(
+                model = app.repoIconUrl,
+                onError = { repoIconFailed = true },
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = imageModifier,
+            )
+
+            app.iconUrl != null && !avatarFailed -> AsyncImage(
+                model = app.iconUrl,
+                onError = { avatarFailed = true },
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = imageModifier,
+            )
+
+            else -> Box(
+                // The card already supplies the background on TV; off TV draw our own neutral box.
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (isTelevision) {
+                            Modifier
+                        } else {
+                            Modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_tabler_box),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(size * 0.5f),
+                )
+            }
         }
     }
 }

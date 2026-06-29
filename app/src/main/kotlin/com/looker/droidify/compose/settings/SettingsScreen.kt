@@ -62,6 +62,7 @@ import com.looker.droidify.utility.common.extension.openLink
 import com.looker.droidify.utility.common.isIgnoreBatteryEnabled
 import com.looker.droidify.utility.common.requestBatteryFreedom
 import com.looker.droidify.compose.theme.AccentBarHeight
+import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import java.util.*
 import kotlin.time.Duration
@@ -104,6 +105,7 @@ fun SettingsScreen(
     onBackClick: () -> Unit,
 ) {
     val context = LocalContext.current
+    val isTelevision = LocalIsTelevision.current
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val customButtons by viewModel.customButtons.collectAsStateWithLifecycle()
     val isBackgroundAllowed by viewModel.isBackgroundAllowed.collectAsStateWithLifecycle()
@@ -189,7 +191,9 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(contentPadding),
         ) {
-            if (!isBackgroundAllowed && settings.autoSync != AutoSync.NEVER) {
+            // Battery-optimisation exemption is a phone/handheld concern; Android TV has no such
+            // setting, so never nag about it there.
+            if (!isTelevision && !isBackgroundAllowed && settings.autoSync != AutoSync.NEVER) {
                 item {
                     WarningBanner(
                         title = stringResource(R.string.require_background_access),

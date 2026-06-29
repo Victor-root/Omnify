@@ -56,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -85,7 +86,11 @@ import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.TranslateAction
+import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusOutline
+import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.components.tvReadable
+import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.FilePath
 import com.looker.droidify.data.model.Package
@@ -97,6 +102,7 @@ import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import kotlinx.coroutines.delay
 
 /**
  * Maximum number of version rows rendered on the detail screen. The screen is a single
@@ -185,10 +191,24 @@ fun AppDetailScreen(
         )
     }
 
-    // TV / D-pad: the TopAppBar doesn't release focus downward on its own, so "down" on the back arrow
-    // would leave the user stuck in the header. This requester points at the scrollable content; the
-    // key handler below moves focus into it. No effect with touch (no D-pad key events).
-    val contentFocusRequester = remember { FocusRequester() }
+    // TV / D-pad: this requester points at the main action button (Install / Update / Launch). The
+    // TopAppBar doesn't release focus downward on its own, so "down" on the back arrow would otherwise
+    // leave the user stuck in the header; it now drops onto that button. No effect with touch.
+    val primaryActionFocusRequester = remember { FocusRequester() }
+    val isTelevision = LocalIsTelevision.current
+    // TV: open the detail with focus already on the main action instead of the back arrow, retrying
+    // briefly until the button is laid out. Keyed on the loaded app so it runs once per app. No-op on touch.
+    val successPackageName = successState?.app?.metadata?.packageName?.name
+    if (isTelevision) {
+        LaunchedEffect(successPackageName) {
+            if (successPackageName != null) {
+                repeat(20) {
+                    if (runCatching { primaryActionFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                    delay(50)
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -197,7 +217,7 @@ fun AppDetailScreen(
                 expandedHeight = AccentBarHeight,
                 modifier = Modifier.onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
-                        runCatching { contentFocusRequester.requestFocus() }.isSuccess
+                        runCatching { primaryActionFocusRequester.requestFocus() }.isSuccess
                     } else {
                         false
                     }
@@ -280,7 +300,7 @@ fun AppDetailScreen(
                         }
                     },
                     descriptionTranslation = descriptionTranslation,
-                    contentFocusRequester = contentFocusRequester,
+                    primaryActionFocusRequester = primaryActionFocusRequester,
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -298,13 +318,16 @@ private fun PrimaryActions(
     onLaunch: () -> Unit,
     onUninstall: () -> Unit,
     onCancel: () -> Unit,
+    primaryActionFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
     val installing = installState == InstallState.Pending || installState == InstallState.Installing
-    // TV focus ring for the action buttons: a pill matching the button shape. The filled buttons are
-    // accent-coloured, so their ring uses the contrasting onPrimary colour to stay visible.
-    val filledButtonShape = RoundedCornerShape(50)
-    val filledButtonFocus = MaterialTheme.colorScheme.onPrimary
+    val isTelevision = LocalIsTelevision.current
+    // TV focus for the action buttons: the button simply scales up (no drawn ring, which floated off a
+    // Material button's elevated, larger-than-visible bounds). On TV the buttons are big and centred (not
+    // stretched full-width), small enough that the focus zoom stays on screen; touch keeps the full-width
+    // buttons. The zoom is kept modest and the gap wide so a focused button doesn't grow into its
+    // neighbour. A no-op on touch.
     when {
         downloadStatus != null -> DownloadProgressRow(
             status = downloadStatus,
@@ -319,28 +342,39 @@ private fun PrimaryActions(
 
         else -> Row(
             modifier = modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(
+                if (isTelevision) 24.dp else 8.dp,
+                if (isTelevision) Alignment.CenterHorizontally else Alignment.Start,
+            ),
         ) {
+            // Big and centred on TV; full-width (weight) on touch. The primary action also holds the
+            // startup focus (see primaryActionFocusRequester).
+            val tvPrimaryButton = if (isTelevision) {
+                Modifier.height(60.dp).widthIn(min = 340.dp)
+            } else {
+                Modifier.weight(1f)
+            }.focusRequester(primaryActionFocusRequester)
+            val tvSecondaryButton = if (isTelevision) Modifier.height(60.dp).widthIn(min = 200.dp) else Modifier
             when {
                 !isInstalled -> Button(
                     onClick = onInstallOrUpdate,
-                    modifier = Modifier.weight(1f).tvFocusOutline(filledButtonShape, filledButtonFocus),
+                    modifier = tvPrimaryButton.tvFocusScale(1.10f),
                 ) { Text(stringResource(R.string.install)) }
 
                 updateAvailable -> Button(
                     onClick = onInstallOrUpdate,
-                    modifier = Modifier.weight(1f).tvFocusOutline(filledButtonShape, filledButtonFocus),
+                    modifier = tvPrimaryButton.tvFocusScale(1.10f),
                 ) { Text(stringResource(R.string.update)) }
 
                 else -> Button(
                     onClick = onLaunch,
-                    modifier = Modifier.weight(1f).tvFocusOutline(filledButtonShape, filledButtonFocus),
+                    modifier = tvPrimaryButton.tvFocusScale(1.10f),
                 ) { Text(stringResource(R.string.launch)) }
             }
             if (isInstalled) {
                 OutlinedButton(
                     onClick = onUninstall,
-                    modifier = Modifier.tvFocusOutline(filledButtonShape),
+                    modifier = tvSecondaryButton.tvFocusScale(1.10f),
                 ) {
                     Text(stringResource(R.string.uninstall))
                 }
@@ -367,7 +401,7 @@ private fun AppDetail(
     onCancel: () -> Unit,
     onCustomButtonClick: (url: String) -> Unit,
     descriptionTranslation: DescriptionTranslation,
-    contentFocusRequester: FocusRequester,
+    primaryActionFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
     val installedPackage = app.packages?.firstOrNull { it.installed }
@@ -385,9 +419,8 @@ private fun AppDetail(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            // Focus target for the header's D-pad "down" (TV): as a focus group it hands focus to the
-            // first focusable element (the action button), letting the remote leave the top bar.
-            .focusRequester(contentFocusRequester)
+            // A focus group so D-pad navigation stays scoped to the content (the action button itself is
+            // the explicit focus target, see primaryActionFocusRequester).
             .focusGroup()
             .then(modifier)
             // Breathing room so the header section isn't glued under the top bar.
@@ -410,6 +443,7 @@ private fun AppDetail(
             onLaunch = onLaunch,
             onUninstall = onUninstall,
             onCancel = onCancel,
+            primaryActionFocusRequester = primaryActionFocusRequester,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
@@ -497,13 +531,15 @@ private fun AppDetail(
                 Text(
                     text = translated.description,
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    // TV: a D-pad focus stop so the remote can land on the description and scroll it into
+                    // view instead of jumping over it to the buttons below. No-op on touch.
+                    modifier = Modifier.padding(horizontal = 16.dp).tvReadable(),
                 )
             } else {
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp).tvReadable(),
                 )
             }
         }
@@ -683,6 +719,10 @@ private fun HeaderSection(
         IconToggleButton(
             checked = isFavorite,
             onCheckedChange = { onToggleFavorite() },
+            // TV: square so the focus halo is a clean circle, and the heart scales up on focus. No-op
+            // on touch.
+            modifier = (if (LocalIsTelevision.current) Modifier.size(48.dp) else Modifier)
+                .tvFocusScale(),
         ) {
             Icon(
                 painter = painterResource(
@@ -707,7 +747,8 @@ private fun WhatsNewSection(whatsNew: String) {
         Text(
             text = whatsNew,
             style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 16.dp),
+            // TV: a D-pad focus stop so the remote can land here and scroll it into view. No-op on touch.
+            modifier = Modifier.padding(horizontal = 16.dp).tvReadable(),
         )
     }
 }
@@ -759,8 +800,9 @@ private fun LinkRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // TV only: visible focus ring on the link row (no-op on touch).
-            .tvFocusOutline(RoundedCornerShape(12.dp))
+            // TV only: a soft green fill behind the focused row (a full-width row can't scale without
+            // overflowing the screen). No-op on touch.
+            .tvFocusFill(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
@@ -880,8 +922,8 @@ private fun PermissionsSection(permissions: List<Permission>) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // TV only: visible focus ring on the permissions toggle (no-op on touch).
-                .tvFocusOutline(RoundedCornerShape(12.dp))
+                // TV only: a soft green fill behind the focused row (no-op on touch).
+                .tvFocusFill(RoundedCornerShape(12.dp))
                 .clickable { expanded = !expanded }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1046,6 +1088,14 @@ private fun CategoriesRow(categories: List<String>) {
                 onClick = { },
                 enabled = true,
                 label = { Text(cat) },
+                // These category labels do nothing when tapped, so on TV the D-pad skips them rather
+                // than stopping on dead chips (which also removes the focus-zoom overlap between two
+                // adjacent chips). No effect on touch.
+                modifier = if (LocalIsTelevision.current) {
+                    Modifier.focusProperties { canFocus = false }
+                } else {
+                    Modifier
+                },
             )
         }
     }
