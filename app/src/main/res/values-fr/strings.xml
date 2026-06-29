@@ -378,6 +378,11 @@
     <string name="external_installed_version">Installé : %1$s</string>
     <string name="external_preinstall_notice">Le nom, l\'icône et la version affichés proviennent du dépôt. S\'ils s\'affichent mal, installez l\'app pour récupérer les vrais.</string>
     <string name="external_add_source">Ajouter une source externe</string>
+    <string name="add_source_title">Ajouter une source</string>
+    <string name="add_source_fdroid">Dépôt F-Droid</string>
+    <string name="add_source_fdroid_desc">Un catalogue que vous synchronisez pour parcourir et installer plein d\'applis depuis une seule adresse (les dépôts F-Droid classiques).</string>
+    <string name="add_source_external">Source externe</string>
+    <string name="add_source_external_desc">Suivez une seule appli directement depuis ses releases (GitHub, GitLab, Codeberg, ou un Gitea/Forgejo auto-hébergé).</string>
     <string name="install_failed_signature_mismatch">%1$s est déjà installé depuis une autre source. Désinstallez-le d\'abord, puis installez cette version.</string>
     <string name="signature_conflict_title">Désinstallation nécessaire</string>
     <string name="signature_conflict_system_title">Remplacement impossible</string>

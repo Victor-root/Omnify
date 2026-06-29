@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -89,6 +91,7 @@ fun RepoListScreen(
         externalViewModel.reconcileInstalledLabels()
     }
 
+    var showAddChooser by rememberSaveable { mutableStateOf(false) }
     var showAddExternal by rememberSaveable { mutableStateOf(false) }
     var editingExternal by remember { mutableStateOf<ExternalApp?>(null) }
 
@@ -102,16 +105,10 @@ fun RepoListScreen(
                     title = { Text(text = stringResource(R.string.repositories)) },
                     navigationIcon = { BackButton(onBackClick) },
                     actions = {
-                        IconButton(onClick = { showAddExternal = true }) {
-                            Icon(
-                                painterResource(R.drawable.ic_tabler_package),
-                                contentDescription = stringResource(R.string.external_add_source),
-                            )
-                        }
-                        IconButton(onClick = onAddRepo) {
+                        IconButton(onClick = { showAddChooser = true }) {
                             Icon(
                                 painterResource(R.drawable.ic_tabler_plus),
-                                contentDescription = stringResource(R.string.add_repository),
+                                contentDescription = stringResource(R.string.add_source_title),
                             )
                         }
                     },
@@ -166,6 +163,19 @@ fun RepoListScreen(
         }
     }
 
+    if (showAddChooser) {
+        AddSourceChooserDialog(
+            onDismiss = { showAddChooser = false },
+            onChooseFdroid = {
+                showAddChooser = false
+                onAddRepo()
+            },
+            onChooseExternal = {
+                showAddChooser = false
+                showAddExternal = true
+            },
+        )
+    }
     if (showAddExternal) {
         val addState by externalViewModel.addState.collectAsStateWithLifecycle()
         // Keep the dialog up (with a spinner) until the add actually finishes, then close on success —
@@ -337,6 +347,60 @@ private fun ExternalSourceItem(
             Icon(
                 painter = painterResource(R.drawable.ic_tabler_trash),
                 contentDescription = stringResource(R.string.external_remove),
+            )
+        }
+    }
+}
+
+/** Asks whether the new source is an F-Droid repository or an external (releases) source, explaining
+ *  each so the choice is clear, then routes to the matching add flow. */
+@Composable
+private fun AddSourceChooserDialog(
+    onDismiss: () -> Unit,
+    onChooseFdroid: () -> Unit,
+    onChooseExternal: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.add_source_title)) },
+        text = {
+            Column {
+                AddSourceOption(
+                    title = stringResource(R.string.add_source_fdroid),
+                    description = stringResource(R.string.add_source_fdroid_desc),
+                    onClick = onChooseFdroid,
+                )
+                Spacer(Modifier.height(8.dp))
+                AddSourceOption(
+                    title = stringResource(R.string.add_source_external),
+                    description = stringResource(R.string.add_source_external_desc),
+                    onClick = onChooseExternal,
+                )
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
+
+/** One tappable option (bold title + explanation) in the add-source chooser. */
+@Composable
+private fun AddSourceOption(title: String, description: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
