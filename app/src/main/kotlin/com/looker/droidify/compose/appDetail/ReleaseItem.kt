@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.R
 import com.looker.droidify.data.local.model.Reproducible
 import com.looker.droidify.model.InstalledItem
@@ -79,6 +80,8 @@ fun ReleaseItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
+            // TV only: visible focus ring on the version card (no-op on touch).
+            .tvFocusOutline(RoundedCornerShape(12.dp))
             .combinedClickable(
                 enabled = enabled,
                 onClick = onClick,

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.sync.v2.model.DefaultName
 
@@ -69,6 +71,8 @@ fun DiscoverCarousel(
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
+                // TV only: focus ring around the section header (no-op on touch).
+                .tvFocusOutline(RoundedCornerShape(12.dp))
                 .clickable(onClick = onSeeAll)
                 .padding(start = 16.dp, end = 8.dp),
         ) {
@@ -126,6 +130,8 @@ fun CategoryRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            // TV only: focus ring around the category row (no-op on touch).
+            .tvFocusOutline(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {

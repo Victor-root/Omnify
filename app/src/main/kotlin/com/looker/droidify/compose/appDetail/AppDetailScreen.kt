@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +55,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -77,6 +85,7 @@ import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.TranslateAction
+import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.FilePath
 import com.looker.droidify.data.model.Package
@@ -176,11 +185,23 @@ fun AppDetailScreen(
         )
     }
 
+    // TV / D-pad: the TopAppBar doesn't release focus downward on its own, so "down" on the back arrow
+    // would leave the user stuck in the header. This requester points at the scrollable content; the
+    // key handler below moves focus into it. No effect with touch (no D-pad key events).
+    val contentFocusRequester = remember { FocusRequester() }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 colors = accentTopAppBarColors(),
                 expandedHeight = AccentBarHeight,
+                modifier = Modifier.onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                        runCatching { contentFocusRequester.requestFocus() }.isSuccess
+                    } else {
+                        false
+                    }
+                },
                 title = {
                     when (state) {
                         AppDetailState.Loading -> Text(stringResource(R.string.application))
@@ -259,6 +280,7 @@ fun AppDetailScreen(
                         }
                     },
                     descriptionTranslation = descriptionTranslation,
+                    contentFocusRequester = contentFocusRequester,
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -279,6 +301,10 @@ private fun PrimaryActions(
     modifier: Modifier = Modifier,
 ) {
     val installing = installState == InstallState.Pending || installState == InstallState.Installing
+    // TV focus ring for the action buttons: a pill matching the button shape. The filled buttons are
+    // accent-coloured, so their ring uses the contrasting onPrimary colour to stay visible.
+    val filledButtonShape = RoundedCornerShape(50)
+    val filledButtonFocus = MaterialTheme.colorScheme.onPrimary
     when {
         downloadStatus != null -> DownloadProgressRow(
             status = downloadStatus,
@@ -298,21 +324,24 @@ private fun PrimaryActions(
             when {
                 !isInstalled -> Button(
                     onClick = onInstallOrUpdate,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).tvFocusOutline(filledButtonShape, filledButtonFocus),
                 ) { Text(stringResource(R.string.install)) }
 
                 updateAvailable -> Button(
                     onClick = onInstallOrUpdate,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).tvFocusOutline(filledButtonShape, filledButtonFocus),
                 ) { Text(stringResource(R.string.update)) }
 
                 else -> Button(
                     onClick = onLaunch,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).tvFocusOutline(filledButtonShape, filledButtonFocus),
                 ) { Text(stringResource(R.string.launch)) }
             }
             if (isInstalled) {
-                OutlinedButton(onClick = onUninstall) {
+                OutlinedButton(
+                    onClick = onUninstall,
+                    modifier = Modifier.tvFocusOutline(filledButtonShape),
+                ) {
                     Text(stringResource(R.string.uninstall))
                 }
             }
@@ -338,6 +367,7 @@ private fun AppDetail(
     onCancel: () -> Unit,
     onCustomButtonClick: (url: String) -> Unit,
     descriptionTranslation: DescriptionTranslation,
+    contentFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
     val installedPackage = app.packages?.firstOrNull { it.installed }
@@ -355,6 +385,10 @@ private fun AppDetail(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            // Focus target for the header's D-pad "down" (TV): as a focus group it hands focus to the
+            // first focusable element (the action button), letting the remote leave the top bar.
+            .focusRequester(contentFocusRequester)
+            .focusGroup()
             .then(modifier)
             // Breathing room so the header section isn't glued under the top bar.
             .padding(top = 16.dp),
@@ -725,6 +759,8 @@ private fun LinkRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            // TV only: visible focus ring on the link row (no-op on touch).
+            .tvFocusOutline(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
@@ -844,6 +880,8 @@ private fun PermissionsSection(permissions: List<Permission>) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                // TV only: visible focus ring on the permissions toggle (no-op on touch).
+                .tvFocusOutline(RoundedCornerShape(12.dp))
                 .clickable { expanded = !expanded }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -911,6 +949,8 @@ private fun ScreenshotsRow(screenshots: List<FilePath>) {
                     .widthIn(min = 90.dp)
                     .clip(MaterialTheme.shapes.small)
                     .background(MaterialTheme.colorScheme.surfaceContainer)
+                    // TV only: visible focus ring on the screenshot (no-op on touch).
+                    .tvFocusOutline(MaterialTheme.shapes.small)
                     .clickable { fullscreenIndex = index },
             ) {
                 when (imageState) {

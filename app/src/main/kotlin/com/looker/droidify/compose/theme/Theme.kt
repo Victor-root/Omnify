@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
+import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.wallpaperAccentColor
 
 private val lightScheme = lightColorScheme(
@@ -337,6 +338,8 @@ fun DroidifyTheme(
     () -> Unit,
 ) {
     val context = LocalContext.current
+    // Detected once: drives TV-only behaviour (visible D-pad focus, overscan) via LocalIsTelevision.
+    val isTelevision = remember { context.isTelevision() }
     val useDynamic = dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     // The "wallpaper" option derives the accent from the ACTUAL wallpaper colour (read via
     // WallpaperManager), so it's right even on OEM skins like ColorOS where the system dynamic accent
@@ -400,6 +403,7 @@ fun DroidifyTheme(
             LocalOnAccentBarColor provides onBarColor,
             LocalEdgeToEdge provides edgeToEdge,
             LocalStatusBarScrimAlpha provides statusBarScrimAlpha,
+            LocalIsTelevision provides isTelevision,
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 content()

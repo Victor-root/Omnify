@@ -14,10 +14,14 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,6 +44,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.clearText
@@ -91,6 +96,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -99,6 +109,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -116,9 +127,11 @@ import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.datastore.extension.sortOrderName
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.supportedSortOrders
+import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalAccentBarColor
 import com.looker.droidify.compose.theme.LocalEdgeToEdge
+import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.LocalStatusBarScrimAlpha
 import com.looker.droidify.compose.theme.accentTopAppBarColors
@@ -278,9 +291,18 @@ fun AppListScreen(
     // its own content, so it's excluded.
     val catalogLoading = isSyncing && newApps.isEmpty() && selectedTab != AppTab.EXTERNAL
 
+    // Android TV / D-pad: Material3's TabRow doesn't release focus downward on its own, so pressing
+    // "down" on a tab leaves the user stuck in the header. This requester points at the content grid;
+    // a key handler on the header moves focus into it. No effect with touch (no D-pad key events).
+    val contentFocusRequester = remember { FocusRequester() }
+    val isTelevision = LocalIsTelevision.current
+    // On TV the header must never scroll away (the tabs would become unreachable with a remote), so the
+    // collapse-on-scroll is only wired up off TV. Other edge-to-edge behaviour is left untouched.
+    val collapsibleHeader = edgeToEdge && !isTelevision
+
     Scaffold(
-        // Edge-to-edge: let the header collapse as the grid scrolls. Pinned otherwise.
-        modifier = if (edgeToEdge) {
+        // Edge-to-edge: let the header collapse as the grid scrolls. Pinned otherwise (and on TV).
+        modifier = if (collapsibleHeader) {
             Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
         } else {
             Modifier
@@ -288,7 +310,16 @@ fun AppListScreen(
         snackbarHost = { SnackbarHost(externalViewModel.snackbarHostState) },
         topBar = {
             Column(
-                modifier = if (edgeToEdge) Modifier.collapsingHeader(scrollBehavior) else Modifier,
+                modifier = (if (collapsibleHeader) Modifier.collapsingHeader(scrollBehavior) else Modifier)
+                    // D-pad "down" anywhere in the header jumps focus into the content grid (TV).
+                    // Fires only while focus is within this header subtree; a no-op on touch.
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                            runCatching { contentFocusRequester.requestFocus() }.isSuccess
+                        } else {
+                            false
+                        }
+                    },
             ) {
                 // A carousel "see all" page takes over the whole header: a back arrow + the section
                 // title, with no tabs, so it reads as its own screen.
@@ -350,13 +381,31 @@ fun AppListScreen(
             RepoFetchingState(modifier = Modifier.padding(contentPadding))
             return@Scaffold
         }
+        // On TV, inset the grid content from the screen edges (overscan safe area) and so the focused
+        // tile's scaled-up highlight near an edge isn't clipped. Touch keeps the Scaffold padding as is.
+        val gridContentPadding = if (isTelevision) {
+            val direction = LocalLayoutDirection.current
+            PaddingValues(
+                start = contentPadding.calculateStartPadding(direction) + TvOverscan,
+                top = contentPadding.calculateTopPadding(),
+                end = contentPadding.calculateEndPadding(direction) + TvOverscan,
+                bottom = contentPadding.calculateBottomPadding() + TvOverscan,
+            )
+        } else {
+            contentPadding
+        }
         LazyVerticalGrid(
             // A tile grid (icon + name), the same density as the Discover carousels, shared by every
             // tab so the apps look identical everywhere.
             columns = GridCells.Adaptive(minSize = 100.dp),
             state = gridState,
-            contentPadding = contentPadding,
+            contentPadding = gridContentPadding,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
+            // Focus target for the header's D-pad "down": as a focus group, requesting focus here
+            // lands on the first focusable tile, so TV users can move from the tabs into the apps.
+            modifier = Modifier
+                .focusRequester(contentFocusRequester)
+                .focusGroup(),
         ) {
             // Installed package names, used to badge every tile that's already installed.
             val installedPackages = installedVersionNames.keys
@@ -596,6 +645,11 @@ private fun AppTabRow(
             Tab(
                 selected = selected,
                 onClick = { onSelectTab(tab) },
+                // TV only: outline the focused tab so the remote selection is visible (no-op on touch).
+                modifier = Modifier.tvFocusOutline(
+                    shape = RoundedCornerShape(8.dp),
+                    color = LocalOnAccentBarColor.current,
+                ),
                 selectedContentColor = LocalOnAccentBarColor.current,
                 unselectedContentColor = LocalOnAccentBarColor.current.copy(alpha = 0.7f),
                 text = {
@@ -773,6 +827,10 @@ fun SearchBar(
  *  change the bar height. */
 private val HomeBarHeight = 64.dp
 
+/** Android TV overscan-safe margin added around the app grid, so content (and a focused tile's
+ *  scaled highlight) stays clear of the screen edges. Touch builds never use it. */
+private val TvOverscan = 24.dp
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchTopBar(
@@ -883,7 +941,9 @@ private fun AppListMainTopBar(
         actions = {
             IconButton(
                 onClick = onToggleSearch,
-                modifier = Modifier.size(smallContainerSize(Narrow)),
+                modifier = Modifier.size(smallContainerSize(Narrow))
+                    // TV only: visible focus ring around the action icon (no-op on touch).
+                    .tvFocusOutline(CircleShape, color = LocalOnAccentBarColor.current),
             ) {
                 Icon(
                     painterResource(R.drawable.ic_tabler_search),
@@ -893,7 +953,9 @@ private fun AppListMainTopBar(
             Spacer(Modifier.width(4.dp))
             IconButton(
                 onClick = onSync,
-                modifier = Modifier.size(smallContainerSize(Narrow)),
+                modifier = Modifier.size(smallContainerSize(Narrow))
+                    // TV only: visible focus ring around the action icon (no-op on touch).
+                    .tvFocusOutline(CircleShape, color = LocalOnAccentBarColor.current),
             ) {
                 Icon(
                     painterResource(R.drawable.ic_tabler_refresh),
@@ -904,7 +966,9 @@ private fun AppListMainTopBar(
             Box {
                 IconButton(
                     onClick = { sortExpanded = true },
-                    modifier = Modifier.size(smallContainerSize(Narrow)),
+                    modifier = Modifier.size(smallContainerSize(Narrow))
+                    // TV only: visible focus ring around the action icon (no-op on touch).
+                    .tvFocusOutline(CircleShape, color = LocalOnAccentBarColor.current),
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.Sort,
@@ -937,7 +1001,9 @@ private fun AppListMainTopBar(
             Box {
                 IconButton(
                     onClick = { overflowExpanded = true },
-                    modifier = Modifier.size(smallContainerSize(Narrow)),
+                    modifier = Modifier.size(smallContainerSize(Narrow))
+                    // TV only: visible focus ring around the action icon (no-op on touch).
+                    .tvFocusOutline(CircleShape, color = LocalOnAccentBarColor.current),
                 ) {
                     Icon(
                         Icons.Filled.MoreVert,

@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.utility.common.sdkName
@@ -48,6 +49,8 @@ fun PackageItem(
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .clip(MaterialTheme.shapes.large)
+            // TV only: visible focus ring (no-op on touch).
+            .tvFocusOutline(MaterialTheme.shapes.large)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
