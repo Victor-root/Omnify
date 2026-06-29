@@ -32,6 +32,7 @@ shizuku = "13.0.0"
 image-viewer = "1.0.1"
 mlkit-translate = "17.0.3"
 mlkit-langid = "17.0.6"
+commonmark = "0.24.0"
 junit-jupiter = "6.0.3"
 robolectric = "4.16.1"
 test-core = "1.7.0"
@@ -97,6 +98,11 @@ shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref
 image-viewer = { module = "com.github.stfalcon-studio:StfalconImageViewer", version.ref = "image-viewer" }
 mlkit-translate = { group = "com.google.mlkit", name = "translate", version.ref = "mlkit-translate" }
 mlkit-language-id = { group = "com.google.mlkit", name = "language-id", version.ref = "mlkit-langid" }
+commonmark = { group = "org.commonmark", name = "commonmark", version.ref = "commonmark" }
+commonmark-ext-gfm-tables = { group = "org.commonmark", name = "commonmark-ext-gfm-tables", version.ref = "commonmark" }
+commonmark-ext-gfm-strikethrough = { group = "org.commonmark", name = "commonmark-ext-gfm-strikethrough", version.ref = "commonmark" }
+commonmark-ext-autolink = { group = "org.commonmark", name = "commonmark-ext-autolink", version.ref = "commonmark" }
+commonmark-ext-task-list-items = { group = "org.commonmark", name = "commonmark-ext-task-list-items", version.ref = "commonmark" }
 junit-bom = { group = "org.junit", name = "junit-bom", version.ref = "junit-jupiter" }
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter" }
 junit-platform = { group = "org.junit.platform", name = "junit-platform-launcher" }

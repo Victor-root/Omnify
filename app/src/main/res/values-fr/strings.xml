@@ -364,6 +364,7 @@
     <string name="external_empty_hint">Ajoutez un projet (ex. github.com/auteur/depot) pour installer et mettre à jour ses APK de release directement, comme Obtainium.</string>
     <string name="external_empty_tab">Aucune app externe pour l\'instant.\nAjoutez des sources depuis l\'écran Dépôts.</string>
     <string name="external_invalid_url">URL de projet invalide (GitHub, GitLab ou Codeberg)</string>
+    <string name="external_unsupported_host">Hébergeur non pris en charge. Utilisez GitHub, GitLab, Codeberg ou une instance Gitea/Forgejo auto-hébergée.</string>
     <string name="external_already_added">%1$s est déjà dans votre liste</string>
     <string name="external_no_release">Aucune release trouvée pour %1$s (ou limite d\'API atteinte)</string>
     <string name="external_added">%1$s ajouté</string>
@@ -375,7 +376,7 @@
     <string name="external_repo_latest">Dernière release : %1$s</string>
     <string name="external_latest_apk">Dernier APK : %1$s</string>
     <string name="external_installed_version">Installé : %1$s</string>
-    <string name="external_preinstall_notice">Installez l\'app pour afficher son vrai nom, son icône et sa version — en attendant, ce sont ceux du dépôt.</string>
+    <string name="external_preinstall_notice">Le nom, l\'icône et la version affichés proviennent du dépôt. S\'ils s\'affichent mal, installez l\'app pour récupérer les vrais.</string>
     <string name="external_add_source">Ajouter une source externe</string>
     <string name="install_failed_signature_mismatch">%1$s est déjà installé depuis une autre source. Désinstallez-le d\'abord, puis installez cette version.</string>
     <string name="signature_conflict_title">Désinstallation nécessaire</string>

@@ -370,6 +370,7 @@
     <string name="external_empty_hint">Add a project (e.g. github.com/owner/repo) to install and update its release APKs directly, like Obtainium.</string>
     <string name="external_empty_tab">No external apps yet.\nAdd sources from the Repositories screen.</string>
     <string name="external_invalid_url">Not a valid project URL (GitHub, GitLab or Codeberg)</string>
+    <string name="external_unsupported_host">Unsupported host. Use GitHub, GitLab, Codeberg, or a self-hosted Gitea/Forgejo instance.</string>
     <string name="external_already_added">%1$s is already in your list</string>
     <string name="external_no_release">No release found for %1$s (or rate-limited)</string>
     <string name="external_added">Added %1$s</string>
@@ -381,7 +382,7 @@
     <string name="external_repo_latest">Latest release: %1$s</string>
     <string name="external_latest_apk">Latest APK: %1$s</string>
     <string name="external_installed_version">Installed: %1$s</string>
-    <string name="external_preinstall_notice">Install the app to show its real name, icon and version — until then, these come from the repository.</string>
+    <string name="external_preinstall_notice">The name, icon and version shown are read from the repository. If any of them look wrong, install the app to use the real ones.</string>
     <string name="external_add_source">Add external source</string>
     <string name="install_failed_signature_mismatch">%1$s is already installed from a different source. Uninstall it first, then install this version.</string>
     <string name="signature_conflict_title">Uninstall required</string>

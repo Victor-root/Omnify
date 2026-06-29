@@ -14,6 +14,10 @@ data class ExternalApp(
     val provider: SourceProvider = SourceProvider.GITHUB,
     val owner: String,
     val repo: String,
+    /** The instance host, e.g. "git.example.org" for a self-hosted Gitea/Forgejo. Empty means the
+     *  provider's public host (github.com / gitlab.com / codeberg.org), so every existing source keeps
+     *  working unchanged and old backups deserialize as before. */
+    val host: String = "",
     val label: String = repo,
     /** Resolved from the installed APK's manifest; null until first installed. */
     val packageName: String? = null,
@@ -56,18 +60,52 @@ data class ExternalApp(
      *  adaptive icons (so [repoIconUrl] stays null) from being re-scanned on every refresh. */
     val iconChecked: Boolean = false,
 ) {
-    /** Stable identity for lists / de-duplication (provider-scoped, so the same owner/repo on two
-     *  providers stays distinct). */
-    val key: String get() = "${provider.name}/$owner/$repo"
+    /** The host actually called: [host] when set, otherwise the provider's public default. */
+    val effectiveHost: String
+        get() = host.ifEmpty {
+            when (provider) {
+                SourceProvider.GITHUB -> "github.com"
+                SourceProvider.GITLAB -> "gitlab.com"
+                SourceProvider.CODEBERG -> "codeberg.org"
+            }
+        }
+
+    /** Stable identity for lists / de-duplication (provider- and host-scoped, so the same owner/repo on
+     *  two instances stays distinct). Keeps the old format for public sources so existing data matches. */
+    val key: String
+        get() = if (host.isEmpty()) {
+            "${provider.name}/$owner/$repo"
+        } else {
+            "${provider.name}/$host/$owner/$repo"
+        }
 
     /** "owner/repo", shown in the UI. */
     val path: String get() = "$owner/$repo"
 
-    val webUrl: String
+    val webUrl: String get() = "https://$effectiveHost/$owner/$repo"
+
+    /** Origin shown in the UI: the provider name for a public host (GitHub / GitLab / Codeberg), or the
+     *  actual instance host for a self-hosted source — so a Forgejo at git.example.org isn't labelled
+     *  "Codeberg" just because it shares the Gitea API. */
+    val sourceLabel: String get() = if (host.isEmpty()) provider.label else host
+
+    /** Branchless raw base for fetching the project's files (README, manifest, build files) and for
+     *  loading icons. These clients send a non-browser user-agent, which Gitea's API raw endpoint serves
+     *  the real file to. No default-branch lookup is needed. */
+    val readmeBaseUrl: String
         get() = when (provider) {
-            SourceProvider.GITHUB -> "https://github.com/$owner/$repo"
-            SourceProvider.GITLAB -> "https://gitlab.com/$owner/$repo"
-            SourceProvider.CODEBERG -> "https://codeberg.org/$owner/$repo"
+            SourceProvider.GITHUB -> "https://raw.githubusercontent.com/$owner/$repo/HEAD/"
+            SourceProvider.CODEBERG -> "https://$effectiveHost/api/v1/repos/$owner/$repo/raw/"
+            SourceProvider.GITLAB -> "https://$effectiveHost/$owner/$repo/-/raw/HEAD/"
+        }
+
+    /** Base the README WebView resolves relative links/images against. It differs from [readmeBaseUrl]
+     *  only for Gitea/Forgejo: that API raw endpoint returns an HTML page (not the file) to browser
+     *  user-agents like the WebView, so the browser-facing web raw path is used for images to load. */
+    val readmeWebBaseUrl: String
+        get() = when (provider) {
+            SourceProvider.CODEBERG -> "https://$effectiveHost/$owner/$repo/raw/HEAD/"
+            else -> readmeBaseUrl
         }
 
     /**
@@ -77,9 +115,9 @@ data class ExternalApp(
      * app is installed (then the real launcher icon is used).
      */
     val iconUrl: String?
-        get() = when (provider) {
-            SourceProvider.GITHUB -> "https://github.com/$owner.png"
-            SourceProvider.GITLAB, SourceProvider.CODEBERG -> null
+        get() = when {
+            provider == SourceProvider.GITHUB && host.isEmpty() -> "https://github.com/$owner.png"
+            else -> null
         }
 
     /**

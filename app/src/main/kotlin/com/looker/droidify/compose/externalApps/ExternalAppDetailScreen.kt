@@ -218,7 +218,7 @@ fun ExternalAppDetailScreen(
             if (readmeHtml != null) {
                 ReadmeWebView(
                     html = readmeHtml,
-                    baseUrl = "https://raw.githubusercontent.com/${app.owner}/${app.repo}/HEAD/",
+                    baseUrl = app.readmeWebBaseUrl,
                     onContentHeight = { readmeHeightPx = it },
                     modifier = Modifier
                         .fillMaxWidth()

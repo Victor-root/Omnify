@@ -313,7 +313,7 @@ private fun ExternalSourceItem(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${app.provider.label} · ${app.path}",
+                text = "${app.sourceLabel} · ${app.path}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -450,7 +450,7 @@ private fun EditExternalSourceDialog(
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    text = "${app.provider.label} · ${app.path}",
+                    text = "${app.sourceLabel} · ${app.path}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

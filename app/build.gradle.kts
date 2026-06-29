@@ -243,6 +243,13 @@ dependencies {
     // On-device translation engine (optional, user-selectable). Models download on first use.
     implementation(libs.mlkit.translate)
     implementation(libs.mlkit.language.id)
+    // Local Markdown -> HTML rendering for READMEs on Gitea/Forgejo and GitLab (their render APIs
+    // require auth), so the README displays — and translates — without any external service.
+    implementation(libs.commonmark)
+    implementation(libs.commonmark.ext.gfm.tables)
+    implementation(libs.commonmark.ext.gfm.strikethrough)
+    implementation(libs.commonmark.ext.autolink)
+    implementation(libs.commonmark.ext.task.list.items)
 
     implementation(libs.work.ktx)
 

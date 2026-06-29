@@ -18,6 +18,7 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkVersionToken
+import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.external.selectApkAsset
 import com.looker.droidify.installer.InstallManager
@@ -272,7 +273,8 @@ class ExternalAppsViewModel @Inject constructor(
     suspend fun loadIconCandidates(app: ExternalApp): List<String> =
         externalApi.fetchIconCandidates(app)
 
-    /** Adds a project from any GitHub/GitLab/Codeberg URL after confirming it has a release. */
+    /** Adds a project from a GitHub, GitLab, Codeberg or self-hosted Gitea/Forgejo URL after
+     *  confirming it has a release. */
     fun addSource(
         url: String,
         includePrereleases: Boolean,
@@ -286,24 +288,35 @@ class ExternalAppsViewModel @Inject constructor(
             return
         }
         val trimmedName = customName.trim()
-        val app = ExternalApp(
-            provider = ref.provider,
-            owner = ref.owner,
-            repo = ref.repo,
-            includePrereleases = includePrereleases,
-            muteUpdates = muteUpdates,
-            apkFilter = apkFilter.trim().ifEmpty { null },
-            label = trimmedName.ifEmpty { ref.repo },
-            nameOverridden = trimmedName.isNotEmpty(),
-        )
-        if (apps.value.any { it.key == app.key }) {
-            snack(context.getString(R.string.external_already_added, app.path))
-            return
-        }
         addJob = viewModelScope.launch {
             _addState.value = AddSourceState.LOADING
             var added = false
             try {
+                // Known public hosts already carry their provider; any other host is probed to see
+                // whether it's a self-hosted Gitea/Forgejo instance.
+                val provider = ref.provider ?: when {
+                    externalApi.isGiteaInstance(ref.host, ref.owner, ref.repo) -> SourceProvider.CODEBERG
+                    else -> null
+                }
+                if (provider == null) {
+                    snack(context.getString(R.string.external_unsupported_host), long = true)
+                    return@launch
+                }
+                val app = ExternalApp(
+                    provider = provider,
+                    host = ref.host,
+                    owner = ref.owner,
+                    repo = ref.repo,
+                    includePrereleases = includePrereleases,
+                    muteUpdates = muteUpdates,
+                    apkFilter = apkFilter.trim().ifEmpty { null },
+                    label = trimmedName.ifEmpty { ref.repo },
+                    nameOverridden = trimmedName.isNotEmpty(),
+                )
+                if (apps.value.any { it.key == app.key }) {
+                    snack(context.getString(R.string.external_already_added, app.path))
+                    return@launch
+                }
                 withBusy(app.key) {
                     val release = externalApi.latestReleaseFor(app)
                     if (release == null) {
@@ -541,7 +554,7 @@ class ExternalAppsViewModel @Inject constructor(
                     message = if (suggestToken) {
                         context.getString(R.string.external_rate_limited)
                     } else {
-                        context.getString(R.string.external_unreachable, app.provider.label)
+                        context.getString(R.string.external_unreachable, app.sourceLabel)
                     },
                     long = suggestToken,
                 )
