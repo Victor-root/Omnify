@@ -311,15 +311,14 @@ fun AppListScreen(
     // Touch keeps the original progressive behaviour: the loader shows only until the first apps trickle
     // in, then the grid fills as the sync continues.
     //
-    // TV is different. Composing the heavy grid + carousels while the first sync floods the catalogue
-    // (every batch re-runs the list queries and recomposes the whole screen, several times a second for
-    // the whole sync) starved the main thread long enough that a remote press timed out and the system
-    // killed the app (a cold-start ANR). So on TV we keep the loader up for the *entire* first sync and
-    // compose the grid once, at the end. [catalogReady] latches the moment that first sync finishes
-    // (apps present, no longer syncing); on a later launch the catalogue already has apps, so it latches
-    // immediately and the loader never shows. [firstSyncFromEmpty] distinguishes the genuine cold start
-    // (catalogue empty when the sync began) from a background sync running on a later launch: the
-    // latter must show the populated catalogue, not the loader.
+    // TV keeps the loader up for the *entire* first sync (not just until the first apps trickle in), so
+    // the heavy grid + carousels compose once, at the end, instead of recomposing several times a second
+    // as the sync floods the catalogue with inserts. That keeps the first launch smoother on slow TV
+    // hardware. [catalogReady] latches the moment that first sync finishes (apps present, no longer
+    // syncing); on a later launch the catalogue already has apps, so it latches immediately and the
+    // loader never shows. [firstSyncFromEmpty] distinguishes the genuine cold start (catalogue empty when
+    // the sync began) from a background sync running on a later launch: the latter must show the
+    // populated catalogue, not the loader.
     var catalogReady by rememberSaveable { mutableStateOf(false) }
     var firstSyncFromEmpty by rememberSaveable { mutableStateOf(false) }
     if (isTelevision) {

@@ -14,7 +14,7 @@
     <string name="requires_google_services">Requires Google services</string>
     <string name="requires_google_services_summary">This app uses Google Play services and may not work fully without them (or microG).</string>
     <string name="allow_unknown_sources">Allow installing apps</string>
-    <string name="allow_unknown_sources_DESC">Omnify needs permission to install apps. Allow it now so you\'re not interrupted at your first install.</string>
+    <string name="allow_unknown_sources_DESC">Omnify needs permission to install apps. Allow it now so you\'re not interrupted at your first install.\n\nAfter you enable it in settings, Android closes Omnify to apply the change (especially on TV). This is normal: just reopen the app.</string>
     <string name="allow">Allow</string>
     <string name="later">Later</string>
     <string name="application">App</string>
