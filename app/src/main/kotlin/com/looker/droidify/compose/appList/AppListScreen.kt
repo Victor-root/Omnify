@@ -46,6 +46,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
@@ -108,10 +109,12 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -907,7 +910,12 @@ private fun SearchTopBar(
     contentFocusRequester: FocusRequester,
 ) {
     val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    val focusManager = LocalFocusManager.current
+    // Auto-focus (open the keyboard) only for a fresh search, i.e. when there's no query yet. Coming
+    // back to results that already hold a query leaves the field inactive, so reopening the screen (e.g.
+    // returning from an app) doesn't pop the keyboard up again — the typed text stays visible and the
+    // user taps the field to edit it.
+    LaunchedEffect(Unit) { if (state.text.isEmpty()) focusRequester.requestFocus() }
     TopAppBar(
         colors = accentTopAppBarColors(),
         expandedHeight = HomeBarHeight,
@@ -928,6 +936,10 @@ private fun SearchTopBar(
                 // On the accent-coloured bar the text/cursor must contrast with it, not use on-surface.
                 textStyle = LocalTextStyle.current.copy(color = LocalOnAccentBarColor.current),
                 cursorBrush = SolidColor(LocalOnAccentBarColor.current),
+                // The keyboard's "search" key just dismisses the keyboard (results already filter live);
+                // the query stays so the user sees what they searched.
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                onKeyboardAction = { focusManager.clearFocus() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester),
