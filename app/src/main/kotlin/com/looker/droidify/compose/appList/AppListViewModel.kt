@@ -15,6 +15,7 @@ import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.sync.v2.model.DefaultName
+import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.work.SyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,6 +47,9 @@ class AppListViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
+
+    // Resolved once: the "Made for TV" carousel only queries/show on a television.
+    private val isTelevisionDevice = context.isTelevision()
 
     val searchQuery = TextFieldState("")
     private val searchQueryStream = snapshotFlow { searchQuery.text.toString() }.debounce(300)
@@ -266,6 +270,24 @@ class AppListViewModel @Inject constructor(
             .flowOn(Dispatchers.Default)
             .asStateFlow(emptyList())
 
+    /** "Made for TV" carousel — apps that declare the Android TV (leanback) launcher feature. Shown
+     *  only on the TV build (the caller gates the UI too), so couch users get a row of apps that
+     *  actually work with a remote. The query is skipped entirely off TV to spare the work. */
+    val tvApps: StateFlow<List<AppMinimal>> = catalogChanges
+        .mapLatest {
+            if (!isTelevisionDevice) {
+                emptyList()
+            } else {
+                appRepository.apps(
+                    sortOrder = SortOrder.UPDATED,
+                    featuresToInclude = listOf(LEANBACK_FEATURE),
+                ).take(DISCOVER_ROW_COUNT)
+            }
+        }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyList())
+
     /** Full app list for the carousel page the user opened via "see all" (empty when none is open).
      *  Unlike the carousels above, this isn't capped to a row — it's the whole section. */
     val openedSectionApps: StateFlow<List<AppMinimal>> =
@@ -277,6 +299,10 @@ class AppListViewModel @Inject constructor(
                     SECTION_RECENTLY_UPDATED ->
                         appRepository.apps(sortOrder = SortOrder.UPDATED).take(SECTION_PAGE_LIMIT)
                     SECTION_MOST_DOWNLOADED -> appRepository.mostDownloadedApps(SECTION_PAGE_LIMIT)
+                    SECTION_TV -> appRepository.apps(
+                        sortOrder = SortOrder.UPDATED,
+                        featuresToInclude = listOf(LEANBACK_FEATURE),
+                    ).take(SECTION_PAGE_LIMIT)
                     else -> emptyList()
                 }
             }
@@ -333,6 +359,11 @@ private const val DISCOVER_ROW_COUNT = 16
 const val SECTION_WHATS_NEW = "::whats_new"
 const val SECTION_RECENTLY_UPDATED = "::recently_updated"
 const val SECTION_MOST_DOWNLOADED = "::most_downloaded"
+const val SECTION_TV = "::tv_apps"
+
+/** The manifest <uses-feature> an app declares when it ships an Android TV (leanback) launcher — our
+ *  marker for "made for TV". */
+private const val LEANBACK_FEATURE = "android.software.leanback"
 
 /** Cap on apps shown when a category is expanded inline (a quick "see more", not the whole list). */
 private const val SECTION_EXPAND_LIMIT = 40

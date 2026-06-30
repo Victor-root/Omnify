@@ -344,14 +344,18 @@ class ExternalAppsViewModel @Inject constructor(
                     // installed, else the real name read from the repo manifest, else the repo name.
                     val resolvedLabel = when {
                         app.nameOverridden -> app.label
-                        else -> packageId?.let { installedLabel(it) } ?: meta.appName ?: app.label
+                        else -> packageId?.let { installedLabel(it) } ?: meta?.appName ?: app.label
                     }
                     repository.addApp(
                         app.copy(
                             packageName = packageId,
                             label = resolvedLabel,
-                            repoIconUrl = meta.iconCandidates.firstOrNull(),
-                            iconChecked = true,
+                            repoIconUrl = meta?.iconCandidates?.firstOrNull(),
+                            // Only mark scanned when the repo was actually read, so a transient failure
+                            // re-scans on a later refresh instead of caching an empty / non-TV result.
+                            iconChecked = meta != null,
+                            supportsTelevision = meta?.supportsTelevision ?: false,
+                            tvChecked = meta != null,
                             latestTag = release.tag,
                             latestApkToken = release.apkVersionToken(filter = app.apkFilter),
                             latestApkName = release.apkFileName(filter = app.apkFilter),
@@ -410,22 +414,33 @@ class ExternalAppsViewModel @Inject constructor(
         lastNetworkRefreshAt = now
         viewModelScope.launch {
             apps.value.filter { it.enabled }.forEach { app ->
-                val release = externalApi.latestReleaseFor(app) ?: return@forEach
+                // A release may not exist yet (e.g. the seeded Omnify source has no published release).
+                // We still scan the repo below — a source's icon / name / TV support don't depend on a
+                // downloadable APK — and simply keep the existing release fields when there's none.
+                val release = externalApi.latestReleaseFor(app)
                 // Track the APK file's identity, not just the tag, so updates are detected from the
                 // actual APK (see ExternalApp.hasUpdate); keep its file name for the "latest APK" line.
-                val token = release.apkVersionToken(filter = app.apkFilter)
-                val apkName = release.apkFileName(filter = app.apkFilter)
+                val tag = release?.tag ?: app.latestTag
+                val token = release?.apkVersionToken(filter = app.apkFilter) ?: app.latestApkToken
+                val apkName = release?.apkFileName(filter = app.apkFilter) ?: app.latestApkName
                 // Backfill the package id (from build.gradle) for sources added before this existed, so
                 // an installed app starts showing its real name + icon; the existing label reconcile
                 // then fills in the on-device name. Never overwrites an id already learned from install.
                 val packageId = app.packageName ?: externalApi.fetchPackageId(app)
-                // One-time backfill of the repo icon + real app name for sources added before this
-                // existed. Gated by iconChecked so a repo is scanned at most once (a repo with only
-                // vector icons / no resolvable name must not be re-scanned every refresh — spares the
-                // API rate limit). Never overrides a user-picked icon or name.
-                val needsMeta = !app.iconChecked && !app.iconOverridden && app.repoIconUrl == null
+                // One-time backfill of the repo icon + real app name + TV support for sources added
+                // before these existed. Gated by the *Checked flags so a repo is scanned at most once
+                // (spares the API rate limit), and never overrides a user-picked icon or name.
+                val needsIcon = !app.iconChecked && !app.iconOverridden && app.repoIconUrl == null
+                val needsTv = !app.tvChecked
+                val needsMeta = needsIcon || needsTv
                 val meta = if (needsMeta) externalApi.fetchRepoMetadata(app) else null
-                val repoIcon = meta?.iconCandidates?.firstOrNull() ?: app.repoIconUrl
+                // meta == null means the scan failed (couldn't read the tree); don't mark anything
+                // "checked" then, so it retries on a later refresh.
+                val scanned = meta != null
+                // Only adopt a repo icon when we were actually looking for one — don't clobber a set or
+                // user-picked icon just because we re-scanned for TV support.
+                val repoIcon = if (needsIcon) meta?.iconCandidates?.firstOrNull() ?: app.repoIconUrl else app.repoIconUrl
+                val supportsTv = if (needsTv) meta?.supportsTelevision ?: app.supportsTelevision else app.supportsTelevision
                 // Only replace the label while it's still the bare repo name (never a user/on-device one).
                 val resolvedLabel = if (
                     meta?.appName != null &&
@@ -437,23 +452,26 @@ class ExternalAppsViewModel @Inject constructor(
                 } else {
                     app.label
                 }
-                if (release.tag != app.latestTag ||
+                if (tag != app.latestTag ||
                     token != app.latestApkToken ||
                     apkName != app.latestApkName ||
                     packageId != app.packageName ||
                     repoIcon != app.repoIconUrl ||
                     resolvedLabel != app.label ||
-                    needsMeta
+                    supportsTv != app.supportsTelevision ||
+                    (needsMeta && scanned)
                 ) {
                     repository.upsertApp(
                         app.copy(
                             packageName = packageId,
                             label = resolvedLabel,
-                            latestTag = release.tag,
+                            latestTag = tag,
                             latestApkToken = token,
                             latestApkName = apkName,
                             repoIconUrl = repoIcon,
-                            iconChecked = app.iconChecked || needsMeta,
+                            iconChecked = app.iconChecked || (needsIcon && scanned),
+                            supportsTelevision = supportsTv,
+                            tvChecked = app.tvChecked || (needsTv && scanned),
                         ),
                     )
                 }

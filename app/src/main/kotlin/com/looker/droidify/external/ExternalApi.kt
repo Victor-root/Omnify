@@ -101,13 +101,35 @@ class ExternalApi @Inject constructor(
      * and the app's real user-facing name. A single repo-tree request drives both (the name then needs
      * the manifest + string file). Works for every provider. Never throws.
      */
-    suspend fun fetchRepoMetadata(app: ExternalApp): RepoMetadata = withContext(Dispatchers.IO) {
+    suspend fun fetchRepoMetadata(app: ExternalApp): RepoMetadata? = withContext(Dispatchers.IO) {
+        // Null (not an empty result) when the repo tree couldn't be read, so the caller can retry later
+        // instead of caching "nothing found" / "not a TV app" from a transient failure.
         val paths = fetchTreePaths(app)
-        if (paths.isEmpty()) return@withContext RepoMetadata()
+        if (paths.isEmpty()) return@withContext null
         RepoMetadata(
             iconCandidates = rankIconPaths(paths).map { app.readmeBaseUrl + it },
             appName = resolveAppName(app, paths),
+            supportsTelevision = detectTelevisionSupport(app, paths),
         )
+    }
+
+    /**
+     * Whether the source repo is built for Android TV, read straight from its manifest(s) — no APK
+     * download. A TV app declares either the leanback launcher category on an activity
+     * (`android.intent.category.LEANBACK_LAUNCHER`) or the leanback uses-feature
+     * (`android.software.leanback`); finding either in any of the app-module manifests is the signal.
+     * Returns false when no manifest resolves (then it simply isn't shown in the "Made for TV" row).
+     */
+    private suspend fun detectTelevisionSupport(app: ExternalApp, paths: List<String>): Boolean {
+        for (manifestPath in pickManifestPaths(paths)) {
+            val xml = fetchRaw(app, manifestPath) ?: continue
+            if (xml.contains("android.software.leanback", ignoreCase = true) ||
+                xml.contains("LEANBACK_LAUNCHER", ignoreCase = true)
+            ) {
+                return true
+            }
+        }
+        return false
     }
 
     /** The repo's whole file tree (blob paths), or empty on any failure. Each provider exposes a
@@ -538,10 +560,12 @@ private val markdownRenderer: HtmlRenderer =
 private fun renderMarkdownToHtml(markdown: String): String =
     markdownRenderer.render(markdownParser.parse(markdown))
 
-/** Icon candidates + the real app name detected from a source repo, shown before install. */
+/** Icon candidates + the real app name detected from a source repo, shown before install, plus whether
+ *  the repo's manifest declares Android TV support. */
 data class RepoMetadata(
     val iconCandidates: List<String> = emptyList(),
     val appName: String? = null,
+    val supportsTelevision: Boolean = false,
 )
 
 /** How many manifest / value files we'll fetch while resolving the app name, to bound network use. */

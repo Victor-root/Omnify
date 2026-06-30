@@ -44,10 +44,13 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.layout.ContentScale
@@ -60,6 +63,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.externalApps.AddSourceState
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -95,6 +99,10 @@ fun RepoListScreen(
     var showAddExternal by rememberSaveable { mutableStateOf(false) }
     var editingExternal by remember { mutableStateOf<ExternalApp?>(null) }
 
+    // TV / D-pad: the top bar doesn't release focus downward on its own; this lets "down" drop from the
+    // header into the list. No effect on touch.
+    val contentFocusRequester = remember { FocusRequester() }
+
     Scaffold(
         snackbarHost = { SnackbarHost(externalViewModel.snackbarHostState) },
         topBar = {
@@ -102,6 +110,7 @@ fun RepoListScreen(
                 TopAppBar(
                     colors = accentTopAppBarColors(),
                     expandedHeight = AccentBarHeight,
+                    modifier = Modifier.tvDpadDownTo(contentFocusRequester),
                     title = { Text(text = stringResource(R.string.repositories)) },
                     navigationIcon = { BackButton(onBackClick) },
                     actions = {
@@ -126,7 +135,12 @@ fun RepoListScreen(
             }
         },
     ) { contentPadding ->
-        LazyColumn(contentPadding = contentPadding) {
+        LazyColumn(
+            contentPadding = contentPadding,
+            modifier = Modifier
+                .focusRequester(contentFocusRequester)
+                .focusGroup(),
+        ) {
             item(key = "external-header") {
                 SectionHeader(title = stringResource(R.string.tab_external))
             }

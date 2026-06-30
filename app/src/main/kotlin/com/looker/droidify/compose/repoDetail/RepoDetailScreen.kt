@@ -3,6 +3,7 @@ package com.looker.droidify.compose.repoDetail
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -40,6 +41,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -57,6 +60,7 @@ import coil3.compose.AsyncImage
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.errorButtonColors
+import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.repoDetail.components.LastUpdatedCard
 import com.looker.droidify.compose.repoList.GrayScaleColorFilter
 import com.looker.droidify.data.model.Repo
@@ -87,11 +91,15 @@ fun RepoDetailScreen(
         )
     }
 
+    // TV / D-pad: drop focus from the header into the content (the top bar won't on its own).
+    val contentFocusRequester = remember { FocusRequester() }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 colors = accentTopAppBarColors(),
                 expandedHeight = AccentBarHeight,
+                modifier = Modifier.tvDpadDownTo(contentFocusRequester),
                 title = { Text(stringResource(R.string.repository)) },
                 navigationIcon = { BackButton(onBackClick) },
                 actions = {
@@ -122,7 +130,10 @@ fun RepoDetailScreen(
                 RepoDetails(
                     onToggle = { viewModel.enableRepository(it) },
                     repo = repo!!,
-                    modifier = Modifier.padding(paddingValues),
+                    modifier = Modifier
+                        .padding(paddingValues)
+                        .focusRequester(contentFocusRequester)
+                        .focusGroup(),
                 )
             }
         }

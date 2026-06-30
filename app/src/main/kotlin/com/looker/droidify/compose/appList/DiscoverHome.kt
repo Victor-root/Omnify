@@ -48,8 +48,10 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.data.model.AppMinimal
+import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.sync.v2.model.DefaultName
 
 /**
@@ -65,6 +67,11 @@ fun DiscoverCarousel(
     onSeeAll: () -> Unit,
     modifier: Modifier = Modifier,
     expanded: Boolean = false,
+    // Optional external (GitHub/GitLab) apps shown after the catalogue ones in the same row — used by
+    // the "Made for TV" carousel so tracked external TV apps appear alongside the F-Droid ones.
+    externalApps: List<ExternalApp> = emptyList(),
+    externalInstalledKeys: Set<String> = emptySet(),
+    onExternalAppClick: (String) -> Unit = {},
 ) {
     // Wider tiles on TV so the larger icon (and its card) fit; the compact width stays on touch. Read
     // here in the composable body, not inside the LazyRow content (which isn't a composable scope).
@@ -114,6 +121,14 @@ fun DiscoverCarousel(
                     app = app,
                     isInstalled = app.packageName.name in installedPackages,
                     onClick = { onAppClick(app.packageName.name) },
+                    modifier = Modifier.width(tileWidth),
+                )
+            }
+            items(externalApps, key = { "ext-${it.key}" }) { app ->
+                ExternalAppTile(
+                    app = app,
+                    isInstalled = app.key in externalInstalledKeys,
+                    onClick = { onExternalAppClick(app.key) },
                     modifier = Modifier.width(tileWidth),
                 )
             }

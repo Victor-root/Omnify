@@ -59,6 +59,12 @@ data class ExternalApp(
     /** Whether the repo has already been scanned for an icon. Stops a repo that ships only vector/
      *  adaptive icons (so [repoIconUrl] stays null) from being re-scanned on every refresh. */
     val iconChecked: Boolean = false,
+    /** True when the source repo's manifest declares Android TV support (the leanback launcher /
+     *  uses-feature), detected from the repo without downloading the APK. Drives the "Made for TV" row. */
+    val supportsTelevision: Boolean = false,
+    /** Whether the repo has already been scanned for TV support, so it's checked at most once (mirrors
+     *  [iconChecked]); lets sources added before this existed backfill [supportsTelevision] on refresh. */
+    val tvChecked: Boolean = false,
 ) {
     /** The host actually called: [host] when set, otherwise the provider's public default. */
     val effectiveHost: String

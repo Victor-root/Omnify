@@ -27,8 +27,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -41,6 +44,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.cleanUpIntervals
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.localeCodesList
 import com.looker.droidify.compose.settings.components.ActionSettingItem
@@ -175,11 +179,15 @@ fun SettingsScreen(
 
     var showColorPicker by remember { mutableStateOf(false) }
 
+    // TV / D-pad: drop focus from the header into the settings list (the top bar won't on its own).
+    val contentFocusRequester = remember { FocusRequester() }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 colors = accentTopAppBarColors(),
                 expandedHeight = AccentBarHeight,
+                modifier = Modifier.tvDpadDownTo(contentFocusRequester),
                 title = { Text(text = stringResource(R.string.settings)) },
                 navigationIcon = { BackButton(onBackClick) },
             )
@@ -189,7 +197,9 @@ fun SettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(contentPadding),
+                .padding(contentPadding)
+                .focusRequester(contentFocusRequester)
+                .focusGroup(),
         ) {
             // Battery-optimisation exemption is a phone/handheld concern; Android TV has no such
             // setting, so never nag about it there.

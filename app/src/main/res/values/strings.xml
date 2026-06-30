@@ -291,6 +291,7 @@
     <string name="discover_new_apps">New apps</string>
     <string name="discover_recently_updated">Recently updated</string>
     <string name="discover_most_downloaded">Most downloaded</string>
+    <string name="discover_tv_apps">Made for TV</string>
     <string name="no_installed_apps">No installed apps found</string>
     <string name="everything_up_to_date">Everything is up to date</string>
     <string name="delete_repository">Delete repository</string>

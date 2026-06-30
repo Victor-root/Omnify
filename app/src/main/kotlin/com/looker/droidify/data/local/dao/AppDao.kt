@@ -44,6 +44,9 @@ interface AppDao {
         categoriesToExclude: List<DefaultName>? = null,
         antiFeaturesToInclude: List<Tag>? = null,
         antiFeaturesToExclude: List<Tag>? = null,
+        // Each entry keeps only apps that declare it as a manifest <uses-feature> on some version (e.g.
+        // "android.software.leanback" for apps built for Android TV).
+        featuresToInclude: List<String>? = null,
         locale: String,
     ): List<AppMinimal> = _rawQueryAppMinimal(
         searchQueryMinimal(
@@ -54,6 +57,7 @@ interface AppDao {
             categoriesToExclude = categoriesToExclude,
             antiFeaturesToInclude = antiFeaturesToInclude,
             antiFeaturesToExclude = antiFeaturesToExclude,
+            featuresToInclude = featuresToInclude,
             locale = locale,
         ),
     ).map {
@@ -149,6 +153,7 @@ interface AppDao {
         categoriesToExclude: List<DefaultName>?,
         antiFeaturesToInclude: List<Tag>?,
         antiFeaturesToExclude: List<Tag>?,
+        featuresToInclude: List<String>?,
         locale: String,
     ): SimpleSQLiteQuery {
         logQuery(
@@ -159,6 +164,7 @@ interface AppDao {
             "categoriesToExclude" to categoriesToExclude,
             "antiFeaturesToInclude" to antiFeaturesToInclude,
             "antiFeaturesToExclude" to antiFeaturesToExclude,
+            "featuresToInclude" to featuresToInclude,
             "locale" to locale,
         )
         val args = arrayListOf<Any?>()
@@ -240,6 +246,18 @@ interface AppDao {
                 append(antiFeaturesToExclude.joinToString(", ") { "?" })
                 append(")")
                 args.addAll(antiFeaturesToExclude)
+            }
+
+            // Keep only apps that declare each required <uses-feature> on at least one of their
+            // versions. `features` is a JSON list (e.g. ["android.software.leanback"]); matching the
+            // quoted name avoids a prefix matching a longer feature. EXISTS (rather than a JOIN) keeps
+            // one row per app and doesn't disturb the GROUP BY below.
+            featuresToInclude?.forEach { feature ->
+                append(
+                    " AND EXISTS (SELECT 1 FROM version WHERE version.appId = app.id" +
+                        " AND version.features LIKE ?)",
+                )
+                args.add("%\"$feature\"%")
             }
 
             if (searchQuery != null) {

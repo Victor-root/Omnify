@@ -35,6 +35,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -44,6 +46,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 
@@ -60,6 +63,10 @@ fun RepoEditScreen(
     val isFormValid by remember { derivedStateOf { !errorState.hasError } }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    // TV / D-pad: the top bar doesn't release focus downward on its own, so "down" on the back arrow
+    // would leave the user stuck in the header. This points at the first field; the key handler below
+    // moves focus into the form. No effect on touch.
+    val contentFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(repoId) {
         repoId?.let { viewModel.loadRepo(it) }
@@ -70,6 +77,7 @@ fun RepoEditScreen(
             TopAppBar(
                 colors = accentTopAppBarColors(),
                 expandedHeight = AccentBarHeight,
+                modifier = Modifier.tvDpadDownTo(contentFocusRequester),
                 title = {
                     Text(
                         text = stringResource(
@@ -116,7 +124,9 @@ fun RepoEditScreen(
                     isError = hasAddressError,
                     supportingText = { errorState.addressError?.let { Text(it) } },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(contentFocusRequester),
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
