@@ -32,7 +32,6 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.*
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.ExperimentalTime
@@ -73,49 +72,43 @@ class DownloadStatsWorker @AssistedInject constructor(
     private suspend fun fetchData(settings: Settings) = withContext(Dispatchers.IO) {
         supervisorScope {
             val lastModified = settings.lastModifiedDownloadStats
-            val fileNames = ConcurrentLinkedQueue(
-                generateMonthlyFileNames(lastModified),
-            )
+            val fileNames = generateMonthlyFileNames(lastModified)
 
             Log.d(TAG, "Fetching ${fileNames.size} monthly files")
-            while (fileNames.isNotEmpty()) {
-                if (downloadSemaphores.tryAcquire()) {
-                    launch {
-                        val fileName = fileNames.poll()
-                        if (fileName == null) {
-                            downloadSemaphores.release()
-                            return@launch
-                        }
-                        // This runs in a launch{} inside a supervisorScope, so an uncaught throw here
-                        // would NOT bubble up to doWork()'s try/catch — it would crash the whole app.
-                        // Catch everything (a flaky download, a bad month file, even a temp-file
-                        // failure): log it and move on. The outer finally always frees the semaphore
-                        // so a failure can't deadlock the fetch loop either.
+            for (fileName in fileNames) {
+                // Suspend until a slot is free (cap: 2 concurrent). The previous code spun the loop on
+                // tryAcquire(), pegging a CPU core while waiting — costly during the first-launch load.
+                downloadSemaphores.acquire()
+                launch {
+                    // This runs in a launch{} inside a supervisorScope, so an uncaught throw here would
+                    // NOT bubble up to doWork()'s try/catch — it would crash the whole app. Catch
+                    // everything (a flaky download, a bad month file, even a temp-file failure): log it
+                    // and move on. The outer finally always frees the semaphore so a failure can't
+                    // deadlock the fetch loop either.
+                    try {
+                        val target = Cache.getTemporaryFile(context)
                         try {
-                            val target = Cache.getTemporaryFile(context)
-                            try {
-                                Log.i(TAG, "Downloading $fileName")
-                                val response = downloadFile(fileName, target)
-                                Log.i(TAG, "Downloaded $fileName with $response")
+                            Log.i(TAG, "Downloading $fileName")
+                            val response = downloadFile(fileName, target)
+                            Log.i(TAG, "Downloaded $fileName with $response")
 
-                                if (response is NetworkResponse.Success &&
-                                    response.statusCode != HttpStatusCode.NotModified.value
-                                ) {
-                                    processDownloadStats(
-                                        response = response,
-                                        fileName = fileName,
-                                        target = target,
-                                    )
-                                }
-                            } finally {
-                                target.delete()
+                            if (response is NetworkResponse.Success &&
+                                response.statusCode != HttpStatusCode.NotModified.value
+                            ) {
+                                processDownloadStats(
+                                    response = response,
+                                    fileName = fileName,
+                                    target = target,
+                                )
                             }
-                        } catch (e: Exception) {
-                            e.exceptCancellation()
-                            Log.e(TAG, "Failed processing $fileName", e)
                         } finally {
-                            downloadSemaphores.release()
+                            target.delete()
                         }
+                    } catch (e: Exception) {
+                        e.exceptCancellation()
+                        Log.e(TAG, "Failed processing $fileName", e)
+                    } finally {
+                        downloadSemaphores.release()
                     }
                 }
             }
@@ -155,6 +148,10 @@ class DownloadStatsWorker @AssistedInject constructor(
         private const val UNIQUE_ONE_TIME = "download_stats"
         private const val UNIQUE_PERIODIC = "download_stats_periodic"
 
+        /** Delay before the initial stats fetch, to keep it clear of the first-launch cold-start +
+         *  catalogue-sync window on slow devices. */
+        private const val STARTUP_FETCH_DELAY_SECONDS = 45L
+
         private val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
@@ -168,6 +165,11 @@ class DownloadStatsWorker @AssistedInject constructor(
                 ExistingWorkPolicy.KEEP,
                 OneTimeWorkRequestBuilder<DownloadStatsWorker>()
                     .setConstraints(constraints)
+                    // Hold off the initial run so it doesn't download + parse 19 JSON files while the
+                    // catalogue sync and the heavy first Compose frame are already fighting for the CPU on
+                    // first launch (that contention froze the main thread long enough to ANR on slow TVs).
+                    // Stats only feed the "Most downloaded" row, so a short wait is invisible.
+                    .setInitialDelay(STARTUP_FETCH_DELAY_SECONDS, TimeUnit.SECONDS)
                     .build(),
             )
         }
@@ -177,6 +179,10 @@ class DownloadStatsWorker @AssistedInject constructor(
         fun schedulePeriodic(context: Context) {
             val request = PeriodicWorkRequestBuilder<DownloadStatsWorker>(12, TimeUnit.HOURS)
                 .setConstraints(constraints)
+                // Delay the first periodic run so it doesn't fire immediately alongside the one-time
+                // fetch on first launch (two full 19-file stats passes at once spiked memory on low-RAM
+                // TVs). The one-time [fetchDownloadStats] populates stats now; the periodic refreshes later.
+                .setInitialDelay(12, TimeUnit.HOURS)
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE_PERIODIC,

@@ -162,6 +162,11 @@ class SyncWorker @AssistedInject constructor(
             val request = PeriodicWorkRequestBuilder<SyncWorker>(repeatInterval.toJavaDuration())
                 .setInputData(data)
                 .setConstraints(defaultConstraints)
+                // Delay the first periodic run by a full interval: a freshly-scheduled periodic work
+                // otherwise fires immediately, and on first launch it would run *alongside* the one-time
+                // launch sync — two full index parses at once exhausted memory on low-RAM TVs. The
+                // one-time sync covers "now"; the periodic only needs to cover later.
+                .setInitialDelay(repeatInterval.toJavaDuration())
                 .addTag(TAG)
                 .build()
 
