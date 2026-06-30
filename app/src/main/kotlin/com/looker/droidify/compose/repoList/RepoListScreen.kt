@@ -633,18 +633,21 @@ private fun AddSourceChooserDialog(
         text = {
             Column {
                 AddSourceOption(
+                    iconRes = R.drawable.ic_tabler_box,
                     title = stringResource(R.string.add_source_fdroid),
                     description = stringResource(R.string.add_source_fdroid_desc),
                     onClick = onChooseFdroid,
                 )
                 Spacer(Modifier.height(8.dp))
                 AddSourceOption(
+                    iconRes = R.drawable.ic_apk_install,
                     title = stringResource(R.string.add_source_external),
                     description = stringResource(R.string.add_source_external_desc),
                     onClick = onChooseExternal,
                 )
                 Spacer(Modifier.height(8.dp))
                 AddSourceOption(
+                    iconRes = R.drawable.ic_person,
                     title = stringResource(R.string.add_source_account),
                     description = stringResource(R.string.add_source_account_desc),
                     onClick = onChooseAccount,
@@ -658,23 +661,40 @@ private fun AddSourceChooserDialog(
     )
 }
 
-/** One tappable option (bold title + explanation) in the add-source chooser. */
+/** One tappable option (icon + bold title + explanation) in the add-source chooser. */
 @Composable
-private fun AddSourceOption(title: String, description: String, onClick: () -> Unit) {
+private fun AddSourceOption(
+    iconRes: Int,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+) {
     Surface(
         onClick = onClick,
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(28.dp),
             )
+            Spacer(Modifier.size(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
