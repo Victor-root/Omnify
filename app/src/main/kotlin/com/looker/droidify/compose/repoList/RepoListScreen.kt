@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.repoList
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Box
@@ -51,8 +53,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -99,6 +99,15 @@ fun RepoListScreen(
     var showAddExternal by rememberSaveable { mutableStateOf(false) }
     var editingExternal by remember { mutableStateOf<ExternalApp?>(null) }
 
+    // Each section lists its sources one after another, sorted alphabetically by display name. Now that
+    // every repo has a real logo (or a letter monogram), the icons make scanning easy without grouping.
+    val sortedExternalApps = remember(externalApps) {
+        externalApps.sortedBy { it.label.trim().lowercase() }
+    }
+    val sortedRepos = remember(repos) {
+        repos.sortedBy { it.name.trim().lowercase() }
+    }
+
     // TV / D-pad: the top bar doesn't release focus downward on its own; this lets "down" drop from the
     // header into the list. No effect on touch.
     val contentFocusRequester = remember { FocusRequester() }
@@ -144,7 +153,7 @@ fun RepoListScreen(
             item(key = "external-header") {
                 SectionHeader(title = stringResource(R.string.tab_external))
             }
-            if (externalApps.isEmpty()) {
+            if (sortedExternalApps.isEmpty()) {
                 item(key = "external-empty") {
                     Text(
                         text = stringResource(R.string.external_empty_hint),
@@ -154,7 +163,7 @@ fun RepoListScreen(
                     )
                 }
             }
-            items(externalApps, key = { "ext-${it.key}" }) { app ->
+            items(sortedExternalApps, key = { "ext-${it.key}" }) { app ->
                 ExternalSourceItem(
                     app = app,
                     isInstalled = app.key in externalInstalledKeys,
@@ -167,7 +176,7 @@ fun RepoListScreen(
             item(key = "repos-header") {
                 SectionHeader(title = stringResource(R.string.repo_section_fdroid))
             }
-            items(repos, key = { "repo-${it.id}" }) { repo ->
+            items(sortedRepos, key = { "repo-${it.id}" }) { repo ->
                 RepoItem(
                     onClick = { onRepoClick(repo.id) },
                     onToggle = { viewModel.toggleRepo(repo) },
@@ -241,6 +250,73 @@ fun RepoListScreen(
     }
 }
 
+/** The uppercase first letter (or digit) of a name for the monogram avatar; non-alphanumeric starts
+ *  (and anything past Z) fold to '#'. */
+private fun letterOf(name: String): Char {
+    val first = name.trim().firstOrNull { it.isLetterOrDigit() }?.uppercaseChar() ?: return '#'
+    return if (first in 'A'..'Z') first else '#'
+}
+
+/** A repo's icon: the synced repo icon when it loads, otherwise a themed letter monogram (a tinted,
+ *  rounded tile with the repo's first letter) so every repo has a distinct, recognizable avatar even
+ *  when its index ships no icon. */
+@Composable
+internal fun RepoIcon(
+    iconUrl: String?,
+    fallbackUrl: String?,
+    name: String,
+    modifier: Modifier = Modifier,
+) {
+    val shape = MaterialTheme.shapes.large
+    // Prefer the synced icon (freshest); for the many default repos that ship disabled and were never
+    // synced, fall back to the hardcoded logo. Only the letter monogram remains if neither is available
+    // or the chosen image fails to load. Logos are always shown in full colour (no greyscale/dim): the
+    // toggle already signals the on/off state, and most default repos are disabled, so dimming them all
+    // made the whole list look faded.
+    val url = iconUrl?.takeIf { it.isNotBlank() } ?: fallbackUrl
+    var failed by remember(url) { mutableStateOf(false) }
+    Box(
+        modifier = modifier.clip(shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (!url.isNullOrBlank() && !failed) {
+            AsyncImage(
+                model = url,
+                contentDescription = null,
+                onError = { failed = true },
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            MonogramAvatar(name = name)
+        }
+    }
+}
+
+/** The fallback avatar: the name's first letter on a theme container colour, picked deterministically
+ *  from the letter so a given repo keeps a stable colour. The caller handles any disabled dimming. */
+@Composable
+private fun MonogramAvatar(name: String) {
+    val letter = letterOf(name)
+    val palette = listOf(
+        MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer,
+        MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer,
+        MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer,
+    )
+    val (background, foreground) = palette[letter.code % palette.size]
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(background),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = letter.toString(),
+            style = MaterialTheme.typography.titleLarge,
+            color = foreground,
+        )
+    }
+}
+
 @Composable
 private fun SectionHeader(title: String) {
     Text(
@@ -266,13 +342,11 @@ private fun RepoItem(
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .then(modifier),
     ) {
-        AsyncImage(
-            model = repo.icon?.path,
-            contentDescription = null,
-            colorFilter = if (repo.enabled) null else GrayScaleColorFilter,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(MaterialTheme.shapes.large),
+        RepoIcon(
+            iconUrl = repo.icon?.path,
+            fallbackUrl = defaultRepoIcon(repo.address),
+            name = repo.name,
+            modifier = Modifier.size(48.dp),
         )
         Spacer(modifier = Modifier.size(16.dp))
         Column(modifier = Modifier.weight(1F)) {
@@ -694,5 +768,3 @@ private fun CheckboxRow(checked: Boolean, onCheckedChange: (Boolean) -> Unit, la
         Text(text = label, style = MaterialTheme.typography.bodyMedium)
     }
 }
-
-val GrayScaleColorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })

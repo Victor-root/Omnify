@@ -40,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalUriHandler
@@ -56,13 +55,13 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import coil3.compose.AsyncImage
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.errorButtonColors
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.repoDetail.components.LastUpdatedCard
-import com.looker.droidify.compose.repoList.GrayScaleColorFilter
+import com.looker.droidify.compose.repoList.RepoIcon
+import com.looker.droidify.compose.repoList.defaultRepoIcon
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -153,13 +152,11 @@ private fun RepoDetails(
             .padding(16.dp)
             .then(modifier),
     ) {
-        AsyncImage(
-            model = repo.icon?.path,
-            contentDescription = null,
-            colorFilter = if (repo.enabled) null else GrayScaleColorFilter,
-            modifier = Modifier
-                .size(64.dp)
-                .clip(MaterialTheme.shapes.small),
+        RepoIcon(
+            iconUrl = repo.icon?.path,
+            fallbackUrl = defaultRepoIcon(repo.address),
+            name = repo.name,
+            modifier = Modifier.size(64.dp),
         )
 
         Spacer(modifier = Modifier.height(8.dp))
