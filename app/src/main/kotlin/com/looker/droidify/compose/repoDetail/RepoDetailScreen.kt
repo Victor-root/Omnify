@@ -62,6 +62,7 @@ import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.repoDetail.components.LastUpdatedCard
 import com.looker.droidify.compose.repoList.RepoIcon
 import com.looker.droidify.compose.repoList.defaultRepoIcon
+import com.looker.droidify.compose.repoList.defaultRepoIconRes
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -157,6 +158,7 @@ private fun RepoDetails(
             fallbackUrl = defaultRepoIcon(repo.address),
             name = repo.name,
             modifier = Modifier.size(64.dp),
+            fallbackRes = defaultRepoIconRes(repo.address),
         )
 
         Spacer(modifier = Modifier.height(8.dp))

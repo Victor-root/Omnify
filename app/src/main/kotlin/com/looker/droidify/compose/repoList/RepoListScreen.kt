@@ -328,15 +328,16 @@ private fun letterOf(name: String): Char {
     return if (first in 'A'..'Z') first else '#'
 }
 
-/** A repo's icon: the synced repo icon when it loads, otherwise a themed letter monogram (a tinted,
- *  rounded tile with the repo's first letter) so every repo has a distinct, recognizable avatar even
- *  when its index ships no icon. */
+/** A repo's icon: a bundled glyph ([fallbackRes]) when set, else the synced repo icon when it loads,
+ *  else the themed letter monogram, so every repo has a distinct, recognizable avatar even when its
+ *  index ships no icon. */
 @Composable
 internal fun RepoIcon(
     iconUrl: String?,
     fallbackUrl: String?,
     name: String,
     modifier: Modifier = Modifier,
+    fallbackRes: Int? = null,
 ) {
     val shape = MaterialTheme.shapes.large
     // Prefer the synced icon (freshest); for the many default repos that ship disabled and were never
@@ -350,15 +351,33 @@ internal fun RepoIcon(
         modifier = modifier.clip(shape),
         contentAlignment = Alignment.Center,
     ) {
-        if (!url.isNullOrBlank() && !failed) {
-            AsyncImage(
+        when {
+            // A bundled glyph (the "multiple apps" icon for collection repos) wins over the synced icon,
+            // which for those repos is only a QR code. Drawn as a tinted glyph on a themed tile.
+            fallbackRes != null -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(fallbackRes),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(10.dp),
+                )
+            }
+
+            !url.isNullOrBlank() && !failed -> AsyncImage(
                 model = url,
                 contentDescription = null,
                 onError = { failed = true },
                 modifier = Modifier.fillMaxSize(),
             )
-        } else {
-            MonogramAvatar(name = name)
+
+            else -> MonogramAvatar(name = name)
         }
     }
 }
@@ -440,6 +459,7 @@ private fun RepoItem(
             fallbackUrl = defaultRepoIcon(repo.address),
             name = repo.name,
             modifier = Modifier.size(48.dp),
+            fallbackRes = defaultRepoIconRes(repo.address),
         )
         Spacer(modifier = Modifier.size(16.dp))
         Column(modifier = Modifier.weight(1F)) {
