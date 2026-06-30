@@ -266,10 +266,13 @@
     <string name="translation_failed">Échec de la traduction</string>
     <string name="translation_section">Traduction</string>
     <string name="translation_engine">Moteur de traduction</string>
+    <string name="translation_engine_none">Aucun (désactivé)</string>
     <string name="translation_engine_google">Google Traduction (gratuit, en ligne)</string>
     <string name="translation_engine_libretranslate">LibreTranslate (open source)</string>
     <string name="translation_engine_mlkit">Sur votre appareil (hors-ligne, ML Kit)</string>
     <string name="libretranslate_url">URL de l\'instance LibreTranslate</string>
+    <string name="libretranslate_url_unset">Pas encore configuré</string>
+    <string name="libretranslate_url_help">LibreTranslate n\'a pas d\'instance publique. Vous devez héberger la vôtre (ou en utiliser une tierce) et saisir son URL ici, par ex. https://translate.example.org</string>
     <string name="libretranslate_api_key">Clé API LibreTranslate (facultatif)</string>
     <string name="auto_translate">Traduire automatiquement</string>
     <string name="auto_translate_DESC">Traduire une description à l\'ouverture quand elle n\'est pas déjà dans votre langue</string>

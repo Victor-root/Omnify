@@ -86,6 +86,7 @@ private val IMPORT_MIME_TYPES = arrayOf("application/json", "application/octet-s
 @Composable
 private fun translationEngineLabel(engine: TranslationEngine): String = stringResource(
     when (engine) {
+        TranslationEngine.NONE -> R.string.translation_engine_none
         TranslationEngine.GOOGLE -> R.string.translation_engine_google
         TranslationEngine.LIBRETRANSLATE -> R.string.translation_engine_libretranslate
         TranslationEngine.MLKIT -> R.string.translation_engine_mlkit
@@ -476,6 +477,8 @@ fun SettingsScreen(
                     description = stringResource(R.string.auto_translate_DESC),
                     checked = settings.autoTranslate,
                     onCheckedChange = viewModel::setAutoTranslate,
+                    // No point auto-translating when no engine is selected.
+                    enabled = settings.translationEngine != TranslationEngine.NONE,
                 )
             }
 
@@ -484,7 +487,11 @@ fun SettingsScreen(
                     TextInputSettingItem(
                         title = stringResource(R.string.libretranslate_url),
                         value = settings.libreTranslateUrl,
+                        valueDisplay = settings.libreTranslateUrl.ifBlank {
+                            stringResource(R.string.libretranslate_url_unset)
+                        },
                         icon = painterResource(R.drawable.ic_public),
+                        helpText = stringResource(R.string.libretranslate_url_help),
                         onValueChange = viewModel::setLibreTranslateUrl,
                     )
                 }

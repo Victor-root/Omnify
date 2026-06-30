@@ -273,9 +273,9 @@ class PreferenceSettingsRepository(
         val downloadStatisticsEnabled = preferences[DOWNLOAD_STATISTICS_ENABLED] ?: true
         val reproducibilityLogsEnabled = preferences[REPRODUCIBILITY_LOGS_ENABLED] ?: true
         val githubToken = preferences[GITHUB_TOKEN] ?: ""
-        val translationEngine = TranslationEngine.valueOf(
-            preferences[TRANSLATION_ENGINE] ?: TranslationEngine.GOOGLE.name,
-        )
+        val translationEngine = runCatching {
+            TranslationEngine.valueOf(preferences[TRANSLATION_ENGINE] ?: TranslationEngine.NONE.name)
+        }.getOrDefault(TranslationEngine.NONE)
         val libreTranslateUrl = preferences[LIBRETRANSLATE_URL] ?: ""
         val libreTranslateApiKey = preferences[LIBRETRANSLATE_API_KEY] ?: ""
         val autoTranslate = preferences[AUTO_TRANSLATE] ?: false

@@ -66,6 +66,7 @@ fun ExternalAppDetailScreen(
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
     val readme by viewModel.readme.collectAsStateWithLifecycle()
     val readmeTranslation by viewModel.readmeTranslation.collectAsStateWithLifecycle()
+    val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -102,8 +103,8 @@ fun ExternalAppDetailScreen(
                 },
                 navigationIcon = { BackButton(onBackClick) },
                 actions = {
-                    // Only offer translation once there's a README to translate.
-                    if (readme != null) {
+                    // Only offer translation once there's a README to translate and an engine is set.
+                    if (translationEnabled && readme != null) {
                         TranslateAction(
                             translation = readmeTranslation,
                             onTranslate = { readme?.let(viewModel::translateReadme) },

@@ -46,6 +46,7 @@ class TranslationManager @Inject constructor(
     /** Translates [text] into [targetLanguage] (an ISO-639-1 code such as "fr"). */
     suspend fun translate(text: String, targetLanguage: String): String = withContext(Dispatchers.IO) {
         when (settingsRepository.getInitial().translationEngine) {
+            TranslationEngine.NONE -> error("No translation engine selected")
             TranslationEngine.GOOGLE -> googleTranslate(text, targetLanguage)
             TranslationEngine.LIBRETRANSLATE -> {
                 val settings = settingsRepository.getInitial()

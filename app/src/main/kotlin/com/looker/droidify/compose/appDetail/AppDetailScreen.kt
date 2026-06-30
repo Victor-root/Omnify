@@ -125,6 +125,7 @@ fun AppDetailScreen(
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
     val descriptionTranslation by viewModel.descriptionTranslation.collectAsStateWithLifecycle()
+    val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val successState = state as? AppDetailState.Success
     // The what's-new shown is the device-suitable release's text (falling back to the first package).
     // Translate the same text so the toggle covers the whole description area, not just summary + body.
@@ -240,7 +241,7 @@ fun AppDetailScreen(
                 navigationIcon = { BackButton(onBackClick) },
                 actions = {
                     val successApp = successState?.app
-                    if (successApp != null &&
+                    if (translationEnabled && successApp != null &&
                         (successApp.metadata.description.isNotBlank() || suggestedWhatsNew.isNotBlank())
                     ) {
                         TranslateAction(

@@ -62,7 +62,7 @@ data class Settings(
      *  api.github.com are authenticated, raising the rate limit from 60 to 5000 requests/hour. */
     val githubToken: String = "",
     /** Backend for the "Translate" button on app descriptions. */
-    val translationEngine: TranslationEngine = TranslationEngine.GOOGLE,
+    val translationEngine: TranslationEngine = TranslationEngine.NONE,
     /** Base URL of the user's LibreTranslate instance (used only when [translationEngine] is
      *  LIBRETRANSLATE), e.g. "https://translate.example.org". */
     val libreTranslateUrl: String = "",

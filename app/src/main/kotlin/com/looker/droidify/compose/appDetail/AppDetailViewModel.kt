@@ -33,6 +33,7 @@ import com.looker.droidify.network.DataSize
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.percentBy
+import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
@@ -76,6 +77,11 @@ class AppDetailViewModel @Inject constructor(
         MutableStateFlow<DescriptionTranslation>(DescriptionTranslation.Original)
     val descriptionTranslation: StateFlow<DescriptionTranslation> = _descriptionTranslation
 
+    /** Whether the user picked a translation engine. The Translate button is hidden when off. */
+    val translationEnabled: StateFlow<Boolean> = settingsRepository.data
+        .map { it.translationEngine != TranslationEngine.NONE }
+        .asStateFlow(false)
+
     /** Translates the summary + description (HTML) + what's-new into the device language. Never throws. */
     fun translateDescription(summary: String, descriptionHtml: String, whatsNew: String) {
         if (summary.isBlank() && descriptionHtml.isBlank() && whatsNew.isBlank()) return
@@ -89,7 +95,9 @@ class AppDetailViewModel @Inject constructor(
         if (_descriptionTranslation.value != DescriptionTranslation.Original) return
         if (descriptionHtml.isBlank()) return
         viewModelScope.launch {
-            if (!settingsRepository.getInitial().autoTranslate) return@launch
+            val settings = settingsRepository.getInitial()
+            if (settings.translationEngine == TranslationEngine.NONE) return@launch
+            if (!settings.autoTranslate) return@launch
             val target = java.util.Locale.getDefault().language
             val detected = runCatching {
                 translationManager.detectLanguage(plainText(descriptionHtml))

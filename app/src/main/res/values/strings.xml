@@ -88,10 +88,13 @@
     <string name="translation_failed">Couldn\'t translate</string>
     <string name="translation_section">Translation</string>
     <string name="translation_engine">Translation engine</string>
+    <string name="translation_engine_none">None (disabled)</string>
     <string name="translation_engine_google">Google Translate (free, online)</string>
     <string name="translation_engine_libretranslate">LibreTranslate (open source)</string>
     <string name="translation_engine_mlkit">On your device (offline, ML Kit)</string>
     <string name="libretranslate_url">LibreTranslate instance URL</string>
+    <string name="libretranslate_url_unset">Not set up yet</string>
+    <string name="libretranslate_url_help">LibreTranslate has no public instance. You need to host your own (or use a third-party one) and enter its URL here, e.g. https://translate.example.org</string>
     <string name="libretranslate_api_key">LibreTranslate API key (optional)</string>
     <string name="auto_translate">Translate automatically</string>
     <string name="auto_translate_DESC">Translate a description on open when it isn\'t already in your language</string>

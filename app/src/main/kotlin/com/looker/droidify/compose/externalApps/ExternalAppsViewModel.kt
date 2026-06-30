@@ -28,6 +28,8 @@ import com.looker.droidify.external.selectApkAsset
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.installer.model.InstallState
+import com.looker.droidify.datastore.SettingsRepository
+import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.translation.TranslationManager
@@ -43,6 +45,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,10 +58,16 @@ class ExternalAppsViewModel @Inject constructor(
     private val downloader: Downloader,
     private val installManager: InstallManager,
     private val translationManager: TranslationManager,
+    private val settingsRepository: SettingsRepository,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     val apps: StateFlow<List<ExternalApp>> = repository.apps.asStateFlow(emptyList())
+
+    /** Whether the user picked a translation engine. The Translate button is hidden when off. */
+    val translationEnabled: StateFlow<Boolean> = settingsRepository.data
+        .map { it.translationEngine != TranslationEngine.NONE }
+        .asStateFlow(false)
 
     /** Tracked whole-account sources (each expands to several entries in [apps]). */
     val accounts: StateFlow<List<ExternalAccount>> = repository.accounts.asStateFlow(emptyList())
