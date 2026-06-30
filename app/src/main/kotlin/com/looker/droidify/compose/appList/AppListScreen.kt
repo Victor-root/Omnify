@@ -295,12 +295,6 @@ fun AppListScreen(
         enabledExternalApps.filter { it.hasUpdate && !it.muteUpdates }
     }
 
-    // First launch: the catalogue is still empty and a sync is running. Show a full-screen fetching
-    // state (like F-Droid) instead of an empty grid + thin banner. `newApps` is empty exactly when the
-    // catalogue has no apps, so it doubles as the "nothing loaded yet" signal. The External tab has
-    // its own content, so it's excluded.
-    val catalogLoading = isSyncing && newApps.isEmpty() && selectedTab != AppTab.EXTERNAL
-
     // Android TV / D-pad: Material3's TabRow doesn't release focus downward on its own, so pressing
     // "down" on a tab leaves the user stuck in the header. This requester points at the content grid;
     // a key handler on the header moves focus into it. No effect with touch (no D-pad key events).
@@ -309,6 +303,44 @@ fun AppListScreen(
     // On TV the header must never scroll away (the tabs would become unreachable with a remote), so the
     // collapse-on-scroll is only wired up off TV. Other edge-to-edge behaviour is left untouched.
     val collapsibleHeader = edgeToEdge && !isTelevision
+
+    // First launch: show a full-screen "fetching" state (like F-Droid) instead of an empty grid.
+    // `newApps` is empty exactly when the catalogue has no apps, so it doubles as the "nothing loaded
+    // yet" signal. The External tab has its own content, so it's excluded.
+    //
+    // Touch keeps the original progressive behaviour: the loader shows only until the first apps trickle
+    // in, then the grid fills as the sync continues.
+    //
+    // TV is different. Composing the heavy grid + carousels while the first sync floods the catalogue
+    // (every batch re-runs the list queries and recomposes the whole screen, several times a second for
+    // the whole sync) starved the main thread long enough that a remote press timed out and the system
+    // killed the app (a cold-start ANR). So on TV we keep the loader up for the *entire* first sync and
+    // compose the grid once, at the end. [catalogReady] latches the moment that first sync finishes
+    // (apps present, no longer syncing); on a later launch the catalogue already has apps, so it latches
+    // immediately and the loader never shows. [firstSyncFromEmpty] distinguishes the genuine cold start
+    // (catalogue empty when the sync began) from a background sync running on a later launch: the
+    // latter must show the populated catalogue, not the loader.
+    var catalogReady by rememberSaveable { mutableStateOf(false) }
+    var firstSyncFromEmpty by rememberSaveable { mutableStateOf(false) }
+    if (isTelevision) {
+        LaunchedEffect(isSyncing, newApps.isEmpty()) {
+            if (catalogReady) return@LaunchedEffect
+            val catalogEmpty = newApps.isEmpty()
+            if (isSyncing && catalogEmpty) firstSyncFromEmpty = true
+            if (firstSyncFromEmpty) {
+                // Genuine first sync: stay on the loader until it has apps AND the sync has finished.
+                if (!isSyncing && !catalogEmpty) catalogReady = true
+            } else if (!catalogEmpty) {
+                // Later launch (or background sync): the catalogue already has apps, show it now.
+                catalogReady = true
+            }
+        }
+    }
+    val catalogLoading = if (isTelevision) {
+        !catalogReady && selectedTab != AppTab.EXTERNAL
+    } else {
+        isSyncing && newApps.isEmpty() && selectedTab != AppTab.EXTERNAL
+    }
 
     // Android TV must always have a focused element on screen: if a remote key is pressed while nothing
     // holds focus, input dispatch times out and the system kills the app (an ANR, "does not have a
