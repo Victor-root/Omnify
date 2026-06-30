@@ -10,6 +10,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -364,6 +365,96 @@ class ExternalApi @Inject constructor(
         }.getOrNull()
     }
 
+    /**
+     * Lists the repos of a whole account [owner] (a user or org) on [provider]/[host], always skipping
+     * archived repos and, unless [includeForks], forks too. Used by the account-source feature; the
+     * caller then keeps only the repos that actually ship an installable APK release. Forks can't be
+     * detected on GitLab (its project list doesn't flag them), so [includeForks] has no effect there.
+     * Paged, with a bounded page count. Never throws.
+     */
+    suspend fun listAccountRepos(
+        provider: SourceProvider,
+        host: String,
+        owner: String,
+        includeForks: Boolean,
+    ): List<RepoRef> = withContext(Dispatchers.IO) {
+        runCatching {
+            when (provider) {
+                SourceProvider.GITHUB -> pagedAccountRepos { page ->
+                    val text = getText(
+                        url = "https://api.github.com/users/$owner/repos" +
+                            "?per_page=100&page=$page&type=owner&sort=pushed",
+                        github = true,
+                    ) ?: return@pagedAccountRepos PageResult(emptyList(), 0)
+                    giteaPage(text, owner, includeForks)
+                }
+
+                SourceProvider.CODEBERG -> pagedAccountRepos { page ->
+                    val text = getText(
+                        url = "https://$host/api/v1/users/$owner/repos?limit=50&page=$page",
+                    ) ?: return@pagedAccountRepos PageResult(emptyList(), 0)
+                    giteaPage(text, owner, includeForks)
+                }
+
+                SourceProvider.GITLAB -> {
+                    // A GitLab account name can be a user or a group; try user projects first, then group
+                    // projects (including subgroups) when that yields nothing.
+                    val user = pagedAccountRepos { page ->
+                        gitlabProjects("https://$host/api/v4/users/$owner/projects?per_page=100&page=$page")
+                    }
+                    user.ifEmpty {
+                        pagedAccountRepos { page ->
+                            gitlabProjects(
+                                "https://$host/api/v4/groups/$owner/projects" +
+                                    "?per_page=100&page=$page&include_subgroups=true",
+                            )
+                        }
+                    }
+                }
+            }
+        }.getOrNull().orEmpty()
+    }
+
+    /** One page of an account-repo listing: the kept refs plus the raw item count (before filtering),
+     *  so pagination can stop at the first genuinely empty page without a filtered page (all forks)
+     *  cutting it short. */
+    private data class PageResult(val refs: List<RepoRef>, val rawCount: Int)
+
+    /** Walks pages (max [ACCOUNT_REPOS_MAX_PAGES]) until a page comes back empty. */
+    private inline fun pagedAccountRepos(fetch: (page: Int) -> PageResult): List<RepoRef> {
+        val all = mutableListOf<RepoRef>()
+        for (page in 1..ACCOUNT_REPOS_MAX_PAGES) {
+            val result = fetch(page)
+            all += result.refs
+            if (result.rawCount == 0) break
+        }
+        return all
+    }
+
+    private fun giteaPage(text: String, fallbackOwner: String, includeForks: Boolean): PageResult {
+        val dtos = json.decodeFromString(ListSerializer(GiteaRepoDto.serializer()), text)
+        // Archived repos (explicitly retired by the owner) are always skipped; forks are skipped unless
+        // the user opted to include them (some publish their apps as forks of upstream projects). The
+        // release-APK check by the caller is the final filter.
+        val refs = dtos.filterNot { it.archived || (!includeForks && it.fork) }
+            .map { RepoRef(it.owner.login.ifEmpty { fallbackOwner }, it.name) }
+        return PageResult(refs, dtos.size)
+    }
+
+    private suspend fun gitlabProjects(url: String): PageResult {
+        val text = getText(url) ?: return PageResult(emptyList(), 0)
+        val dtos = runCatching {
+            json.decodeFromString(ListSerializer(GitlabProjectDto.serializer()), text)
+        }.getOrNull().orEmpty()
+        val refs = dtos.mapNotNull { project ->
+            val full = project.pathWithNamespace.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val repo = full.substringAfterLast('/')
+            val owner = full.substringBeforeLast('/', "")
+            if (owner.isBlank() || repo.isBlank()) null else RepoRef(owner, repo)
+        }
+        return PageResult(refs, dtos.size)
+    }
+
     private fun decodeRest(text: String): List<RestReleaseDto> =
         json.decodeFromString(ListSerializer(RestReleaseDto.serializer()), text)
 
@@ -410,7 +501,28 @@ class ExternalApi @Inject constructor(
     @Serializable
     private data class TreeEntry(val path: String = "", val type: String = "")
 
+    /** Minimal repo shape from the GitHub/Gitea "list account repos" endpoints. */
+    @Serializable
+    private data class GiteaRepoDto(
+        val name: String = "",
+        val fork: Boolean = false,
+        val archived: Boolean = false,
+        val owner: OwnerLoginDto = OwnerLoginDto(),
+    )
+
+    @Serializable
+    private data class OwnerLoginDto(val login: String = "")
+
+    /** Minimal project shape from the GitLab "list projects" endpoints. */
+    @Serializable
+    private data class GitlabProjectDto(
+        @SerialName("path_with_namespace") val pathWithNamespace: String = "",
+    )
+
     private companion object {
+        /** Page cap when listing an account's repos, so a huge account can't spin forever. */
+        const val ACCOUNT_REPOS_MAX_PAGES = 5
+
         /** Where an Android app's `applicationId` usually lives, most likely first. */
         val BUILD_GRADLE_PATHS = listOf(
             "app/build.gradle.kts",
@@ -430,6 +542,9 @@ class ExternalApi @Inject constructor(
 
 /** How many distinct icon candidates we keep for the picker (one per icon family, best density). */
 private const val MAX_ICON_CANDIDATES = 12
+
+/** An `owner/repo` pair returned when listing a whole account's repositories. */
+data class RepoRef(val owner: String, val repo: String)
 
 private data class ScoredIcon(val path: String, val stem: String, val variant: Int, val density: Int)
 

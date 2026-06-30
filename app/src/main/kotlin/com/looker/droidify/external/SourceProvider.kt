@@ -25,6 +25,48 @@ data class ExternalSourceRef(
     val repo: String,
 )
 
+/** A parsed reference to a whole account (a user or org), not a single repo: e.g.
+ *  `github.com/owner`. Used for the "all my apps" account source. */
+data class ExternalAccountRef(
+    val provider: SourceProvider?,
+    val host: String,
+    val owner: String,
+)
+
+/**
+ * Parses an account URL (owner only, no repo): `github.com/owner`, `https://github.com/owner`,
+ * `codeberg.org/owner`, `gitlab.com/group`, a self-hosted `git.example.org/owner`, or a bare `owner`
+ * (assumed GitHub). Returns null when no owner can be found. Only the first path segment is taken as the
+ * owner, so this is meant as a fallback after [parseExternalSource] (which handles owner/repo) fails.
+ */
+fun parseAccountSource(input: String): ExternalAccountRef? {
+    val trimmed = input.trim()
+    if (trimmed.isEmpty()) return null
+
+    val withoutScheme = trimmed.substringAfter("://", trimmed)
+    val firstSegment = withoutScheme.substringBefore('/').lowercase()
+    val hasHost = firstSegment.contains('.')
+
+    val provider: SourceProvider? = when {
+        "github.com" in firstSegment -> SourceProvider.GITHUB
+        "gitlab.com" in firstSegment -> SourceProvider.GITLAB
+        "codeberg.org" in firstSegment -> SourceProvider.CODEBERG
+        !hasHost -> SourceProvider.GITHUB
+        else -> null
+    }
+    val host = if (provider == null) firstSegment else ""
+
+    var path = if (hasHost) withoutScheme.substringAfter('/', "") else withoutScheme
+    path = path
+        .removePrefix("users/")
+        .removePrefix("orgs/")
+        .substringBefore("/-/")
+
+    val owner = path.split('/').firstOrNull { it.isNotBlank() }?.removeSuffix(".git")
+    if (owner.isNullOrBlank()) return null
+    return ExternalAccountRef(provider, host, owner)
+}
+
 /**
  * Detects the provider and `owner/repo` from the many URL forms a user might paste:
  *  - `github.com/owner/repo`, `https://github.com/owner/repo/releases`, `owner/repo` (assumed GitHub)

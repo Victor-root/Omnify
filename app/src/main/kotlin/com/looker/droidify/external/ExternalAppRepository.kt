@@ -36,14 +36,28 @@ class ExternalAppRepository @Inject constructor(
     private var isLoaded = false
     private val _apps = MutableStateFlow<List<ExternalApp>>(emptyList())
 
+    private var isAccountsLoaded = false
+    private val _accounts = MutableStateFlow<List<ExternalAccount>>(emptyList())
+
     val apps: Flow<List<ExternalApp>> = flow {
         ensureLoaded()
         emitAll(_apps)
     }
 
+    /** Tracked whole-account sources (each expands to several [apps]). */
+    val accounts: Flow<List<ExternalAccount>> = flow {
+        ensureAccountsLoaded()
+        emitAll(_accounts)
+    }
+
     suspend fun getApps(): List<ExternalApp> {
         ensureLoaded()
         return _apps.value
+    }
+
+    suspend fun getAccounts(): List<ExternalAccount> {
+        ensureAccountsLoaded()
+        return _accounts.value
     }
 
     /** Adds [app] unless an entry with the same key is already tracked. */
@@ -77,6 +91,66 @@ class ExternalAppRepository @Inject constructor(
             val updated = _apps.value.filter { it.key != key }
             saveToFile(updated)
             _apps.value = updated
+        }
+    }
+
+    /** Adds or replaces several apps in one write (used when an account discovers many repos). */
+    suspend fun upsertApps(apps: List<ExternalApp>) {
+        if (apps.isEmpty()) return
+        mutex.withLock {
+            ensureLoadedInternal()
+            val byKey = apps.associateBy { it.key }
+            val replaced = _apps.value.map { byKey[it.key] ?: it }
+            val existingKeys = _apps.value.map { it.key }.toSet()
+            val added = apps.filter { it.key !in existingKeys }
+            val updated = replaced + added
+            saveToFile(updated)
+            _apps.value = updated
+        }
+    }
+
+    /** Removes every app discovered from the account with [accountKey]. */
+    suspend fun removeAppsByAccount(accountKey: String) {
+        mutex.withLock {
+            ensureLoadedInternal()
+            val updated = _apps.value.filterNot { it.accountKey == accountKey }
+            saveToFile(updated)
+            _apps.value = updated
+        }
+    }
+
+    /** Sets the enabled flag on every app of the account with [accountKey] (cascades the toggle). */
+    suspend fun setAccountAppsEnabled(accountKey: String, enabled: Boolean) {
+        mutex.withLock {
+            ensureLoadedInternal()
+            val updated = _apps.value.map {
+                if (it.accountKey == accountKey && it.enabled != enabled) it.copy(enabled = enabled) else it
+            }
+            saveToFile(updated)
+            _apps.value = updated
+        }
+    }
+
+    /** Adds or replaces the account sharing [ExternalAccount.key]. */
+    suspend fun upsertAccount(account: ExternalAccount) {
+        mutex.withLock {
+            ensureAccountsLoadedInternal()
+            val updated = if (_accounts.value.any { it.key == account.key }) {
+                _accounts.value.map { if (it.key == account.key) account else it }
+            } else {
+                _accounts.value + account
+            }
+            saveAccountsToFile(updated)
+            _accounts.value = updated
+        }
+    }
+
+    suspend fun removeAccount(key: String) {
+        mutex.withLock {
+            ensureAccountsLoadedInternal()
+            val updated = _accounts.value.filter { it.key != key }
+            saveAccountsToFile(updated)
+            _accounts.value = updated
         }
     }
 
@@ -123,6 +197,39 @@ class ExternalAppRepository @Inject constructor(
         }
     }
 
+    private suspend fun ensureAccountsLoaded() {
+        if (!isAccountsLoaded) {
+            mutex.withLock { ensureAccountsLoadedInternal() }
+        }
+    }
+
+    private suspend fun ensureAccountsLoadedInternal() {
+        if (!isAccountsLoaded) {
+            _accounts.value = loadAccountsFromFile()
+            isAccountsLoaded = true
+        }
+    }
+
+    private suspend fun loadAccountsFromFile(): List<ExternalAccount> = withContext(Dispatchers.IO) {
+        val file = File(context.filesDir, ACCOUNTS_FILE_NAME)
+        if (!file.exists()) return@withContext emptyList()
+        try {
+            json.decodeFromString(ListSerializer(ExternalAccount.serializer()), file.readText())
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    private suspend fun saveAccountsToFile(accounts: List<ExternalAccount>) = withContext(Dispatchers.IO) {
+        try {
+            val file = File(context.filesDir, ACCOUNTS_FILE_NAME)
+            file.writeText(json.encodeToString(ListSerializer(ExternalAccount.serializer()), accounts))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     private suspend fun loadFromFile(): List<ExternalApp> = withContext(Dispatchers.IO) {
         val file = File(context.filesDir, FILE_NAME)
         // One-time migration: the feature was originally GitHub-only and stored its list in
@@ -160,5 +267,6 @@ class ExternalAppRepository @Inject constructor(
     companion object {
         private const val FILE_NAME = "external_apps.json"
         private const val LEGACY_FILE_NAME = "github_apps.json"
+        private const val ACCOUNTS_FILE_NAME = "external_accounts.json"
     }
 }

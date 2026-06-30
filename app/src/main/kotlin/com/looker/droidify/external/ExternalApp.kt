@@ -65,6 +65,10 @@ data class ExternalApp(
     /** Whether the repo has already been scanned for TV support, so it's checked at most once (mirrors
      *  [iconChecked]); lets sources added before this existed backfill [supportsTelevision] on refresh. */
     val tvChecked: Boolean = false,
+    /** [ExternalAccount.key] of the account this app was auto-discovered from (a whole-account source),
+     *  or null for a manually added single-repo source. Apps with an account are managed as one row in
+     *  the sources list (the account) instead of individually, and follow the account's enabled state. */
+    val accountKey: String? = null,
 ) {
     /** The host actually called: [host] when set, otherwise the provider's public default. */
     val effectiveHost: String
@@ -138,4 +142,10 @@ data class ExternalApp(
             installedTag != null && latestTag != null -> latestTag != installedTag
             else -> false
         }
+
+    companion object {
+        /** Key of the built-in Omnify repo source (github.com/Victor-root/Omnify). Pinned to the top of
+         *  the sources list and only toggleable (no edit/remove) since it's the app's own channel. */
+        const val OMNIFY_REPO_KEY = "GITHUB/Victor-root/Omnify"
+    }
 }

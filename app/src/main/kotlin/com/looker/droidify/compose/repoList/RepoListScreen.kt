@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.repoList
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -53,11 +54,14 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -68,6 +72,7 @@ import com.looker.droidify.compose.externalApps.AddSourceState
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.data.model.Repo
+import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -89,6 +94,7 @@ fun RepoListScreen(
     // tab. Both are backed by the same singleton repositories, so the lists stay in sync everywhere.
     val externalViewModel: ExternalAppsViewModel = hiltViewModel()
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
+    val externalAccounts by externalViewModel.accounts.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         externalViewModel.refreshInstalled()
@@ -97,12 +103,21 @@ fun RepoListScreen(
 
     var showAddChooser by rememberSaveable { mutableStateOf(false) }
     var showAddExternal by rememberSaveable { mutableStateOf(false) }
+    var showAddAccount by rememberSaveable { mutableStateOf(false) }
     var editingExternal by remember { mutableStateOf<ExternalApp?>(null) }
 
     // Each section lists its sources one after another, sorted alphabetically by display name. Now that
     // every repo has a real logo (or a letter monogram), the icons make scanning easy without grouping.
+    // Account sources show as one row each; the apps they discovered are folded into that account, so the
+    // flat list shows only standalone (single-repo) sources, with the accounts listed above them.
+    val sortedAccounts = remember(externalAccounts) {
+        externalAccounts.sortedBy { it.label.trim().lowercase() }
+    }
+    val accountAppCounts = remember(externalApps) {
+        externalApps.mapNotNull { it.accountKey }.groupingBy { it }.eachCount()
+    }
     val sortedExternalApps = remember(externalApps) {
-        externalApps.sortedBy { it.label.trim().lowercase() }
+        externalApps.filter { it.accountKey == null }.sortedBy { it.label.trim().lowercase() }
     }
     val sortedRepos = remember(repos) {
         repos.sortedBy { it.name.trim().lowercase() }
@@ -153,7 +168,7 @@ fun RepoListScreen(
             item(key = "external-header") {
                 SectionHeader(title = stringResource(R.string.tab_external))
             }
-            if (sortedExternalApps.isEmpty()) {
+            if (sortedAccounts.isEmpty() && sortedExternalApps.isEmpty()) {
                 item(key = "external-empty") {
                     Text(
                         text = stringResource(R.string.external_empty_hint),
@@ -163,7 +178,33 @@ fun RepoListScreen(
                     )
                 }
             }
-            items(sortedExternalApps, key = { "ext-${it.key}" }) { app ->
+            // The built-in Omnify repo is pinned at the very top and can only be enabled/disabled (no
+            // edit/remove, since it's the app's own update channel).
+            val omnifyApp = sortedExternalApps.firstOrNull { it.key == ExternalApp.OMNIFY_REPO_KEY }
+            if (omnifyApp != null) {
+                item(key = "ext-${omnifyApp.key}") {
+                    ExternalSourceItem(
+                        app = omnifyApp,
+                        isInstalled = omnifyApp.key in externalInstalledKeys,
+                        onToggle = { externalViewModel.setSourceEnabled(omnifyApp, !omnifyApp.enabled) },
+                        onEdit = null,
+                        onRemove = null,
+                    )
+                }
+            }
+            items(sortedAccounts, key = { "acc-${it.key}" }) { account ->
+                ExternalAccountItem(
+                    account = account,
+                    appCount = accountAppCounts[account.key] ?: 0,
+                    onToggle = { externalViewModel.setAccountEnabled(account, !account.enabled) },
+                    onRescan = { externalViewModel.rescanAccount(account) },
+                    onRemove = { externalViewModel.removeAccount(account) },
+                )
+            }
+            items(
+                sortedExternalApps.filter { it.key != ExternalApp.OMNIFY_REPO_KEY },
+                key = { "ext-${it.key}" },
+            ) { app ->
                 ExternalSourceItem(
                     app = app,
                     isInstalled = app.key in externalInstalledKeys,
@@ -196,6 +237,36 @@ fun RepoListScreen(
             onChooseExternal = {
                 showAddChooser = false
                 showAddExternal = true
+            },
+            onChooseAccount = {
+                showAddChooser = false
+                showAddAccount = true
+            },
+        )
+    }
+    if (showAddAccount) {
+        val addState by externalViewModel.addState.collectAsStateWithLifecycle()
+        LaunchedEffect(addState) {
+            if (addState == AddSourceState.SUCCESS) {
+                showAddAccount = false
+                externalViewModel.consumeAddState()
+            }
+        }
+        AddExternalAccountDialog(
+            isLoading = addState == AddSourceState.LOADING,
+            onDismiss = {
+                showAddAccount = false
+                externalViewModel.consumeAddState()
+            },
+            onAdd = { url, customName, includeForks, includePrereleases, muteUpdates, apkFilter ->
+                externalViewModel.addAccount(
+                    url = url,
+                    customName = customName,
+                    includeForks = includeForks,
+                    includePrereleases = includePrereleases,
+                    muteUpdates = muteUpdates,
+                    apkFilter = apkFilter,
+                )
             },
         )
     }
@@ -317,6 +388,28 @@ private fun MonogramAvatar(name: String) {
     }
 }
 
+/** The app's own launcher icon, rendered from the package manager (always present and correct across
+ *  Android versions). Used to brand the built-in Omnify account row. */
+@Composable
+private fun AppLauncherIcon(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val shape = MaterialTheme.shapes.large
+    val icon = remember {
+        runCatching {
+            context.packageManager.getApplicationIcon(context.packageName)
+                .toBitmap(width = 192, height = 192)
+                .asImageBitmap()
+        }.getOrNull()
+    }
+    Box(modifier = modifier.clip(shape), contentAlignment = Alignment.Center) {
+        if (icon != null) {
+            Image(bitmap = icon, contentDescription = null, modifier = Modifier.fillMaxSize())
+        } else {
+            MonogramAvatar(name = "Omnify")
+        }
+    }
+}
+
 @Composable
 private fun SectionHeader(title: String) {
     Text(
@@ -376,15 +469,16 @@ private fun RepoItem(
 }
 
 /** A tracked external source as a management row: logo, name, owner/repo, an enable/disable toggle
- *  (like a repo) and a remove button. App actions (install, launch…) intentionally live elsewhere,
- *  on the External tab — this row only manages the source. */
+ *  (like a repo) and edit/remove buttons. App actions (install, launch…) intentionally live elsewhere,
+ *  on the External tab; this row only manages the source. [onEdit]/[onRemove] are null for a pinned
+ *  built-in source (the Omnify repo), which can only be toggled. */
 @Composable
 private fun ExternalSourceItem(
     app: ExternalApp,
     isInstalled: Boolean,
     onToggle: () -> Unit,
-    onEdit: () -> Unit,
-    onRemove: () -> Unit,
+    onEdit: (() -> Unit)?,
+    onRemove: (() -> Unit)?,
 ) {
     val contentAlpha = if (app.enabled) 1f else 0.4f
     Row(
@@ -414,7 +508,7 @@ private fun ExternalSourceItem(
                 text = "${app.sourceLabel} · ${app.path}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
@@ -425,10 +519,94 @@ private fun ExternalSourceItem(
         ) {
             Icon(imageVector = Icons.Default.Check, contentDescription = null)
         }
-        IconButton(onClick = onEdit) {
+        if (onEdit != null) {
+            IconButton(onClick = onEdit) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = stringResource(R.string.external_edit_source),
+                )
+            }
+        }
+        if (onRemove != null) {
+            IconButton(onClick = onRemove) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_tabler_trash),
+                    contentDescription = stringResource(R.string.external_remove),
+                )
+            }
+        }
+    }
+}
+
+/** A whole-account source as a management row: the account avatar, its name, "provider · N apps", an
+ *  enable/disable toggle (which cascades to its apps), a rescan button (look for newly published apps)
+ *  and a remove button. The account's individual apps appear on the External tab. */
+@Composable
+private fun ExternalAccountItem(
+    account: ExternalAccount,
+    appCount: Int,
+    onToggle: () -> Unit,
+    onRescan: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val contentAlpha = if (account.enabled) 1f else 0.4f
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+    ) {
+        if (account.key == ExternalAccount.OMNIFY_KEY) {
+            // The built-in Omnify source is branded with the app's own logo so it's recognisable.
+            AppLauncherIcon(
+                modifier = Modifier
+                    .size(48.dp)
+                    .alpha(contentAlpha),
+            )
+        } else {
+            RepoIcon(
+                iconUrl = account.iconUrl,
+                fallbackUrl = null,
+                name = account.label,
+                modifier = Modifier
+                    .size(48.dp)
+                    .alpha(contentAlpha),
+            )
+        }
+        Spacer(modifier = Modifier.size(16.dp))
+        Column(
+            modifier = Modifier
+                .weight(1F)
+                .alpha(contentAlpha),
+        ) {
+            Text(text = account.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Subtitle: the app count once known; "disabled" while off (it isn't scanned until enabled);
+            // "searching…" during the first scan of a freshly-enabled account.
+            val status = when {
+                appCount > 0 -> stringResource(R.string.external_account_apps, appCount)
+                !account.enabled -> stringResource(R.string.external_account_disabled)
+                account.lastScan == 0L -> stringResource(R.string.external_account_scanning)
+                else -> stringResource(R.string.external_account_apps, 0)
+            }
+            Text(
+                text = "${account.sourceLabel} · $status",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(modifier = Modifier.size(8.dp))
+        FilledIconToggleButton(
+            checked = account.enabled,
+            onCheckedChange = { onToggle() },
+        ) {
+            Icon(imageVector = Icons.Default.Check, contentDescription = null)
+        }
+        IconButton(onClick = onRescan) {
             Icon(
-                imageVector = Icons.Default.Edit,
-                contentDescription = stringResource(R.string.external_edit_source),
+                painter = painterResource(R.drawable.ic_tabler_refresh),
+                contentDescription = stringResource(R.string.external_account_rescan),
             )
         }
         IconButton(onClick = onRemove) {
@@ -440,13 +618,14 @@ private fun ExternalSourceItem(
     }
 }
 
-/** Asks whether the new source is an F-Droid repository or an external (releases) source, explaining
- *  each so the choice is clear, then routes to the matching add flow. */
+/** Asks which kind of source to add: an F-Droid repository, a single external repo/app, or a whole
+ *  external account (all of its apps), explaining each, then routes to the matching add flow. */
 @Composable
 private fun AddSourceChooserDialog(
     onDismiss: () -> Unit,
     onChooseFdroid: () -> Unit,
     onChooseExternal: () -> Unit,
+    onChooseAccount: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -463,6 +642,12 @@ private fun AddSourceChooserDialog(
                     title = stringResource(R.string.add_source_external),
                     description = stringResource(R.string.add_source_external_desc),
                     onClick = onChooseExternal,
+                )
+                Spacer(Modifier.height(8.dp))
+                AddSourceOption(
+                    title = stringResource(R.string.add_source_account),
+                    description = stringResource(R.string.add_source_account_desc),
+                    onClick = onChooseAccount,
                 )
             }
         },
@@ -562,6 +747,94 @@ private fun AddExternalSourceDialog(
             if (!isLoading) {
                 TextButton(
                     onClick = { onAdd(url, includePrereleases, name, muteUpdates, apkFilter) },
+                    enabled = url.isNotBlank(),
+                ) {
+                    Text(stringResource(R.string.external_add))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
+
+/** Adds a whole-account source: an account URL plus the same per-source options (applied to every
+ *  discovered app) and an "include forks" toggle (some accounts publish their apps as forks). */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun AddExternalAccountDialog(
+    isLoading: Boolean,
+    onDismiss: () -> Unit,
+    onAdd: (
+        url: String,
+        customName: String,
+        includeForks: Boolean,
+        includePrereleases: Boolean,
+        muteUpdates: Boolean,
+        apkFilter: String,
+    ) -> Unit,
+) {
+    var url by rememberSaveable { mutableStateOf("") }
+    var name by rememberSaveable { mutableStateOf("") }
+    var includeForks by rememberSaveable { mutableStateOf(false) }
+    var includePrereleases by rememberSaveable { mutableStateOf(false) }
+    var muteUpdates by rememberSaveable { mutableStateOf(false) }
+    var apkFilter by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.external_add_account)) },
+        text = {
+            if (isLoading) {
+                // Discovery lists the account's repos and checks each for a release, which can take a
+                // while, so show a clear "working" state.
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    CircularWavyProgressIndicator()
+                    Text(
+                        text = stringResource(R.string.external_account_adding),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    OutlinedTextField(
+                        value = url,
+                        onValueChange = { url = it },
+                        label = { Text(stringResource(R.string.external_account_url_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    SourceOptionFields(
+                        name = name,
+                        onNameChange = { name = it },
+                        nameHint = null,
+                        includePrereleases = includePrereleases,
+                        onPrereleasesChange = { includePrereleases = it },
+                        muteUpdates = muteUpdates,
+                        onMuteChange = { muteUpdates = it },
+                        apkFilter = apkFilter,
+                        onApkFilterChange = { apkFilter = it },
+                    )
+                    CheckboxRow(
+                        checked = includeForks,
+                        onCheckedChange = { includeForks = it },
+                        label = stringResource(R.string.external_include_forks),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (!isLoading) {
+                TextButton(
+                    onClick = { onAdd(url, name, includeForks, includePrereleases, muteUpdates, apkFilter) },
                     enabled = url.isNotBlank(),
                 ) {
                     Text(stringResource(R.string.external_add))

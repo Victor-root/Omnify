@@ -13,12 +13,16 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.data.model.PackageName
+import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
+import com.looker.droidify.external.ExternalAccountRef
+import com.looker.droidify.external.RepoRef
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkVersionToken
 import com.looker.droidify.external.SourceProvider
+import com.looker.droidify.external.parseAccountSource
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.external.selectApkAsset
 import com.looker.droidify.installer.InstallManager
@@ -39,6 +43,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -54,6 +59,40 @@ class ExternalAppsViewModel @Inject constructor(
 ) : ViewModel() {
 
     val apps: StateFlow<List<ExternalApp>> = repository.apps.asStateFlow(emptyList())
+
+    /** Tracked whole-account sources (each expands to several entries in [apps]). */
+    val accounts: StateFlow<List<ExternalAccount>> = repository.accounts.asStateFlow(emptyList())
+
+    /** Account keys whose discovery is currently running, so the watcher below never launches a second
+     *  scan for the same account. */
+    private val scanningAccounts = MutableStateFlow<Set<String>>(emptySet())
+
+    init {
+        // Discover the apps of any enabled account that has never been scanned (lastScan == 0) as soon
+        // as it appears (one added/enabled by the user) without waiting for the throttled refresh, so
+        // its apps show up promptly. A manually added account is already scanned at add time; a disabled
+        // account (e.g. the opt-in account seeded on first run) is left inert until the user enables it.
+        viewModelScope.launch {
+            repository.accounts.collect { list ->
+                list.forEach { account ->
+                    if (!account.enabled ||
+                        account.lastScan != 0L ||
+                        account.key in scanningAccounts.value
+                    ) {
+                        return@forEach
+                    }
+                    scanningAccounts.update { it + account.key }
+                    launch {
+                        try {
+                            rescanAccountNow(account)
+                        } finally {
+                            scanningAccounts.update { it - account.key }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     /** Bumped to re-query the package manager (e.g. when the screen is reopened). */
     private val installedRefresh = MutableStateFlow(0)
@@ -371,6 +410,228 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Adds a whole-account source from a pasted account URL (owner only). See [addAccountSource].
+     */
+    fun addAccount(
+        url: String,
+        customName: String,
+        includeForks: Boolean,
+        includePrereleases: Boolean,
+        muteUpdates: Boolean,
+        apkFilter: String,
+    ) {
+        val ref = parseAccountSource(url)
+        if (ref == null) {
+            snack(context.getString(R.string.external_invalid_url))
+            return
+        }
+        addAccountSource(ref, customName, includeForks, includePrereleases, muteUpdates, apkFilter)
+    }
+
+    /**
+     * Adds a whole-account source: discovers the account's repos that ship an installable APK release
+     * and tracks each as its own [ExternalApp] tagged with the account, while the account itself is one
+     * row in the sources list. The dialog options ([includeForks]/[includePrereleases]/[muteUpdates]/
+     * [apkFilter]) drive the discovery and become the defaults applied to every discovered app;
+     * [label] (if any) names the account.
+     */
+    private fun addAccountSource(
+        ref: ExternalAccountRef,
+        label: String,
+        includeForks: Boolean,
+        includePrereleases: Boolean,
+        muteUpdates: Boolean,
+        apkFilter: String,
+    ) {
+        val trimmedName = label.trim()
+        addJob = viewModelScope.launch {
+            _addState.value = AddSourceState.LOADING
+            var added = false
+            try {
+                // Known public hosts carry their provider; for an unknown self-hosted host we don't have
+                // a repo to probe, so we try the Gitea/Forgejo then the GitLab account API and keep
+                // whichever lists repos.
+                val candidates = ref.provider?.let { listOf(it) }
+                    ?: listOf(SourceProvider.CODEBERG, SourceProvider.GITLAB)
+                var provider: SourceProvider? = null
+                var repos: List<RepoRef> = emptyList()
+                for (candidate in candidates) {
+                    val host = ref.host.ifEmpty { publicHost(candidate) }
+                    val listed = externalApi.listAccountRepos(candidate, host, ref.owner, includeForks)
+                    if (listed.isNotEmpty()) {
+                        provider = candidate
+                        repos = listed
+                        break
+                    }
+                }
+                if (provider == null) {
+                    val suggestToken = externalApi.shouldSuggestGithubToken()
+                    snack(
+                        message = if (suggestToken) {
+                            context.getString(R.string.external_rate_limited)
+                        } else {
+                            context.getString(R.string.external_account_no_repos, ref.owner)
+                        },
+                        long = suggestToken,
+                    )
+                    return@launch
+                }
+                val account = ExternalAccount(
+                    provider = provider,
+                    owner = ref.owner,
+                    host = ref.host,
+                    label = trimmedName.ifEmpty { ref.owner },
+                    enabled = true,
+                    includeForks = includeForks,
+                    lastScan = System.currentTimeMillis(),
+                )
+                if (accounts.value.any { it.key == account.key }) {
+                    snack(context.getString(R.string.external_account_already_added, account.label))
+                    return@launch
+                }
+                // Don't absorb a repo the user already tracks as its own single-repo source (e.g. the
+                // built-in Omnify repo): leave it standalone.
+                val standaloneKeys = apps.value.filter { it.accountKey == null }.map { it.key }.toSet()
+                val discovered = discoverAccountApps(
+                    account = account,
+                    repos = repos,
+                    skipKeys = standaloneKeys,
+                    includePrereleases = includePrereleases,
+                    muteUpdates = muteUpdates,
+                    apkFilter = apkFilter,
+                )
+                if (discovered.isEmpty()) {
+                    // Distinguish "really nothing to install" from "the API rate limit cut the per-repo
+                    // release checks short" (which would also yield nothing), so the user knows to add a
+                    // token rather than think their account has no apps.
+                    val suggestToken = externalApi.shouldSuggestGithubToken()
+                    snack(
+                        message = if (suggestToken) {
+                            context.getString(R.string.external_rate_limited)
+                        } else {
+                            context.getString(R.string.external_account_no_apps, ref.owner)
+                        },
+                        long = true,
+                    )
+                    return@launch
+                }
+                repository.upsertApps(discovered)
+                repository.upsertAccount(account)
+                snack(context.getString(R.string.external_account_added, account.label, discovered.size))
+                added = true
+            } finally {
+                _addState.value = if (added) AddSourceState.SUCCESS else AddSourceState.IDLE
+            }
+        }
+    }
+
+    /**
+     * For each repo of [account] not already tracked ([skipKeys]), keeps those that ship an installable
+     * APK release and builds an [ExternalApp] for them (with package id, icon, name and TV support read
+     * from the repo, like a single-repo source). Sequential to pace the provider's rate limit.
+     */
+    private suspend fun discoverAccountApps(
+        account: ExternalAccount,
+        repos: List<RepoRef>,
+        skipKeys: Set<String>,
+        includePrereleases: Boolean,
+        muteUpdates: Boolean,
+        apkFilter: String,
+    ): List<ExternalApp> {
+        val filter = apkFilter.trim().ifEmpty { null }
+        val result = mutableListOf<ExternalApp>()
+        for (ref in repos) {
+            val candidate = ExternalApp(
+                provider = account.provider,
+                host = account.host,
+                owner = ref.owner,
+                repo = ref.repo,
+                includePrereleases = includePrereleases,
+                muteUpdates = muteUpdates,
+                apkFilter = filter,
+                enabled = account.enabled,
+                accountKey = account.key,
+                label = ref.repo,
+            )
+            if (candidate.key in skipKeys) continue
+            val release = externalApi.latestReleaseFor(candidate) ?: continue
+            val packageId = externalApi.fetchPackageId(candidate)
+            val meta = externalApi.fetchRepoMetadata(candidate)
+            val resolvedLabel = packageId?.let { installedLabel(it) } ?: meta?.appName ?: candidate.repo
+            result += candidate.copy(
+                packageName = packageId,
+                label = resolvedLabel,
+                repoIconUrl = meta?.iconCandidates?.firstOrNull(),
+                iconChecked = meta != null,
+                supportsTelevision = meta?.supportsTelevision ?: false,
+                tvChecked = meta != null,
+                latestTag = release.tag,
+                latestApkToken = release.apkVersionToken(filter = candidate.apkFilter),
+                latestApkName = release.apkFileName(filter = candidate.apkFilter),
+            )
+        }
+        return result
+    }
+
+    /** Re-scans [account]'s repos to pick up newly published apps (existing ones are left untouched;
+     *  the normal [refresh] keeps their releases current). Updates the account's last-scan time. */
+    fun rescanAccount(account: ExternalAccount) {
+        viewModelScope.launch { rescanAccountNow(account) }
+    }
+
+    private suspend fun rescanAccountNow(account: ExternalAccount) {
+        val host = account.host.ifEmpty { publicHost(account.provider) }
+        val repos = externalApi.listAccountRepos(
+            account.provider,
+            host,
+            account.owner,
+            account.includeForks,
+        )
+        // Bump the last-scan time even when the listing fails/empties, so a transient failure doesn't make
+        // every refresh hammer the API; a real new app shows up at the next daily scan.
+        if (repos.isNotEmpty()) {
+            // Skip repos already tracked: this account's existing apps, plus any standalone single-repo
+            // source (so the account never absorbs e.g. the built-in Omnify repo).
+            val skipKeys = apps.value
+                .filter { it.accountKey == null || it.accountKey == account.key }
+                .map { it.key }
+                .toSet()
+            val discovered = discoverAccountApps(
+                account = account,
+                repos = repos,
+                skipKeys = skipKeys,
+                includePrereleases = false,
+                muteUpdates = false,
+                apkFilter = "",
+            )
+            if (discovered.isNotEmpty()) repository.upsertApps(discovered)
+        }
+        repository.upsertAccount(account.copy(lastScan = System.currentTimeMillis()))
+    }
+
+    /** Enables/disables a whole account, cascading to all of its discovered apps. */
+    fun setAccountEnabled(account: ExternalAccount, enabled: Boolean) {
+        viewModelScope.launch {
+            repository.upsertAccount(account.copy(enabled = enabled))
+            repository.setAccountAppsEnabled(account.key, enabled)
+        }
+    }
+
+    /** Removes an account source and every app it discovered. */
+    fun removeAccount(account: ExternalAccount) {
+        viewModelScope.launch {
+            repository.removeAppsByAccount(account.key)
+            repository.removeAccount(account.key)
+        }
+    }
+
+    private fun publicHost(provider: SourceProvider): String = when (provider) {
+        SourceProvider.GITHUB -> "github.com"
+        SourceProvider.GITLAB -> "gitlab.com"
+        SourceProvider.CODEBERG -> "codeberg.org"
+    }
+
     /** Downloads the latest release's APK (with live progress) and installs it. */
     fun installOrUpdate(app: ExternalApp) {
         if (_downloads.value.containsKey(app.key)) return
@@ -476,6 +737,16 @@ class ExternalAppsViewModel @Inject constructor(
                     )
                 }
             }
+            // Once a day, re-scan each enabled account for newly published apps (the apps it already
+            // found are refreshed by the per-app loop above). Disabled accounts and never-scanned ones
+            // (handled by the init watcher) are skipped, so this barely adds to the API cost.
+            accounts.value
+                .filter {
+                    it.enabled &&
+                        it.lastScan != 0L &&
+                        System.currentTimeMillis() - it.lastScan > ACCOUNT_RESCAN_INTERVAL_MS
+                }
+                .forEach { rescanAccountNow(it) }
         }
     }
 
@@ -752,3 +1023,7 @@ private const val EMIT_INTERVAL_MS = 150L
 /** Minimum gap between automatic network refreshes of external sources (they fire on every screen
  *  entry and each enabled source is one GitHub API call, so this protects the rate-limit budget). */
 private const val REFRESH_THROTTLE_MS = 10 * 60 * 1000L
+
+/** How often an account source is re-scanned for newly published apps. Listing a whole account is
+ *  several API calls, so it runs at most once a day rather than on every refresh. */
+private const val ACCOUNT_RESCAN_INTERVAL_MS = 24 * 60 * 60 * 1000L
