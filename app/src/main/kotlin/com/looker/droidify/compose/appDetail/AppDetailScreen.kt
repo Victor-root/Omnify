@@ -712,30 +712,35 @@ private fun AppDetail(
                     MaterialTheme.colorScheme.surface
                 },
             ) {
-                if (isSuggested) {
-                    Text(
-                        text = stringResource(R.string.suggested).uppercase(),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier
-                            .background(
-                                MaterialTheme.colorScheme.tertiaryContainer,
-                                shape = CircleShape,
-                            )
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                    )
-                } else if (pkg.installed) {
-                    Text(
-                        text = stringResource(R.string.installed).uppercase(),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier
-                            .background(
-                                MaterialTheme.colorScheme.secondaryContainer,
-                                shape = CircleShape,
-                            )
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                    )
+                // Both chips can apply at once (the installed version is also the suggested one), so show
+                // them side by side instead of one excluding the other.
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (isSuggested) {
+                        Text(
+                            text = stringResource(R.string.suggested).uppercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.tertiaryContainer,
+                                    shape = CircleShape,
+                                )
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        )
+                    }
+                    if (pkg.installed) {
+                        Text(
+                            text = stringResource(R.string.installed).uppercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = CircleShape,
+                                )
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        )
+                    }
                 }
             }
         }
