@@ -5,6 +5,7 @@ import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
@@ -109,6 +110,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -142,6 +144,7 @@ import com.looker.droidify.compose.theme.LocalStatusBarScrimAlpha
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -213,6 +216,23 @@ fun AppListScreen(
     // tab (e.g. a near-empty Installed list) could leave it stuck hidden with no room to scroll up.
     LaunchedEffect(selectedTab, searchExpanded, favouritesOnly) {
         scrollBehavior.state.heightOffset = 0f
+    }
+
+    // Slide the grid in when the tab changes (by swipe or by tapping a tab), so switching pages feels
+    // animated like the rest of the app instead of an instant swap. The new page starts off-screen on
+    // the side it comes from (right when moving to a later tab, left for an earlier one) and slides to
+    // place with a short fade. Only one grid is ever composed, so this can't clash with the shared
+    // scroll state the way AnimatedContent (two grids at once) would.
+    val tabSlide = remember { Animatable(0f) }
+    var gridWidthPx by remember { mutableStateOf(0) }
+    var slideFromTab by remember { mutableStateOf(selectedTab) }
+    LaunchedEffect(selectedTab) {
+        if (selectedTab != slideFromTab) {
+            val forward = selectedTab.ordinal > slideFromTab.ordinal
+            slideFromTab = selectedTab
+            tabSlide.snapTo(if (forward) 1f else -1f)
+            tabSlide.animateTo(0f, animationSpec = tween(durationMillis = 260))
+        }
     }
 
     // Status-bar icons: white while the red header sits behind the status bar, but once the header has
@@ -536,7 +556,13 @@ fun AppListScreen(
             modifier = Modifier
                 .focusRequester(contentFocusRequester)
                 .focusGroup()
-                .then(swipeModifier),
+                .then(swipeModifier)
+                .onSizeChanged { gridWidthPx = it.width }
+                .graphicsLayer {
+                    translationX = tabSlide.value * gridWidthPx
+                    // Ease the fade so it's fully opaque well before it settles, not linear with travel.
+                    alpha = 1f - (abs(tabSlide.value) * 0.6f)
+                },
         ) {
             // Installed package names, used to badge every tile that's already installed.
             val installedPackages = installedVersionNames.keys

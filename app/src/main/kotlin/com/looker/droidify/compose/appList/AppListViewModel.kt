@@ -67,8 +67,8 @@ class AppListViewModel @Inject constructor(
 
     val sortOrderFlow = settingsRepository.get { sortOrder }.asStateFlow(SortOrder.UPDATED)
 
-    /** Whether a left/right swipe on the home grid switches tab (user setting). */
-    val homeScreenSwiping = settingsRepository.get { homeScreenSwiping }.asStateFlow(true)
+    /** Whether a left/right swipe on the home grid switches tab (user setting, off by default). */
+    val homeScreenSwiping = settingsRepository.get { homeScreenSwiping }.asStateFlow(false)
 
     // Emits whenever the catalogue (apps/versions) changes — e.g. after a sync — so every list
     // below re-queries automatically instead of waiting for the user to change a filter.

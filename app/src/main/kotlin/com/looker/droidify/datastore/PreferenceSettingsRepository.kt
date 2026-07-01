@@ -266,7 +266,7 @@ class PreferenceSettingsRepository(
         val lastRbLogFetch = preferences[LAST_RB_FETCH]
         val lastModifiedDownloadStats = preferences[LAST_MODIFIED_DS]?.takeIf { it > 0L }
         val favouriteApps = preferences[FAVOURITE_APPS] ?: emptySet()
-        val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: true
+        val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: false
         val enabledRepoIds =
             preferences[ENABLED_REPO_IDS]?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
         val deleteApkOnInstall = preferences[DELETE_APK_ON_INSTALL] ?: false
