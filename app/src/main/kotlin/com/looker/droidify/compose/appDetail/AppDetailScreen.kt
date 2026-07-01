@@ -81,6 +81,7 @@ import coil3.compose.rememberAsyncImagePainter
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
 import com.looker.droidify.compose.appDetail.components.PackageItem
+import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
@@ -92,6 +93,7 @@ import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.data.model.App
+import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.FilePath
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Permission
@@ -672,11 +674,15 @@ private fun HeaderSection(
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        val iconUrl = app?.metadata?.icon?.path
-        if (!iconUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = iconUrl,
-                contentDescription = null,
+        // Reuse the list tile's icon logic so the header falls back the same way: repo icon, then the
+        // repo's generic icon.png, then the installed app's own launcher icon, then a placeholder. Repos
+        // like TwinHelix ship no icon in their index, so without the launcher-icon fallback the header
+        // showed a blank placeholder even though the list (which has this fallback) showed the real logo.
+        val minimal = app?.minimal()
+        if (minimal != null) {
+            AppMinimalIcon(
+                app = minimal,
+                isInstalled = isInstalled,
                 modifier = Modifier
                     .size(64.dp)
                     .clip(RoundedCornerShape(12.dp)),
