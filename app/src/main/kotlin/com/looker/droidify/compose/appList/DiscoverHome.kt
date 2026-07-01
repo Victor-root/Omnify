@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,6 +78,14 @@ fun DiscoverCarousel(
     // Wider tiles on TV so the larger icon (and its card) fit; the compact width stays on touch. Read
     // here in the composable body, not inside the LazyRow content (which isn't a composable scope).
     val tileWidth = if (LocalIsTelevision.current) 124.dp else 80.dp
+    val rowState = rememberLazyListState()
+    // During the first sync the catalogue fills in and re-sorts, so new apps are prepended to a
+    // carousel. A LazyRow anchors on its first visible item by key, so a prepend would keep the old
+    // first item in view and leave the row scrolled to the right ("stuck in the middle"). Snap back to
+    // the start whenever the head of the list changes, so each carousel shows its newest items from the
+    // left. Keyed on the first item only, so a user scrolling a settled carousel isn't yanked back.
+    val firstKey = apps.firstOrNull()?.appId ?: externalApps.firstOrNull()?.key
+    LaunchedEffect(firstKey) { rowState.scrollToItem(0) }
     Column(verticalArrangement = spacedBy(10.dp), modifier = modifier) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -113,6 +123,7 @@ fun DiscoverCarousel(
             }
         }
         LazyRow(
+            state = rowState,
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = spacedBy(16.dp),
         ) {
