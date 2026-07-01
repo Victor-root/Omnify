@@ -42,6 +42,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.tvDpadDownTo
@@ -626,6 +627,8 @@ fun SettingsScreen(
                     onClick = { context.openLink(DROID_IFY_URL) },
                 )
             }
+
+            item { VersionFooter() }
         }
     }
 
@@ -645,6 +648,39 @@ fun SettingsScreen(
             },
             onDismiss = { showColorPicker = false },
         )
+    }
+}
+
+/** The app version at the very bottom of the settings, as a normal settings row (icon + title +
+ *  subtitle) so it matches the rest. The subtitle carries the version and the build type
+ *  (debug/release/alpha) so it's clear which build is installed. */
+@Composable
+private fun VersionFooter() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_perm_device_information),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(28.dp),
+        )
+        Spacer(Modifier.width(20.dp))
+        Column {
+            Text(
+                text = stringResource(R.string.application_name),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                text = "${stringResource(R.string.version_FORMAT, BuildConfig.VERSION_NAME)} · " +
+                    BuildConfig.BUILD_TYPE,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

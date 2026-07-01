@@ -109,21 +109,21 @@ class MainComposeActivity : ComponentActivity() {
         // whole GitHub account as a separate, opt-in (disabled) source.
         private const val OMNIFY_SOURCE_OWNER = "Victor-root"
         private const val OMNIFY_SOURCE_REPO = "Omnify"
-        // The stable release's applicationId (the alpha/debug variants add a suffix); the source tracks
-        // the stable channel, matched against this id regardless of the running build.
-        private const val OMNIFY_PACKAGE_NAME = "com.omnify.vroot"
-        private const val KEY_OMNIFY_SEED = "omnify_seed_v2"
+        private const val KEY_OMNIFY_SEED = "omnify_seed_v3"
     }
 
     /** Omnify's own repo (github.com/Victor-root/Omnify) as the built-in update channel, active by
-     *  default. [packageName] matches the installed app so its real name/icon show right away. */
+     *  default. [packageName] is the *running* build's applicationId (BuildConfig.APPLICATION_ID), so the
+     *  source reports the version actually installed — a debug build shows its own version instead of a
+     *  stale seeded value or an unrelated stable install. [installedTag] tracks the release channel for
+     *  update detection. */
     private fun omnifyUpdateSource(): ExternalApp = ExternalApp(
         provider = SourceProvider.GITHUB,
         owner = OMNIFY_SOURCE_OWNER,
         repo = OMNIFY_SOURCE_REPO,
         label = getString(R.string.application_name),
-        packageName = OMNIFY_PACKAGE_NAME,
-        installedTag = BuildConfig.VERSION_NAME.removeSuffix(".a").removeSuffix(".d"),
+        packageName = BuildConfig.APPLICATION_ID,
+        installedTag = BuildConfig.VERSION_NAME,
         enabled = true,
     )
 
