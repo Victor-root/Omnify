@@ -47,6 +47,9 @@ interface AppDao {
         // Each entry keeps only apps that declare it as a manifest <uses-feature> on some version (e.g.
         // "android.software.leanback" for apps built for Android TV).
         featuresToInclude: List<String>? = null,
+        // Each entry keeps only apps that declare it as a manifest <uses-permission> on some version
+        // (e.g. "moe.shizuku.manager.permission.API_V23" for apps that integrate with Shizuku).
+        permissionsToInclude: List<String>? = null,
         locale: String,
     ): List<AppMinimal> = _rawQueryAppMinimal(
         searchQueryMinimal(
@@ -58,6 +61,7 @@ interface AppDao {
             antiFeaturesToInclude = antiFeaturesToInclude,
             antiFeaturesToExclude = antiFeaturesToExclude,
             featuresToInclude = featuresToInclude,
+            permissionsToInclude = permissionsToInclude,
             locale = locale,
         ),
     ).map {
@@ -154,6 +158,7 @@ interface AppDao {
         antiFeaturesToInclude: List<Tag>?,
         antiFeaturesToExclude: List<Tag>?,
         featuresToInclude: List<String>?,
+        permissionsToInclude: List<String>?,
         locale: String,
     ): SimpleSQLiteQuery {
         logQuery(
@@ -165,6 +170,7 @@ interface AppDao {
             "antiFeaturesToInclude" to antiFeaturesToInclude,
             "antiFeaturesToExclude" to antiFeaturesToExclude,
             "featuresToInclude" to featuresToInclude,
+            "permissionsToInclude" to permissionsToInclude,
             "locale" to locale,
         )
         val args = arrayListOf<Any?>()
@@ -258,6 +264,18 @@ interface AppDao {
                         " AND version.features LIKE ?)",
                 )
                 args.add("%\"$feature\"%")
+            }
+
+            // Same idea for required <uses-permission> declarations. Permissions are stored as a JSON
+            // list of objects with a "name" field, in two columns (normal + sdk23 runtime), so match the
+            // quoted permission name in either. Used for the "Shizuku" section.
+            permissionsToInclude?.forEach { permission ->
+                append(
+                    " AND EXISTS (SELECT 1 FROM version WHERE version.appId = app.id" +
+                        " AND (version.permissions LIKE ? OR version.permissionsSdk23 LIKE ?))",
+                )
+                args.add("%\"$permission\"%")
+                args.add("%\"$permission\"%")
             }
 
             if (searchQuery != null) {

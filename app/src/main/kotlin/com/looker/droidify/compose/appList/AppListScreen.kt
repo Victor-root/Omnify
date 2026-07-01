@@ -160,6 +160,7 @@ fun AppListScreen(
     val newApps by viewModel.newApps.collectAsStateWithLifecycle()
     val recentlyUpdatedApps by viewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val mostDownloadedApps by viewModel.mostDownloadedApps.collectAsStateWithLifecycle()
+    val shizukuApps by viewModel.shizukuApps.collectAsStateWithLifecycle()
     val tvApps by viewModel.tvApps.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val favouritesOnly by viewModel.favouritesOnly.collectAsStateWithLifecycle()
@@ -653,6 +654,20 @@ fun AppListScreen(
                             installedPackages = installedPackages,
                             onAppClick = openApp,
                             onSeeAll = { viewModel.openSection(SECTION_MOST_DOWNLOADED) },
+                            modifier = Modifier.padding(bottom = 8.dp),
+                        )
+                    }
+                }
+                // "Shizuku" carousel — apps that integrate with Shizuku (detected from the Shizuku
+                // permission in their manifest). Hidden when the catalogue has none.
+                if (shizukuApps.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-shizuku") {
+                        DiscoverCarousel(
+                            title = stringResource(R.string.discover_shizuku),
+                            apps = shizukuApps,
+                            installedPackages = installedPackages,
+                            onAppClick = openApp,
+                            onSeeAll = { viewModel.openSection(SECTION_SHIZUKU) },
                             modifier = Modifier.padding(bottom = 8.dp),
                         )
                     }
@@ -1382,6 +1397,7 @@ private fun sectionTitle(key: String?): String = when (key) {
     SECTION_RECENTLY_UPDATED -> stringResource(R.string.discover_recently_updated)
     SECTION_MOST_DOWNLOADED -> stringResource(R.string.discover_most_downloaded)
     SECTION_TV -> stringResource(R.string.discover_tv_apps)
+    SECTION_SHIZUKU -> stringResource(R.string.discover_shizuku)
     else -> ""
 }
 

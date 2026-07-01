@@ -273,6 +273,19 @@ class AppListViewModel @Inject constructor(
             .flowOn(Dispatchers.Default)
             .asStateFlow(emptyList())
 
+    /** "Shizuku" carousel on the Discover home — apps that declare the Shizuku permission, i.e. apps
+     *  that can use Shizuku for elevated actions without root. Empty (row hidden) when none are found. */
+    val shizukuApps: StateFlow<List<AppMinimal>> = catalogChanges
+        .mapLatest {
+            appRepository.apps(
+                sortOrder = SortOrder.UPDATED,
+                permissionsToInclude = listOf(SHIZUKU_PERMISSION),
+            ).take(DISCOVER_ROW_COUNT)
+        }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyList())
+
     /** "Made for TV" carousel — apps that declare the Android TV (leanback) launcher feature. Shown
      *  only on the TV build (the caller gates the UI too), so couch users get a row of apps that
      *  actually work with a remote. The query is skipped entirely off TV to spare the work. */
@@ -305,6 +318,10 @@ class AppListViewModel @Inject constructor(
                     SECTION_TV -> appRepository.apps(
                         sortOrder = SortOrder.UPDATED,
                         featuresToInclude = listOf(LEANBACK_FEATURE),
+                    ).take(SECTION_PAGE_LIMIT)
+                    SECTION_SHIZUKU -> appRepository.apps(
+                        sortOrder = SortOrder.UPDATED,
+                        permissionsToInclude = listOf(SHIZUKU_PERMISSION),
                     ).take(SECTION_PAGE_LIMIT)
                     else -> emptyList()
                 }
@@ -363,10 +380,14 @@ const val SECTION_WHATS_NEW = "::whats_new"
 const val SECTION_RECENTLY_UPDATED = "::recently_updated"
 const val SECTION_MOST_DOWNLOADED = "::most_downloaded"
 const val SECTION_TV = "::tv_apps"
+const val SECTION_SHIZUKU = "::shizuku"
 
 /** The manifest <uses-feature> an app declares when it ships an Android TV (leanback) launcher — our
  *  marker for "made for TV". */
 private const val LEANBACK_FEATURE = "android.software.leanback"
+
+/** The manifest <uses-permission> an app declares to talk to Shizuku — our marker for "uses Shizuku". */
+private const val SHIZUKU_PERMISSION = "moe.shizuku.manager.permission.API_V23"
 
 /** Cap on apps shown when a category is expanded inline (a quick "see more", not the whole list). */
 private const val SECTION_EXPAND_LIMIT = 40
