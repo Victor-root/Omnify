@@ -194,10 +194,17 @@ fun AppListScreen(
     BackHandler(enabled = favouritesOnly && !searchExpanded && !sectionView) {
         viewModel.toggleFavouritesOnly()
     }
-    // Entering or leaving a section page swaps the whole list, so start it at the top.
+    // Entering or leaving a section page swaps the whole list, so start it at the top. Compare against
+    // the last section we handled (saveable) rather than firing on every composition: returning from an
+    // app detail re-enters composition with the same section, and we must not snap the restored scroll
+    // position back to the top then.
+    var lastHandledSection by rememberSaveable { mutableStateOf(openedSection) }
     LaunchedEffect(openedSection) {
-        gridState.scrollToItem(0)
-        scrollBehavior.state.heightOffset = 0f
+        if (openedSection != lastHandledSection) {
+            lastHandledSection = openedSection
+            gridState.scrollToItem(0)
+            scrollBehavior.state.heightOffset = 0f
+        }
     }
     // Switching tab or opening search must reveal the collapsed header again — otherwise a short
     // tab (e.g. a near-empty Installed list) could leave it stuck hidden with no room to scroll up.
@@ -250,7 +257,9 @@ fun AppListScreen(
     // the Explore tab opens already scrolled down. Pin it to the top while the sections stream in,
     // and stop the moment the user actually scrolls (a real drag/fling sets isScrollInProgress; the
     // programmatic scrollToItem below does not, so this never fights the user).
-    var userScrolled by remember { mutableStateOf(false) }
+    // Saveable so it survives navigating to an app and back: otherwise it reset to false on return and
+    // this effect re-fired, snapping the restored scroll position back to the top.
+    var userScrolled by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.isScrollInProgress }
             .collect { scrolling -> if (scrolling) userScrolled = true }
