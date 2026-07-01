@@ -26,6 +26,7 @@ import com.looker.droidify.external.parseAccountSource
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.external.selectApkAsset
 import com.looker.droidify.installer.InstallManager
+import com.looker.droidify.installer.installers.shizuku.ShizukuState
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.datastore.SettingsRepository
@@ -843,6 +844,12 @@ class ExternalAppsViewModel @Inject constructor(
     }
 
     private suspend fun downloadAndInstall(app: ExternalApp) {
+        // Fail fast before downloading: if the Shizuku installer is selected but not usable, tell the
+        // user why instead of downloading an APK that could never be installed.
+        ShizukuState.installBlockReason(context, settingsRepository.getInitial().installerType)?.let {
+            snack(context.getString(it))
+            return
+        }
         updateDownload(app.key, DownloadStatus(read = 0, total = -1, bytesPerSecond = 0))
         try {
             val release = externalApi.latestReleaseFor(app)

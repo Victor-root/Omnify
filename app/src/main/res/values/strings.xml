@@ -154,6 +154,8 @@
     <string name="shizuku_legacy_installer">Shizuku/Sui legacy installer</string>
     <string name="shizuku_not_alive">Shizuku/Sui isn\'t running</string>
     <string name="shizuku_not_installed">Shizuku/Sui isn\'t installed</string>
+    <string name="shizuku_not_running">Shizuku isn\'t running — start it, then retry</string>
+    <string name="shizuku_permission_needed">Allow Omnify in Shizuku, then retry</string>
     <string name="installed">Installed</string>
     <string name="installing">Installing</string>
     <string name="installation_failed">Installation failed</string>

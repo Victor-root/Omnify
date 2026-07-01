@@ -1,6 +1,11 @@
 package com.looker.droidify.installer.installers.shizuku
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.widget.Toast
+import com.looker.droidify.R
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.installer.installers.Installer
 import com.looker.droidify.installer.installers.uninstallPackage
@@ -9,6 +14,7 @@ import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.size
+import com.looker.droidify.utility.common.log
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.BufferedReader
 import java.io.InputStream
@@ -18,6 +24,35 @@ class ShizukuInstaller(private val context: Context) : Installer {
 
     companion object {
         private val SESSION_ID_REGEX = Regex("(?<=\\[).+?(?=])")
+        private const val TAG = "ShizukuInstaller"
+    }
+
+    private fun toast(resId: Int) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(context, context.getString(resId), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /**
+     * Safety net: Shizuku must be running and have granted Omnify permission, otherwise
+     * Shizuku.newProcess() throws immediately. The install flows already check this before downloading
+     * (see [ShizukuState.installBlockReason]); this re-check covers Shizuku dying between that check and
+     * the actual install, and shows the same short message. Returns false when it isn't usable.
+     */
+    private fun shizukuReady(): Boolean {
+        val readiness = ShizukuState.readiness(context)
+        if (readiness == ShizukuState.Readiness.READY) return true
+        log("Shizuku not ready: $readiness", TAG, Log.WARN)
+        when (readiness) {
+            ShizukuState.Readiness.NOT_INSTALLED -> toast(R.string.shizuku_not_installed)
+            ShizukuState.Readiness.NOT_RUNNING -> toast(R.string.shizuku_not_running)
+            ShizukuState.Readiness.NO_PERMISSION -> {
+                ShizukuState.requestPermission()
+                toast(R.string.shizuku_permission_needed)
+            }
+            ShizukuState.Readiness.READY -> Unit
+        }
+        return false
     }
 
     /**
@@ -32,6 +67,10 @@ class ShizukuInstaller(private val context: Context) : Installer {
         installItem: InstallItem,
     ): InstallState = suspendCancellableCoroutine { cont ->
         cont.invokeOnCancellation { runCatching { runningProcess?.destroy() } }
+        if (!shizukuReady()) {
+            cont.resume(InstallState.Failed)
+            return@suspendCancellableCoroutine
+        }
         var sessionId: String? = null
         val file = Cache.getReleaseFile(context, installItem.installFileName)
         try {
@@ -77,9 +116,10 @@ class ShizukuInstaller(private val context: Context) : Installer {
                 if (cont.isCompleted) return@suspendCancellableCoroutine
                 cont.resume(InstallState.Installed)
             }
-        } catch (_: Exception) {
-            if (sessionId != null) exec("pm install-abandon $sessionId")
-            cont.resume(InstallState.Failed)
+        } catch (e: Exception) {
+            log("Install failed for ${installItem.packageName.name}: $e", TAG, Log.ERROR)
+            if (sessionId != null) runCatching { exec("pm install-abandon $sessionId") }
+            if (cont.isActive) cont.resume(InstallState.Failed)
         }
     }
 

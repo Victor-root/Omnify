@@ -27,6 +27,7 @@ import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.installer.InstallManager
+import com.looker.droidify.installer.installers.shizuku.ShizukuState
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.installer.model.installFrom
 import com.looker.droidify.network.DataSize
@@ -314,6 +315,12 @@ class AppDetailViewModel @Inject constructor(
     }
 
     private suspend fun downloadAndInstall(pkg: Package, repo: Repo) {
+        // Fail fast before downloading: if the Shizuku installer is selected but not usable, tell the
+        // user why instead of downloading an APK that could never be installed.
+        ShizukuState.installBlockReason(context, settingsRepository.getInitial().installerType)?.let {
+            toast(context.getString(it))
+            return
+        }
         // Non-null status = a download is in progress; start at 0 so the bar shows immediately.
         _downloadStatus.value = DownloadStatus(read = 0, total = -1, bytesPerSecond = 0)
         try {
