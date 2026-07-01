@@ -209,8 +209,9 @@
     <string name="password_missing">Password missing</string>
     <string name="permissions">Permissions</string>
     <string name="supported_languages">Supported languages</string>
-    <string name="language_supported_FORMAT">%s: supported</string>
+    <string name="language_supported_FORMAT">%s: translated</string>
     <string name="language_not_supported_FORMAT">%s: not translated</string>
+    <string name="language_from_store_listing">From the store listing (install to see the app\'s real languages)</string>
     <string name="plus_more_FORMAT">+%d more</string>
     <string name="processing_FORMAT">Processing %1$s…</string>
     <string name="project_website">Website</string>

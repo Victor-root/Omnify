@@ -251,14 +251,35 @@ class AppDetailViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(AppDetailState.Loading)
 
-    /** Locale codes the app is translated into (its supported languages), for the detail screen's
-     *  "supported languages" section. Empty until the app is loaded / when none. */
-    val supportedLanguages: StateFlow<List<String>> = state
-        .map { s -> (s as? AppDetailState.Success)?.app?.appId }
-        .distinctUntilChanged()
-        .map { appId -> appId?.let { appRepository.supportedLocales(it) }.orEmpty() }
-        .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyList())
+    /**
+     * Locale codes the app is translated into (its supported languages), for the detail screen's
+     * "supported languages" section. When the app is installed we read the *actual* UI languages from
+     * its APK resources (the truth: which res/values-XX it ships); that's what the user sees in the app.
+     * Otherwise we fall back to the F-Droid store-listing translations from the index — an approximation,
+     * since an app can ship a translated UI without a translated store listing (and vice versa).
+     */
+    val supportedLanguages: StateFlow<SupportedLanguages> = combine(
+        state.map { (it as? AppDetailState.Success)?.app?.appId }.distinctUntilChanged(),
+        installedInfo,
+    ) { appId, installed ->
+        val apkLocales = if (installed != null) installedApkLocales() else emptyList()
+        when {
+            // Installed: the real UI languages from the APK -> reliable, so the status can be definite.
+            apkLocales.isNotEmpty() -> SupportedLanguages(apkLocales, fromInstalledApk = true)
+            // Not installed: only the store-listing translations, which may differ from the app's UI ->
+            // present as approximate so we never wrongly claim a language isn't translated.
+            appId != null -> SupportedLanguages(appRepository.supportedLocales(appId), fromInstalledApk = false)
+            else -> SupportedLanguages(emptyList(), fromInstalledApk = false)
+        }
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(SupportedLanguages())
+
+    /** The locale codes the installed APK actually ships resources for (its real UI languages), read
+     *  from the package's AssetManager. Empty if it can't be read. */
+    private fun installedApkLocales(): List<String> = runCatching {
+        context.packageManager.getResourcesForApplication(packageName)
+            .assets.locales
+            .filter { it.isNotBlank() }
+    }.getOrDefault(emptyList())
 
     /** Launches the installed app, if it exposes a launcher activity. */
     fun launch() {
@@ -604,3 +625,13 @@ sealed interface AppDetailState {
         val packages: List<Pair<Package, Repo>>,
     ) : AppDetailState
 }
+
+/**
+ * The app's supported languages for the detail screen. [fromInstalledApk] is true when [codes] are the
+ * real UI locales read from the installed APK (reliable); false when they're the F-Droid store-listing
+ * translations (an approximation, shown only until the app is installed).
+ */
+data class SupportedLanguages(
+    val codes: List<String> = emptyList(),
+    val fromInstalledApk: Boolean = false,
+)

@@ -48,8 +48,9 @@
     <string name="ignore_this_update">Ignorer cette version</string>
     <string name="permissions">Autorisations</string>
     <string name="supported_languages">Langues prises en charge</string>
-    <string name="language_supported_FORMAT">%s : pris en charge</string>
+    <string name="language_supported_FORMAT">%s : traduit</string>
     <string name="language_not_supported_FORMAT">%s : non traduit</string>
+    <string name="language_from_store_listing">D\'après la fiche store (installez l\'app pour les vraies langues)</string>
     <string name="plus_more_FORMAT">+%d plus</string>
     <string name="settings">Paramètres</string>
     <string name="open_DESC_FORMAT">Ouvrir %s \?</string>

@@ -456,7 +456,7 @@ private fun AppDetail(
     onCancel: () -> Unit,
     onCustomButtonClick: (url: String) -> Unit,
     descriptionTranslation: DescriptionTranslation,
-    supportedLanguages: List<String>,
+    supportedLanguages: SupportedLanguages,
     primaryActionFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
@@ -659,9 +659,9 @@ private fun AppDetail(
             PermissionsSection(permissions = permissions)
         }
 
-        if (supportedLanguages.isNotEmpty()) {
+        if (supportedLanguages.codes.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
-            SupportedLanguagesSection(localeCodes = supportedLanguages)
+            SupportedLanguagesSection(languages = supportedLanguages)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -1098,15 +1098,19 @@ private fun SectionTitle(title: String, @DrawableRes iconRes: Int? = null) {
 }
 
 /**
- * Collapsible "supported languages" section: the languages the app has metadata translated into. The
- * header always states whether the phone's current language is among them ("Français: supported"); the
- * full list expands below, with the device language pinned first and ticked.
+ * Collapsible "supported languages" section. When the data is reliable (read from the installed APK)
+ * the header states whether the phone's language is translated ("Français: translated"); when it's only
+ * the store-listing approximation (app not installed) it shows a caveat instead of asserting anything,
+ * so it can't wrongly claim a language isn't translated. The full list expands below, device language
+ * first and ticked.
  */
 @Composable
-private fun SupportedLanguagesSection(localeCodes: List<String>) {
+private fun SupportedLanguagesSection(languages: SupportedLanguages) {
     var expanded by remember { mutableStateOf(false) }
     val deviceLocale = remember { Locale.getDefault() }
-    val languages = remember(localeCodes) {
+    val reliable = languages.fromInstalledApk
+    val localeCodes = languages.codes
+    val languageList = remember(localeCodes) {
         localeCodes
             .map { code ->
                 val loc = Locale.forLanguageTag(code.replace('_', '-'))
@@ -1119,7 +1123,7 @@ private fun SupportedLanguagesSection(localeCodes: List<String>) {
             .sortedWith(compareByDescending<Triple<String, String, Boolean>> { it.third }
                 .thenBy { it.second.lowercase(deviceLocale) })
     }
-    val deviceSupported = languages.any { it.third }
+    val deviceSupported = languageList.any { it.third }
     val deviceName = deviceLocale.getDisplayLanguage(deviceLocale)
         .replaceFirstChar { it.uppercase(deviceLocale) }
 
@@ -1146,31 +1150,44 @@ private fun SupportedLanguagesSection(localeCodes: List<String>) {
                     text = stringResource(R.string.supported_languages),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Text(
-                    text = stringResource(
-                        if (deviceSupported) {
-                            R.string.language_supported_FORMAT
+                if (reliable) {
+                    // Real UI languages from the installed APK: state it definitely.
+                    Text(
+                        text = stringResource(
+                            if (deviceSupported) {
+                                R.string.language_supported_FORMAT
+                            } else {
+                                R.string.language_not_supported_FORMAT
+                            },
+                            deviceName,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (deviceSupported) {
+                            MaterialTheme.colorScheme.primary
                         } else {
-                            R.string.language_not_supported_FORMAT
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        deviceName,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (deviceSupported) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
+                    )
+                } else {
+                    // Only the store listing: don't assert translated/not, just flag the approximation.
+                    Text(
+                        text = stringResource(R.string.language_from_store_listing),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Text(
-                text = languages.size.toString(),
+                text = languageList.size.toString(),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         if (expanded) {
-            languages.forEach { (_, display, isDevice) ->
+            languageList.forEach { (_, display, isDevice) ->
+                // Only highlight/tick the device language when the data is reliable (installed APK), so
+                // the store-listing approximation doesn't imply a certainty we don't have.
+                val highlight = isDevice && reliable
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1180,14 +1197,14 @@ private fun SupportedLanguagesSection(localeCodes: List<String>) {
                     Text(
                         text = display,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isDevice) {
+                        color = if (highlight) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
                         modifier = Modifier.weight(1f),
                     )
-                    if (isDevice) {
+                    if (highlight) {
                         Icon(
                             imageVector = Icons.Filled.Check,
                             contentDescription = null,
