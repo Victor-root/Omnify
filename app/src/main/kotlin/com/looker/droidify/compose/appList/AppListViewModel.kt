@@ -297,14 +297,28 @@ class AppListViewModel @Inject constructor(
      *  that can use Shizuku for elevated actions without root. Empty (row hidden) when none are found. */
     val shizukuApps: StateFlow<List<AppMinimal>> = catalogChanges
         .mapLatest {
-            appRepository.apps(
+            val apps = appRepository.apps(
                 sortOrder = SortOrder.UPDATED,
                 permissionsToInclude = listOf(SHIZUKU_PERMISSION),
-            ).take(DISCOVER_ROW_COUNT)
+            )
+            shizukuFirst(apps).take(DISCOVER_ROW_COUNT)
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
+
+    /** Puts the Shizuku app itself at the head of its own "Works with Shizuku" list, so the section
+     *  reads coherently. Shizuku defines the permission rather than requesting it, so it may not match
+     *  the filter — fetch it by package when it's missing, then prepend (deduping if already present). */
+    private suspend fun shizukuFirst(apps: List<AppMinimal>): List<AppMinimal> {
+        val shizuku = apps.firstOrNull { it.packageName.name == SHIZUKU_PACKAGE }
+            ?: appRepository.apps(
+                sortOrder = SortOrder.UPDATED,
+                searchQuery = SHIZUKU_PACKAGE,
+            ).firstOrNull { it.packageName.name == SHIZUKU_PACKAGE }
+            ?: return apps
+        return listOf(shizuku) + apps.filter { it.packageName.name != SHIZUKU_PACKAGE }
+    }
 
     /** "Made for TV" carousel — apps that declare the Android TV (leanback) launcher feature. Shown
      *  only on the TV build (the caller gates the UI too), so couch users get a row of apps that
@@ -339,9 +353,11 @@ class AppListViewModel @Inject constructor(
                         sortOrder = SortOrder.UPDATED,
                         featuresToInclude = listOf(LEANBACK_FEATURE),
                     ).take(SECTION_PAGE_LIMIT)
-                    SECTION_SHIZUKU -> appRepository.apps(
-                        sortOrder = SortOrder.UPDATED,
-                        permissionsToInclude = listOf(SHIZUKU_PERMISSION),
+                    SECTION_SHIZUKU -> shizukuFirst(
+                        appRepository.apps(
+                            sortOrder = SortOrder.UPDATED,
+                            permissionsToInclude = listOf(SHIZUKU_PERMISSION),
+                        ),
                     ).take(SECTION_PAGE_LIMIT)
                     else -> emptyList()
                 }
@@ -408,6 +424,9 @@ private const val LEANBACK_FEATURE = "android.software.leanback"
 
 /** The manifest <uses-permission> an app declares to talk to Shizuku — our marker for "uses Shizuku". */
 private const val SHIZUKU_PERMISSION = "moe.shizuku.manager.permission.API_V23"
+
+/** Shizuku's own package, pinned to the front of the "Works with Shizuku" section. */
+private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
 
 /** Cap on apps shown when a category is expanded inline (a quick "see more", not the whole list). */
 private const val SECTION_EXPAND_LIMIT = 40
