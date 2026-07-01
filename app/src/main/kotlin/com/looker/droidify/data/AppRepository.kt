@@ -78,6 +78,11 @@ class AppRepository @Inject constructor(
      *  or after a schema migration reset the database. */
     suspend fun appCount(): Int = withContext(Dispatchers.Default) { appDao.count() }
 
+    /** Locale codes the app has metadata translated into (its supported languages). */
+    suspend fun supportedLocales(appId: Long): List<String> = withContext(Dispatchers.Default) {
+        appDao.appLocales(appId.toInt())
+    }
+
     /**
      * Top apps by download count for the Discover home's "Most downloaded" carousel. Empty until the
      * download-stats worker has fetched data (or if stats are disabled), and guarded so a query

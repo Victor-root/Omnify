@@ -51,6 +51,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
@@ -248,6 +249,15 @@ class AppDetailViewModel @Inject constructor(
         // thread so opening a detail page (and the Room re-emissions during a sync) never ANRs.
         .flowOn(Dispatchers.Default)
         .asStateFlow(AppDetailState.Loading)
+
+    /** Locale codes the app is translated into (its supported languages), for the detail screen's
+     *  "supported languages" section. Empty until the app is loaded / when none. */
+    val supportedLanguages: StateFlow<List<String>> = state
+        .map { s -> (s as? AppDetailState.Success)?.app?.appId }
+        .distinctUntilChanged()
+        .map { appId -> appId?.let { appRepository.supportedLocales(it) }.orEmpty() }
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyList())
 
     /** Launches the installed app, if it exposes a launcher activity. */
     fun launch() {

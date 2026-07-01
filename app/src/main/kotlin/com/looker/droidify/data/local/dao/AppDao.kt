@@ -334,6 +334,18 @@ interface AppDao {
     )
     fun installedStream(): Flow<List<AppEntity>>
 
+    // Locales the app is translated into: any locale with a localized name, summary or description.
+    @Query(
+        """
+        SELECT DISTINCT locale FROM (
+            SELECT appId, locale FROM localized_app_name
+            UNION SELECT appId, locale FROM localized_app_summary
+            UNION SELECT appId, locale FROM localized_app_description
+        ) WHERE appId = :appId
+        """,
+    )
+    suspend fun appLocales(appId: Int): List<String>
+
     @Query("SELECT versionCode FROM version WHERE appId = :appId ORDER BY versionCode DESC LIMIT 1")
     suspend fun suggestedVersionCode(appId: Int): Long
 

@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.AlertDialog
@@ -107,6 +108,7 @@ import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import kotlinx.coroutines.delay
+import java.util.Locale
 
 /**
  * Maximum number of version rows rendered on the detail screen. The screen is a single
@@ -130,6 +132,7 @@ fun AppDetailScreen(
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
     val descriptionTranslation by viewModel.descriptionTranslation.collectAsStateWithLifecycle()
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
+    val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val successState = state as? AppDetailState.Success
     // The what's-new shown is the device-suitable release's text (falling back to the first package).
     // Translate the same text so the toggle covers the whole description area, not just summary + body.
@@ -313,6 +316,7 @@ fun AppDetailScreen(
                         }
                     },
                     descriptionTranslation = descriptionTranslation,
+                    supportedLanguages = supportedLanguages,
                     primaryActionFocusRequester = primaryActionFocusRequester,
                     modifier = Modifier.padding(padding),
                 )
@@ -449,6 +453,7 @@ private fun AppDetail(
     onCancel: () -> Unit,
     onCustomButtonClick: (url: String) -> Unit,
     descriptionTranslation: DescriptionTranslation,
+    supportedLanguages: List<String>,
     primaryActionFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
@@ -649,6 +654,11 @@ private fun AppDetail(
         if (permissions.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             PermissionsSection(permissions = permissions)
+        }
+
+        if (supportedLanguages.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            SupportedLanguagesSection(localeCodes = supportedLanguages)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -1050,6 +1060,101 @@ private fun SectionTitle(title: String) {
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     )
+}
+
+/**
+ * Collapsible "supported languages" section: the languages the app has metadata translated into. The
+ * header always states whether the phone's current language is among them ("Français: supported"); the
+ * full list expands below, with the device language pinned first and ticked.
+ */
+@Composable
+private fun SupportedLanguagesSection(localeCodes: List<String>) {
+    var expanded by remember { mutableStateOf(false) }
+    val deviceLocale = remember { Locale.getDefault() }
+    val languages = remember(localeCodes) {
+        localeCodes
+            .map { code ->
+                val loc = Locale.forLanguageTag(code.replace('_', '-'))
+                val display = loc.getDisplayName(loc)
+                    .replaceFirstChar { it.uppercase(loc) }
+                    .ifBlank { code }
+                Triple(code, display, loc.language.isNotEmpty() && loc.language == deviceLocale.language)
+            }
+            // Device language first, then alphabetical by display name.
+            .sortedWith(compareByDescending<Triple<String, String, Boolean>> { it.third }
+                .thenBy { it.second.lowercase(deviceLocale) })
+    }
+    val deviceSupported = languages.any { it.third }
+    val deviceName = deviceLocale.getDisplayLanguage(deviceLocale)
+        .replaceFirstChar { it.uppercase(deviceLocale) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .tvFocusFill(RoundedCornerShape(12.dp))
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.supported_languages),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = stringResource(
+                        if (deviceSupported) {
+                            R.string.language_supported_FORMAT
+                        } else {
+                            R.string.language_not_supported_FORMAT
+                        },
+                        deviceName,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (deviceSupported) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+            Text(
+                text = languages.size.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (expanded) {
+            languages.forEach { (_, display, isDevice) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = display,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isDevice) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (isDevice) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 private fun String.nonBlank(): String? = takeIf { it.isNotBlank() }
