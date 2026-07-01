@@ -154,7 +154,7 @@
     <string name="shizuku_legacy_installer">Shizuku/Sui legacy installer</string>
     <string name="shizuku_not_alive">Shizuku/Sui isn\'t running</string>
     <string name="shizuku_not_installed">Shizuku/Sui isn\'t installed</string>
-    <string name="shizuku_not_running">Shizuku isn\'t running — start it, then retry</string>
+    <string name="shizuku_not_running">Shizuku isn\'t running. Start it, then retry</string>
     <string name="shizuku_permission_needed">Allow Omnify in Shizuku, then retry</string>
     <string name="installed">Installed</string>
     <string name="installing">Installing</string>
@@ -270,7 +270,7 @@
     <string name="syncing">Syncing</string>
     <string name="syncing_FORMAT">Syncing %s…</string>
     <string name="fetching_repositories">Fetching application repositories…</string>
-    <string name="first_sync_hint">The first launch can take a few minutes while the catalogue downloads. Please wait — don\'t close the app.</string>
+    <string name="first_sync_hint">The first launch can take a few minutes while the catalogue downloads. Please wait, and don\'t close the app.</string>
     <string name="system">System</string>
     <string name="tap_to_install_DESC">Tap to install</string>
     <string name="tap_to_resume_updates">Open the app to resume updates</string>

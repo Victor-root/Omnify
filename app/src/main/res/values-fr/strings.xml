@@ -43,7 +43,7 @@
     <string name="invalid_address">Adresse invalide</string>
     <string name="install">Installer</string>
     <string name="install_version_FORMAT">Installer la version %s ?</string>
-    <string name="install_version_downgrade_DESC">Une version plus récente est installée. Android ne peut pas revenir en arrière sur place : il faut d\'abord désinstaller la version actuelle (tu perdras ses données). Désinstalle-la, puis retape sur cette version pour l\'installer.</string>
+    <string name="install_version_downgrade_DESC">Une version plus récente est installée. Android ne peut pas revenir en arrière sur place : il faut d\'abord désinstaller la version actuelle (vous perdrez ses données). Désinstallez-la, puis appuyez de nouveau sur cette version pour l\'installer.</string>
     <string name="ignore_all_updates">Ignorer nouvelles versions</string>
     <string name="ignore_this_update">Ignorer cette version</string>
     <string name="permissions">Autorisations</string>
@@ -238,8 +238,8 @@
     <string name="connection_error_DESC">Impossible de se connecter au serveur</string>
     <string name="shizuku_not_alive">Shizuku/Sui n\'est pas en fonction</string>
     <string name="shizuku_not_installed">Shizuku/Sui n\'est pas installé</string>
-    <string name="shizuku_not_running">Shizuku n\'est pas lancé — démarre-le puis réessaie</string>
-    <string name="shizuku_permission_needed">Autorise Omnify dans Shizuku, puis réessaie</string>
+    <string name="shizuku_not_running">Shizuku n\'est pas lancé. Lancez-le puis réessayez</string>
+    <string name="shizuku_permission_needed">Autorisez Omnify dans Shizuku, puis réessayez</string>
     <string name="contains_nsfw">Contient des contenus non adaptés pour le travail</string>
     <string name="special_credits">Crédits spéciaux</string>
     <string name="author">Auteur</string>
