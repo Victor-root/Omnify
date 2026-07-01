@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.viewinterop.AndroidView
@@ -45,6 +46,7 @@ fun ReadmeWebView(
             codeBackground = colorScheme.surfaceVariant,
             border = colorScheme.outlineVariant,
             muted = colorScheme.onSurfaceVariant,
+            isDark = colorScheme.surface.luminance() < 0.5f,
         )
     }
     AndroidView(
@@ -142,7 +144,16 @@ private fun wrapReadmeHtml(
     codeBackground: Color,
     border: Color,
     muted: Color,
-): String = """
+    isDark: Boolean,
+): String {
+    // GitHub alert (admonition) accent colours, matching github.com light/dark so the coloured left
+    // bar and title read the same as on the web.
+    val note = if (isDark) "#4493f8" else "#0969da"
+    val tip = if (isDark) "#3fb950" else "#1a7f37"
+    val important = if (isDark) "#ab7df8" else "#8250df"
+    val warning = if (isDark) "#d29922" else "#9a6700"
+    val caution = if (isDark) "#f85149" else "#cf222e"
+    return """
     <!DOCTYPE html>
     <html>
     <head>
@@ -161,16 +172,34 @@ private fun wrapReadmeHtml(
              font-family: monospace; }
       pre { background: ${codeBackground.css}; padding: 12px; border-radius: 8px; overflow-x: auto; }
       pre code { background: transparent; padding: 0; }
-      blockquote { margin: 0; padding-left: 12px; border-left: 3px solid ${border.css};
+      blockquote { margin: 0 0 16px; padding: 0 1em; border-left: .25em solid ${border.css};
                    color: ${muted.css}; }
       table { border-collapse: collapse; display: block; overflow-x: auto; }
       th, td { border: 1px solid ${border.css}; padding: 6px 10px; }
       hr { border: none; border-top: 1px solid ${border.css}; }
+      /* GitHub alerts (> [!NOTE] / [!WARNING] …): a coloured left bar and a coloured, icon-led title. */
+      .markdown-alert { padding: 8px 16px; margin-bottom: 16px; border-left: .25em solid ${border.css}; }
+      .markdown-alert > :first-child { margin-top: 0; }
+      .markdown-alert > :last-child { margin-bottom: 0; }
+      .markdown-alert .markdown-alert-title { display: flex; align-items: center;
+             font-weight: 600; line-height: 1; }
+      .markdown-alert .markdown-alert-title svg { fill: currentColor; margin-right: 8px; }
+      .markdown-alert-note { border-left-color: $note; }
+      .markdown-alert-note .markdown-alert-title { color: $note; }
+      .markdown-alert-tip { border-left-color: $tip; }
+      .markdown-alert-tip .markdown-alert-title { color: $tip; }
+      .markdown-alert-important { border-left-color: $important; }
+      .markdown-alert-important .markdown-alert-title { color: $important; }
+      .markdown-alert-warning { border-left-color: $warning; }
+      .markdown-alert-warning .markdown-alert-title { color: $warning; }
+      .markdown-alert-caution { border-left-color: $caution; }
+      .markdown-alert-caution .markdown-alert-title { color: $caution; }
     </style>
     </head>
     <body>$body</body>
     </html>
-""".trimIndent()
+    """.trimIndent()
+}
 
 /** `#RRGGBB` form for use in the WebView's inline CSS. */
 private val Color.css: String
