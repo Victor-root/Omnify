@@ -245,6 +245,7 @@
     <string name="source_code_no_longer_available">Source code no longer available</string>
     <string name="special_credits">Special credits</string>
     <string name="author">Author</string>
+    <string name="author_repo_subtitle">Omnify repository</string>
     <string name="follow_on_github">Follow on GitHub</string>
     <string name="suggested">Suggested</string>
     <string name="switch_to_default_installer">Switch to default</string>

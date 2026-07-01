@@ -591,7 +591,7 @@ fun SettingsScreen(
                 AuthorRow(
                     icon = painterResource(R.drawable.ic_person),
                     title = AUTHOR_NAME,
-                    subtitle = null,
+                    subtitle = stringResource(R.string.author_repo_subtitle),
                     onClick = { context.openLink(AUTHOR_REPO_URL) },
                 )
             }

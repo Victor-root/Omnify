@@ -235,6 +235,7 @@
     <string name="contains_nsfw">Contient des contenus non adaptés pour le travail</string>
     <string name="special_credits">Crédits spéciaux</string>
     <string name="author">Auteur</string>
+    <string name="author_repo_subtitle">Dépôt Omnify</string>
     <string name="follow_on_github">Suivre sur GitHub</string>
     <string name="home_screen_swiping">Balayage de page</string>
     <string name="home_screen_swiping_DESC">Balayer à gauche ou à droite pour changer de page</string>
