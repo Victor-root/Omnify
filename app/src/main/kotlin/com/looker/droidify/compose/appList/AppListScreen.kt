@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
@@ -101,6 +102,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -167,6 +169,7 @@ fun AppListScreen(
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val updatesCount by viewModel.updatesCount.collectAsStateWithLifecycle()
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
+    val homeScreenSwiping by viewModel.homeScreenSwiping.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
     val edgeToEdge = LocalEdgeToEdge.current
     // In edge-to-edge mode the whole header (toolbar + tabs + banner) collapses off the top on
@@ -493,6 +496,33 @@ fun AppListScreen(
         } else {
             contentPadding
         }
+        // "Page swiping" (user setting): a horizontal drag over the grid switches to the neighbouring
+        // tab. Only on touch, and only on the plain tab lists (not while searching or on a carousel
+        // "see all" page, where a horizontal drag means something else). Horizontal scrolls inside a
+        // Discover carousel are consumed by that row first, so this never fights them.
+        val canSwipeTabs = homeScreenSwiping && !isTelevision &&
+            !isSearching && !sectionView && !searchExpanded
+        val swipeModifier = if (canSwipeTabs) {
+            Modifier.pointerInput(selectedTab, canSwipeTabs) {
+                val threshold = 72.dp.toPx()
+                var totalDrag = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { totalDrag = 0f },
+                    onDragEnd = {
+                        val target = when {
+                            totalDrag <= -threshold ->
+                                AppTab.entries.getOrNull(selectedTab.ordinal + 1)
+                            totalDrag >= threshold ->
+                                AppTab.entries.getOrNull(selectedTab.ordinal - 1)
+                            else -> null
+                        }
+                        if (target != null) viewModel.selectTab(target)
+                    },
+                ) { _, dragAmount -> totalDrag += dragAmount }
+            }
+        } else {
+            Modifier
+        }
         LazyVerticalGrid(
             // A tile grid (icon + name), the same density as the Discover carousels, shared by every
             // tab so the apps look identical everywhere. Bigger cells on TV (larger icons, fewer columns)
@@ -505,7 +535,8 @@ fun AppListScreen(
             // lands on the first focusable tile, so TV users can move from the tabs into the apps.
             modifier = Modifier
                 .focusRequester(contentFocusRequester)
-                .focusGroup(),
+                .focusGroup()
+                .then(swipeModifier),
         ) {
             // Installed package names, used to badge every tile that's already installed.
             val installedPackages = installedVersionNames.keys
