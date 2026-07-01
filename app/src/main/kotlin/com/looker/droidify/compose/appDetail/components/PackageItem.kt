@@ -66,6 +66,10 @@ fun PackageItem(
                     Text(
                         text = stringResource(R.string.version_FORMAT, item.manifest.versionName).uppercase(),
                         style = MaterialTheme.typography.titleSmall,
+                        // Take only the space left after the chip (fill = false) so a very long version
+                        // name wraps instead of crushing the "suggested"/"installed" chip to one letter
+                        // per line.
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                     label()
                 }
