@@ -48,6 +48,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
@@ -163,15 +164,25 @@ class AppDetailViewModel @Inject constructor(
         .map { it[PackageName(packageName)] }
         .asStateFlow(null)
 
+    /** Bumped to force [installedInfo] to re-read the package manager — notably on screen resume, since
+     *  a system uninstall isn't always reported through [installManager]'s state alone. */
+    private val installedRefresh = MutableStateFlow(0)
+
+    fun refreshInstalled() {
+        installedRefresh.value++
+    }
+
     /**
      * The real installed version + where it was installed from, or null when not installed. Read
-     * from the package manager (re-read on any install/uninstall) so the detail screen shows what's
-     * actually on the device — e.g. a fork installed over the upstream package keeps its own version.
+     * from the package manager (re-read on any install/uninstall, and on resume via [installedRefresh])
+     * so the detail screen shows what's actually on the device — e.g. a fork installed over the upstream
+     * package keeps its own version.
      */
-    val installedInfo: StateFlow<InstalledInfo?> = installManager.state
-        .map { readInstalledInfo() }
-        .flowOn(Dispatchers.Default)
-        .asStateFlow(null)
+    val installedInfo: StateFlow<InstalledInfo?> =
+        combine(installManager.state, installedRefresh) { _, _ -> }
+            .map { readInstalledInfo() }
+            .flowOn(Dispatchers.Default)
+            .asStateFlow(null)
 
     /** Whether this app is in the user's favourites. */
     val isFavourite: StateFlow<Boolean> = settingsRepository.get { favouriteApps }
@@ -283,6 +294,13 @@ class AppDetailViewModel @Inject constructor(
             return
         }
         downloadJob = viewModelScope.launch { downloadAndInstall(target.first, target.second) }
+    }
+
+    /** Downloads and installs a specific release the user picked from the versions list (verifying its
+     *  hash), instead of the auto-selected best one. */
+    fun installVersion(pkg: Package, repo: Repo) {
+        if (_downloadStatus.value != null) return
+        downloadJob = viewModelScope.launch { downloadAndInstall(pkg, repo) }
     }
 
     private suspend fun downloadAndInstall(pkg: Package, repo: Repo) {

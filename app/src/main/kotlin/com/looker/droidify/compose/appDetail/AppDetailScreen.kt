@@ -74,6 +74,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
@@ -151,6 +153,13 @@ fun AppDetailScreen(
     }
     val uriHandler = LocalUriHandler.current
     val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
+
+    // Re-read the installed state on resume — in particular when returning from the system uninstall
+    // dialog — since installManager.state alone doesn't report a system uninstall. This is what lets the
+    // post-downgrade auto-install fire once the old version is actually gone.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshInstalled()
+    }
 
     signatureConflict?.let { conflict ->
         val conflictAppName = (state as? AppDetailState.Success)?.app?.metadata?.name
@@ -293,6 +302,7 @@ fun AppDetailScreen(
                     onToggleFavourite = viewModel::toggleFavourite,
                     onSelectRepo = viewModel::setPreferredRepo,
                     onInstallOrUpdate = viewModel::installOrUpdate,
+                    onInstallVersion = viewModel::installVersion,
                     onLaunch = viewModel::launch,
                     onUninstall = viewModel::uninstall,
                     onCancel = viewModel::cancel,
@@ -309,6 +319,40 @@ fun AppDetailScreen(
             }
         }
     }
+}
+
+/**
+ * Confirms installing a specific version the user tapped in the versions list. For a normal case it
+ * offers Install; for a downgrade (an older version while a newer one is installed) it explains Android
+ * won't replace it in place and offers to uninstall the current version first.
+ */
+@Composable
+private fun InstallVersionDialog(
+    versionName: String,
+    isDowngrade: Boolean,
+    onInstall: () -> Unit,
+    onUninstall: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.install_version_FORMAT, versionName)) },
+        text = if (isDowngrade) {
+            { Text(stringResource(R.string.install_version_downgrade_DESC)) }
+        } else {
+            null
+        },
+        confirmButton = {
+            if (isDowngrade) {
+                TextButton(onClick = onUninstall) { Text(stringResource(R.string.uninstall)) }
+            } else {
+                TextButton(onClick = onInstall) { Text(stringResource(R.string.install)) }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
 }
 
 @Composable
@@ -399,6 +443,7 @@ private fun AppDetail(
     onToggleFavourite: () -> Unit,
     onSelectRepo: (Int) -> Unit,
     onInstallOrUpdate: () -> Unit,
+    onInstallVersion: (Package, Repo) -> Unit,
     onLaunch: () -> Unit,
     onUninstall: () -> Unit,
     onCancel: () -> Unit,
@@ -408,6 +453,40 @@ private fun AppDetail(
     modifier: Modifier = Modifier,
 ) {
     val installedPackage = app.packages?.firstOrNull { it.installed }
+    // A version the user tapped in the list, awaiting confirmation to install (null = no dialog).
+    var versionToInstall by remember { mutableStateOf<Pair<Package, Repo>?>(null) }
+    // A downgrade the user confirmed: kept while the current app uninstalls, then installed automatically
+    // once it's gone — so they don't have to tap the version again after the uninstall.
+    var pendingDowngradeInstall by remember { mutableStateOf<Pair<Package, Repo>?>(null) }
+    LaunchedEffect(installedInfo, pendingDowngradeInstall) {
+        val pending = pendingDowngradeInstall ?: return@LaunchedEffect
+        // installedInfo is re-read on every install/uninstall; null means the app is now gone.
+        if (installedInfo == null) {
+            onInstallVersion(pending.first, pending.second)
+            pendingDowngradeInstall = null
+        }
+    }
+    versionToInstall?.let { (pkg, repo) ->
+        InstallVersionDialog(
+            versionName = pkg.manifest.versionName,
+            // A downgrade (older than what's installed) can't be applied in place — Android blocks it,
+            // so the app must be uninstalled first.
+            isDowngrade = installedPackage != null &&
+                pkg.manifest.versionCode < installedPackage.manifest.versionCode,
+            onInstall = {
+                onInstallVersion(pkg, repo)
+                versionToInstall = null
+            },
+            onUninstall = {
+                // Remember what to install, uninstall the current version, and the effect above installs
+                // it once the app is gone.
+                pendingDowngradeInstall = pkg to repo
+                onUninstall()
+                versionToInstall = null
+            },
+            onDismiss = { versionToInstall = null },
+        )
+    }
     // The newest release this device can actually install (device-aware; see [selectForDevice]).
     // Comparing against the raw suggested code would keep flagging an update on, say, an x86 device,
     // because VLC's suggested code belongs to its (un-installable) arm64 build.
@@ -625,7 +704,7 @@ private fun AppDetail(
             PackageItem(
                 item = pkg,
                 repo = repo,
-                onClick = {},
+                onClick = { versionToInstall = pkg to repo },
                 onLongClick = {},
                 backgroundColor = if (isSuggested) {
                     MaterialTheme.colorScheme.surfaceContainerHigh
