@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.appDetail
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -867,38 +870,43 @@ private fun LinksSection(app: App) {
     val author = app.author
     val donateUrl = app.donation?.regularUrl?.firstOrNull()
     Column(modifier = Modifier.fillMaxWidth()) {
-        SectionTitle(stringResource(R.string.links))
+        SectionTitle(stringResource(R.string.links), R.drawable.ic_tabler_link)
         links?.webSite?.nonBlank()?.let { url ->
-            LinkRow(stringResource(R.string.website), url) { open(url) }
+            LinkRow(R.drawable.ic_public, stringResource(R.string.website), url) { open(url) }
         }
         links?.sourceCode?.nonBlank()?.let { url ->
-            LinkRow(stringResource(R.string.source_code), url) { open(url) }
+            LinkRow(R.drawable.ic_source_code, stringResource(R.string.source_code), url) { open(url) }
         }
         links?.issueTracker?.nonBlank()?.let { url ->
-            LinkRow(stringResource(R.string.issue_tracker), url) { open(url) }
+            LinkRow(R.drawable.ic_bug_report, stringResource(R.string.issue_tracker), url) { open(url) }
         }
         links?.changelog?.nonBlank()?.let { url ->
-            LinkRow(stringResource(R.string.changelog), url) { open(url) }
+            LinkRow(R.drawable.ic_history, stringResource(R.string.changelog), url) { open(url) }
         }
         links?.translation?.nonBlank()?.let { url ->
-            LinkRow(stringResource(R.string.translation), url) { open(url) }
+            LinkRow(R.drawable.ic_language, stringResource(R.string.translation), url) { open(url) }
         }
         author?.web?.nonBlank()?.let { url ->
-            LinkRow(author?.name?.nonBlank() ?: stringResource(R.string.author_website), url) { open(url) }
+            LinkRow(
+                R.drawable.ic_person,
+                author?.name?.nonBlank() ?: stringResource(R.string.author_website),
+                url,
+            ) { open(url) }
         }
         donateUrl?.nonBlank()?.let { url ->
-            LinkRow(stringResource(R.string.donate), url) { open(url) }
+            LinkRow(R.drawable.ic_donate, stringResource(R.string.donate), url) { open(url) }
         }
     }
 }
 
 @Composable
 private fun LinkRow(
+    @DrawableRes iconRes: Int,
     title: String,
     url: String,
     onClick: () -> Unit,
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             // TV only: a soft green fill behind the focused row (a full-width row can't scale without
@@ -906,15 +914,25 @@ private fun LinkRow(
             .tvFocusFill(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = title, style = MaterialTheme.typography.bodyLarge)
-        Text(
-            text = url,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.primary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp),
         )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = url,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -971,7 +989,7 @@ private fun GoogleServicesBadge(modifier: Modifier = Modifier) {
 @Composable
 private fun AntiFeaturesSection(antiFeatures: List<String>) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        SectionTitle(stringResource(R.string.anti_features))
+        SectionTitle(stringResource(R.string.anti_features), R.drawable.ic_tabler_alert_triangle)
         antiFeatures.forEach { tag ->
             Row(
                 modifier = Modifier
@@ -1029,6 +1047,13 @@ private fun PermissionsSection(permissions: List<Permission>) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_perm_device_information),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = stringResource(R.string.permissions),
                 style = MaterialTheme.typography.titleMedium,
@@ -1054,12 +1079,22 @@ private fun PermissionsSection(permissions: List<Permission>) {
 }
 
 @Composable
-private fun SectionTitle(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
+private fun SectionTitle(title: String, @DrawableRes iconRes: Int? = null) {
+    Row(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (iconRes != null) {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+        }
+        Text(text = title, style = MaterialTheme.typography.titleMedium)
+    }
 }
 
 /**
@@ -1097,6 +1132,15 @@ private fun SupportedLanguagesSection(localeCodes: List<String>) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Icon(
+                // The same translate glyph as the top bar's Translate button, so the languages section
+                // reads as "translations" at a glance.
+                imageVector = Icons.Filled.Translate,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.supported_languages),
