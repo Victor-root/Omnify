@@ -3,6 +3,7 @@ package com.looker.droidify.compose.settings
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -727,16 +728,39 @@ private fun LanguageSetting(
     onLanguageSelected: (String) -> Unit,
 ) {
     val context = LocalContext.current
-    SelectionSettingItem(
-        title = stringResource(R.string.prefs_language_title),
-        icon = icon,
-        selectedValue = selectedLanguage,
-        values = localeCodesList,
-        onValueSelected = onLanguageSelected,
-        valueToString = { code ->
-            context.translateLocale(context.getLocaleOfCode(code))
-        },
-    )
+    // Android 13+ has a per-app language screen in the system settings; the app's locale is managed via
+    // AppCompat, which is backed by the framework there, so the two are the same. Open that screen
+    // instead of the in-app picker. Older versions have no such screen, so they keep the in-app picker.
+    if (SdkCheck.isTiramisu) {
+        ActionSettingItem(
+            title = stringResource(R.string.prefs_language_title),
+            description = context.translateLocale(context.getLocaleOfCode(selectedLanguage)),
+            icon = icon,
+            onClick = {
+                val uri = "package:${context.packageName}".toUri()
+                val opened = runCatching {
+                    context.startActivity(Intent(Settings.ACTION_APP_LOCALE_SETTINGS, uri))
+                }.isSuccess
+                // Fall back to the app's system settings page if the locale screen isn't available.
+                if (!opened) {
+                    runCatching {
+                        context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, uri))
+                    }
+                }
+            },
+        )
+    } else {
+        SelectionSettingItem(
+            title = stringResource(R.string.prefs_language_title),
+            icon = icon,
+            selectedValue = selectedLanguage,
+            values = localeCodesList,
+            onValueSelected = onLanguageSelected,
+            valueToString = { code ->
+                context.translateLocale(context.getLocaleOfCode(code))
+            },
+        )
+    }
 }
 
 @Composable
