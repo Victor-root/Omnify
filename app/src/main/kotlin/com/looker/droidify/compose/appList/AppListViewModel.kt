@@ -164,32 +164,52 @@ class AppListViewModel @Inject constructor(
         .asStateFlow(emptyMap())
 
     /**
-     * Apps shown for the current tab. Search / sort / category / favourites filters are already
-     * applied by [appsState]; this only narrows the list to the selected tab.
+     * The Installed tab's list, kept precomputed in the background (recomputed only when the catalogue
+     * or the installed set changes, NOT when the tab is selected). Switching to the tab then just reads
+     * this — no filtering happens on the switch, so it's instant instead of lagging while it filters.
      */
-    val displayedApps: StateFlow<List<AppMinimal>> = combine(
+    val installedApps: StateFlow<List<AppMinimal>> = combine(
         appsState,
-        _selectedTab,
+        installedInfo,
+    ) { apps, installed ->
+        apps.filter { it.packageName.name in installed.versions }
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
+
+    /** The Updates tab's list — installed apps with an available update. Precomputed like [installedApps];
+     *  also drives the tab badge ([updatesCount]) so the work is done once. */
+    val updatableApps: StateFlow<List<AppMinimal>> = combine(
+        appsState,
         installedInfo,
         suggestedVersions,
-    ) { apps, tab, installed, suggested ->
+    ) { apps, installed, suggested ->
+        apps.filter { hasUpdate(it, installed, suggested) }
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
+
+    /**
+     * Apps shown for the current tab. Search / sort / category / favourites filters are already applied
+     * by [appsState]; this only picks the precomputed list for the selected tab, so a tab switch is a
+     * cheap selection rather than a fresh filter pass.
+     */
+    val displayedApps: StateFlow<List<AppMinimal>> = combine(
+        _selectedTab,
+        appsState,
+        installedApps,
+        updatableApps,
+    ) { tab, available, installed, updatable ->
         when (tab) {
-            AppTab.AVAILABLE -> apps
-            AppTab.INSTALLED -> apps.filter { it.packageName.name in installed.versions }
-            AppTab.UPDATES -> apps.filter { hasUpdate(it, installed, suggested) }
+            AppTab.AVAILABLE -> available
+            AppTab.INSTALLED -> installed
+            AppTab.UPDATES -> updatable
             // The External tab renders its own (non-F-Droid) list, so the catalogue list is empty.
             AppTab.EXTERNAL -> emptyList()
         }
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
 
     /** Number of installed apps with an available, installable update (shown on the Updates tab). */
-    val updatesCount: StateFlow<Int> = combine(
-        appsState,
-        installedInfo,
-        suggestedVersions,
-    ) { apps, installed, suggested ->
-        apps.count { hasUpdate(it, installed, suggested) }
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(0)
+    val updatesCount: StateFlow<Int> = updatableApps
+        .map { it.size }
+        .distinctUntilChanged()
+        .asStateFlow(0)
 
     /**
      * Whether [app] has a newer catalogue version worth offering.

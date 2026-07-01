@@ -11,11 +11,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -26,6 +28,8 @@ import coil3.compose.AsyncImage
 import com.looker.droidify.R
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Square pixel size the system fallback icon is rendered at (generous so it stays crisp at any size). */
 private const val LauncherIconPx = 256
@@ -50,16 +54,21 @@ fun ExternalAppIcon(
 ) {
     val context = LocalContext.current
     val packageName = app.packageName
-    val launcherIcon = remember(packageName, isInstalled) {
-        if (isInstalled && packageName != null) {
-            runCatching {
-                // Explicit square output: toBitmap() with no size uses the drawable's intrinsic size,
-                // which renders adaptive icons inconsistently across Android versions (fine on newer
-                // phones, cropped/squished on older TV builds). A square normalises it everywhere.
-                context.packageManager.getApplicationIcon(packageName)
-                    .toBitmap(width = LauncherIconPx, height = LauncherIconPx)
-                    .asImageBitmap()
-            }.getOrNull()
+    // Loaded off the main thread (produceState + IO): reading the launcher icon inline for every tile
+    // made lists of installed apps (Installed/Updates tabs) slow to open. It resolves a frame later; the
+    // extracted/repo icon or a placeholder shows meanwhile.
+    val launcherIcon by produceState<ImageBitmap?>(null, packageName, isInstalled) {
+        value = if (isInstalled && packageName != null) {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    // Explicit square output: toBitmap() with no size uses the drawable's intrinsic size,
+                    // which renders adaptive icons inconsistently across Android versions (fine on newer
+                    // phones, cropped/squished on older TV builds). A square normalises it everywhere.
+                    context.packageManager.getApplicationIcon(packageName)
+                        .toBitmap(width = LauncherIconPx, height = LauncherIconPx)
+                        .asImageBitmap()
+                }.getOrNull()
+            }
         } else {
             null
         }
@@ -97,9 +106,11 @@ fun ExternalAppIcon(
         val imageModifier = Modifier
             .fillMaxSize()
             .then(if (isTelevision) Modifier else Modifier.clip(shape))
+        // Local copy so the null-check smart-casts (launcherIcon is a produceState delegate).
+        val launcher = launcherIcon
         when {
-            launcherIcon != null -> Image(
-                bitmap = launcherIcon,
+            launcher != null -> Image(
+                bitmap = launcher,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = imageModifier,
