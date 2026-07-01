@@ -81,14 +81,30 @@ class SyncWorker @AssistedInject constructor(
                 Result.success()
             } else {
                 Log.w(TAG, "Sync reported failure (repoId=$repoId)")
-                Result.retry()
+                retryOrGiveUp(repoId)
             }
         } catch (t: Throwable) {
             t.exceptCancellation()
             Log.e(TAG, "Sync failed with exception", t)
-            Result.retry()
+            retryOrGiveUp(repoId)
         }
     }
+
+    /**
+     * Retry a failed sync a few times, then give up with [Result.success] rather than [Result.retry].
+     * Syncs are chained under one unique work name (see [enqueueUserSync]); a work that retries forever
+     * would block every repo queued behind it, so a repo whose server is down or broken must not stall
+     * the others. Finishing "successfully" just lets the chain proceed — the repo keeps its old data and
+     * is retried by the next periodic or manual sync, not this run.
+     */
+    private fun retryOrGiveUp(repoId: Int?): Result =
+        if (runAttemptCount + 1 < MAX_SYNC_ATTEMPTS) {
+            Log.w(TAG, "Sync retry ${runAttemptCount + 1}/$MAX_SYNC_ATTEMPTS (repoId=$repoId)")
+            Result.retry()
+        } else {
+            Log.w(TAG, "Sync gave up after $MAX_SYNC_ATTEMPTS attempts (repoId=$repoId)")
+            Result.success()
+        }
 
     private fun createForegroundInfo(name: String, percent: Int): ForegroundInfo {
         val id = "sync_channel"
@@ -118,6 +134,9 @@ class SyncWorker @AssistedInject constructor(
 
     companion object {
         private const val TAG = "SyncWorker"
+        // Total tries (initial + retries) before a failing sync gives up so it can't block the ones
+        // chained behind it.
+        private const val MAX_SYNC_ATTEMPTS = 3
         private const val KEY_REPO_ID = "repo_id"
         private const val KEY_TRIGGER = "trigger"
         private const val TRIGGER_USER = "user"
@@ -140,11 +159,17 @@ class SyncWorker @AssistedInject constructor(
                 .addTag(TAG)
                 .build()
 
+            // APPEND_OR_REPLACE, not KEEP: enabling several repos in quick succession enqueues one sync
+            // each under the same unique name. KEEP dropped every sync after the first (only some repos
+            // synced, the rest needed a manual re-sync). Appending chains them so all enabled repos are
+            // synced, one after another — which also avoids decoding several large indexes at once (a
+            // memory spike on low-RAM devices). OR_REPLACE keeps the chain going even if one repo's sync
+            // ends up failing, instead of cancelling the ones queued behind it.
             WorkManager
                 .getInstance(context)
                 .enqueueUniqueWork(
                     uniqueWorkName = "$TAG.user",
-                    existingWorkPolicy = ExistingWorkPolicy.KEEP,
+                    existingWorkPolicy = ExistingWorkPolicy.APPEND_OR_REPLACE,
                     request = request,
                 )
             Log.i(TAG, "User sync enqueued (repoId=$repoId)")
