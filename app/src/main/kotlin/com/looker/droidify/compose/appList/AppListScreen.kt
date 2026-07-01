@@ -144,7 +144,6 @@ import com.looker.droidify.compose.theme.LocalStatusBarScrimAlpha
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -554,14 +553,20 @@ fun AppListScreen(
             // Focus target for the header's D-pad "down": as a focus group, requesting focus here
             // lands on the first focusable tile, so TV users can move from the tabs into the apps.
             modifier = Modifier
+                // Fill the whole content area so the swipe gesture below covers the full screen even on
+                // an empty tab. A lazy grid otherwise only takes its content's height, so on an empty
+                // tab (e.g. "Updates" with nothing to update) the swipeable area shrank to the little
+                // centred message and the rest of the screen no longer responded to the page swipe.
+                .fillMaxSize()
                 .focusRequester(contentFocusRequester)
                 .focusGroup()
                 .then(swipeModifier)
                 .onSizeChanged { gridWidthPx = it.width }
                 .graphicsLayer {
+                    // Slide only — a plain translation is a cheap GPU transform. Deliberately no alpha:
+                    // animating it here would force the whole grid into an offscreen compositing buffer
+                    // every frame, which is needlessly expensive on long lists.
                     translationX = tabSlide.value * gridWidthPx
-                    // Ease the fade so it's fully opaque well before it settles, not linear with travel.
-                    alpha = 1f - (abs(tabSlide.value) * 0.6f)
                 },
         ) {
             // Installed package names, used to badge every tile that's already installed.
