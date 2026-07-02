@@ -2,6 +2,7 @@ package com.looker.droidify.installer
 
 import android.content.Context
 import android.util.Log
+import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
@@ -45,10 +46,19 @@ import kotlin.time.Duration.Companion.minutes
 class InstallManager(
     private val context: Context,
     private val settingsRepository: SettingsRepository,
+    private val installedRepository: InstalledRepository,
 ) {
 
     private val installItems = Channel<InstallItem>()
     private val uninstallItems = Channel<PackageName>()
+
+    /**
+     * Installs waiting for their currently-installed (differently-signed) copy to be uninstalled
+     * first, keyed by package name -> release cache file. Android can't update across signers in
+     * place, so [reinstall] uninstalls the old copy and parks the new APK here; [reinstaller] installs
+     * it once the package actually disappears. Concurrent: written by callers, read by the watcher.
+     */
+    private val pendingReinstalls = ConcurrentHashMap<String, String>()
 
     /**
      * Jobs of installs that are currently being processed, keyed by package name. Used so that
@@ -76,6 +86,7 @@ class InstallManager(
         setupInstaller()
         installer()
         uninstaller()
+        reinstaller()
     }
 
     fun close() {
@@ -90,6 +101,18 @@ class InstallManager(
 
     suspend infix fun uninstall(packageName: PackageName) {
         uninstallItems.send(packageName)
+    }
+
+    /**
+     * Updates [packageName] across a signing-key change: Android can't replace a differently-signed
+     * app in place, so this uninstalls the installed copy and, once it's gone, installs [installFileName]
+     * (the already-downloaded, verified new APK). This is the same uninstall-then-reinstall the app
+     * page offers, but driven from code so a batch "update all" can carry it out without a per-app
+     * dialog of its own — the only prompt is the system's own uninstall confirmation.
+     */
+    suspend fun reinstall(packageName: PackageName, installFileName: String) {
+        pendingReinstalls[packageName.name] = installFileName
+        uninstall(packageName)
     }
 
     infix fun remove(packageName: PackageName) {
@@ -209,6 +232,24 @@ class InstallManager(
     private fun CoroutineScope.uninstaller() = launch {
         uninstallItems.consumeEach {
             installer.uninstall(it)
+        }
+    }
+
+    /**
+     * Watches the installed-apps table and, when a package parked in [pendingReinstalls] disappears
+     * (its old copy finished uninstalling), installs the new APK that was waiting for it. Removing the
+     * entry before enqueuing means a duplicate table emission can't install it twice.
+     */
+    private fun CoroutineScope.reinstaller() = launch {
+        installedRepository.getAllStream().collect { installed ->
+            if (pendingReinstalls.isEmpty()) return@collect
+            val installedNames = installed.mapTo(HashSet()) { it.packageName }
+            for (name in pendingReinstalls.keys.toList()) {
+                if (name in installedNames) continue
+                val fileName = pendingReinstalls.remove(name) ?: continue
+                log("Reinstall after uninstall: $name", LIFECYCLE_TAG, Log.INFO)
+                install(InstallItem(PackageName(name), fileName))
+            }
         }
     }
 

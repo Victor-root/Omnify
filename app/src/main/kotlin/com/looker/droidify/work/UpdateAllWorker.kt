@@ -46,10 +46,10 @@ import java.util.concurrent.TimeUnit
  * ([selectForDevice]), downloads + hash-verifies it with the shared [Downloader], and hands it to
  * [InstallManager] — which queues the installs one after another and shows a per-app notification.
  *
- * A package whose newer release is signed by a different key than the installed copy is skipped:
- * Android can't update across signers in place, and a batch update must never silently uninstall an
- * app to force it through. Those stay on the list for the user to handle from the app's own page,
- * where the uninstall-first flow is offered explicitly.
+ * A package whose newer release is signed by a different key than the installed copy can't be updated
+ * in place, so it goes through [InstallManager.reinstall]: the old copy is uninstalled (the system
+ * asks the user to confirm) and the new version installs automatically once it's gone — the same flow
+ * the app's own page offers, so a batch update isn't cut short by a signature change.
  */
 @HiltWorker
 class UpdateAllWorker @AssistedInject constructor(
@@ -88,15 +88,18 @@ class UpdateAllWorker @AssistedInject constructor(
         }
         val (pkg, repo) = target
 
-        // Skip an update that can't be applied in place (different signer): a batch update must not
-        // uninstall the existing app to force it through. It stays on the list for manual handling.
-        if (installedWithDifferentSignature(packageName, pkg)) {
-            Log.i(TAG, "Skipping $packageName: installed copy is signed by a different key")
-            return
-        }
-
+        // Download and verify first — never touch the installed app until the new APK is in hand.
         val cacheFileName = downloadAndVerify(pkg, repo) ?: return
-        installManager.install(InstallItem(PackageName(packageName), cacheFileName))
+
+        if (installedWithDifferentSignature(packageName, pkg)) {
+            // Android can't update across signers in place. Rather than skip (leaving the user to do
+            // it by hand), do the same uninstall-then-reinstall the app page offers: the system asks
+            // to confirm the uninstall, then the new version installs automatically.
+            Log.i(TAG, "Reinstalling $packageName across a signature change")
+            installManager.reinstall(PackageName(packageName), cacheFileName)
+        } else {
+            installManager.install(InstallItem(PackageName(packageName), cacheFileName))
+        }
     }
 
     /**
