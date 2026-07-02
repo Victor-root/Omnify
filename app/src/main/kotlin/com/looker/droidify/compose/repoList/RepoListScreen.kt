@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,10 +23,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconToggleButton
@@ -572,27 +576,55 @@ private fun ExternalSourceItem(
             )
         }
         Spacer(modifier = Modifier.size(8.dp))
+        // Edit / remove live in an overflow menu so the row stays narrow and the source name has room
+        // (three trailing buttons truncated it). It sits before the toggle so every toggle lines up at
+        // the far right. The pinned Omnify source has neither action, so no menu.
+        if (onEdit != null || onRemove != null) {
+            OverflowMenu { dismiss ->
+                if (onEdit != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.external_edit_source)) },
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                        onClick = { dismiss(); onEdit() },
+                    )
+                }
+                if (onRemove != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.external_remove)) },
+                        leadingIcon = {
+                            Icon(painterResource(R.drawable.ic_tabler_trash), contentDescription = null)
+                        },
+                        onClick = { dismiss(); onRemove() },
+                    )
+                }
+            }
+        }
         FilledIconToggleButton(
             checked = app.enabled,
             onCheckedChange = { onToggle() },
         ) {
             Icon(imageVector = Icons.Default.Check, contentDescription = null)
         }
-        if (onEdit != null) {
-            IconButton(onClick = onEdit) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = stringResource(R.string.external_edit_source),
-                )
-            }
+    }
+}
+
+/**
+ * A kebab (⋮) overflow button that opens a dropdown of row actions, keeping the row compact. [content]
+ * lays out the [DropdownMenuItem]s; each receives a `dismiss` lambda to close the menu before running
+ * its action (call `dismiss()` first, as the item bodies do).
+ */
+@Composable
+private fun OverflowMenu(content: @Composable ColumnScope.(dismiss: () -> Unit) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.more_options),
+            )
         }
-        if (onRemove != null) {
-            IconButton(onClick = onRemove) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_tabler_trash),
-                    contentDescription = stringResource(R.string.external_remove),
-                )
-            }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            content { expanded = false }
         }
     }
 }
@@ -656,23 +688,29 @@ private fun ExternalAccountItem(
             )
         }
         Spacer(modifier = Modifier.size(8.dp))
+        // Rescan / remove in an overflow menu, before the toggle so every toggle lines up at the far
+        // right (as for sources).
+        OverflowMenu { dismiss ->
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.external_account_rescan)) },
+                leadingIcon = {
+                    Icon(painterResource(R.drawable.ic_tabler_refresh), contentDescription = null)
+                },
+                onClick = { dismiss(); onRescan() },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.external_remove)) },
+                leadingIcon = {
+                    Icon(painterResource(R.drawable.ic_tabler_trash), contentDescription = null)
+                },
+                onClick = { dismiss(); onRemove() },
+            )
+        }
         FilledIconToggleButton(
             checked = account.enabled,
             onCheckedChange = { onToggle() },
         ) {
             Icon(imageVector = Icons.Default.Check, contentDescription = null)
-        }
-        IconButton(onClick = onRescan) {
-            Icon(
-                painter = painterResource(R.drawable.ic_tabler_refresh),
-                contentDescription = stringResource(R.string.external_account_rescan),
-            )
-        }
-        IconButton(onClick = onRemove) {
-            Icon(
-                painter = painterResource(R.drawable.ic_tabler_trash),
-                contentDescription = stringResource(R.string.external_remove),
-            )
         }
     }
 }
