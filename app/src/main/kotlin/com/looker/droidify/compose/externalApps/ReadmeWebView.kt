@@ -165,9 +165,11 @@ private fun wrapReadmeHtml(
         font-family: sans-serif; font-size: 15px; line-height: 1.6;
         overflow-wrap: break-word; word-wrap: break-word;
       }
-      /* Cap both dimensions: max-width keeps images inside the page, max-height stops a tall or
-         unsized image (e.g. a social/logo SVG with no width) from filling the whole screen. */
-      img { max-width: 100%; max-height: 320px; height: auto; width: auto; object-fit: contain; }
+      /* Cap the maximum so a large or unsized image can't fill the screen, but DON'T force width/height
+         to auto: many READMEs size their logos and badges with explicit width/height attributes (e.g.
+         a social icon set to height="24px"). Overriding those with auto blew such icons up to the
+         max-height cap. Respect the author's sizing; only clamp the upper bound. */
+      img { max-width: 100%; max-height: 280px; }
       a { color: ${link.css}; }
       h1, h2 { border-bottom: 1px solid ${border.css}; padding-bottom: .3em; }
       code { background: ${codeBackground.css}; padding: 2px 5px; border-radius: 4px;
