@@ -10,10 +10,9 @@ import kotlinx.coroutines.flow.update
  * ACTION_SEND handling in MainComposeActivity), consumed once by the sources screen to open the
  * "Add source" / "Add account" dialog pre-filled.
  *
- * A process singleton on purpose: it survives the navigation hop and an activity recreation (the
- * source screen is rebuilt several times around the add), and — crucially — it's cleared the moment
- * the screen reads it ([clear]). Driving the dialog from a persistent nav argument instead reopened
- * it every time the screen re-entered composition, which is exactly what this avoids.
+ * A process singleton: it survives the navigation hop from the activity to the sources screen, and
+ * is cleared the moment the screen reads it ([clear]) so re-reading it (recomposition, re-entry)
+ * can't re-open the dialog. A one-shot rather than a persistent nav argument, which would re-fire.
  */
 object PendingSharedSource {
 
