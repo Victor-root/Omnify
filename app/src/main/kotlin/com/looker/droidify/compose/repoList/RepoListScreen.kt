@@ -273,6 +273,7 @@ fun RepoListScreen(
     }
     if (showAddExternal) {
         val addState by externalViewModel.addState.collectAsStateWithLifecycle()
+        val addError by externalViewModel.addError.collectAsStateWithLifecycle()
         // Keep the dialog up (with a spinner) until the add actually finishes, then close on success —
         // so a slow GitHub response can't make it look like nothing happened.
         LaunchedEffect(addState) {
@@ -283,6 +284,7 @@ fun RepoListScreen(
         }
         AddExternalSourceDialog(
             isLoading = addState == AddSourceState.LOADING,
+            errorMessage = addError,
             onDismiss = {
                 showAddExternal = false
                 externalViewModel.consumeAddState()
@@ -732,6 +734,7 @@ private fun AddSourceOption(
 @Composable
 private fun AddExternalSourceDialog(
     isLoading: Boolean,
+    errorMessage: String?,
     onDismiss: () -> Unit,
     onAdd: (
         url: String,
@@ -775,8 +778,18 @@ private fun AddExternalSourceDialog(
                         onValueChange = { url = it },
                         label = { Text(stringResource(R.string.external_source_url_label)) },
                         singleLine = true,
+                        isError = errorMessage != null,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    // The failure reason shown inline (a snackbar would sit behind the dialog scrim).
+                    if (errorMessage != null) {
+                        Spacer(Modifier.size(8.dp))
+                        Text(
+                            text = errorMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                     Spacer(Modifier.size(8.dp))
                     SourceOptionFields(
                         name = name,

@@ -165,7 +165,9 @@ private fun wrapReadmeHtml(
         font-family: sans-serif; font-size: 15px; line-height: 1.6;
         overflow-wrap: break-word; word-wrap: break-word;
       }
-      img { max-width: 100%; height: auto; }
+      /* Cap both dimensions: max-width keeps images inside the page, max-height stops a tall or
+         unsized image (e.g. a social/logo SVG with no width) from filling the whole screen. */
+      img { max-width: 100%; max-height: 320px; height: auto; width: auto; object-fit: contain; }
       a { color: ${link.css}; }
       h1, h2 { border-bottom: 1px solid ${border.css}; padding-bottom: .3em; }
       code { background: ${codeBackground.css}; padding: 2px 5px; border-radius: 4px;

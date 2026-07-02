@@ -166,12 +166,18 @@ class ExternalAppsViewModel @Inject constructor(
     private val _addState = MutableStateFlow(AddSourceState.IDLE)
     val addState: StateFlow<AddSourceState> = _addState
 
+    /** Error from the last add attempt, shown *inside* the Add dialog (a snackbar would be hidden behind
+     *  the dialog's scrim). Null when there's nothing to show. */
+    private val _addError = MutableStateFlow<String?>(null)
+    val addError: StateFlow<String?> = _addError
+
     /** Acknowledge a finished add so the dialog state resets (called once the dialog has closed). If the
      *  dialog was dismissed while still adding, cancel the in-flight work so a late success can't leave a
      *  stale state that would auto-close the next dialog. */
     fun consumeAddState() {
         if (_addState.value == AddSourceState.LOADING) addJob?.cancel()
         _addState.value = AddSourceState.IDLE
+        _addError.value = null
     }
 
     private val downloadJobs = mutableMapOf<String, Job>()
@@ -340,9 +346,10 @@ class ExternalAppsViewModel @Inject constructor(
         muteUpdates: Boolean = false,
         apkFilter: String = "",
     ) {
+        _addError.value = null
         val ref = parseExternalSource(url)
         if (ref == null) {
-            snack(context.getString(R.string.external_invalid_url))
+            _addError.value = context.getString(R.string.external_invalid_url)
             return
         }
         val trimmedName = customName.trim()
@@ -357,7 +364,7 @@ class ExternalAppsViewModel @Inject constructor(
                     else -> null
                 }
                 if (provider == null) {
-                    snack(context.getString(R.string.external_unsupported_host), long = true)
+                    _addError.value = context.getString(R.string.external_unsupported_host)
                     return@launch
                 }
                 val app = ExternalApp(
@@ -372,7 +379,7 @@ class ExternalAppsViewModel @Inject constructor(
                     nameOverridden = trimmedName.isNotEmpty(),
                 )
                 if (apps.value.any { it.key == app.key }) {
-                    snack(context.getString(R.string.external_already_added, app.path))
+                    _addError.value = context.getString(R.string.external_already_added, app.path)
                     return@launch
                 }
                 withBusy(app.key) {
@@ -392,7 +399,7 @@ class ExternalAppsViewModel @Inject constructor(
                                 context.getString(R.string.external_only_prereleases, app.path)
                             else -> context.getString(R.string.external_no_release, app.path)
                         }
-                        snack(message, long = suggestToken || onlyPrereleases)
+                        _addError.value = message
                         return@withBusy
                     }
                     // Resolve the package id from the repo's build.gradle (Obtainium-style) so an app
