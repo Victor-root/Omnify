@@ -42,6 +42,7 @@ class AppRepository @Inject constructor(
         antiFeaturesToExclude: List<Tag>? = null,
         featuresToInclude: List<String>? = null,
         permissionsToInclude: List<String>? = null,
+        updatedOnly: Boolean = false,
     ): List<AppMinimal> = withContext(Dispatchers.Default) {
         val currentLocale = localeStream.first()
         appDao.query(
@@ -54,6 +55,7 @@ class AppRepository @Inject constructor(
             antiFeaturesToExclude = antiFeaturesToExclude?.ifEmpty { null },
             featuresToInclude = featuresToInclude?.ifEmpty { null },
             permissionsToInclude = permissionsToInclude?.ifEmpty { null },
+            updatedOnly = updatedOnly,
             locale = currentLocale,
         )
     }

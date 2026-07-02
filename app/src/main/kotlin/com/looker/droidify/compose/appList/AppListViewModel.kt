@@ -292,9 +292,13 @@ class AppListViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
 
-    /** "Recently updated" carousel on the Discover home. */
+    /** "Recently updated" carousel on the Discover home. Restricted to apps that have actually been
+     *  updated since they were added, so it isn't a duplicate of the "New apps" carousel (a brand-new
+     *  app has lastUpdated == added and would otherwise head both lists identically). */
     val recentlyUpdatedApps: StateFlow<List<AppMinimal>> = catalogChanges
-        .mapLatest { appRepository.apps(sortOrder = SortOrder.UPDATED).take(DISCOVER_ROW_COUNT) }
+        .mapLatest {
+            appRepository.apps(sortOrder = SortOrder.UPDATED, updatedOnly = true).take(DISCOVER_ROW_COUNT)
+        }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
@@ -363,7 +367,8 @@ class AppListViewModel @Inject constructor(
                     SECTION_WHATS_NEW ->
                         appRepository.apps(sortOrder = SortOrder.ADDED).take(SECTION_PAGE_LIMIT)
                     SECTION_RECENTLY_UPDATED ->
-                        appRepository.apps(sortOrder = SortOrder.UPDATED).take(SECTION_PAGE_LIMIT)
+                        appRepository.apps(sortOrder = SortOrder.UPDATED, updatedOnly = true)
+                            .take(SECTION_PAGE_LIMIT)
                     SECTION_MOST_DOWNLOADED -> appRepository.mostDownloadedApps(SECTION_PAGE_LIMIT)
                     SECTION_TV -> appRepository.apps(
                         sortOrder = SortOrder.UPDATED,

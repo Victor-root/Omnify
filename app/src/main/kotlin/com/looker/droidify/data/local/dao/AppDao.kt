@@ -50,6 +50,9 @@ interface AppDao {
         // Each entry keeps only apps that declare it as a manifest <uses-permission> on some version
         // (e.g. "moe.shizuku.manager.permission.API_V23" for apps that integrate with Shizuku).
         permissionsToInclude: List<String>? = null,
+        // Keep only apps updated at least once since they were added (lastUpdated > added). Used by the
+        // "Recently updated" carousel so it isn't a copy of the "New apps" one.
+        updatedOnly: Boolean = false,
         locale: String,
     ): List<AppMinimal> = _rawQueryAppMinimal(
         searchQueryMinimal(
@@ -62,6 +65,7 @@ interface AppDao {
             antiFeaturesToExclude = antiFeaturesToExclude,
             featuresToInclude = featuresToInclude,
             permissionsToInclude = permissionsToInclude,
+            updatedOnly = updatedOnly,
             locale = locale,
         ),
     ).map {
@@ -159,6 +163,7 @@ interface AppDao {
         antiFeaturesToExclude: List<Tag>?,
         featuresToInclude: List<String>?,
         permissionsToInclude: List<String>?,
+        updatedOnly: Boolean,
         locale: String,
     ): SimpleSQLiteQuery {
         logQuery(
@@ -224,6 +229,13 @@ interface AppDao {
             if (repoId != null) {
                 append(" AND app.repoId = ?")
                 args.add(repoId)
+            }
+
+            // "Recently updated" only: keep apps that have actually been updated at least once since
+            // they were first added. A brand-new app has lastUpdated == added, so without this it would
+            // top both the "new apps" and "recently updated" carousels identically — the same list twice.
+            if (updatedOnly) {
+                append(" AND app.lastUpdated > app.added")
             }
 
             if (categoriesToInclude != null) {
