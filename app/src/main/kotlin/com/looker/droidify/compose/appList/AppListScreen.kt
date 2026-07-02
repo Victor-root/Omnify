@@ -58,6 +58,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -67,6 +68,7 @@ import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -171,6 +173,7 @@ fun AppListScreen(
     val sortOrder by viewModel.sortOrderFlow.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val updatesCount by viewModel.updatesCount.collectAsStateWithLifecycle()
+    val isUpdatingAll by viewModel.isUpdatingAll.collectAsStateWithLifecycle()
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
     val homeScreenSwiping by viewModel.homeScreenSwiping.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
@@ -712,6 +715,17 @@ fun AppListScreen(
                     EmptyTabMessage(tab = selectedTab)
                 }
             }
+            // "Update all" on the Updates tab: one tap to download and install every listed catalogue
+            // update, instead of opening each app. Shown only when there are catalogue updates to apply.
+            if (selectedTab == AppTab.UPDATES && apps.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }, key = "update-all") {
+                    UpdateAllButton(
+                        count = apps.size,
+                        isUpdating = isUpdatingAll,
+                        onClick = viewModel::updateAll,
+                    )
+                }
+            }
             // The Explore tab ends at the categories accordion — no flat grid under the Discover home.
             // A flat list of app tiles appears when searching (search results) or on a carousel "see
             // all" page (the whole section). The Installed/Updates tabs use the same tiles.
@@ -980,6 +994,41 @@ private fun EmptyTabMessage(tab: AppTab) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/**
+ * Full-width "Update all" button at the top of the Updates tab. Downloads and installs every listed
+ * catalogue update in one tap. While a batch is running it shows a spinner and is disabled, so a
+ * second tap can't queue the same work twice.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun UpdateAllButton(
+    count: Int,
+    isUpdating: Boolean,
+    onClick: () -> Unit,
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = !isUpdating,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        if (isUpdating) {
+            CircularWavyProgressIndicator(modifier = Modifier.size(20.dp))
+        } else {
+            Icon(imageVector = Icons.Filled.Download, contentDescription = null)
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = if (isUpdating) {
+                stringResource(R.string.updating_all)
+            } else {
+                stringResource(R.string.update_all_FORMAT, count)
+            },
         )
     }
 }

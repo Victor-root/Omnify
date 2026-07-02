@@ -18,6 +18,7 @@ import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.work.SyncWorker
+import com.looker.droidify.work.UpdateAllWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -268,6 +269,21 @@ class AppListViewModel @Inject constructor(
 
     /** True while any sync runs (first launch, manual, repo-enable, periodic) — drives the bar. */
     val isSyncing: StateFlow<Boolean> = SyncWorker.isSyncing(context).asStateFlow(false)
+
+    /** True while a batch "update all" is downloading its apps — locks the button and shows progress. */
+    val isUpdatingAll: StateFlow<Boolean> = UpdateAllWorker.isUpdating(context).asStateFlow(false)
+
+    /**
+     * Downloads and installs every app currently listed on the Updates tab. The list is already
+     * filtered to installable updates ([updatableApps]); the worker resolves and installs each, one
+     * after another, skipping any that can't update in place (a different signer). No-op when nothing
+     * is pending or a batch is already running.
+     */
+    fun updateAll() {
+        if (isUpdatingAll.value) return
+        val packages = updatableApps.value.map { it.packageName.name }
+        UpdateAllWorker.updateAll(context, packages)
+    }
 
     /** "What's new" carousel on the Discover home — the most recently added apps. */
     val newApps: StateFlow<List<AppMinimal>> = catalogChanges

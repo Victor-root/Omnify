@@ -203,6 +203,8 @@
     <string name="prefs_personalization">Personnalisation</string>
     <string name="show_less">Afficher moins</string>
     <string name="update_all">Tout mettre à jour</string>
+    <string name="update_all_FORMAT">Tout mettre à jour (%d)</string>
+    <string name="updating_all">Mise à jour…</string>
     <string name="session_installer">Installateur de session</string>
     <string name="legacy_installer">Installateur hérité</string>
     <string name="installer">Installateur</string>
