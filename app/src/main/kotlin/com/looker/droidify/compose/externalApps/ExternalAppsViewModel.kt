@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.DescriptionTranslation
+import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApi
@@ -60,6 +61,7 @@ class ExternalAppsViewModel @Inject constructor(
     private val installManager: InstallManager,
     private val translationManager: TranslationManager,
     private val settingsRepository: SettingsRepository,
+    private val installedRepository: InstalledRepository,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -107,12 +109,18 @@ class ExternalAppsViewModel @Inject constructor(
     /** Bumped to re-query the package manager (e.g. when the screen is reopened). */
     private val installedRefresh = MutableStateFlow(0)
 
+    // Emits on any install/uninstall on the device (kept up to date by InstalledAppReceiver). Using it
+    // as a trigger makes install-state react to the authoritative package-change broadcast, so an
+    // uninstall from this very screen updates the button without a resume-timing race.
+    private val installedChanges = installedRepository.getAllStream()
+
     /** Keys of tracked apps that are currently installed on the device. */
     val installedKeys: StateFlow<Set<String>> = combine(
         repository.apps,
         installManager.state,
         installedRefresh,
-    ) { apps, _, _ ->
+        installedChanges,
+    ) { apps, _, _, _ ->
         apps.filter { app -> app.packageName?.let { isInstalled(it) } == true }
             .map { it.key }
             .toSet()
@@ -136,7 +144,8 @@ class ExternalAppsViewModel @Inject constructor(
         repository.apps,
         installManager.state,
         installedRefresh,
-    ) { apps, _, _ ->
+        installedChanges,
+    ) { apps, _, _, _ ->
         apps.mapNotNull { app ->
             val pkg = app.packageName ?: return@mapNotNull null
             val version = installedVersionName(pkg) ?: return@mapNotNull null

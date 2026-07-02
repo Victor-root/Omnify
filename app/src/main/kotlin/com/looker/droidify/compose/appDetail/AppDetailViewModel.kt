@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
+import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.App
 import com.looker.droidify.compose.components.DescriptionTranslation
@@ -69,6 +70,7 @@ class AppDetailViewModel @Inject constructor(
     private val customButtonRepository: CustomButtonRepository,
     private val settingsRepository: SettingsRepository,
     private val installManager: InstallManager,
+    private val installedRepository: InstalledRepository,
     private val downloader: Downloader,
     private val translationManager: TranslationManager,
     @param:ApplicationContext private val context: Context,
@@ -181,7 +183,14 @@ class AppDetailViewModel @Inject constructor(
      * package keeps its own version.
      */
     val installedInfo: StateFlow<InstalledInfo?> =
-        combine(installManager.state, installedRefresh) { _, _ -> }
+        combine(
+            installManager.state,
+            installedRefresh,
+            // Authoritative package-change signal for this package (kept up to date by
+            // InstalledAppReceiver), so an uninstall from this screen flips the button to Install
+            // without waiting for a resume or hitting a resume-timing race.
+            installedRepository.getStream(packageName),
+        ) { _, _, _ -> }
             .map { readInstalledInfo() }
             .flowOn(Dispatchers.Default)
             .asStateFlow(null)
