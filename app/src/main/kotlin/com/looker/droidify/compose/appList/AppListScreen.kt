@@ -163,6 +163,7 @@ fun AppListScreen(
     val recentlyUpdatedApps by viewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val mostDownloadedApps by viewModel.mostDownloadedApps.collectAsStateWithLifecycle()
     val shizukuApps by viewModel.shizukuApps.collectAsStateWithLifecycle()
+    val rootApps by viewModel.rootApps.collectAsStateWithLifecycle()
     val tvApps by viewModel.tvApps.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val favouritesOnly by viewModel.favouritesOnly.collectAsStateWithLifecycle()
@@ -671,6 +672,20 @@ fun AppListScreen(
                             installedPackages = installedPackages,
                             onAppClick = openApp,
                             onSeeAll = { viewModel.openSection(SECTION_SHIZUKU) },
+                            modifier = Modifier.padding(bottom = 8.dp),
+                        )
+                    }
+                }
+                // "For rooted devices" carousel — apps that declare the superuser permission, i.e. apps
+                // that need root. Hidden when the catalogue has none.
+                if (rootApps.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-root") {
+                        DiscoverCarousel(
+                            title = stringResource(R.string.discover_root),
+                            apps = rootApps,
+                            installedPackages = installedPackages,
+                            onAppClick = openApp,
+                            onSeeAll = { viewModel.openSection(SECTION_ROOT) },
                             modifier = Modifier.padding(bottom = 8.dp),
                         )
                     }
@@ -1447,6 +1462,7 @@ private fun sectionTitle(key: String?): String = when (key) {
     SECTION_MOST_DOWNLOADED -> stringResource(R.string.discover_most_downloaded)
     SECTION_TV -> stringResource(R.string.discover_tv_apps)
     SECTION_SHIZUKU -> stringResource(R.string.discover_shizuku)
+    SECTION_ROOT -> stringResource(R.string.discover_root)
     else -> ""
 }
 

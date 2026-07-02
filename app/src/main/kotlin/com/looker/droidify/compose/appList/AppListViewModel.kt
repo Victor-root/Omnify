@@ -327,6 +327,19 @@ class AppListViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
 
+    /** "Root" carousel on the Discover home — apps that declare the superuser permission, i.e. apps
+     *  that need (or make use of) root on a rooted device. Empty (row hidden) when none are found. */
+    val rootApps: StateFlow<List<AppMinimal>> = catalogChanges
+        .mapLatest {
+            appRepository.apps(
+                sortOrder = SortOrder.UPDATED,
+                permissionsToInclude = listOf(ROOT_PERMISSION),
+            ).take(DISCOVER_ROW_COUNT)
+        }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyList())
+
     /** Puts the Shizuku app itself at the head of its own "Works with Shizuku" list, so the section
      *  reads coherently. Shizuku defines the permission rather than requesting it, so it may not match
      *  the filter — fetch it by package when it's missing, then prepend (deduping if already present). */
@@ -379,6 +392,10 @@ class AppListViewModel @Inject constructor(
                             sortOrder = SortOrder.UPDATED,
                             permissionsToInclude = listOf(SHIZUKU_PERMISSION),
                         ),
+                    ).take(SECTION_PAGE_LIMIT)
+                    SECTION_ROOT -> appRepository.apps(
+                        sortOrder = SortOrder.UPDATED,
+                        permissionsToInclude = listOf(ROOT_PERMISSION),
                     ).take(SECTION_PAGE_LIMIT)
                     else -> emptyList()
                 }
@@ -438,6 +455,7 @@ const val SECTION_RECENTLY_UPDATED = "::recently_updated"
 const val SECTION_MOST_DOWNLOADED = "::most_downloaded"
 const val SECTION_TV = "::tv_apps"
 const val SECTION_SHIZUKU = "::shizuku"
+const val SECTION_ROOT = "::root"
 
 /** The manifest <uses-feature> an app declares when it ships an Android TV (leanback) launcher — our
  *  marker for "made for TV". */
@@ -448,6 +466,10 @@ private const val SHIZUKU_PERMISSION = "moe.shizuku.manager.permission.API_V23"
 
 /** Shizuku's own package, pinned to the front of the "Works with Shizuku" section. */
 private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
+
+/** The legacy superuser <uses-permission> apps declare when they need root — our marker for "needs
+ *  root", surfaced in the "For rooted devices" section. */
+private const val ROOT_PERMISSION = "android.permission.ACCESS_SUPERUSER"
 
 /** Cap on apps shown when a category is expanded inline (a quick "see more", not the whole list). */
 private const val SECTION_EXPAND_LIMIT = 40

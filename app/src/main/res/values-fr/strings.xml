@@ -95,6 +95,7 @@
     <string name="discover_most_downloaded">Les plus téléchargés</string>
     <string name="discover_tv_apps">Conçues pour la TV</string>
     <string name="discover_shizuku">Compatibles Shizuku</string>
+    <string name="discover_root">Pour appareils rootés</string>
     <string name="no_installed_apps">Aucune application installée</string>
     <string name="everything_up_to_date">Tout est à jour</string>
     <string name="delete_repository">Supprimer le dépôt</string>
