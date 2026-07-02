@@ -26,13 +26,11 @@ object PendingSharedSource {
 
     /** Records a freshly shared link for the sources screen to pick up. */
     fun set(url: String, isAccount: Boolean) {
-        android.util.Log.i("OmnifyShare", "PendingSharedSource.set url=$url account=$isAccount")
         _pending.value = Share(url, isAccount)
     }
 
     /** Clears the pending link once the screen has acted on it, so it can never re-trigger. */
     fun clear() {
-        android.util.Log.i("OmnifyShare", "PendingSharedSource.clear")
         _pending.update { null }
     }
 }

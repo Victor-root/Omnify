@@ -40,7 +40,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -108,18 +107,6 @@ fun RepoListScreen(
     var showAddAccount by rememberSaveable { mutableStateOf(false) }
     var editingExternal by remember { mutableStateOf<ExternalApp?>(null) }
 
-    DisposableEffect(Unit) {
-        android.util.Log.i("OmnifyShare", "RepoListScreen ENTER composition")
-        onDispose { android.util.Log.i("OmnifyShare", "RepoListScreen LEAVE composition") }
-    }
-    LaunchedEffect(showAddChooser, showAddExternal, showAddAccount, editingExternal) {
-        android.util.Log.i(
-            "OmnifyShare",
-            "dialogs chooser=$showAddChooser external=$showAddExternal " +
-                "account=$showAddAccount editing=${editingExternal != null}",
-        )
-    }
-
     // URL pre-filled into the add dialog when the screen was opened from a shared link. Held here so it
     // can seed whichever dialog we open.
     var prefillUrl by rememberSaveable { mutableStateOf("") }
@@ -129,7 +116,6 @@ fun RepoListScreen(
     val pendingShare by PendingSharedSource.pending.collectAsStateWithLifecycle()
     LaunchedEffect(pendingShare) {
         val share = pendingShare ?: return@LaunchedEffect
-        android.util.Log.i("OmnifyShare", "RepoList effect opens dialog url=${share.url} account=${share.isAccount}")
         prefillUrl = share.url
         // A whole-account link (owner only) opens the account dialog; a single repo link the source
         // dialog. The chooser is skipped: we already know which one from the URL shape.
@@ -286,7 +272,9 @@ fun RepoListScreen(
             }
         }
         AddExternalAccountDialog(
-            isLoading = addState == AddSourceState.LOADING,
+            // Treat SUCCESS as still loading, so the dialog doesn't flip back to the form for one frame
+            // before closing (see the source dialog above).
+            isLoading = addState != AddSourceState.IDLE,
             initialUrl = prefillUrl,
             onDismiss = {
                 showAddAccount = false
@@ -306,13 +294,11 @@ fun RepoListScreen(
         )
     }
     if (showAddExternal) {
-        android.util.Log.i("OmnifyShare", "showAddExternal composed (dialog visible)")
         val addState by externalViewModel.addState.collectAsStateWithLifecycle()
         val addError by externalViewModel.addError.collectAsStateWithLifecycle()
         // Keep the dialog up (with a spinner) until the add actually finishes, then close on success —
         // so a slow GitHub response can't make it look like nothing happened.
         LaunchedEffect(addState) {
-            android.util.Log.i("OmnifyShare", "showAddExternal addState=$addState")
             if (addState == AddSourceState.SUCCESS) {
                 showAddExternal = false
                 prefillUrl = ""
@@ -320,7 +306,10 @@ fun RepoListScreen(
             }
         }
         AddExternalSourceDialog(
-            isLoading = addState == AddSourceState.LOADING,
+            // Treat SUCCESS as still loading: the close runs a frame later (in the effect above), and
+            // without this the dialog would flip back from the spinner to the full form for that one
+            // frame before closing — a visible flash, most obvious with a pre-filled shared URL.
+            isLoading = addState != AddSourceState.IDLE,
             errorMessage = addError,
             initialUrl = prefillUrl,
             onDismiss = {
