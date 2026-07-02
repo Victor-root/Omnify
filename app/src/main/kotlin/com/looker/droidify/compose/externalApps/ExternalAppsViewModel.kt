@@ -372,14 +372,18 @@ class ExternalAppsViewModel @Inject constructor(
                         // A null release here is often the GitHub rate limit; if so (and no token is
                         // set) nudge the user toward adding one instead of a generic "no release".
                         val suggestToken = externalApi.shouldSuggestGithubToken()
-                        snack(
-                            message = if (suggestToken) {
-                                context.getString(R.string.external_rate_limited)
-                            } else {
-                                context.getString(R.string.external_no_release, app.path)
-                            },
-                            long = suggestToken,
-                        )
+                        // Or the repo only publishes pre-releases (e.g. ReVanced Manager): with the
+                        // option off they're all filtered out. Detect that so we can tell the user to
+                        // enable it, instead of a misleading "no app".
+                        val onlyPrereleases = !suggestToken && !includePrereleases &&
+                            externalApi.latestReleaseFor(app.copy(includePrereleases = true)) != null
+                        val message = when {
+                            suggestToken -> context.getString(R.string.external_rate_limited)
+                            onlyPrereleases ->
+                                context.getString(R.string.external_only_prereleases, app.path)
+                            else -> context.getString(R.string.external_no_release, app.path)
+                        }
+                        snack(message, long = suggestToken || onlyPrereleases)
                         return@withBusy
                     }
                     // Resolve the package id from the repo's build.gradle (Obtainium-style) so an app

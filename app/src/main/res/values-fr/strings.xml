@@ -367,6 +367,7 @@
     <string name="external_check_updates">Rechercher des mises à jour</string>
     <string name="external_source_url_label">URL du projet (GitHub, GitLab, Codeberg)</string>
     <string name="external_include_prereleases">Inclure les préversions</string>
+    <string name="external_only_prereleases">%s ne publie que des préversions. Activez « Inclure les préversions » pour l\'ajouter.</string>
     <string name="external_edit_source">Modifier le dépôt</string>
     <string name="external_custom_name">Nom personnalisé (facultatif)</string>
     <string name="external_apk_filter">Filtre d\'APK (regex, facultatif)</string>
