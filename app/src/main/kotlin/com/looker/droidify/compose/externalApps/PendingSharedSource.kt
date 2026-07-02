@@ -24,23 +24,15 @@ object PendingSharedSource {
     private val _pending = MutableStateFlow<Share?>(null)
     val pending: StateFlow<Share?> = _pending.asStateFlow()
 
-    /** The URL last consumed by the screen. The share intent gets re-delivered when the activity is
-     *  recreated (which happens around the add on some ROMs), so the same link would be handed over
-     *  again and reopen the dialog. Ignoring a repeat of the just-handled URL stops that; a genuinely
-     *  different share still comes through. */
-    private var lastConsumedUrl: String? = null
-
-    /** Records a freshly shared link for the sources screen to pick up, unless it's a re-delivery of
-     *  the one we just handled. */
+    /** Records a freshly shared link for the sources screen to pick up. */
     fun set(url: String, isAccount: Boolean) {
-        if (url == lastConsumedUrl) return
+        android.util.Log.i("OmnifyShare", "PendingSharedSource.set url=$url account=$isAccount")
         _pending.value = Share(url, isAccount)
     }
 
-    /** Clears the pending link once the screen has acted on it, remembering it so a re-delivery of the
-     *  same link can't reopen the dialog. */
+    /** Clears the pending link once the screen has acted on it, so it can never re-trigger. */
     fun clear() {
-        lastConsumedUrl = _pending.value?.url ?: lastConsumedUrl
+        android.util.Log.i("OmnifyShare", "PendingSharedSource.clear")
         _pending.update { null }
     }
 }

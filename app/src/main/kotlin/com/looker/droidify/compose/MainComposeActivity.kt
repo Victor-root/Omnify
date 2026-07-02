@@ -207,6 +207,7 @@ class MainComposeActivity : ComponentActivity() {
 
     /** Routes an incoming deeplink/intent to the matching Compose destination. */
     private fun handleDeeplink(intent: Intent, navController: NavController) {
+        android.util.Log.i("OmnifyShare", "handleDeeplink called action=${intent.action}")
         try {
             when (intent.action) {
                 ACTION_INSTALL -> {
@@ -241,6 +242,7 @@ class MainComposeActivity : ComponentActivity() {
                 // owner only -> a whole account.
                 Intent.ACTION_SEND -> {
                     val sharedUrl = intent.sharedSourceUrl()
+                    android.util.Log.i("OmnifyShare", "handleDeeplink SEND url=$sharedUrl")
                     if (sharedUrl != null) {
                         val isAccount = parseExternalSource(sharedUrl) == null &&
                             parseAccountSource(sharedUrl) != null
@@ -260,7 +262,26 @@ class MainComposeActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        android.util.Log.i("OmnifyShare", "onNewIntent action=${intent.action}")
+        super.onNewIntent(intent)
+    }
+
+    override fun onStart() {
+        android.util.Log.i("OmnifyShare", "onStart action=${intent?.action}")
+        super.onStart()
+    }
+
+    override fun onResume() {
+        android.util.Log.i("OmnifyShare", "onResume action=${intent?.action}")
+        super.onResume()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        android.util.Log.i(
+            "OmnifyShare",
+            "onCreate recreated=${savedInstanceState != null} action=${intent?.action}",
+        )
         val themeState = collectThemeChanges()
         super.onCreate(savedInstanceState)
         applyAccentColor(themeState)
