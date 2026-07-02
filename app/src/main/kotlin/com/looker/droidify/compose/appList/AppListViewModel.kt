@@ -327,15 +327,10 @@ class AppListViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
 
-    /** "Root" carousel on the Discover home — apps that declare the superuser permission, i.e. apps
-     *  that need (or make use of) root on a rooted device. Empty (row hidden) when none are found. */
+    /** "Root" carousel on the Discover home — apps that need or use root (the superuser permission or
+     *  strong root phrasing in their text; see AppDao.rootApps). Empty (row hidden) when none found. */
     val rootApps: StateFlow<List<AppMinimal>> = catalogChanges
-        .mapLatest {
-            appRepository.apps(
-                sortOrder = SortOrder.UPDATED,
-                permissionsToInclude = listOf(ROOT_PERMISSION),
-            ).take(DISCOVER_ROW_COUNT)
-        }
+        .mapLatest { appRepository.rootApps(DISCOVER_ROW_COUNT) }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
@@ -393,10 +388,7 @@ class AppListViewModel @Inject constructor(
                             permissionsToInclude = listOf(SHIZUKU_PERMISSION),
                         ),
                     ).take(SECTION_PAGE_LIMIT)
-                    SECTION_ROOT -> appRepository.apps(
-                        sortOrder = SortOrder.UPDATED,
-                        permissionsToInclude = listOf(ROOT_PERMISSION),
-                    ).take(SECTION_PAGE_LIMIT)
+                    SECTION_ROOT -> appRepository.rootApps(SECTION_PAGE_LIMIT)
                     else -> emptyList()
                 }
             }
@@ -466,10 +458,6 @@ private const val SHIZUKU_PERMISSION = "moe.shizuku.manager.permission.API_V23"
 
 /** Shizuku's own package, pinned to the front of the "Works with Shizuku" section. */
 private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
-
-/** The legacy superuser <uses-permission> apps declare when they need root — our marker for "needs
- *  root", surfaced in the "For rooted devices" section. */
-private const val ROOT_PERMISSION = "android.permission.ACCESS_SUPERUSER"
 
 /** Cap on apps shown when a category is expanded inline (a quick "see more", not the whole list). */
 private const val SECTION_EXPAND_LIMIT = 40

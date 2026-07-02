@@ -96,6 +96,17 @@ class AppRepository @Inject constructor(
             .getOrDefault(emptyList())
     }
 
+    /**
+     * Apps that need or use root, for the "For rooted devices" carousel: the superuser permission plus
+     * strong root phrasing in the app text (see [AppDao.rootApps]). Guarded so a query issue simply
+     * yields no carousel rather than crashing the home screen.
+     */
+    suspend fun rootApps(limit: Int): List<AppMinimal> = withContext(Dispatchers.Default) {
+        val currentLocale = localeStream.first()
+        runCatching { appDao.rootApps(locale = currentLocale, limit = limit) }
+            .getOrDefault(emptyList())
+    }
+
     /** Emits whenever the catalogue (apps/versions) changes, e.g. after a sync. */
     val catalogChanges: Flow<Int>
         get() = appDao.catalogSizeStream()

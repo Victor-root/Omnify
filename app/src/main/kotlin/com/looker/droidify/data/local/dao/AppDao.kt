@@ -148,6 +148,72 @@ interface AppDao {
         }
     }
 
+    /**
+     * Apps for the "For rooted devices" carousel. Detecting root is fuzzy: the legacy ACCESS_SUPERUSER
+     * permission is declared by only a fraction of root apps (root itself needs no manifest permission
+     * — an app just runs `su` at runtime), so relying on it alone misses most. This also scans the
+     * localized name/summary/description for strong root phrasing (Magisk/KernelSU/"requires root"…),
+     * while excluding negations ("no root", "without root"…) so an app that advertises "works without
+     * root" isn't wrongly included. Union of the permission and the keyword match, newest first.
+     */
+    suspend fun rootApps(locale: String, limit: Int): List<AppMinimal> {
+        // The searchable blob: localized (falling back to en-US) description + summary + name.
+        val text = "LOWER(" +
+            "COALESCE(d_loc.description, d_en.description, '') || ' ' || " +
+            "COALESCE(s_loc.summary, s_en.summary, '') || ' ' || " +
+            "COALESCE(n_loc.name, n_en.name, ''))"
+        fun clause(words: List<String>, op: String, join: String) = words.joinToString(join) {
+            "$text $op '%${it.replace("'", "''")}%'"
+        }
+        val permMatch = "EXISTS (SELECT 1 FROM version WHERE version.appId = app.id AND " +
+            "(version.permissions LIKE '%\"$ROOT_PERMISSION\"%' OR " +
+            "version.permissionsSdk23 LIKE '%\"$ROOT_PERMISSION\"%'))"
+        val keywordMatch = "((${clause(ROOT_KEYWORDS, "LIKE", " OR ")}) AND " +
+            "(${clause(ROOT_NEGATIONS, "NOT LIKE", " AND ")}))"
+        val query = SimpleSQLiteQuery(
+            """
+            SELECT
+                app.id AS appId,
+                app.packageName AS packageName,
+                COALESCE(n_loc.name, n_en.name) AS name,
+                COALESCE(s_loc.summary, s_en.summary) AS summary,
+                repo.address AS baseAddress,
+                COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName,
+                (
+                    SELECT v.versionName FROM version v
+                    WHERE v.appId = app.id
+                    ORDER BY v.versionCode DESC
+                    LIMIT 1
+                ) AS suggestedVersion
+            FROM app
+            JOIN repository AS repo ON app.repoId = repo.id
+            LEFT JOIN localized_app_name AS n_loc ON n_loc.appId = app.id AND n_loc.locale = ?
+            LEFT JOIN localized_app_name AS n_en ON n_en.appId = app.id AND n_en.locale = 'en-US'
+            LEFT JOIN localized_app_summary AS s_loc ON s_loc.appId = app.id AND s_loc.locale = ?
+            LEFT JOIN localized_app_summary AS s_en ON s_en.appId = app.id AND s_en.locale = 'en-US'
+            LEFT JOIN localized_app_icon AS i_loc ON i_loc.appId = app.id AND i_loc.locale = ?
+            LEFT JOIN localized_app_icon AS i_en ON i_en.appId = app.id AND i_en.locale = 'en-US'
+            LEFT JOIN localized_app_description AS d_loc ON d_loc.appId = app.id AND d_loc.locale = ?
+            LEFT JOIN localized_app_description AS d_en ON d_en.appId = app.id AND d_en.locale = 'en-US'
+            WHERE ($permMatch OR $keywordMatch)
+            GROUP BY app.packageName
+            ORDER BY app.lastUpdated DESC
+            LIMIT ?
+            """.trimIndent(),
+            arrayOf<Any>(locale, locale, locale, locale, limit),
+        )
+        return _rawQueryAppMinimal(query).map {
+            AppMinimal(
+                appId = it.appId.toLong(),
+                packageName = PackageName(it.packageName),
+                name = it.name,
+                summary = it.summary,
+                icon = FilePath(it.baseAddress, it.iconName),
+                suggestedVersion = it.suggestedVersion ?: "",
+            )
+        }
+    }
+
     /** Emits on any change to the download-stats table (e.g. after the stats worker inserts a monthly
      *  file), so the "Most downloaded" carousel re-queries once data lands. Value isn't meaningful. */
     @Query("SELECT COUNT(*) FROM download_stats")
@@ -459,3 +525,21 @@ interface AppDao {
     @Query("SELECT * FROM localized_app_icon WHERE appId = :id AND (locale = :locale OR locale = \'en-US\')")
     suspend fun icon(id: Int, locale: String): LocalizedAppIconEntity?
 }
+
+/** The legacy superuser <uses-permission> some root apps still declare (see [AppDao.rootApps]). */
+private const val ROOT_PERMISSION = "android.permission.ACCESS_SUPERUSER"
+
+/** Strong "this app uses root" phrasings matched (case-insensitively) in an app's text. Kept specific
+ *  enough that a bare "root" (square root, root directory, root CA…) doesn't leak in. */
+private val ROOT_KEYWORDS = listOf(
+    "magisk", "kernelsu", "superuser", "supersu",
+    "root access", "root permission", "root privilege", "root required", "requires root",
+    "require root", "needs root", "need root", "rooted device", "rooted phone", "root your",
+)
+
+/** Negations that flip a keyword match off, so "works without root" / "no root required" apps aren't
+ *  wrongly pulled in. Checked with NOT LIKE against the same text. */
+private val ROOT_NEGATIONS = listOf(
+    "no root", "without root", "non-root", "nonroot", "rootless", "root-free", "root free",
+    "not require root", "not need root", "root not required", "no need for root",
+)
