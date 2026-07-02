@@ -54,6 +54,9 @@ import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.SourceProvider
+import com.looker.droidify.compose.externalApps.PendingSharedSource
+import com.looker.droidify.external.parseAccountSource
+import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.datastore.extension.getThemeRes
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.Theme
@@ -66,6 +69,7 @@ import com.looker.droidify.utility.common.sdkAbove
 import com.looker.droidify.utility.common.canRequestPackageInstalls
 import com.looker.droidify.utility.common.deeplinkType
 import com.looker.droidify.utility.common.getInstallPackageName
+import com.looker.droidify.utility.common.sharedSourceUrl
 import com.looker.droidify.utility.common.openUnknownAppSourcesSettings
 import com.looker.droidify.utility.common.requestNotificationPermission
 import com.looker.droidify.work.SyncWorker
@@ -229,6 +233,26 @@ class MainComposeActivity : ComponentActivity() {
                 Intent.ACTION_SHOW_APP_INFO -> {
                     val packageName = intent.getStringExtra(Intent.EXTRA_PACKAGE_NAME)
                     if (!packageName.isNullOrEmpty()) navController.navigateToAppDetail(packageName)
+                }
+
+                // A link shared from another app (e.g. a browser's "Share" on a GitHub/GitLab page).
+                // Open the sources screen with the "Add external source" (or "Add account") dialog
+                // pre-filled, deciding which from the URL shape: owner/repo -> a single repo source;
+                // owner only -> a whole account.
+                Intent.ACTION_SEND -> {
+                    val sharedUrl = intent.sharedSourceUrl()
+                    if (sharedUrl != null) {
+                        val isAccount = parseExternalSource(sharedUrl) == null &&
+                            parseAccountSource(sharedUrl) != null
+                        // Hand the link to the sources screen as a one-shot (consumed on read), then open
+                        // that screen. It decides the dialog from the URL shape: owner/repo -> a single
+                        // repo; owner only -> a whole account.
+                        PendingSharedSource.set(sharedUrl, isAccount)
+                        navController.navigateToRepoList()
+                    }
+                    // Consume the launching intent so an activity recreation can't re-run this branch.
+                    intent.action = null
+                    setIntent(intent)
                 }
             }
         } catch (_: Exception) {

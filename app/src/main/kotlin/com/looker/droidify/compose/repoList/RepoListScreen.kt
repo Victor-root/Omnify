@@ -71,6 +71,7 @@ import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.externalApps.AddSourceState
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
+import com.looker.droidify.compose.externalApps.PendingSharedSource
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
@@ -105,6 +106,22 @@ fun RepoListScreen(
     var showAddExternal by rememberSaveable { mutableStateOf(false) }
     var showAddAccount by rememberSaveable { mutableStateOf(false) }
     var editingExternal by remember { mutableStateOf<ExternalApp?>(null) }
+
+    // URL pre-filled into the add dialog when the screen was opened from a shared link. Held here so it
+    // can seed whichever dialog we open.
+    var prefillUrl by rememberSaveable { mutableStateOf("") }
+    // A link shared into the app (system "Share" sheet) waiting to be added. It's a one-shot: reading it
+    // opens the right dialog pre-filled, then we clear it so it can't reopen — the screen is rebuilt
+    // several times around the add, and anything persistent (a nav arg) would re-trigger every time.
+    val pendingShare by PendingSharedSource.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingShare) {
+        val share = pendingShare ?: return@LaunchedEffect
+        prefillUrl = share.url
+        // A whole-account link (owner only) opens the account dialog; a single repo link the source
+        // dialog. The chooser is skipped: we already know which one from the URL shape.
+        if (share.isAccount) showAddAccount = true else showAddExternal = true
+        PendingSharedSource.clear()
+    }
 
     // Each section lists its sources one after another, sorted alphabetically by display name. Now that
     // every repo has a real logo (or a letter monogram), the icons make scanning easy without grouping.
@@ -250,13 +267,16 @@ fun RepoListScreen(
         LaunchedEffect(addState) {
             if (addState == AddSourceState.SUCCESS) {
                 showAddAccount = false
+                prefillUrl = ""
                 externalViewModel.consumeAddState()
             }
         }
         AddExternalAccountDialog(
             isLoading = addState == AddSourceState.LOADING,
+            initialUrl = prefillUrl,
             onDismiss = {
                 showAddAccount = false
+                prefillUrl = ""
                 externalViewModel.consumeAddState()
             },
             onAdd = { url, customName, includeForks, includePrereleases, muteUpdates, apkFilter ->
@@ -279,14 +299,17 @@ fun RepoListScreen(
         LaunchedEffect(addState) {
             if (addState == AddSourceState.SUCCESS) {
                 showAddExternal = false
+                prefillUrl = ""
                 externalViewModel.consumeAddState()
             }
         }
         AddExternalSourceDialog(
             isLoading = addState == AddSourceState.LOADING,
             errorMessage = addError,
+            initialUrl = prefillUrl,
             onDismiss = {
                 showAddExternal = false
+                prefillUrl = ""
                 externalViewModel.consumeAddState()
             },
             onAdd = { url, includePrereleases, customName, muteUpdates, apkFilter ->
@@ -743,8 +766,9 @@ private fun AddExternalSourceDialog(
         muteUpdates: Boolean,
         apkFilter: String,
     ) -> Unit,
+    initialUrl: String = "",
 ) {
-    var url by rememberSaveable { mutableStateOf("") }
+    var url by rememberSaveable(initialUrl) { mutableStateOf(initialUrl) }
     var name by rememberSaveable { mutableStateOf("") }
     var includePrereleases by rememberSaveable { mutableStateOf(false) }
     var muteUpdates by rememberSaveable { mutableStateOf(false) }
@@ -836,8 +860,9 @@ private fun AddExternalAccountDialog(
         muteUpdates: Boolean,
         apkFilter: String,
     ) -> Unit,
+    initialUrl: String = "",
 ) {
-    var url by rememberSaveable { mutableStateOf("") }
+    var url by rememberSaveable(initialUrl) { mutableStateOf(initialUrl) }
     var name by rememberSaveable { mutableStateOf("") }
     var includeForks by rememberSaveable { mutableStateOf(false) }
     var includePrereleases by rememberSaveable { mutableStateOf(false) }

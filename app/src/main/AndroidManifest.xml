@@ -68,6 +68,15 @@
                 <action android:name="android.intent.action.SHOW_APP_INFO" />
             </intent-filter>
 
+            <!-- Appear in the system "Share" sheet for a shared link (e.g. from a browser on a GitHub /
+                 GitLab / Codeberg page). The shared URL is routed to the "Add external source" flow,
+                 which detects whether it's a whole account or a single repo. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
