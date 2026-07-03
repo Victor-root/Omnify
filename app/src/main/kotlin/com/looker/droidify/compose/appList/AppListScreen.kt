@@ -148,7 +148,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppListScreen(
     viewModel: AppListViewModel,
@@ -778,6 +778,23 @@ fun AppListScreen(
                     sectionView -> openedSectionApps
                     isSearching -> apps
                     else -> emptyList()
+                }
+                // A "see all" page runs its query after opening, so on a slow device it's briefly empty.
+                // These sections always have apps (the carousel only appears when non-empty), so an empty
+                // list here means "still loading" — show a spinner so the page never looks blank/broken.
+                val sectionLoading = sectionView && flatList.isEmpty() &&
+                    !(isTelevision && openedSection == SECTION_TV && tvExternalApps.isNotEmpty())
+                if (sectionLoading) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "section-loading") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularWavyProgressIndicator()
+                        }
+                    }
                 }
                 // The "Made for TV" see-all page also lists the tracked external TV apps (TV only).
                 if (isTelevision && openedSection == SECTION_TV) {
