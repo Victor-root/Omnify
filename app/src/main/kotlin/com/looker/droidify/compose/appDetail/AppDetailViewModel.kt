@@ -39,9 +39,6 @@ import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
-import com.looker.droidify.utility.common.extension.calculateHash
-import com.looker.droidify.utility.common.extension.getPackageArchiveInfoCompat
-import com.looker.droidify.utility.common.extension.singleSignature
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -423,26 +420,18 @@ class AppDetailViewModel @Inject constructor(
                     return@withContext DownloadResult.Failed("Download failed: ${response.describe()}")
                 }
                 // Integrity gate: the index is fetched + signature-verified during sync, so its
-                // hash is trusted. Only install if the downloaded APK matches it.
+                // hash is trusted. Only install if the downloaded APK matches it — this alone
+                // guarantees the APK is exactly the one the (signed) index vouches for.
+                //
+                // We deliberately do NOT additionally check the APK's signing cert against the index's
+                // declared signer. The index sometimes records a signer that no hash of the actual APK
+                // certificate reproduces (e.g. microG's GmsCore on repo.microg.org), so that check
+                // rejects legitimate, hash-verified apps that F-Droid itself installs fine. The hash
+                // match above already ties the APK to the trusted index; the separate cross-signer
+                // update guard below still prevents installing over an app signed with a different key.
                 if (!partialFile.sha256Hex().equals(pkg.apk.hash, ignoreCase = true)) {
                     partialFile.delete()
                     return@withContext DownloadResult.Failed("APK verification failed (hash mismatch)")
-                }
-                // Signature gate: the index declares which signing key each release is signed with.
-                // Refuse an APK whose actual signer isn't one the index expects — the old Droidify did
-                // this and the Compose rewrite had dropped it. Only block on a *proven* mismatch (the
-                // index declares a signer, the APK has a single readable signer, and it differs), and
-                // honour the "ignore signatures" setting as an escape hatch.
-                val expectedSigners = pkg.manifest.signer
-                if (expectedSigners.isNotEmpty() && !settingsRepository.get { ignoreSignature }.first()) {
-                    val apkSigner = apkSignerHash(partialFile)
-                    if (apkSigner != null && expectedSigners.none { it.equals(apkSigner, ignoreCase = true) }) {
-                        Log.w(TAG, "Signer mismatch for $packageName: apk=$apkSigner expected=$expectedSigners")
-                        partialFile.delete()
-                        return@withContext DownloadResult.Failed(
-                            context.getString(R.string.invalid_signature_error_DESC),
-                        )
-                    }
                 }
                 partialFile.copyTo(Cache.getReleaseFile(context, cacheFileName), overwrite = true)
                 partialFile.delete()
@@ -476,17 +465,6 @@ class AppDetailViewModel @Inject constructor(
             _downloadStatus.value = null
         }
     }
-
-    /**
-     * The downloaded APK's signing-certificate fingerprint (lowercase SHA-256 hex — the same format
-     * the index stores in [Package.manifest] signer), or null if it can't be read (e.g. the APK has
-     * multiple signers, which we don't try to match against the index).
-     */
-    private fun apkSignerHash(apkFile: File): String? =
-        context.packageManager
-            .getPackageArchiveInfoCompat(apkFile.absolutePath)
-            ?.singleSignature
-            ?.calculateHash()
 
     /**
      * True when [packageName] is already installed but signed by a different key than [apkFile].
