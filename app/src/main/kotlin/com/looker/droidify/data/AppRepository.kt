@@ -61,18 +61,18 @@ class AppRepository @Inject constructor(
     }
 
     /**
-     * Highest version *installable on this device* for every app, keyed by appId — used to detect
-     * updates so the Updates tab matches what the detail screen will actually install (it filters by
-     * ABI + minSdk, unlike a device-blind MAX which over-reports for multi-ABI apps). Each entry also
+     * Highest version *installable on this device* for every app **across all repos**, keyed by
+     * packageName — used to detect updates so the Updates tab matches what the detail screen will
+     * actually install (newest build wherever it lives, filtered by ABI + minSdk). Each entry also
      * carries that version's signer fingerprint(s) so callers can tell whether the update can replace
      * the installed app in place (same signer) or not (different signer).
      */
-    suspend fun suggestedVersions(): Map<Int, SuggestedVersion> = withContext(Dispatchers.Default) {
+    suspend fun suggestedVersions(): Map<String, SuggestedVersion> = withContext(Dispatchers.Default) {
         appDao.deviceCompatibleVersions(
             sdk = Build.VERSION.SDK_INT,
             abis = Build.SUPPORTED_ABIS.toList(),
         ).associate { row ->
-            row.appId to SuggestedVersion(row.versionCode, row.signer.toSet())
+            row.packageName to SuggestedVersion(row.versionCode, row.signer.toSet())
         }
     }
 

@@ -442,7 +442,7 @@ interface AppDao {
     suspend fun suggestedVersionNamesAll(): Map<Int, String>
 
     data class AppVersionCodeRow(
-        val appId: Int,
+        val packageName: String,
         val versionCode: Long,
         // Signing-certificate fingerprint(s) of that exact version (lowercase hex SHA-256), in the
         // same format as the installed app's stored signature so the two can be compared directly.
@@ -455,17 +455,21 @@ interface AppDao {
     ): List<AppVersionCodeRow>
 
     /**
-     * Highest *installable-on-this-device* version per app, with the signing-certificate
-     * fingerprint(s) of that exact version — used to detect updates and to tell whether an update can
-     * actually replace the installed app. Mirrors [com.looker.droidify.data.model.selectForDevice] /
-     * isInstallableOnDevice: a version counts only when the running [sdk] is at least its minSdk and,
-     * if it ships native code, it targets one of the device's [abis] (no native code = universal).
-     * versionCodes are unique per app, so MAX(compatible) is exactly the version selectForDevice
-     * would install.
+     * Highest *installable-on-this-device* version per app **across all repos**, with the
+     * signing-certificate fingerprint(s) of that exact version — used to detect updates and to tell
+     * whether an update can actually replace the installed app. Mirrors
+     * [com.looker.droidify.data.model.selectForDevice] / isInstallableOnDevice: a version counts only
+     * when the running [sdk] is at least its minSdk and, if it ships native code, it targets one of the
+     * device's [abis] (no native code = universal).
      *
-     * Multi-ABI apps (e.g. RustDesk) publish one APK per ABI under *different* versionCodes, so a
-     * device-blind MAX picks another architecture's higher code and wrongly flags an update that the
-     * detail screen then refuses to install.
+     * Grouped by packageName, not by the per-repo app row: the same app can be in several repos (e.g.
+     * F-Droid + IzzyOnDroid) that publish different newest versions, and grouping per-repo would let an
+     * older repo's max hide a newer build elsewhere (so an available update wouldn't show). Taking the
+     * MAX across every repo mirrors the detail screen, which installs the newest version wherever it is.
+     *
+     * Multi-ABI apps (e.g. RustDesk) publish one APK per ABI under *different* versionCodes, so the
+     * device-compatibility filter runs first, otherwise a device-blind MAX would pick another
+     * architecture's higher code and flag an update the detail screen then refuses to install.
      *
      * The bare `signer` column is read from the same row the `MAX(versionCode)` came from — SQLite's
      * documented behaviour for a query with a single MAX() aggregate — so the fingerprint always
@@ -477,15 +481,17 @@ interface AppDao {
         // literals, so "x86_64" / "armeabi-v7a" match exactly and "x86" can't match "x86_64". The
         // ABIs are bound as args, and GLOB is case-sensitive — both index and Build.SUPPORTED_ABIS
         // use canonical lowercase names.
-        val abiMatch = abis.joinToString(" OR ") { "nativeCode GLOB ('*\"' || ? || '\"*')" }
+        val abiMatch = abis.joinToString(" OR ") { "version.nativeCode GLOB ('*\"' || ? || '\"*')" }
         val compatible = if (abis.isEmpty()) {
-            "nativeCode NOT GLOB '*\"*'"
+            "version.nativeCode NOT GLOB '*\"*'"
         } else {
-            "(nativeCode NOT GLOB '*\"*' OR $abiMatch)"
+            "(version.nativeCode NOT GLOB '*\"*' OR $abiMatch)"
         }
         val query = SimpleSQLiteQuery(
-            "SELECT appId, MAX(versionCode) AS versionCode, signer FROM version " +
-                "WHERE minSdkVersion <= ? AND $compatible GROUP BY appId",
+            "SELECT app.packageName AS packageName, MAX(version.versionCode) AS versionCode, " +
+                "version.signer AS signer FROM version " +
+                "JOIN app ON app.id = version.appId " +
+                "WHERE version.minSdkVersion <= ? AND $compatible GROUP BY app.packageName",
             (listOf<Any>(sdk) + abis).toTypedArray(),
         )
         return _rawDeviceCompatibleVersionCodes(query)

@@ -241,17 +241,35 @@ class AppDetailViewModel @Inject constructor(
         .map { apps ->
             when {
                 apps.isEmpty() -> AppDetailState.Error("No app found for $packageName")
-                else -> AppDetailState.Success(
-                    app = apps.first(),
-                    packages = apps.flatMap {
+                else -> {
+                    val packages = apps.flatMap {
                         val repo = repoRepository.getRepo(it.repoId.toInt())
                         if (repo != null && it.packages != null) {
                             it.packages.map { pkg -> pkg to repo }
                         } else {
                             emptyList()
                         }
-                    }.sortedByDescending { (pkg, _) -> pkg.manifest.versionCode },
-                )
+                    }.sortedByDescending { (pkg, _) -> pkg.manifest.versionCode }
+                    // The same app can come from several repos (e.g. F-Droid + IzzyOnDroid) that ship
+                    // different newest versions. apps.first() is just one of them, and its suggested code
+                    // is only that repo's own max — so if the older repo wins, Install/Update would cap
+                    // there and ignore a newer build elsewhere. Use the newest version across all repos as
+                    // the suggested version, so the whole screen offers the most recent build wherever it
+                    // lives (device-compatibility is still applied later by selectForDevice).
+                    val base = apps.first()
+                    val newest = packages.firstOrNull()?.first?.manifest
+                    val app = if (newest != null) {
+                        base.copy(
+                            metadata = base.metadata.copy(
+                                suggestedVersionCode = newest.versionCode,
+                                suggestedVersionName = newest.versionName,
+                            ),
+                        )
+                    } else {
+                        base
+                    }
+                    AppDetailState.Success(app = app, packages = packages)
+                }
             }
         }
         .onStart { emit(AppDetailState.Loading) }

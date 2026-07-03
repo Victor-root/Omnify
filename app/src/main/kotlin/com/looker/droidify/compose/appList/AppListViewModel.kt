@@ -156,9 +156,9 @@ class AppListViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyMap())
 
-    // appId -> the catalogue version we'd install on this device (versionCode + signer fingerprints),
-    // re-queried whenever the catalogue changes.
-    private val suggestedVersions: StateFlow<Map<Int, SuggestedVersion>> = catalogChanges
+    // packageName -> the catalogue version we'd install on this device (versionCode + signer
+    // fingerprints), taken as the newest across all repos, re-queried whenever the catalogue changes.
+    private val suggestedVersions: StateFlow<Map<String, SuggestedVersion>> = catalogChanges
         .mapLatest { appRepository.suggestedVersions() }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
@@ -225,11 +225,11 @@ class AppListViewModel @Inject constructor(
     private fun hasUpdate(
         app: AppMinimal,
         installed: InstalledInfo,
-        suggested: Map<Int, SuggestedVersion>,
+        suggested: Map<String, SuggestedVersion>,
     ): Boolean {
         val pkg = app.packageName.name
         val installedCode = installed.versions[pkg] ?: return false
-        val suggestedVersion = suggested[app.appId.toInt()] ?: return false
+        val suggestedVersion = suggested[pkg] ?: return false
         if (suggestedVersion.versionCode <= installedCode) return false
 
         // A newer version exists. Suppress it only when it can't replace the installed app.
