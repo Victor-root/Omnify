@@ -199,7 +199,10 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
             .memoryCache(memoryCache)
             .diskCache(diskCache)
             .error(getDrawableCompat(R.drawable.ic_cannot_load).asImage())
-            .crossfade(350)
+            // No crossfade: while scrolling, icons load into view and each fade forces an offscreen
+            // alpha layer per icon every frame — the main scroll stutter on slower devices. Icons just
+            // appear instead, which reads fine at this size and keeps the grid smooth.
+            .crossfade(false)
             .components {
                 add(KtorNetworkFetcherFactory(httpClient = { httpClient }))
                 add(FallbackIconInterceptor())

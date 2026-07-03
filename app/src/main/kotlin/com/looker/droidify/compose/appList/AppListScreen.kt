@@ -583,7 +583,7 @@ fun AppListScreen(
                     }
                 }
                 // Install happens on the detail screen; the grid mirrors the catalogue tabs exactly.
-                items(items = enabledExternalApps, key = { it.key }) { app ->
+                items(items = enabledExternalApps, key = { it.key }, contentType = { "ext-tile" }) { app ->
                     ExternalAppTile(
                         app = app,
                         isInstalled = app.key in externalInstalledKeys,
@@ -610,7 +610,7 @@ fun AppListScreen(
                 // from the F-Droid catalogue and from tracked external sources. Hidden on touch and when
                 // none are present.
                 if (isTelevision && (tvApps.isNotEmpty() || tvExternalApps.isNotEmpty())) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-tv") {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-tv", contentType = "carousel") {
                         DiscoverCarousel(
                             title = stringResource(R.string.discover_tv_apps),
                             apps = tvApps,
@@ -625,7 +625,7 @@ fun AppListScreen(
                     }
                 }
                 if (newApps.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-new") {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-new", contentType = "carousel") {
                         DiscoverCarousel(
                             title = stringResource(R.string.discover_new_apps),
                             apps = newApps,
@@ -637,7 +637,7 @@ fun AppListScreen(
                     }
                 }
                 if (recentlyUpdatedApps.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-updated") {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-updated", contentType = "carousel") {
                         DiscoverCarousel(
                             title = stringResource(R.string.discover_recently_updated),
                             apps = recentlyUpdatedApps,
@@ -651,7 +651,7 @@ fun AppListScreen(
                 // "Most downloaded" — F-Droid v2's third curated carousel. Hidden until the download-
                 // stats worker has fetched data, so it simply appears once stats land.
                 if (mostDownloadedApps.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-downloaded") {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-downloaded", contentType = "carousel") {
                         DiscoverCarousel(
                             title = stringResource(R.string.discover_most_downloaded),
                             apps = mostDownloadedApps,
@@ -665,7 +665,7 @@ fun AppListScreen(
                 // "Shizuku" carousel — apps that integrate with Shizuku (detected from the Shizuku
                 // permission in their manifest). Hidden when the catalogue has none.
                 if (shizukuApps.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-shizuku") {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-shizuku", contentType = "carousel") {
                         DiscoverCarousel(
                             title = stringResource(R.string.discover_shizuku),
                             apps = shizukuApps,
@@ -679,7 +679,7 @@ fun AppListScreen(
                 // "For rooted devices" carousel — apps that declare the superuser permission, i.e. apps
                 // that need root. Hidden when the catalogue has none.
                 if (rootApps.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-root") {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-root", contentType = "carousel") {
                         DiscoverCarousel(
                             title = stringResource(R.string.discover_root),
                             apps = rootApps,
@@ -693,13 +693,14 @@ fun AppListScreen(
                 // The categories accordion. The chevron expands a category's apps inline; tapping
                 // again collapses it.
                 if (categories.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "categories-title") {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "categories-title", contentType = "categories-title") {
                         CategoriesTitle()
                     }
                     categories.forEach { category ->
                         item(
                             span = { GridItemSpan(maxLineSpan) },
                             key = "category-${category.defaultName}",
+                            contentType = "category",
                         ) {
                             CategoryRow(
                                 name = category.name,
@@ -798,7 +799,7 @@ fun AppListScreen(
                 }
                 // The "Made for TV" see-all page also lists the tracked external TV apps (TV only).
                 if (isTelevision && openedSection == SECTION_TV) {
-                    items(items = tvExternalApps, key = { "tv-ext-${it.key}" }) { app ->
+                    items(items = tvExternalApps, key = { "tv-ext-${it.key}" }, contentType = { "ext-tile" }) { app ->
                         ExternalAppTile(
                             app = app,
                             isInstalled = app.key in externalInstalledKeys,
@@ -809,6 +810,7 @@ fun AppListScreen(
                 items(
                     items = flatList,
                     key = { it.appId },
+                    contentType = { "app-tile" },
                 ) { app ->
                     CatalogAppTile(
                         app = app,
@@ -824,6 +826,7 @@ fun AppListScreen(
                 items(
                     items = apps,
                     key = { it.appId },
+                    contentType = { "app-tile" },
                 ) { app ->
                     CatalogAppTile(
                         app = app,
@@ -841,6 +844,7 @@ fun AppListScreen(
                 items(
                     items = externalUpdates,
                     key = { "ext-${it.key}" },
+                    contentType = { "ext-tile" },
                 ) { app ->
                     ExternalAppTile(
                         app = app,
@@ -1443,6 +1447,7 @@ private fun LazyGridScope.expandedAppItems(
     items(
         items = expandedSectionApps[key].orEmpty(),
         key = { "exp-$key-${it.appId}" },
+        contentType = { "app-tile" },
     ) { app ->
         CatalogAppTile(
             app = app,

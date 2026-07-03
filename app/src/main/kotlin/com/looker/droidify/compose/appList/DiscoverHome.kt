@@ -127,7 +127,7 @@ fun DiscoverCarousel(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = spacedBy(16.dp),
         ) {
-            items(apps, key = { it.appId }) { app ->
+            items(apps, key = { it.appId }, contentType = { "app-tile" }) { app ->
                 CatalogAppTile(
                     app = app,
                     isInstalled = app.packageName.name in installedPackages,
@@ -135,7 +135,7 @@ fun DiscoverCarousel(
                     modifier = Modifier.width(tileWidth),
                 )
             }
-            items(externalApps, key = { "ext-${it.key}" }) { app ->
+            items(externalApps, key = { "ext-${it.key}" }, contentType = { "ext-tile" }) { app ->
                 ExternalAppTile(
                     app = app,
                     isInstalled = app.key in externalInstalledKeys,

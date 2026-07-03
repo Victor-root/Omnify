@@ -46,32 +46,9 @@ private const val LauncherIconPx = 256
  */
 @Composable
 fun AppMinimalIcon(app: AppMinimal, isInstalled: Boolean, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
     val isTelevision = LocalIsTelevision.current
     var repoIcon by remember(app.appId) { mutableStateOf(app.icon?.path) }
     var repoFailed by remember(app.appId) { mutableStateOf(false) }
-    // The installed app's own launcher icon is only a fallback for the rare app whose repo ships no icon
-    // (e.g. Magisk). Load it lazily — only when the repo icon is absent or failed — and OFF the main
-    // thread: reading it inline for every installed tile made the Installed/Updates tabs slow to open,
-    // since getApplicationIcon + a 256px bitmap ran during composition even when the repo icon was shown.
-    val needsLauncherIcon = isInstalled && (repoIcon == null || repoFailed)
-    val launcherIcon by produceState<ImageBitmap?>(null, app.packageName, needsLauncherIcon) {
-        value = if (needsLauncherIcon) {
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    // Render into an explicit square bitmap. toBitmap() with no size uses the drawable's
-                    // intrinsic size, which for adaptive icons renders inconsistently across Android
-                    // versions (fine on newer phones, cropped/squished on older TV builds) — a square
-                    // output normalises it everywhere.
-                    context.packageManager.getApplicationIcon(app.packageName.name)
-                        .toBitmap(width = LauncherIconPx, height = LauncherIconPx)
-                        .asImageBitmap()
-                }.getOrNull()
-            }
-        } else {
-            null
-        }
-    }
     val shape = MaterialTheme.shapes.large
     // On TV every icon sits on the same rounded card: a full-bleed icon covers it, while a padded or
     // round icon sits centred on it instead of floating at an odd size — so the whole grid reads as
@@ -88,8 +65,6 @@ fun AppMinimalIcon(app: AppMinimal, isInstalled: Boolean, modifier: Modifier = M
         val imageModifier = Modifier
             .fillMaxSize()
             .then(if (isTelevision) Modifier else Modifier.clip(shape))
-        // Local copy so the null-check smart-casts (launcherIcon is a produceState delegate).
-        val launcher = launcherIcon
         when {
             repoIcon != null && !repoFailed -> AsyncImage(
                 model = repoIcon,
@@ -105,33 +80,78 @@ fun AppMinimalIcon(app: AppMinimal, isInstalled: Boolean, modifier: Modifier = M
                 modifier = imageModifier,
             )
 
-            launcher != null -> Image(
-                bitmap = launcher,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = imageModifier,
+            // Installed app whose repo ships no usable icon (e.g. Magisk): fall back to its on-device
+            // launcher icon. Isolated in its own composable so the off-thread load (produceState) only
+            // exists for these few tiles — not one idle coroutine per tile across the whole grid.
+            isInstalled -> InstalledLauncherIcon(
+                packageName = app.packageName.name,
+                imageModifier = imageModifier,
+                shape = shape,
+                isTelevision = isTelevision,
             )
 
-            else -> Box(
-                contentAlignment = Alignment.Center,
-                // The card already supplies the background on TV; off TV draw our own neutral box.
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (isTelevision) {
-                            Modifier
-                        } else {
-                            Modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        },
-                    ),
-            ) {
-                Image(
-                    painter = painterResource(android.R.mipmap.sym_def_app_icon),
-                    contentDescription = null,
-                    modifier = Modifier.padding(10.dp),
-                )
-            }
+            else -> DefaultAppIcon(shape = shape, isTelevision = isTelevision)
         }
+    }
+}
+
+/** The installed app's own launcher icon, read off the main thread; shows [DefaultAppIcon] until it
+ *  loads (or if it can't be read). Only composed for the rare tile with no repo icon. */
+@Composable
+private fun InstalledLauncherIcon(
+    packageName: String,
+    imageModifier: Modifier,
+    shape: androidx.compose.ui.graphics.Shape,
+    isTelevision: Boolean,
+) {
+    val context = LocalContext.current
+    val launcher by produceState<ImageBitmap?>(null, packageName) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                // Render into an explicit square bitmap. toBitmap() with no size uses the drawable's
+                // intrinsic size, which for adaptive icons renders inconsistently across Android versions
+                // (fine on newer phones, cropped/squished on older TV builds) — a square output normalises
+                // it everywhere.
+                context.packageManager.getApplicationIcon(packageName)
+                    .toBitmap(width = LauncherIconPx, height = LauncherIconPx)
+                    .asImageBitmap()
+            }.getOrNull()
+        }
+    }
+    val bitmap = launcher
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = imageModifier,
+        )
+    } else {
+        DefaultAppIcon(shape = shape, isTelevision = isTelevision)
+    }
+}
+
+/** The neutral placeholder shown when an app has no icon at all. */
+@Composable
+private fun DefaultAppIcon(shape: androidx.compose.ui.graphics.Shape, isTelevision: Boolean) {
+    Box(
+        contentAlignment = Alignment.Center,
+        // The card already supplies the background on TV; off TV draw our own neutral box.
+        modifier = Modifier
+            .fillMaxSize()
+            .then(
+                if (isTelevision) {
+                    Modifier
+                } else {
+                    Modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                },
+            ),
+    ) {
+        Image(
+            painter = painterResource(android.R.mipmap.sym_def_app_icon),
+            contentDescription = null,
+            modifier = Modifier.padding(10.dp),
+        )
     }
 }
 
