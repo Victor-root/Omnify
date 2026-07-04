@@ -552,14 +552,28 @@ private fun AppDetail(
             )
         }
 
-        // Flag apps that embed Google Play services so it's obvious up-front they may misbehave on a
-        // de-Googled device (no GMS / microG). Detected from the manifest permissions, which is far
-        // more reliable than the broad "non-free dependency" anti-feature tag.
-        val suggestedPermissions =
-            (installablePackage ?: packages.firstOrNull()?.first)?.manifest?.permissions.orEmpty()
-        if (suggestedPermissions.requiresGoogleServices()) {
+        // Detect exactly which Google Play services capabilities this build depends on (push, maps,
+        // billing, ...) from its manifest, so we can say precisely what may not work on a de-Googled
+        // device and whether microG covers it. Package-name aware, so a services *provider* like microG
+        // (com.google.android.gms) never warns about needing itself.
+        val gmsPackage = installablePackage ?: packages.firstOrNull()?.first
+        val gmsDependencies = remember(gmsPackage, app.metadata.packageName.name) {
+            if (gmsPackage == null) {
+                emptyList()
+            } else {
+                detectGoogleServicesDependencies(
+                    packageName = app.metadata.packageName.name,
+                    permissionNames = gmsPackage.manifest.permissions.mapTo(HashSet()) { it.name },
+                    featureNames = gmsPackage.features.toHashSet(),
+                )
+            }
+        }
+        if (gmsDependencies.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
-            GoogleServicesBadge(modifier = Modifier.padding(horizontal = 16.dp))
+            GoogleServicesCard(
+                dependencies = gmsDependencies,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
         }
 
         if (customButtons.isNotEmpty()) {
@@ -936,53 +950,128 @@ private fun LinkRow(
     }
 }
 
-/** Permission-name prefixes that mean the app embeds Google Play services and relies on them to run
- *  fully: the GMS APIs, Firebase/GCM push delivery, and the Google Services Framework. Restricted to
- *  these reliable markers so the badge doesn't fire on unrelated `com.google.android.*` permissions
- *  (e.g. a launcher's search-box or a DPC's setup-wizard permission). */
-private val googleServicePermissionPrefixes = listOf(
-    "com.google.android.gms.permission.",
-    "com.google.android.c2dm.permission.RECEIVE",
-    "com.google.android.providers.gsf.permission.READ_GSERVICES",
-)
-
-private fun List<Permission>.requiresGoogleServices(): Boolean =
-    any { permission -> googleServicePermissionPrefixes.any(permission.name::startsWith) }
-
-/** Up-front notice that the app needs Google Play services, so it's clear before installing that it
- *  may not work fully on a de-Googled device (no GMS / microG). */
+/**
+ * Detailed notice that the app depends on specific Google Play services, shown before install so it's
+ * clear what may not work on a de-Googled device and whether microG covers it.
+ *
+ * Two tiers, driven by the detected [dependencies]: if any capability is entirely uncovered by microG
+ * (a "hard" gap like billing or Maps v1) the header is firmer; otherwise it's a soft, informative note.
+ * Below the header, one row per detected capability lists what it's for and a microG-coverage chip, so
+ * the user knows precisely whether installing microG would fix it.
+ */
 @Composable
-private fun GoogleServicesBadge(modifier: Modifier = Modifier) {
+private fun GoogleServicesCard(
+    dependencies: List<GoogleServiceDependency>,
+    modifier: Modifier = Modifier,
+) {
+    val hasHardGap = dependencies.any { it.coverage == MicrogCoverage.NONE }
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = MaterialTheme.shapes.medium,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_tabler_brand_google),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(22.dp),
-            )
-            Column {
-                Text(
-                    text = stringResource(R.string.requires_google_services),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_tabler_brand_google),
+                    contentDescription = null,
+                    tint = if (hasHardGap) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                    modifier = Modifier.size(22.dp),
                 )
-                Text(
-                    text = stringResource(R.string.requires_google_services_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Column {
+                    Text(
+                        text = stringResource(
+                            if (hasHardGap) {
+                                R.string.google_services_hard_title
+                            } else {
+                                R.string.google_services_soft_title
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = stringResource(
+                            if (hasHardGap) {
+                                R.string.google_services_hard_summary
+                            } else {
+                                R.string.google_services_soft_summary
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            dependencies.forEach { dependency ->
+                GoogleServiceDependencyRow(dependency)
             }
         }
+    }
+}
+
+/** One detected capability: its name, what breaks without it, and a microG-coverage chip. */
+@Composable
+private fun GoogleServiceDependencyRow(dependency: GoogleServiceDependency) {
+    Spacer(modifier = Modifier.height(12.dp))
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(dependency.labelRes),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+            )
+            MicrogCoverageChip(dependency.coverage)
+        }
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = stringResource(dependency.descriptionRes),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Small pill telling the user whether microG restores this capability. */
+@Composable
+private fun MicrogCoverageChip(coverage: MicrogCoverage) {
+    val (labelRes, container, content) = when (coverage) {
+        MicrogCoverage.FULL -> Triple(
+            R.string.google_services_microg_full,
+            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        MicrogCoverage.PARTIAL -> Triple(
+            R.string.google_services_microg_partial,
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.onSecondaryContainer,
+        )
+        MicrogCoverage.NONE -> Triple(
+            R.string.google_services_microg_none,
+            MaterialTheme.colorScheme.errorContainer,
+            MaterialTheme.colorScheme.onErrorContainer,
+        )
+    }
+    Surface(color = container, contentColor = content, shape = MaterialTheme.shapes.small) {
+        Text(
+            text = stringResource(labelRes),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+        )
     }
 }
 
