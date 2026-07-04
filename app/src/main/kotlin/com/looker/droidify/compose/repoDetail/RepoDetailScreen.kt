@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
@@ -22,11 +24,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -90,6 +96,8 @@ fun RepoDetailScreen(
     val repo by viewModel.repo.collectAsState()
     val apps by viewModel.apps.collectAsState()
     val installedPackages by viewModel.installedPackages.collectAsState()
+    val notInstalledCount by viewModel.notInstalledCount.collectAsState()
+    val isInstallingAll by viewModel.isInstallingAll.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(RepoDetailTab.INFO) }
 
@@ -172,8 +180,11 @@ fun RepoDetailScreen(
                             repo = currentRepo,
                             apps = apps,
                             installedPackages = installedPackages,
+                            notInstalledCount = notInstalledCount,
+                            isInstallingAll = isInstallingAll,
                             onAppClick = onAppClick,
                             onEnableRepo = { viewModel.enableRepository(true) },
+                            onInstallAll = viewModel::installAll,
                         )
                     }
                 }
@@ -322,8 +333,11 @@ private fun RepoAppsTab(
     repo: Repo,
     apps: List<AppMinimal>,
     installedPackages: Set<String>,
+    notInstalledCount: Int,
+    isInstallingAll: Boolean,
     onAppClick: (String) -> Unit,
     onEnableRepo: () -> Unit,
+    onInstallAll: () -> Unit,
 ) {
     val isTelevision = LocalIsTelevision.current
     when {
@@ -352,6 +366,17 @@ private fun RepoAppsTab(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
+                // One tap to download and install every app of this repo not already installed,
+                // instead of opening each app. Shown only when there's at least one to fetch.
+                if (notInstalledCount > 0) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "install-all") {
+                        InstallAllButton(
+                            count = notInstalledCount,
+                            isInstalling = isInstallingAll,
+                            onClick = onInstallAll,
+                        )
+                    }
+                }
                 items(apps, key = { it.appId }) { app ->
                     CatalogAppTile(
                         app = app,
@@ -361,6 +386,36 @@ private fun RepoAppsTab(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun InstallAllButton(
+    count: Int,
+    isInstalling: Boolean,
+    onClick: () -> Unit,
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = !isInstalling,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+    ) {
+        if (isInstalling) {
+            CircularWavyProgressIndicator(modifier = Modifier.size(20.dp))
+        } else {
+            Icon(imageVector = Icons.Filled.Download, contentDescription = null)
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = if (isInstalling) {
+                stringResource(R.string.installing_all)
+            } else {
+                stringResource(R.string.install_all_FORMAT, count)
+            },
+        )
     }
 }
 

@@ -87,6 +87,8 @@
     <string name="repo_enabled_title">Activé</string>
     <string name="repo_enabled_desc_on">Les applications de ce dépôt apparaissent dans le catalogue.</string>
     <string name="repo_enabled_desc_off">Activez-le pour synchroniser et afficher les applications de ce dépôt.</string>
+    <string name="install_all_FORMAT">Tout installer (%d)</string>
+    <string name="installing_all">Installation…</string>
     <string name="unknown">Inconnu</string>
     <string name="always">Toujours</string>
     <string name="application">Application</string>

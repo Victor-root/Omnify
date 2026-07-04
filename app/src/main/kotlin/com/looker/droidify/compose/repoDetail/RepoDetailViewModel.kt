@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.repoDetail
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,7 +12,9 @@ import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.utility.common.extension.asStateFlow
+import com.looker.droidify.work.InstallAllWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +32,7 @@ class RepoDetailViewModel @Inject constructor(
     private val repoRepository: RepoRepository,
     private val appRepository: AppRepository,
     private val installedRepository: InstalledRepository,
+    @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val route: RepoDetail = savedStateHandle.toRoute()
@@ -54,6 +58,27 @@ class RepoDetailViewModel @Inject constructor(
         .map { items -> items.map { it.packageName }.toSet() }
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptySet())
+
+    /** How many of this repo's apps aren't installed yet — what "Install all" would fetch. Drives the
+     *  button's label and whether it's shown at all. */
+    val notInstalledCount: StateFlow<Int> = apps.combine(installedPackages) { apps, installed ->
+        apps.count { it.packageName.name !in installed }
+    }.flowOn(Dispatchers.Default).asStateFlow(0)
+
+    /** True while a batch "install all" is downloading this repo's apps — locks the button and shows
+     *  progress. */
+    val isInstallingAll: StateFlow<Boolean> = InstallAllWorker.isInstalling(context, repoId).asStateFlow(false)
+
+    /** Downloads and installs every app of this repo that isn't already installed, one after another.
+     *  No-op when nothing is pending or a batch is already running. */
+    fun installAll() {
+        if (isInstallingAll.value) return
+        val installed = installedPackages.value
+        val packages = apps.value
+            .map { it.packageName.name }
+            .filter { it !in installed }
+        InstallAllWorker.installAll(context, repoId, packages)
+    }
 
     fun enableRepository(enable: Boolean) {
         viewModelScope.launch {
