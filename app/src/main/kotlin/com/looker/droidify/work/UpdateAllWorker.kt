@@ -67,6 +67,9 @@ class UpdateAllWorker @AssistedInject constructor(
 
         Log.i(TAG, "Updating ${packages.size} app(s)")
         for (packageName in packages) {
+            // Publish which app is being handled right now, so the Updates tab can show a live spinner
+            // on that tile and move to the next as the batch progresses.
+            setProgress(Data.Builder().putString(KEY_CURRENT_PACKAGE, packageName).build())
             runCatching { updateOne(packageName) }
                 .onFailure { Log.w(TAG, "Update failed for $packageName", it) }
         }
@@ -161,6 +164,7 @@ class UpdateAllWorker @AssistedInject constructor(
     companion object {
         private const val TAG = "UpdateAllWorker"
         private const val KEY_PACKAGES = "packages"
+        private const val KEY_CURRENT_PACKAGE = "current_package"
 
         /** Enqueues a one-shot update of [packageNames]; a second tap replaces a queued run. */
         fun updateAll(context: Context, packageNames: List<String>) {
@@ -186,6 +190,16 @@ class UpdateAllWorker @AssistedInject constructor(
             WorkManager.getInstance(context)
                 .getWorkInfosByTagFlow(TAG)
                 .map { infos -> infos.any { it.state == WorkInfo.State.RUNNING } }
+
+        /** The package name currently being updated by the running batch (or null when idle), so the
+         *  Updates tab can show a live spinner on that app's tile. */
+        fun currentPackage(context: Context): Flow<String?> =
+            WorkManager.getInstance(context)
+                .getWorkInfosByTagFlow(TAG)
+                .map { infos ->
+                    infos.firstOrNull { it.state == WorkInfo.State.RUNNING }
+                        ?.progress?.getString(KEY_CURRENT_PACKAGE)
+                }
     }
 }
 

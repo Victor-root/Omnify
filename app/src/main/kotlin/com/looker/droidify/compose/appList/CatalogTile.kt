@@ -165,6 +165,7 @@ fun CatalogAppTile(
     isInstalled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isUpdating: Boolean = false,
 ) {
     val iconSize = if (LocalIsTelevision.current) TvTileIconSize else TileIconSize
     AppTile(
@@ -172,6 +173,7 @@ fun CatalogAppTile(
         isInstalled = isInstalled,
         onClick = onClick,
         modifier = modifier,
+        isUpdating = isUpdating,
     ) {
         AppMinimalIcon(app, isInstalled, Modifier.size(iconSize))
     }

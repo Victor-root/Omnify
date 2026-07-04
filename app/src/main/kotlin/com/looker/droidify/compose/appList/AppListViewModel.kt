@@ -269,6 +269,10 @@ class AppListViewModel @Inject constructor(
     /** True while a batch "update all" is downloading its apps — locks the button and shows progress. */
     val isUpdatingAll: StateFlow<Boolean> = UpdateAllWorker.isUpdating(context).asStateFlow(false)
 
+    /** The package currently being updated by a running "update all" batch (null when idle), so the
+     *  Updates tab shows a live spinner on that app and moves to the next in real time. */
+    val updatingPackage: StateFlow<String?> = UpdateAllWorker.currentPackage(context).asStateFlow(null)
+
     /**
      * Downloads and installs every app currently listed on the Updates tab. The list is already
      * filtered to installable updates ([updatableApps]); the worker resolves and installs each, one

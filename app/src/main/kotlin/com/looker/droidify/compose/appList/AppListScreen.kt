@@ -169,6 +169,7 @@ fun AppListScreen(
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val updatesCount by viewModel.updatesCount.collectAsStateWithLifecycle()
     val isUpdatingAll by viewModel.isUpdatingAll.collectAsStateWithLifecycle()
+    val updatingPackage by viewModel.updatingPackage.collectAsStateWithLifecycle()
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
     val homeScreenSwiping by viewModel.homeScreenSwiping.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
@@ -823,6 +824,10 @@ fun AppListScreen(
                     CatalogAppTile(
                         app = app,
                         isInstalled = app.packageName.name in installedPackages,
+                        // On the Updates tab, ring the tile of the app the "update all" batch is
+                        // downloading right now, so progress is visible in real time.
+                        isUpdating = selectedTab == AppTab.UPDATES &&
+                            app.packageName.name == updatingPackage,
                         onClick = { openApp(app.packageName.name) },
                         modifier = Modifier.restoreFocusTarget(
                             isTelevision && restoreFocusId == "app:${app.packageName.name}",

@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -232,7 +233,7 @@ fun SettingsScreen(
 
             item {
                 ThemeSetting(
-                    icon = painterResource(R.drawable.ic_themes),
+                    icon = painterResource(R.drawable.ic_tabler_paint),
                     selectedTheme = settings.theme,
                     onThemeSelected = viewModel::setTheme,
                 )
@@ -242,7 +243,7 @@ fun SettingsScreen(
                 ActionSettingItem(
                     title = stringResource(R.string.theme_color),
                     description = stringResource(R.string.theme_color_DESC),
-                    icon = painterResource(R.drawable.ic_tune),
+                    icon = painterResource(R.drawable.ic_tabler_palette),
                     onClick = { showColorPicker = true },
                 )
             }
@@ -663,13 +664,14 @@ private fun VersionFooter() {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_perm_device_information),
+        // The app's own launcher icon, shown in full colour (an Image, not a tinted Icon) so the
+        // footer reads as "this is Omnify".
+        Image(
+            painter = painterResource(R.mipmap.ic_launcher),
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(28.dp),
+            modifier = Modifier.size(32.dp),
         )
-        Spacer(Modifier.width(20.dp))
+        Spacer(Modifier.width(16.dp))
         Column {
             Text(
                 text = stringResource(R.string.application_name),

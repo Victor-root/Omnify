@@ -15,6 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -55,12 +57,14 @@ private val TvTileShape = RoundedCornerShape(16.dp)
  * icon vs. an external/provider icon). The caller sets the width via [modifier] (a fixed width in a
  * carousel, the cell width in a grid).
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppTile(
     name: String,
     isInstalled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isUpdating: Boolean = false,
     icon: @Composable () -> Unit,
 ) {
     // Android TV: the focused tile scales up inside a green focus box (see below). The scale is applied
@@ -137,9 +141,21 @@ fun AppTile(
                 },
             ),
     ) {
-        Box {
-            icon()
-            if (isInstalled) {
+        Box(contentAlignment = Alignment.Center) {
+            // While this app is being updated by "update all", dim its icon and spin a wavy ring over
+            // it, so the batch's live progress is obvious as it moves from app to app.
+            Box(
+                modifier = if (isUpdating) {
+                    Modifier.graphicsLayer { alpha = 0.35f }
+                } else {
+                    Modifier
+                },
+            ) {
+                icon()
+            }
+            if (isUpdating) {
+                CircularWavyProgressIndicator(modifier = Modifier.size(32.dp))
+            } else if (isInstalled) {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
