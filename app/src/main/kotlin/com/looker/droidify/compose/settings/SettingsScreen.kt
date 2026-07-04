@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -667,14 +668,26 @@ private fun VersionFooter() {
         // The app's own launcher icon (its colour foreground layer), shown as an Image so the footer
         // reads as "this is Omnify". We use the foreground drawable, not R.mipmap.ic_launcher: the
         // latter resolves to the adaptive-icon XML on API 26+, which painterResource can't load (it
-        // only supports vector drawables and bitmaps), and that crashed the screen. The foreground has
-        // the adaptive safe-zone padding built in, so a slightly larger size keeps the glyph readable.
+        // only supports vector drawables and bitmaps), and that crashed the screen.
+        //
+        // The box is sized and spaced exactly like every other row's leading icon (SettingLeadingIcon:
+        // 24dp + a 20dp gap) so this row stays aligned with the rest. But an adaptive-icon foreground
+        // layer reserves a large transparent safe zone around the glyph (so it survives being cropped
+        // to a circle/square/etc. on the home screen) — drawn at 1:1 in a 24dp box, the actual glyph
+        // came out tiny. Scale the image up around its centre and clip it to the 24dp box, cropping
+        // away that safe-zone padding so the glyph itself fills the row icon like the others do.
         Image(
             painter = painterResource(R.drawable.ic_launcher_foreground),
             contentDescription = null,
-            modifier = Modifier.size(40.dp),
+            modifier = Modifier
+                .size(24.dp)
+                .graphicsLayer {
+                    scaleX = 2.3f
+                    scaleY = 2.3f
+                    clip = true
+                },
         )
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(20.dp))
         Column {
             Text(
                 text = stringResource(R.string.application_name),
