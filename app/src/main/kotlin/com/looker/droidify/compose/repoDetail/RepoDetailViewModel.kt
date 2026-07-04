@@ -13,6 +13,7 @@ import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.work.InstallAllWorker
+import com.looker.droidify.work.SyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +59,10 @@ class RepoDetailViewModel @Inject constructor(
         .map { items -> items.map { it.packageName }.toSet() }
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptySet())
+
+    /** True while any sync is running, so the Apps tab can show a spinner (rather than an empty or
+     *  misleading state) while this repo's catalogue is still loading. */
+    val isSyncing: StateFlow<Boolean> = SyncWorker.isSyncing(context).asStateFlow(false)
 
     /** How many of this repo's apps aren't installed yet — what "Install all" would fetch. Drives the
      *  button's label and whether it's shown at all. */

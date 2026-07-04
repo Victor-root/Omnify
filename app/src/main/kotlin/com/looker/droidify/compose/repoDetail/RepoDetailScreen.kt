@@ -98,6 +98,7 @@ fun RepoDetailScreen(
     val installedPackages by viewModel.installedPackages.collectAsState()
     val notInstalledCount by viewModel.notInstalledCount.collectAsState()
     val isInstallingAll by viewModel.isInstallingAll.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(RepoDetailTab.INFO) }
 
@@ -182,6 +183,7 @@ fun RepoDetailScreen(
                             installedPackages = installedPackages,
                             notInstalledCount = notInstalledCount,
                             isInstallingAll = isInstallingAll,
+                            isSyncing = isSyncing,
                             onAppClick = onAppClick,
                             onEnableRepo = { viewModel.enableRepository(true) },
                             onInstallAll = viewModel::installAll,
@@ -325,9 +327,14 @@ private fun RepoInfoTab(
 
 /**
  * The repository's own apps as the usual catalogue tile grid, so it reads exactly like every other
- * app list in Omnify. Falls back to [UnsyncedRepoState] when the repo hasn't synced yet (nothing to
- * show), or a plain empty message on the rare repo that genuinely has none.
+ * app list in Omnify.
+ *
+ * The empty states are deliberately precise, so an enabled repo is never wrongly labelled "not
+ * synced": only a genuinely *disabled* repo shows the enable prompt. An enabled repo with no apps yet
+ * shows a spinner while a sync runs, or a neutral "no apps" message once it has settled (some repos
+ * legitimately serve nothing this device can install).
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun RepoAppsTab(
     repo: Repo,
@@ -335,13 +342,15 @@ private fun RepoAppsTab(
     installedPackages: Set<String>,
     notInstalledCount: Int,
     isInstallingAll: Boolean,
+    isSyncing: Boolean,
     onAppClick: (String) -> Unit,
     onEnableRepo: () -> Unit,
     onInstallAll: () -> Unit,
 ) {
     val isTelevision = LocalIsTelevision.current
     when {
-        apps.isEmpty() && (!repo.enabled || repo.versionInfo == null) -> {
+        // Genuinely off: offer to enable it. This is the ONLY case that claims "not enabled".
+        !repo.enabled -> {
             UnsyncedRepoState(
                 onEnableClick = onEnableRepo,
                 address = repo.address,
@@ -349,6 +358,23 @@ private fun RepoAppsTab(
             )
         }
 
+        // Enabled but nothing to show yet while a sync is in flight: a spinner, not a "no apps" claim.
+        apps.isEmpty() && isSyncing -> {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                CircularWavyProgressIndicator()
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.syncing),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        // Enabled, sync settled, still nothing: the repo simply serves no apps for this device.
         apps.isEmpty() -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
