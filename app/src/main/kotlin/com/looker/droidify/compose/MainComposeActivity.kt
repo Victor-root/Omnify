@@ -325,8 +325,17 @@ class MainComposeActivity : ComponentActivity() {
                 Theme.LIGHT -> false
                 Theme.SYSTEM, Theme.SYSTEM_BLACK -> isSystemInDarkTheme()
             }
+            // Only the Black theme (or System Black while the system is actually dark) asks for true
+            // OLED-black surfaces; plain Dark uses the standard dark grey. Without this, Dark and Black
+            // rendered identically once Compose forced every dark surface to pure black regardless.
+            val amoled = when (themeState.theme) {
+                Theme.AMOLED -> true
+                Theme.SYSTEM_BLACK -> darkTheme
+                Theme.SYSTEM, Theme.LIGHT, Theme.DARK -> false
+            }
             DroidifyTheme(
                 darkTheme = darkTheme,
+                amoled = amoled,
                 dynamicColor = themeState.dynamicTheme,
                 accentColor = themeState.themeColor,
                 edgeToEdge = themeState.edgeToEdge,

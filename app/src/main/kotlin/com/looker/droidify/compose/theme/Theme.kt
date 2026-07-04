@@ -265,31 +265,56 @@ private val highContrastDarkColorScheme = darkColorScheme(
 )
 
 /**
- * Forces neutral surfaces (pure white in light, near-black in dark) and disables the tonal-elevation
- * tint, keeping the accent only on primary/secondary/tertiary roles (buttons, section titles,
- * indicators). Material 3 otherwise derives every surface — and the elevation overlay — from the
- * seed colour, which tinted the whole background with the accent. Mirrors the maintainer's
+ * Forces neutral surfaces (pure white in light, dark grey or pure black in dark) and disables the
+ * tonal-elevation tint, keeping the accent only on primary/secondary/tertiary roles (buttons, section
+ * titles, indicators). Material 3 otherwise derives every surface — and the elevation overlay — from
+ * the seed colour, which tinted the whole background with the accent. Mirrors the maintainer's
  * MaterialFiles fork: white/black background, accent only as an accent.
+ *
+ * [amoled] picks which dark ladder applies: true-black surfaces (the actual point of an AMOLED theme,
+ * OLED pixels off) for the Black theme, or a standard Material dark grey for the plain Dark theme —
+ * the Dark and Black options rendered identically until this distinction existed.
  */
-private fun ColorScheme.withNeutralSurfaces(dark: Boolean): ColorScheme = if (dark) {
-    copy(
-        background = Color(0xFF000000),
-        onBackground = Color(0xFFE6E6E6),
-        surface = Color(0xFF000000),
-        onSurface = Color(0xFFE6E6E6),
-        surfaceVariant = Color(0xFF333333),
-        onSurfaceVariant = Color(0xFFC2C2C2),
-        surfaceDim = Color(0xFF000000),
-        surfaceBright = Color(0xFF3A3A3A),
-        surfaceContainerLowest = Color(0xFF000000),
-        surfaceContainerLow = Color(0xFF141414),
-        surfaceContainer = Color(0xFF1A1A1A),
-        surfaceContainerHigh = Color(0xFF242424),
-        surfaceContainerHighest = Color(0xFF2E2E2E),
-        outline = Color(0xFF8A8A8A),
-        outlineVariant = Color(0xFF3A3A3A),
-        surfaceTint = Color.Transparent,
-    )
+private fun ColorScheme.withNeutralSurfaces(dark: Boolean, amoled: Boolean): ColorScheme = if (dark) {
+    if (amoled) {
+        copy(
+            background = Color(0xFF000000),
+            onBackground = Color(0xFFE6E6E6),
+            surface = Color(0xFF000000),
+            onSurface = Color(0xFFE6E6E6),
+            surfaceVariant = Color(0xFF333333),
+            onSurfaceVariant = Color(0xFFC2C2C2),
+            surfaceDim = Color(0xFF000000),
+            surfaceBright = Color(0xFF3A3A3A),
+            surfaceContainerLowest = Color(0xFF000000),
+            surfaceContainerLow = Color(0xFF141414),
+            surfaceContainer = Color(0xFF1A1A1A),
+            surfaceContainerHigh = Color(0xFF242424),
+            surfaceContainerHighest = Color(0xFF2E2E2E),
+            outline = Color(0xFF8A8A8A),
+            outlineVariant = Color(0xFF3A3A3A),
+            surfaceTint = Color.Transparent,
+        )
+    } else {
+        copy(
+            background = Color(0xFF121212),
+            onBackground = Color(0xFFE6E6E6),
+            surface = Color(0xFF121212),
+            onSurface = Color(0xFFE6E6E6),
+            surfaceVariant = Color(0xFF3A3A3A),
+            onSurfaceVariant = Color(0xFFC2C2C2),
+            surfaceDim = Color(0xFF121212),
+            surfaceBright = Color(0xFF3A3A3A),
+            surfaceContainerLowest = Color(0xFF0A0A0A),
+            surfaceContainerLow = Color(0xFF1C1C1C),
+            surfaceContainer = Color(0xFF222222),
+            surfaceContainerHigh = Color(0xFF2C2C2C),
+            surfaceContainerHighest = Color(0xFF363636),
+            outline = Color(0xFF8A8A8A),
+            outlineVariant = Color(0xFF3A3A3A),
+            surfaceTint = Color.Transparent,
+        )
+    }
 } else {
     copy(
         background = Color(0xFFFFFFFF),
@@ -330,6 +355,7 @@ private fun ColorScheme.withVividAccent(argb: Int): ColorScheme {
 @Composable
 fun DroidifyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    amoled: Boolean = false,
     dynamicColor: Boolean = false,
     accentColor: Int = DEFAULT_THEME_COLOR,
     edgeToEdge: Boolean = true,
@@ -361,7 +387,7 @@ fun DroidifyTheme(
         // — that washed-out tone is what made the colours look dull. Mirrors the MaterialFiles fork.
         else -> context.toComposeColorScheme(if (darkTheme) darkScheme else lightScheme)
             .withVividAccent(accentColor)
-    }.withNeutralSurfaces(darkTheme)
+    }.withNeutralSurfaces(darkTheme, amoled)
 
     // The header and system bars use one fixed accent red in BOTH light and dark mode. Material 3
     // lightens `primary` in dark mode, but `inversePrimary` there is exactly the light-mode primary,
