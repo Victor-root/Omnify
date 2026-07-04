@@ -7,6 +7,7 @@ import com.looker.droidify.data.local.model.toApp
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
+import com.looker.droidify.data.model.FilePath
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
@@ -105,6 +106,23 @@ class AppRepository @Inject constructor(
         val currentLocale = localeStream.first()
         runCatching { appDao.rootApps(locale = currentLocale, limit = limit) }
             .getOrDefault(emptyList())
+    }
+
+    /**
+     * The real app icon for every repo that serves exactly one app, keyed by repo id (see
+     * [AppDao.singleAppRepoIcons]) — lets the repositories list show that app's actual icon instead of a
+     * single-app repo's own often-unusable declared icon (many small repos never customise it and
+     * fdroidserver defaults to a QR code of the repo address).
+     */
+    suspend fun singleAppRepoIcons(): Map<Int, FilePath> = withContext(Dispatchers.Default) {
+        val currentLocale = localeStream.first()
+        runCatching { appDao.singleAppRepoIcons(locale = currentLocale) }
+            .getOrDefault(emptyList())
+            .mapNotNull { row ->
+                val icon = FilePath(row.baseAddress, row.iconName) ?: return@mapNotNull null
+                row.repoId to icon
+            }
+            .toMap()
     }
 
     /** Emits whenever the catalogue (apps/versions) changes, e.g. after a sync. */

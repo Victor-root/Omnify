@@ -214,6 +214,35 @@ interface AppDao {
         }
     }
 
+    /**
+     * The real app icon for every repo that serves exactly one app, keyed by repo — used to replace a
+     * single-app repo's own declared icon in the repositories list. Small self-hosted repos routinely
+     * ship no custom repo icon (fdroidserver defaults to a QR code of the repo address), but the one app
+     * they serve has a real launcher icon extracted from its APK, which is always the better logo. Multi-
+     * app repos are untouched (the query only matches repoIds with a single row in `app`). The compose
+     * layer's curated per-repo logo map still takes priority over this when both exist.
+     */
+    @Query(
+        """
+        SELECT
+            app.repoId AS repoId,
+            repo.address AS baseAddress,
+            COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName
+        FROM app
+        JOIN repository AS repo ON repo.id = app.repoId
+        LEFT JOIN localized_app_icon AS i_loc ON i_loc.appId = app.id AND i_loc.locale = :locale
+        LEFT JOIN localized_app_icon AS i_en ON i_en.appId = app.id AND i_en.locale = 'en-US'
+        WHERE app.repoId IN (SELECT repoId FROM app GROUP BY repoId HAVING COUNT(*) = 1)
+        """,
+    )
+    suspend fun singleAppRepoIcons(locale: String): List<SingleAppRepoIconRow>
+
+    data class SingleAppRepoIconRow(
+        val repoId: Int,
+        val baseAddress: String,
+        val iconName: String?,
+    )
+
     /** Emits on any change to the download-stats table (e.g. after the stats worker inserts a monthly
      *  file), so the "Most downloaded" carousel re-queries once data lands. Value isn't meaningful. */
     @Query("SELECT COUNT(*) FROM download_stats")

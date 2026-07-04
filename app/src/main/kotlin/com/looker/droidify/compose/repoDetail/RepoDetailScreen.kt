@@ -171,9 +171,23 @@ fun RepoDetailScreen(
                         .focusRequester(contentFocusRequester)
                         .focusGroup(),
                 ) {
+                    // A single-app repo's own declared icon is often unusable (many small self-hosted
+                    // repos never customise it, and fdroidserver defaults to a QR code of the repo
+                    // address); its one app's real launcher icon is always the better logo. Skipped for a
+                    // repo that already has a curated logo (e.g. Cromite): some of those are curated
+                    // precisely because the repo is unreachable to a non-browser client for anything
+                    // under its /repo path, including its own app's icon, so overriding could replace a
+                    // working hand-picked logo with a URL that fails to load. Only affects the Info tab's
+                    // display, not the repo object used elsewhere on this screen.
+                    val hasCuratedIcon = defaultRepoIcon(currentRepo.address) != null ||
+                        defaultRepoIconRes(currentRepo.address) != null
+                    val singleAppIcon = if (hasCuratedIcon) null else apps.singleOrNull()?.icon
+                    val infoRepo = remember(currentRepo, singleAppIcon) {
+                        singleAppIcon?.let { currentRepo.copy(icon = it) } ?: currentRepo
+                    }
                     when (selectedTab) {
                         RepoDetailTab.INFO -> RepoInfoTab(
-                            repo = currentRepo,
+                            repo = infoRepo,
                             onToggle = viewModel::enableRepository,
                         )
 
