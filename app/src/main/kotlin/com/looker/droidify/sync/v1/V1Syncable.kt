@@ -49,19 +49,26 @@ class V1Syncable(
                 block(SyncState.IndexDownload.Success(repo.id))
             }
             with(jar.toJarScope<IndexV1>()) {
+                // The jar's signing-certificate fingerprint is only known once the whole entry has
+                // been read (java.util.jar.JarEntry.getCertificates() stays null until the stream is
+                // fully consumed), so json() must run before fingerprint is ever read. Reading
+                // fingerprint first (as this used to) always threw "Read the entry before reading
+                // fingerprint" — every v1 sync failed unconditionally, for every repo, every time.
+                val output = json()
+                val jarFingerprint = fingerprint
                 when {
-                    fingerprint == null -> block(
+                    jarFingerprint == null -> block(
                         SyncState.JarParsing.Failure(
                             repo.id,
                             IllegalStateException("Jar entry does not contain a fingerprint"),
                         ),
                     )
 
-                    repo.fingerprint != null && !repo.fingerprint.assert(fingerprint!!) -> block(
+                    repo.fingerprint != null && !repo.fingerprint.assert(jarFingerprint) -> block(
                         SyncState.JarParsing.Failure(
                             repo.id,
                             IllegalStateException(
-                                "Expected fingerprint: ${repo.fingerprint}, Actual fingerprint: $fingerprint",
+                                "Expected fingerprint: ${repo.fingerprint}, Actual fingerprint: $jarFingerprint",
                             ),
                         ),
                     )
@@ -69,8 +76,8 @@ class V1Syncable(
                     else -> block(
                         SyncState.JsonParsing.Success(
                             repo.id,
-                            fingerprint!!,
-                            json().toV2(),
+                            jarFingerprint,
+                            output.toV2(),
                         ),
                     )
                 }

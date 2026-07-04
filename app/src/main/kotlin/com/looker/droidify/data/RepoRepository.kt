@@ -209,7 +209,7 @@ class RepoRepository @Inject constructor(
         var success = false
         var parsedFingerprint: Fingerprint? = null
         var parsedIndex: IndexV2? = null
-        v2Syncable.sync(repo) { state ->
+        val handleState: (SyncState) -> Unit = { state ->
             onState?.invoke(state)
             when (state) {
                 is SyncState.JsonParsing.Success -> {
@@ -227,6 +227,15 @@ class RepoRepository @Inject constructor(
                     Log.e(TAG, "Index parse failed for ${repo.name} (id=${repo.id})", state.error)
                 else -> Unit
             }
+        }
+        v2Syncable.sync(repo, handleState)
+        if (!success) {
+            // Plenty of repos (many small or unmaintained ones, e.g. NanoDroid) never published the
+            // newer v2 "entry.jar" index and only ever will serve the legacy v1 index-v1.jar. Without
+            // this fallback those repos silently failed to sync forever, and their catalogue stayed
+            // empty no matter how many times the user retried.
+            Log.i(TAG, "V2 sync unavailable for ${repo.name} (id=${repo.id}); falling back to v1 index")
+            v1Syncable.sync(repo, handleState)
         }
         val fingerprint = parsedFingerprint
         val index = parsedIndex

@@ -93,7 +93,16 @@ interface IndexDao {
             existing.forEach { put(it.packageName, it.id) }
         }
 
-        val toUpdate = appEntities.filter { existingIdByPackage.containsKey(it.packageName) }
+        // Carry over each existing app's real id before upserting it. Without it, the entity's id
+        // stays at the AppEntity default (0), so the INSERT half of @Upsert conflicts on the
+        // (packageName, repoId) unique index rather than the primary key — a constraint @Upsert's
+        // generated fallback doesn't recognize, so it throws instead of falling back to an UPDATE,
+        // aborting this whole @Transaction (repo metadata, other apps, everything) on EVERY resync of
+        // an app that was already in the catalogue. Only a repo's very first sync (nothing to update
+        // yet) was ever unaffected.
+        val toUpdate = appEntities.mapNotNull { entity ->
+            existingIdByPackage[entity.packageName]?.let { id -> entity.copy(id = id) }
+        }
         val toInsert = appEntities.filter { !existingIdByPackage.containsKey(it.packageName) }
 
         if (toUpdate.isNotEmpty()) upsertApps(toUpdate)
@@ -130,8 +139,12 @@ interface IndexDao {
 
             allCategoryAppRelations += metadata.categories.map { CategoryAppRelation(appId, it) }
 
-            allAppNames += metadata.name?.localizedAppName(appId)
-                ?: listOf(LocalizedAppNameEntity(appId, locale = "en-US", name = packageName))
+            // metadata.name is a non-null empty map (not null) whenever an index entry declares no
+            // name anywhere, so the old `?:` fallback (only triggers on null) never caught that case
+            // and left the app with zero rows in localized_app_name — crashing every query that reads
+            // it (its "name" column is declared non-null). ifEmpty catches null-mapped-to-emptyList too.
+            allAppNames += metadata.name?.localizedAppName(appId).orEmpty()
+                .ifEmpty { listOf(LocalizedAppNameEntity(appId, locale = "en-US", name = packageName)) }
             metadata.summary?.localizedAppSummary(appId)?.let { allAppSummaries += it }
             metadata.description?.localizedAppDescription(appId)?.let { allAppDescriptions += it }
             metadata.icon?.localizedAppIcon(appId)?.let { allAppIcons += it }

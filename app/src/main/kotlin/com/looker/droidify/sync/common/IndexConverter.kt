@@ -98,10 +98,16 @@ private fun String.normalizeName(): String = lowercase().replace(" & ", "_")
 private fun AppV1.toV2(preferredSigner: String?): MetadataV2 = MetadataV2(
     added = added ?: 0L,
     lastUpdated = lastUpdated ?: 0L,
-    icon = localized?.localizedIcon(packageName, icon) { it.icon },
-    name = localized?.localizedString(name) { it.name } ?: emptyMap(),
-    description = localized?.localizedString(description) { it.description },
-    summary = localized?.localizedString(summary) { it.summary },
+    // .orEmpty() (not the ?. this used to be): an app with a top-level name/icon/etc. but no
+    // "localized" block at all must still fall through to localizedString/localizedIcon's own
+    // isEmpty()-plus-default handling. The ?. short-circuited straight past that default whenever
+    // localized was null, silently discarding the app's only name — leaving it with zero rows in
+    // localized_app_name and crashing every query that reads it (COALESCE(...) AS name comes back
+    // NULL, but the generated Room row type declares that column non-null).
+    icon = localized.orEmpty().localizedIcon(packageName, icon) { it.icon },
+    name = localized.orEmpty().localizedString(name) { it.name } ?: emptyMap(),
+    description = localized.orEmpty().localizedString(description) { it.description },
+    summary = localized.orEmpty().localizedString(summary) { it.summary },
     authorEmail = authorEmail,
     authorName = authorName,
     authorPhone = authorPhone,

@@ -105,7 +105,7 @@ interface AppDao {
             SELECT
                 app.id AS appId,
                 app.packageName AS packageName,
-                COALESCE(n_loc.name, n_en.name) AS name,
+                COALESCE(n_loc.name, n_en.name, app.packageName) AS name,
                 COALESCE(s_loc.summary, s_en.summary) AS summary,
                 repo.address AS baseAddress,
                 COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName,
@@ -175,7 +175,7 @@ interface AppDao {
             SELECT
                 app.id AS appId,
                 app.packageName AS packageName,
-                COALESCE(n_loc.name, n_en.name) AS name,
+                COALESCE(n_loc.name, n_en.name, app.packageName) AS name,
                 COALESCE(s_loc.summary, s_en.summary) AS summary,
                 repo.address AS baseAddress,
                 COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName,
@@ -281,7 +281,7 @@ interface AppDao {
                 SELECT
                     app.id AS appId,
                     app.packageName AS packageName,
-                    COALESCE(n_loc.name, n_en.name) AS name,
+                    COALESCE(n_loc.name, n_en.name, app.packageName) AS name,
                     COALESCE(s_loc.summary, s_en.summary) AS summary,
                     repo.address AS baseAddress,
                     COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName,
