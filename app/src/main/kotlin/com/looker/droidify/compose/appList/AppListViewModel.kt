@@ -5,7 +5,6 @@ import android.content.pm.ApplicationInfo
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.SuggestedVersion
@@ -37,7 +36,6 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -65,8 +63,6 @@ class AppListViewModel @Inject constructor(
     private val _favouritesOnly = MutableStateFlow(false)
     val favouritesOnly: StateFlow<Boolean> = _favouritesOnly
     private val favouriteApps: Flow<Set<String>> = settingsRepository.get { favouriteApps }.distinctUntilChanged()
-
-    val sortOrderFlow = settingsRepository.get { sortOrder }.asStateFlow(SortOrder.UPDATED)
 
     /** Whether a left/right swipe on the home grid switches tab (user setting, off by default). */
     val homeScreenSwiping = settingsRepository.get { homeScreenSwiping }.asStateFlow(false)
@@ -96,16 +92,16 @@ class AppListViewModel @Inject constructor(
     val appsState: StateFlow<List<AppMinimal>> = combine(
         searchQueryStream,
         selectedCategories,
-        sortOrderFlow,
         favouritesOnly,
         favouriteApps,
-    ) { searchQuery, categories, sortOrder, favOnly, favSet ->
-        AppQuery(searchQuery, categories, sortOrder, favOnly, favSet)
+    ) { searchQuery, categories, favOnly, favSet ->
+        AppQuery(searchQuery, categories, favOnly, favSet)
     }
         .combine(catalogChanges) { query, _ -> query }
         .mapLatest { query ->
             val items = appRepository.apps(
-                sortOrder = query.sortOrder,
+                // The sort picker was removed; the main list always shows the freshest apps first.
+                sortOrder = SortOrder.UPDATED,
                 searchQuery = query.search,
                 categoriesToInclude = query.categories.toList(),
             )
@@ -424,11 +420,6 @@ class AppListViewModel @Inject constructor(
             .flowOn(Dispatchers.Default)
             .asStateFlow(emptyMap())
 
-    /** Persists the chosen sort order; [appsState] re-queries automatically. */
-    fun setSortOrder(order: SortOrder) {
-        viewModelScope.launch { settingsRepository.setSortOrder(order) }
-    }
-
     /**
      * Manually re-syncs all enabled repositories through the same worker as every other sync, so the
      * in-app bar and the notification both show. Lists refresh automatically afterwards.
@@ -472,7 +463,6 @@ private const val CATALOG_REFRESH_MS = 500L
 private data class AppQuery(
     val search: String,
     val categories: Set<DefaultName>,
-    val sortOrder: SortOrder,
     val favOnly: Boolean,
     val favSet: Set<String>,
 )

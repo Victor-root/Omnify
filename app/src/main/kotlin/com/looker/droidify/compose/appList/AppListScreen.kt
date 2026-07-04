@@ -55,7 +55,6 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
@@ -113,7 +112,6 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -132,9 +130,6 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.data.model.AppMinimal
-import com.looker.droidify.datastore.extension.sortOrderName
-import com.looker.droidify.datastore.model.SortOrder
-import com.looker.droidify.datastore.model.supportedSortOrders
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -171,7 +166,6 @@ fun AppListScreen(
     val expandedSectionApps by viewModel.expandedSectionApps.collectAsStateWithLifecycle()
     val openedSection by viewModel.openedSection.collectAsStateWithLifecycle()
     val openedSectionApps by viewModel.openedSectionApps.collectAsStateWithLifecycle()
-    val sortOrder by viewModel.sortOrderFlow.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val updatesCount by viewModel.updatesCount.collectAsStateWithLifecycle()
     val isUpdatingAll by viewModel.isUpdatingAll.collectAsStateWithLifecycle()
@@ -452,8 +446,6 @@ fun AppListScreen(
                         searchState = viewModel.searchQuery,
                         onNavigateToRepos = onNavigateToRepos,
                         onNavigateToSettings = onNavigateToSettings,
-                        currentSort = sortOrder,
-                        onSortSelected = viewModel::setSortOrder,
                         title = {
                             // Pull the whole logo+wordmark left, past the top bar's default title inset.
                             Row(
@@ -1205,8 +1197,6 @@ private fun AppListTopBar(
     searchState: TextFieldState,
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    currentSort: SortOrder,
-    onSortSelected: (SortOrder) -> Unit,
     favouritesOnly: Boolean,
     onToggleFavourites: () -> Unit,
     title: @Composable () -> Unit,
@@ -1221,8 +1211,6 @@ private fun AppListTopBar(
             onToggleSearch = onToggleSearch,
             onNavigateToRepos = onNavigateToRepos,
             onNavigateToSettings = onNavigateToSettings,
-            currentSort = currentSort,
-            onSortSelected = onSortSelected,
             favouritesOnly = favouritesOnly,
             onToggleFavourites = onToggleFavourites,
             title = title,
@@ -1249,15 +1237,11 @@ private fun AppListMainTopBar(
     onToggleSearch: () -> Unit,
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    currentSort: SortOrder,
-    onSortSelected: (SortOrder) -> Unit,
     favouritesOnly: Boolean,
     onToggleFavourites: () -> Unit,
     title: @Composable () -> Unit,
 ) {
-    var sortExpanded by remember { mutableStateOf(false) }
     var overflowExpanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
     TopAppBar(
         colors = accentTopAppBarColors(),
         expandedHeight = HomeBarHeight,
@@ -1301,47 +1285,6 @@ private fun AppListMainTopBar(
                     painterResource(R.drawable.ic_tabler_refresh),
                     contentDescription = stringResource(R.string.sync),
                 )
-            }
-            Spacer(Modifier.width(4.dp))
-            Box {
-                IconButton(
-                    onClick = { sortExpanded = true },
-                    modifier = Modifier
-                    // TV: a square button so the focus halo is a clean circle (the narrow expressive
-                    // size makes it an oval); the focused icon also scales up. Unchanged on touch.
-                    .then(
-                        if (LocalIsTelevision.current) {
-                            Modifier.size(48.dp)
-                        } else {
-                            Modifier.size(smallContainerSize(Narrow))
-                        },
-                    )
-                    .tvFocusScale(),
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Sort,
-                        contentDescription = stringResource(R.string.sort),
-                    )
-                }
-                DropdownMenu(
-                    expanded = sortExpanded,
-                    onDismissRequest = { sortExpanded = false },
-                ) {
-                    supportedSortOrders().forEach { order ->
-                        DropdownMenuItem(
-                            text = { Text(context.sortOrderName(order)) },
-                            onClick = {
-                                onSortSelected(order)
-                                sortExpanded = false
-                            },
-                            trailingIcon = if (order == currentSort) {
-                                { Icon(Icons.Filled.Check, contentDescription = null) }
-                            } else {
-                                null
-                            },
-                        )
-                    }
-                }
             }
             Spacer(Modifier.width(4.dp))
             // Overflow: the less-used destinations (favourites filter, repositories, settings) live
