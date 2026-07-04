@@ -664,14 +664,17 @@ private fun VersionFooter() {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        // The app's own launcher icon, shown in full colour (an Image, not a tinted Icon) so the
-        // footer reads as "this is Omnify".
+        // The app's own launcher icon (its colour foreground layer), shown as an Image so the footer
+        // reads as "this is Omnify". We use the foreground drawable, not R.mipmap.ic_launcher: the
+        // latter resolves to the adaptive-icon XML on API 26+, which painterResource can't load (it
+        // only supports vector drawables and bitmaps), and that crashed the screen. The foreground has
+        // the adaptive safe-zone padding built in, so a slightly larger size keeps the glyph readable.
         Image(
-            painter = painterResource(R.mipmap.ic_launcher),
+            painter = painterResource(R.drawable.ic_launcher_foreground),
             contentDescription = null,
-            modifier = Modifier.size(32.dp),
+            modifier = Modifier.size(40.dp),
         )
-        Spacer(Modifier.width(16.dp))
+        Spacer(Modifier.width(12.dp))
         Column {
             Text(
                 text = stringResource(R.string.application_name),
