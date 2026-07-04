@@ -4,31 +4,36 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -56,17 +61,22 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.looker.droidify.R
+import com.looker.droidify.compose.appList.CatalogAppTile
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.errorButtonColors
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.repoDetail.components.LastUpdatedCard
+import com.looker.droidify.compose.repoDetail.components.UnsyncedRepoState
 import com.looker.droidify.compose.repoList.RepoIcon
 import com.looker.droidify.compose.repoList.defaultRepoIcon
 import com.looker.droidify.compose.repoList.defaultRepoIconRes
+import com.looker.droidify.compose.settings.components.SwitchSettingItem
+import com.looker.droidify.compose.theme.AccentBarHeight
+import com.looker.droidify.compose.theme.LocalIsTelevision
+import com.looker.droidify.compose.theme.accentTopAppBarColors
+import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.utility.text.toAnnotatedString
-import com.looker.droidify.compose.theme.AccentBarHeight
-import com.looker.droidify.compose.theme.accentTopAppBarColors
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,10 +84,14 @@ import java.util.*
 fun RepoDetailScreen(
     onBackClick: () -> Unit,
     onEditClick: (Int) -> Unit,
+    onAppClick: (String) -> Unit,
     viewModel: RepoDetailViewModel = hiltViewModel(),
 ) {
     val repo by viewModel.repo.collectAsState()
+    val apps by viewModel.apps.collectAsState()
+    val installedPackages by viewModel.installedPackages.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(RepoDetailTab.INFO) }
 
     if (showDeleteDialog) {
         DeleteRepositoryDialog(
@@ -91,67 +105,123 @@ fun RepoDetailScreen(
         )
     }
 
-    // TV / D-pad: drop focus from the header into the content (the top bar won't on its own).
+    // TV / D-pad: drop focus from the header (top bar or tab row) into the content below.
     val contentFocusRequester = remember { FocusRequester() }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                colors = accentTopAppBarColors(),
-                expandedHeight = AccentBarHeight,
-                modifier = Modifier.tvDpadDownTo(contentFocusRequester),
-                title = { Text(stringResource(R.string.repository)) },
-                navigationIcon = { BackButton(onBackClick) },
-                actions = {
-                    IconButton(onClick = { onEditClick(viewModel.repoId) }) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = stringResource(R.string.edit),
-                        )
-                    }
-                    IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.delete),
-                        )
-                    }
-                },
-            )
+            Column(modifier = Modifier.tvDpadDownTo(contentFocusRequester)) {
+                TopAppBar(
+                    colors = accentTopAppBarColors(),
+                    expandedHeight = AccentBarHeight,
+                    title = { Text(stringResource(R.string.repository)) },
+                    navigationIcon = { BackButton(onBackClick) },
+                    actions = {
+                        IconButton(onClick = { onEditClick(viewModel.repoId) }) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(R.string.edit),
+                            )
+                        }
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.delete),
+                            )
+                        }
+                    },
+                )
+                if (repo != null) {
+                    RepoDetailTabRow(
+                        selectedTab = selectedTab,
+                        appCount = apps.size,
+                        onSelectTab = { selectedTab = it },
+                    )
+                }
+            }
         },
     ) { paddingValues ->
+        val currentRepo = repo
         when {
-            repo == null -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            currentRepo == null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center,
+                ) {
                     Text(stringResource(R.string.repository_not_found))
                 }
             }
 
             else -> {
-                RepoDetails(
-                    onToggle = { viewModel.enableRepository(it) },
-                    repo = repo!!,
+                Box(
                     modifier = Modifier
+                        .fillMaxSize()
                         .padding(paddingValues)
                         .focusRequester(contentFocusRequester)
                         .focusGroup(),
-                )
+                ) {
+                    when (selectedTab) {
+                        RepoDetailTab.INFO -> RepoInfoTab(
+                            repo = currentRepo,
+                            onToggle = viewModel::enableRepository,
+                        )
+
+                        RepoDetailTab.APPS -> RepoAppsTab(
+                            repo = currentRepo,
+                            apps = apps,
+                            installedPackages = installedPackages,
+                            onAppClick = onAppClick,
+                            onEnableRepo = { viewModel.enableRepository(true) },
+                        )
+                    }
+                }
             }
         }
     }
 }
 
+private enum class RepoDetailTab { INFO, APPS }
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RepoDetails(
-    onToggle: (Boolean) -> Unit,
+private fun RepoDetailTabRow(
+    selectedTab: RepoDetailTab,
+    appCount: Int,
+    onSelectTab: (RepoDetailTab) -> Unit,
+) {
+    TabRow(selectedTabIndex = selectedTab.ordinal) {
+        Tab(
+            selected = selectedTab == RepoDetailTab.INFO,
+            onClick = { onSelectTab(RepoDetailTab.INFO) },
+            text = { Text(stringResource(R.string.repo_tab_info)) },
+        )
+        Tab(
+            selected = selectedTab == RepoDetailTab.APPS,
+            onClick = { onSelectTab(RepoDetailTab.APPS) },
+            text = {
+                val label = if (appCount > 0) {
+                    "${stringResource(R.string.repo_tab_apps)} ($appCount)"
+                } else {
+                    stringResource(R.string.repo_tab_apps)
+                }
+                Text(label)
+            },
+        )
+    }
+}
+
+@Composable
+private fun RepoInfoTab(
     repo: Repo,
-    modifier: Modifier = Modifier,
+    onToggle: (Boolean) -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-            .then(modifier),
+            .padding(16.dp),
     ) {
         RepoIcon(
             iconUrl = repo.icon?.path,
@@ -170,7 +240,7 @@ private fun RepoDetails(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        val address = remember {
+        val address = remember(repo.address) {
             buildAnnotatedString {
                 withLink(LinkAnnotation.Url(repo.address)) {
                     append(repo.address)
@@ -217,22 +287,80 @@ private fun RepoDetails(
             content = formatFingerprint(repo),
         )
 
-        Spacer(Modifier.weight(1F))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        FilledIconToggleButton(
-            checked = repo.enabled,
-            onCheckedChange = onToggle,
-            modifier = Modifier
-                .size(128.dp)
-                .align(Alignment.CenterHorizontally),
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            border = BorderStroke(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ),
         ) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = null,
+            SwitchSettingItem(
+                title = stringResource(R.string.repo_enabled_title),
+                description = if (repo.enabled) {
+                    stringResource(R.string.repo_enabled_desc_on)
+                } else {
+                    stringResource(R.string.repo_enabled_desc_off)
+                },
+                checked = repo.enabled,
+                onCheckedChange = onToggle,
+            )
+        }
+    }
+}
+
+/**
+ * The repository's own apps as the usual catalogue tile grid, so it reads exactly like every other
+ * app list in Omnify. Falls back to [UnsyncedRepoState] when the repo hasn't synced yet (nothing to
+ * show), or a plain empty message on the rare repo that genuinely has none.
+ */
+@Composable
+private fun RepoAppsTab(
+    repo: Repo,
+    apps: List<AppMinimal>,
+    installedPackages: Set<String>,
+    onAppClick: (String) -> Unit,
+    onEnableRepo: () -> Unit,
+) {
+    val isTelevision = LocalIsTelevision.current
+    when {
+        apps.isEmpty() && (!repo.enabled || repo.versionInfo == null) -> {
+            UnsyncedRepoState(
+                onEnableClick = onEnableRepo,
+                address = repo.address,
+                modifier = Modifier.fillMaxSize(),
             )
         }
 
-        Spacer(Modifier.weight(1F))
+        apps.isEmpty() -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = stringResource(R.string.no_applications_available),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        else -> {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = if (isTelevision) 150.dp else 100.dp),
+                contentPadding = PaddingValues(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                items(apps, key = { it.appId }) { app ->
+                    CatalogAppTile(
+                        app = app,
+                        isInstalled = app.packageName.name in installedPackages,
+                        onClick = { onAppClick(app.packageName.name) },
+                    )
+                }
+            }
+        }
     }
 }
 

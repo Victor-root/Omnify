@@ -227,6 +227,11 @@
     <string name="recently_updated">Recently updated</string>
     <string name="repositories">Repositories</string>
     <string name="repo_section_fdroid">F-Droid repositories</string>
+    <string name="repo_tab_info">Info</string>
+    <string name="repo_tab_apps">Apps</string>
+    <string name="repo_enabled_title">Enabled</string>
+    <string name="repo_enabled_desc_on">This repository\'s apps appear in the catalogue.</string>
+    <string name="repo_enabled_desc_off">Enable it to sync and show this repository\'s apps.</string>
     <string name="repository">Repository</string>
     <string name="repository_not_found">The repository wasn\'t found</string>
     <string name="repository_unsigned_DESC">No signature found. Couldn\'t verify the app list</string>

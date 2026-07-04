@@ -82,6 +82,11 @@
     <string name="recently_updated">Récemment mis à jour</string>
     <string name="repositories">Dépôts</string>
     <string name="repo_section_fdroid">Dépôts F-Droid</string>
+    <string name="repo_tab_info">Infos</string>
+    <string name="repo_tab_apps">Applications</string>
+    <string name="repo_enabled_title">Activé</string>
+    <string name="repo_enabled_desc_on">Les applications de ce dépôt apparaissent dans le catalogue.</string>
+    <string name="repo_enabled_desc_off">Activez-le pour synchroniser et afficher les applications de ce dépôt.</string>
     <string name="unknown">Inconnu</string>
     <string name="always">Toujours</string>
     <string name="application">Application</string>

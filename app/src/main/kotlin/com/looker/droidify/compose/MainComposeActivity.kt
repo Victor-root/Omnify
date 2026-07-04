@@ -388,6 +388,9 @@ class MainComposeActivity : ComponentActivity() {
                             onEditClick = { repoId ->
                                 navController.navigateToRepoEdit(repoId)
                             },
+                            onAppClick = { packageName ->
+                                navController.navigateToAppDetail(packageName)
+                            },
                         )
 
                         repoEdit(onBackClick = { navController.popBackStack() })
