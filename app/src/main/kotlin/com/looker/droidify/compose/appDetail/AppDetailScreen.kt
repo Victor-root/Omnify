@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -442,27 +443,32 @@ private fun PrimaryActions(
                 !isInstalled -> Button(
                     onClick = onInstallOrUpdate,
                     modifier = tvPrimaryButton.tvFocusScale(1.10f),
+                    // Slimmer than the default (which reserves generous side margins for text-only
+                    // buttons): with an icon and a longer localised label (e.g. "Mettre à jour"), the
+                    // default padding pushed the label onto two lines on a normal-width button.
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Download,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.install))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.install), maxLines = 1)
                 }
 
                 updateAvailable -> Button(
                     onClick = onInstallOrUpdate,
                     modifier = tvPrimaryButton.tvFocusScale(1.10f),
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Download,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.update))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.update), maxLines = 1)
                 }
 
                 else -> Button(
