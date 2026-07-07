@@ -1,13 +1,18 @@
 package com.looker.droidify.compose.externalApps
 
+import android.content.Context
 import android.graphics.Color as AndroidColor
+import android.view.MotionEvent
 import android.view.ViewGroup
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -15,6 +20,33 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.viewinterop.AndroidView
 import com.looker.droidify.compose.theme.LocalIsTelevision
+import kotlinx.coroutines.launch
+
+/**
+ * A WebView sized exactly to its content (see [ReadmeWebView]'s doc): it never needs to scroll
+ * itself, so a mouse wheel over it should scroll the surrounding page, not the WebView. Chromium
+ * handles that fling internally regardless of touch nested-scroll settings, so on a device with a
+ * mouse it grabbed the wheel and scrolled its own (non-existent) overflow, visually detaching from
+ * the rest of the page. Intercepting the raw scroll axis and forwarding it to [onWheelScroll]
+ * keeps the whole screen scrolling as one, matching touch behaviour.
+ */
+private class NonScrollingWebView(context: Context) : WebView(context) {
+    var onWheelScroll: ((Float) -> Unit)? = null
+
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_SCROLL) {
+            val vscroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
+            if (vscroll != 0f) {
+                onWheelScroll?.invoke(-vscroll * WheelScrollFactorPx)
+                return true
+            }
+        }
+        return super.onGenericMotionEvent(event)
+    }
+}
+
+/** Roughly one text line per wheel notch — mirrors the platform's own View.scrollBy sizing. */
+private const val WheelScrollFactorPx = 60f
 
 /**
  * Renders a project README (GitHub-rendered HTML) in a WebView, so it looks like it does on the web:
@@ -37,10 +69,12 @@ fun ReadmeWebView(
     javaScriptEnabled: Boolean,
     onContentHeight: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    scrollState: ScrollState? = null,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val uriHandler = LocalUriHandler.current
     val isTelevision = LocalIsTelevision.current
+    val coroutineScope = rememberCoroutineScope()
     // Captured under a distinct name: this Composable parameter shares its name with WebSettings' own
     // `javaScriptEnabled` property, and a bare reference inside `settings.apply { }` below binds to
     // THIS outer val, not the receiver's settable property — assigning to it would be a compile error
@@ -62,7 +96,7 @@ fun ReadmeWebView(
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            WebView(context).apply {
+            NonScrollingWebView(context).apply {
                 settings.apply {
                     // Explicit `this.`: a bare `javaScriptEnabled` here still binds to the outer
                     // Composable parameter of the same name (a val, hence "val cannot be reassigned")
@@ -76,6 +110,11 @@ fun ReadmeWebView(
                 isVerticalScrollBarEnabled = false
                 isNestedScrollingEnabled = false
                 overScrollMode = WebView.OVER_SCROLL_NEVER
+                onWheelScroll = { delta ->
+                    scrollState?.let { state ->
+                        coroutineScope.launch { state.scrollBy(delta) }
+                    }
+                }
                 // On Android TV, keep the D-pad out of the README: a focusable WebView would step
                 // through every link and image inside it. Non-focusable, the remote skips it and the
                 // surrounding page-scroll (see tvPageScroll) just scrolls the README into view to read.
@@ -186,6 +225,12 @@ private fun wrapReadmeHtml(
          a social icon set to height="24px"). Overriding those with auto blew such icons up to the
          max-height cap. Respect the author's sizing; only clamp the upper bound. */
       img { max-width: 100%; max-height: 280px; }
+      /* An <img width="…" height="…"> whose width gets scaled down by max-width above keeps its
+         literal height attribute unless height is also freed to auto — without this, a screenshot
+         wider than the WebView renders squashed (width shrinks, height doesn't). Scoped to images
+         that declare a width attribute so small badges/icons sized only via height="…" (no width)
+         are untouched and keep the author's exact sizing. */
+      img[width] { height: auto; }
       a { color: ${link.css}; }
       h1, h2 { border-bottom: 1px solid ${border.css}; padding-bottom: .3em; }
       code { background: ${codeBackground.css}; padding: 2px 5px; border-radius: 4px;

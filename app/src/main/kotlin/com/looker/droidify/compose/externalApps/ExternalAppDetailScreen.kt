@@ -179,7 +179,7 @@ fun ExternalAppDetailScreen(
             ).joinToString("\n").ifBlank { null }
 
             HeroCard(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
                 icon = {
                     ExternalAppIcon(app = app, isInstalled = isInstalled, size = 88.dp)
                 },
@@ -242,6 +242,7 @@ fun ExternalAppDetailScreen(
                         baseUrl = app.readmeWebBaseUrl,
                         javaScriptEnabled = readmeJavaScriptEnabled,
                         onContentHeight = { readmeHeightPx = it },
+                        scrollState = scrollState,
                         modifier = Modifier
                             .fillMaxWidth()
                             // Until the content height is known, give it a sensible height so it can render
