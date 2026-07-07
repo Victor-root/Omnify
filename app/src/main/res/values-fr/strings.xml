@@ -392,6 +392,9 @@
     <string name="external_add">Ajouter</string>
     <string name="external_adding">Ajout du dépôt en cours…</string>
     <string name="external_rate_limited">Limite horaire GitHub atteinte. Si vous avez un compte GitHub, ajoutez un jeton dans Paramètres › Sources externes pour passer à 5000/heure.</string>
+    <string name="external_readme_unavailable">Impossible de charger le README.</string>
+    <string name="external_github_limit_hint">Astuce : sans jeton GitHub, vous êtes limité à 60 requêtes par heure. Ajoutez-en un gratuitement dans Paramètres › Sources externes pour passer à 5000.</string>
+    <string name="external_github_limit_hint_remaining">Astuce : sans jeton GitHub, il vous reste %1$d requêtes sur 60 cette heure. Ajoutez-en un gratuitement dans Paramètres › Sources externes pour passer à 5000.</string>
     <string name="external_remove">Retirer</string>
     <string name="external_check_updates">Rechercher des mises à jour</string>
     <string name="external_source_url_label">URL du projet (GitHub, GitLab, Codeberg)</string>

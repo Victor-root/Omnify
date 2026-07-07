@@ -9,6 +9,9 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -39,6 +42,14 @@ class ExternalApi @Inject constructor(
     /** Whether the most recent api.github.com request was rejected by the rate limit (HTTP 403/429 with
      *  no remaining quota). Best-effort hint, read right after a failed call on the same coroutine. */
     private var rateLimited = false
+
+    private val _rateLimitRemaining = MutableStateFlow<Int?>(null)
+
+    /** Remaining anonymous GitHub API quota for the current hour, as last reported by GitHub itself
+     *  (the `X-RateLimit-Remaining` header, present on every api.github.com response, not just failed
+     *  ones). Null until the first such call this session. Lets the UI warn while the budget is running
+     *  low, instead of only after it's already exhausted. */
+    val rateLimitRemaining: StateFlow<Int?> = _rateLimitRemaining.asStateFlow()
 
     /** The user's optional GitHub token, or null when unset. Sent only to api.github.com requests to
      *  lift the anonymous 60-requests/hour rate limit to 5000. */
@@ -234,34 +245,22 @@ class ExternalApi @Inject constructor(
             .map { it.path }
 
     /**
-     * The project README as HTML, for display on the detail screen. GitHub renders it for us
-     * (Accept: application/vnd.github.html); for Gitea/Forgejo and GitLab the raw Markdown is fetched
-     * and rendered locally ([renderMarkdownToHtml]). Returns null on any failure or when there is no
-     * README.
+     * The project README as HTML, for display on the detail screen. Fetched as raw Markdown from the
+     * provider's branchless raw base and rendered locally ([renderMarkdownToHtml]) for every provider,
+     * including GitHub: GitHub's own rendered-HTML endpoint lives under api.github.com and would count
+     * against the same 60-requests/hour anonymous budget as every other call, for a README that changes
+     * far less often than it gets viewed. raw.githubusercontent.com isn't subject to that limit (the
+     * same host is already relied on for icons, manifests and build files), so rendering locally here
+     * too avoids spending quota on it at all — at the cost of GitHub's extra rendering polish (issue/PR
+     * autolinking, emoji shortcodes), which Codeberg/GitLab README users already live with. Relative
+     * images are fetched here and inlined as data URIs, since a raw host serves either the file or an
+     * HTML viewer page depending on request headers the WebView doesn't send for sub-resources. Returns
+     * null on any failure or when there is no README.
      */
     suspend fun readmeHtml(app: ExternalApp): String? = withContext(Dispatchers.IO) {
         runCatching {
-            when (app.provider) {
-                SourceProvider.GITHUB -> {
-                    val response = httpClient.get(
-                        "https://api.github.com/repos/${app.owner}/${app.repo}/readme",
-                    ) {
-                        header("Accept", "application/vnd.github.html")
-                        header("X-GitHub-Api-Version", "2022-11-28")
-                        githubAuthToken()?.let { header("Authorization", "Bearer $it") }
-                    }
-                    if (response.status.isSuccess()) response.bodyAsText() else null
-                }
-
-                // Gitea/Forgejo (codeberg.org + self-hosted) and GitLab have no free rendered-HTML
-                // README endpoint, so fetch the raw Markdown and render it locally. Their raw endpoints
-                // content-negotiate (serving an HTML page to the WebView's requests, not the file), so
-                // the README's own relative images are fetched here and inlined as data URIs.
-                SourceProvider.CODEBERG, SourceProvider.GITLAB -> {
-                    val markdown = fetchRawReadme(app) ?: return@runCatching null
-                    inlineRelativeImages(renderMarkdownToHtml(markdown), app)
-                }
-            }
+            val markdown = fetchRawReadme(app) ?: return@runCatching null
+            inlineRelativeImages(renderMarkdownToHtml(markdown), app)
         }.getOrNull()
     }
 
@@ -487,8 +486,10 @@ class ExternalApi @Inject constructor(
             }
         }
         if (github) {
-            // GitHub signals the rate limit with 403/429 and X-RateLimit-Remaining: 0.
+            // GitHub signals the rate limit with 403/429 and X-RateLimit-Remaining: 0. The header is
+            // sent on every response, success or failure, so it doubles as a live quota gauge.
             val remaining = response.headers["X-RateLimit-Remaining"]?.toIntOrNull()
+            remaining?.let { _rateLimitRemaining.value = it }
             val status = response.status.value
             rateLimited = (status == 403 || status == 429) && remaining == 0
         }

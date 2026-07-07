@@ -65,6 +65,7 @@ fun ExternalAppDetailScreen(
     val installedKeys by viewModel.installedKeys.collectAsStateWithLifecycle()
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
     val readme by viewModel.readme.collectAsStateWithLifecycle()
+    val readmeError by viewModel.readmeError.collectAsStateWithLifecycle()
     val readmeTranslation by viewModel.readmeTranslation.collectAsStateWithLifecycle()
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
 
@@ -246,6 +247,21 @@ fun ExternalAppDetailScreen(
                                     600.dp
                                 },
                             ),
+                    )
+                }
+            } else if (readmeError != null) {
+                // The fetch already failed (most often the anonymous GitHub rate limit) — say so instead
+                // of leaving the spinner running forever with no way to tell it apart from "still loading".
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(40.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = readmeError.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {

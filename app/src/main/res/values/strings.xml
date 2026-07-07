@@ -398,6 +398,9 @@
     <string name="external_add">Add</string>
     <string name="external_adding">Adding the repository…</string>
     <string name="external_rate_limited">GitHub hourly limit reached. If you have a GitHub account, add a token in Settings › External sources to raise it to 5000/hour.</string>
+    <string name="external_readme_unavailable">Couldn\'t load the README.</string>
+    <string name="external_github_limit_hint">Tip: without a GitHub token you\'re limited to 60 requests/hour. Add one for free in Settings › External sources to raise it to 5000.</string>
+    <string name="external_github_limit_hint_remaining">Tip: without a GitHub token, %1$d of 60 requests remain this hour. Add one for free in Settings › External sources to raise it to 5000.</string>
     <string name="external_remove">Remove</string>
     <string name="external_check_updates">Check for updates</string>
     <string name="external_source_url_label">Project URL (GitHub, GitLab, Codeberg)</string>

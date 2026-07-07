@@ -72,6 +72,18 @@ class ExternalAppsViewModel @Inject constructor(
         .map { it.translationEngine != TranslationEngine.NONE }
         .asStateFlow(false)
 
+    /** Whether a GitHub token is configured. When false, the add-source/add-account dialogs show a hint
+     *  that the anonymous 60-requests/hour limit applies (see [githubRateLimitRemaining]); a token
+     *  raises it to 5000, so the hint is unnecessary once one is set. */
+    val hasGithubToken: StateFlow<Boolean> = settingsRepository.data
+        .map { it.githubToken.trim().isNotEmpty() }
+        .asStateFlow(false)
+
+    /** Remaining anonymous GitHub API quota for the current hour, once known (see
+     *  [com.looker.droidify.external.ExternalApi.rateLimitRemaining]). Lets the add dialogs' hint become
+     *  concrete ("N requests left") instead of only ever repeating the generic "60/hour" figure. */
+    val githubRateLimitRemaining: StateFlow<Int?> = externalApi.rateLimitRemaining
+
     /** Tracked whole-account sources (each expands to several entries in [apps]). */
     val accounts: StateFlow<List<ExternalAccount>> = repository.accounts.asStateFlow(emptyList())
 
@@ -194,6 +206,12 @@ class ExternalAppsViewModel @Inject constructor(
     private val _readme = MutableStateFlow<String?>(null)
     val readme: StateFlow<String?> = _readme
 
+    /** Set once loading the README has genuinely failed (nothing cached, nothing fresh), so the screen
+     *  can explain why instead of spinning forever — most often the GitHub anonymous rate limit, which a
+     *  token in Settings lifts. Null while still loading or once a README is showing. */
+    private val _readmeError = MutableStateFlow<String?>(null)
+    val readmeError: StateFlow<String?> = _readmeError
+
     /** State of the README "Translate" toggle on the external detail screen. */
     private val _readmeTranslation =
         MutableStateFlow<DescriptionTranslation>(DescriptionTranslation.Original)
@@ -202,15 +220,30 @@ class ExternalAppsViewModel @Inject constructor(
     fun loadReadme(app: ExternalApp) {
         // A different app's README is about to load, so drop any translation left on the previous one.
         _readmeTranslation.value = DescriptionTranslation.Original
+        _readmeError.value = null
         viewModelScope.launch {
-            // Show the cached README instantly (if any) so a re-open isn't blocked on the network,
-            // then refresh in the background and update the disk cache.
+            // Show the cached README instantly (if any) so a re-open isn't blocked on the network.
             val cached = withContext(Dispatchers.IO) { ReadmeCache.load(context, app.key) }
             _readme.value = cached
+            // A README changes far less often than its detail screen gets opened: once the cache is
+            // reasonably fresh, skip the network call entirely instead of refetching identical content
+            // on every re-open (this used to burn a request — and, before the GitHub README fetch moved
+            // off api.github.com, quota — every single time).
+            val isFresh = cached != null &&
+                withContext(Dispatchers.IO) { ReadmeCache.isFresh(context, app.key, README_FRESHNESS_MS) }
+            if (isFresh) return@launch
             val fresh = externalApi.readmeHtml(app)
             if (fresh != null) {
                 _readme.value = fresh
                 withContext(Dispatchers.IO) { ReadmeCache.save(context, app.key, fresh) }
+            } else if (cached == null) {
+                // Nothing to show at all: without this, the screen would spin forever with no hint that
+                // the fetch already failed — this is what a rate-limited anonymous GitHub call looks like.
+                _readmeError.value = if (externalApi.shouldSuggestGithubToken()) {
+                    context.getString(R.string.external_rate_limited)
+                } else {
+                    context.getString(R.string.external_readme_unavailable)
+                }
             }
         }
     }
@@ -1063,3 +1096,8 @@ private const val REFRESH_THROTTLE_MS = 10 * 60 * 1000L
 /** How often an account source is re-scanned for newly published apps. Listing a whole account is
  *  several API calls, so it runs at most once a day rather than on every refresh. */
 private const val ACCOUNT_RESCAN_INTERVAL_MS = 24 * 60 * 60 * 1000L
+
+/** How long a cached README is considered fresh enough to skip a network refetch on re-open. A README
+ *  changes on the order of days/weeks, so re-opening the same app's detail screen repeatedly within
+ *  this window shows the cached copy as-is instead of hitting the network again for identical content. */
+private const val README_FRESHNESS_MS = 15 * 60 * 1000L

@@ -5,9 +5,9 @@ import java.io.File
 
 /**
  * Persistent cache of external apps' rendered README HTML, keyed by
- * [com.looker.droidify.external.ExternalApp.key]. The README is fetched from the network on every
- * detail open; caching it lets a re-open show instantly while a fresh copy is fetched in the
- * background.
+ * [com.looker.droidify.external.ExternalApp.key]. A cached copy shows instantly on open; the caller
+ * decides (via [isFresh]) whether it's recent enough to skip a network refetch, or stale enough to
+ * warrant one — a README changes far less often than its detail screen gets opened.
  */
 object ReadmeCache {
 
@@ -25,4 +25,13 @@ object ReadmeCache {
     fun save(context: Context, key: String, html: String) {
         runCatching { file(context, key).writeText(html) }
     }
+
+    /** Whether the cached copy for [key] exists and was saved within [maxAgeMillis]. Backed by the
+     *  cache file's own last-modified time (set implicitly by [save]), so no separate timestamp needs
+     *  tracking. */
+    fun isFresh(context: Context, key: String, maxAgeMillis: Long): Boolean = runCatching {
+        val cacheFile = file(context, key)
+        cacheFile.exists() && cacheFile.length() > 0 &&
+            System.currentTimeMillis() - cacheFile.lastModified() < maxAgeMillis
+    }.getOrDefault(false)
 }

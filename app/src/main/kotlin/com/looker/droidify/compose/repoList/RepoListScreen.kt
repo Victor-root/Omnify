@@ -273,6 +273,8 @@ fun RepoListScreen(
     }
     if (showAddAccount) {
         val addState by externalViewModel.addState.collectAsStateWithLifecycle()
+        val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
+        val githubRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
         LaunchedEffect(addState) {
             if (addState == AddSourceState.SUCCESS) {
                 showAddAccount = false
@@ -284,6 +286,8 @@ fun RepoListScreen(
             // Treat SUCCESS as still loading, so the dialog doesn't flip back to the form for one frame
             // before closing (see the source dialog above).
             isLoading = addState != AddSourceState.IDLE,
+            hasGithubToken = hasGithubToken,
+            githubRemaining = githubRemaining,
             initialUrl = prefillUrl,
             onDismiss = {
                 showAddAccount = false
@@ -305,6 +309,8 @@ fun RepoListScreen(
     if (showAddExternal) {
         val addState by externalViewModel.addState.collectAsStateWithLifecycle()
         val addError by externalViewModel.addError.collectAsStateWithLifecycle()
+        val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
+        val githubRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
         // Keep the dialog up (with a spinner) until the add actually finishes, then close on success —
         // so a slow GitHub response can't make it look like nothing happened.
         LaunchedEffect(addState) {
@@ -320,6 +326,8 @@ fun RepoListScreen(
             // frame before closing — a visible flash, most obvious with a pre-filled shared URL.
             isLoading = addState != AddSourceState.IDLE,
             errorMessage = addError,
+            hasGithubToken = hasGithubToken,
+            githubRemaining = githubRemaining,
             initialUrl = prefillUrl,
             onDismiss = {
                 showAddExternal = false
@@ -810,11 +818,32 @@ private fun AddSourceOption(
     }
 }
 
+/**
+ * Subtle hint shown in the add-source/add-account dialogs while no GitHub token is configured: the
+ * anonymous limit (60/hour) is easy to exhaust, especially discovering a whole account, and the failure
+ * that follows gives no warning ahead of time. [remaining] fills in the live count once GitHub has
+ * actually reported one this session; until then the generic 60/hour figure is shown.
+ */
+@Composable
+private fun GithubLimitHint(remaining: Int?) {
+    Text(
+        text = if (remaining != null) {
+            stringResource(R.string.external_github_limit_hint_remaining, remaining)
+        } else {
+            stringResource(R.string.external_github_limit_hint)
+        },
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AddExternalSourceDialog(
     isLoading: Boolean,
     errorMessage: String?,
+    hasGithubToken: Boolean,
+    githubRemaining: Int?,
     onDismiss: () -> Unit,
     onAdd: (
         url: String,
@@ -871,6 +900,10 @@ private fun AddExternalSourceDialog(
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
+                    if (!hasGithubToken) {
+                        Spacer(Modifier.size(8.dp))
+                        GithubLimitHint(remaining = githubRemaining)
+                    }
                     Spacer(Modifier.size(8.dp))
                     SourceOptionFields(
                         name = name,
@@ -908,6 +941,8 @@ private fun AddExternalSourceDialog(
 @Composable
 private fun AddExternalAccountDialog(
     isLoading: Boolean,
+    hasGithubToken: Boolean,
+    githubRemaining: Int?,
     onDismiss: () -> Unit,
     onAdd: (
         url: String,
@@ -955,6 +990,13 @@ private fun AddExternalAccountDialog(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    // Discovering a whole account is the single heaviest external-source action (one
+                    // call per repo just to check for a release), so this is exactly where running low
+                    // on the anonymous budget bites hardest — worth flagging before it does.
+                    if (!hasGithubToken) {
+                        Spacer(Modifier.size(8.dp))
+                        GithubLimitHint(remaining = githubRemaining)
+                    }
                     Spacer(Modifier.size(8.dp))
                     SourceOptionFields(
                         name = name,
