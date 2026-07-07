@@ -256,7 +256,7 @@ class PreferenceSettingsRepository(
         val theme = Theme.valueOf(preferences[THEME] ?: Theme.SYSTEM.name)
         val dynamicTheme = preferences[DYNAMIC_THEME] ?: false
         val themeColor = preferences[THEME_COLOR] ?: DEFAULT_THEME_COLOR
-        val edgeToEdge = preferences[EDGE_TO_EDGE] ?: true
+        val edgeToEdge = preferences[EDGE_TO_EDGE] ?: false
         val autoUpdate = preferences[AUTO_UPDATE] ?: false
         val autoSync = AutoSync.valueOf(preferences[AUTO_SYNC] ?: AutoSync.WIFI_ONLY.name)
         val sortOrder = SortOrder.valueOf(preferences[SORT_ORDER] ?: SortOrder.UPDATED.name)
