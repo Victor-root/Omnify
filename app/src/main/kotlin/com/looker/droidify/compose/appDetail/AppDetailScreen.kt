@@ -1,5 +1,7 @@
 package com.looker.droidify.compose.appDetail
 
+import android.content.Context
+import android.content.Intent
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -72,6 +74,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -110,6 +113,7 @@ import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.installer.model.InstallState
+import com.looker.droidify.utility.common.shareUrl
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
@@ -161,6 +165,7 @@ fun AppDetailScreen(
         }
     }
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
     val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
 
     // Re-read the installed state on resume — in particular when returning from the system uninstall
@@ -260,6 +265,26 @@ fun AppDetailScreen(
                 },
                 navigationIcon = { BackButton(onBackClick) },
                 actions = {
+                    // `successState?.let` (not a `successApp != null` check): a plain null check on the
+                    // derived `successApp` doesn't smart-cast the separate `successState` variable, and
+                    // the share action needs both.
+                    successState?.let { success ->
+                        IconButton(
+                            onClick = {
+                                val repo = success.packages
+                                    .selectForDevice(success.app.metadata.suggestedVersionCode)?.second
+                                    ?: success.packages.firstOrNull()?.second
+                                if (repo != null) {
+                                    shareApp(context, success.app.metadata.packageName.name, repo)
+                                }
+                            },
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_share),
+                                contentDescription = stringResource(R.string.share),
+                            )
+                        }
+                    }
                     val successApp = successState?.app
                     if (translationEnabled && successApp != null &&
                         (successApp.metadata.description.isNotBlank() || suggestedWhatsNew.isNotBlank())
@@ -329,6 +354,28 @@ fun AppDetailScreen(
             }
         }
     }
+}
+
+/**
+ * Shares a link to [packageName]'s own page via the system share sheet: F-Droid's or IzzyOnDroid's app
+ * page when [repo] is (or mirrors) one of those, else a generic Omnify deep link — mirrors upstream
+ * Droid-ify's share behaviour so the recipient lands on a real, working page either way.
+ */
+private fun shareApp(context: Context, packageName: String, repo: Repo) {
+    val address = when {
+        "https://f-droid.org/repo" in repo.mirrors ->
+            "https://f-droid.org/packages/$packageName/"
+        "https://f-droid.org/archive/repo" in repo.mirrors ->
+            "https://f-droid.org/packages/$packageName/"
+        "https://apt.izzysoft.de/fdroid/repo" in repo.mirrors ->
+            "https://apt.izzysoft.de/fdroid/index/apk/$packageName"
+        else -> shareUrl(packageName, repo.address)
+    }
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        putExtra(Intent.EXTRA_TEXT, address)
+        type = "text/plain"
+    }
+    context.startActivity(Intent.createChooser(sendIntent, null))
 }
 
 /**
