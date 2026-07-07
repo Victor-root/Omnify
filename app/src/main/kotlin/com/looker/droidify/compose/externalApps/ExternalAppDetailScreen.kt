@@ -1,7 +1,6 @@
 package com.looker.droidify.compose.externalApps
 
 import android.content.Intent
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +41,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -50,6 +50,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.DescriptionTranslation
+import com.looker.droidify.compose.components.HeroCard
+import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -166,71 +168,52 @@ fun ExternalAppDetailScreen(
                 .onSizeChanged { viewportPx = it.height }
                 .verticalScroll(scrollState),
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ExternalAppIcon(app = app, isInstalled = isInstalled, size = 64.dp)
-                Spacer(Modifier.width(16.dp))
-                // Name next to the logo (the top bar carries none), then the versions and repo link.
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = app.label,
-                        style = MaterialTheme.typography.titleLarge,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    app.latestTag?.let { tag ->
-                        Text(
-                            text = stringResource(R.string.external_repo_latest, tag),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    // The tag is the project's own (server) version; the APK file name is the actual
-                    // build offered, shown separately since repos version/name them differently.
-                    app.latestApkName?.let { apkName ->
-                        Text(
-                            text = stringResource(
-                                R.string.external_latest_apk,
-                                apkVersionLabel(apkName),
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    installedVersion?.let { version ->
-                        Text(
-                            text = stringResource(R.string.external_installed_version, version),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Text(
-                        text = app.webUrl.removePrefix("https://"),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .clickable { uriHandler.openUri(app.webUrl) }
-                            .padding(top = 4.dp),
-                    )
-                }
-            }
+            // The APK file name is the actual build offered (repos version/name it differently from the
+            // project's own tag), and the installed version if any — folded into the card's footer,
+            // mirroring how the F-Droid catalogue card shows its installed version there.
+            val footerText = listOfNotNull(
+                app.latestApkName?.let {
+                    stringResource(R.string.external_latest_apk, apkVersionLabel(it))
+                },
+                installedVersion?.let { stringResource(R.string.external_installed_version, it) },
+            ).joinToString("\n").ifBlank { null }
 
-            ExternalLifecycleActions(
-                app = app,
-                downloadStatus = downloads[appKey],
-                installState = installStates[appKey],
-                isInstalled = isInstalled,
-                onInstallOrUpdate = { viewModel.installOrUpdate(app) },
-                onLaunch = { viewModel.launch(app) },
-                onUninstall = { viewModel.uninstall(app) },
-                onCancel = { viewModel.cancel(app) },
+            HeroCard(
                 modifier = Modifier.padding(horizontal = 16.dp),
+                icon = {
+                    ExternalAppIcon(app = app, isInstalled = isInstalled, size = 88.dp)
+                },
+                name = app.label,
+                subtitle = stringResource(R.string.by_author_FORMAT, app.owner),
+                stats = {
+                    HeroStatsRow(
+                        version = app.latestTag,
+                        size = null,
+                        onSourceCodeClick = { uriHandler.openUri(app.webUrl) },
+                    )
+                },
+                actions = {
+                    ExternalLifecycleActions(
+                        app = app,
+                        downloadStatus = downloads[appKey],
+                        installState = installStates[appKey],
+                        isInstalled = isInstalled,
+                        onInstallOrUpdate = { viewModel.installOrUpdate(app) },
+                        onLaunch = { viewModel.launch(app) },
+                        onUninstall = { viewModel.uninstall(app) },
+                        onCancel = { viewModel.cancel(app) },
+                    )
+                },
+                footer = footerText?.let { text ->
+                    {
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                },
             )
 
             if (!isInstalled) {

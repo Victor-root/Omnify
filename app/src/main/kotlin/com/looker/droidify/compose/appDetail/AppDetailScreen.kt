@@ -41,11 +41,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -97,6 +95,8 @@ import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
+import com.looker.droidify.compose.components.HeroCard
+import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.tvFocusFill
@@ -825,11 +825,11 @@ private fun AppDetail(
 }
 
 /**
- * The app's "hero" card: icon, name, author, a favourite toggle overlaid top-end, a version/size/
- * source-code stats row, and the primary install/update/launch action, all in one visually cohesive
- * block — mirroring upstream Droid-ify's app page instead of the previous plain icon-and-text row.
+ * The app's data resolved into the shared [HeroCard] shell: icon, name, author, a favourite toggle, a
+ * version/size/source-code stats row, and the primary install/update/launch action — the F-Droid
+ * catalogue's flavour of the same card the external-source detail screen uses, so the two read as the
+ * same app page rather than two different designs.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AppHeaderCard(
     app: App?,
@@ -864,202 +864,66 @@ private fun AppHeaderCard(
         { runCatching { uriHandler.openUri(url) } }
     }
 
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = MaterialTheme.shapes.large,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                if (minimal != null) {
-                    AppMinimalIcon(
-                        app = minimal,
-                        isInstalled = isInstalled,
-                        modifier = Modifier
-                            .size(88.dp)
-                            .clip(RoundedCornerShape(20.dp)),
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_cannot_load),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(88.dp)
-                            .clip(RoundedCornerShape(20.dp)),
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = app?.metadata?.name ?: packageName,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (author != null) {
-                    Text(
-                        text = stringResource(R.string.by_author_FORMAT, author),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                if (version != null || size != null || onSourceCodeClick != null) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    StatsRow(version = version, size = size, onSourceCodeClick = onSourceCodeClick)
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                PrimaryActions(
+    HeroCard(
+        modifier = modifier,
+        icon = {
+            if (minimal != null) {
+                AppMinimalIcon(
+                    app = minimal,
                     isInstalled = isInstalled,
-                    updateAvailable = updateAvailable,
-                    installState = installState,
-                    downloadStatus = downloadStatus,
-                    onInstallOrUpdate = onInstallOrUpdate,
-                    onLaunch = onLaunch,
-                    onUninstall = onUninstall,
-                    onCancel = onCancel,
-                    primaryActionFocusRequester = primaryActionFocusRequester,
+                    modifier = Modifier
+                        .size(88.dp)
+                        .clip(RoundedCornerShape(20.dp)),
                 )
-                // The real installed version + its source (e.g. a fork installed over the upstream
-                // package keeps its own version), folded into the card instead of sitting orphaned
-                // below it.
-                installedInfo?.let { info ->
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(
-                            R.string.installed_version_source,
-                            info.version,
-                            info.source,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            }
-
-            // Just the heart, no container (the tonal toggle button squashed it into an oval): a larger
-            // filled red heart when favourited, a neutral outline when not. Overlaid top-end so it
-            // doesn't disturb the centred icon/name/author column.
-            IconToggleButton(
-                checked = isFavorite,
-                onCheckedChange = { onToggleFavorite() },
-                // TV: square so the focus halo is a clean circle, and the heart scales up on focus. No-op
-                // on touch.
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .then(if (LocalIsTelevision.current) Modifier.size(48.dp) else Modifier)
-                    .tvFocusScale(),
-            ) {
-                Icon(
-                    painter = painterResource(
-                        if (isFavorite) R.drawable.ic_favourite_checked else R.drawable.ic_favourite,
-                    ),
-                    contentDescription = stringResource(R.string.favourites),
-                    tint = if (isFavorite) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    modifier = Modifier.size(28.dp),
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_cannot_load),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(88.dp)
+                        .clip(RoundedCornerShape(20.dp)),
                 )
             }
-        }
-    }
-}
-
-/** The version / size / source-code stats row inside [AppHeaderCard], each pair separated by a thin
- *  divider. Any of the three can be absent (a repo may omit size or a source-code link); only the
- *  present ones are shown, with dividers only between two actually-shown neighbours. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun StatsRow(
-    version: String?,
-    size: String?,
-    onSourceCodeClick: (() -> Unit)?,
-) {
-    val dividerColor = MaterialTheme.colorScheme.outlineVariant
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        version?.let {
-            StatItem(
-                label = stringResource(R.string.version),
-                value = it,
-                modifier = Modifier.weight(1f),
+        },
+        name = app?.metadata?.name ?: packageName,
+        subtitle = author?.let { stringResource(R.string.by_author_FORMAT, it) },
+        isFavorite = isFavorite,
+        onToggleFavorite = onToggleFavorite,
+        stats = if (version != null || size != null || onSourceCodeClick != null) {
+            { HeroStatsRow(version = version, size = size, onSourceCodeClick = onSourceCodeClick) }
+        } else {
+            null
+        },
+        actions = {
+            PrimaryActions(
+                isInstalled = isInstalled,
+                updateAvailable = updateAvailable,
+                installState = installState,
+                downloadStatus = downloadStatus,
+                onInstallOrUpdate = onInstallOrUpdate,
+                onLaunch = onLaunch,
+                onUninstall = onUninstall,
+                onCancel = onCancel,
+                primaryActionFocusRequester = primaryActionFocusRequester,
             )
-        }
-        if (version != null && (size != null || onSourceCodeClick != null)) {
-            VerticalDivider(modifier = Modifier.height(28.dp), color = dividerColor)
-        }
-        size?.let {
-            StatItem(label = stringResource(R.string.size), value = it, modifier = Modifier.weight(1f))
-        }
-        if (size != null && onSourceCodeClick != null) {
-            VerticalDivider(modifier = Modifier.height(28.dp), color = dividerColor)
-        }
-        onSourceCodeClick?.let { onClick ->
-            SourceCodeStatItem(onClick = onClick, modifier = Modifier.weight(1f))
-        }
-    }
-}
-
-/** The "Source code" stat: same label-over-value rhythm as [StatItem] (an icon standing in for the
- *  label), coloured and clickable instead of boxed in a chip — reads as one of the three stats rather
- *  than a separate button bolted onto the row. */
-@Composable
-private fun SourceCodeStatItem(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_source_code),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = stringResource(R.string.source_code),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-/** One label-over-value stat, e.g. "Version" / "1.18_beta". */
-@Composable
-private fun StatItem(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+        },
+        // The real installed version + its source (e.g. a fork installed over the upstream package
+        // keeps its own version), folded into the card instead of sitting orphaned below it.
+        footer = installedInfo?.let { info ->
+            {
+                Text(
+                    text = stringResource(
+                        R.string.installed_version_source,
+                        info.version,
+                        info.source,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        },
+    )
 }
 
 @Composable
