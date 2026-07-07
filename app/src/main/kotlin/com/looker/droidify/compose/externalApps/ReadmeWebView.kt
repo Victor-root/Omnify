@@ -220,17 +220,28 @@ private fun wrapReadmeHtml(
         font-family: sans-serif; font-size: 15px; line-height: 1.6;
         overflow-wrap: break-word; word-wrap: break-word;
       }
-      /* Cap the maximum so a large or unsized image can't fill the screen, but DON'T force width/height
-         to auto: many READMEs size their logos and badges with explicit width/height attributes (e.g.
-         a social icon set to height="24px"). Overriding those with auto blew such icons up to the
-         max-height cap. Respect the author's sizing; only clamp the upper bound. */
-      img { max-width: 100%; max-height: 280px; }
+      /* A heading/paragraph's own top margin doesn't collapse into body's padding (padding is
+         non-zero), so the first element's default browser margin stacked ON TOP of our 16px
+         padding — a heading-first README (very common: a big centred logo/title) showed a much
+         bigger gap above it than any other README with a plain paragraph first. Zeroing just the
+         very first child's top margin removes that double gap without touching normal spacing
+         between elements further down. */
+      body > *:first-child { margin-top: 0; }
+      img { max-width: 100%; }
       /* An <img width="…" height="…"> whose width gets scaled down by max-width above keeps its
          literal height attribute unless height is also freed to auto — without this, a screenshot
          wider than the WebView renders squashed (width shrinks, height doesn't). Scoped to images
          that declare a width attribute so small badges/icons sized only via height="…" (no width)
          are untouched and keep the author's exact sizing. */
       img[width] { height: auto; }
+      /* Only images with NO declared width get the height cap — combining max-height with the
+         height:auto rule above (needed for sized screenshots) hit an aspect-ratio bug on some
+         WebView builds: max-width shrank the width but max-height didn't shrink it further to
+         match, so the image rendered stretched full-width and squashed short instead of scaled
+         down proportionally. Unsized images have no such attribute-derived width to conflict with,
+         so the cap alone is safe there — it's only meant to stop a giant unsized logo/banner from
+         filling the screen. */
+      img:not([width]) { max-height: 280px; }
       a { color: ${link.css}; }
       h1, h2 { border-bottom: 1px solid ${border.css}; padding-bottom: .3em; }
       code { background: ${codeBackground.css}; padding: 2px 5px; border-radius: 4px;

@@ -226,7 +226,7 @@ fun ExternalAppDetailScreen(
 
             Spacer(Modifier.height(20.dp))
             SectionSeparator()
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(4.dp))
 
             // README — sized to its content (it doesn't scroll itself) so it scrolls with the rest.
             // GitHub leaves repo-relative image paths un-rewritten, so the WebView resolves them
