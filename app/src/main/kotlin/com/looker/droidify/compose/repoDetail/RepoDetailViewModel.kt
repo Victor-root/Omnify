@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.looker.droidify.compose.repoDetail.navigation.RepoDetail
+import com.looker.droidify.compose.repoList.defaultRepoName
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.RepoRepository
@@ -39,7 +40,11 @@ class RepoDetailViewModel @Inject constructor(
     private val route: RepoDetail = savedStateHandle.toRoute()
     val repoId = route.repoId
 
-    val repo = repoRepository.repo(repoId).asStateFlow(null)
+    // Same curated-name override as the repo list: never let a repo's own confusing self-declared index
+    // name (e.g. Patched Apps' index names itself "langis") replace the name we deliberately picked.
+    val repo = repoRepository.repo(repoId)
+        .map { repo -> repo?.let { r -> defaultRepoName(r.address)?.let { r.copy(name = it) } ?: r } }
+        .asStateFlow(null)
 
     /** Every app this repository serves, alphabetical — refetched whenever the catalogue changes
      *  (e.g. a sync just added/updated rows) so the tab stays live without a manual refresh. */

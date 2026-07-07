@@ -127,3 +127,18 @@ internal val DEFAULT_REPO_ICON_RES: Map<String, Int> = mapOf(
 /** The bundled drawable icon for a repo [address] (trailing slash ignored), or null when none applies. */
 internal fun defaultRepoIconRes(address: String): Int? =
     DEFAULT_REPO_ICON_RES[address.trimEnd('/')]
+
+/**
+ * A curated display name for a repo whose own self-declared index name is confusing or unhelpful, so the
+ * name we show never regresses once the repo is synced. Patched Apps' index names itself "langis" (the
+ * maintainer's personal handle, unrelated to what the repo actually is), which would otherwise silently
+ * replace our clearer seeded name "Patched Apps" the moment the repo is enabled and synced. Keyed by repo
+ * address, trailing slash ignored.
+ */
+internal val DEFAULT_REPO_NAMES: Map<String, String> = mapOf(
+    "https://thecapslock.gitlab.io/fdroid-patched-apps/fdroid/repo" to "Patched Apps",
+)
+
+/** The curated display name for a repo [address] (trailing slash ignored), or null when none applies. */
+internal fun defaultRepoName(address: String): String? =
+    DEFAULT_REPO_NAMES[address.trimEnd('/')]

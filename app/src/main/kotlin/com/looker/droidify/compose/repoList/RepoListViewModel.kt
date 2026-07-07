@@ -43,7 +43,11 @@ class RepoListViewModel @Inject constructor(
             // anything under its /repo path, including its apps' own icons — so a single-app override
             // there could replace a working hand-picked logo with a URL that fails to load.
             val hasCuratedIcon = defaultRepoIcon(repo.address) != null || defaultRepoIconRes(repo.address) != null
-            if (hasCuratedIcon) repo else icons[repo.id]?.let { repo.copy(icon = it) } ?: repo
+            val withIcon = if (hasCuratedIcon) repo else icons[repo.id]?.let { repo.copy(icon = it) } ?: repo
+            // Same idea for the name: a repo's own self-declared index name can be confusing (Patched
+            // Apps' index names itself "langis", the maintainer's handle) — the curated name, once set,
+            // must never regress back to that the moment the repo is synced.
+            defaultRepoName(repo.address)?.let { withIcon.copy(name = it) } ?: withIcon
         }
     }.flowOn(Dispatchers.Default).asStateFlow(emptyList())
 

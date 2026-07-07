@@ -58,7 +58,22 @@ interface IndexDao {
         index: IndexV2,
         expectedRepoId: Int = 0,
     ) {
-        val repo = index.repo.repoEntity(id = expectedRepoId, fingerprint = fingerprint)
+        // The index's own "repo.address" field is the repo author's self-declared canonical URL, which
+        // often differs harmlessly from the address the user actually configured (e.g. NanoDroid's index
+        // declares "www.nanolx.org" while the repo is set up as plain "nanolx.org"). Blindly adopting it
+        // here used to silently rewrite the stored address on every sync, which broke anything keyed on
+        // it — in particular the curated repo icon lookup, which stopped matching the moment the address
+        // changed and fell back to whatever generic icon the index happens to ship. The configured
+        // address (and the URL we actually fetch from) must stay exactly what the user set up; the
+        // index's own address is already preserved separately as the primary mirror.
+        val existingAddress = existingRepoAddress(expectedRepoId)
+        val repo = index.repo.repoEntity(id = expectedRepoId, fingerprint = fingerprint).let { entity ->
+            if (existingAddress != null) {
+                entity.copy(address = existingAddress, webBaseUrl = existingAddress)
+            } else {
+                entity
+            }
+        }
         val repoId = upsertRepo(repo)
         insertRepoScopeData(repoId, index)
 
@@ -175,6 +190,11 @@ interface IndexDao {
         if (allGraphics.isNotEmpty()) insertGraphics(allGraphics)
         if (allDonations.isNotEmpty()) insertDonate(allDonations)
     }
+
+    /** The address currently stored for [repoId] (before this sync's upsert), or null when the repo
+     *  doesn't exist yet. Used to keep the user-configured address stable across resyncs. */
+    @Query("SELECT address FROM repository WHERE id = :repoId")
+    suspend fun existingRepoAddress(repoId: Int): String?
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertRepo(repoEntity: RepoEntity): Long
