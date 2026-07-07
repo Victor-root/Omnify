@@ -25,12 +25,16 @@ fun NavGraphBuilder.repoList(
     onRepoClick: (Int) -> Unit,
     onBackClick: () -> Unit,
     onAddRepo: () -> Unit,
+    onAccountClick: (String) -> Unit,
+    onSourceClick: (String) -> Unit,
 ) {
     composable<RepoList> {
         RepoListScreen(
             onRepoClick = onRepoClick,
             onBackClick = onBackClick,
             onAddRepo = onAddRepo,
+            onAccountClick = onAccountClick,
+            onSourceClick = onSourceClick,
             viewModel = hiltViewModel(),
         )
     }

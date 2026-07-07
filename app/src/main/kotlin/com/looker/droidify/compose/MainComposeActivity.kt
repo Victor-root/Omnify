@@ -40,7 +40,9 @@ import com.looker.droidify.compose.repoDetail.navigation.navigateToRepoDetail
 import com.looker.droidify.compose.repoDetail.navigation.repoDetail
 import com.looker.droidify.compose.repoEdit.navigation.navigateToRepoEdit
 import com.looker.droidify.compose.repoEdit.navigation.repoEdit
+import com.looker.droidify.compose.externalApps.navigation.externalAccountDetail
 import com.looker.droidify.compose.externalApps.navigation.externalAppDetail
+import com.looker.droidify.compose.externalApps.navigation.navigateToExternalAccountDetail
 import com.looker.droidify.compose.externalApps.navigation.navigateToExternalAppDetail
 import com.looker.droidify.compose.repoList.navigation.navigateToRepoList
 import com.looker.droidify.compose.repoList.navigation.repoList
@@ -384,9 +386,22 @@ class MainComposeActivity : ComponentActivity() {
                             onRepoClick = { repoId -> navController.navigateToRepoDetail(repoId) },
                             onBackClick = { navController.popBackStack() },
                             onAddRepo = { navController.navigateToRepoEdit() },
+                            onAccountClick = { accountKey ->
+                                navController.navigateToExternalAccountDetail(accountKey)
+                            },
+                            onSourceClick = { appKey ->
+                                navController.navigateToExternalAppDetail(appKey)
+                            },
                         )
 
                         externalAppDetail(onBackClick = { navController.popBackStack() })
+
+                        externalAccountDetail(
+                            onBackClick = { navController.popBackStack() },
+                            onAppClick = { appKey ->
+                                navController.navigateToExternalAppDetail(appKey)
+                            },
+                        )
 
                         appDetail(
                             onBackClick = { navController.popBackStack() },

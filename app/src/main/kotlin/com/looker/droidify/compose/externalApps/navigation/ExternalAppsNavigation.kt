@@ -5,6 +5,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.looker.droidify.compose.externalApps.ExternalAccountDetailScreen
 import com.looker.droidify.compose.externalApps.ExternalAppDetailScreen
 import kotlinx.serialization.Serializable
 
@@ -23,6 +24,30 @@ fun NavGraphBuilder.externalAppDetail(onBackClick: () -> Unit) {
             appKey = route.appKey,
             viewModel = hiltViewModel(),
             onBackClick = onBackClick,
+        )
+    }
+}
+
+/** Detail screen for a whole-account external source, addressed by its [ExternalAccount.key]. Shows the
+ *  account's info and the list of apps discovered from it. */
+@Serializable
+data class ExternalAccountDetail(val accountKey: String)
+
+fun NavController.navigateToExternalAccountDetail(accountKey: String) {
+    this.navigate(ExternalAccountDetail(accountKey))
+}
+
+fun NavGraphBuilder.externalAccountDetail(
+    onBackClick: () -> Unit,
+    onAppClick: (String) -> Unit,
+) {
+    composable<ExternalAccountDetail> { backStackEntry ->
+        val route = backStackEntry.toRoute<ExternalAccountDetail>()
+        ExternalAccountDetailScreen(
+            accountKey = route.accountKey,
+            viewModel = hiltViewModel(),
+            onBackClick = onBackClick,
+            onAppClick = onAppClick,
         )
     }
 }

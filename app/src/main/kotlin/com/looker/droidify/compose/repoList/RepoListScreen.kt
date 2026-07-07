@@ -90,6 +90,8 @@ fun RepoListScreen(
     onRepoClick: (Int) -> Unit,
     onBackClick: () -> Unit,
     onAddRepo: () -> Unit,
+    onAccountClick: (String) -> Unit,
+    onSourceClick: (String) -> Unit,
 ) {
     val repos by viewModel.stream.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
@@ -207,6 +209,7 @@ fun RepoListScreen(
                     ExternalSourceItem(
                         app = omnifyApp,
                         isInstalled = omnifyApp.key in externalInstalledKeys,
+                        onOpen = { onSourceClick(omnifyApp.key) },
                         onToggle = { externalViewModel.setSourceEnabled(omnifyApp, !omnifyApp.enabled) },
                         onEdit = null,
                         onRemove = null,
@@ -218,6 +221,7 @@ fun RepoListScreen(
                 ExternalAccountItem(
                     account = account,
                     appCount = accountAppCounts[account.key] ?: 0,
+                    onOpen = { onAccountClick(account.key) },
                     onToggle = { externalViewModel.setAccountEnabled(account, !account.enabled) },
                     onRescan = { externalViewModel.rescanAccount(account) },
                     onRemove = { externalViewModel.removeAccount(account) },
@@ -230,6 +234,7 @@ fun RepoListScreen(
                 ExternalSourceItem(
                     app = app,
                     isInstalled = app.key in externalInstalledKeys,
+                    onOpen = { onSourceClick(app.key) },
                     onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
                     onEdit = { editingExternal = app },
                     onRemove = { externalViewModel.remove(app.key) },
@@ -444,9 +449,9 @@ private fun MonogramAvatar(name: String) {
 }
 
 /** The app's own launcher icon, rendered from the package manager (always present and correct across
- *  Android versions). Used to brand the built-in Omnify account row. */
+ *  Android versions). Used to brand the built-in Omnify account row (and its detail screen). */
 @Composable
-private fun AppLauncherIcon(modifier: Modifier = Modifier) {
+internal fun AppLauncherIcon(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val shape = MaterialTheme.shapes.large
     val icon = remember {
@@ -532,6 +537,7 @@ private fun RepoItem(
 private fun ExternalSourceItem(
     app: ExternalApp,
     isInstalled: Boolean,
+    onOpen: () -> Unit,
     onToggle: () -> Unit,
     onEdit: (() -> Unit)?,
     onRemove: (() -> Unit)?,
@@ -540,10 +546,14 @@ private fun ExternalSourceItem(
     brandWithAppIcon: Boolean = false,
 ) {
     val contentAlpha = if (app.enabled) 1f else 0.4f
+    // Tapping the row opens the source's single app directly: a single-repo source maps to exactly one
+    // app, so there's no separate app list to show (only accounts get that). The toggle and overflow
+    // menu below sit on top and consume their own taps, so they still work without opening the app.
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onOpen)
             .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
     ) {
         if (brandWithAppIcon) {
@@ -636,15 +646,19 @@ private fun OverflowMenu(content: @Composable ColumnScope.(dismiss: () -> Unit) 
 private fun ExternalAccountItem(
     account: ExternalAccount,
     appCount: Int,
+    onOpen: () -> Unit,
     onToggle: () -> Unit,
     onRescan: () -> Unit,
     onRemove: () -> Unit,
 ) {
     val contentAlpha = if (account.enabled) 1f else 0.4f
+    // Tapping the row opens the account's detail screen (its list of apps), like tapping an F-Droid
+    // repo. The toggle and overflow menu below consume their own taps, so they keep working.
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onOpen)
             .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
     ) {
         if (account.key == ExternalAccount.OMNIFY_KEY) {
