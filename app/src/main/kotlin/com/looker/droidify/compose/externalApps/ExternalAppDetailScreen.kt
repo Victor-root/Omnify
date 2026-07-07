@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.externalApps
 
 import android.content.Intent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,13 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -222,8 +224,9 @@ fun ExternalAppDetailScreen(
                 )
             }
 
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider()
+            Spacer(Modifier.height(20.dp))
+            SectionSeparator()
+            Spacer(Modifier.height(20.dp))
 
             // README — sized to its content (it doesn't scroll itself) so it scrolls with the rest.
             // GitHub leaves repo-relative image paths un-rewritten, so the WebView resolves them
@@ -282,6 +285,21 @@ fun ExternalAppDetailScreen(
                 }
             }
         }
+    }
+}
+
+/** A short, centred rounded bar between the hero card and the README, instead of a full-width line —
+ *  reads as a soft section break rather than a hard rule dividing the page in two. */
+@Composable
+private fun SectionSeparator(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .width(40.dp)
+                .height(4.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.outlineVariant),
+        )
     }
 }
 
