@@ -396,7 +396,7 @@ private fun SectionSeparator(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Box(
             modifier = Modifier
-                .width(40.dp)
+                .width(80.dp)
                 .height(4.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.outlineVariant),
