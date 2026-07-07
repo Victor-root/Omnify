@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
@@ -98,6 +99,7 @@ import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.InstallingRow
+import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusOutline
@@ -167,6 +169,9 @@ fun AppDetailScreen(
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
+    // Hoisted above the Scaffold (not inside AppDetail) so both the content column and the
+    // scroll-to-top FAB can read/drive the same scroll position.
+    val scrollState = rememberScrollState()
 
     // Re-read the installed state on resume — in particular when returning from the system uninstall
     // dialog — since installManager.state alone doesn't report a system uninstall. This is what lets the
@@ -304,6 +309,7 @@ fun AppDetailScreen(
                 },
             )
         },
+        floatingActionButton = { ScrollToTopFab(scrollState) },
     ) { padding ->
         when (state) {
             AppDetailState.Loading -> {
@@ -349,6 +355,7 @@ fun AppDetailScreen(
                     descriptionTranslation = descriptionTranslation,
                     supportedLanguages = supportedLanguages,
                     primaryActionFocusRequester = primaryActionFocusRequester,
+                    scrollState = scrollState,
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -524,6 +531,7 @@ private fun AppDetail(
     descriptionTranslation: DescriptionTranslation,
     supportedLanguages: SupportedLanguages,
     primaryActionFocusRequester: FocusRequester,
+    scrollState: ScrollState,
     modifier: Modifier = Modifier,
 ) {
     val installedPackage = app.packages?.firstOrNull { it.installed }
@@ -574,7 +582,7 @@ private fun AppDetail(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             // A focus group so D-pad navigation stays scoped to the content (the action button itself is
             // the explicit focus target, see primaryActionFocusRequester).
             .focusGroup()

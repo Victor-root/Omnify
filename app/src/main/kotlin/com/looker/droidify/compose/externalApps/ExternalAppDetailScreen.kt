@@ -54,6 +54,7 @@ import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
+import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -94,6 +95,9 @@ fun ExternalAppDetailScreen(
     val installedVersion = installedVersions[appKey]
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
+    // Hoisted above the Scaffold (not inside its content lambda) so both the content column and the
+    // scroll-to-top FAB can read/drive the same scroll position.
+    val scrollState = rememberScrollState()
 
     // Download the project README (as HTML) once the app is known, to fill out the detail screen.
     LaunchedEffect(app?.key) {
@@ -142,6 +146,7 @@ fun ExternalAppDetailScreen(
             )
         },
         snackbarHost = { SnackbarHost(viewModel.snackbarHostState) },
+        floatingActionButton = { ScrollToTopFab(scrollState) },
     ) { contentPadding ->
         if (app == null) {
             // The source was removed (or not loaded yet); nothing to show.
@@ -160,8 +165,8 @@ fun ExternalAppDetailScreen(
         // WebView re-reports its height every time the document reloads, so translating or reverting
         // resizes correctly on its own.
         var readmeHeightPx by remember(app.key) { mutableStateOf(0) }
-        // Hoisted so the README can page-scroll it on TV; viewport height drives the page step.
-        val scrollState = rememberScrollState()
+        // scrollState is hoisted above the Scaffold (used by the page-scroll TV modifier below and by
+        // the scroll-to-top FAB). viewportPx drives the page step for TV D-pad paging.
         var viewportPx by remember { mutableStateOf(0) }
         Column(
             modifier = Modifier
