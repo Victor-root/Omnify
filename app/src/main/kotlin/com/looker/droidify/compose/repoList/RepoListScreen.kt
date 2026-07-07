@@ -650,6 +650,7 @@ private fun OverflowMenu(content: @Composable ColumnScope.(dismiss: () -> Unit) 
 /** A whole-account source as a management row: the account avatar, its name, "provider · N apps", an
  *  enable/disable toggle (which cascades to its apps), a rescan button (look for newly published apps)
  *  and a remove button. The account's individual apps appear on the External tab. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ExternalAccountItem(
     account: ExternalAccount,
@@ -694,20 +695,28 @@ private fun ExternalAccountItem(
         ) {
             Text(text = account.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
             // Subtitle: the app count once known; "disabled" while off (it isn't scanned until enabled);
-            // "searching…" during the first scan of a freshly-enabled account.
-            val status = when {
-                appCount > 0 -> stringResource(R.string.external_account_apps, appCount)
-                !account.enabled -> stringResource(R.string.external_account_disabled)
-                account.lastScan == 0L -> stringResource(R.string.external_account_scanning)
-                else -> stringResource(R.string.external_account_apps, 0)
+            // a spinner + "searching…" during the first scan of a freshly-enabled account, so it's
+            // obvious at a glance that discovery is actually running, not just idle/stuck text.
+            val isScanning = account.enabled && appCount == 0 && account.lastScan == 0L
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isScanning) {
+                    CircularWavyProgressIndicator(modifier = Modifier.size(12.dp))
+                    Spacer(modifier = Modifier.size(6.dp))
+                }
+                val status = when {
+                    appCount > 0 -> stringResource(R.string.external_account_apps, appCount)
+                    !account.enabled -> stringResource(R.string.external_account_disabled)
+                    isScanning -> stringResource(R.string.external_account_scanning)
+                    else -> stringResource(R.string.external_account_apps, 0)
+                }
+                Text(
+                    text = "${account.sourceLabel} · $status",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            Text(
-                text = "${account.sourceLabel} · $status",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
         Spacer(modifier = Modifier.size(8.dp))
         // Rescan / remove in an overflow menu, before the toggle so every toggle lines up at the far

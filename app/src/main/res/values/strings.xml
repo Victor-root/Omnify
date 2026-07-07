@@ -40,6 +40,7 @@
     <string name="application_not_found">App wasn\'t found</string>
     <string name="author_email">Author email</string>
     <string name="author_website">Author website</string>
+    <string name="by_author_FORMAT">by %1$s</string>
     <string name="auto_update">Auto-update apps</string>
     <string name="auto_update_apps">Install updates automatically</string>
     <string name="available">Explore</string>

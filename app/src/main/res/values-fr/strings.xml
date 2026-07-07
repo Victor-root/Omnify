@@ -34,6 +34,7 @@
     <string name="application_not_found">Appli non trouvée</string>
     <string name="author_email">Courriel de l’auteur</string>
     <string name="author_website">Site internet de l\'auteur</string>
+    <string name="by_author_FORMAT">par %1$s</string>
     <string name="available">Explorer</string>
     <string name="bug_tracker">Traqueur de bogues</string>
     <string name="cancel">Annuler</string>

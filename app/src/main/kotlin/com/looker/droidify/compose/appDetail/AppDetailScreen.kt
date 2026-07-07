@@ -31,6 +31,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
@@ -38,6 +39,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,6 +76,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -413,12 +416,28 @@ private fun PrimaryActions(
                 !isInstalled -> Button(
                     onClick = onInstallOrUpdate,
                     modifier = tvPrimaryButton.tvFocusScale(1.10f),
-                ) { Text(stringResource(R.string.install)) }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Download,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.install))
+                }
 
                 updateAvailable -> Button(
                     onClick = onInstallOrUpdate,
                     modifier = tvPrimaryButton.tvFocusScale(1.10f),
-                ) { Text(stringResource(R.string.update)) }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Download,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.update))
+                }
 
                 else -> Button(
                     onClick = onLaunch,
@@ -516,16 +535,15 @@ private fun AppDetail(
             // Breathing room so the header section isn't glued under the top bar.
             .padding(top = 16.dp),
     ) {
-        HeaderSection(
+        AppHeaderCard(
             app = app,
             packageName = app.metadata.packageName.name,
-            isInstalled = app.packages?.any { it.installed } == true,
+            installedPackage = installedPackage,
+            installablePackage = installablePackage,
+            installedInfo = installedInfo,
+            isInstalled = installedPackage != null,
             isFavorite = isFavourite,
             onToggleFavorite = onToggleFavourite,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
-        PrimaryActions(
-            isInstalled = installedPackage != null,
             updateAvailable = updateAvailable,
             installState = installState,
             downloadStatus = downloadStatus,
@@ -534,23 +552,8 @@ private fun AppDetail(
             onUninstall = onUninstall,
             onCancel = onCancel,
             primaryActionFocusRequester = primaryActionFocusRequester,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
-
-        // The real installed version + its source, so it's clear which build is on the device (e.g. a
-        // fork installed over the upstream package keeps its own version).
-        installedInfo?.let { info ->
-            Text(
-                text = stringResource(
-                    R.string.installed_version_source,
-                    info.version,
-                    info.source,
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-        }
 
         // Detect exactly which Google Play services capabilities this build depends on (push, maps,
         // billing, ...) from its manifest, so we can say precisely what may not work on a de-Googled
@@ -774,87 +777,241 @@ private fun AppDetail(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+/**
+ * The app's "hero" card: icon, name, author, a favourite toggle overlaid top-end, a version/size/
+ * source-code stats row, and the primary install/update/launch action, all in one visually cohesive
+ * block — mirroring upstream Droid-ify's app page instead of the previous plain icon-and-text row.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun HeaderSection(
+private fun AppHeaderCard(
     app: App?,
     packageName: String,
+    installedPackage: Package?,
+    installablePackage: Package?,
+    installedInfo: InstalledInfo?,
     isInstalled: Boolean,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
+    updateAvailable: Boolean,
+    installState: InstallState?,
+    downloadStatus: DownloadStatus?,
+    onInstallOrUpdate: () -> Unit,
+    onLaunch: () -> Unit,
+    onUninstall: () -> Unit,
+    onCancel: () -> Unit,
+    primaryActionFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        // Reuse the list tile's icon logic so the header falls back the same way: repo icon, then the
-        // repo's generic icon.png, then the installed app's own launcher icon, then a placeholder. Repos
-        // like TwinHelix ship no icon in their index, so without the launcher-icon fallback the header
-        // showed a blank placeholder even though the list (which has this fallback) showed the real logo.
-        val minimal = app?.minimal()
-        if (minimal != null) {
-            AppMinimalIcon(
-                app = minimal,
-                isInstalled = isInstalled,
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-            )
-        } else {
-            Image(
-                painter = painterResource(id = R.drawable.ic_cannot_load),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-            )
-        }
+    // Reuse the list tile's icon logic so the header falls back the same way: repo icon, then the
+    // repo's generic icon.png, then the installed app's own launcher icon, then a placeholder. Repos
+    // like TwinHelix ship no icon in their index, so without the launcher-icon fallback the header
+    // showed a blank placeholder even though the list (which has this fallback) showed the real logo.
+    val minimal = app?.minimal()
+    val version = app?.metadata?.suggestedVersionName?.nonBlank()
+    val size = installablePackage?.apk?.size?.toString()
+    val author = app?.author?.name?.nonBlank()
+    val uriHandler = LocalUriHandler.current
+    val sourceCodeUrl = app?.links?.sourceCode?.nonBlank()
+    val onSourceCodeClick: (() -> Unit)? = sourceCodeUrl?.let { url ->
+        { runCatching { uriHandler.openUri(url) } }
+    }
 
-        Spacer(modifier = Modifier.size(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = app?.metadata?.name ?: packageName,
-                style = MaterialTheme.typography.titleLarge,
-                overflow = TextOverflow.Ellipsis,
-            )
-            val version = app?.metadata?.suggestedVersionName?.takeIf { it.isNotBlank() } ?: ""
-            if (version.isNotEmpty()) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = MaterialTheme.shapes.large,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                if (minimal != null) {
+                    AppMinimalIcon(
+                        app = minimal,
+                        isInstalled = isInstalled,
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clip(RoundedCornerShape(20.dp)),
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_cannot_load),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clip(RoundedCornerShape(20.dp)),
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = stringResource(R.string.version_FORMAT, version),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = app?.metadata?.name ?: packageName,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (author != null) {
+                    Text(
+                        text = stringResource(R.string.by_author_FORMAT, author),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (version != null || size != null || onSourceCodeClick != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    StatsRow(version = version, size = size, onSourceCodeClick = onSourceCodeClick)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                PrimaryActions(
+                    isInstalled = isInstalled,
+                    updateAvailable = updateAvailable,
+                    installState = installState,
+                    downloadStatus = downloadStatus,
+                    onInstallOrUpdate = onInstallOrUpdate,
+                    onLaunch = onLaunch,
+                    onUninstall = onUninstall,
+                    onCancel = onCancel,
+                    primaryActionFocusRequester = primaryActionFocusRequester,
+                )
+                // The real installed version + its source (e.g. a fork installed over the upstream
+                // package keeps its own version), folded into the card instead of sitting orphaned
+                // below it.
+                installedInfo?.let { info ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.installed_version_source,
+                            info.version,
+                            info.source,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+
+            // Just the heart, no container (the tonal toggle button squashed it into an oval): a larger
+            // filled red heart when favourited, a neutral outline when not. Overlaid top-end so it
+            // doesn't disturb the centred icon/name/author column.
+            IconToggleButton(
+                checked = isFavorite,
+                onCheckedChange = { onToggleFavorite() },
+                // TV: square so the focus halo is a clean circle, and the heart scales up on focus. No-op
+                // on touch.
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .then(if (LocalIsTelevision.current) Modifier.size(48.dp) else Modifier)
+                    .tvFocusScale(),
+            ) {
+                Icon(
+                    painter = painterResource(
+                        if (isFavorite) R.drawable.ic_favourite_checked else R.drawable.ic_favourite,
+                    ),
+                    contentDescription = stringResource(R.string.favourites),
+                    tint = if (isFavorite) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.size(28.dp),
                 )
             }
-            Text(
-                text = app?.author?.name ?: "",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
+    }
+}
 
-        // Just the heart, no container (the tonal toggle button squashed it into an oval): a larger
-        // filled red heart when favourited, a neutral outline when not.
-        IconToggleButton(
-            checked = isFavorite,
-            onCheckedChange = { onToggleFavorite() },
-            // TV: square so the focus halo is a clean circle, and the heart scales up on focus. No-op
-            // on touch.
-            modifier = (if (LocalIsTelevision.current) Modifier.size(48.dp) else Modifier)
-                .tvFocusScale(),
-        ) {
-            Icon(
-                painter = painterResource(
-                    if (isFavorite) R.drawable.ic_favourite_checked else R.drawable.ic_favourite,
-                ),
-                contentDescription = stringResource(R.string.favourites),
-                tint = if (isFavorite) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                modifier = Modifier.size(30.dp),
+/** The version / size / source-code stats row inside [AppHeaderCard], each pair separated by a thin
+ *  divider. Any of the three can be absent (a repo may omit size or a source-code link); only the
+ *  present ones are shown, with dividers only between two actually-shown neighbours. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StatsRow(
+    version: String?,
+    size: String?,
+    onSourceCodeClick: (() -> Unit)?,
+) {
+    val dividerColor = MaterialTheme.colorScheme.outlineVariant
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        version?.let {
+            StatItem(
+                label = stringResource(R.string.version),
+                value = it,
+                modifier = Modifier.weight(1f),
             )
         }
+        if (version != null && (size != null || onSourceCodeClick != null)) {
+            VerticalDivider(modifier = Modifier.height(28.dp), color = dividerColor)
+        }
+        size?.let {
+            StatItem(label = stringResource(R.string.size), value = it, modifier = Modifier.weight(1f))
+        }
+        if (size != null && onSourceCodeClick != null) {
+            VerticalDivider(modifier = Modifier.height(28.dp), color = dividerColor)
+        }
+        onSourceCodeClick?.let { onClick ->
+            SourceCodeStatItem(onClick = onClick, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+/** The "Source code" stat: same label-over-value rhythm as [StatItem] (an icon standing in for the
+ *  label), coloured and clickable instead of boxed in a chip — reads as one of the three stats rather
+ *  than a separate button bolted onto the row. */
+@Composable
+private fun SourceCodeStatItem(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_source_code),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = stringResource(R.string.source_code),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** One label-over-value stat, e.g. "Version" / "1.18_beta". */
+@Composable
+private fun StatItem(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
