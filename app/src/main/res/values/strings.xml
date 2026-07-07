@@ -426,7 +426,7 @@
     <string name="external_account_disabled">disabled</string>
     <string name="external_account_scanning">searching…</string>
     <string name="external_account_rescan">Rescan</string>
-    <string name="external_account_omnify_description">Maintainer of Omnify and passionate about open source. I build free and open Android apps because I believe in it.</string>
+    <string name="external_account_omnify_description">Maintainer of Omnify and passionate about open source. I build Android apps and self-hosting tools because I believe in free and transparent computing.</string>
     <string name="external_unreachable">Couldn\'t reach %1$s</string>
     <string name="external_no_apk">The latest %1$s release has no APK</string>
     <string name="external_download_failed">Download failed for %1$s</string>
