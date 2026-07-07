@@ -420,6 +420,7 @@
     <string name="external_account_disabled">désactivé</string>
     <string name="external_account_scanning">recherche…</string>
     <string name="external_account_rescan">Rescanner</string>
+    <string name="external_account_omnify_description">Mainteneur d\'Omnify et amoureux de l\'open source. Je développe des applications Android libres parce que j\'y crois.</string>
     <string name="external_unreachable">Impossible de joindre %1$s</string>
     <string name="external_no_apk">La dernière release de %1$s ne contient pas d\'APK</string>
     <string name="external_download_failed">Échec du téléchargement de %1$s</string>

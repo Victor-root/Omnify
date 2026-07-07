@@ -18,6 +18,9 @@ data class ExternalAccount(
     val host: String = "",
     /** Display name; defaults to the owner. */
     val label: String = owner,
+    /** Optional free-text description shown on the account's Info tab (e.g. who the maintainer is).
+     *  Empty for an account added by URL; only the built-in Omnify account seeds one today. */
+    val description: String = "",
     /** Active state. Disabling the account disables all of its discovered apps too. */
     val enabled: Boolean = true,
     /** Whether forked repos are included in the discovery. Off by default (forks are usually noise), but

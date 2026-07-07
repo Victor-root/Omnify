@@ -115,7 +115,7 @@ class MainComposeActivity : ComponentActivity() {
         // whole GitHub account as a separate, opt-in (disabled) source.
         private const val OMNIFY_SOURCE_OWNER = "Victor-root"
         private const val OMNIFY_SOURCE_REPO = "Omnify"
-        private const val KEY_OMNIFY_SEED = "omnify_seed_v4"
+        private const val KEY_OMNIFY_SEED = "omnify_seed_v5"
     }
 
     /** Omnify's own repo (github.com/Victor-root/Omnify) as the built-in update channel, active by
@@ -141,6 +141,7 @@ class MainComposeActivity : ComponentActivity() {
         provider = SourceProvider.GITHUB,
         owner = OMNIFY_SOURCE_OWNER,
         label = OMNIFY_SOURCE_OWNER,
+        description = getString(R.string.external_account_omnify_description),
         enabled = false,
         includeForks = true,
     )

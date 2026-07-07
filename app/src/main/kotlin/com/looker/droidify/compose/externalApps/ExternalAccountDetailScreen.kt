@@ -243,6 +243,15 @@ private fun AccountInfoTab(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        if (account.description.isNotEmpty()) {
+            Text(
+                text = account.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         Text(
             text = "${account.sourceLabel} · ${stringResource(R.string.external_account_apps, appCount)}",
             style = MaterialTheme.typography.bodyMedium,
