@@ -289,6 +289,61 @@ class ExternalApi @Inject constructor(
     }
 
     /**
+     * The project's issue tracker URL, when the repo actually has issues enabled — mirrors the
+     * F-Droid catalogue's "Issue tracker" link, which an external source has no equivalent metadata
+     * for, so this asks the provider directly. Null when issues are disabled or the check itself
+     * fails, so the caller can say there's no tracker instead of linking to a disabled page.
+     */
+    suspend fun fetchIssueTrackerUrl(app: ExternalApp): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val enabled = when (app.provider) {
+                SourceProvider.GITHUB -> repoHasIssues(
+                    url = "https://api.github.com/repos/${app.owner}/${app.repo}",
+                    github = true,
+                )
+                // Gitea/Forgejo (codeberg.org or self-hosted) exposes the same has_issues field.
+                SourceProvider.CODEBERG -> repoHasIssues(
+                    url = "https://${app.effectiveHost}/api/v1/repos/${app.owner}/${app.repo}",
+                )
+                SourceProvider.GITLAB -> {
+                    // GitLab's project API doesn't reliably expose an issues-enabled flag to anonymous
+                    // requests; the issues list endpoint itself returns 403 when issues are disabled
+                    // for the project (200, even with an empty list, otherwise), so that doubles as
+                    // the check without needing a second request.
+                    val path = URLEncoder.encode("${app.owner}/${app.repo}", "UTF-8")
+                    getText("https://${app.effectiveHost}/api/v4/projects/$path/issues?per_page=1") != null
+                }
+            }
+            if (!enabled) return@runCatching null
+            val suffix = if (app.provider == SourceProvider.GITLAB) "-/issues" else "issues"
+            "https://${app.effectiveHost}/${app.owner}/${app.repo}/$suffix"
+        }.getOrNull()
+    }
+
+    /** True when the repo's REST payload reports `has_issues: true` (GitHub and Gitea/Codeberg share
+     *  this field). False on any failure, so a broken check reads as "no tracker" rather than crashing. */
+    private suspend fun repoHasIssues(url: String, github: Boolean = false): Boolean {
+        val text = getText(url, github) ?: return false
+        return runCatching { json.decodeFromString(RepoIssuesFlagDto.serializer(), text) }
+            .getOrNull()?.hasIssues ?: false
+    }
+
+    /**
+     * URL to the project's changelog file, when it ships one at the repo root under a common name —
+     * mirrors the F-Droid catalogue's "Changelog" link, which comes from the index's own metadata; an
+     * external source has none, so this looks for the file itself. Null when none of the common names
+     * exist.
+     */
+    suspend fun fetchChangelogUrl(app: ExternalApp): String? = withContext(Dispatchers.IO) {
+        for (name in CHANGELOG_NAMES) {
+            if (runCatching { getText(app.readmeBaseUrl + name) }.getOrNull() != null) {
+                return@withContext app.fileViewUrl(name)
+            }
+        }
+        null
+    }
+
+    /**
      * Replaces relative `<img>` sources in rendered README HTML with `data:` URIs of the actual image
      * bytes. Gitea/GitLab raw endpoints decide between the file and an HTML viewer page from request
      * headers the WebView doesn't send for sub-resources, so a plain relative URL would load the HTML
@@ -676,6 +731,15 @@ private val IMG_SRC_REGEX = Regex("""<img\b[^>]*?\bsrc="([^"]+)"[^>]*>""", Regex
 private val README_NAMES = listOf(
     "README.md", "readme.md", "Readme.md", "README.markdown", "README.MD", "README", "readme",
 )
+
+/** Changelog file names tried in order against a repo's branchless raw base. */
+private val CHANGELOG_NAMES = listOf(
+    "CHANGELOG.md", "changelog.md", "CHANGELOG.rst", "CHANGES.md", "CHANGES", "HISTORY.md", "CHANGELOG",
+)
+
+/** GitHub's and Gitea/Codeberg's repo REST payload share this field for whether issues are enabled. */
+@Serializable
+private data class RepoIssuesFlagDto(@SerialName("has_issues") val hasIssues: Boolean = false)
 
 /** GitHub-flavoured Markdown extensions: tables, strikethrough, autolinks and task lists. */
 private val MARKDOWN_EXTENSIONS = listOf(

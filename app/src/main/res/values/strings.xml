@@ -196,6 +196,7 @@
     <string name="license">License</string>
     <string name="license_FORMAT">%s license</string>
     <string name="light">Light</string>
+    <string name="loading">Loading…</string>
     <string name="link_copied_to_clipboard">Link copied</string>
     <string name="links">Links</string>
     <string name="issue_tracker">Issue tracker</string>
@@ -412,6 +413,8 @@
     <string name="external_include_prereleases">Include pre-releases</string>
     <string name="external_only_prereleases">%s only publishes pre-releases. Turn on \"Include pre-releases\" to add it.</string>
     <string name="external_prerelease_label">Pre-release</string>
+    <string name="external_no_issue_tracker">No issue tracker found</string>
+    <string name="external_no_changelog">No changelog found</string>
     <string name="external_edit_source">Edit source</string>
     <string name="external_custom_name">Custom name (optional)</string>
     <string name="external_apk_filter">APK filter (regex, optional)</string>

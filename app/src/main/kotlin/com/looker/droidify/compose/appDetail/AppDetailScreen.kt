@@ -2,7 +2,6 @@ package com.looker.droidify.compose.appDetail
 
 import android.content.Context
 import android.content.Intent
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
@@ -102,7 +101,9 @@ import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.InstallingRow
+import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.ScrollToTopFab
+import com.looker.droidify.compose.components.SectionTitle
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvFocusFill
@@ -988,42 +989,6 @@ private fun LinksSection(app: App) {
     }
 }
 
-@Composable
-private fun LinkRow(
-    @DrawableRes iconRes: Int,
-    title: String,
-    url: String,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            // TV only: a soft green fill behind the focused row (a full-width row can't scale without
-            // overflowing the screen). No-op on touch.
-            .tvFocusFill(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp),
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = url,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
 
 /**
  * Detailed notice that the app depends on specific Google Play services, shown before install so it's
@@ -1239,25 +1204,6 @@ private fun PermissionsSection(permissions: List<Permission>) {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun SectionTitle(title: String, @DrawableRes iconRes: Int? = null) {
-    Row(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (iconRes != null) {
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-        }
-        Text(text = title, style = MaterialTheme.typography.titleMedium)
     }
 }
 

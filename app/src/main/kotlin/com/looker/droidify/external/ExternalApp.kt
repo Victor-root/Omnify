@@ -118,6 +118,15 @@ data class ExternalApp(
             else -> readmeBaseUrl
         }
 
+    /** The human-browsable page for a repo-root file (e.g. a changelog) — unlike [readmeBaseUrl],
+     *  this is a page meant to be opened in a real browser, not fetched as raw content, so each
+     *  provider's own file-viewer path is used instead of its raw-content one. */
+    fun fileViewUrl(fileName: String): String = when (provider) {
+        SourceProvider.GITHUB -> "https://$effectiveHost/$owner/$repo/blob/HEAD/$fileName"
+        SourceProvider.CODEBERG -> "https://$effectiveHost/$owner/$repo/src/branch/HEAD/$fileName"
+        SourceProvider.GITLAB -> "https://$effectiveHost/$owner/$repo/-/blob/HEAD/$fileName"
+    }
+
     /**
      * A logo to show *before* the app is installed: the source account's avatar. GitHub exposes a
      * stable per-owner avatar at `github.com/<owner>.png` (for AdAway that's the AdAway logo). The

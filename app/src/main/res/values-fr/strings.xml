@@ -167,6 +167,7 @@
     <string name="credits">Crédits</string>
     <string name="themes">Thèmes</string>
     <string name="light">Clair</string>
+    <string name="loading">Chargement…</string>
     <string name="incompatible_versions">Versions incompatibles</string>
     <string name="incompatible_versions_summary">Afficher les versions d’applis incompatibles avec l’appareil</string>
     <string name="license">Licence</string>
@@ -406,6 +407,8 @@
     <string name="external_include_prereleases">Inclure les préversions</string>
     <string name="external_only_prereleases">%s ne publie que des préversions. Activez « Inclure les préversions » pour l\'ajouter.</string>
     <string name="external_prerelease_label">Préversion</string>
+    <string name="external_no_issue_tracker">Aucun suivi des problèmes trouvé</string>
+    <string name="external_no_changelog">Aucun changelog trouvé</string>
     <string name="external_edit_source">Modifier le dépôt</string>
     <string name="external_custom_name">Nom personnalisé (facultatif)</string>
     <string name="external_apk_filter">Filtre d\'APK (regex, facultatif)</string>

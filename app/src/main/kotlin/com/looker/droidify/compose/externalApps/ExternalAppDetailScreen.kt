@@ -57,7 +57,9 @@ import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.InstallVersionDialog
+import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.ScrollToTopFab
+import com.looker.droidify.compose.components.SectionTitle
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvPageScroll
@@ -86,6 +88,8 @@ fun ExternalAppDetailScreen(
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
+    val issueTrackerLink by viewModel.issueTrackerLink.collectAsStateWithLifecycle()
+    val changelogLink by viewModel.changelogLink.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -118,6 +122,10 @@ fun ExternalAppDetailScreen(
     // Recent releases, for the "choose a version to install" list at the bottom of the screen.
     LaunchedEffect(app?.key) {
         app?.let { viewModel.loadReleaseHistory(it) }
+    }
+    // The Links section's "Issue tracker" and "Changelog" rows.
+    LaunchedEffect(app?.key) {
+        app?.let { viewModel.loadIssueTrackerAndChangelog(it) }
     }
 
     Scaffold(
@@ -319,6 +327,33 @@ fun ExternalAppDetailScreen(
                 ) {
                     CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
                 }
+            }
+
+            // "Issue tracker" and "Changelog" — an external source has no index metadata for these like
+            // the F-Droid catalogue does, so they're resolved live from the provider. Always shown (not
+            // hidden while resolving/absent) so the page doesn't jump around as the checks complete;
+            // a still-loading or genuinely absent link reads as a plain "…" / explanatory row instead.
+            Spacer(Modifier.height(16.dp))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                SectionTitle(stringResource(R.string.links), R.drawable.ic_tabler_link)
+                LinkRow(
+                    iconRes = R.drawable.ic_bug_report,
+                    title = stringResource(R.string.issue_tracker),
+                    url = issueTrackerLink?.url,
+                    unavailableText = stringResource(
+                        if (issueTrackerLink == null) R.string.loading else R.string.external_no_issue_tracker,
+                    ),
+                    onClick = issueTrackerLink?.url?.let { url -> { uriHandler.openUri(url) } },
+                )
+                LinkRow(
+                    iconRes = R.drawable.ic_history,
+                    title = stringResource(R.string.changelog),
+                    url = changelogLink?.url,
+                    unavailableText = stringResource(
+                        if (changelogLink == null) R.string.loading else R.string.external_no_changelog,
+                    ),
+                    onClick = changelogLink?.url?.let { url -> { uriHandler.openUri(url) } },
+                )
             }
 
             // Recent releases the user can pick a specific version to install from — same idea as the

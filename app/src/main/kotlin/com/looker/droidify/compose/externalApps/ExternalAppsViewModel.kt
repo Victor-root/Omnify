@@ -246,6 +246,40 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
+    /** The detail screen's "Issue tracker" and "Changelog" links, resolved from the provider itself
+     *  (an external source has no index metadata to read these from, unlike the F-Droid catalogue).
+     *  Null while still checking; once checked, [LinkCheckState.url] is null when the repo genuinely
+     *  has no issue tracker / no changelog file, so the screen can say so instead of hiding the row. */
+    private val _issueTrackerLink = MutableStateFlow<LinkCheckState?>(null)
+    val issueTrackerLink: StateFlow<LinkCheckState?> = _issueTrackerLink
+    private val _changelogLink = MutableStateFlow<LinkCheckState?>(null)
+    val changelogLink: StateFlow<LinkCheckState?> = _changelogLink
+
+    private val issueTrackerCache = mutableMapOf<String, Pair<Long, String?>>()
+    private val changelogCache = mutableMapOf<String, Pair<Long, String?>>()
+
+    fun loadIssueTrackerAndChangelog(app: ExternalApp) {
+        val now = SystemClock.elapsedRealtime()
+        val cachedIssues = issueTrackerCache[app.key]
+        _issueTrackerLink.value = cachedIssues?.let { LinkCheckState(it.second) }
+        if (cachedIssues == null || now - cachedIssues.first >= README_FRESHNESS_MS) {
+            viewModelScope.launch {
+                val url = externalApi.fetchIssueTrackerUrl(app)
+                issueTrackerCache[app.key] = SystemClock.elapsedRealtime() to url
+                _issueTrackerLink.value = LinkCheckState(url)
+            }
+        }
+        val cachedChangelog = changelogCache[app.key]
+        _changelogLink.value = cachedChangelog?.let { LinkCheckState(it.second) }
+        if (cachedChangelog == null || now - cachedChangelog.first >= README_FRESHNESS_MS) {
+            viewModelScope.launch {
+                val url = externalApi.fetchChangelogUrl(app)
+                changelogCache[app.key] = SystemClock.elapsedRealtime() to url
+                _changelogLink.value = LinkCheckState(url)
+            }
+        }
+    }
+
     fun loadReadme(app: ExternalApp) {
         // A different app's README is about to load, so drop any translation left on the previous one.
         _readmeTranslation.value = DescriptionTranslation.Original
@@ -1149,3 +1183,8 @@ private const val ACCOUNT_RESCAN_INTERVAL_MS = 24 * 60 * 60 * 1000L
  *  changes on the order of days/weeks, so re-opening the same app's detail screen repeatedly within
  *  this window shows the cached copy as-is instead of hitting the network again for identical content. */
 private const val README_FRESHNESS_MS = 15 * 60 * 1000L
+
+/** A resolved link check: the instance itself being null means "still checking"; once present,
+ *  [url] is null when the thing genuinely doesn't exist (e.g. no issue tracker), distinguishing that
+ *  from not having looked yet — a plain nullable String can't tell those two states apart. */
+data class LinkCheckState(val url: String?)
