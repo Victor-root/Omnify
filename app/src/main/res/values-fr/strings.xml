@@ -302,7 +302,7 @@
     <string name="help">Aide</string>
     <string name="github_token_help">Pour augmenter la limite, créez un jeton sur github.com :\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic), donnez-lui un nom\n3. Ne cochez AUCUNE case. Sans aucune permission cochée, le jeton n\'autorise STRICTEMENT RIEN sur votre compte ; il sert uniquement à vous identifier pour passer à 5000 requêtes/heure\n4. Generate token, copiez-le et collez-le ci-dessus</string>
     <string name="readme_javascript_title">JavaScript dans les README</string>
-    <string name="readme_javascript_DESC">Autorise l\'exécution de scripts intégrés dans les README des projets (utilisés parfois pour des badges ou widgets dynamiques). Désactivez pour limiter les README à du contenu simple.</string>
+    <string name="readme_javascript_DESC">Désactivé par défaut : la plupart des README s\'affichent pareil dans les deux cas. Activez uniquement si le README d\'un projet s\'affiche mal ou qu\'il lui manque un contenu dynamique (un badge, graphique ou widget en direct intégré via un script).</string>
     <string name="external_imported">Sources externes importées</string>
     <string name="translate">Traduire</string>
     <string name="show_original">Voir l\'original</string>

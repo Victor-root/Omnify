@@ -282,7 +282,7 @@ class PreferenceSettingsRepository(
         val libreTranslateUrl = preferences[LIBRETRANSLATE_URL] ?: ""
         val libreTranslateApiKey = preferences[LIBRETRANSLATE_API_KEY] ?: ""
         val autoTranslate = preferences[AUTO_TRANSLATE] ?: false
-        val readmeJavaScriptEnabled = preferences[README_JAVASCRIPT_ENABLED] ?: true
+        val readmeJavaScriptEnabled = preferences[README_JAVASCRIPT_ENABLED] ?: false
 
         return Settings(
             language = language,

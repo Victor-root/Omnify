@@ -102,7 +102,7 @@
     <string name="help">Help</string>
     <string name="github_token_help">To raise the limit, create a token on github.com:\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic), give it a name\n3. Tick NO boxes. With no scope selected, the token grants strictly nothing on your account; it only identifies you so the limit rises to 5000 requests/hour\n4. Generate token, copy it, and paste it above</string>
     <string name="readme_javascript_title">JavaScript in READMEs</string>
-    <string name="readme_javascript_DESC">Lets embedded scripts run in project READMEs (some use them for dynamic badges or widgets). Turn off to keep READMEs to plain content only.</string>
+    <string name="readme_javascript_DESC">Off by default: most READMEs render identically either way. Turn on only if a project\'s README looks broken or is missing dynamic content (a live badge, chart or widget it embeds via script).</string>
     <string name="external_imported">External sources imported</string>
     <string name="translate">Translate</string>
     <string name="show_original">Show original</string>
