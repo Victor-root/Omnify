@@ -226,6 +226,9 @@ class PreferenceSettingsRepository(
     override suspend fun setAutoTranslate(enable: Boolean) =
         AUTO_TRANSLATE.update(enable)
 
+    override suspend fun setReadmeJavaScriptEnabled(enable: Boolean) =
+        README_JAVASCRIPT_ENABLED.update(enable)
+
     private fun mapSettings(preferences: Preferences): Settings {
         val installerType =
             InstallerType.valueOf(preferences[INSTALLER_TYPE] ?: InstallerType.Default.name)
@@ -279,6 +282,7 @@ class PreferenceSettingsRepository(
         val libreTranslateUrl = preferences[LIBRETRANSLATE_URL] ?: ""
         val libreTranslateApiKey = preferences[LIBRETRANSLATE_API_KEY] ?: ""
         val autoTranslate = preferences[AUTO_TRANSLATE] ?: false
+        val readmeJavaScriptEnabled = preferences[README_JAVASCRIPT_ENABLED] ?: true
 
         return Settings(
             language = language,
@@ -311,6 +315,7 @@ class PreferenceSettingsRepository(
             libreTranslateUrl = libreTranslateUrl,
             libreTranslateApiKey = libreTranslateApiKey,
             autoTranslate = autoTranslate,
+            readmeJavaScriptEnabled = readmeJavaScriptEnabled,
         )
     }
 
@@ -353,6 +358,7 @@ class PreferenceSettingsRepository(
         val LIBRETRANSLATE_URL = stringPreferencesKey("key_libretranslate_url")
         val LIBRETRANSLATE_API_KEY = stringPreferencesKey("key_libretranslate_api_key")
         val AUTO_TRANSLATE = booleanPreferencesKey("key_auto_translate")
+        val README_JAVASCRIPT_ENABLED = booleanPreferencesKey("key_readme_javascript_enabled")
 
         // Enums
         val THEME = stringPreferencesKey("key_theme")
@@ -416,6 +422,7 @@ class PreferenceSettingsRepository(
             set(LIBRETRANSLATE_URL, settings.libreTranslateUrl)
             set(LIBRETRANSLATE_API_KEY, settings.libreTranslateApiKey)
             set(AUTO_TRANSLATE, settings.autoTranslate)
+            set(README_JAVASCRIPT_ENABLED, settings.readmeJavaScriptEnabled)
             return this.toPreferences()
         }
     }

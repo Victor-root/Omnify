@@ -71,6 +71,10 @@ data class Settings(
     /** Automatically translate an app's description on open when it isn't already in the device
      *  language. */
     val autoTranslate: Boolean = false,
+    /** Whether the README WebView on external-source detail pages may run embedded JavaScript (e.g. a
+     *  dynamic star-history chart or badge some projects embed). On by default for a fully working
+     *  WebView; off keeps README rendering to static content only. Never affects the app's own UI. */
+    val readmeJavaScriptEnabled: Boolean = true,
 )
 
 @OptIn(ExperimentalSerializationApi::class)

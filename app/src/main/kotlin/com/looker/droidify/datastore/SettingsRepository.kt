@@ -95,6 +95,8 @@ interface SettingsRepository {
     suspend fun setLibreTranslateApiKey(key: String)
 
     suspend fun setAutoTranslate(enable: Boolean)
+
+    suspend fun setReadmeJavaScriptEnabled(enable: Boolean)
 }
 
 inline fun <T> SettingsRepository.get(crossinline block: suspend Settings.() -> T): Flow<T> {

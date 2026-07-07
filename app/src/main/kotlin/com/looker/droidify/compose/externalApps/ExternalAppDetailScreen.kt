@@ -68,6 +68,7 @@ fun ExternalAppDetailScreen(
     val readmeError by viewModel.readmeError.collectAsStateWithLifecycle()
     val readmeTranslation by viewModel.readmeTranslation.collectAsStateWithLifecycle()
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
+    val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -235,6 +236,7 @@ fun ExternalAppDetailScreen(
                     ReadmeWebView(
                         html = readmeHtml,
                         baseUrl = app.readmeWebBaseUrl,
+                        javaScriptEnabled = readmeJavaScriptEnabled,
                         onContentHeight = { readmeHeightPx = it },
                         modifier = Modifier
                             .fillMaxWidth()

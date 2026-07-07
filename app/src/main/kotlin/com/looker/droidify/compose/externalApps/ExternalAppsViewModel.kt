@@ -84,6 +84,12 @@ class ExternalAppsViewModel @Inject constructor(
      *  concrete ("N requests left") instead of only ever repeating the generic "60/hour" figure. */
     val githubRateLimitRemaining: StateFlow<Int?> = externalApi.rateLimitRemaining
 
+    /** Whether the README WebView on the external detail screen may run embedded JavaScript. On by
+     *  default; the Settings › External sources toggle lets a user turn it off. */
+    val readmeJavaScriptEnabled: StateFlow<Boolean> = settingsRepository.data
+        .map { it.readmeJavaScriptEnabled }
+        .asStateFlow(true)
+
     /** Tracked whole-account sources (each expands to several entries in [apps]). */
     val accounts: StateFlow<List<ExternalAccount>> = repository.accounts.asStateFlow(emptyList())
 

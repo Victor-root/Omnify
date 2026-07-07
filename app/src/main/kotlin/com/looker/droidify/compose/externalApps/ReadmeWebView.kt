@@ -19,10 +19,13 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 /**
  * Renders a project README (GitHub-rendered HTML) in a WebView, so it looks like it does on the web:
  * images sized responsively (CSS `max-width`), badges, code blocks and tables handled by the engine
- * rather than approximated. Themed to the app colours; links open in the external browser.
+ * rather than approximated, and (when [javaScriptEnabled]) any script a README embeds — e.g. a live
+ * star-history chart or dynamic badge — actually runs. Themed to the app colours; links open in the
+ * external browser.
  *
- * JavaScript and file/content access are disabled — the content is static markup, so the attack
- * surface stays minimal. Repo-relative image paths resolve against [baseUrl].
+ * File/content access stay disabled regardless of [javaScriptEnabled]: a README is untrusted
+ * third-party content, and there's no legitimate reason for it to reach local files or content URIs.
+ * Repo-relative image paths resolve against [baseUrl].
  *
  * The WebView does NOT scroll itself: it reports its full content height via [onContentHeight] so the
  * caller can size it exactly and let the whole screen scroll as one (only the top bar stays fixed).
@@ -31,12 +34,19 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 fun ReadmeWebView(
     html: String,
     baseUrl: String,
+    javaScriptEnabled: Boolean,
     onContentHeight: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val uriHandler = LocalUriHandler.current
     val isTelevision = LocalIsTelevision.current
+    // Captured under a distinct name: this Composable parameter shares its name with WebSettings' own
+    // `javaScriptEnabled` property, and a bare reference inside `settings.apply { }` below binds to
+    // THIS outer val, not the receiver's settable property — assigning to it would be a compile error
+    // ("val cannot be reassigned"), so the receiver-side assignment needs `this.javaScriptEnabled =`
+    // explicitly, and reading the parameter's value here under its own name keeps both sides unambiguous.
+    val allowJavaScript = javaScriptEnabled
     val document = remember(html, colorScheme) {
         wrapReadmeHtml(
             body = html,
@@ -54,7 +64,10 @@ fun ReadmeWebView(
         factory = { context ->
             WebView(context).apply {
                 settings.apply {
-                    javaScriptEnabled = false
+                    // Explicit `this.`: a bare `javaScriptEnabled` here still binds to the outer
+                    // Composable parameter of the same name (a val, hence "val cannot be reassigned")
+                    // rather than this WebSettings receiver's own settable property.
+                    this.javaScriptEnabled = allowJavaScript
                     allowFileAccess = false
                     allowContentAccess = false
                 }
@@ -104,6 +117,9 @@ fun ReadmeWebView(
             }
         },
         update = { web ->
+            // Keep the live setting in sync even if the user flips it in Settings and returns to an
+            // already-composed screen (factory only runs once, at first creation).
+            web.settings.javaScriptEnabled = allowJavaScript
             // Reload only when the rendered document actually changes (not on every recomposition).
             if (web.tag != document) {
                 web.tag = document

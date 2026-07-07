@@ -461,6 +461,15 @@ fun SettingsScreen(
             }
 
             item {
+                SwitchSettingItem(
+                    title = stringResource(R.string.readme_javascript_title),
+                    description = stringResource(R.string.readme_javascript_DESC),
+                    checked = settings.readmeJavaScriptEnabled,
+                    onCheckedChange = viewModel::setReadmeJavaScriptEnabled,
+                )
+            }
+
+            item {
                 SettingHeader(title = stringResource(R.string.translation_section))
             }
 

@@ -297,6 +297,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setReadmeJavaScriptEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setReadmeJavaScriptEnabled(enabled)
+        }
+    }
+
     fun exportSettings(uri: Uri) {
         viewModelScope.launch {
             settingsRepository.export(uri)
