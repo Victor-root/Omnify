@@ -70,6 +70,21 @@ class ExternalApi @Inject constructor(
             app.apkFilter,
         )
 
+    /**
+     * All non-draft releases within the recent window (newest first) that ship at least one APK
+     * this source's [ExternalApp.apkFilter] would accept — the external-app equivalent of the
+     * F-Droid catalogue's version list, so the user can pick a specific past version to install
+     * instead of only ever the one [latestReleaseFor] would offer. Unlike that function, nothing
+     * is filtered by device-ABI compatibility or pre-release status here; the caller decides what
+     * to show. Empty on network/HTTP/parse failure.
+     */
+    suspend fun releaseHistory(app: ExternalApp): List<Release> = withContext(Dispatchers.IO) {
+        runCatching { fetchReleases(app.provider, app.effectiveHost, app.owner, app.repo) }
+            .getOrNull()
+            .orEmpty()
+            .filter { selectApkAsset(it.assets, filter = app.apkFilter) != null }
+    }
+
     /** Probes whether [host] runs Gitea/Forgejo by hitting its repo API. Lets a pasted URL whose host
      *  isn't a known public provider be recognised as a self-hosted instance. Never throws. */
     suspend fun isGiteaInstance(host: String, owner: String, repo: String): Boolean =
@@ -332,36 +347,39 @@ class ExternalApi @Inject constructor(
         includePrereleases: Boolean = false,
         apkFilter: String? = null,
     ): Release? = withContext(Dispatchers.IO) {
-        runCatching {
-            when (provider) {
-                SourceProvider.GITHUB -> {
-                    val text = getText(
-                        url = "https://api.github.com/repos/$owner/$repo/releases?per_page=10",
-                        github = true,
-                    ) ?: return@runCatching null
-                    decodeRest(text).filterNot { it.draft }.map { it.toRelease() }
-                        .pickInstallable(includePrereleases, apkFilter)
-                }
+        runCatching { fetchReleases(provider, host, owner, repo) }
+            .getOrNull()
+            ?.pickInstallable(includePrereleases, apkFilter)
+    }
 
-                // Gitea/Forgejo: codeberg.org or any self-hosted instance (same REST shape).
-                SourceProvider.CODEBERG -> {
-                    val text = getText(
-                        url = "https://$host/api/v1/repos/$owner/$repo/releases?limit=10",
-                    ) ?: return@runCatching null
-                    decodeRest(text).filterNot { it.draft }.map { it.toRelease() }
-                        .pickInstallable(includePrereleases, apkFilter)
-                }
-
-                SourceProvider.GITLAB -> {
-                    val path = URLEncoder.encode("$owner/$repo", "UTF-8")
-                    val text = getText(
-                        url = "https://$host/api/v4/projects/$path/releases?per_page=10",
-                    ) ?: return@runCatching null
-                    decodeGitlab(text).map { it.toRelease() }
-                        .pickInstallable(includePrereleases, apkFilter)
-                }
+    /** Fetches and decodes the recent-window release list for one repo, provider-appropriate URL and
+     *  payload shape. Shared by [latestRelease] (picks one to offer) and [releaseHistory] (lists them
+     *  all for the user to choose from). Empty (not null/throwing) when the request itself fails. */
+    private suspend fun fetchReleases(
+        provider: SourceProvider,
+        host: String,
+        owner: String,
+        repo: String,
+    ): List<Release> {
+        val text = when (provider) {
+            SourceProvider.GITHUB -> getText(
+                url = "https://api.github.com/repos/$owner/$repo/releases?per_page=10",
+                github = true,
+            )
+            // Gitea/Forgejo: codeberg.org or any self-hosted instance (same REST shape).
+            SourceProvider.CODEBERG -> getText(
+                url = "https://$host/api/v1/repos/$owner/$repo/releases?limit=10",
+            )
+            SourceProvider.GITLAB -> {
+                val path = URLEncoder.encode("$owner/$repo", "UTF-8")
+                getText(url = "https://$host/api/v4/projects/$path/releases?per_page=10")
             }
-        }.getOrNull()
+        } ?: return emptyList()
+        return when (provider) {
+            SourceProvider.GITHUB, SourceProvider.CODEBERG ->
+                decodeRest(text).filterNot { it.draft }.map { it.toRelease() }
+            SourceProvider.GITLAB -> decodeGitlab(text).map { it.toRelease() }
+        }
     }
 
     /**

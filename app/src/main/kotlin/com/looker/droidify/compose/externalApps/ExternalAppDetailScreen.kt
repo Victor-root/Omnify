@@ -54,11 +54,14 @@ import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
+import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import com.looker.droidify.external.Release
+import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkVersionLabel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -78,6 +81,7 @@ fun ExternalAppDetailScreen(
     val readmeTranslation by viewModel.readmeTranslation.collectAsStateWithLifecycle()
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
+    val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -102,6 +106,10 @@ fun ExternalAppDetailScreen(
     // Download the project README (as HTML) once the app is known, to fill out the detail screen.
     LaunchedEffect(app?.key) {
         app?.let { viewModel.loadReadme(it) }
+    }
+    // Recent releases, for the "choose a version to install" list at the bottom of the screen.
+    LaunchedEffect(app?.key) {
+        app?.let { viewModel.loadReleaseHistory(it) }
     }
 
     Scaffold(
@@ -152,6 +160,23 @@ fun ExternalAppDetailScreen(
             // The source was removed (or not loaded yet); nothing to show.
             Spacer(Modifier.padding(contentPadding))
             return@Scaffold
+        }
+        // A release the user tapped in the version list, awaiting confirmation to install (null = no
+        // dialog). Unlike the F-Droid catalogue's version dialog, downgrades are never flagged here: a
+        // release carries no version code ahead of the download, so there's nothing to compare against
+        // the installed one before the user confirms.
+        var versionToInstall by remember { mutableStateOf<Release?>(null) }
+        versionToInstall?.let { release ->
+            InstallVersionDialog(
+                versionName = release.tag,
+                isDowngrade = false,
+                onInstall = {
+                    viewModel.installVersion(app, release)
+                    versionToInstall = null
+                },
+                onUninstall = {},
+                onDismiss = { versionToInstall = null },
+            )
         }
         // Everything (the icon/name/versions/actions block AND the README) scrolls as one — only the
         // top bar stays fixed. The WebView reports its content height (below) so it can be sized
@@ -288,6 +313,29 @@ fun ExternalAppDetailScreen(
                 ) {
                     CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
                 }
+            }
+
+            // Recent releases the user can pick a specific version to install from — same idea as the
+            // F-Droid catalogue's version list, at the bottom of the page in the same way.
+            if (!releaseHistory.isNullOrEmpty()) {
+                Spacer(Modifier.height(20.dp))
+                SectionSeparator()
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    text = stringResource(R.string.versions),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                releaseHistory.orEmpty().forEach { release ->
+                    ReleaseVersionItem(
+                        release = release,
+                        apkName = release.apkFileName(filter = app.apkFilter),
+                        isSuggested = release.tag == app.latestTag,
+                        isInstalled = release.tag == app.installedTag,
+                        onClick = { versionToInstall = release },
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
             }
         }
     }

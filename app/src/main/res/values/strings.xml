@@ -410,6 +410,7 @@
     <string name="external_source_url_label">Project URL (GitHub, GitLab, Codeberg)</string>
     <string name="external_include_prereleases">Include pre-releases</string>
     <string name="external_only_prereleases">%s only publishes pre-releases. Turn on \"Include pre-releases\" to add it.</string>
+    <string name="external_prerelease_label">Pre-release</string>
     <string name="external_edit_source">Edit source</string>
     <string name="external_custom_name">Custom name (optional)</string>
     <string name="external_apk_filter">APK filter (regex, optional)</string>

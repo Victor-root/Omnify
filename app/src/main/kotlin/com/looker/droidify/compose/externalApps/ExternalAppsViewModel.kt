@@ -19,6 +19,7 @@ import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.ExternalAccountRef
+import com.looker.droidify.external.Release
 import com.looker.droidify.external.RepoRef
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkVersionToken
@@ -222,6 +223,28 @@ class ExternalAppsViewModel @Inject constructor(
     private val _readmeTranslation =
         MutableStateFlow<DescriptionTranslation>(DescriptionTranslation.Original)
     val readmeTranslation: StateFlow<DescriptionTranslation> = _readmeTranslation
+
+    /** Recent releases of the app shown on the detail screen, for the "choose a version to install"
+     *  list — the external-app equivalent of the F-Droid catalogue's version list. Null while loading;
+     *  empty once loaded if the source has no installable release. */
+    private val _releaseHistory = MutableStateFlow<List<Release>?>(null)
+    val releaseHistory: StateFlow<List<Release>?> = _releaseHistory
+
+    /** Per-app (elapsedRealtime fetched-at, releases) — an in-memory cache so re-opening the same app's
+     *  detail screen doesn't burn a fresh GitHub API call every time (mirrors [ReadmeCache]'s freshness
+     *  window, just kept in memory since a stale version list is harmless to lose on process death). */
+    private val releaseHistoryCache = mutableMapOf<String, Pair<Long, List<Release>>>()
+
+    fun loadReleaseHistory(app: ExternalApp) {
+        val cached = releaseHistoryCache[app.key]
+        _releaseHistory.value = cached?.second
+        if (cached != null && SystemClock.elapsedRealtime() - cached.first < README_FRESHNESS_MS) return
+        viewModelScope.launch {
+            val releases = externalApi.releaseHistory(app)
+            releaseHistoryCache[app.key] = SystemClock.elapsedRealtime() to releases
+            _releaseHistory.value = releases
+        }
+    }
 
     fun loadReadme(app: ExternalApp) {
         // A different app's README is about to load, so drop any translation left on the previous one.
@@ -707,6 +730,13 @@ class ExternalAppsViewModel @Inject constructor(
         downloadJobs[app.key] = viewModelScope.launch { downloadAndInstall(app) }
     }
 
+    /** Downloads and installs a specific release the user picked from the version list, instead of
+     *  whatever [installOrUpdate] would offer. */
+    fun installVersion(app: ExternalApp, release: Release) {
+        if (_downloads.value.containsKey(app.key)) return
+        downloadJobs[app.key] = viewModelScope.launch { downloadAndInstall(app, release) }
+    }
+
     /** Launches the installed app, if it exposes a launcher activity. */
     fun launch(app: ExternalApp) {
         val pkg = app.packageName ?: return
@@ -902,7 +932,9 @@ class ExternalAppsViewModel @Inject constructor(
         viewModelScope.launch { repository.removeApp(key) }
     }
 
-    private suspend fun downloadAndInstall(app: ExternalApp) {
+    /** [releaseOverride] installs a specific release picked from the version list instead of resolving
+     *  the latest one — see [installVersion]. */
+    private suspend fun downloadAndInstall(app: ExternalApp, releaseOverride: Release? = null) {
         // Fail fast before downloading: if the Shizuku installer is selected but not usable, tell the
         // user why instead of downloading an APK that could never be installed.
         ShizukuState.installBlockReason(context, settingsRepository.getInitial().installerType)?.let {
@@ -911,7 +943,7 @@ class ExternalAppsViewModel @Inject constructor(
         }
         updateDownload(app.key, DownloadStatus(read = 0, total = -1, bytesPerSecond = 0))
         try {
-            val release = externalApi.latestReleaseFor(app)
+            val release = releaseOverride ?: externalApi.latestReleaseFor(app)
             if (release == null) {
                 val suggestToken = externalApi.shouldSuggestGithubToken()
                 snack(
@@ -985,17 +1017,27 @@ class ExternalAppsViewModel @Inject constructor(
             val realLabel = cacheIconAndReadLabel(releaseFile.absolutePath, app.key)
             installManager.install(InstallItem(PackageName(packageName), cacheFileName))
             // Record which APK file this is (its identity), so future update checks compare the APK,
-            // not the tag. We just installed the latest release, so installed and latest match.
+            // not the tag.
             val token = release.apkVersionToken(filter = app.apkFilter)
             repository.upsertApp(
                 app.copy(
                     packageName = packageName,
                     label = realLabel ?: app.label,
                     installedTag = release.tag,
-                    latestTag = release.tag,
                     installedApkToken = token,
-                    latestApkToken = token,
-                    latestApkName = release.apkFileName(filter = app.apkFilter),
+                    // Deliberately installing an older pick from the version list (releaseOverride)
+                    // isn't a signal that it's now the latest — leave latestTag/latestApkToken/
+                    // latestApkName as they were, so hasUpdate still correctly flags that a newer
+                    // release exists. Installing via the normal Install/Update button (no override)
+                    // installs exactly the release those fields already point at, so adopting them
+                    // here is a no-op for that case and just keeps the values in sync.
+                    latestTag = if (releaseOverride == null) release.tag else app.latestTag,
+                    latestApkToken = if (releaseOverride == null) token else app.latestApkToken,
+                    latestApkName = if (releaseOverride == null) {
+                        release.apkFileName(filter = app.apkFilter)
+                    } else {
+                        app.latestApkName
+                    },
                 ),
             )
         } catch (e: CancellationException) {

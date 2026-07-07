@@ -98,6 +98,7 @@ import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
+import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.TranslateAction
@@ -383,40 +384,6 @@ private fun shareApp(context: Context, packageName: String, repo: Repo) {
         type = "text/plain"
     }
     context.startActivity(Intent.createChooser(sendIntent, null))
-}
-
-/**
- * Confirms installing a specific version the user tapped in the versions list. For a normal case it
- * offers Install; for a downgrade (an older version while a newer one is installed) it explains Android
- * won't replace it in place and offers to uninstall the current version first.
- */
-@Composable
-private fun InstallVersionDialog(
-    versionName: String,
-    isDowngrade: Boolean,
-    onInstall: () -> Unit,
-    onUninstall: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.install_version_FORMAT, versionName)) },
-        text = if (isDowngrade) {
-            { Text(stringResource(R.string.install_version_downgrade_DESC)) }
-        } else {
-            null
-        },
-        confirmButton = {
-            if (isDowngrade) {
-                TextButton(onClick = onUninstall) { Text(stringResource(R.string.uninstall)) }
-            } else {
-                TextButton(onClick = onInstall) { Text(stringResource(R.string.install)) }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    )
 }
 
 @Composable
