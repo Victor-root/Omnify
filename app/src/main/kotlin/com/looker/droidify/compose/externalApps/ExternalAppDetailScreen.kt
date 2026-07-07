@@ -33,17 +33,19 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -57,12 +59,14 @@ import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.TranslateAction
+import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.Release
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkVersionLabel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -102,6 +106,10 @@ fun ExternalAppDetailScreen(
     // Hoisted above the Scaffold (not inside its content lambda) so both the content column and the
     // scroll-to-top FAB can read/drive the same scroll position.
     val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
+    // Where the versions section actually lands once composed (in the scrolling Column's own
+    // coordinate space), so the hero card's "see all versions" link can jump straight to it.
+    var versionsAnchorY by remember { mutableStateOf(0) }
 
     // Download the project README (as HTML) once the app is known, to fill out the detail screen.
     LaunchedEffect(app?.key) {
@@ -236,16 +244,14 @@ fun ExternalAppDetailScreen(
                         onCancel = { viewModel.cancel(app) },
                     )
                 },
-                footer = footerText?.let { text ->
-                    {
-                        Text(
-                            text = text,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                },
+                footer = heroFooter(
+                    infoText = footerText,
+                    onViewVersionsClick = if (!releaseHistory.isNullOrEmpty()) {
+                        { coroutineScope.launch { scrollState.animateScrollTo(versionsAnchorY) } }
+                    } else {
+                        null
+                    },
+                ),
             )
 
             if (!isInstalled) {
@@ -316,26 +322,33 @@ fun ExternalAppDetailScreen(
             }
 
             // Recent releases the user can pick a specific version to install from — same idea as the
-            // F-Droid catalogue's version list, at the bottom of the page in the same way.
+            // F-Droid catalogue's version list, at the bottom of the page in the same way. Position-
+            // tracked so the hero card's "see all versions" link can scroll straight to it.
             if (!releaseHistory.isNullOrEmpty()) {
-                Spacer(Modifier.height(20.dp))
-                SectionSeparator()
-                Spacer(Modifier.height(20.dp))
-                Text(
-                    text = stringResource(R.string.versions),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-                releaseHistory.orEmpty().forEach { release ->
-                    ReleaseVersionItem(
-                        release = release,
-                        apkName = release.apkFileName(filter = app.apkFilter),
-                        isSuggested = release.tag == app.latestTag,
-                        isInstalled = release.tag == app.installedTag,
-                        onClick = { versionToInstall = release },
+                Column(
+                    modifier = Modifier.onGloballyPositioned {
+                        versionsAnchorY = it.positionInParent().y.toInt()
+                    },
+                ) {
+                    Spacer(Modifier.height(20.dp))
+                    SectionSeparator()
+                    Spacer(Modifier.height(20.dp))
+                    Text(
+                        text = stringResource(R.string.versions),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     )
+                    releaseHistory.orEmpty().forEach { release ->
+                        ReleaseVersionItem(
+                            release = release,
+                            apkName = release.apkFileName(filter = app.apkFilter),
+                            isSuggested = release.tag == app.latestTag,
+                            isInstalled = release.tag == app.installedTag,
+                            onClick = { versionToInstall = release },
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
                 }
-                Spacer(Modifier.height(16.dp))
             }
         }
     }

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconToggleButton
@@ -20,6 +22,7 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -190,6 +193,54 @@ fun HeroSourceCodeStatItem(onClick: () -> Unit, modifier: Modifier = Modifier) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/**
+ * The [HeroCard] footer content shared by both detail screens: an optional info line (installed
+ * version / latest APK details) plus an optional "see all versions" link that jumps to the version
+ * list further down the page — kept in one place so the F-Droid and external pages can't drift apart
+ * on this. Returns null (no footer at all) when there's neither, so the caller can pass it straight
+ * through to [HeroCard]'s `footer` slot.
+ */
+fun heroFooter(
+    infoText: String?,
+    onViewVersionsClick: (() -> Unit)?,
+): (@Composable () -> Unit)? {
+    if (infoText == null && onViewVersionsClick == null) return null
+    return {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            infoText?.let { text ->
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            if (onViewVersionsClick != null) {
+                if (infoText != null) Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(MaterialTheme.shapes.small)
+                        .clickable(onClick = onViewVersionsClick)
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.view_all_versions),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
     }
 }
 

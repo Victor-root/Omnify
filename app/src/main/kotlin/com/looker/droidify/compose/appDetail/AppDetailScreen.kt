@@ -59,6 +59,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,12 +74,13 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -102,6 +104,7 @@ import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.TranslateAction
+import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
@@ -121,6 +124,7 @@ import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
@@ -546,6 +550,10 @@ private fun AppDetail(
     val installableRepo = installable?.second
     val updateAvailable = installedPackage != null && installablePackage != null &&
         installedPackage.manifest.versionCode < installablePackage.manifest.versionCode
+    val coroutineScope = rememberCoroutineScope()
+    // Where the versions section actually lands once composed (in the scrolling Column's own
+    // coordinate space), so the hero card's "see all versions" link can jump straight to it.
+    var versionsAnchorY by remember { mutableStateOf(0) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -574,6 +582,11 @@ private fun AppDetail(
             onUninstall = onUninstall,
             onCancel = onCancel,
             primaryActionFocusRequester = primaryActionFocusRequester,
+            onViewVersionsClick = if (packages.isNotEmpty()) {
+                { coroutineScope.launch { scrollState.animateScrollTo(versionsAnchorY) } }
+            } else {
+                null
+            },
             modifier = Modifier.padding(horizontal = 16.dp),
         )
 
@@ -705,6 +718,32 @@ private fun AppDetail(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        VersionsSection(
+            packages = packages,
+            installableRepo = installableRepo,
+            onSelectRepo = onSelectRepo,
+            app = app,
+            onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+            onAnchorPositioned = { versionsAnchorY = it },
+        )
+    }
+}
+
+/**
+ * The repo tabs (when more than one offers the app) and the version list — extracted only so
+ * [AppDetail] can wrap it in a single [onGloballyPositioned] anchor for the hero card's "see all
+ * versions" link; the content is unchanged.
+ */
+@Composable
+private fun VersionsSection(
+    packages: List<Pair<Package, Repo>>,
+    installableRepo: Repo?,
+    onSelectRepo: (Int) -> Unit,
+    app: App,
+    onVersionClick: (Package, Repo) -> Unit,
+    onAnchorPositioned: (Int) -> Unit,
+) {
+    Column(modifier = Modifier.onGloballyPositioned { onAnchorPositioned(it.positionInParent().y.toInt()) }) {
         // Repos that offer this app. When more than one offers it (e.g. F-Droid + IzzyOnDroid), show
         // tabs so the user can pick which repo to install from; both the version list below and the
         // Install/Update button then follow the selected repo. Default to the repo that provides the
@@ -756,7 +795,7 @@ private fun AppDetail(
             PackageItem(
                 item = pkg,
                 repo = repo,
-                onClick = { versionToInstall = pkg to repo },
+                onClick = { onVersionClick(pkg, repo) },
                 onLongClick = {},
                 backgroundColor = if (isSuggested) {
                     MaterialTheme.colorScheme.surfaceContainerHigh
@@ -823,6 +862,7 @@ private fun AppHeaderCard(
     onUninstall: () -> Unit,
     onCancel: () -> Unit,
     primaryActionFocusRequester: FocusRequester,
+    onViewVersionsClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     // Reuse the list tile's icon logic so the header falls back the same way: repo icon, then the
@@ -884,20 +924,12 @@ private fun AppHeaderCard(
         },
         // The real installed version + its source (e.g. a fork installed over the upstream package
         // keeps its own version), folded into the card instead of sitting orphaned below it.
-        footer = installedInfo?.let { info ->
-            {
-                Text(
-                    text = stringResource(
-                        R.string.installed_version_source,
-                        info.version,
-                        info.source,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        },
+        footer = heroFooter(
+            infoText = installedInfo?.let { info ->
+                stringResource(R.string.installed_version_source, info.version, info.source)
+            },
+            onViewVersionsClick = onViewVersionsClick,
+        ),
     )
 }
 
