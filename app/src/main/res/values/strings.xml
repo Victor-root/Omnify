@@ -377,7 +377,7 @@
     <string name="reproducibility_logs_summary">Fetch and display reproducible build verification logs from IzzyOnDroid. Disabling clears existing reproducibility logs.</string>
 
     <string name="custom_buttons">Custom buttons</string>
-    <string name="custom_buttons_description">Add quick links to external services in app details</string>
+    <string name="custom_buttons_description">Create your own shortcut buttons (e.g. APKMirror, Exodus Privacy) that show up on every app\'s page and link straight to that specific app on the site of your choice</string>
     <string name="custom_buttons_section">App detail links</string>
     <string name="custom_button_add">Add button</string>
     <string name="custom_button_edit">Edit button</string>
