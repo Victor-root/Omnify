@@ -670,11 +670,83 @@ private val markdownParser: Parser = Parser.builder().extensions(MARKDOWN_EXTENS
 private val markdownRenderer: HtmlRenderer =
     HtmlRenderer.builder().extensions(MARKDOWN_EXTENSIONS).build()
 
-/** Renders Markdown to an HTML fragment locally (no network, no external service). Relative links and
- *  images stay relative so the WebView resolves them against the repo's raw base. Raw HTML in the
- *  source is passed through (as GitHub does); the WebView runs no JavaScript, so it stays inert. */
-private fun renderMarkdownToHtml(markdown: String): String =
-    markdownRenderer.render(markdownParser.parse(markdown))
+/**
+ * Renders Markdown to an HTML fragment locally (no network, no external service). Relative links and
+ * images stay relative so the WebView resolves them against the repo's raw base. Raw HTML in the
+ * source is passed through (as GitHub does); the WebView runs no JavaScript, so it stays inert.
+ *
+ * GitHub's "alert" blockquotes (`> [!NOTE]` / `[!TIP]` / `[!IMPORTANT]` / `[!WARNING]` / `[!CAUTION]`
+ * as the sole content of a blockquote's first line) are a GitHub-specific convention layered on top of
+ * plain blockquote syntax, not something CommonMark itself understands — without this they'd render as
+ * an ordinary quote showing the literal marker text. They're pulled out and rendered on their own before
+ * the main parse, then spliced back in as the styled callout (see [extractAlertBlockquotes]);
+ * [ReadmeWebView]'s CSS already ships the matching `.markdown-alert*` classes, mirroring github.com's
+ * own look, for every provider — the syntax isn't GitHub-exclusive; Codeberg/Gitea and GitLab READMEs
+ * use the same convention.
+ */
+private fun renderMarkdownToHtml(markdown: String): String {
+    val (withoutAlerts, alerts) = extractAlertBlockquotes(markdown)
+    var html = markdownRenderer.render(markdownParser.parse(withoutAlerts))
+    alerts.forEach { (placeholder, alertHtml) ->
+        html = html.replace(Regex("<p>\\s*${Regex.escape(placeholder)}\\s*</p>"), alertHtml)
+    }
+    return html
+}
+
+/** Matches a blockquote continuation line: up to 3 leading spaces (CommonMark's own indent allowance),
+ *  a `>`, then an optional single space, capturing the rest of the line as its actual content. */
+private val BLOCKQUOTE_LINE_REGEX = Regex("""^ {0,3}>[ ]?(.*)$""")
+
+/** The five GitHub alert types, matched case-insensitively against a blockquote's first line. */
+private val ALERT_MARKER_REGEX = Regex(
+    """^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)]$""",
+    RegexOption.IGNORE_CASE,
+)
+
+/**
+ * Pulls every GitHub alert blockquote out of [markdown] — recognised by its first quoted line being
+ * exactly one of the five markers, GitHub's own trigger condition — replacing each with a unique
+ * placeholder line so the surrounding document still parses normally. Returns the substituted markdown
+ * alongside a map of placeholder to that alert's own already-rendered HTML: its body (everything in the
+ * blockquote after the marker line) is parsed through the same pipeline on its own, so nested formatting
+ * and links work exactly as they would inline. [renderMarkdownToHtml] splices the two back together.
+ */
+private fun extractAlertBlockquotes(markdown: String): Pair<String, Map<String, String>> {
+    val lines = markdown.lines()
+    val output = StringBuilder()
+    val alerts = LinkedHashMap<String, String>()
+    var i = 0
+    while (i < lines.size) {
+        val quoted = BLOCKQUOTE_LINE_REGEX.matchEntire(lines[i])
+        val marker = quoted?.let { ALERT_MARKER_REGEX.matchEntire(it.groupValues[1].trim()) }
+        if (quoted == null || marker == null) {
+            output.appendLine(lines[i])
+            i++
+            continue
+        }
+        val type = marker.groupValues[1].uppercase()
+        var j = i + 1
+        val bodyLines = mutableListOf<String>()
+        while (j < lines.size) {
+            val bodyQuoted = BLOCKQUOTE_LINE_REGEX.matchEntire(lines[j]) ?: break
+            bodyLines += bodyQuoted.groupValues[1]
+            j++
+        }
+        val bodyHtml = markdownRenderer.render(markdownParser.parse(bodyLines.joinToString("\n")))
+        val placeholder = "@@GH_ALERT_${alerts.size}@@"
+        val title = type.lowercase().replaceFirstChar(Char::uppercase)
+        alerts[placeholder] =
+            """<div class="markdown-alert markdown-alert-${type.lowercase()}">""" +
+                """<p class="markdown-alert-title">$title</p>$bodyHtml</div>"""
+        // Blank lines around the placeholder guarantee it forms its own isolated paragraph, whatever
+        // whitespace (or lack of it) originally surrounded the blockquote.
+        output.appendLine()
+        output.appendLine(placeholder)
+        output.appendLine()
+        i = j
+    }
+    return output.toString() to alerts
+}
 
 /** Icon candidates + the real app name detected from a source repo, shown before install, plus whether
  *  the repo's manifest declares Android TV support. */
