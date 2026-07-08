@@ -1,6 +1,7 @@
 package com.looker.droidify.external
 
 import android.util.Base64
+import android.util.Log
 import com.looker.droidify.datastore.SettingsRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -190,20 +191,24 @@ class ExternalApi @Inject constructor(
         SourceProvider.GITHUB -> {
             val url = "https://api.github.com/repos/${app.owner}/${app.repo}/git/trees/HEAD?recursive=1"
             val text = runCatching { getText(url, github = true) }.getOrNull() ?: return emptyList()
-            runCatching { parseTreePaths(text) }.getOrNull() ?: emptyList()
+            runCatching { parseTreePaths(text, "${app.owner}/${app.repo}") }.getOrNull() ?: emptyList()
         }
 
         SourceProvider.CODEBERG -> {
             val url = "https://${app.effectiveHost}/api/v1/repos/${app.owner}/${app.repo}" +
                 "/git/trees/HEAD?recursive=true&per_page=1000"
             val text = runCatching { getText(url) }.getOrNull() ?: return emptyList()
-            runCatching { parseTreePaths(text) }.getOrNull() ?: emptyList()
+            runCatching { parseTreePaths(text, "${app.owner}/${app.repo}") }.getOrNull() ?: emptyList()
         }
 
         SourceProvider.GITLAB -> fetchGitlabTreePaths(app)
     }
 
-    /** GitLab's tree API is a paged bare array (max 100/page); walk a bounded number of pages. */
+    /** GitLab's tree API is a paged bare array (max 100/page); walk a bounded number of pages. Large
+     *  repos (a big app with translated fastlane screenshots for every locale, e.g.) can run to several
+     *  thousand entries, so this is generous rather than the small handful of pages the other
+     *  tree-dependent features (icons, app name) need — a truncated listing here silently hides whole
+     *  res/values-xx/ directories from [fetchSourceLocales] if they sort late. */
     private suspend fun fetchGitlabTreePaths(app: ExternalApp): List<String> {
         val encoded = URLEncoder.encode("${app.owner}/${app.repo}", "UTF-8")
         val paths = mutableListOf<String>()
@@ -216,6 +221,9 @@ class ExternalApi @Inject constructor(
             }.getOrNull().orEmpty()
             batch.forEach { if (it.type == "blob") paths += it.path }
             if (batch.size < 100) break
+        }
+        if (paths.size >= GITLAB_TREE_MAX_PAGES * 100) {
+            Log.d(TAG, "${app.owner}/${app.repo}: GitLab tree listing hit the page cap, likely incomplete")
         }
         return paths
     }
@@ -277,11 +285,16 @@ class ExternalApi @Inject constructor(
     private suspend fun fetchRaw(app: ExternalApp, path: String): String? =
         runCatching { getText(app.readmeBaseUrl + path) }.getOrNull()
 
-    private fun parseTreePaths(text: String): List<String> =
-        json.decodeFromString(TreeResponse.serializer(), text)
-            .tree
-            .filter { it.type == "blob" }
-            .map { it.path }
+    /** [repoLabel] is only for the truncation log line below — GitHub/Gitea mark a tree response
+     *  `truncated: true` when the repo is too large for one request (their recursive tree API isn't
+     *  paged like GitLab's), which would otherwise silently drop whole directories with no signal. */
+    private fun parseTreePaths(text: String, repoLabel: String): List<String> {
+        val response = json.decodeFromString(TreeResponse.serializer(), text)
+        if (response.truncated) {
+            Log.d(TAG, "$repoLabel: tree listing truncated by the provider, likely incomplete")
+        }
+        return response.tree.filter { it.type == "blob" }.map { it.path }
+    }
 
     /**
      * The project README as HTML, for display on the detail screen. Fetched as raw Markdown from the
@@ -594,7 +607,10 @@ class ExternalApi @Inject constructor(
     }
 
     @Serializable
-    private data class TreeResponse(val tree: List<TreeEntry> = emptyList())
+    private data class TreeResponse(
+        val tree: List<TreeEntry> = emptyList(),
+        val truncated: Boolean = false,
+    )
 
     @Serializable
     private data class TreeEntry(val path: String = "", val type: String = "")
@@ -618,6 +634,8 @@ class ExternalApi @Inject constructor(
     )
 
     private companion object {
+        const val TAG = "ExternalApi"
+
         /** Page cap when listing an account's repos, so a huge account can't spin forever. */
         const val ACCOUNT_REPOS_MAX_PAGES = 5
 
@@ -806,7 +824,7 @@ private fun localeFromI18nAssetPath(path: String): String? {
 }
 
 /** How many 100-item pages of GitLab's tree API to walk while looking for the manifest / icons. */
-private const val GITLAB_TREE_MAX_PAGES = 10
+private const val GITLAB_TREE_MAX_PAGES = 50
 
 /** Largest README image inlined as a data URI; bigger ones are left as-is to avoid bloating the HTML. */
 private const val MAX_INLINE_IMAGE_BYTES = 1_000_000
