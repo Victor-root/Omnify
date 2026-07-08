@@ -162,6 +162,7 @@
     <string name="could_not_download_FORMAT">Impossible de télécharger %s</string>
     <string name="theme">Thème</string>
     <string name="uninstall">Désinstaller</string>
+    <string name="manage">Gérer</string>
     <string name="could_not_validate_FORMAT">Impossible de valider %s</string>
     <string name="system">Système</string>
     <string name="password_missing">Mot de passe manquant</string>

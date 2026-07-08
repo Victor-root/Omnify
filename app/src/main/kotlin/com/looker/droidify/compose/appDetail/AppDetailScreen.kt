@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -124,6 +125,7 @@ import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.installer.model.InstallState
+import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.shareUrl
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -400,6 +402,7 @@ private fun shareApp(context: Context, packageName: String, repo: Repo) {
 
 @Composable
 private fun PrimaryActions(
+    packageName: String,
     isInstalled: Boolean,
     updateAvailable: Boolean,
     installState: InstallState?,
@@ -411,6 +414,7 @@ private fun PrimaryActions(
     primaryActionFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val installing = installState == InstallState.Pending || installState == InstallState.Installing
     val isTelevision = LocalIsTelevision.current
     // TV focus for the action buttons: the button simply scales up (no drawn ring, which floated off a
@@ -488,6 +492,18 @@ private fun PrimaryActions(
                     modifier = tvSecondaryButton.tvFocusScale(1.10f),
                 ) {
                     Text(stringResource(R.string.uninstall))
+                }
+                // Android's own "App info" page — uninstall, clear cache/data, permissions, battery,
+                // notifications — instead of reimplementing any of that system-level management here.
+                IconButton(
+                    onClick = { context.openAppInfo(packageName) },
+                    modifier = Modifier.tvFocusScale(1.10f),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = stringResource(R.string.manage),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
@@ -940,6 +956,7 @@ private fun AppHeaderCard(
         },
         actions = {
             PrimaryActions(
+                packageName = packageName,
                 isInstalled = isInstalled,
                 updateAvailable = updateAvailable,
                 installState = installState,

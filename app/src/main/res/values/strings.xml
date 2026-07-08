@@ -310,6 +310,7 @@
     <string name="themes">Themes</string>
     <string name="tracks_or_reports_your_activity">Tracks or reports your activity</string>
     <string name="uninstall">Uninstall</string>
+    <string name="manage">Manage</string>
     <string name="unknown">Unknown</string>
     <string name="unknown_error_DESC">Unknown error</string>
     <string name="unknown_FORMAT">Unknown: %s</string>
