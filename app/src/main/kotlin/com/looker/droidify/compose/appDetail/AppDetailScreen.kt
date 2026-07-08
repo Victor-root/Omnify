@@ -34,6 +34,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -103,6 +105,7 @@ import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionTitle
+import com.looker.droidify.compose.components.ShowMoreRow
 import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
@@ -135,6 +138,10 @@ import kotlinx.coroutines.launch
  * keeps the releases users actually care about.
  */
 private const val MAX_VERSIONS_SHOWN = 50
+
+/** Versions shown before the "show more" toggle, so an app with a long history doesn't turn the whole
+ *  page into an endless scroll by default. */
+private const val VERSIONS_COLLAPSED_COUNT = 5
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -801,7 +808,11 @@ private fun VersionsSection(
         val suggestedVersion = remember(shownPackages, app.metadata.suggestedVersionCode) {
             shownPackages.selectForDevice(app.metadata.suggestedVersionCode)?.first?.manifest?.versionCode
         }
-        shownPackages.take(MAX_VERSIONS_SHOWN).forEach { (pkg, repo) ->
+        // Collapsed to the newest few by default — an app with a long version history shouldn't make the
+        // whole page an endless scroll. Collapses back on switching repo tabs, since that's a new list.
+        var versionsExpanded by remember(selectedRepoId) { mutableStateOf(false) }
+        val visibleCount = if (versionsExpanded) MAX_VERSIONS_SHOWN else VERSIONS_COLLAPSED_COUNT
+        shownPackages.take(visibleCount).forEach { (pkg, repo) ->
             val isSuggested = suggestedVersion != null && pkg.manifest.versionCode == suggestedVersion
             PackageItem(
                 item = pkg,
@@ -845,6 +856,13 @@ private fun VersionsSection(
                     }
                 }
             }
+        }
+        if (shownPackages.size > VERSIONS_COLLAPSED_COUNT) {
+            ShowMoreRow(
+                hiddenCount = minOf(shownPackages.size, MAX_VERSIONS_SHOWN) - VERSIONS_COLLAPSED_COUNT,
+                expanded = versionsExpanded,
+                onToggle = { versionsExpanded = !versionsExpanded },
+            )
         }
     }
 }
@@ -1202,6 +1220,12 @@ private fun PermissionsSection(permissions: List<Permission>) {
                 text = permissions.size.toString(),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Icon(
+                imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp),
             )
         }
         if (expanded) {

@@ -117,6 +117,7 @@
     <string name="version_FORMAT">Version %s</string>
     <string name="versions">Versions</string>
     <string name="view_all_versions">Voir toutes les versions</string>
+    <string name="show_more_versions_FORMAT">Voir plus (%1$d)</string>
     <string name="waiting_to_start_download">En attente du lancement du téléchargement…</string>
     <string name="whats_new">Quoi de neuf</string>
     <string name="discover_new_apps">Nouvelles applications</string>

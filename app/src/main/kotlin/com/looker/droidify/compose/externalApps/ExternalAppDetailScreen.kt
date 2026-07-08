@@ -60,6 +60,7 @@ import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionTitle
+import com.looker.droidify.compose.components.ShowMoreRow
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
@@ -391,13 +392,25 @@ fun ExternalAppDetailScreen(
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     )
-                    releaseHistory.orEmpty().forEach { release ->
+                    val releases = releaseHistory.orEmpty()
+                    // Collapsed to the newest few by default — same as the F-Droid catalogue's version
+                    // list, so a long history doesn't turn the whole page into an endless scroll.
+                    var versionsExpanded by remember(app.key) { mutableStateOf(false) }
+                    val visibleCount = if (versionsExpanded) releases.size else VERSIONS_COLLAPSED_COUNT
+                    releases.take(visibleCount).forEach { release ->
                         ReleaseVersionItem(
                             release = release,
                             apkName = release.apkFileName(filter = app.apkFilter),
                             isSuggested = release.tag == app.latestTag,
                             isInstalled = release.tag == app.installedTag,
                             onClick = { versionToInstall = release },
+                        )
+                    }
+                    if (releases.size > VERSIONS_COLLAPSED_COUNT) {
+                        ShowMoreRow(
+                            hiddenCount = releases.size - VERSIONS_COLLAPSED_COUNT,
+                            expanded = versionsExpanded,
+                            onToggle = { versionsExpanded = !versionsExpanded },
                         )
                     }
                     Spacer(Modifier.height(16.dp))
@@ -421,6 +434,9 @@ private fun SectionSeparator(modifier: Modifier = Modifier) {
         )
     }
 }
+
+/** Versions shown before the "show more" toggle, matching the F-Droid catalogue's version list. */
+private const val VERSIONS_COLLAPSED_COUNT = 5
 
 /** Tells the user that the name/icon/version shown are the repository's until the app is installed
  *  (a release carries no app metadata, so the real ones are only known once the APK is on-device). */

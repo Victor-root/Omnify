@@ -329,6 +329,7 @@
     <string name="version_FORMAT">Version %s</string>
     <string name="versions">Versions</string>
     <string name="view_all_versions">See all versions</string>
+    <string name="show_more_versions_FORMAT">Show more (%1$d)</string>
     <string name="waiting_to_start_download">Download queued…</string>
     <string name="waiting_to_start_installation">Installation queued…</string>
     <string name="whats_new">What\'s new</string>
