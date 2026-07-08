@@ -936,17 +936,24 @@ class ExternalAppsViewModel @Inject constructor(
                     supportsTv != app.supportsTelevision ||
                     (needsMeta && scanned)
                 ) {
+                    // Re-read the current record instead of copying from `app` (a snapshot taken before
+                    // this loop's network calls, which can take several seconds): if the user installed
+                    // or updated this very app while refresh() was still running, `app`'s installedTag/
+                    // installedApkToken/packageName/label are already stale, and copying from it here
+                    // would silently overwrite that fresh install state with the old pre-install values —
+                    // flashing the Update button back on right after it correctly switched to Launch.
+                    val current = apps.value.firstOrNull { it.key == app.key } ?: app
                     repository.upsertApp(
-                        app.copy(
-                            packageName = packageId,
-                            label = resolvedLabel,
+                        current.copy(
+                            packageName = current.packageName ?: packageId,
+                            label = if (resolvedLabel != app.label) resolvedLabel else current.label,
                             latestTag = tag,
                             latestApkToken = token,
                             latestApkName = apkName,
                             repoIconUrl = repoIcon,
-                            iconChecked = app.iconChecked || (needsIcon && scanned),
+                            iconChecked = current.iconChecked || (needsIcon && scanned),
                             supportsTelevision = supportsTv,
-                            tvChecked = app.tvChecked || (needsTv && scanned),
+                            tvChecked = current.tvChecked || (needsTv && scanned),
                         ),
                     )
                 }
