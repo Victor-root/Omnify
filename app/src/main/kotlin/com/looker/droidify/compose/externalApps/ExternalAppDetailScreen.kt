@@ -223,15 +223,16 @@ fun ExternalAppDetailScreen(
                 .onSizeChanged { viewportPx = it.height }
                 .verticalScroll(scrollState),
         ) {
-            // The APK file name is the actual build offered (repos version/name it differently from the
-            // project's own tag), and the installed version if any — folded into the card's footer,
-            // mirroring how the F-Droid catalogue card shows its installed version there.
-            val footerText = listOfNotNull(
-                app.latestApkName?.let {
-                    stringResource(R.string.external_latest_apk, apkVersionLabel(it))
-                },
-                installedVersion?.let { stringResource(R.string.external_installed_version, it) },
-            ).joinToString("\n").ifBlank { null }
+            // The repo's release tag (e.g. "v2.5.0") often doesn't match the APK's own version — the file
+            // name usually does (e.g. "GlassKeep-1.4.6.apk" for a "v2.5.0" release), so that's what's shown
+            // as the hero "Version" whenever a build is available, falling back to the tag otherwise.
+            val heroVersion = app.latestApkName?.let { apkVersionLabel(it) } ?: app.latestTag
+
+            // The installed version, if any — folded into the card's footer, mirroring how the F-Droid
+            // catalogue card shows its installed version there.
+            val footerText = installedVersion?.let {
+                stringResource(R.string.external_installed_version, it)
+            }
 
             HeroCard(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
@@ -242,7 +243,7 @@ fun ExternalAppDetailScreen(
                 subtitle = stringResource(R.string.by_author_FORMAT, app.owner),
                 stats = {
                     HeroStatsRow(
-                        version = app.latestTag,
+                        version = heroVersion,
                         size = null,
                         onSourceCodeClick = { uriHandler.openUri(app.webUrl) },
                     )

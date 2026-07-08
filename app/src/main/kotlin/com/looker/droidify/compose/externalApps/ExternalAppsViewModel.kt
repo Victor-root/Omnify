@@ -139,30 +139,6 @@ class ExternalAppsViewModel @Inject constructor(
     // uninstall from this very screen updates the button without a resume-timing race.
     private val installedChanges = installedRepository.getAllStream()
 
-    /** Keys of tracked apps that are currently installed on the device. */
-    val installedKeys: StateFlow<Set<String>> = combine(
-        repository.apps,
-        installManager.state,
-        installedRefresh,
-        installedChanges,
-    ) { apps, _, _, _ ->
-        apps.filter { app -> app.packageName?.let { isInstalled(it) } == true }
-            .map { it.key }
-            .toSet()
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptySet())
-
-    /** Per-app system install state (Pending/Installing/…), keyed by [ExternalApp.key]. */
-    val installStates: StateFlow<Map<String, InstallState>> = combine(
-        repository.apps,
-        installManager.state,
-    ) { apps, states ->
-        apps.mapNotNull { app ->
-            val pkg = app.packageName ?: return@mapNotNull null
-            val state = states[PackageName(pkg)] ?: return@mapNotNull null
-            app.key to state
-        }.toMap()
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
-
     /** Per-app real installed versionName (read from the package manager), keyed by
      *  [ExternalApp.key] — so the detail shows the version actually on the device vs. the repo's. */
     val installedVersions: StateFlow<Map<String, String>> = combine(
@@ -175,6 +151,28 @@ class ExternalAppsViewModel @Inject constructor(
             val pkg = app.packageName ?: return@mapNotNull null
             val version = installedVersionName(pkg) ?: return@mapNotNull null
             app.key to version
+        }.toMap()
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
+
+    /** Keys of tracked apps that are currently installed on the device. Derived from [installedVersions]
+     *  itself (rather than its own independent package-manager scan) so the two can never disagree — a
+     *  key can't appear "installed" here without an entry there, which used to be possible for a moment
+     *  since each was its own independently re-subscribed StateFlow and could refresh out of step. */
+    val installedKeys: StateFlow<Set<String>> = installedVersions
+        .map { it.keys }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptySet())
+
+    /** Per-app system install state (Pending/Installing/…), keyed by [ExternalApp.key]. */
+    val installStates: StateFlow<Map<String, InstallState>> = combine(
+        repository.apps,
+        installManager.state,
+    ) { apps, states ->
+        apps.mapNotNull { app ->
+            val pkg = app.packageName ?: return@mapNotNull null
+            val state = states[PackageName(pkg)] ?: return@mapNotNull null
+            app.key to state
         }.toMap()
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
 
