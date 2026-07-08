@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.SystemClock
+import android.util.Log
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.core.graphics.drawable.toBitmap
@@ -24,6 +25,7 @@ import com.looker.droidify.external.ExternalAccountRef
 import com.looker.droidify.external.Release
 import com.looker.droidify.external.RepoRef
 import com.looker.droidify.external.apkFileName
+import com.looker.droidify.external.apkFileSize
 import com.looker.droidify.external.apkVersionToken
 import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.external.parseAccountSource
@@ -592,6 +594,12 @@ class ExternalAppsViewModel @Inject constructor(
                         app.nameOverridden -> app.label
                         else -> packageId?.let { installedLabel(it) } ?: meta?.appName ?: app.label
                     }
+                    val addApkSize = release.apkFileSize(filter = app.apkFilter)
+                    Log.d(
+                        TAG,
+                        "addApp ${app.key}: asset=${selectApkAsset(release.assets, filter = app.apkFilter)?.name} " +
+                            "size=$addApkSize rawAssetSizes=${release.assets.map { it.name to it.size }}",
+                    )
                     repository.addApp(
                         app.copy(
                             packageName = packageId,
@@ -605,6 +613,7 @@ class ExternalAppsViewModel @Inject constructor(
                             latestTag = release.tag,
                             latestApkToken = release.apkVersionToken(filter = app.apkFilter),
                             latestApkName = release.apkFileName(filter = app.apkFilter),
+                            latestApkSize = addApkSize,
                         ),
                     )
                     snack(context.getString(R.string.external_added, app.repo))
@@ -776,6 +785,7 @@ class ExternalAppsViewModel @Inject constructor(
                 latestTag = release.tag,
                 latestApkToken = release.apkVersionToken(filter = candidate.apkFilter),
                 latestApkName = release.apkFileName(filter = candidate.apkFilter),
+                latestApkSize = release.apkFileSize(filter = candidate.apkFilter),
             )
         }
         return result
@@ -898,6 +908,14 @@ class ExternalAppsViewModel @Inject constructor(
                 val tag = release?.tag ?: app.latestTag
                 val token = release?.apkVersionToken(filter = app.apkFilter) ?: app.latestApkToken
                 val apkName = release?.apkFileName(filter = app.apkFilter) ?: app.latestApkName
+                val apkSize = release?.apkFileSize(filter = app.apkFilter) ?: app.latestApkSize
+                if (release != null) {
+                    Log.d(
+                        TAG,
+                        "refresh ${app.key}: fetchedSize=${release.apkFileSize(filter = app.apkFilter)} " +
+                            "storedSize=${app.latestApkSize} -> $apkSize",
+                    )
+                }
                 // Backfill the package id (from build.gradle) for sources added before this existed, so
                 // an installed app starts showing its real name + icon; the existing label reconcile
                 // then fills in the on-device name. Never overwrites an id already learned from install.
@@ -930,6 +948,7 @@ class ExternalAppsViewModel @Inject constructor(
                 if (tag != app.latestTag ||
                     token != app.latestApkToken ||
                     apkName != app.latestApkName ||
+                    apkSize != app.latestApkSize ||
                     packageId != app.packageName ||
                     repoIcon != app.repoIconUrl ||
                     resolvedLabel != app.label ||
@@ -950,6 +969,7 @@ class ExternalAppsViewModel @Inject constructor(
                             latestTag = tag,
                             latestApkToken = token,
                             latestApkName = apkName,
+                            latestApkSize = apkSize,
                             repoIconUrl = repoIcon,
                             iconChecked = current.iconChecked || (needsIcon && scanned),
                             supportsTelevision = supportsTv,
@@ -1019,6 +1039,7 @@ class ExternalAppsViewModel @Inject constructor(
                         latestTag = release.tag,
                         latestApkToken = release.apkVersionToken(filter = updated.apkFilter),
                         latestApkName = release.apkFileName(filter = updated.apkFilter),
+                        latestApkSize = release.apkFileSize(filter = updated.apkFilter),
                     )
                 }
             }
@@ -1149,8 +1170,8 @@ class ExternalAppsViewModel @Inject constructor(
                     installedApkToken = token,
                     // Deliberately installing an older pick from the version list (releaseOverride)
                     // isn't a signal that it's now the latest — leave latestTag/latestApkToken/
-                    // latestApkName as they were, so hasUpdate still correctly flags that a newer
-                    // release exists. Installing via the normal Install/Update button (no override)
+                    // latestApkName/latestApkSize as they were, so hasUpdate still correctly flags that
+                    // a newer release exists. Installing via the normal Install/Update button (no override)
                     // installs exactly the release those fields already point at, so adopting them
                     // here is a no-op for that case and just keeps the values in sync.
                     latestTag = if (releaseOverride == null) release.tag else app.latestTag,
@@ -1159,6 +1180,11 @@ class ExternalAppsViewModel @Inject constructor(
                         release.apkFileName(filter = app.apkFilter)
                     } else {
                         app.latestApkName
+                    },
+                    latestApkSize = if (releaseOverride == null) {
+                        release.apkFileSize(filter = app.apkFilter)
+                    } else {
+                        app.latestApkSize
                     },
                 ),
             )
@@ -1242,6 +1268,8 @@ enum class AddSourceState { IDLE, LOADING, SUCCESS }
 private val UNSAFE_FILE_CHARS = Regex("[^A-Za-z0-9._-]")
 
 /** Max characters per translation request (keeps the Google endpoint's URL within limits). */
+private const val TAG = "ExternalAppsViewModel"
+
 private const val MAX_TRANSLATE_CHUNK = 1500
 
 private val TAG_REGEX = Regex("<[^>]+>")

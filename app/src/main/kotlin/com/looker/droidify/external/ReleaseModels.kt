@@ -23,6 +23,10 @@ data class ReleaseAsset(
     val updatedAt: String? = null,
     /** Provider-assigned id of the uploaded file; null for providers that don't expose it. */
     val id: Long? = null,
+    /** The file's size in bytes, for the "Taille" stat shown before installing — mirrors the F-Droid
+     *  catalogue's APK size. Null for providers whose release API doesn't expose it (GitLab's link
+     *  assets carry no size). */
+    val size: Long? = null,
 )
 
 /**
@@ -47,6 +51,7 @@ data class RestReleaseDto(
                 downloadUrl = it.browserDownloadUrl,
                 updatedAt = it.updatedAt ?: it.createdAt,
                 id = it.id.takeIf { id -> id != 0L },
+                size = it.size.takeIf { size -> size > 0L },
             )
         },
     )
@@ -200,6 +205,15 @@ fun Release.apkFileName(
     filter: String? = null,
 ): String? =
     selectApkAsset(assets, deviceAbis, filter)?.name
+
+/** The size in bytes of the APK this release would install, for the "Taille" stat shown before
+ *  installing — mirrors the F-Droid catalogue's APK size stat. Null when the release ships no APK, or
+ *  the provider's release API doesn't expose a file size (GitLab). */
+fun Release.apkFileSize(
+    deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
+    filter: String? = null,
+): Long? =
+    selectApkAsset(assets, deviceAbis, filter)?.size
 
 private val versionInFileName = Regex("""\d+(?:\.\d+)+""")
 

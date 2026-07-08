@@ -23,17 +23,20 @@ import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.external.Release
+import com.looker.droidify.network.DataSize
 
 /**
  * One release in the external app's version list — the same shape and chips (SUGGESTED/INSTALLED) as
  * the F-Droid catalogue's [com.looker.droidify.compose.appDetail.components.PackageItem], but built
- * against [Release]/[apkName] instead of a catalogue [com.looker.droidify.data.model.Package], since a
- * GitHub/GitLab/Codeberg release carries no repo, SDK range or upload-size metadata to show.
+ * against [Release]/[apkName]/[apkSize] instead of a catalogue [com.looker.droidify.data.model.Package],
+ * since a GitHub/GitLab/Codeberg release carries no repo or SDK range metadata to show, and only
+ * GitHub/Codeberg (not GitLab) expose a file size.
  */
 @Composable
 fun ReleaseVersionItem(
     release: Release,
     apkName: String?,
+    apkSize: Long?,
     isSuggested: Boolean,
     isInstalled: Boolean,
     onClick: () -> Unit,
@@ -82,13 +85,23 @@ fun ReleaseVersionItem(
                 }
             }
             if (apkName != null) {
-                Text(
-                    text = apkName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.outline,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = apkName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (apkSize != null) {
+                        Text(
+                            text = DataSize(apkSize).toString(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline,
+                        )
+                    }
+                }
             }
             if (release.isPrerelease) {
                 Text(

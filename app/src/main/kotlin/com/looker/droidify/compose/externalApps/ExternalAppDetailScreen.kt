@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.externalApps
 
 import android.content.Intent
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -69,7 +70,9 @@ import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.Release
 import com.looker.droidify.external.apkFileName
+import com.looker.droidify.external.apkFileSize
 import com.looker.droidify.external.apkVersionLabel
+import com.looker.droidify.network.DataSize
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -230,6 +233,12 @@ fun ExternalAppDetailScreen(
             // name usually does (e.g. "GlassKeep-1.4.6.apk" for a "v2.5.0" release), so that's what's shown
             // as the hero "Version" whenever a build is available, falling back to the tag otherwise.
             val heroVersion = app.latestApkName?.let { apkVersionLabel(it) } ?: app.latestTag
+            // Mirrors the F-Droid catalogue's "Taille" stat; null (hidden) when the provider's release
+            // API doesn't expose a file size (GitLab's release link assets carry none).
+            val heroSize = app.latestApkSize?.let { DataSize(it).toString() }
+            LaunchedEffect(app.key, app.latestApkSize) {
+                Log.d("ExternalAppDetailScreen", "${app.key}: latestApkSize=${app.latestApkSize} heroSize=$heroSize")
+            }
 
             // The installed version, if any — folded into the card's footer, mirroring how the F-Droid
             // catalogue card shows its installed version there.
@@ -247,7 +256,7 @@ fun ExternalAppDetailScreen(
                 stats = {
                     HeroStatsRow(
                         version = heroVersion,
-                        size = null,
+                        size = heroSize,
                         onSourceCodeClick = { uriHandler.openUri(app.webUrl) },
                     )
                 },
@@ -401,6 +410,7 @@ fun ExternalAppDetailScreen(
                         ReleaseVersionItem(
                             release = release,
                             apkName = release.apkFileName(filter = app.apkFilter),
+                            apkSize = release.apkFileSize(filter = app.apkFilter),
                             isSuggested = release.tag == app.latestTag,
                             isInstalled = release.tag == app.installedTag,
                             onClick = { versionToInstall = release },

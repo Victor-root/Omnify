@@ -35,6 +35,10 @@ data class ExternalApp(
     /** File name of the APK in the latest release (e.g. "GlassKeep-1.5.0.apk"), shown as the "latest
      *  APK" line — universal across repos and often the real APK version when the tag isn't. */
     val latestApkName: String? = null,
+    /** Size in bytes of the APK in the latest release, for the hero card's "Taille" stat — mirrors the
+     *  F-Droid catalogue's APK size stat. Null when not yet known or the provider doesn't expose it
+     *  (GitLab's release link assets carry no size). */
+    val latestApkSize: Long? = null,
     /** Whether to consider pre-releases when picking the latest release. */
     val includePrereleases: Boolean = false,
     /** Optional regex matched against APK file names to choose which APK to install when a release
