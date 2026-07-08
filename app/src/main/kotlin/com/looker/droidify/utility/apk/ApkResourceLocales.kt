@@ -33,7 +33,11 @@ object ApkResourceLocales {
      */
     fun localeCodes(arsc: ByteArray): List<String>? = runCatching {
         collectLocalePairs(arsc)?.map { (language, region) ->
-            if (region.isNotEmpty()) "$language-r$region" else language
+            // BCP47 form ("pt-BR"), matching what java.util.Locale.forLanguageTag() (used by the display
+            // code downstream) actually understands — NOT the "-r" infix Android uses only for resource
+            // *directory names* ("values-pt-rBR"); forLanguageTag() silently drops an "rBR"-shaped
+            // subtag as ill-formed, which would quietly lose the region in the display.
+            if (region.isNotEmpty()) "$language-$region" else language
         }?.distinct()
     }.getOrNull()
 

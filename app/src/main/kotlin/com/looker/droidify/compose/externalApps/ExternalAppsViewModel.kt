@@ -295,6 +295,11 @@ class ExternalAppsViewModel @Inject constructor(
     private val _supportedLanguages = MutableStateFlow<SupportedLanguages?>(null)
     val supportedLanguages: StateFlow<SupportedLanguages?> = _supportedLanguages
 
+    /** Per-app (elapsedRealtime fetched-at, locales) cache for [ExternalApi.fetchSourceLocales], so
+     *  re-opening the same app's detail screen doesn't burn a fresh repo-tree API call every time
+     *  (mirrors [issueTrackerCache]'s freshness window). */
+    private val sourceLocalesCache = mutableMapOf<String, Pair<Long, List<String>>>()
+
     fun loadSupportedLanguages(app: ExternalApp, isInstalled: Boolean) {
         _supportedLanguages.value = null
         if (isInstalled) {
@@ -305,6 +310,24 @@ class ExternalAppsViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            // Tried first: the source repo's own res/values-xx/ folders — ground truth independent of
+            // whether the release build/download the APK check below relies on behaves (see the comment
+            // on ExternalApi.fetchSourceLocales). Falls through to that APK check when the repo doesn't
+            // use standard Android resource folders for its translations (or the tree fetch itself fails).
+            val cachedSource = sourceLocalesCache[app.key]
+            val sourceLocales = if (cachedSource != null &&
+                SystemClock.elapsedRealtime() - cachedSource.first < README_FRESHNESS_MS
+            ) {
+                cachedSource.second
+            } else {
+                externalApi.fetchSourceLocales(app)?.also {
+                    sourceLocalesCache[app.key] = SystemClock.elapsedRealtime() to it
+                }
+            }
+            if (!sourceLocales.isNullOrEmpty()) {
+                _supportedLanguages.value = SupportedLanguages(sourceLocales, reliable = true)
+                return@launch
+            }
             val release = externalApi.latestReleaseFor(app) ?: return@launch
             val asset = selectApkAsset(release.assets, filter = app.apkFilter) ?: return@launch
             // The asset's own update timestamp/id (already used to detect updates — see
@@ -312,11 +335,18 @@ class ExternalAppsViewModel @Inject constructor(
             // to the download URL for providers that expose neither.
             val cacheKey = release.apkVersionToken(filter = app.apkFilter) ?: asset.downloadUrl
             val cached = appRepository.cachedApkLocales(cacheKey)
-            if (cached != null) {
+            if (!cached.isNullOrEmpty()) {
                 _supportedLanguages.value = SupportedLanguages(cached, reliable = true)
                 return@launch
             }
             val locales = RemoteApkLocaleReader.fetchLocales(downloader, asset.downloadUrl) ?: return@launch
+            // An empty result is the one answer this check can't fully trust: unlike a real installed
+            // APK (read straight from AssetManager), a *download* coming back with zero locale-specific
+            // resource configs can just as easily mean the fetch/parse silently missed something (a CDN
+            // that mishandles range requests, a resource-shrunk build, …) as it can mean a genuinely
+            // unlocalized app. A false "not translated" is worse than showing nothing, so it's treated as
+            // inconclusive here — not cached, not shown — rather than asserted as ground truth.
+            if (locales.isEmpty()) return@launch
             appRepository.cacheApkLocales(cacheKey, locales)
             _supportedLanguages.value = SupportedLanguages(locales, reliable = true)
         }

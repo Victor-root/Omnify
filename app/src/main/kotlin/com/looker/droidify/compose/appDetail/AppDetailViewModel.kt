@@ -313,8 +313,13 @@ class AppDetailViewModel @Inject constructor(
         when {
             // Installed: the real UI languages from the APK -> reliable, so the status can be definite.
             apkLocales.isNotEmpty() -> SupportedLanguages(apkLocales, reliable = true)
-            // Not installed, but directly confirmed from the APK itself -> equally reliable.
-            remoteLocales != null -> SupportedLanguages(remoteLocales, reliable = true)
+            // Not installed, but directly confirmed from the APK itself -> equally reliable. An empty
+            // result is excluded here on purpose: unlike installedApkLocales() (read straight from the
+            // installed APK via AssetManager, always trustworthy), a *download* coming back with zero
+            // locale-specific resource configs can just as easily mean the fetch/parse silently missed
+            // something as it can mean a genuinely unlocalized app — a false "not translated" is worse
+            // than falling back to the approximation below, so it's treated as inconclusive.
+            !remoteLocales.isNullOrEmpty() -> SupportedLanguages(remoteLocales, reliable = true)
             // Not installed and not yet confirmed: only the store-listing translations, which may
             // differ from the app's UI -> present as approximate so we never wrongly claim a language
             // isn't translated.
@@ -350,7 +355,7 @@ class AppDetailViewModel @Inject constructor(
                     ?: return@collectLatest
                 val (pkg, repo) = installable
                 val cached = appRepository.cachedApkLocales(pkg.apk.hash)
-                if (cached != null) {
+                if (!cached.isNullOrEmpty()) {
                     _remoteApkLocales.value = cached
                     return@collectLatest
                 }
@@ -358,6 +363,10 @@ class AppDetailViewModel @Inject constructor(
                 val locales = RemoteApkLocaleReader.fetchLocales(downloader, url) {
                     repo.authentication?.let { authentication(it.username, it.password) }
                 } ?: return@collectLatest
+                // See the comment on the empty-check in supportedLanguages above: a genuinely empty
+                // result from a *download* isn't trusted enough to assert or cache — it falls through to
+                // the store-listing approximation instead of a possibly-wrong confident "not translated".
+                if (locales.isEmpty()) return@collectLatest
                 appRepository.cacheApkLocales(pkg.apk.hash, locales)
                 _remoteApkLocales.value = locales
             }

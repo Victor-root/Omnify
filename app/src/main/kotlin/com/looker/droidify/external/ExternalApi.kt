@@ -141,6 +141,30 @@ class ExternalApi @Inject constructor(
     }
 
     /**
+     * The app's real supported languages, read directly from the source repo's Android resource
+     * directories (`res/values-xx/`, `res/values-b+sr+Latn/`, …) — the same folders `aapt` compiles
+     * into the per-locale resource configs [com.looker.droidify.utility.apk.RemoteApkLocaleReader]
+     * reads back out of a *built* APK. Reading the source directly sidesteps every way that a release
+     * build/download can go wrong (a host that mishandles range requests, a build that trims
+     * resources, …), at the cost of only counting a plain locale-qualifier folder — a combined one
+     * (`values-fr-v21`) is rare for a translation-only folder and skipped rather than mis-parsed.
+     * Null when the repo tree couldn't be read at all; an empty (non-null) list is a genuine "no
+     * locale-specific resource folder found" answer (e.g. translations delivered some other way this
+     * can't see). Never throws.
+     */
+    suspend fun fetchSourceLocales(app: ExternalApp): List<String>? = withContext(Dispatchers.IO) {
+        val paths = fetchTreePaths(app)
+        if (paths.isEmpty()) return@withContext null
+        val androidLocales = paths.mapNotNull { localeFromResValuesPath(it) }
+        // A cross-platform (Flutter, React Native, …) app has no res/values-xx/ at all — its UI strings
+        // are its own asset files, not Android resources — so this is tried too, whether or not the
+        // first found anything, and the two are merged (a project can plausibly use both for different
+        // parts of the app).
+        val i18nLocales = paths.mapNotNull { localeFromI18nAssetPath(it) }
+        (androidLocales + i18nLocales).distinct().sorted()
+    }
+
+    /**
      * Whether the source repo is built for Android TV, read straight from its manifest(s) — no APK
      * download. A TV app declares either the leanback launcher category on an activity
      * (`android.intent.category.LEANBACK_LAUNCHER`) or the leanback uses-feature
@@ -716,6 +740,69 @@ private fun densityRank(dir: String): Int = when {
     dir.contains("mdpi") -> 2
     dir.contains("ldpi") -> 1
     else -> 0
+}
+
+/** Matches a `res/values-<qualifier>/<file>` path, capturing the qualifier — the same convention
+ *  Android resource directories always use, regardless of module depth. */
+private val RES_VALUES_DIR_REGEX = Regex("""/res/values-([^/]+)/[^/]+$""")
+
+/** A plain locale qualifier: a 2-3 letter ISO 639 code, optionally with a `-r<REGION>` region (a
+ *  2-letter ISO 3166 code or a 3-digit UN M.49 area code) — e.g. "fr", "pt-rBR", "es-r419". */
+private val SIMPLE_LOCALE_QUALIFIER_REGEX = Regex("""^([a-z]{2,3})(-r([A-Z]{2}|[0-9]{3}))?$""")
+
+/** The BCP47 form Android also accepts for locales with no 2-letter ISO 639 form or that need a
+ *  script (e.g. "values-b+sr+Latn", "values-b+es+419"). The optional script tag is intentionally
+ *  dropped — this only needs to match the same "language" / "language-rREGION" convention the rest of
+ *  the supported-languages feature already uses. */
+private val BCP47_LOCALE_QUALIFIER_REGEX =
+    Regex("""^b\+([a-zA-Z]{2,3})(?:\+[A-Za-z]{4})?(?:\+([A-Za-z]{2}|[0-9]{3}))?$""")
+
+/** Extracts a locale code in BCP47 form ("fr", "pt-BR") — what `Locale.forLanguageTag()` (used by the
+ *  display code downstream) actually understands, NOT the "-r" infix Android uses only for resource
+ *  *directory names* ("values-pt-rBR") — from a repo file path, or null when it isn't inside a
+ *  locale-qualified `res/values-*` directory at all (the default `res/values/`, or a non-locale
+ *  qualifier like `values-night`/`values-v21`/`values-land`, neither of which this regex's letters-only,
+ *  2-3 character shape matches). */
+private fun localeFromResValuesPath(path: String): String? {
+    val qualifier = RES_VALUES_DIR_REGEX.find(path)?.groupValues?.get(1) ?: return null
+    SIMPLE_LOCALE_QUALIFIER_REGEX.matchEntire(qualifier)?.let { m ->
+        val region = m.groupValues[3]
+        return if (region.isNotEmpty()) "${m.groupValues[1]}-$region" else m.groupValues[1]
+    }
+    BCP47_LOCALE_QUALIFIER_REGEX.matchEntire(qualifier)?.let { m ->
+        val region = m.groupValues[2]
+        return if (region.isNotEmpty()) "${m.groupValues[1]}-$region" else m.groupValues[1]
+    }
+    return null
+}
+
+/** A directory name suggesting a translation-file folder, for cross-platform (Flutter, React Native,
+ *  web) apps that don't use Android's res/values-xx/ convention at all — their UI strings live in their
+ *  own asset files instead, one per locale, usually inside a folder along these lines. */
+private val I18N_DIR_HINT_REGEX = Regex(
+    """(?:^|/)(?:i18n|l10n|intl|locales?|translations?|lang(?:uages?)?)(?:/|$)""",
+    RegexOption.IGNORE_CASE,
+)
+
+/** A translation file's locale, either as the whole file name ("en.json", "pt_BR.arb") or as a
+ *  trailing `_locale`/`-locale` suffix before the extension ("app_en.arb", "strings-pt-BR.json") —
+ *  the two conventions Flutter (ARB, `slang`/`easy_localization`) and most JS i18n libraries use. */
+private val I18N_FILE_LOCALE_REGEX = Regex(
+    """(?:^|[_-])([a-zA-Z]{2,3}(?:[_-][A-Za-z]{2,4})?)\.(?:arb|json|ya?ml)$""",
+)
+
+/** Best-effort locale extraction for non-Android translation conventions: a file inside an i18n/l10n-
+ *  ish folder, whose own name carries the locale. Deliberately gated on the directory hint (not run
+ *  against every .json/.yaml in the repo) to avoid matching unrelated config files. Returns a BCP47 code
+ *  ("fr", "pt-BR") or null when [path] doesn't look like one of these translation files. */
+private fun localeFromI18nAssetPath(path: String): String? {
+    if (!I18N_DIR_HINT_REGEX.containsMatchIn(path.substringBeforeLast('/'))) return null
+    val fileName = path.substringAfterLast('/')
+    val raw = I18N_FILE_LOCALE_REGEX.find(fileName)?.groupValues?.get(1) ?: return null
+    val language = raw.substringBefore('_').substringBefore('-')
+    val region = raw.substringAfter('_', "").ifEmpty { raw.substringAfter('-', "") }
+    if (language.length !in 2..3) return null
+    return if (region.isNotEmpty()) "$language-${region.uppercase()}" else language.lowercase()
 }
 
 /** How many 100-item pages of GitLab's tree API to walk while looking for the manifest / icons. */
