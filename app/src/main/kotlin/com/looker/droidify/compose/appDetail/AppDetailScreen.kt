@@ -511,7 +511,12 @@ private fun AppDetail(
     scrollState: ScrollState,
     modifier: Modifier = Modifier,
 ) {
-    val installedPackage = app.packages?.firstOrNull { it.installed }
+    // Not app.packages: that's only the single repo apps.first() picked as "the" app (see the ViewModel's
+    // state builder), so when the installed version is offered by a *different* repo than that one (e.g.
+    // installed from IzzyOnDroid while F-Droid's own build became the primary app), it wouldn't be found
+    // and the button would wrongly offer "Install" even though a version is plainly marked installed
+    // further down in the (correctly cross-repo) version list below. Search across every repo instead.
+    val installedPackage = packages.map { it.first }.firstOrNull { it.installed }
     // A version the user tapped in the list, awaiting confirmation to install (null = no dialog).
     var versionToInstall by remember { mutableStateOf<Pair<Package, Repo>?>(null) }
     // A downgrade the user confirmed: kept while the current app uninstalls, then installed automatically

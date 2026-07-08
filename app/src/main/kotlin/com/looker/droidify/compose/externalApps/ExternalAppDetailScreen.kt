@@ -81,7 +81,6 @@ fun ExternalAppDetailScreen(
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
     val installStates by viewModel.installStates.collectAsStateWithLifecycle()
-    val installedKeys by viewModel.installedKeys.collectAsStateWithLifecycle()
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
     val readme by viewModel.readme.collectAsStateWithLifecycle()
     val readmeError by viewModel.readmeError.collectAsStateWithLifecycle()
@@ -105,8 +104,11 @@ fun ExternalAppDetailScreen(
     }
 
     val app = apps.firstOrNull { it.key == appKey }
-    val isInstalled = appKey in installedKeys
     val installedVersion = installedVersions[appKey]
+    // Read straight off installedVersions (not the separately-collected installedKeys StateFlow) so the
+    // button and the footer's "Installé : …" text always agree within the same composition — two
+    // independently-collected StateFlows can otherwise land on different frames for a moment.
+    val isInstalled = installedVersion != null
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     // Hoisted above the Scaffold (not inside its content lambda) so both the content column and the
