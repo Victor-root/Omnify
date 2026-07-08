@@ -1,8 +1,10 @@
 package com.looker.droidify.data
 
 import android.os.Build
+import com.looker.droidify.data.local.dao.ApkLocaleCacheDao
 import com.looker.droidify.data.local.dao.AppDao
 import com.looker.droidify.data.local.dao.RepoDao
+import com.looker.droidify.data.local.model.ApkLocaleCacheEntity
 import com.looker.droidify.data.local.model.toApp
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.AppMinimal
@@ -28,6 +30,7 @@ import javax.inject.Inject
 class AppRepository @Inject constructor(
     private val appDao: AppDao,
     private val repoDao: RepoDao,
+    private val apkLocaleCacheDao: ApkLocaleCacheDao,
     private val settingsRepository: SettingsRepository,
 ) {
 
@@ -84,6 +87,19 @@ class AppRepository @Inject constructor(
     /** Locale codes the app has metadata translated into (its supported languages). */
     suspend fun supportedLocales(appId: Long): List<String> = withContext(Dispatchers.Default) {
         appDao.appLocales(appId.toInt())
+    }
+
+    /** Cached real supported locales for a not-yet-installed APK (see [ApkLocaleCacheDao]), read once
+     *  by inspecting the APK's compiled resources — null if nothing has been cached for it yet. */
+    suspend fun cachedApkLocales(apkHash: String): List<String>? = withContext(Dispatchers.Default) {
+        apkLocaleCacheDao.getLocales(apkHash)
+    }
+
+    /** Caches the real supported locales for a not-yet-installed APK, keyed by its content hash. */
+    suspend fun cacheApkLocales(apkHash: String, locales: List<String>) {
+        withContext(Dispatchers.Default) {
+            apkLocaleCacheDao.setLocales(ApkLocaleCacheEntity(apkHash, locales))
+        }
     }
 
     /**

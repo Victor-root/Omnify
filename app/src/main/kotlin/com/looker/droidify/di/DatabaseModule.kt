@@ -3,6 +3,7 @@ package com.looker.droidify.di
 import android.content.Context
 import com.looker.droidify.data.PrivacyRepository
 import com.looker.droidify.data.local.DroidifyDatabase
+import com.looker.droidify.data.local.dao.ApkLocaleCacheDao
 import com.looker.droidify.data.local.dao.AppDao
 import com.looker.droidify.data.local.dao.AuthDao
 import com.looker.droidify.data.local.dao.DownloadStatsDao
@@ -71,6 +72,12 @@ object DatabaseModule {
     fun provideDownloadStatsDao(
         db: DroidifyDatabase,
     ): DownloadStatsDao = db.downloadStatsDao()
+
+    @Singleton
+    @Provides
+    fun provideApkLocaleCacheDao(
+        db: DroidifyDatabase,
+    ): ApkLocaleCacheDao = db.apkLocaleCacheDao()
 
     @Singleton
     @Provides

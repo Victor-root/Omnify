@@ -60,6 +60,7 @@ import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionTitle
+import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvPageScroll
@@ -90,6 +91,7 @@ fun ExternalAppDetailScreen(
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
     val issueTrackerLink by viewModel.issueTrackerLink.collectAsStateWithLifecycle()
     val changelogLink by viewModel.changelogLink.collectAsStateWithLifecycle()
+    val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -126,6 +128,11 @@ fun ExternalAppDetailScreen(
     // The Links section's "Issue tracker" and "Changelog" rows.
     LaunchedEffect(app?.key) {
         app?.let { viewModel.loadIssueTrackerAndChangelog(it) }
+    }
+    // The "supported languages" section — re-checked when the install state changes too, so it
+    // switches from the remote-verified check to the installed APK's own locales right after install.
+    LaunchedEffect(app?.key, isInstalled) {
+        app?.let { viewModel.loadSupportedLanguages(it, isInstalled) }
     }
 
     Scaffold(
@@ -354,6 +361,14 @@ fun ExternalAppDetailScreen(
                     ),
                     onClick = changelogLink?.url?.let { url -> { uriHandler.openUri(url) } },
                 )
+            }
+
+            // Same reliable, real-UI-language check as the F-Droid catalogue's — but with no store-
+            // listing metadata to fall back to for an external source, this section only shows once
+            // there's a confirmed answer, instead of ever showing a guess.
+            supportedLanguages?.let { languages ->
+                Spacer(Modifier.height(8.dp))
+                SupportedLanguagesSection(languages = languages)
             }
 
             // Recent releases the user can pick a specific version to install from — same idea as the

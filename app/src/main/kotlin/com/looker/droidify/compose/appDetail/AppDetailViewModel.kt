@@ -19,6 +19,7 @@ import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.App
 import com.looker.droidify.compose.components.DescriptionTranslation
+import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.data.model.Repo
@@ -37,6 +38,7 @@ import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.percentBy
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.translation.TranslationManager
+import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -49,6 +51,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
@@ -276,24 +279,47 @@ class AppDetailViewModel @Inject constructor(
         .asStateFlow(AppDetailState.Loading)
 
     /**
+     * The not-yet-installed app's real supported languages, read directly from its APK's compiled
+     * resources (see [RemoteApkLocaleReader]) instead of the F-Droid store-listing approximation —
+     * null until resolved (or if the app is installed, since tier 1 below wins then and this is never
+     * needed). Kept updated by [trackRemoteApkLocales], started once in [init].
+     */
+    private val _remoteApkLocales = MutableStateFlow<List<String>?>(null)
+
+    init {
+        viewModelScope.launch { trackRemoteApkLocales() }
+    }
+
+    /**
      * Locale codes the app is translated into (its supported languages), for the detail screen's
-     * "supported languages" section. When the app is installed we read the *actual* UI languages from
-     * its APK resources (the truth: which res/values-XX it ships); that's what the user sees in the app.
-     * Otherwise we fall back to the F-Droid store-listing translations from the index — an approximation,
-     * since an app can ship a translated UI without a translated store listing (and vice versa).
+     * "supported languages" section, most reliable first:
+     * 1. Installed: the real UI languages read from the installed APK (the truth — what the user
+     *    actually sees in the app).
+     * 2. Not installed: the real UI languages read directly from the not-yet-downloaded APK's own
+     *    compiled resources ([_remoteApkLocales]) — equally reliable, just not yet confirmed by an
+     *    actual install. Resolved in the background (see [trackRemoteApkLocales]); this section shows
+     *    tier 3 until it resolves.
+     * 3. The F-Droid store-listing translations from the index — an approximation, since an app can
+     *    ship a translated UI without a translated store listing (and vice versa). Only actually shown
+     *    while tier 2 is still resolving, or if it fails (network error, a repo host that doesn't
+     *    support range requests, ...).
      */
     val supportedLanguages: StateFlow<SupportedLanguages> = combine(
         state.map { (it as? AppDetailState.Success)?.app?.appId }.distinctUntilChanged(),
         installedInfo,
-    ) { appId, installed ->
+        _remoteApkLocales,
+    ) { appId, installed, remoteLocales ->
         val apkLocales = if (installed != null) installedApkLocales() else emptyList()
         when {
             // Installed: the real UI languages from the APK -> reliable, so the status can be definite.
-            apkLocales.isNotEmpty() -> SupportedLanguages(apkLocales, fromInstalledApk = true)
-            // Not installed: only the store-listing translations, which may differ from the app's UI ->
-            // present as approximate so we never wrongly claim a language isn't translated.
-            appId != null -> SupportedLanguages(appRepository.supportedLocales(appId), fromInstalledApk = false)
-            else -> SupportedLanguages(emptyList(), fromInstalledApk = false)
+            apkLocales.isNotEmpty() -> SupportedLanguages(apkLocales, reliable = true)
+            // Not installed, but directly confirmed from the APK itself -> equally reliable.
+            remoteLocales != null -> SupportedLanguages(remoteLocales, reliable = true)
+            // Not installed and not yet confirmed: only the store-listing translations, which may
+            // differ from the app's UI -> present as approximate so we never wrongly claim a language
+            // isn't translated.
+            appId != null -> SupportedLanguages(appRepository.supportedLocales(appId), reliable = false)
+            else -> SupportedLanguages(emptyList(), reliable = false)
         }
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(SupportedLanguages())
 
@@ -304,6 +330,38 @@ class AppDetailViewModel @Inject constructor(
             .assets.locales
             .filter { it.isNotBlank() }
     }.getOrDefault(emptyList())
+
+    /**
+     * Whenever the app isn't installed and a device-installable package is known, resolves its real
+     * supported languages by inspecting the actual (not-yet-downloaded) APK — cached by APK hash
+     * ([AppRepository.cachedApkLocales]/[AppRepository.cacheApkLocales]) so the same build is only
+     * ever fetched once, even across app restarts. Runs for the lifetime of the ViewModel; each new
+     * distinct (state, installed) pair supersedes whatever fetch was in flight for the previous one.
+     */
+    private suspend fun trackRemoteApkLocales() {
+        combine(state, installedInfo) { s, installed -> s to installed }
+            .distinctUntilChanged()
+            .collectLatest { (currentState, installed) ->
+                _remoteApkLocales.value = null
+                if (installed != null) return@collectLatest
+                val success = currentState as? AppDetailState.Success ?: return@collectLatest
+                val installable = success.packages
+                    .selectForDevice(success.app.metadata.suggestedVersionCode)
+                    ?: return@collectLatest
+                val (pkg, repo) = installable
+                val cached = appRepository.cachedApkLocales(pkg.apk.hash)
+                if (cached != null) {
+                    _remoteApkLocales.value = cached
+                    return@collectLatest
+                }
+                val url = repo.address.removeSuffix("/") + "/" + pkg.apk.name.removePrefix("/")
+                val locales = RemoteApkLocaleReader.fetchLocales(downloader, url) {
+                    repo.authentication?.let { authentication(it.username, it.password) }
+                } ?: return@collectLatest
+                appRepository.cacheApkLocales(pkg.apk.hash, locales)
+                _remoteApkLocales.value = locales
+            }
+    }
 
     /** Launches the installed app, if it exposes a launcher activity. */
     fun launch() {
@@ -630,13 +688,3 @@ sealed interface AppDetailState {
         val packages: List<Pair<Package, Repo>>,
     ) : AppDetailState
 }
-
-/**
- * The app's supported languages for the detail screen. [fromInstalledApk] is true when [codes] are the
- * real UI locales read from the installed APK (reliable); false when they're the F-Droid store-listing
- * translations (an approximation, shown only until the app is installed).
- */
-data class SupportedLanguages(
-    val codes: List<String> = emptyList(),
-    val fromInstalledApk: Boolean = false,
-)

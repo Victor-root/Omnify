@@ -12,6 +12,8 @@ import androidx.lifecycle.viewModelScope
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.DescriptionTranslation
+import com.looker.droidify.compose.components.SupportedLanguages
+import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.external.ExternalAccount
@@ -36,6 +38,7 @@ import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.translation.TranslationManager
+import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -63,6 +66,9 @@ class ExternalAppsViewModel @Inject constructor(
     private val translationManager: TranslationManager,
     private val settingsRepository: SettingsRepository,
     private val installedRepository: InstalledRepository,
+    // The F-Droid catalogue's repository, reused here only for its generic (provider-agnostic)
+    // APK-locale cache — see loadSupportedLanguages().
+    private val appRepository: AppRepository,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -279,6 +285,53 @@ class ExternalAppsViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * The detail screen's "supported languages" section — the same reliable, real-UI-language check
+     * as the F-Droid catalogue's (see [com.looker.droidify.compose.appDetail.AppDetailViewModel]), but
+     * an external source has no store-listing metadata to fall back to, so this is either a confirmed
+     * answer or nothing at all: null while unresolved or if the check genuinely can't be done (no
+     * installable release, the source's host doesn't support range requests, ...), in which case the
+     * screen simply doesn't show the section rather than showing an unreliable guess.
+     */
+    private val _supportedLanguages = MutableStateFlow<SupportedLanguages?>(null)
+    val supportedLanguages: StateFlow<SupportedLanguages?> = _supportedLanguages
+
+    fun loadSupportedLanguages(app: ExternalApp, isInstalled: Boolean) {
+        _supportedLanguages.value = null
+        if (isInstalled) {
+            val installedLocales = installedApkLocales(app.packageName)
+            if (installedLocales.isNotEmpty()) {
+                _supportedLanguages.value = SupportedLanguages(installedLocales, reliable = true)
+                return
+            }
+        }
+        viewModelScope.launch {
+            val release = externalApi.latestReleaseFor(app) ?: return@launch
+            val asset = selectApkAsset(release.assets, filter = app.apkFilter) ?: return@launch
+            // The asset's own update timestamp/id (already used to detect updates — see
+            // ExternalApp.hasUpdate) doubles as a stable cache key for this specific build; falls back
+            // to the download URL for providers that expose neither.
+            val cacheKey = release.apkVersionToken(filter = app.apkFilter) ?: asset.downloadUrl
+            val cached = appRepository.cachedApkLocales(cacheKey)
+            if (cached != null) {
+                _supportedLanguages.value = SupportedLanguages(cached, reliable = true)
+                return@launch
+            }
+            val locales = RemoteApkLocaleReader.fetchLocales(downloader, asset.downloadUrl) ?: return@launch
+            appRepository.cacheApkLocales(cacheKey, locales)
+            _supportedLanguages.value = SupportedLanguages(locales, reliable = true)
+        }
+    }
+
+    /** The locale codes the installed APK actually ships resources for (its real UI languages), read
+     *  from the package's AssetManager. Empty if [packageName] is null or it can't be read. */
+    private fun installedApkLocales(packageName: String?): List<String> = runCatching {
+        if (packageName == null) return emptyList()
+        context.packageManager.getResourcesForApplication(packageName)
+            .assets.locales
+            .filter { it.isNotBlank() }
+    }.getOrDefault(emptyList())
 
     fun loadReadme(app: ExternalApp) {
         // A different app's README is about to load, so drop any translation left on the previous one.

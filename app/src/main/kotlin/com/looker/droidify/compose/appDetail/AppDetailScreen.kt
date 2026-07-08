@@ -31,11 +31,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -105,6 +103,8 @@ import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionTitle
+import com.looker.droidify.compose.components.SupportedLanguages
+import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvFocusFill
@@ -127,7 +127,6 @@ import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 /**
  * Maximum number of version rows rendered on the detail screen. The screen is a single
@@ -1208,127 +1207,6 @@ private fun PermissionsSection(permissions: List<Permission>) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
-            }
-        }
-    }
-}
-
-/**
- * Collapsible "supported languages" section. When the data is reliable (read from the installed APK)
- * the header states whether the phone's language is translated ("Français: translated"); when it's only
- * the store-listing approximation (app not installed) it shows a caveat instead of asserting anything,
- * so it can't wrongly claim a language isn't translated. The full list expands below, device language
- * first and ticked.
- */
-@Composable
-private fun SupportedLanguagesSection(languages: SupportedLanguages) {
-    var expanded by remember { mutableStateOf(false) }
-    val deviceLocale = remember { Locale.getDefault() }
-    val reliable = languages.fromInstalledApk
-    val localeCodes = languages.codes
-    val languageList = remember(localeCodes) {
-        localeCodes
-            .map { code ->
-                val loc = Locale.forLanguageTag(code.replace('_', '-'))
-                val display = loc.getDisplayName(loc)
-                    .replaceFirstChar { it.uppercase(loc) }
-                    .ifBlank { code }
-                Triple(code, display, loc.language.isNotEmpty() && loc.language == deviceLocale.language)
-            }
-            // Device language first, then alphabetical by display name.
-            .sortedWith(compareByDescending<Triple<String, String, Boolean>> { it.third }
-                .thenBy { it.second.lowercase(deviceLocale) })
-    }
-    val deviceSupported = languageList.any { it.third }
-    val deviceName = deviceLocale.getDisplayLanguage(deviceLocale)
-        .replaceFirstChar { it.uppercase(deviceLocale) }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .tvFocusFill(RoundedCornerShape(12.dp))
-                .clickable { expanded = !expanded }
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                // The same translate glyph as the top bar's Translate button, so the languages section
-                // reads as "translations" at a glance.
-                imageVector = Icons.Filled.Translate,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.supported_languages),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                if (reliable) {
-                    // Real UI languages from the installed APK: state it definitely.
-                    Text(
-                        text = stringResource(
-                            if (deviceSupported) {
-                                R.string.language_supported_FORMAT
-                            } else {
-                                R.string.language_not_supported_FORMAT
-                            },
-                            deviceName,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (deviceSupported) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
-                } else {
-                    // Only the store listing: don't assert translated/not, just flag the approximation.
-                    Text(
-                        text = stringResource(R.string.language_from_store_listing),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Text(
-                text = languageList.size.toString(),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (expanded) {
-            languageList.forEach { (_, display, isDevice) ->
-                // Only highlight/tick the device language when the data is reliable (installed APK), so
-                // the store-listing approximation doesn't imply a certainty we don't have.
-                val highlight = isDevice && reliable
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = display,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (highlight) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (highlight) {
-                        Icon(
-                            imageVector = Icons.Filled.Check,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                }
             }
         }
     }
