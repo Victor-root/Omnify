@@ -381,6 +381,21 @@ class ExternalApi @Inject constructor(
     }
 
     /**
+     * The project's changelog, rendered as HTML exactly like [readmeHtml] — shown in its own in-app
+     * page instead of opening the browser, so checking what's new doesn't leave the app. Null when
+     * none of the common changelog file names exist (or on any failure).
+     */
+    suspend fun fetchChangelogHtml(app: ExternalApp): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            for (name in CHANGELOG_NAMES) {
+                val markdown = getText(app.readmeBaseUrl + name) ?: continue
+                return@runCatching inlineRelativeImages(renderMarkdownToHtml(markdown), app)
+            }
+            null
+        }.getOrNull()
+    }
+
+    /**
      * Replaces relative `<img>` sources in rendered README HTML with `data:` URIs of the actual image
      * bytes. Gitea/GitLab raw endpoints decide between the file and an HTML viewer page from request
      * headers the WebView doesn't send for sub-resources, so a plain relative URL would load the HTML

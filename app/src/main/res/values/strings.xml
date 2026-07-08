@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="application_name" translatable="false">Omnify</string>
+    <!-- Fixed brand name for the "installed via …" attribution, unlike application_name (overridden per
+         build flavour, e.g. "Omnify (D)" in debug) — an app installed through Omnify should read the
+         same regardless of which build variant did the installing. -->
+    <string name="installer_self_name" translatable="false">Omnify</string>
     <string name="cleartext_allowed" translatable="false">false</string>
     <string name="action_failed">Action failed</string>
     <string name="add_repository">Add repository</string>

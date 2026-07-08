@@ -599,7 +599,7 @@ class AppDetailViewModel @Inject constructor(
             null, "" -> context.getString(R.string.installer_unknown)
             "com.android.vending" -> "Google Play"
             "org.fdroid.fdroid", "org.fdroid.basic" -> "F-Droid"
-            context.packageName -> context.getString(R.string.application_name)
+            context.packageName -> context.getString(R.string.installer_self_name)
             else -> installer
         }
     }

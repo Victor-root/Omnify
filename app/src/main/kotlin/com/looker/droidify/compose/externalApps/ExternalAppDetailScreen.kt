@@ -94,6 +94,9 @@ fun ExternalAppDetailScreen(
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
     val issueTrackerLink by viewModel.issueTrackerLink.collectAsStateWithLifecycle()
     val changelogLink by viewModel.changelogLink.collectAsStateWithLifecycle()
+    val changelogHtml by viewModel.changelogHtml.collectAsStateWithLifecycle()
+    val changelogUnavailable by viewModel.changelogUnavailable.collectAsStateWithLifecycle()
+    var showChangelog by remember { mutableStateOf(false) }
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -205,6 +208,18 @@ fun ExternalAppDetailScreen(
                 },
                 onUninstall = {},
                 onDismiss = { versionToInstall = null },
+            )
+        }
+        if (showChangelog) {
+            ChangelogDialog(
+                html = changelogHtml,
+                unavailable = changelogUnavailable,
+                baseUrl = app.readmeWebBaseUrl,
+                javaScriptEnabled = readmeJavaScriptEnabled,
+                onDismiss = {
+                    showChangelog = false
+                    viewModel.dismissChangelog()
+                },
             )
         }
         // Everything (the icon/name/versions/actions block AND the README) scrolls as one — only the
@@ -372,7 +387,14 @@ fun ExternalAppDetailScreen(
                     unavailableText = stringResource(
                         if (changelogLink == null) R.string.loading else R.string.external_no_changelog,
                     ),
-                    onClick = changelogLink?.url?.let { url -> { uriHandler.openUri(url) } },
+                    // Opened in-app (see ChangelogDialog below), same as the README, instead of sending
+                    // the user to the browser to read what's new.
+                    onClick = changelogLink?.url?.let {
+                        {
+                            showChangelog = true
+                            viewModel.loadChangelogHtml(app)
+                        }
+                    },
                 )
             }
 

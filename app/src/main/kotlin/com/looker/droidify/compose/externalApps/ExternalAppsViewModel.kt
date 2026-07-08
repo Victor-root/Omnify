@@ -286,6 +286,40 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
+    /** The changelog dialog's content: rendered HTML once loaded, an explanatory message if the repo
+     *  genuinely has none, or both null while still loading. Reset by [dismissChangelog]. */
+    private val _changelogHtml = MutableStateFlow<String?>(null)
+    val changelogHtml: StateFlow<String?> = _changelogHtml
+    private val _changelogUnavailable = MutableStateFlow(false)
+    val changelogUnavailable: StateFlow<Boolean> = _changelogUnavailable
+
+    private val changelogHtmlCache = mutableMapOf<String, Pair<Long, String?>>()
+
+    /** Opens the changelog dialog and loads its content — rendered in-app exactly like the README,
+     *  instead of sending the user to the browser and out of the app to read what's new. */
+    fun loadChangelogHtml(app: ExternalApp) {
+        _changelogHtml.value = null
+        _changelogUnavailable.value = false
+        val cached = changelogHtmlCache[app.key]
+        if (cached != null && SystemClock.elapsedRealtime() - cached.first < README_FRESHNESS_MS) {
+            _changelogHtml.value = cached.second
+            _changelogUnavailable.value = cached.second == null
+            return
+        }
+        viewModelScope.launch {
+            val html = externalApi.fetchChangelogHtml(app)
+            changelogHtmlCache[app.key] = SystemClock.elapsedRealtime() to html
+            _changelogHtml.value = html
+            _changelogUnavailable.value = html == null
+        }
+    }
+
+    /** Closes the changelog dialog. */
+    fun dismissChangelog() {
+        _changelogHtml.value = null
+        _changelogUnavailable.value = false
+    }
+
     /**
      * The detail screen's "supported languages" section — the same reliable, real-UI-language check
      * as the F-Droid catalogue's (see [com.looker.droidify.compose.appDetail.AppDetailViewModel]), but
