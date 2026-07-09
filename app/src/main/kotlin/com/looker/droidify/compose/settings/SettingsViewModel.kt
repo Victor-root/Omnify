@@ -40,11 +40,13 @@ import com.looker.droidify.work.CleanUpWorker
 import com.looker.droidify.work.DownloadStatsWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.*
 import javax.inject.Inject
 import kotlin.io.encoding.Base64
@@ -201,7 +203,12 @@ class SettingsViewModel @Inject constructor(
     }
 
     private suspend fun handleRootInstaller(installerType: InstallerType) {
-        if (isMagiskGranted()) {
+        // isMagiskGranted() blocks synchronously on the root shell actually starting up — the first
+        // time, that includes waiting on the user to answer Magisk's own grant prompt. Run off the main
+        // thread (viewModelScope defaults to Main), or the whole app hangs and looks like an ANR
+        // ("Omnify ne répond pas") until root either grants or times out.
+        val granted = withContext(Dispatchers.IO) { isMagiskGranted() }
+        if (granted) {
             settingsRepository.setInstallerType(installerType)
         }
     }
