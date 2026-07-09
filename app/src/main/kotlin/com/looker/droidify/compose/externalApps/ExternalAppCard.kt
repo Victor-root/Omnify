@@ -11,8 +11,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -70,6 +73,11 @@ fun ExternalLifecycleActions(
 ) {
     val installing =
         installState == InstallState.Pending || installState == InstallState.Installing
+    // A phone-width button stretched to fill a tablet's much wider screen looked like an oversized
+    // stray bar; capped to a comfortable reading width instead, matching the tablet breakpoint Material
+    // itself uses (600dp) and the F-Droid catalogue detail screen's own primary button — phones (the
+    // vast majority of devices) are completely untouched.
+    val isTablet = LocalConfiguration.current.screenWidthDp >= 600
     when {
         downloadStatus != null -> DownloadProgressRow(
             status = downloadStatus,
@@ -84,22 +92,30 @@ fun ExternalLifecycleActions(
 
         else -> Row(
             modifier = modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(
+                8.dp,
+                if (isTablet) Alignment.CenterHorizontally else Alignment.Start,
+            ),
         ) {
+            val primaryButtonModifier = if (isTablet) {
+                Modifier.widthIn(min = 220.dp, max = 360.dp)
+            } else {
+                Modifier.weight(1f)
+            }
             when {
                 !isInstalled -> Button(
                     onClick = onInstallOrUpdate,
-                    modifier = Modifier.weight(1f),
+                    modifier = primaryButtonModifier,
                 ) { Text(stringResource(R.string.install)) }
 
                 app.hasUpdate -> Button(
                     onClick = onInstallOrUpdate,
-                    modifier = Modifier.weight(1f),
+                    modifier = primaryButtonModifier,
                 ) { Text(stringResource(R.string.update)) }
 
                 else -> Button(
                     onClick = onLaunch,
-                    modifier = Modifier.weight(1f),
+                    modifier = primaryButtonModifier,
                 ) { Text(stringResource(R.string.launch)) }
             }
             if (isInstalled) {

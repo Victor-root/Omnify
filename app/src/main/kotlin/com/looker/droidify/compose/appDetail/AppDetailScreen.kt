@@ -77,6 +77,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -417,6 +418,10 @@ private fun PrimaryActions(
     val context = LocalContext.current
     val installing = installState == InstallState.Pending || installState == InstallState.Installing
     val isTelevision = LocalIsTelevision.current
+    // A phone-width button stretched to fill a tablet's much wider screen looked like an oversized
+    // stray bar; capped to a comfortable reading width instead, matching the tablet breakpoint Material
+    // itself uses (600dp) — phones (the vast majority of devices) are completely untouched.
+    val isTablet = !isTelevision && LocalConfiguration.current.screenWidthDp >= 600
     // TV focus for the action buttons: the button simply scales up (no drawn ring, which floated off a
     // Material button's elevated, larger-than-visible bounds). On TV the buttons are big and centred (not
     // stretched full-width), small enough that the focus zoom stays on screen; touch keeps the full-width
@@ -438,15 +443,16 @@ private fun PrimaryActions(
             modifier = modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(
                 if (isTelevision) 24.dp else 8.dp,
-                if (isTelevision) Alignment.CenterHorizontally else Alignment.Start,
+                if (isTelevision || isTablet) Alignment.CenterHorizontally else Alignment.Start,
             ),
         ) {
-            // Big and centred on TV; full-width (weight) on touch. The primary action also holds the
-            // startup focus (see primaryActionFocusRequester).
-            val tvPrimaryButton = if (isTelevision) {
-                Modifier.height(60.dp).widthIn(min = 340.dp)
-            } else {
-                Modifier.weight(1f)
+            // Big and centred on TV; capped to a reading width on tablet (see isTablet); full-width
+            // (weight) on phones. The primary action also holds the startup focus (see
+            // primaryActionFocusRequester).
+            val tvPrimaryButton = when {
+                isTelevision -> Modifier.height(60.dp).widthIn(min = 340.dp)
+                isTablet -> Modifier.widthIn(min = 220.dp, max = 360.dp)
+                else -> Modifier.weight(1f)
             }.focusRequester(primaryActionFocusRequester)
             val tvSecondaryButton = if (isTelevision) Modifier.height(60.dp).widthIn(min = 200.dp) else Modifier
             when {
