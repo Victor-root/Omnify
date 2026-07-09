@@ -99,6 +99,12 @@ class ExternalAppsViewModel @Inject constructor(
         .map { it.readmeJavaScriptEnabled }
         .asStateFlow(true)
 
+    /** Whether the tablet-landscape two-pane detail layout is allowed at all (the Settings toggle) — a
+     *  screen still only actually shows it when it's also tablet-width and landscape. */
+    val splitViewEnabled: StateFlow<Boolean> = settingsRepository.data
+        .map { it.splitViewEnabled }
+        .asStateFlow(true)
+
     /** Tracked whole-account sources (each expands to several entries in [apps]). */
     val accounts: StateFlow<List<ExternalAccount>> = repository.accounts.asStateFlow(emptyList())
 

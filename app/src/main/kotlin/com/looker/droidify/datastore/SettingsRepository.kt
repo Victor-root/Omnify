@@ -97,6 +97,8 @@ interface SettingsRepository {
     suspend fun setAutoTranslate(enable: Boolean)
 
     suspend fun setReadmeJavaScriptEnabled(enable: Boolean)
+
+    suspend fun setSplitViewEnabled(enable: Boolean)
 }
 
 inline fun <T> SettingsRepository.get(crossinline block: suspend Settings.() -> T): Flow<T> {

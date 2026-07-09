@@ -76,6 +76,10 @@ data class Settings(
      *  identically either way); on only helps the rare README whose dynamic content needs it. Never
      *  affects the app's own UI. */
     val readmeJavaScriptEnabled: Boolean = false,
+    /** Tablet-landscape-only two-pane app detail layout (hero card fixed on the left, the rest of the
+     *  page scrolling on the right). On by default on eligible screens; off hides the feature entirely
+     *  for users who don't want it, regardless of the per-screen toggle button. */
+    val splitViewEnabled: Boolean = true,
 )
 
 @OptIn(ExperimentalSerializationApi::class)

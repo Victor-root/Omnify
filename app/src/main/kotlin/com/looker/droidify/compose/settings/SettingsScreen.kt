@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ViewColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +38,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -266,6 +269,16 @@ fun SettingsScreen(
                     icon = painterResource(R.drawable.ic_tabler_maximize),
                     checked = settings.edgeToEdge,
                     onCheckedChange = viewModel::setEdgeToEdge,
+                )
+            }
+
+            item {
+                SwitchSettingItem(
+                    title = stringResource(R.string.split_view_title),
+                    description = stringResource(R.string.split_view_DESC),
+                    icon = rememberVectorPainter(Icons.Filled.ViewColumn),
+                    checked = settings.splitViewEnabled,
+                    onCheckedChange = viewModel::setSplitViewEnabled,
                 )
             }
 

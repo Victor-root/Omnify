@@ -314,6 +314,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setSplitViewEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setSplitViewEnabled(enabled)
+        }
+    }
+
     fun exportSettings(uri: Uri) {
         viewModelScope.launch {
             settingsRepository.export(uri)

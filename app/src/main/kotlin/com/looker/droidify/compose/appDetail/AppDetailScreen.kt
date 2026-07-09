@@ -2,6 +2,7 @@ package com.looker.droidify.compose.appDetail
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -55,6 +57,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -109,6 +112,7 @@ import com.looker.droidify.compose.components.RootBadge
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionTitle
 import com.looker.droidify.compose.components.ShowMoreRow
+import com.looker.droidify.compose.components.SplitViewToggleAction
 import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
@@ -163,6 +167,7 @@ fun AppDetailScreen(
     val descriptionTranslation by viewModel.descriptionTranslation.collectAsStateWithLifecycle()
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
+    val splitViewSettingEnabled by viewModel.splitViewEnabled.collectAsStateWithLifecycle()
     val successState = state as? AppDetailState.Success
     // The what's-new shown is the device-suitable release's text (falling back to the first package).
     // Translate the same text so the toggle covers the whole description area, not just summary + body.
@@ -190,6 +195,18 @@ fun AppDetailScreen(
     // Hoisted above the Scaffold (not inside AppDetail) so both the content column and the
     // scroll-to-top FAB can read/drive the same scroll position.
     val scrollState = rememberScrollState()
+
+    // Play Store-style two-pane layout: only on a tablet-width screen in landscape (never on phones, TV,
+    // or portrait), and only when the user hasn't turned the feature off entirely in Settings. A small
+    // top-bar button (see splitViewManuallyOff below) additionally lets the user switch back to the
+    // normal single-column layout without touching Settings, for this viewing only.
+    val configuration = LocalConfiguration.current
+    val splitViewAvailable = !LocalIsTelevision.current &&
+        configuration.screenWidthDp >= 600 &&
+        configuration.orientation == Configuration.ORIENTATION_LANDSCAPE &&
+        splitViewSettingEnabled
+    var splitViewManuallyOff by remember { mutableStateOf(false) }
+    val useSplitView = splitViewAvailable && !splitViewManuallyOff
 
     // Re-read the installed state on resume — in particular when returning from the system uninstall
     // dialog — since installManager.state alone doesn't report a system uninstall. This is what lets the
@@ -288,6 +305,12 @@ fun AppDetailScreen(
                 },
                 navigationIcon = { BackButton(onBackClick) },
                 actions = {
+                    if (splitViewAvailable) {
+                        SplitViewToggleAction(
+                            splitView = useSplitView,
+                            onToggle = { splitViewManuallyOff = !splitViewManuallyOff },
+                        )
+                    }
                     // `successState?.let` (not a `successApp != null` check): a plain null check on the
                     // derived `successApp` doesn't smart-cast the separate `successState` variable, and
                     // the share action needs both.
@@ -374,6 +397,7 @@ fun AppDetailScreen(
                     supportedLanguages = supportedLanguages,
                     primaryActionFocusRequester = primaryActionFocusRequester,
                     scrollState = scrollState,
+                    useSplitView = useSplitView,
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -540,6 +564,7 @@ private fun AppDetail(
     supportedLanguages: SupportedLanguages,
     primaryActionFocusRequester: FocusRequester,
     scrollState: ScrollState,
+    useSplitView: Boolean,
     modifier: Modifier = Modifier,
 ) {
     // Not app.packages: that's only the single repo apps.first() picked as "the" app (see the ViewModel's
@@ -596,17 +621,9 @@ private fun AppDetail(
     // Where the versions section actually lands once composed (in the scrolling Column's own
     // coordinate space), so the hero card's "see all versions" link can jump straight to it.
     var versionsAnchorY by remember { mutableStateOf(0) }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            // A focus group so D-pad navigation stays scoped to the content (the action button itself is
-            // the explicit focus target, see primaryActionFocusRequester).
-            .focusGroup()
-            .then(modifier)
-            // Breathing room so the header section isn't glued under the top bar.
-            .padding(top = 16.dp),
-    ) {
+    // The hero card content is identical in both layouts below (nothing moved out of it) — kept as one
+    // lambda so the single-column and split-view branches can never drift apart on it.
+    val headerCard: @Composable () -> Unit = {
         AppHeaderCard(
             app = app,
             packageName = app.metadata.packageName.name,
@@ -631,144 +648,234 @@ private fun AppDetail(
             },
             modifier = Modifier.padding(horizontal = 16.dp),
         )
-
-        // Detect exactly which Google Play services capabilities this build depends on (push, maps,
-        // billing, ...) from its manifest, so we can say precisely what may not work on a de-Googled
-        // device and whether microG covers it. Package-name aware, so a services *provider* like microG
-        // (com.google.android.gms) never warns about needing itself.
-        val gmsPackage = installablePackage ?: packages.firstOrNull()?.first
-        val gmsDependencies = remember(gmsPackage, app.metadata.packageName.name) {
-            if (gmsPackage == null) {
-                emptyList()
-            } else {
-                detectGoogleServicesDependencies(
-                    packageName = app.metadata.packageName.name,
-                    permissionNames = gmsPackage.manifest.permissions.mapTo(HashSet()) { it.name },
-                    featureNames = gmsPackage.features.toHashSet(),
+    }
+    if (useSplitView) {
+        // Tablet landscape only (see useSplitView): a Play Store-style two-pane layout. The hero card
+        // sits fixed in the left pane — it never scrolls — while everything else scrolls independently
+        // in the right pane, sharing the same scrollState the single-column layout below uses, so the
+        // "see all versions" jump-link and the scroll-to-top FAB keep working identically either way.
+        Row(modifier = Modifier.fillMaxSize().then(modifier)) {
+            Column(
+                modifier = Modifier
+                    .weight(0.4f)
+                    .fillMaxHeight()
+                    .padding(top = 16.dp),
+            ) {
+                headerCard()
+            }
+            VerticalDivider()
+            Column(
+                modifier = Modifier
+                    .weight(0.6f)
+                    .fillMaxHeight()
+                    .verticalScroll(scrollState)
+                    .focusGroup()
+                    .padding(top = 16.dp),
+            ) {
+                AppDetailBody(
+                    app = app,
+                    installablePackage = installablePackage,
+                    packages = packages,
+                    customButtons = customButtons,
+                    onCustomButtonClick = onCustomButtonClick,
+                    descriptionTranslation = descriptionTranslation,
+                    supportedLanguages = supportedLanguages,
+                    installableRepo = installableRepo,
+                    onSelectRepo = onSelectRepo,
+                    onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+                    onAnchorPositioned = { versionsAnchorY = it },
                 )
             }
         }
-        if (gmsDependencies.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            GoogleServicesCard(
-                dependencies = gmsDependencies,
-                modifier = Modifier.padding(horizontal = 16.dp),
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                // A focus group so D-pad navigation stays scoped to the content (the action button itself is
+                // the explicit focus target, see primaryActionFocusRequester).
+                .focusGroup()
+                .then(modifier)
+                // Breathing room so the header section isn't glued under the top bar.
+                .padding(top = 16.dp),
+        ) {
+            headerCard()
+            AppDetailBody(
+                app = app,
+                installablePackage = installablePackage,
+                packages = packages,
+                customButtons = customButtons,
+                onCustomButtonClick = onCustomButtonClick,
+                descriptionTranslation = descriptionTranslation,
+                supportedLanguages = supportedLanguages,
+                installableRepo = installableRepo,
+                onSelectRepo = onSelectRepo,
+                onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+                onAnchorPositioned = { versionsAnchorY = it },
             )
         }
+    }
+}
 
-        if (customButtons.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(12.dp))
-            CustomButtonsRow(
-                buttons = customButtons,
+/**
+ * Everything on the detail screen after the hero card: the Google-services notice, custom buttons,
+ * screenshots, categories, summary/description, what's-new, links, anti-features, permissions,
+ * supported languages, and the version list. Extracted so the single-column and tablet-landscape
+ * two-pane layouts in [AppDetail] call the exact same content instead of two copies that could drift
+ * apart. Deliberately emits its composables directly with no wrapping Column of its own, so they land
+ * as direct children of whichever scrolling Column calls it — keeping the version list's scroll anchor
+ * (see [onAnchorPositioned]) correct in both layouts.
+ */
+@Composable
+private fun AppDetailBody(
+    app: App,
+    installablePackage: Package?,
+    packages: List<Pair<Package, Repo>>,
+    customButtons: List<CustomButton>,
+    onCustomButtonClick: (url: String) -> Unit,
+    descriptionTranslation: DescriptionTranslation,
+    supportedLanguages: SupportedLanguages,
+    installableRepo: Repo?,
+    onSelectRepo: (Int) -> Unit,
+    onVersionClick: (Package, Repo) -> Unit,
+    onAnchorPositioned: (Int) -> Unit,
+) {
+    // Detect exactly which Google Play services capabilities this build depends on (push, maps,
+    // billing, ...) from its manifest, so we can say precisely what may not work on a de-Googled
+    // device and whether microG covers it. Package-name aware, so a services *provider* like microG
+    // (com.google.android.gms) never warns about needing itself.
+    val gmsPackage = installablePackage ?: packages.firstOrNull()?.first
+    val gmsDependencies = remember(gmsPackage, app.metadata.packageName.name) {
+        if (gmsPackage == null) {
+            emptyList()
+        } else {
+            detectGoogleServicesDependencies(
                 packageName = app.metadata.packageName.name,
-                appName = app.metadata.name,
-                authorName = app.author?.name,
-                onButtonClick = onCustomButtonClick,
+                permissionNames = gmsPackage.manifest.permissions.mapTo(HashSet()) { it.name },
+                featureNames = gmsPackage.features.toHashSet(),
             )
         }
-
-        val screenshots: List<FilePath> = remember(app.screenshots) {
-            buildList {
-                app.screenshots?.phone?.let { addAll(it) }
-                app.screenshots?.sevenInch?.let { addAll(it) }
-                app.screenshots?.tenInch?.let { addAll(it) }
-                app.screenshots?.tv?.let { addAll(it) }
-                app.screenshots?.wear?.let { addAll(it) }
-            }
-        }
-        if (screenshots.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            ScreenshotsRow(screenshots = screenshots)
-        }
-
-        if (app.categories.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            CategoriesRow(categories = app.categories)
-        }
-
+    }
+    if (gmsDependencies.isNotEmpty()) {
         Spacer(modifier = Modifier.height(8.dp))
-        if (app.metadata.summary.isNotBlank()) {
-            // The bold summary is translated together with the description, so it switches too.
-            val shownSummary = (descriptionTranslation as? DescriptionTranslation.Translated)
-                ?.summary?.takeIf { it.isNotBlank() } ?: app.metadata.summary
-            Text(
-                text = shownSummary,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-        }
-
-        if (app.metadata.description.isNotBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            val handler = LocalUriHandler.current
-            // Parsing the HTML description is expensive; do it once per description instead of on
-            // every recomposition (the detail screen recomposes repeatedly while data loads).
-            val description = remember(app.metadata.description) {
-                app.metadata.description.toAnnotatedString(onUrlClick = { handler.openUri(it) })
-            }
-            // Show the translation when one is ready (the toggle lives in the top bar); otherwise the
-            // original formatted text.
-            val translated = descriptionTranslation as? DescriptionTranslation.Translated
-            if (translated != null && translated.description.isNotBlank()) {
-                Text(
-                    text = translated.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    // TV: a D-pad focus stop so the remote can land on the description and scroll it into
-                    // view instead of jumping over it to the buttons below. No-op on touch.
-                    modifier = Modifier.padding(horizontal = 16.dp).tvReadable(),
-                )
-            } else {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp).tvReadable(),
-                )
-            }
-        }
-        val suggestedPackage = installablePackage ?: packages.firstOrNull()?.first
-
-        suggestedPackage?.whatsNew?.takeIf { it.isNotBlank() }?.let { whatsNew ->
-            Spacer(modifier = Modifier.height(16.dp))
-            val translatedWhatsNew = (descriptionTranslation as? DescriptionTranslation.Translated)
-                ?.whatsNew?.takeIf { it.isNotBlank() }
-            WhatsNewSection(whatsNew = translatedWhatsNew ?: whatsNew)
-        }
-
-        if (app.hasLinks()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            LinksSection(app = app)
-        }
-
-        val antiFeatures = suggestedPackage?.antiFeatures.orEmpty()
-        if (antiFeatures.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            AntiFeaturesSection(antiFeatures = antiFeatures)
-        }
-
-        val permissions = suggestedPackage?.manifest?.permissions.orEmpty()
-        if (permissions.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            PermissionsSection(permissions = permissions)
-        }
-
-        if (supportedLanguages.codes.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            SupportedLanguagesSection(languages = supportedLanguages)
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        VersionsSection(
-            packages = packages,
-            installableRepo = installableRepo,
-            onSelectRepo = onSelectRepo,
-            app = app,
-            onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
-            onAnchorPositioned = { versionsAnchorY = it },
+        GoogleServicesCard(
+            dependencies = gmsDependencies,
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
     }
+
+    if (customButtons.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(12.dp))
+        CustomButtonsRow(
+            buttons = customButtons,
+            packageName = app.metadata.packageName.name,
+            appName = app.metadata.name,
+            authorName = app.author?.name,
+            onButtonClick = onCustomButtonClick,
+        )
+    }
+
+    val screenshots: List<FilePath> = remember(app.screenshots) {
+        buildList {
+            app.screenshots?.phone?.let { addAll(it) }
+            app.screenshots?.sevenInch?.let { addAll(it) }
+            app.screenshots?.tenInch?.let { addAll(it) }
+            app.screenshots?.tv?.let { addAll(it) }
+            app.screenshots?.wear?.let { addAll(it) }
+        }
+    }
+    if (screenshots.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(16.dp))
+        ScreenshotsRow(screenshots = screenshots)
+    }
+
+    if (app.categories.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        CategoriesRow(categories = app.categories)
+    }
+
+    Spacer(modifier = Modifier.height(8.dp))
+    if (app.metadata.summary.isNotBlank()) {
+        // The bold summary is translated together with the description, so it switches too.
+        val shownSummary = (descriptionTranslation as? DescriptionTranslation.Translated)
+            ?.summary?.takeIf { it.isNotBlank() } ?: app.metadata.summary
+        Text(
+            text = shownSummary,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+    }
+
+    if (app.metadata.description.isNotBlank()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        val handler = LocalUriHandler.current
+        // Parsing the HTML description is expensive; do it once per description instead of on
+        // every recomposition (the detail screen recomposes repeatedly while data loads).
+        val description = remember(app.metadata.description) {
+            app.metadata.description.toAnnotatedString(onUrlClick = { handler.openUri(it) })
+        }
+        // Show the translation when one is ready (the toggle lives in the top bar); otherwise the
+        // original formatted text.
+        val translated = descriptionTranslation as? DescriptionTranslation.Translated
+        if (translated != null && translated.description.isNotBlank()) {
+            Text(
+                text = translated.description,
+                style = MaterialTheme.typography.bodyMedium,
+                // TV: a D-pad focus stop so the remote can land on the description and scroll it into
+                // view instead of jumping over it to the buttons below. No-op on touch.
+                modifier = Modifier.padding(horizontal = 16.dp).tvReadable(),
+            )
+        } else {
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 16.dp).tvReadable(),
+            )
+        }
+    }
+    val suggestedPackage = installablePackage ?: packages.firstOrNull()?.first
+
+    suggestedPackage?.whatsNew?.takeIf { it.isNotBlank() }?.let { whatsNew ->
+        Spacer(modifier = Modifier.height(16.dp))
+        val translatedWhatsNew = (descriptionTranslation as? DescriptionTranslation.Translated)
+            ?.whatsNew?.takeIf { it.isNotBlank() }
+        WhatsNewSection(whatsNew = translatedWhatsNew ?: whatsNew)
+    }
+
+    if (app.hasLinks()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        LinksSection(app = app)
+    }
+
+    val antiFeatures = suggestedPackage?.antiFeatures.orEmpty()
+    if (antiFeatures.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        AntiFeaturesSection(antiFeatures = antiFeatures)
+    }
+
+    val permissions = suggestedPackage?.manifest?.permissions.orEmpty()
+    if (permissions.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        PermissionsSection(permissions = permissions)
+    }
+
+    if (supportedLanguages.codes.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        SupportedLanguagesSection(languages = supportedLanguages)
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    VersionsSection(
+        packages = packages,
+        installableRepo = installableRepo,
+        onSelectRepo = onSelectRepo,
+        app = app,
+        onVersionClick = onVersionClick,
+        onAnchorPositioned = onAnchorPositioned,
+    )
 }
 
 /**

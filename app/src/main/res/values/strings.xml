@@ -408,6 +408,10 @@
     <string name="theme_color_wallpaper">Wallpaper</string>
     <string name="edge_to_edge">Edge-to-edge</string>
     <string name="edge_to_edge_summary">Draw the app behind the status and navigation bars. When off, the bars stay solid with the accent color.</string>
+    <string name="split_view_title">Two-pane app detail</string>
+    <string name="split_view_DESC">On a tablet in landscape, show the app\'s hero card fixed on the left and the rest of the page scrolling on the right, like a two-pane layout.</string>
+    <string name="split_view_switch_to_single">Switch to single-column view</string>
+    <string name="split_view_switch_to_split">Switch to two-pane view</string>
     <!-- External app sources (GitHub / GitLab / Codeberg) -->
     <string name="tab_external">External</string>
     <string name="external_add">Add</string>

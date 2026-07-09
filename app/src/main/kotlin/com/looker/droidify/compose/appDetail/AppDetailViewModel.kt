@@ -200,6 +200,11 @@ class AppDetailViewModel @Inject constructor(
         .map { packageName in it }
         .asStateFlow(false)
 
+    /** Whether the tablet-landscape two-pane detail layout is allowed at all (the Settings toggle) — a
+     *  screen still only actually shows it when it's also tablet-width and landscape. */
+    val splitViewEnabled: StateFlow<Boolean> = settingsRepository.get { splitViewEnabled }
+        .asStateFlow(true)
+
     /** Adds or removes this app from the user's favourites. */
     fun toggleFavourite() {
         viewModelScope.launch { appRepository.addToFavourite(PackageName(packageName)) }

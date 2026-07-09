@@ -229,6 +229,9 @@ class PreferenceSettingsRepository(
     override suspend fun setReadmeJavaScriptEnabled(enable: Boolean) =
         README_JAVASCRIPT_ENABLED.update(enable)
 
+    override suspend fun setSplitViewEnabled(enable: Boolean) =
+        SPLIT_VIEW_ENABLED.update(enable)
+
     private fun mapSettings(preferences: Preferences): Settings {
         val installerType =
             InstallerType.valueOf(preferences[INSTALLER_TYPE] ?: InstallerType.Default.name)
@@ -283,6 +286,7 @@ class PreferenceSettingsRepository(
         val libreTranslateApiKey = preferences[LIBRETRANSLATE_API_KEY] ?: ""
         val autoTranslate = preferences[AUTO_TRANSLATE] ?: false
         val readmeJavaScriptEnabled = preferences[README_JAVASCRIPT_ENABLED] ?: false
+        val splitViewEnabled = preferences[SPLIT_VIEW_ENABLED] ?: true
 
         return Settings(
             language = language,
@@ -316,6 +320,7 @@ class PreferenceSettingsRepository(
             libreTranslateApiKey = libreTranslateApiKey,
             autoTranslate = autoTranslate,
             readmeJavaScriptEnabled = readmeJavaScriptEnabled,
+            splitViewEnabled = splitViewEnabled,
         )
     }
 
@@ -359,6 +364,7 @@ class PreferenceSettingsRepository(
         val LIBRETRANSLATE_API_KEY = stringPreferencesKey("key_libretranslate_api_key")
         val AUTO_TRANSLATE = booleanPreferencesKey("key_auto_translate")
         val README_JAVASCRIPT_ENABLED = booleanPreferencesKey("key_readme_javascript_enabled")
+        val SPLIT_VIEW_ENABLED = booleanPreferencesKey("key_split_view_enabled")
 
         // Enums
         val THEME = stringPreferencesKey("key_theme")
@@ -423,6 +429,7 @@ class PreferenceSettingsRepository(
             set(LIBRETRANSLATE_API_KEY, settings.libreTranslateApiKey)
             set(AUTO_TRANSLATE, settings.autoTranslate)
             set(README_JAVASCRIPT_ENABLED, settings.readmeJavaScriptEnabled)
+            set(SPLIT_VIEW_ENABLED, settings.splitViewEnabled)
             return this.toPreferences()
         }
     }

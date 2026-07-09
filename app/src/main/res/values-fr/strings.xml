@@ -398,6 +398,10 @@
     <string name="theme_color_wallpaper">Fond d\'écran</string>
     <string name="edge_to_edge">Bord à bord</string>
     <string name="edge_to_edge_summary">Afficher l\'app derrière la barre d\'état et la barre de navigation. Désactivé, les barres restent pleines avec la couleur d\'accentuation.</string>
+    <string name="split_view_title">Détail de l\'app sur deux volets</string>
+    <string name="split_view_DESC">Sur une tablette en mode paysage, affiche la carte principale de l\'app fixée à gauche et le reste de la page qui défile à droite, façon affichage à deux volets.</string>
+    <string name="split_view_switch_to_single">Passer à l\'affichage sur une colonne</string>
+    <string name="split_view_switch_to_split">Passer à l\'affichage sur deux volets</string>
     <!-- Sources d\'apps externes (GitHub / GitLab / Codeberg) -->
     <string name="tab_external">Externe</string>
     <string name="external_add">Ajouter</string>

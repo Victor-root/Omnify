@@ -1,12 +1,15 @@
 package com.looker.droidify.compose.externalApps
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.util.Log
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,6 +32,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
@@ -63,12 +68,16 @@ import com.looker.droidify.compose.components.RootBadge
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionTitle
 import com.looker.droidify.compose.components.ShowMoreRow
+import com.looker.droidify.compose.components.SplitViewToggleAction
+import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
+import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkFileSize
@@ -100,6 +109,7 @@ fun ExternalAppDetailScreen(
     val changelogUnavailable by viewModel.changelogUnavailable.collectAsStateWithLifecycle()
     var showChangelog by remember { mutableStateOf(false) }
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
+    val splitViewSettingEnabled by viewModel.splitViewEnabled.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -127,6 +137,19 @@ fun ExternalAppDetailScreen(
     // Where the versions section actually lands once composed (in the scrolling Column's own
     // coordinate space), so the hero card's "see all versions" link can jump straight to it.
     var versionsAnchorY by remember { mutableStateOf(0) }
+
+    // Play Store-style two-pane layout: only on a tablet-width screen in landscape (never on phones, TV,
+    // or portrait), and only when the user hasn't turned the feature off entirely in Settings. A small
+    // top-bar button (see splitViewManuallyOff below) additionally lets the user switch back to the
+    // normal single-column layout without touching Settings, for this viewing only. Mirrors the F-Droid
+    // catalogue detail screen's own check (see AppDetailScreen) so both behave identically.
+    val configuration = LocalConfiguration.current
+    val splitViewAvailable = !LocalIsTelevision.current &&
+        configuration.screenWidthDp >= 600 &&
+        configuration.orientation == Configuration.ORIENTATION_LANDSCAPE &&
+        splitViewSettingEnabled
+    var splitViewManuallyOff by remember { mutableStateOf(false) }
+    val useSplitView = splitViewAvailable && !splitViewManuallyOff
 
     // Download the project README (as HTML) once the app is known, to fill out the detail screen.
     LaunchedEffect(app?.key) {
@@ -160,6 +183,12 @@ fun ExternalAppDetailScreen(
                 },
                 navigationIcon = { BackButton(onBackClick) },
                 actions = {
+                    if (splitViewAvailable) {
+                        SplitViewToggleAction(
+                            splitView = useSplitView,
+                            onToggle = { splitViewManuallyOff = !splitViewManuallyOff },
+                        )
+                    }
                     if (app != null) {
                         IconButton(
                             onClick = {
@@ -225,50 +254,42 @@ fun ExternalAppDetailScreen(
             )
         }
         // Everything (the icon/name/versions/actions block AND the README) scrolls as one — only the
-        // top bar stays fixed. The WebView reports its content height (below) so it can be sized
-        // exactly instead of owning a second, separate scroll.
-        val density = LocalDensity.current
+        // top bar stays fixed, except in the tablet-landscape two-pane layout below, where the hero card
+        // moves to its own fixed left pane. The WebView reports its content height (in
+        // ExternalAppDetailBody) so it can be sized exactly instead of owning a second, separate scroll.
         // Show the translated HTML when present, otherwise the original. Both render in the WebView so a
         // translation keeps the README's images, headings, lists and links.
         val readmeHtml = (readmeTranslation as? DescriptionTranslation.Translated)?.description ?: readme
-        // Keyed on app.key (stable for this screen), NOT on the html: the WebView captures its
-        // height callback once, so the callback must keep targeting the same state instance. The
-        // WebView re-reports its height every time the document reloads, so translating or reverting
-        // resizes correctly on its own.
-        var readmeHeightPx by remember(app.key) { mutableStateOf(0) }
         // scrollState is hoisted above the Scaffold (used by the page-scroll TV modifier below and by
         // the scroll-to-top FAB). viewportPx drives the page step for TV D-pad paging.
         var viewportPx by remember { mutableStateOf(0) }
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(contentPadding)
-                .onSizeChanged { viewportPx = it.height }
-                .verticalScroll(scrollState),
-        ) {
-            // The repo's release tag (e.g. "v2.5.0") often doesn't match the APK's own version — the file
-            // name usually does (e.g. "GlassKeep-1.4.6.apk" for a "v2.5.0" release), so that's what's shown
-            // as the hero "Version" whenever a build is available, falling back to the tag otherwise.
-            val heroVersion = app.latestApkName?.let { apkVersionLabel(it) } ?: app.latestTag
-            // Mirrors the F-Droid catalogue's "Taille" stat; null (hidden) when the provider's release
-            // API doesn't expose a file size (GitLab's release link assets carry none).
-            val heroSize = app.latestApkSize?.let { DataSize(it).toString() }
-            LaunchedEffect(app.key, app.latestApkSize) {
-                Log.d("ExternalAppDetailScreen", "${app.key}: latestApkSize=${app.latestApkSize} heroSize=$heroSize")
-            }
-            // Fuzzy but shared with the F-Droid catalogue's own check (see RootDetection): an external
-            // source has no manifest permissions to read, so this only has the app's own text to go on
-            // — its name and README (once loaded; the badge simply isn't shown yet before then).
-            val isRootCompatible = remember(app.key, readmeHtml) {
-                RootDetection.textIndicatesRoot("${app.label} ${readmeHtml.orEmpty()}")
-            }
 
-            // The installed version, if any — folded into the card's footer, mirroring how the F-Droid
-            // catalogue card shows its installed version there.
-            val footerText = installedVersion?.let {
-                stringResource(R.string.external_installed_version, it)
-            }
+        // The repo's release tag (e.g. "v2.5.0") often doesn't match the APK's own version — the file
+        // name usually does (e.g. "GlassKeep-1.4.6.apk" for a "v2.5.0" release), so that's what's shown
+        // as the hero "Version" whenever a build is available, falling back to the tag otherwise.
+        val heroVersion = app.latestApkName?.let { apkVersionLabel(it) } ?: app.latestTag
+        // Mirrors the F-Droid catalogue's "Taille" stat; null (hidden) when the provider's release
+        // API doesn't expose a file size (GitLab's release link assets carry none).
+        val heroSize = app.latestApkSize?.let { DataSize(it).toString() }
+        LaunchedEffect(app.key, app.latestApkSize) {
+            Log.d("ExternalAppDetailScreen", "${app.key}: latestApkSize=${app.latestApkSize} heroSize=$heroSize")
+        }
+        // Fuzzy but shared with the F-Droid catalogue's own check (see RootDetection): an external
+        // source has no manifest permissions to read, so this only has the app's own text to go on
+        // — its name and README (once loaded; the badge simply isn't shown yet before then).
+        val isRootCompatible = remember(app.key, readmeHtml) {
+            RootDetection.textIndicatesRoot("${app.label} ${readmeHtml.orEmpty()}")
+        }
 
+        // The installed version, if any — folded into the card's footer, mirroring how the F-Droid
+        // catalogue card shows its installed version there.
+        val footerText = installedVersion?.let {
+            stringResource(R.string.external_installed_version, it)
+        }
+
+        // The hero card content is identical in both layouts below (nothing moved out of it) — kept as
+        // one lambda so the single-column and split-view branches can never drift apart on it.
+        val headerCard: @Composable () -> Unit = {
             HeroCard(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
                 icon = {
@@ -305,158 +326,265 @@ fun ExternalAppDetailScreen(
                     },
                 ),
             )
+        }
 
-            if (!isInstalled) {
-                PreInstallNotice(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                )
-            }
-
-            Spacer(Modifier.height(20.dp))
-            SectionSeparator()
-            Spacer(Modifier.height(4.dp))
-
-            // README — sized to its content (it doesn't scroll itself) so it scrolls with the rest.
-            // GitHub leaves repo-relative image paths un-rewritten, so the WebView resolves them
-            // against the raw content host. While it loads, show a spinner instead of empty space.
-            if (readmeHtml != null) {
-                // On TV this Box is the single focus stop for the whole README: landing here, the D-pad
-                // pages the screen up/down through it (the WebView itself is non-focusable on TV, so the
-                // remote no longer steps over its links and images). A plain wrapper on touch.
-                Box(
+        if (useSplitView) {
+            // Tablet landscape only (see useSplitView): a Play Store-style two-pane layout. The hero card
+            // sits fixed in the left pane — it never scrolls — while everything else scrolls independently
+            // in the right pane, sharing the same scrollState the single-column layout below uses, so the
+            // "see all versions" jump-link and the scroll-to-top FAB keep working identically either way.
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(contentPadding),
+            ) {
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .tvPageScroll(scrollState, (viewportPx * 0.85f).toInt()),
+                        .weight(0.4f)
+                        .fillMaxHeight(),
                 ) {
-                    ReadmeWebView(
-                        html = readmeHtml,
-                        baseUrl = app.readmeWebBaseUrl,
-                        javaScriptEnabled = readmeJavaScriptEnabled,
-                        onContentHeight = { readmeHeightPx = it },
+                    headerCard()
+                }
+                VerticalDivider()
+                Column(
+                    modifier = Modifier
+                        .weight(0.6f)
+                        .fillMaxHeight()
+                        .onSizeChanged { viewportPx = it.height }
+                        .verticalScroll(scrollState),
+                ) {
+                    ExternalAppDetailBody(
+                        app = app,
+                        isInstalled = isInstalled,
+                        readmeHtml = readmeHtml,
+                        readmeError = readmeError,
+                        readmeJavaScriptEnabled = readmeJavaScriptEnabled,
+                        viewportPx = viewportPx,
                         scrollState = scrollState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            // Until the content height is known, give it a sensible height so it can render
-                            // and measure; then snap to the exact height.
-                            .height(
-                                if (readmeHeightPx > 0) {
-                                    with(density) { readmeHeightPx.toDp() }
-                                } else {
-                                    600.dp
-                                },
-                            ),
-                    )
-                }
-            } else if (readmeError != null) {
-                // The fetch already failed (most often the anonymous GitHub rate limit) — say so instead
-                // of leaving the spinner running forever with no way to tell it apart from "still loading".
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(40.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = readmeError.orEmpty(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(40.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
-                }
-            }
-
-            // "Issue tracker" and "Changelog" — an external source has no index metadata for these like
-            // the F-Droid catalogue does, so they're resolved live from the provider. Always shown (not
-            // hidden while resolving/absent) so the page doesn't jump around as the checks complete;
-            // a still-loading or genuinely absent link reads as a plain "…" / explanatory row instead.
-            Spacer(Modifier.height(16.dp))
-            Column(modifier = Modifier.fillMaxWidth()) {
-                SectionTitle(stringResource(R.string.links), R.drawable.ic_tabler_link)
-                LinkRow(
-                    iconRes = R.drawable.ic_bug_report,
-                    title = stringResource(R.string.issue_tracker),
-                    url = issueTrackerLink?.url,
-                    unavailableText = stringResource(
-                        if (issueTrackerLink == null) R.string.loading else R.string.external_no_issue_tracker,
-                    ),
-                    onClick = issueTrackerLink?.url?.let { url -> { uriHandler.openUri(url) } },
-                )
-                LinkRow(
-                    iconRes = R.drawable.ic_history,
-                    title = stringResource(R.string.changelog),
-                    url = changelogLink?.url,
-                    unavailableText = stringResource(
-                        if (changelogLink == null) R.string.loading else R.string.external_no_changelog,
-                    ),
-                    // Opened in-app (see ChangelogDialog below), same as the README, instead of sending
-                    // the user to the browser to read what's new.
-                    onClick = changelogLink?.url?.let {
-                        {
+                        issueTrackerLink = issueTrackerLink,
+                        changelogLink = changelogLink,
+                        onChangelogClick = {
                             showChangelog = true
                             viewModel.loadChangelogHtml(app)
-                        }
-                    },
-                )
-            }
-
-            // Same reliable, real-UI-language check as the F-Droid catalogue's — but with no store-
-            // listing metadata to fall back to for an external source, this section only shows once
-            // there's a confirmed answer, instead of ever showing a guess.
-            supportedLanguages?.let { languages ->
-                Spacer(Modifier.height(8.dp))
-                SupportedLanguagesSection(languages = languages)
-            }
-
-            // Recent releases the user can pick a specific version to install from — same idea as the
-            // F-Droid catalogue's version list, at the bottom of the page in the same way. Position-
-            // tracked so the hero card's "see all versions" link can scroll straight to it.
-            if (!releaseHistory.isNullOrEmpty()) {
-                Column(
-                    modifier = Modifier.onGloballyPositioned {
-                        versionsAnchorY = it.positionInParent().y.toInt()
-                    },
-                ) {
-                    Spacer(Modifier.height(20.dp))
-                    SectionSeparator()
-                    Spacer(Modifier.height(20.dp))
-                    Text(
-                        text = stringResource(R.string.versions),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        },
+                        supportedLanguages = supportedLanguages,
+                        releaseHistory = releaseHistory,
+                        onVersionClick = { versionToInstall = it },
+                        onAnchorPositioned = { versionsAnchorY = it },
                     )
-                    val releases = releaseHistory.orEmpty()
-                    // Collapsed to the newest few by default — same as the F-Droid catalogue's version
-                    // list, so a long history doesn't turn the whole page into an endless scroll.
-                    var versionsExpanded by remember(app.key) { mutableStateOf(false) }
-                    val visibleCount = if (versionsExpanded) releases.size else VERSIONS_COLLAPSED_COUNT
-                    releases.take(visibleCount).forEach { release ->
-                        ReleaseVersionItem(
-                            release = release,
-                            apkName = release.apkFileName(filter = app.apkFilter),
-                            apkSize = release.apkFileSize(filter = app.apkFilter),
-                            isSuggested = release.tag == app.latestTag,
-                            isInstalled = release.tag == app.installedTag,
-                            onClick = { versionToInstall = release },
-                        )
-                    }
-                    if (releases.size > VERSIONS_COLLAPSED_COUNT) {
-                        ShowMoreRow(
-                            hiddenCount = releases.size - VERSIONS_COLLAPSED_COUNT,
-                            expanded = versionsExpanded,
-                            onToggle = { versionsExpanded = !versionsExpanded },
-                        )
-                    }
-                    Spacer(Modifier.height(16.dp))
                 }
             }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(contentPadding)
+                    .onSizeChanged { viewportPx = it.height }
+                    .verticalScroll(scrollState),
+            ) {
+                headerCard()
+                ExternalAppDetailBody(
+                    app = app,
+                    isInstalled = isInstalled,
+                    readmeHtml = readmeHtml,
+                    readmeError = readmeError,
+                    readmeJavaScriptEnabled = readmeJavaScriptEnabled,
+                    viewportPx = viewportPx,
+                    scrollState = scrollState,
+                    issueTrackerLink = issueTrackerLink,
+                    changelogLink = changelogLink,
+                    onChangelogClick = {
+                        showChangelog = true
+                        viewModel.loadChangelogHtml(app)
+                    },
+                    supportedLanguages = supportedLanguages,
+                    releaseHistory = releaseHistory,
+                    onVersionClick = { versionToInstall = it },
+                    onAnchorPositioned = { versionsAnchorY = it },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Everything on the external-app detail screen after the hero card: the pre-install notice, README,
+ * links, supported languages, and the version list. Extracted so the single-column and tablet-landscape
+ * two-pane layouts in [ExternalAppDetailScreen] call the exact same content instead of two copies that
+ * could drift apart. Deliberately emits its composables directly with no wrapping Column of its own, so
+ * they land as direct children of whichever scrolling Column calls it — keeping the version list's
+ * scroll anchor (see [onAnchorPositioned]) correct in both layouts.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ExternalAppDetailBody(
+    app: ExternalApp,
+    isInstalled: Boolean,
+    readmeHtml: String?,
+    readmeError: String?,
+    readmeJavaScriptEnabled: Boolean,
+    viewportPx: Int,
+    scrollState: ScrollState,
+    issueTrackerLink: LinkCheckState?,
+    changelogLink: LinkCheckState?,
+    onChangelogClick: () -> Unit,
+    supportedLanguages: SupportedLanguages?,
+    releaseHistory: List<Release>?,
+    onVersionClick: (Release) -> Unit,
+    onAnchorPositioned: (Int) -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+    val density = LocalDensity.current
+    // Keyed on app.key (stable for this screen), NOT on the html: the WebView captures its
+    // height callback once, so the callback must keep targeting the same state instance. The
+    // WebView re-reports its height every time the document reloads, so translating or reverting
+    // resizes correctly on its own.
+    var readmeHeightPx by remember(app.key) { mutableStateOf(0) }
+
+    if (!isInstalled) {
+        PreInstallNotice(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        )
+    }
+
+    Spacer(Modifier.height(20.dp))
+    SectionSeparator()
+    Spacer(Modifier.height(4.dp))
+
+    // README — sized to its content (it doesn't scroll itself) so it scrolls with the rest.
+    // GitHub leaves repo-relative image paths un-rewritten, so the WebView resolves them
+    // against the raw content host. While it loads, show a spinner instead of empty space.
+    if (readmeHtml != null) {
+        // On TV this Box is the single focus stop for the whole README: landing here, the D-pad
+        // pages the screen up/down through it (the WebView itself is non-focusable on TV, so the
+        // remote no longer steps over its links and images). A plain wrapper on touch.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .tvPageScroll(scrollState, (viewportPx * 0.85f).toInt()),
+        ) {
+            ReadmeWebView(
+                html = readmeHtml,
+                baseUrl = app.readmeWebBaseUrl,
+                javaScriptEnabled = readmeJavaScriptEnabled,
+                onContentHeight = { readmeHeightPx = it },
+                scrollState = scrollState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // Until the content height is known, give it a sensible height so it can render
+                    // and measure; then snap to the exact height.
+                    .height(
+                        if (readmeHeightPx > 0) {
+                            with(density) { readmeHeightPx.toDp() }
+                        } else {
+                            600.dp
+                        },
+                    ),
+            )
+        }
+    } else if (readmeError != null) {
+        // The fetch already failed (most often the anonymous GitHub rate limit) — say so instead
+        // of leaving the spinner running forever with no way to tell it apart from "still loading".
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(40.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = readmeError.orEmpty(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(40.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
+        }
+    }
+
+    // "Issue tracker" and "Changelog" — an external source has no index metadata for these like
+    // the F-Droid catalogue does, so they're resolved live from the provider. Always shown (not
+    // hidden while resolving/absent) so the page doesn't jump around as the checks complete;
+    // a still-loading or genuinely absent link reads as a plain "…" / explanatory row instead.
+    Spacer(Modifier.height(16.dp))
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SectionTitle(stringResource(R.string.links), R.drawable.ic_tabler_link)
+        LinkRow(
+            iconRes = R.drawable.ic_bug_report,
+            title = stringResource(R.string.issue_tracker),
+            url = issueTrackerLink?.url,
+            unavailableText = stringResource(
+                if (issueTrackerLink == null) R.string.loading else R.string.external_no_issue_tracker,
+            ),
+            onClick = issueTrackerLink?.url?.let { url -> { uriHandler.openUri(url) } },
+        )
+        LinkRow(
+            iconRes = R.drawable.ic_history,
+            title = stringResource(R.string.changelog),
+            url = changelogLink?.url,
+            unavailableText = stringResource(
+                if (changelogLink == null) R.string.loading else R.string.external_no_changelog,
+            ),
+            // Opened in-app (see ChangelogDialog), same as the README, instead of sending
+            // the user to the browser to read what's new.
+            onClick = changelogLink?.url?.let { { onChangelogClick() } },
+        )
+    }
+
+    // Same reliable, real-UI-language check as the F-Droid catalogue's — but with no store-
+    // listing metadata to fall back to for an external source, this section only shows once
+    // there's a confirmed answer, instead of ever showing a guess.
+    supportedLanguages?.let { languages ->
+        Spacer(Modifier.height(8.dp))
+        SupportedLanguagesSection(languages = languages)
+    }
+
+    // Recent releases the user can pick a specific version to install from — same idea as the
+    // F-Droid catalogue's version list, at the bottom of the page in the same way. Position-
+    // tracked so the hero card's "see all versions" link can scroll straight to it.
+    if (!releaseHistory.isNullOrEmpty()) {
+        Column(
+            modifier = Modifier.onGloballyPositioned {
+                onAnchorPositioned(it.positionInParent().y.toInt())
+            },
+        ) {
+            Spacer(Modifier.height(20.dp))
+            SectionSeparator()
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = stringResource(R.string.versions),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            val releases = releaseHistory.orEmpty()
+            // Collapsed to the newest few by default — same as the F-Droid catalogue's version
+            // list, so a long history doesn't turn the whole page into an endless scroll.
+            var versionsExpanded by remember(app.key) { mutableStateOf(false) }
+            val visibleCount = if (versionsExpanded) releases.size else VERSIONS_COLLAPSED_COUNT
+            releases.take(visibleCount).forEach { release ->
+                ReleaseVersionItem(
+                    release = release,
+                    apkName = release.apkFileName(filter = app.apkFilter),
+                    apkSize = release.apkFileSize(filter = app.apkFilter),
+                    isSuggested = release.tag == app.latestTag,
+                    isInstalled = release.tag == app.installedTag,
+                    onClick = { onVersionClick(release) },
+                )
+            }
+            if (releases.size > VERSIONS_COLLAPSED_COUNT) {
+                ShowMoreRow(
+                    hiddenCount = releases.size - VERSIONS_COLLAPSED_COUNT,
+                    expanded = versionsExpanded,
+                    onToggle = { versionsExpanded = !versionsExpanded },
+                )
+            }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
