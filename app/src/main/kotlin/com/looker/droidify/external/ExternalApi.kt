@@ -157,12 +157,17 @@ class ExternalApi @Inject constructor(
         val paths = fetchTreePaths(app)
         if (paths.isEmpty()) return@withContext null
         val androidLocales = paths.mapNotNull { localeFromResValuesPath(it) }
+        // The unqualified res/values/ (no "-xx" suffix at all) is the base/default strings — by
+        // Android's near-universal convention, written in English, with values-xx/ only for the
+        // *other* languages layered on top. Without this, the language the app was actually written in
+        // never showed up at all, only the translations on top of it.
+        val hasDefaultValues = paths.any { RES_DEFAULT_VALUES_REGEX.containsMatchIn(it) }
         // A cross-platform (Flutter, React Native, …) app has no res/values-xx/ at all — its UI strings
         // are its own asset files, not Android resources — so this is tried too, whether or not the
         // first found anything, and the two are merged (a project can plausibly use both for different
         // parts of the app).
         val i18nLocales = paths.mapNotNull { localeFromI18nAssetPath(it) }
-        (androidLocales + i18nLocales).distinct().sorted()
+        (androidLocales + i18nLocales + listOfNotNull("en".takeIf { hasDefaultValues })).distinct().sorted()
     }
 
     /**
@@ -778,6 +783,10 @@ private fun densityRank(dir: String): Int = when {
 /** Matches a `res/values-<qualifier>/<file>` path, capturing the qualifier — the same convention
  *  Android resource directories always use, regardless of module depth. */
 private val RES_VALUES_DIR_REGEX = Regex("""/res/values-([^/]+)/[^/]+$""")
+
+/** Matches a file directly inside an unqualified `res/values/` (no "-xx" suffix at all) — the app's
+ *  base/default strings, treated as English (see [ExternalApi.fetchSourceLocales]). */
+private val RES_DEFAULT_VALUES_REGEX = Regex("""/res/values/[^/]+$""")
 
 /** A plain locale qualifier: a 2-3 letter ISO 639 code, optionally with a `-r<REGION>` region (a
  *  2-letter ISO 3166 code or a 3-digit UN M.49 area code) — e.g. "fr", "pt-rBR", "es-r419". */

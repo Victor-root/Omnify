@@ -92,13 +92,13 @@ class AppRepository @Inject constructor(
     /** Cached real supported locales for a not-yet-installed APK (see [ApkLocaleCacheDao]), read once
      *  by inspecting the APK's compiled resources — null if nothing has been cached for it yet. */
     suspend fun cachedApkLocales(apkHash: String): List<String>? = withContext(Dispatchers.Default) {
-        apkLocaleCacheDao.getLocales(apkHash)
+        apkLocaleCacheDao.getLocales(apkHash.withParserVersion())
     }
 
     /** Caches the real supported locales for a not-yet-installed APK, keyed by its content hash. */
     suspend fun cacheApkLocales(apkHash: String, locales: List<String>) {
         withContext(Dispatchers.Default) {
-            apkLocaleCacheDao.setLocales(ApkLocaleCacheEntity(apkHash, locales))
+            apkLocaleCacheDao.setLocales(ApkLocaleCacheEntity(apkHash.withParserVersion(), locales))
         }
     }
 
@@ -194,3 +194,12 @@ data class SuggestedVersion(
     val versionCode: Long,
     val signers: Set<String>,
 )
+
+/** Bumped whenever [com.looker.droidify.utility.apk.ApkResourceLocales]'s parsing logic changes in a
+ *  way that changes its output for the same bytes (e.g. the library-noise filter added after this
+ *  cache already had entries) — folded into the cache key so old rows, computed with the previous
+ *  logic, are never read back as if they were still correct. Old rows are simply orphaned, not
+ *  actively cleaned up, which is harmless for a small text cache. */
+private const val APK_LOCALE_PARSER_VERSION = "v3"
+
+private fun String.withParserVersion(): String = "$APK_LOCALE_PARSER_VERSION:$this"
