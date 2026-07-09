@@ -274,6 +274,7 @@
     <string name="connection_error_DESC">Impossible de se connecter au serveur</string>
     <string name="shizuku_not_alive">Shizuku/Sui n\'est pas en fonction</string>
     <string name="shizuku_not_installed">Shizuku/Sui n\'est pas installé</string>
+    <string name="root_not_granted">Accès root refusé ou délai dépassé</string>
     <string name="shizuku_not_running">Shizuku n\'est pas lancé. Lancez-le puis réessayez</string>
     <string name="shizuku_permission_needed">Autorisez Omnify dans Shizuku, puis réessayez</string>
     <string name="contains_nsfw">Contient des contenus non adaptés pour le travail</string>

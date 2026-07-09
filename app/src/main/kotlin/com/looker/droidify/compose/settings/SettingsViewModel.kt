@@ -210,6 +210,10 @@ class SettingsViewModel @Inject constructor(
         val granted = withContext(Dispatchers.IO) { isMagiskGranted() }
         if (granted) {
             settingsRepository.setInstallerType(installerType)
+        } else {
+            // Previously silent: nothing told the user why the switch didn't happen — it just looked
+            // like tapping "Root" did nothing, with only a logcat line (see isMagiskGranted) to go on.
+            showSnackbar(R.string.root_not_granted)
         }
     }
 

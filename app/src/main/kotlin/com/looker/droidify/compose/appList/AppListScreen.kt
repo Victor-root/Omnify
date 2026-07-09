@@ -38,6 +38,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -76,6 +77,7 @@ import androidx.compose.material3.IconButtonDefaults.smallContainerSize
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Surface
@@ -112,6 +114,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -1247,6 +1250,11 @@ private fun AppListMainTopBar(
     title: @Composable () -> Unit,
 ) {
     var overflowExpanded by remember { mutableStateOf(false) }
+    // The three action buttons sat edge-to-edge on a tablet's much wider bar, and the overflow menu
+    // looked tiny against all that width — both made mis-taps easy. Phones (the vast majority of
+    // devices) are completely untouched.
+    val isTablet = !LocalIsTelevision.current && LocalConfiguration.current.screenWidthDp >= 600
+    val buttonSpacing = if (isTablet) 16.dp else 4.dp
     TopAppBar(
         colors = accentTopAppBarColors(),
         expandedHeight = HomeBarHeight,
@@ -1271,7 +1279,7 @@ private fun AppListMainTopBar(
                     contentDescription = stringResource(R.string.search),
                 )
             }
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(buttonSpacing))
             IconButton(
                 onClick = onSync,
                 modifier = Modifier
@@ -1291,7 +1299,7 @@ private fun AppListMainTopBar(
                     contentDescription = stringResource(R.string.sync),
                 )
             }
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(buttonSpacing))
             // Overflow: the less-used destinations (favourites filter, repositories, settings) live
             // here so the header stays uncluttered.
             Box {
@@ -1317,9 +1325,15 @@ private fun AppListMainTopBar(
                 DropdownMenu(
                     expanded = overflowExpanded,
                     onDismissRequest = { overflowExpanded = false },
+                    modifier = if (isTablet) Modifier.widthIn(min = 280.dp) else Modifier,
                 ) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.favourites)) },
+                        text = {
+                            Text(
+                                stringResource(R.string.favourites),
+                                style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
+                            )
+                        },
                         onClick = {
                             onToggleFavourites()
                             overflowExpanded = false
@@ -1332,9 +1346,19 @@ private fun AppListMainTopBar(
                         } else {
                             null
                         },
+                        contentPadding = if (isTablet) {
+                            PaddingValues(horizontal = 20.dp, vertical = 4.dp)
+                        } else {
+                            MenuDefaults.DropdownMenuItemContentPadding
+                        },
                     )
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.repositories)) },
+                        text = {
+                            Text(
+                                stringResource(R.string.repositories),
+                                style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
+                            )
+                        },
                         onClick = {
                             onNavigateToRepos()
                             overflowExpanded = false
@@ -1342,9 +1366,19 @@ private fun AppListMainTopBar(
                         leadingIcon = {
                             Icon(painterResource(R.drawable.ic_tabler_box), contentDescription = null)
                         },
+                        contentPadding = if (isTablet) {
+                            PaddingValues(horizontal = 20.dp, vertical = 4.dp)
+                        } else {
+                            MenuDefaults.DropdownMenuItemContentPadding
+                        },
                     )
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.settings)) },
+                        text = {
+                            Text(
+                                stringResource(R.string.settings),
+                                style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
+                            )
+                        },
                         onClick = {
                             onNavigateToSettings()
                             overflowExpanded = false
@@ -1355,10 +1389,15 @@ private fun AppListMainTopBar(
                                 contentDescription = null,
                             )
                         },
+                        contentPadding = if (isTablet) {
+                            PaddingValues(horizontal = 20.dp, vertical = 4.dp)
+                        } else {
+                            MenuDefaults.DropdownMenuItemContentPadding
+                        },
                     )
                 }
             }
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(buttonSpacing))
         },
     )
 }

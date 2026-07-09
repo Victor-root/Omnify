@@ -180,6 +180,7 @@
     <string name="shizuku_legacy_installer">Shizuku/Sui legacy installer</string>
     <string name="shizuku_not_alive">Shizuku/Sui isn\'t running</string>
     <string name="shizuku_not_installed">Shizuku/Sui isn\'t installed</string>
+    <string name="root_not_granted">Root access was denied or timed out</string>
     <string name="shizuku_not_running">Shizuku isn\'t running. Start it, then retry</string>
     <string name="shizuku_permission_needed">Allow Omnify in Shizuku, then retry</string>
     <string name="installed">Installed</string>
