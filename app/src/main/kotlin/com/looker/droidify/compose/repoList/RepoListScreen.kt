@@ -35,6 +35,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -43,6 +44,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.WavyProgressIndicatorDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -169,14 +171,19 @@ fun RepoListScreen(
                         }
                     },
                 )
-                if (isSyncing) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularWavyProgressIndicator(modifier = Modifier.size(32.dp))
+                // A thin wavy progress line pinned right under the header while a sync runs. It lives in a
+                // fixed-height slot that stays reserved whether or not a sync is running, so a sync
+                // starting — e.g. the instant a repo is toggled on — can never grow the header and shove
+                // the whole list down. The old centered circular spinner did exactly that: it appeared,
+                // pushed everything down, and the next toggle slid out from under the user's finger.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(WavyProgressIndicatorDefaults.LinearContainerHeight),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isSyncing) {
+                        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
                 }
             }
