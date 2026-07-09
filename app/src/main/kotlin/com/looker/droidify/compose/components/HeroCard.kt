@@ -252,7 +252,9 @@ fun heroFooter(
 /** One label-over-value stat, e.g. "Version" / "1.18_beta". */
 @Composable
 fun HeroStatItem(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+    // A touch of side padding so a wrapped two-line value (a long version string, say) doesn't butt
+    // right up against the divider to its neighbour.
+    Column(modifier = modifier.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
@@ -262,7 +264,11 @@ fun HeroStatItem(label: String, value: String, modifier: Modifier = Modifier) {
             text = value,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            maxLines = 1,
+            textAlign = TextAlign.Center,
+            // A long version string (some apps' versionName runs on for 20+ characters) wrapped to a
+            // second line instead of being truncated with "…" — the whole point of this stat is
+            // showing the real version, so ellipsizing it away defeats the purpose.
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }
