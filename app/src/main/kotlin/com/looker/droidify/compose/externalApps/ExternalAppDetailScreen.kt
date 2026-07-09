@@ -4,7 +4,6 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.util.Log
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
@@ -44,7 +42,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -69,6 +66,7 @@ import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.RootBadge
 import com.looker.droidify.compose.components.ScrollToTopFab
+import com.looker.droidify.compose.components.SectionSeparator
 import com.looker.droidify.compose.components.SectionTitle
 import com.looker.droidify.compose.components.ShowMoreRow
 import com.looker.droidify.compose.components.SplitViewToggleAction
@@ -373,6 +371,9 @@ fun ExternalAppDetailScreen(
                         Spacer(Modifier.height(8.dp))
                         SupportedLanguagesSection(languages = languages)
                     }
+                    Spacer(Modifier.height(16.dp))
+                    SectionSeparator()
+                    Spacer(Modifier.height(16.dp))
                     ExternalVersionsSection(
                         app = app,
                         releaseHistory = releaseHistory,
@@ -489,6 +490,10 @@ private fun ExternalAppDetailBody(
     Spacer(Modifier.height(20.dp))
     SectionSeparator()
     Spacer(Modifier.height(4.dp))
+    // A plain "Description" heading over the project's README, matching the F-Droid catalogue's own
+    // Description section — the README's own markdown headings (if any) are content, not app chrome,
+    // so this is a separate, consistently-styled title above all of it.
+    SectionTitle(stringResource(R.string.description))
 
     // README — sized to its content (it doesn't scroll itself) so it scrolls with the rest.
     // GitHub leaves repo-relative image paths un-rewritten, so the WebView resolves them
@@ -615,7 +620,6 @@ private fun ExternalLinksSection(
 ) {
     val uriHandler = LocalUriHandler.current
     Column(modifier = Modifier.fillMaxWidth()) {
-        SectionTitle(stringResource(R.string.links), R.drawable.ic_tabler_link)
         LinkRow(
             iconRes = R.drawable.ic_bug_report,
             title = stringResource(R.string.issue_tracker),
@@ -688,21 +692,6 @@ private fun ExternalVersionsSection(
             )
         }
         Spacer(Modifier.height(16.dp))
-    }
-}
-
-/** A short, centred rounded bar between the hero card and the README, instead of a full-width line —
- *  reads as a soft section break rather than a hard rule dividing the page in two. */
-@Composable
-private fun SectionSeparator(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Box(
-            modifier = Modifier
-                .width(80.dp)
-                .height(4.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.outlineVariant),
-        )
     }
 }
 

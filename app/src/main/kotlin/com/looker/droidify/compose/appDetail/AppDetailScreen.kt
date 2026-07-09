@@ -113,6 +113,7 @@ import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.RootBadge
 import com.looker.droidify.compose.components.ScrollToTopFab
+import com.looker.droidify.compose.components.SectionSeparator
 import com.looker.droidify.compose.components.SectionTitle
 import com.looker.droidify.compose.components.ShowMoreRow
 import com.looker.droidify.compose.components.SplitViewToggleAction
@@ -699,6 +700,8 @@ private fun AppDetail(
                 }
                 if (packages.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
+                    SectionSeparator()
+                    Spacer(modifier = Modifier.height(16.dp))
                     VersionsSection(
                         packages = packages,
                         installableRepo = installableRepo,
@@ -798,6 +801,62 @@ private fun AppDetailBody(
     // and versions itself (see AppDetail), so this body must not repeat them.
     showSidebarSections: Boolean,
 ) {
+    // The "Description" title is the very first thing in the body, right after the hero card, above
+    // even the short tagline — everything summary/description-related reads as one block under it.
+    if (app.metadata.summary.isNotBlank() || app.metadata.description.isNotBlank()) {
+        SectionTitle(stringResource(R.string.description))
+    }
+    if (app.metadata.summary.isNotBlank()) {
+        // The bold summary is translated together with the description, so it switches too.
+        val shownSummary = (descriptionTranslation as? DescriptionTranslation.Translated)
+            ?.summary?.takeIf { it.isNotBlank() } ?: app.metadata.summary
+        Text(
+            text = shownSummary,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+    }
+
+    if (app.metadata.description.isNotBlank()) {
+        if (app.metadata.summary.isNotBlank()) Spacer(modifier = Modifier.height(4.dp))
+        val handler = LocalUriHandler.current
+        // Parsing the HTML description is expensive; do it once per description instead of on
+        // every recomposition (the detail screen recomposes repeatedly while data loads).
+        val description = remember(app.metadata.description) {
+            app.metadata.description.toAnnotatedString(onUrlClick = { handler.openUri(it) })
+        }
+        // Show the translation when one is ready (the toggle lives in the top bar); otherwise the
+        // original formatted text.
+        val translated = descriptionTranslation as? DescriptionTranslation.Translated
+        val shownDescription = if (translated != null && translated.description.isNotBlank()) {
+            AnnotatedString(translated.description)
+        } else {
+            description
+        }
+        // How much room is left below the description down to the bottom of the visible screen, so it
+        // can collapse to fill exactly that instead of an arbitrary fixed line count.
+        var descriptionTopY by remember { mutableStateOf(0) }
+        // Collapsed with a real "Show more" button for long descriptions, instead of always rendering
+        // the whole thing (some descriptions run for dozens of lines).
+        ExpandableText(
+            text = shownDescription,
+            style = MaterialTheme.typography.bodyMedium,
+            availableHeightPx = if (viewportPx > 0 && descriptionTopY > 0) {
+                (viewportPx - descriptionTopY).coerceAtLeast(0)
+            } else {
+                null
+            },
+            // TV: a D-pad focus stop so the remote can land on the description and scroll it into
+            // view instead of jumping over it to the buttons below. No-op on touch.
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .onGloballyPositioned { descriptionTopY = it.positionInParent().y.toInt() }
+                .tvReadable(),
+        )
+    }
+
     // Detect exactly which Google Play services capabilities this build depends on (push, maps,
     // billing, ...) from its manifest, so we can say precisely what may not work on a de-Googled
     // device and whether microG covers it. Package-name aware, so a services *provider* like microG
@@ -852,57 +911,6 @@ private fun AppDetailBody(
         CategoriesRow(categories = app.categories)
     }
 
-    Spacer(modifier = Modifier.height(8.dp))
-    if (app.metadata.summary.isNotBlank()) {
-        // The bold summary is translated together with the description, so it switches too.
-        val shownSummary = (descriptionTranslation as? DescriptionTranslation.Translated)
-            ?.summary?.takeIf { it.isNotBlank() } ?: app.metadata.summary
-        Text(
-            text = shownSummary,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
-    }
-
-    if (app.metadata.description.isNotBlank()) {
-        SectionTitle(stringResource(R.string.description))
-        val handler = LocalUriHandler.current
-        // Parsing the HTML description is expensive; do it once per description instead of on
-        // every recomposition (the detail screen recomposes repeatedly while data loads).
-        val description = remember(app.metadata.description) {
-            app.metadata.description.toAnnotatedString(onUrlClick = { handler.openUri(it) })
-        }
-        // Show the translation when one is ready (the toggle lives in the top bar); otherwise the
-        // original formatted text.
-        val translated = descriptionTranslation as? DescriptionTranslation.Translated
-        val shownDescription = if (translated != null && translated.description.isNotBlank()) {
-            AnnotatedString(translated.description)
-        } else {
-            description
-        }
-        // How much room is left below the description down to the bottom of the visible screen, so it
-        // can collapse to fill exactly that instead of an arbitrary fixed line count.
-        var descriptionTopY by remember { mutableStateOf(0) }
-        // Collapsed with a real "Show more" button for long descriptions, instead of always rendering
-        // the whole thing (some descriptions run for dozens of lines).
-        ExpandableText(
-            text = shownDescription,
-            style = MaterialTheme.typography.bodyMedium,
-            availableHeightPx = if (viewportPx > 0 && descriptionTopY > 0) {
-                (viewportPx - descriptionTopY).coerceAtLeast(0)
-            } else {
-                null
-            },
-            // TV: a D-pad focus stop so the remote can land on the description and scroll it into
-            // view instead of jumping over it to the buttons below. No-op on touch.
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .onGloballyPositioned { descriptionTopY = it.positionInParent().y.toInt() }
-                .tvReadable(),
-        )
-    }
     val suggestedPackage = installablePackage ?: packages.firstOrNull()?.first
 
     suggestedPackage?.whatsNew?.takeIf { it.isNotBlank() }?.let { whatsNew ->
@@ -1204,7 +1212,6 @@ private fun LinksSection(app: App) {
     val author = app.author
     val donateUrl = app.donation?.regularUrl?.firstOrNull()
     Column(modifier = Modifier.fillMaxWidth()) {
-        SectionTitle(stringResource(R.string.links), R.drawable.ic_tabler_link)
         links?.webSite?.nonBlank()?.let { url ->
             LinkRow(R.drawable.ic_public, stringResource(R.string.website), url) { open(url) }
         }
