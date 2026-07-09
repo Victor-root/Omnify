@@ -242,6 +242,8 @@
     <string name="legacy_installer">Installateur hérité</string>
     <string name="installer">Installateur</string>
     <string name="root_installer">Installateur racine</string>
+    <string name="root_compatible">Compatible root</string>
+    <string name="root_compatible_DESC">Cette appli peut utiliser l\'accès root sur un appareil rooté — ce n\'est pas obligatoire pour l\'installer ou l\'utiliser.</string>
     <string name="shizuku_installer">Installateur Shizuku/Sui</string>
     <string name="cleanup_title">Intervalle de nettoyage des APK</string>
     <plurals name="days">

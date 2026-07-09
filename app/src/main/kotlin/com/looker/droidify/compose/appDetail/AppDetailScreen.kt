@@ -105,6 +105,7 @@ import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.LinkRow
+import com.looker.droidify.compose.components.RootBadge
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionTitle
 import com.looker.droidify.compose.components.ShowMoreRow
@@ -126,6 +127,7 @@ import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.installer.model.InstallState
+import com.looker.droidify.utility.common.RootDetection
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.shareUrl
 import com.looker.droidify.utility.text.toAnnotatedString
@@ -929,6 +931,18 @@ private fun AppHeaderCard(
     val onSourceCodeClick: (() -> Unit)? = sourceCodeUrl?.let { url ->
         { runCatching { uriHandler.openUri(url) } }
     }
+    // Fuzzy but shared with the Discover home's "For rooted devices" carousel (see RootDetection): the
+    // legacy superuser permission, or strong root phrasing (Magisk/KernelSU/"requires root"…) in the
+    // app's own name/summary/description, minus an explicit negation ("works without root"…).
+    val isRootCompatible = remember(app, installablePackage, installedPackage) {
+        app != null && (
+            RootDetection.textIndicatesRoot(
+                "${app.metadata.name} ${app.metadata.summary} ${app.metadata.description.raw}",
+            ) ||
+                (installablePackage ?: installedPackage)?.manifest?.permissions
+                    ?.any { it.name == RootDetection.PERMISSION } == true
+            )
+    }
 
     HeroCard(
         modifier = modifier,
@@ -955,6 +969,7 @@ private fun AppHeaderCard(
         subtitle = author?.let { stringResource(R.string.by_author_FORMAT, it) },
         isFavorite = isFavorite,
         onToggleFavorite = onToggleFavorite,
+        badge = if (isRootCompatible) { { RootBadge() } } else null,
         stats = if (version != null || size != null || onSourceCodeClick != null) {
             { HeroStatsRow(version = version, size = size, onSourceCodeClick = onSourceCodeClick) }
         } else {

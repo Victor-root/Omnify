@@ -18,6 +18,7 @@ import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.sync.v2.model.Tag
+import com.looker.droidify.utility.common.RootDetection
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -166,10 +167,10 @@ interface AppDao {
             "$text $op '%${it.replace("'", "''")}%'"
         }
         val permMatch = "EXISTS (SELECT 1 FROM version WHERE version.appId = app.id AND " +
-            "(version.permissions LIKE '%\"$ROOT_PERMISSION\"%' OR " +
-            "version.permissionsSdk23 LIKE '%\"$ROOT_PERMISSION\"%'))"
-        val keywordMatch = "((${clause(ROOT_KEYWORDS, "LIKE", " OR ")}) AND " +
-            "(${clause(ROOT_NEGATIONS, "NOT LIKE", " AND ")}))"
+            "(version.permissions LIKE '%\"${RootDetection.PERMISSION}\"%' OR " +
+            "version.permissionsSdk23 LIKE '%\"${RootDetection.PERMISSION}\"%'))"
+        val keywordMatch = "((${clause(RootDetection.KEYWORDS, "LIKE", " OR ")}) AND " +
+            "(${clause(RootDetection.NEGATIONS, "NOT LIKE", " AND ")}))"
         val query = SimpleSQLiteQuery(
             """
             SELECT
@@ -561,20 +562,3 @@ interface AppDao {
     suspend fun icon(id: Int, locale: String): LocalizedAppIconEntity?
 }
 
-/** The legacy superuser <uses-permission> some root apps still declare (see [AppDao.rootApps]). */
-private const val ROOT_PERMISSION = "android.permission.ACCESS_SUPERUSER"
-
-/** Strong "this app uses root" phrasings matched (case-insensitively) in an app's text. Kept specific
- *  enough that a bare "root" (square root, root directory, root CA…) doesn't leak in. */
-private val ROOT_KEYWORDS = listOf(
-    "magisk", "kernelsu", "superuser", "supersu",
-    "root access", "root permission", "root privilege", "root required", "requires root",
-    "require root", "needs root", "need root", "rooted device", "rooted phone", "root your",
-)
-
-/** Negations that flip a keyword match off, so "works without root" / "no root required" apps aren't
- *  wrongly pulled in. Checked with NOT LIKE against the same text. */
-private val ROOT_NEGATIONS = listOf(
-    "no root", "without root", "non-root", "nonroot", "rootless", "root-free", "root free",
-    "not require root", "not need root", "root not required", "no need for root",
-)

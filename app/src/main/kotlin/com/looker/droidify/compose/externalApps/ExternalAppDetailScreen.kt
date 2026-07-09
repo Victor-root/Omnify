@@ -59,6 +59,7 @@ import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
+import com.looker.droidify.compose.components.RootBadge
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionTitle
 import com.looker.droidify.compose.components.ShowMoreRow
@@ -73,6 +74,7 @@ import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkFileSize
 import com.looker.droidify.external.apkVersionLabel
 import com.looker.droidify.network.DataSize
+import com.looker.droidify.utility.common.RootDetection
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -254,6 +256,12 @@ fun ExternalAppDetailScreen(
             LaunchedEffect(app.key, app.latestApkSize) {
                 Log.d("ExternalAppDetailScreen", "${app.key}: latestApkSize=${app.latestApkSize} heroSize=$heroSize")
             }
+            // Fuzzy but shared with the F-Droid catalogue's own check (see RootDetection): an external
+            // source has no manifest permissions to read, so this only has the app's own text to go on
+            // — its name and README (once loaded; the badge simply isn't shown yet before then).
+            val isRootCompatible = remember(app.key, readmeHtml) {
+                RootDetection.textIndicatesRoot("${app.label} ${readmeHtml.orEmpty()}")
+            }
 
             // The installed version, if any — folded into the card's footer, mirroring how the F-Droid
             // catalogue card shows its installed version there.
@@ -268,6 +276,7 @@ fun ExternalAppDetailScreen(
                 },
                 name = app.label,
                 subtitle = stringResource(R.string.by_author_FORMAT, app.owner),
+                badge = if (isRootCompatible) { { RootBadge() } } else null,
                 stats = {
                     HeroStatsRow(
                         version = heroVersion,

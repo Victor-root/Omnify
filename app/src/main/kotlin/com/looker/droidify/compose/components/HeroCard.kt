@@ -49,6 +49,7 @@ fun HeroCard(
     modifier: Modifier = Modifier,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
+    badge: (@Composable () -> Unit)? = null,
     stats: (@Composable () -> Unit)? = null,
     footer: (@Composable () -> Unit)? = null,
 ) {
@@ -85,6 +86,10 @@ fun HeroCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                }
+                if (badge != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    badge()
                 }
                 if (stats != null) {
                     Spacer(modifier = Modifier.height(16.dp))

@@ -176,6 +176,8 @@
     <string name="legacy_installer">Legacy installer</string>
     <string name="session_installer">Session installer</string>
     <string name="root_installer">Root installer</string>
+    <string name="root_compatible">Root compatible</string>
+    <string name="root_compatible_DESC">This app can use root access on rooted devices — it isn\'t required to install or use it.</string>
     <string name="shizuku_installer">Shizuku/Sui installer</string>
     <string name="shizuku_legacy_installer">Shizuku/Sui legacy installer</string>
     <string name="shizuku_not_alive">Shizuku/Sui isn\'t running</string>
