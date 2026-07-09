@@ -79,12 +79,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -103,6 +105,7 @@ import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
+import com.looker.droidify.compose.components.ExpandableText
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.InstallVersionDialog
@@ -621,6 +624,14 @@ private fun AppDetail(
     // Where the versions section actually lands once composed (in the scrolling Column's own
     // coordinate space), so the hero card's "see all versions" link can jump straight to it.
     var versionsAnchorY by remember { mutableStateOf(0) }
+    // Split view only: the left pane (hero card + links + versions) scrolls on its own, separately from
+    // the right pane, so a long version list there doesn't overflow the pane uncontrolled. Its own
+    // "see all versions" anchor, parallel to versionsAnchorY above.
+    val leftPaneScrollState = rememberScrollState()
+    var leftPaneVersionsAnchorY by remember { mutableStateOf(0) }
+    // The visible height of whichever column the description sits in, so the description can collapse
+    // to fill exactly the space left below it down to the bottom of the screen (see AppDetailBody).
+    var viewportPx by remember { mutableStateOf(0) }
     // The hero card content is identical in both layouts below (nothing moved out of it) — kept as one
     // lambda so the single-column and split-view branches can never drift apart on it.
     val headerCard: @Composable () -> Unit = {
@@ -642,32 +653,68 @@ private fun AppDetail(
             onCancel = onCancel,
             primaryActionFocusRequester = primaryActionFocusRequester,
             onViewVersionsClick = if (packages.isNotEmpty()) {
-                { coroutineScope.launch { scrollState.animateScrollTo(versionsAnchorY) } }
+                {
+                    coroutineScope.launch {
+                        if (useSplitView) {
+                            leftPaneScrollState.animateScrollTo(leftPaneVersionsAnchorY)
+                        } else {
+                            scrollState.animateScrollTo(versionsAnchorY)
+                        }
+                    }
+                }
             } else {
                 null
             },
             modifier = Modifier.padding(horizontal = 16.dp),
         )
     }
+    // Shared with AppDetailBody's own copy of this lookup: cheap, and lets the left pane below render
+    // permissions without threading a second parameter through just for this.
+    val suggestedPackage = installablePackage ?: packages.firstOrNull()?.first
+    val permissions = remember(suggestedPackage) { suggestedPackage?.manifest?.permissions.orEmpty() }
     if (useSplitView) {
-        // Tablet landscape only (see useSplitView): a Play Store-style two-pane layout. The hero card
-        // sits fixed in the left pane — it never scrolls — while everything else scrolls independently
-        // in the right pane, sharing the same scrollState the single-column layout below uses, so the
-        // "see all versions" jump-link and the scroll-to-top FAB keep working identically either way.
+        // Tablet landscape only (see useSplitView): a Play Store-style two-pane layout. The hero card,
+        // links, permissions, supported languages and versions sit in the left pane (scrolling on its
+        // own if that content runs long), while everything else scrolls independently in the right pane.
         Row(modifier = Modifier.fillMaxSize().then(modifier)) {
             Column(
                 modifier = Modifier
                     .weight(0.4f)
                     .fillMaxHeight()
+                    .verticalScroll(leftPaneScrollState)
                     .padding(top = 16.dp),
             ) {
                 headerCard()
+                if (app.hasLinks()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinksSection(app = app)
+                }
+                if (permissions.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PermissionsSection(permissions = permissions)
+                }
+                if (supportedLanguages.codes.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SupportedLanguagesSection(languages = supportedLanguages)
+                }
+                if (packages.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    VersionsSection(
+                        packages = packages,
+                        installableRepo = installableRepo,
+                        onSelectRepo = onSelectRepo,
+                        app = app,
+                        onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+                        onAnchorPositioned = { leftPaneVersionsAnchorY = it },
+                    )
+                }
             }
             VerticalDivider()
             Column(
                 modifier = Modifier
                     .weight(0.6f)
                     .fillMaxHeight()
+                    .onSizeChanged { viewportPx = it.height }
                     .verticalScroll(scrollState)
                     .focusGroup()
                     .padding(top = 16.dp),
@@ -684,6 +731,8 @@ private fun AppDetail(
                     onSelectRepo = onSelectRepo,
                     onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
                     onAnchorPositioned = { versionsAnchorY = it },
+                    viewportPx = viewportPx,
+                    showSidebarSections = false,
                 )
             }
         }
@@ -691,6 +740,7 @@ private fun AppDetail(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .onSizeChanged { viewportPx = it.height }
                 .verticalScroll(scrollState)
                 // A focus group so D-pad navigation stays scoped to the content (the action button itself is
                 // the explicit focus target, see primaryActionFocusRequester).
@@ -712,6 +762,8 @@ private fun AppDetail(
                 onSelectRepo = onSelectRepo,
                 onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
                 onAnchorPositioned = { versionsAnchorY = it },
+                viewportPx = viewportPx,
+                showSidebarSections = true,
             )
         }
     }
@@ -739,6 +791,12 @@ private fun AppDetailBody(
     onSelectRepo: (Int) -> Unit,
     onVersionClick: (Package, Repo) -> Unit,
     onAnchorPositioned: (Int) -> Unit,
+    // The height of the scrolling column this body sits in, so the description can collapse to fill
+    // exactly the space left below it down to the bottom of the screen.
+    viewportPx: Int,
+    // False in split view: the tablet-landscape left pane shows links, permissions, supported languages
+    // and versions itself (see AppDetail), so this body must not repeat them.
+    showSidebarSections: Boolean,
 ) {
     // Detect exactly which Google Play services capabilities this build depends on (push, maps,
     // billing, ...) from its manifest, so we can say precisely what may not work on a de-Googled
@@ -809,7 +867,7 @@ private fun AppDetailBody(
     }
 
     if (app.metadata.description.isNotBlank()) {
-        Spacer(modifier = Modifier.height(8.dp))
+        SectionTitle(stringResource(R.string.description))
         val handler = LocalUriHandler.current
         // Parsing the HTML description is expensive; do it once per description instead of on
         // every recomposition (the detail screen recomposes repeatedly while data loads).
@@ -819,21 +877,31 @@ private fun AppDetailBody(
         // Show the translation when one is ready (the toggle lives in the top bar); otherwise the
         // original formatted text.
         val translated = descriptionTranslation as? DescriptionTranslation.Translated
-        if (translated != null && translated.description.isNotBlank()) {
-            Text(
-                text = translated.description,
-                style = MaterialTheme.typography.bodyMedium,
-                // TV: a D-pad focus stop so the remote can land on the description and scroll it into
-                // view instead of jumping over it to the buttons below. No-op on touch.
-                modifier = Modifier.padding(horizontal = 16.dp).tvReadable(),
-            )
+        val shownDescription = if (translated != null && translated.description.isNotBlank()) {
+            AnnotatedString(translated.description)
         } else {
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 16.dp).tvReadable(),
-            )
+            description
         }
+        // How much room is left below the description down to the bottom of the visible screen, so it
+        // can collapse to fill exactly that instead of an arbitrary fixed line count.
+        var descriptionTopY by remember { mutableStateOf(0) }
+        // Collapsed with a real "Show more" button for long descriptions, instead of always rendering
+        // the whole thing (some descriptions run for dozens of lines).
+        ExpandableText(
+            text = shownDescription,
+            style = MaterialTheme.typography.bodyMedium,
+            availableHeightPx = if (viewportPx > 0 && descriptionTopY > 0) {
+                (viewportPx - descriptionTopY).coerceAtLeast(0)
+            } else {
+                null
+            },
+            // TV: a D-pad focus stop so the remote can land on the description and scroll it into
+            // view instead of jumping over it to the buttons below. No-op on touch.
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .onGloballyPositioned { descriptionTopY = it.positionInParent().y.toInt() }
+                .tvReadable(),
+        )
     }
     val suggestedPackage = installablePackage ?: packages.firstOrNull()?.first
 
@@ -844,7 +912,7 @@ private fun AppDetailBody(
         WhatsNewSection(whatsNew = translatedWhatsNew ?: whatsNew)
     }
 
-    if (app.hasLinks()) {
+    if (showSidebarSections && app.hasLinks()) {
         Spacer(modifier = Modifier.height(8.dp))
         LinksSection(app = app)
     }
@@ -856,26 +924,28 @@ private fun AppDetailBody(
     }
 
     val permissions = suggestedPackage?.manifest?.permissions.orEmpty()
-    if (permissions.isNotEmpty()) {
+    if (showSidebarSections && permissions.isNotEmpty()) {
         Spacer(modifier = Modifier.height(8.dp))
         PermissionsSection(permissions = permissions)
     }
 
-    if (supportedLanguages.codes.isNotEmpty()) {
+    if (showSidebarSections && supportedLanguages.codes.isNotEmpty()) {
         Spacer(modifier = Modifier.height(8.dp))
         SupportedLanguagesSection(languages = supportedLanguages)
     }
 
-    Spacer(modifier = Modifier.height(16.dp))
+    if (showSidebarSections) {
+        Spacer(modifier = Modifier.height(16.dp))
 
-    VersionsSection(
-        packages = packages,
-        installableRepo = installableRepo,
-        onSelectRepo = onSelectRepo,
-        app = app,
-        onVersionClick = onVersionClick,
-        onAnchorPositioned = onAnchorPositioned,
-    )
+        VersionsSection(
+            packages = packages,
+            installableRepo = installableRepo,
+            onSelectRepo = onSelectRepo,
+            app = app,
+            onVersionClick = onVersionClick,
+            onAnchorPositioned = onAnchorPositioned,
+        )
+    }
 }
 
 /**
@@ -893,6 +963,7 @@ private fun VersionsSection(
     onAnchorPositioned: (Int) -> Unit,
 ) {
     Column(modifier = Modifier.onGloballyPositioned { onAnchorPositioned(it.positionInParent().y.toInt()) }) {
+        SectionTitle(stringResource(R.string.versions))
         // Repos that offer this app. When more than one offers it (e.g. F-Droid + IzzyOnDroid), show
         // tabs so the user can pick which repo to install from; both the version list below and the
         // Install/Update button then follow the selected repo. Default to the repo that provides the

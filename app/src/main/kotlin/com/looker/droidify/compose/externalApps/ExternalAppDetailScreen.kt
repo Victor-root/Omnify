@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -43,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
@@ -287,6 +290,12 @@ fun ExternalAppDetailScreen(
             stringResource(R.string.external_installed_version, it)
         }
 
+        // Split view only: the left pane (hero card + links + versions) scrolls on its own, separately
+        // from the right pane, so a long version list there doesn't overflow the pane uncontrolled. Its
+        // own "see all versions" anchor, parallel to versionsAnchorY above.
+        val leftPaneScrollState = rememberScrollState()
+        var leftPaneVersionsAnchorY by remember { mutableStateOf(0) }
+
         // The hero card content is identical in both layouts below (nothing moved out of it) — kept as
         // one lambda so the single-column and split-view branches can never drift apart on it.
         val headerCard: @Composable () -> Unit = {
@@ -320,7 +329,15 @@ fun ExternalAppDetailScreen(
                 footer = heroFooter(
                     infoText = footerText,
                     onViewVersionsClick = if (!releaseHistory.isNullOrEmpty()) {
-                        { coroutineScope.launch { scrollState.animateScrollTo(versionsAnchorY) } }
+                        {
+                            coroutineScope.launch {
+                                if (useSplitView) {
+                                    leftPaneScrollState.animateScrollTo(leftPaneVersionsAnchorY)
+                                } else {
+                                    scrollState.animateScrollTo(versionsAnchorY)
+                                }
+                            }
+                        }
                     } else {
                         null
                     },
@@ -329,10 +346,9 @@ fun ExternalAppDetailScreen(
         }
 
         if (useSplitView) {
-            // Tablet landscape only (see useSplitView): a Play Store-style two-pane layout. The hero card
-            // sits fixed in the left pane — it never scrolls — while everything else scrolls independently
-            // in the right pane, sharing the same scrollState the single-column layout below uses, so the
-            // "see all versions" jump-link and the scroll-to-top FAB keep working identically either way.
+            // Tablet landscape only (see useSplitView): a Play Store-style two-pane layout. The hero
+            // card, links and versions sit in the left pane (scrolling on its own if that content runs
+            // long), while the README and everything else scrolls independently in the right pane.
             Row(
                 modifier = Modifier
                     .fillMaxSize()
@@ -341,9 +357,28 @@ fun ExternalAppDetailScreen(
                 Column(
                     modifier = Modifier
                         .weight(0.4f)
-                        .fillMaxHeight(),
+                        .fillMaxHeight()
+                        .verticalScroll(leftPaneScrollState),
                 ) {
                     headerCard()
+                    ExternalLinksSection(
+                        issueTrackerLink = issueTrackerLink,
+                        changelogLink = changelogLink,
+                        onChangelogClick = {
+                            showChangelog = true
+                            viewModel.loadChangelogHtml(app)
+                        },
+                    )
+                    supportedLanguages?.let { languages ->
+                        Spacer(Modifier.height(8.dp))
+                        SupportedLanguagesSection(languages = languages)
+                    }
+                    ExternalVersionsSection(
+                        app = app,
+                        releaseHistory = releaseHistory,
+                        onVersionClick = { versionToInstall = it },
+                        onAnchorPositioned = { leftPaneVersionsAnchorY = it },
+                    )
                 }
                 VerticalDivider()
                 Column(
@@ -371,6 +406,7 @@ fun ExternalAppDetailScreen(
                         releaseHistory = releaseHistory,
                         onVersionClick = { versionToInstall = it },
                         onAnchorPositioned = { versionsAnchorY = it },
+                        showSidebarSections = false,
                     )
                 }
             }
@@ -401,6 +437,7 @@ fun ExternalAppDetailScreen(
                     releaseHistory = releaseHistory,
                     onVersionClick = { versionToInstall = it },
                     onAnchorPositioned = { versionsAnchorY = it },
+                    showSidebarSections = true,
                 )
             }
         }
@@ -432,8 +469,10 @@ private fun ExternalAppDetailBody(
     releaseHistory: List<Release>?,
     onVersionClick: (Release) -> Unit,
     onAnchorPositioned: (Int) -> Unit,
+    // False in split view: the tablet-landscape left pane shows links, supported languages and
+    // versions itself (see ExternalAppDetailScreen), so this body must not repeat them.
+    showSidebarSections: Boolean,
 ) {
-    val uriHandler = LocalUriHandler.current
     val density = LocalDensity.current
     // Keyed on app.key (stable for this screen), NOT on the html: the WebView captures its
     // height callback once, so the callback must keep targeting the same state instance. The
@@ -455,12 +494,29 @@ private fun ExternalAppDetailBody(
     // GitHub leaves repo-relative image paths un-rewritten, so the WebView resolves them
     // against the raw content host. While it loads, show a spinner instead of empty space.
     if (readmeHtml != null) {
+        // Collapsed to fill the space left below it down to the bottom of the screen — same idea as
+        // the F-Droid catalogue's description. A WebView has no line count to cap, so a pixel height is
+        // capped instead; Compose coerces the WebView's own (larger) requested height down to it, so
+        // the extra content is simply clipped rather than scrolled internally. The "Show more" button
+        // is a real button, shown once and never again once tapped (no collapsing back).
+        var readmeExpanded by remember(app.key) { mutableStateOf(false) }
+        var readmeTopY by remember(app.key) { mutableStateOf(0) }
+        val fullReadmeHeight = if (readmeHeightPx > 0) with(density) { readmeHeightPx.toDp() } else 600.dp
+        val collapsedReadmeHeight = if (viewportPx > 0 && readmeTopY > 0) {
+            with(density) { (viewportPx - readmeTopY).coerceAtLeast(0).toDp() }
+        } else {
+            README_COLLAPSED_HEIGHT
+        }
+        val readmeCanCollapse = fullReadmeHeight > collapsedReadmeHeight
         // On TV this Box is the single focus stop for the whole README: landing here, the D-pad
         // pages the screen up/down through it (the WebView itself is non-focusable on TV, so the
         // remote no longer steps over its links and images). A plain wrapper on touch.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .onGloballyPositioned { readmeTopY = it.positionInParent().y.toInt() }
+                .heightIn(max = if (readmeExpanded || !readmeCanCollapse) fullReadmeHeight else collapsedReadmeHeight)
+                .clipToBounds()
                 .tvPageScroll(scrollState, (viewportPx * 0.85f).toInt()),
         ) {
             ReadmeWebView(
@@ -473,14 +529,18 @@ private fun ExternalAppDetailBody(
                     .fillMaxWidth()
                     // Until the content height is known, give it a sensible height so it can render
                     // and measure; then snap to the exact height.
-                    .height(
-                        if (readmeHeightPx > 0) {
-                            with(density) { readmeHeightPx.toDp() }
-                        } else {
-                            600.dp
-                        },
-                    ),
+                    .height(fullReadmeHeight),
             )
+        }
+        if (!readmeExpanded && readmeCanCollapse) {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Button(
+                    onClick = { readmeExpanded = true },
+                    modifier = Modifier.padding(top = 12.dp),
+                ) {
+                    Text(stringResource(R.string.show_more))
+                }
+            }
         }
     } else if (readmeError != null) {
         // The fetch already failed (most often the anonymous GitHub rate limit) — say so instead
@@ -508,11 +568,52 @@ private fun ExternalAppDetailBody(
         }
     }
 
-    // "Issue tracker" and "Changelog" — an external source has no index metadata for these like
-    // the F-Droid catalogue does, so they're resolved live from the provider. Always shown (not
-    // hidden while resolving/absent) so the page doesn't jump around as the checks complete;
-    // a still-loading or genuinely absent link reads as a plain "…" / explanatory row instead.
-    Spacer(Modifier.height(16.dp))
+    if (showSidebarSections) {
+        Spacer(Modifier.height(16.dp))
+        ExternalLinksSection(
+            issueTrackerLink = issueTrackerLink,
+            changelogLink = changelogLink,
+            onChangelogClick = onChangelogClick,
+        )
+    }
+
+    // Same reliable, real-UI-language check as the F-Droid catalogue's — but with no store-
+    // listing metadata to fall back to for an external source, this section only shows once
+    // there's a confirmed answer, instead of ever showing a guess.
+    if (showSidebarSections) {
+        supportedLanguages?.let { languages ->
+            Spacer(Modifier.height(8.dp))
+            SupportedLanguagesSection(languages = languages)
+        }
+    }
+
+    if (showSidebarSections) {
+        ExternalVersionsSection(
+            app = app,
+            releaseHistory = releaseHistory,
+            onVersionClick = onVersionClick,
+            onAnchorPositioned = onAnchorPositioned,
+        )
+    }
+}
+
+/** How tall the collapsed README preview is before a "Show more" tap reveals the rest. */
+private val README_COLLAPSED_HEIGHT = 320.dp
+
+/**
+ * "Issue tracker" and "Changelog" — an external source has no index metadata for these like the
+ * F-Droid catalogue does, so they're resolved live from the provider. Always shown (not hidden while
+ * resolving/absent) so the page doesn't jump around as the checks complete; a still-loading or
+ * genuinely absent link reads as a plain "…" / explanatory row instead. Extracted so both the
+ * single-column body and the tablet-landscape split view's left pane render the exact same content.
+ */
+@Composable
+private fun ExternalLinksSection(
+    issueTrackerLink: LinkCheckState?,
+    changelogLink: LinkCheckState?,
+    onChangelogClick: () -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
     Column(modifier = Modifier.fillMaxWidth()) {
         SectionTitle(stringResource(R.string.links), R.drawable.ic_tabler_link)
         LinkRow(
@@ -536,56 +637,57 @@ private fun ExternalAppDetailBody(
             onClick = changelogLink?.url?.let { { onChangelogClick() } },
         )
     }
+}
 
-    // Same reliable, real-UI-language check as the F-Droid catalogue's — but with no store-
-    // listing metadata to fall back to for an external source, this section only shows once
-    // there's a confirmed answer, instead of ever showing a guess.
-    supportedLanguages?.let { languages ->
-        Spacer(Modifier.height(8.dp))
-        SupportedLanguagesSection(languages = languages)
-    }
-
-    // Recent releases the user can pick a specific version to install from — same idea as the
-    // F-Droid catalogue's version list, at the bottom of the page in the same way. Position-
-    // tracked so the hero card's "see all versions" link can scroll straight to it.
-    if (!releaseHistory.isNullOrEmpty()) {
-        Column(
-            modifier = Modifier.onGloballyPositioned {
-                onAnchorPositioned(it.positionInParent().y.toInt())
-            },
-        ) {
-            Spacer(Modifier.height(20.dp))
-            SectionSeparator()
-            Spacer(Modifier.height(20.dp))
-            Text(
-                text = stringResource(R.string.versions),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+/**
+ * Recent releases the user can pick a specific version to install from — same idea as the F-Droid
+ * catalogue's version list. Position-tracked so the hero card's "see all versions" link can scroll
+ * straight to it. Extracted so both the single-column body and the tablet-landscape split view's left
+ * pane render the exact same content.
+ */
+@Composable
+private fun ExternalVersionsSection(
+    app: ExternalApp,
+    releaseHistory: List<Release>?,
+    onVersionClick: (Release) -> Unit,
+    onAnchorPositioned: (Int) -> Unit,
+) {
+    if (releaseHistory.isNullOrEmpty()) return
+    Column(
+        modifier = Modifier.onGloballyPositioned {
+            onAnchorPositioned(it.positionInParent().y.toInt())
+        },
+    ) {
+        Spacer(Modifier.height(20.dp))
+        SectionSeparator()
+        Spacer(Modifier.height(20.dp))
+        Text(
+            text = stringResource(R.string.versions),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        // Collapsed to the newest few by default — same as the F-Droid catalogue's version
+        // list, so a long history doesn't turn the whole page into an endless scroll.
+        var versionsExpanded by remember(app.key) { mutableStateOf(false) }
+        val visibleCount = if (versionsExpanded) releaseHistory.size else VERSIONS_COLLAPSED_COUNT
+        releaseHistory.take(visibleCount).forEach { release ->
+            ReleaseVersionItem(
+                release = release,
+                apkName = release.apkFileName(filter = app.apkFilter),
+                apkSize = release.apkFileSize(filter = app.apkFilter),
+                isSuggested = release.tag == app.latestTag,
+                isInstalled = release.tag == app.installedTag,
+                onClick = { onVersionClick(release) },
             )
-            val releases = releaseHistory.orEmpty()
-            // Collapsed to the newest few by default — same as the F-Droid catalogue's version
-            // list, so a long history doesn't turn the whole page into an endless scroll.
-            var versionsExpanded by remember(app.key) { mutableStateOf(false) }
-            val visibleCount = if (versionsExpanded) releases.size else VERSIONS_COLLAPSED_COUNT
-            releases.take(visibleCount).forEach { release ->
-                ReleaseVersionItem(
-                    release = release,
-                    apkName = release.apkFileName(filter = app.apkFilter),
-                    apkSize = release.apkFileSize(filter = app.apkFilter),
-                    isSuggested = release.tag == app.latestTag,
-                    isInstalled = release.tag == app.installedTag,
-                    onClick = { onVersionClick(release) },
-                )
-            }
-            if (releases.size > VERSIONS_COLLAPSED_COUNT) {
-                ShowMoreRow(
-                    hiddenCount = releases.size - VERSIONS_COLLAPSED_COUNT,
-                    expanded = versionsExpanded,
-                    onToggle = { versionsExpanded = !versionsExpanded },
-                )
-            }
-            Spacer(Modifier.height(16.dp))
         }
+        if (releaseHistory.size > VERSIONS_COLLAPSED_COUNT) {
+            ShowMoreRow(
+                hiddenCount = releaseHistory.size - VERSIONS_COLLAPSED_COUNT,
+                expanded = versionsExpanded,
+                onToggle = { versionsExpanded = !versionsExpanded },
+            )
+        }
+        Spacer(Modifier.height(16.dp))
     }
 }
 
