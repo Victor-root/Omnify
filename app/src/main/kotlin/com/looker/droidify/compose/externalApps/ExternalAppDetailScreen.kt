@@ -67,7 +67,6 @@ import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.RootBadge
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionSeparator
-import com.looker.droidify.compose.components.SectionTitle
 import com.looker.droidify.compose.components.ShowMoreRow
 import com.looker.droidify.compose.components.SplitViewToggleAction
 import com.looker.droidify.compose.components.SupportedLanguages
@@ -371,9 +370,8 @@ fun ExternalAppDetailScreen(
                         Spacer(Modifier.height(8.dp))
                         SupportedLanguagesSection(languages = languages)
                     }
-                    Spacer(Modifier.height(16.dp))
-                    SectionSeparator()
-                    Spacer(Modifier.height(16.dp))
+                    // ExternalVersionsSection already opens with its own SectionSeparator (matching the
+                    // catalogue's own spacing) — no second one needed here.
                     ExternalVersionsSection(
                         app = app,
                         releaseHistory = releaseHistory,
@@ -408,6 +406,7 @@ fun ExternalAppDetailScreen(
                         onVersionClick = { versionToInstall = it },
                         onAnchorPositioned = { versionsAnchorY = it },
                         showSidebarSections = false,
+                        showLeadingSeparator = false,
                     )
                 }
             }
@@ -439,6 +438,7 @@ fun ExternalAppDetailScreen(
                     onVersionClick = { versionToInstall = it },
                     onAnchorPositioned = { versionsAnchorY = it },
                     showSidebarSections = true,
+                    showLeadingSeparator = true,
                 )
             }
         }
@@ -473,6 +473,10 @@ private fun ExternalAppDetailBody(
     // False in split view: the tablet-landscape left pane shows links, supported languages and
     // versions itself (see ExternalAppDetailScreen), so this body must not repeat them.
     showSidebarSections: Boolean,
+    // False in split view: the hero card (which this separator normally sits right below) is in the
+    // other, left pane there, so a separator at the very top of this one would float with nothing
+    // above it.
+    showLeadingSeparator: Boolean,
 ) {
     val density = LocalDensity.current
     // Keyed on app.key (stable for this screen), NOT on the html: the WebView captures its
@@ -487,13 +491,11 @@ private fun ExternalAppDetailBody(
         )
     }
 
-    Spacer(Modifier.height(20.dp))
-    SectionSeparator()
-    Spacer(Modifier.height(4.dp))
-    // A plain "Description" heading over the project's README, matching the F-Droid catalogue's own
-    // Description section — the README's own markdown headings (if any) are content, not app chrome,
-    // so this is a separate, consistently-styled title above all of it.
-    SectionTitle(stringResource(R.string.description))
+    if (showLeadingSeparator) {
+        Spacer(Modifier.height(20.dp))
+        SectionSeparator()
+        Spacer(Modifier.height(4.dp))
+    }
 
     // README — sized to its content (it doesn't scroll itself) so it scrolls with the rest.
     // GitHub leaves repo-relative image paths un-rewritten, so the WebView resolves them
@@ -503,8 +505,10 @@ private fun ExternalAppDetailBody(
         // the F-Droid catalogue's description. A WebView has no line count to cap, so a pixel height is
         // capped instead; Compose coerces the WebView's own (larger) requested height down to it, so
         // the extra content is simply clipped rather than scrolled internally. The "Show more" button
-        // is a real button, shown once and never again once tapped (no collapsing back).
-        var readmeExpanded by remember(app.key) { mutableStateOf(false) }
+        // is a real button, shown once and never again once tapped (no collapsing back). Split view: the
+        // right pane is dedicated space for this content, so it's never collapsed there
+        // (showSidebarSections is false only in that pane).
+        var readmeExpanded by remember(app.key) { mutableStateOf(!showSidebarSections) }
         var readmeTopY by remember(app.key) { mutableStateOf(0) }
         val fullReadmeHeight = if (readmeHeightPx > 0) with(density) { readmeHeightPx.toDp() } else 600.dp
         val collapsedReadmeHeight = if (viewportPx > 0 && readmeTopY > 0) {
@@ -512,7 +516,7 @@ private fun ExternalAppDetailBody(
         } else {
             README_COLLAPSED_HEIGHT
         }
-        val readmeCanCollapse = fullReadmeHeight > collapsedReadmeHeight
+        val readmeCanCollapse = showSidebarSections && fullReadmeHeight > collapsedReadmeHeight
         // On TV this Box is the single focus stop for the whole README: landing here, the D-pad
         // pages the screen up/down through it (the WebView itself is non-focusable on TV, so the
         // remote no longer steps over its links and images). A plain wrapper on touch.

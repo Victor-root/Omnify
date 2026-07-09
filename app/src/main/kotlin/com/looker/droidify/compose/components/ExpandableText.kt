@@ -49,8 +49,11 @@ fun ExpandableText(
     style: TextStyle = MaterialTheme.typography.bodyMedium,
     color: Color = Color.Unspecified,
     availableHeightPx: Int? = null,
+    // Tablet-landscape split view: the right pane is dedicated space for this content, so there's no
+    // reason to collapse it — always show the full text there, with no button at all.
+    alwaysExpanded: Boolean = false,
 ) {
-    var expanded by remember(text) { mutableStateOf(false) }
+    var expanded by remember(text) { mutableStateOf(alwaysExpanded) }
     var isOverflowing by remember(text) { mutableStateOf(false) }
     // A single line's own height in this exact style, measured once (a plain synchronous text
     // measurement, not a real composition, so this never flashes the full text before collapsing).
@@ -78,7 +81,7 @@ fun ExpandableText(
             onTextLayout = { result -> if (!expanded) isOverflowing = result.hasVisualOverflow },
             modifier = Modifier.fillMaxWidth(),
         )
-        if (!expanded && isOverflowing) {
+        if (!alwaysExpanded && !expanded && isOverflowing) {
             Button(
                 onClick = { expanded = true },
                 modifier = Modifier.padding(top = 12.dp),

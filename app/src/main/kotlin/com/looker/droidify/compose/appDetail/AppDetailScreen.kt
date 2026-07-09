@@ -801,11 +801,8 @@ private fun AppDetailBody(
     // and versions itself (see AppDetail), so this body must not repeat them.
     showSidebarSections: Boolean,
 ) {
-    // The "Description" title is the very first thing in the body, right after the hero card, above
-    // even the short tagline — everything summary/description-related reads as one block under it.
-    if (app.metadata.summary.isNotBlank() || app.metadata.description.isNotBlank()) {
-        SectionTitle(stringResource(R.string.description))
-    }
+    // Summary + description come first, right after the hero card, before anything else.
+    Spacer(modifier = Modifier.height(8.dp))
     if (app.metadata.summary.isNotBlank()) {
         // The bold summary is translated together with the description, so it switches too.
         val shownSummary = (descriptionTranslation as? DescriptionTranslation.Translated)
@@ -848,6 +845,9 @@ private fun AppDetailBody(
             } else {
                 null
             },
+            // Split view: the right pane is dedicated space for this body content, so the description
+            // is never worth collapsing there (showSidebarSections is false only in that pane).
+            alwaysExpanded = !showSidebarSections,
             // TV: a D-pad focus stop so the remote can land on the description and scroll it into
             // view instead of jumping over it to the buttons below. No-op on touch.
             modifier = Modifier

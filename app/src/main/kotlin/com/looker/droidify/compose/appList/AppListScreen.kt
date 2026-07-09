@@ -133,6 +133,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.data.model.AppMinimal
+import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -426,6 +427,7 @@ fun AppListScreen(
             Modifier
         },
         snackbarHost = { SnackbarHost(externalViewModel.snackbarHostState) },
+        floatingActionButton = { ScrollToTopFab(gridState) },
         topBar = {
             Column(
                 modifier = if (collapsibleHeader) Modifier.collapsingHeader(scrollBehavior) else Modifier,
