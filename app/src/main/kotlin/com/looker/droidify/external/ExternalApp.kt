@@ -156,6 +156,23 @@ data class ExternalApp(
             else -> false
         }
 
+    /**
+     * Same as [hasUpdate], but also catches an app that was already installed on the device before its
+     * source was tracked (or before APK-token tracking existed) — [installedTag]/[installedApkToken] are
+     * only ever recorded when Omnify itself performs the install, so a pre-existing install never
+     * populates them and [hasUpdate] silently stays false forever regardless of the real version gap.
+     * Falls back to comparing [installedVersionName] (the on-device APK's real versionName, read from
+     * the package manager) against the latest release's version, only when neither identity field is
+     * set at all — when either is set, [hasUpdate]'s provenance-based check is more precise and is
+     * trusted as-is (it correctly ignores a tag-only bump that ships no new APK).
+     */
+    fun hasUpdateGiven(installedVersionName: String?): Boolean {
+        if (installedApkToken != null || installedTag != null) return hasUpdate
+        val installed = installedVersionName ?: return false
+        val latest = latestApkName?.let(::apkVersionLabel) ?: latestTag ?: return false
+        return compareVersionStrings(latest, installed) > 0
+    }
+
     companion object {
         /** Key of the built-in Omnify repo source (github.com/Victor-root/Omnify). Pinned to the top of
          *  the sources list and only toggleable (no edit/remove) since it's the app's own channel. */

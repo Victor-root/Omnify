@@ -222,6 +222,27 @@ private val versionInFileName = Regex("""\d+(?:\.\d+)+""")
 fun apkVersionLabel(fileName: String): String =
     versionInFileName.find(fileName)?.value ?: fileName
 
+/**
+ * Compares two dotted version strings (e.g. "2.7.0" vs "2.6.0") component by component, numerically —
+ * positive when [a] is newer than [b]. A non-numeric component (e.g. a "-dev.7" suffix) falls back to a
+ * plain string comparison for just that component, so this degrades gracefully instead of throwing on a
+ * non-standard version string. Used to detect an update against the app's real on-device version when no
+ * release tag/APK identity was ever recorded for it (see [com.looker.droidify.external.ExternalApp.hasUpdateGiven]).
+ */
+fun compareVersionStrings(a: String, b: String): Int {
+    val partsA = a.split('.', '-', '+', '_')
+    val partsB = b.split('.', '-', '+', '_')
+    for (i in 0 until maxOf(partsA.size, partsB.size)) {
+        val partA = partsA.getOrNull(i) ?: return -1
+        val partB = partsB.getOrNull(i) ?: return 1
+        val numA = partA.toIntOrNull()
+        val numB = partB.toIntOrNull()
+        val comparison = if (numA != null && numB != null) numA.compareTo(numB) else partA.compareTo(partB)
+        if (comparison != 0) return comparison
+    }
+    return 0
+}
+
 private fun abiAliases(abi: String): List<String> = when (abi) {
     "arm64-v8a" -> listOf("arm64-v8a", "arm64", "aarch64")
     "armeabi-v7a" -> listOf("armeabi-v7a", "armeabi", "armv7", "arm32", "armhf")

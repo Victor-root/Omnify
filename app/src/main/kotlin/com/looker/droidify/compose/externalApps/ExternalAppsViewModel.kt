@@ -36,6 +36,7 @@ import com.looker.droidify.installer.installers.shizuku.ShizukuState
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.datastore.SettingsRepository
+import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
@@ -171,6 +172,17 @@ class ExternalAppsViewModel @Inject constructor(
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptySet())
+
+    /** Keys of tracked apps the user has favourited — the same store the F-Droid catalogue's own
+     *  favourites use ([SettingsRepository.toggleFavourites]/`favouriteApps`), keyed by [ExternalApp.key]
+     *  instead of a package name so a source can be favourited before it's even installed (unlike a
+     *  package name, [ExternalApp.key] never collides with a real Android package id). */
+    val favourites: StateFlow<Set<String>> = settingsRepository.get { favouriteApps }.asStateFlow(emptySet())
+
+    /** Adds or removes [app] from the user's favourites. */
+    fun toggleFavourite(app: ExternalApp) {
+        viewModelScope.launch { settingsRepository.toggleFavourites(app.key) }
+    }
 
     /** Per-app system install state (Pending/Installing/…), keyed by [ExternalApp.key]. */
     val installStates: StateFlow<Map<String, InstallState>> = combine(

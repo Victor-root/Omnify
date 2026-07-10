@@ -309,6 +309,7 @@ fun AppListScreen(
     val externalViewModel: ExternalAppsViewModel = hiltViewModel()
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
+    val externalInstalledVersions by externalViewModel.installedVersions.collectAsStateWithLifecycle()
     // External-repo updates surface in the Updates tab too (no difference from F-Droid repos), so we
     // refresh release tags on screen entry — not only when the External tab is open.
     LaunchedEffect(Unit) {
@@ -328,8 +329,12 @@ fun AppListScreen(
         enabledExternalApps.filter { it.supportsTelevision }
     }
     // "Track only" sources keep updating in the background but are kept out of the Updates tab/count.
-    val externalUpdates = remember(enabledExternalApps) {
-        enabledExternalApps.filter { it.hasUpdate && !it.muteUpdates }
+    // hasUpdateGiven (not the plain hasUpdate) also catches an app installed before its source was
+    // tracked, by falling back to its real on-device version — see ExternalApp.hasUpdateGiven.
+    val externalUpdates = remember(enabledExternalApps, externalInstalledVersions) {
+        enabledExternalApps.filter {
+            it.hasUpdateGiven(externalInstalledVersions[it.key]) && !it.muteUpdates
+        }
     }
 
     // Android TV / D-pad: Material3's TabRow doesn't release focus downward on its own, so pressing

@@ -115,6 +115,7 @@ fun ExternalAppDetailScreen(
     var showChangelog by remember { mutableStateOf(false) }
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val splitViewSettingEnabled by viewModel.splitViewEnabled.collectAsStateWithLifecycle()
+    val favourites by viewModel.favourites.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -327,6 +328,8 @@ fun ExternalAppDetailScreen(
                 },
                 name = app.label,
                 subtitle = stringResource(R.string.by_author_FORMAT, app.owner),
+                isFavorite = app.key in favourites,
+                onToggleFavorite = { viewModel.toggleFavourite(app) },
                 // "App info" as a gear on the hero card itself, same as the F-Droid catalogue detail
                 // screen — frees the action row below for the primary/uninstall buttons alone.
                 onManageClick = if (isInstalled) {
@@ -352,6 +355,7 @@ fun ExternalAppDetailScreen(
                         onLaunch = { viewModel.launch(app) },
                         onUninstall = { viewModel.uninstall(app) },
                         onCancel = { viewModel.cancel(app) },
+                        installedVersionName = installedVersion,
                         primaryActionFocusRequester = primaryActionFocusRequester,
                     )
                 },

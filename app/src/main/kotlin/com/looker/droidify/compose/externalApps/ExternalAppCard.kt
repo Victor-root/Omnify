@@ -68,6 +68,10 @@ fun ExternalLifecycleActions(
     onUninstall: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    // The real on-device versionName (read from the package manager), so an app installed before its
+    // source was tracked still shows Update instead of Launch — see ExternalApp.hasUpdateGiven. Null
+    // when not installed.
+    installedVersionName: String? = null,
     // TV: the startup/down-escape focus target on the external detail screen. Attached to whichever
     // button ends up primary in this state (install/update/launch, or Cancel while a download/install is
     // in progress), mirroring the F-Droid catalogue detail screen's primaryActionFocusRequester. Null off
@@ -121,7 +125,7 @@ fun ExternalLifecycleActions(
                     modifier = primaryButtonModifier,
                 ) { Text(stringResource(R.string.install)) }
 
-                app.hasUpdate -> Button(
+                app.hasUpdateGiven(installedVersionName) -> Button(
                     onClick = onInstallOrUpdate,
                     modifier = primaryButtonModifier,
                 ) { Text(stringResource(R.string.update)) }
