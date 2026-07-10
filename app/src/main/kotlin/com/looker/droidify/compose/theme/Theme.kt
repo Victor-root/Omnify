@@ -30,11 +30,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.wallpaperAccentColor
+
+/** Android TV's default density (matched to the same dp-based layouts phones use, plus this app's own
+ *  10-foot-UI size bumps — bigger tiles, bigger buttons, bigger focus scale) rendered noticeably larger
+ *  than intended on an actual TV screen. A single uniform shrink here brings the *whole* interface down
+ *  a notch — not just individual TV-only sizes sprinkled across screens — since every dp and sp everywhere
+ *  is measured against [LocalDensity]. */
+private const val TV_UI_SCALE = 0.85f
 
 private val lightScheme = lightColorScheme(
     primary = primaryLight,
@@ -424,12 +433,24 @@ fun DroidifyTheme(
         // Opacity of the status-bar scrim, driven by the current screen's scroll (see
         // LocalStatusBarScrimAlpha). Held here so the scrim itself can live above every screen.
         val statusBarScrimAlpha = remember { mutableFloatStateOf(0f) }
+        val baseDensity = LocalDensity.current
+        // TV only: a uniform shrink of every dp/sp in the app (see TV_UI_SCALE), not just this or that
+        // screen's own TV-specific sizes. No-op on touch (baseDensity itself, untouched).
+        val scaledDensity = if (isTelevision) {
+            Density(
+                density = baseDensity.density * TV_UI_SCALE,
+                fontScale = baseDensity.fontScale * TV_UI_SCALE,
+            )
+        } else {
+            baseDensity
+        }
         CompositionLocalProvider(
             LocalAccentBarColor provides barColor,
             LocalOnAccentBarColor provides onBarColor,
             LocalEdgeToEdge provides edgeToEdge,
             LocalStatusBarScrimAlpha provides statusBarScrimAlpha,
             LocalIsTelevision provides isTelevision,
+            LocalDensity provides scaledDensity,
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 content()

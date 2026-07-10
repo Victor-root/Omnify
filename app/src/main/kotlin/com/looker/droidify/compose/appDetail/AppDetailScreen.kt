@@ -9,6 +9,8 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +60,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +72,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -265,15 +269,20 @@ fun AppDetailScreen(
     // TopAppBar doesn't release focus downward on its own, so "down" on the back arrow would otherwise
     // leave the user stuck in the header; it now drops onto that button. No effect with touch.
     val primaryActionFocusRequester = remember { FocusRequester() }
+    // Startup focus lands on the favourite heart instead: it sits at the very top of the hero card,
+    // already fully visible at scroll position 0, so requesting focus there can never trigger Compose's
+    // own scroll-into-view — unlike the primary action button further down, whose relocation could
+    // overshoot while the page's layout was still settling and leave the card clipped under the top bar.
+    val favoriteFocusRequester = remember { FocusRequester() }
     val isTelevision = LocalIsTelevision.current
-    // TV: open the detail with focus already on the main action instead of the back arrow, retrying
-    // briefly until the button is laid out. Keyed on the loaded app so it runs once per app. No-op on touch.
+    // TV: open the detail with focus already on the heart instead of the back arrow, retrying briefly
+    // until it's laid out. Keyed on the loaded app so it runs once per app. No-op on touch.
     val successPackageName = successState?.app?.metadata?.packageName?.name
     if (isTelevision) {
         LaunchedEffect(successPackageName) {
             if (successPackageName != null) {
                 repeat(20) {
-                    if (runCatching { primaryActionFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                    if (runCatching { favoriteFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
                     delay(50)
                 }
             }
@@ -287,7 +296,7 @@ fun AppDetailScreen(
                 expandedHeight = AccentBarHeight,
                 modifier = Modifier.onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
-                        runCatching { primaryActionFocusRequester.requestFocus() }.isSuccess
+                        runCatching { favoriteFocusRequester.requestFocus() }.isSuccess
                     } else {
                         false
                     }
@@ -401,6 +410,7 @@ fun AppDetailScreen(
                     descriptionTranslation = descriptionTranslation,
                     supportedLanguages = supportedLanguages,
                     primaryActionFocusRequester = primaryActionFocusRequester,
+                    favoriteFocusRequester = favoriteFocusRequester,
                     scrollState = scrollState,
                     useSplitView = useSplitView,
                     modifier = Modifier.padding(padding),
@@ -540,7 +550,7 @@ private fun PrimaryActions(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun AppDetail(
     app: App,
@@ -561,6 +571,7 @@ private fun AppDetail(
     descriptionTranslation: DescriptionTranslation,
     supportedLanguages: SupportedLanguages,
     primaryActionFocusRequester: FocusRequester,
+    favoriteFocusRequester: FocusRequester,
     scrollState: ScrollState,
     useSplitView: Boolean,
     modifier: Modifier = Modifier,
@@ -647,6 +658,7 @@ private fun AppDetail(
             onUninstall = onUninstall,
             onCancel = onCancel,
             primaryActionFocusRequester = primaryActionFocusRequester,
+            favoriteFocusRequester = favoriteFocusRequester,
             onViewVersionsClick = if (packages.isNotEmpty()) {
                 {
                     coroutineScope.launch {
@@ -734,34 +746,80 @@ private fun AppDetail(
             }
         }
     } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .onSizeChanged { viewportPx = it.height }
-                .verticalScroll(scrollState)
-                // A focus group so D-pad navigation stays scoped to the content (the action button itself is
-                // the explicit focus target, see primaryActionFocusRequester).
-                .focusGroup()
-                .then(modifier)
-                // Breathing room so the header section isn't glued under the top bar.
-                .padding(top = 16.dp),
-        ) {
-            headerCard()
-            AppDetailBody(
-                app = app,
-                installablePackage = installablePackage,
-                packages = packages,
-                customButtons = customButtons,
-                onCustomButtonClick = onCustomButtonClick,
-                descriptionTranslation = descriptionTranslation,
-                supportedLanguages = supportedLanguages,
-                installableRepo = installableRepo,
-                onSelectRepo = onSelectRepo,
-                onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
-                onAnchorPositioned = { versionsAnchorY = it },
-                viewportPx = viewportPx,
-                showSidebarSections = true,
-            )
+        // Android TV: the hero card (icon, name, stats, action buttons, "see all versions" link) is
+        // guaranteed to already fit in the initial viewport, so navigating the D-pad within it should
+        // never scroll the page — only leaving it, into the description/README below, should. Compose's
+        // own "scroll the newly focused element into view" behaviour doesn't reliably respect that (it
+        // can still nudge the scroll position even for an element that's already fully visible). A first
+        // attempt corrected the drift after the fact (snapping back to 0 once it happened) but that was
+        // visibly janky — the unwanted scroll still rendered a frame or two before the correction landed.
+        // This suppresses it before it ever happens instead: a BringIntoViewSpec that's a no-op while
+        // focus is still inside the card, and defers to the real (default) one everywhere else, so
+        // scrolling the description/README into view still works normally once focus reaches it.
+        var heroCardHasFocus by remember { mutableStateOf(true) }
+        val isTelevision = LocalIsTelevision.current
+        val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
+        val bringIntoViewSpec = remember(isTelevision, defaultBringIntoViewSpec) {
+            if (!isTelevision) {
+                defaultBringIntoViewSpec
+            } else {
+                object : BringIntoViewSpec {
+                    override fun calculateScrollDistance(
+                        offset: Float,
+                        size: Float,
+                        containerSize: Float,
+                    ): Float = if (heroCardHasFocus && scrollState.value == 0) {
+                        // Only suppress while we're already sitting at the very top: that's the one case
+                        // where the whole card is guaranteed to already fit. Coming back UP from the
+                        // description with the card scrolled out of view still needs the normal
+                        // behaviour, or focus moving further up within the card (say, from the "see all
+                        // versions" link back toward the icon) would get stuck exactly where it re-entered
+                        // instead of continuing to reveal the rest of the card above it.
+                        0f
+                    } else {
+                        defaultBringIntoViewSpec.calculateScrollDistance(offset, size, containerSize)
+                    }
+                }
+            }
+        }
+        CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { viewportPx = it.height }
+                    .verticalScroll(scrollState)
+                    // A focus group so D-pad navigation stays scoped to the content (the action button itself is
+                    // the explicit focus target, see primaryActionFocusRequester).
+                    .focusGroup()
+                    .then(modifier)
+                    // Breathing room so the header section isn't glued under the top bar.
+                    .padding(top = 16.dp),
+            ) {
+                Column(
+                    modifier = if (isTelevision) {
+                        Modifier.focusGroup().onFocusChanged { heroCardHasFocus = it.hasFocus }
+                    } else {
+                        Modifier
+                    },
+                ) {
+                    headerCard()
+                }
+                AppDetailBody(
+                    app = app,
+                    installablePackage = installablePackage,
+                    packages = packages,
+                    customButtons = customButtons,
+                    onCustomButtonClick = onCustomButtonClick,
+                    descriptionTranslation = descriptionTranslation,
+                    supportedLanguages = supportedLanguages,
+                    installableRepo = installableRepo,
+                    onSelectRepo = onSelectRepo,
+                    onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+                    onAnchorPositioned = { versionsAnchorY = it },
+                    viewportPx = viewportPx,
+                    showSidebarSections = true,
+                )
+            }
         }
     }
 }
@@ -1104,6 +1162,7 @@ private fun AppHeaderCard(
     onUninstall: () -> Unit,
     onCancel: () -> Unit,
     primaryActionFocusRequester: FocusRequester,
+    favoriteFocusRequester: FocusRequester,
     onViewVersionsClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
@@ -1159,6 +1218,7 @@ private fun AppHeaderCard(
         subtitle = author?.let { stringResource(R.string.by_author_FORMAT, it) },
         isFavorite = isFavorite,
         onToggleFavorite = onToggleFavorite,
+        favoriteFocusRequester = favoriteFocusRequester,
         onManageClick = if (isInstalled) {
             { heroContext.openAppInfo(packageName) }
         } else {

@@ -3,7 +3,11 @@ package com.looker.droidify.compose.externalApps
 import android.content.Intent
 import android.content.res.Configuration
 import android.util.Log
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
@@ -91,7 +97,11 @@ import com.looker.droidify.utility.common.extension.openAppInfo
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalFoundationApi::class,
+)
 @Composable
 fun ExternalAppDetailScreen(
     appKey: String,
@@ -176,14 +186,20 @@ fun ExternalAppDetailScreen(
     }
 
     // TV / D-pad: the top bar doesn't release focus downward on its own, and startup focus was never
-    // requested at all — mirroring the F-Droid catalogue detail screen's primaryActionFocusRequester so
-    // both screens behave identically. No effect on touch.
+    // requested at all — mirroring the F-Droid catalogue detail screen so both screens behave
+    // identically. No effect on touch.
     val isTelevision = LocalIsTelevision.current
     val primaryActionFocusRequester = remember { FocusRequester() }
+    // Startup focus (and the top bar's down-escape) lands on the favourite heart instead of the primary
+    // action button: the heart sits at the very top of the hero card, already fully visible at scroll
+    // position 0, so requesting focus there can never trigger Compose's own scroll-into-view — unlike
+    // the primary button further down, whose relocation could overshoot while the page's layout was
+    // still settling and leave the card clipped under the top bar.
+    val favoriteFocusRequester = remember { FocusRequester() }
     if (isTelevision) {
         LaunchedEffect(app?.key) {
             repeat(20) {
-                if (runCatching { primaryActionFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                if (runCatching { favoriteFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
                 delay(50)
             }
         }
@@ -195,7 +211,7 @@ fun ExternalAppDetailScreen(
                 colors = accentTopAppBarColors(),
                 expandedHeight = AccentBarHeight,
                 modifier = if (isTelevision) {
-                    Modifier.tvDpadDownTo(primaryActionFocusRequester)
+                    Modifier.tvDpadDownTo(favoriteFocusRequester)
                 } else {
                     Modifier
                 },
@@ -330,6 +346,7 @@ fun ExternalAppDetailScreen(
                 subtitle = stringResource(R.string.by_author_FORMAT, app.owner),
                 isFavorite = app.key in favourites,
                 onToggleFavorite = { viewModel.toggleFavourite(app) },
+                favoriteFocusRequester = favoriteFocusRequester,
                 // "App info" as a gear on the hero card itself, same as the F-Droid catalogue detail
                 // screen — frees the action row below for the primary/uninstall buttons alone.
                 onManageClick = if (isInstalled) {
@@ -447,35 +464,80 @@ fun ExternalAppDetailScreen(
                 }
             }
         } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(contentPadding)
-                    .onSizeChanged { viewportPx = it.height }
-                    .verticalScroll(scrollState),
-            ) {
-                headerCard()
-                ExternalAppDetailBody(
-                    app = app,
-                    isInstalled = isInstalled,
-                    readmeHtml = readmeHtml,
-                    readmeError = readmeError,
-                    readmeJavaScriptEnabled = readmeJavaScriptEnabled,
-                    viewportPx = viewportPx,
-                    scrollState = scrollState,
-                    issueTrackerLink = issueTrackerLink,
-                    changelogLink = changelogLink,
-                    onChangelogClick = {
-                        showChangelog = true
-                        viewModel.loadChangelogHtml(app)
-                    },
-                    supportedLanguages = supportedLanguages,
-                    releaseHistory = releaseHistory,
-                    onVersionClick = { versionToInstall = it },
-                    onAnchorPositioned = { versionsAnchorY = it },
-                    showSidebarSections = true,
-                    showLeadingSeparator = true,
-                )
+            // Android TV: the hero card (icon, name, stats, action buttons, "see all versions" link) is
+            // guaranteed to already fit in the initial viewport, so navigating the D-pad within it should
+            // never scroll the page — only leaving it, into the README below, should. Compose's own
+            // "scroll the newly focused element into view" behaviour doesn't reliably respect that (it can
+            // still nudge the scroll position even for an element that's already fully visible). A first
+            // attempt corrected the drift after the fact (snapping back to 0 once it happened) but that
+            // was visibly janky — the unwanted scroll still rendered a frame or two before the correction
+            // landed. This suppresses it before it ever happens instead: a BringIntoViewSpec that's a
+            // no-op while focus is still inside the card, and defers to the real (default) one everywhere
+            // else, so scrolling the README into view still works normally once focus reaches it.
+            var heroCardHasFocus by remember { mutableStateOf(true) }
+            val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
+            val bringIntoViewSpec = remember(isTelevision, defaultBringIntoViewSpec) {
+                if (!isTelevision) {
+                    defaultBringIntoViewSpec
+                } else {
+                    object : BringIntoViewSpec {
+                        override fun calculateScrollDistance(
+                            offset: Float,
+                            size: Float,
+                            containerSize: Float,
+                        ): Float = if (heroCardHasFocus && scrollState.value == 0) {
+                            // Only suppress while we're already sitting at the very top: that's the one
+                            // case where the whole card is guaranteed to already fit. Coming back UP from
+                            // the README with the card scrolled out of view still needs the normal
+                            // behaviour, or focus moving further up within the card (say, from the "see
+                            // all versions" link back toward the icon) would get stuck exactly where it
+                            // re-entered instead of continuing to reveal the rest of the card above it.
+                            0f
+                        } else {
+                            defaultBringIntoViewSpec.calculateScrollDistance(offset, size, containerSize)
+                        }
+                    }
+                }
+            }
+            CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(contentPadding)
+                        .onSizeChanged { viewportPx = it.height }
+                        .verticalScroll(scrollState),
+                ) {
+                    Column(
+                        modifier = if (isTelevision) {
+                            Modifier.focusGroup().onFocusChanged { heroCardHasFocus = it.hasFocus }
+                        } else {
+                            Modifier
+                        },
+                    ) {
+                        headerCard()
+                    }
+                    ExternalAppDetailBody(
+                        app = app,
+                        isInstalled = isInstalled,
+                        readmeHtml = readmeHtml,
+                        readmeError = readmeError,
+                        readmeJavaScriptEnabled = readmeJavaScriptEnabled,
+                        viewportPx = viewportPx,
+                        scrollState = scrollState,
+                        issueTrackerLink = issueTrackerLink,
+                        changelogLink = changelogLink,
+                        onChangelogClick = {
+                            showChangelog = true
+                            viewModel.loadChangelogHtml(app)
+                        },
+                        supportedLanguages = supportedLanguages,
+                        releaseHistory = releaseHistory,
+                        onVersionClick = { versionToInstall = it },
+                        onAnchorPositioned = { versionsAnchorY = it },
+                        showSidebarSections = true,
+                        showLeadingSeparator = true,
+                    )
+                }
             }
         }
     }
