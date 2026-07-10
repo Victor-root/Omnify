@@ -87,6 +87,7 @@ import com.looker.droidify.external.apkFileSize
 import com.looker.droidify.external.apkVersionLabel
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.common.RootDetection
+import com.looker.droidify.utility.common.extension.openAppInfo
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -326,6 +327,13 @@ fun ExternalAppDetailScreen(
                 },
                 name = app.label,
                 subtitle = stringResource(R.string.by_author_FORMAT, app.owner),
+                // "App info" as a gear on the hero card itself, same as the F-Droid catalogue detail
+                // screen — frees the action row below for the primary/uninstall buttons alone.
+                onManageClick = if (isInstalled) {
+                    app.packageName?.let { packageName -> { context.openAppInfo(packageName) } }
+                } else {
+                    null
+                },
                 badge = if (isRootCompatible) { { RootBadge() } } else null,
                 stats = {
                     HeroStatsRow(

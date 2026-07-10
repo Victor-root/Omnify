@@ -3,11 +3,7 @@ package com.looker.droidify.compose.externalApps
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -19,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
@@ -33,7 +28,6 @@ import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.installer.model.InstallState
-import com.looker.droidify.utility.common.extension.openAppInfo
 
 /**
  * An external app as a tile — identical to the F-Droid catalogue tiles ([AppTile]). Tapping opens the
@@ -141,22 +135,10 @@ fun ExternalLifecycleActions(
                 OutlinedButton(onClick = onUninstall, modifier = secondaryButtonModifier) {
                     Text(stringResource(R.string.uninstall))
                 }
-                // Android's own "App info" page — uninstall, clear cache/data, permissions, battery,
-                // notifications — instead of reimplementing any of that system-level management here.
-                // Same button as the F-Droid catalogue detail screen.
-                app.packageName?.let { packageName ->
-                    val context = LocalContext.current
-                    IconButton(
-                        onClick = { context.openAppInfo(packageName) },
-                        modifier = Modifier.tvFocusScale(),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.manage),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                // "App info" now lives as a gear on the hero card itself (top-start, mirroring the
+                // favourite heart) — see HeroCard's onManageClick, wired from ExternalAppDetailScreen —
+                // same as the F-Droid catalogue detail screen, freeing this row for the primary/
+                // uninstall buttons alone.
             }
         }
     }

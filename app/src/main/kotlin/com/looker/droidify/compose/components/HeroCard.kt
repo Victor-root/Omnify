@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -50,6 +52,12 @@ fun HeroCard(
     modifier: Modifier = Modifier,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
+    // Android's own "App info" page (uninstall, clear cache/data, permissions, battery, notifications).
+    // Overlaid top-start, mirroring the favourite heart at top-end, so it no longer competes for space
+    // with the primary action buttons below (where a long localised label, e.g. French "Mettre à jour",
+    // could otherwise get squeezed and truncated). Only shown once there's somewhere for it to go
+    // (an installed app); null hides it entirely.
+    onManageClick: (() -> Unit)? = null,
     badge: (@Composable () -> Unit)? = null,
     stats: (@Composable () -> Unit)? = null,
     footer: (@Composable () -> Unit)? = null,
@@ -101,6 +109,27 @@ fun HeroCard(
                 if (footer != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     footer()
+                }
+            }
+
+            // The "manage" gear, mirroring the heart on the opposite corner: no container, overlaid
+            // top-start so it doesn't disturb the centred column either.
+            if (onManageClick != null) {
+                IconButton(
+                    onClick = onManageClick,
+                    // TV: square so the focus halo is a clean circle, and the icon scales up on focus.
+                    // No-op on touch.
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .then(if (LocalIsTelevision.current) Modifier.size(48.dp) else Modifier)
+                        .tvFocusScale(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = stringResource(R.string.manage),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp),
+                    )
                 }
             }
 

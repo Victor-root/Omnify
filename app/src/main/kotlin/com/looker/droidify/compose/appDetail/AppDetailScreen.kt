@@ -38,7 +38,6 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -121,6 +120,7 @@ import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
+import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
@@ -446,7 +446,6 @@ private fun PrimaryActions(
     primaryActionFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
     val installing = installState == InstallState.Pending || installState == InstallState.Installing
     val isTelevision = LocalIsTelevision.current
     // A phone-width button stretched to fill a tablet's much wider screen looked like an oversized
@@ -532,18 +531,10 @@ private fun PrimaryActions(
                 ) {
                     Text(stringResource(R.string.uninstall))
                 }
-                // Android's own "App info" page — uninstall, clear cache/data, permissions, battery,
-                // notifications — instead of reimplementing any of that system-level management here.
-                IconButton(
-                    onClick = { context.openAppInfo(packageName) },
-                    modifier = Modifier.tvFocusScale(1.10f),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Settings,
-                        contentDescription = stringResource(R.string.manage),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                // "App info" now lives as a gear on the hero card itself (top-start, mirroring the
+                // favourite heart) — see HeroCard's onManageClick — freeing this row for the primary/
+                // uninstall buttons alone, since a long localised label (e.g. French "Mettre à jour")
+                // was getting squeezed and truncated when a third button shared the row on phones.
             }
         }
     }
@@ -1123,6 +1114,7 @@ private fun AppHeaderCard(
     val minimal = app?.minimal()
     val version = app?.metadata?.suggestedVersionName?.nonBlank()
     val size = installablePackage?.apk?.size?.toString()
+    val heroContext = LocalContext.current
     val author = app?.author?.name?.nonBlank()
     val uriHandler = LocalUriHandler.current
     val sourceCodeUrl = app?.links?.sourceCode?.nonBlank()
@@ -1167,6 +1159,11 @@ private fun AppHeaderCard(
         subtitle = author?.let { stringResource(R.string.by_author_FORMAT, it) },
         isFavorite = isFavorite,
         onToggleFavorite = onToggleFavorite,
+        onManageClick = if (isInstalled) {
+            { heroContext.openAppInfo(packageName) }
+        } else {
+            null
+        },
         badge = if (isRootCompatible) { { RootBadge() } } else null,
         stats = if (version != null || size != null || onSourceCodeClick != null) {
             { HeroStatsRow(version = version, size = size, onSourceCodeClick = onSourceCodeClick) }
