@@ -12,6 +12,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
@@ -29,6 +31,10 @@ fun DownloadProgressRow(
     status: DownloadStatus,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    // TV: the download/install states replace the primary action button entirely, so its startup-focus
+    // requester (see AppDetailScreen's primaryActionFocusRequester) has nothing to attach to unless it's
+    // handed down here — landing it on Cancel instead. Null off TV / for callers that don't need it.
+    cancelFocusRequester: FocusRequester? = null,
 ) {
     Column(
         modifier = modifier,
@@ -60,7 +66,14 @@ fun DownloadProgressRow(
                     )
                 }
             }
-            TextButton(onClick = onCancel) {
+            TextButton(
+                onClick = onCancel,
+                modifier = if (cancelFocusRequester != null) {
+                    Modifier.focusRequester(cancelFocusRequester).tvFocusScale()
+                } else {
+                    Modifier
+                },
+            ) {
                 Text(stringResource(R.string.cancel))
             }
         }
@@ -82,6 +95,7 @@ fun DownloadProgressRow(
 fun InstallingRow(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    cancelFocusRequester: FocusRequester? = null,
 ) {
     Column(
         modifier = modifier,
@@ -94,7 +108,14 @@ fun InstallingRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onCancel) {
+            TextButton(
+                onClick = onCancel,
+                modifier = if (cancelFocusRequester != null) {
+                    Modifier.focusRequester(cancelFocusRequester).tvFocusScale()
+                } else {
+                    Modifier
+                },
+            ) {
                 Text(stringResource(R.string.cancel))
             }
         }

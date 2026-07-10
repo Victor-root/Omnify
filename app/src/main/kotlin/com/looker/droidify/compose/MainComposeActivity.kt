@@ -35,7 +35,6 @@ import com.looker.droidify.compose.appList.navigation.AppList
 import com.looker.droidify.compose.appList.navigation.appList
 import com.looker.droidify.compose.appList.navigation.navigateToAppList
 import com.looker.droidify.compose.components.UnknownSourcesDialog
-import com.looker.droidify.compose.home.navigation.home
 import com.looker.droidify.compose.repoDetail.navigation.navigateToRepoDetail
 import com.looker.droidify.compose.repoDetail.navigation.repoDetail
 import com.looker.droidify.compose.repoEdit.navigation.navigateToRepoEdit
@@ -367,11 +366,6 @@ class MainComposeActivity : ComponentActivity() {
                         navController = navController,
                         startDestination = AppList,
                     ) {
-                        home(
-                            onNavigateToApps = { navController.navigateToAppList() },
-                            onNavigateToRepos = { navController.navigateToRepoList() },
-                            onNavigateToSettings = { navController.navigateToSettings() },
-                        )
                         appList(
                             onAppClick = { packageName ->
                                 navController.navigateToAppDetail(packageName)

@@ -33,6 +33,13 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 import kotlinx.coroutines.launch
 
 /**
+ * Android TV overscan safe-area inset: every screen with a scrollable grid/list should add this to its
+ * content padding so a focused item's scaled-up highlight near a screen edge isn't clipped by the TV's
+ * overscan. Shared so every screen uses the same inset instead of drifting apart.
+ */
+val TvOverscan = 24.dp
+
+/**
  * Android TV only: the focused element scales up and is lifted above its neighbours. Draw-only
  * (graphicsLayer + zIndex), so layout never moves; the zIndex means that when the zoom does spill past
  * the element's box it pops *in front* of its neighbours rather than appearing to collide with them.

@@ -11,10 +11,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -26,6 +29,7 @@ import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.TileIconSize
 import com.looker.droidify.compose.components.TvTileIconSize
+import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.installer.model.InstallState
@@ -70,38 +74,53 @@ fun ExternalLifecycleActions(
     onUninstall: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    // TV: the startup/down-escape focus target on the external detail screen. Attached to whichever
+    // button ends up primary in this state (install/update/launch, or Cancel while a download/install is
+    // in progress), mirroring the F-Droid catalogue detail screen's primaryActionFocusRequester. Null off
+    // TV / for callers that don't need it (e.g. the tile card).
+    primaryActionFocusRequester: FocusRequester? = null,
 ) {
     val installing =
         installState == InstallState.Pending || installState == InstallState.Installing
+    val isTelevision = LocalIsTelevision.current
     // A phone-width button stretched to fill a tablet's much wider screen looked like an oversized
     // stray bar; capped to a comfortable reading width instead, matching the tablet breakpoint Material
     // itself uses (600dp) and the F-Droid catalogue detail screen's own primary button — phones (the
     // vast majority of devices) are completely untouched.
-    val isTablet = LocalConfiguration.current.screenWidthDp >= 600
+    val isTablet = !isTelevision && LocalConfiguration.current.screenWidthDp >= 600
     when {
         downloadStatus != null -> DownloadProgressRow(
             status = downloadStatus,
             onCancel = onCancel,
             modifier = modifier.fillMaxWidth(),
+            cancelFocusRequester = primaryActionFocusRequester,
         )
 
         installing -> InstallingRow(
             onCancel = onCancel,
             modifier = modifier.fillMaxWidth(),
+            cancelFocusRequester = primaryActionFocusRequester,
         )
 
         else -> Row(
             modifier = modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(
-                8.dp,
-                if (isTablet) Alignment.CenterHorizontally else Alignment.Start,
+                if (isTelevision) 24.dp else 8.dp,
+                if (isTelevision || isTablet) Alignment.CenterHorizontally else Alignment.Start,
             ),
         ) {
-            val primaryButtonModifier = if (isTablet) {
-                Modifier.widthIn(min = 220.dp, max = 360.dp)
-            } else {
-                Modifier.weight(1f)
+            val primaryButtonModifier = when {
+                isTelevision -> Modifier.height(60.dp).widthIn(min = 340.dp)
+                isTablet -> Modifier.widthIn(min = 220.dp, max = 360.dp)
+                else -> Modifier.weight(1f)
+            }.tvFocusScale(1.10f).let {
+                if (primaryActionFocusRequester != null) it.focusRequester(primaryActionFocusRequester) else it
             }
+            val secondaryButtonModifier = if (isTelevision) {
+                Modifier.height(60.dp).widthIn(min = 200.dp)
+            } else {
+                Modifier
+            }.tvFocusScale(1.10f)
             when {
                 !isInstalled -> Button(
                     onClick = onInstallOrUpdate,
@@ -119,7 +138,7 @@ fun ExternalLifecycleActions(
                 ) { Text(stringResource(R.string.launch)) }
             }
             if (isInstalled) {
-                OutlinedButton(onClick = onUninstall) {
+                OutlinedButton(onClick = onUninstall, modifier = secondaryButtonModifier) {
                     Text(stringResource(R.string.uninstall))
                 }
                 // Android's own "App info" page — uninstall, clear cache/data, permissions, battery,
@@ -127,7 +146,10 @@ fun ExternalLifecycleActions(
                 // Same button as the F-Droid catalogue detail screen.
                 app.packageName?.let { packageName ->
                     val context = LocalContext.current
-                    IconButton(onClick = { context.openAppInfo(packageName) }) {
+                    IconButton(
+                        onClick = { context.openAppInfo(packageName) },
+                        modifier = Modifier.tvFocusScale(),
+                    ) {
                         Icon(
                             imageVector = Icons.Filled.Settings,
                             contentDescription = stringResource(R.string.manage),

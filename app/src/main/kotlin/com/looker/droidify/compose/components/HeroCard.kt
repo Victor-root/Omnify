@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -180,7 +181,8 @@ fun HeroStatsRow(
 @Composable
 fun HeroSourceCodeStatItem(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.clickable(onClick = onClick),
+        // TV only: a soft accent fill behind the focused stat (no-op on touch).
+        modifier = modifier.tvFocusFill(RoundedCornerShape(8.dp)).clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
@@ -229,6 +231,8 @@ fun heroFooter(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(MaterialTheme.shapes.small)
+                        // TV only: a soft accent fill behind the focused link (no-op on touch).
+                        .tvFocusFill(MaterialTheme.shapes.small)
                         .clickable(onClick = onViewVersionsClick)
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                 ) {

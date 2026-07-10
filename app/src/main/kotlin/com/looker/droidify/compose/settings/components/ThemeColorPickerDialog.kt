@@ -36,6 +36,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.tvFocusOutline
+import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.accentColorPalette
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
 import com.looker.droidify.utility.common.wallpaperAccentColor
@@ -150,6 +152,10 @@ private fun ColorSwatch(
     Box(
         modifier = modifier
             .size(48.dp)
+            // TV only: the focused swatch grows and gains a ring, so a grid of identical circles stays
+            // navigable with the D-pad (no-op on touch).
+            .tvFocusScale()
+            .tvFocusOutline(CircleShape)
             .clip(CircleShape)
             .background(color)
             .clickable(onClick = onClick),

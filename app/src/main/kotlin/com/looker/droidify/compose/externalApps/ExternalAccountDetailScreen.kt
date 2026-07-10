@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.repoList.AppLauncherIcon
 import com.looker.droidify.compose.repoList.RepoIcon
@@ -327,7 +328,9 @@ private fun AccountAppsTab(
         else -> {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = if (isTelevision) 150.dp else 100.dp),
-                contentPadding = PaddingValues(12.dp),
+                // On TV, inset from the screen edges (overscan safe area) so a focused tile's scaled-up
+                // highlight near an edge isn't clipped — same inset the main app list uses.
+                contentPadding = PaddingValues(if (isTelevision) 12.dp + TvOverscan else 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize(),

@@ -17,6 +17,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,8 +25,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -36,9 +40,13 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.tvDpadDownTo
+import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalAccentBarColor
+import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import kotlinx.coroutines.delay
 
 /**
  * The project's changelog, rendered in its own full-screen in-app page — exactly like the README, so
@@ -73,14 +81,45 @@ fun ChangelogDialog(
                 isAppearanceLightNavigationBars = lightIcons
             }
         }
+        val isTelevision = LocalIsTelevision.current
+        // Android TV: this dialog opens its own window with nothing else focused. The WebView content is
+        // deliberately non-focusable (see ReadmeWebView), so without this the D-pad would have nowhere to
+        // land at all once loaded — a remote press then times out input dispatch and kills the app. Lands
+        // on the back button while loading, then on the content once it's up so "down"/"up" pages through
+        // it (see tvPageScroll). No effect on touch.
+        val backFocusRequester = remember { FocusRequester() }
+        val contentFocusRequester = remember { FocusRequester() }
+        if (isTelevision) {
+            LaunchedEffect(html) {
+                val primary = if (html != null) contentFocusRequester else backFocusRequester
+                repeat(20) {
+                    if (runCatching { primary.requestFocus() }.isSuccess) return@LaunchedEffect
+                    delay(50)
+                }
+            }
+        }
         Surface(modifier = Modifier.fillMaxSize()) {
             Scaffold(
                 topBar = {
                     TopAppBar(
                         colors = accentTopAppBarColors(),
                         expandedHeight = AccentBarHeight,
+                        modifier = if (isTelevision) {
+                            Modifier.tvDpadDownTo(contentFocusRequester)
+                        } else {
+                            Modifier
+                        },
                         title = { Text(stringResource(R.string.changelog)) },
-                        navigationIcon = { BackButton(onDismiss) },
+                        navigationIcon = {
+                            BackButton(
+                                onDismiss,
+                                modifier = if (isTelevision) {
+                                    Modifier.focusRequester(backFocusRequester)
+                                } else {
+                                    Modifier
+                                },
+                            )
+                        },
                     )
                 },
             ) { contentPadding ->
@@ -89,10 +128,21 @@ fun ChangelogDialog(
                         val scrollState = rememberScrollState()
                         val density = LocalDensity.current
                         var heightPx by remember { mutableStateOf(0) }
+                        var viewportPx by remember { mutableStateOf(0) }
                         Box(
                             modifier = Modifier
                                 .padding(contentPadding)
                                 .fillMaxWidth()
+                                .onSizeChanged { viewportPx = it.height }
+                                .then(
+                                    if (isTelevision) {
+                                        Modifier
+                                            .focusRequester(contentFocusRequester)
+                                            .tvPageScroll(scrollState, (viewportPx * 0.85f).toInt())
+                                    } else {
+                                        Modifier
+                                    },
+                                )
                                 .verticalScroll(scrollState),
                         ) {
                             ReadmeWebView(

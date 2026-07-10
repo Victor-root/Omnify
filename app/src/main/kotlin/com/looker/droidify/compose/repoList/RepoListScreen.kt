@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -74,6 +75,8 @@ import coil3.compose.AsyncImage
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.tvDpadDownTo
+import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.externalApps.AddSourceState
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -83,7 +86,9 @@ import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
+import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -151,6 +156,18 @@ fun RepoListScreen(
     // TV / D-pad: the top bar doesn't release focus downward on its own; this lets "down" drop from the
     // header into the list. No effect on touch.
     val contentFocusRequester = remember { FocusRequester() }
+    val isTelevision = LocalIsTelevision.current
+    // Android TV must always land the D-pad focus somewhere on entry, or a remote press with nothing
+    // focused times out input dispatch and kills the app. Retried briefly because the list isn't laid
+    // out on the very first frame. No-op on touch.
+    if (isTelevision) {
+        LaunchedEffect(Unit) {
+            repeat(20) {
+                if (runCatching { contentFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                delay(50)
+            }
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(externalViewModel.snackbarHostState) },
@@ -506,6 +523,8 @@ private fun RepoItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            // TV only: a soft accent fill behind the focused row (no-op on touch).
+            .tvFocusFill(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .then(modifier),
@@ -538,6 +557,7 @@ private fun RepoItem(
         FilledIconToggleButton(
             checked = repo.enabled,
             onCheckedChange = { onToggle() },
+            modifier = Modifier.tvFocusScale(),
         ) {
             Icon(imageVector = Icons.Default.Check, contentDescription = null)
         }
@@ -568,6 +588,8 @@ private fun ExternalSourceItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            // TV only: a soft accent fill behind the focused row (no-op on touch).
+            .tvFocusFill(RoundedCornerShape(12.dp))
             .clickable(onClick = onOpen)
             .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
     ) {
@@ -627,6 +649,7 @@ private fun ExternalSourceItem(
         FilledIconToggleButton(
             checked = app.enabled,
             onCheckedChange = { onToggle() },
+            modifier = Modifier.tvFocusScale(),
         ) {
             Icon(imageVector = Icons.Default.Check, contentDescription = null)
         }
@@ -642,7 +665,7 @@ private fun ExternalSourceItem(
 private fun OverflowMenu(content: @Composable ColumnScope.(dismiss: () -> Unit) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { expanded = true }) {
+        IconButton(onClick = { expanded = true }, modifier = Modifier.tvFocusScale()) {
             Icon(
                 imageVector = Icons.Default.MoreVert,
                 contentDescription = stringResource(R.string.more_options),
@@ -674,6 +697,8 @@ private fun ExternalAccountItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            // TV only: a soft accent fill behind the focused row (no-op on touch).
+            .tvFocusFill(RoundedCornerShape(12.dp))
             .clickable(onClick = onOpen)
             .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
     ) {
@@ -747,6 +772,7 @@ private fun ExternalAccountItem(
         FilledIconToggleButton(
             checked = account.enabled,
             onCheckedChange = { onToggle() },
+            modifier = Modifier.tvFocusScale(),
         ) {
             Icon(imageVector = Icons.Default.Check, contentDescription = null)
         }
@@ -808,7 +834,8 @@ private fun AddSourceOption(
         onClick = onClick,
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.fillMaxWidth(),
+        // TV only: a soft accent fill layered over the card on focus (no-op on touch).
+        modifier = Modifier.fillMaxWidth().tvFocusFill(MaterialTheme.shapes.medium),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1176,6 +1203,9 @@ private fun IconChoice(url: String, selected: Boolean, onClick: () -> Unit) {
         contentScale = ContentScale.Crop,
         modifier = Modifier
             .size(56.dp)
+            // TV only: the focused thumbnail grows, so focus reads distinctly from the selection ring
+            // (no-op on touch).
+            .tvFocusScale()
             .clip(shape)
             .border(
                 width = if (selected) 2.dp else 1.dp,

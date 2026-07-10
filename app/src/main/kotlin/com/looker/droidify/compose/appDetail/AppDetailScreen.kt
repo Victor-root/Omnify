@@ -328,6 +328,7 @@ fun AppDetailScreen(
                                     shareApp(context, success.app.metadata.packageName.name, repo)
                                 }
                             },
+                            modifier = Modifier.tvFocusScale(),
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_share),
@@ -462,11 +463,13 @@ private fun PrimaryActions(
             status = downloadStatus,
             onCancel = onCancel,
             modifier = modifier.fillMaxWidth(),
+            cancelFocusRequester = primaryActionFocusRequester,
         )
 
         installing -> InstallingRow(
             onCancel = onCancel,
             modifier = modifier.fillMaxWidth(),
+            cancelFocusRequester = primaryActionFocusRequester,
         )
 
         else -> Row(
@@ -981,12 +984,16 @@ private fun VersionsSection(
             mutableStateOf(installableRepo?.id ?: repos.firstOrNull()?.id)
         }
         LaunchedEffect(selectedRepoId) { selectedRepoId?.let(onSelectRepo) }
+        // TV / D-pad: Material3's ScrollableTabRow doesn't release focus downward on its own, leaving a
+        // remote user stuck once they've picked a repo tab. Points at the first version row below. No
+        // effect on touch.
+        val firstVersionFocusRequester = remember { FocusRequester() }
         if (repos.size > 1) {
             val selectedIndex = repos.indexOfFirst { it.id == selectedRepoId }.coerceAtLeast(0)
             ScrollableTabRow(
                 selectedTabIndex = selectedIndex,
                 edgePadding = 16.dp,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().tvDpadDownTo(firstVersionFocusRequester),
             ) {
                 repos.forEachIndexed { index, repo ->
                     Tab(
@@ -1022,13 +1029,18 @@ private fun VersionsSection(
         // whole page an endless scroll. Collapses back on switching repo tabs, since that's a new list.
         var versionsExpanded by remember(selectedRepoId) { mutableStateOf(false) }
         val visibleCount = if (versionsExpanded) MAX_VERSIONS_SHOWN else VERSIONS_COLLAPSED_COUNT
-        shownPackages.take(visibleCount).forEach { (pkg, repo) ->
+        shownPackages.take(visibleCount).forEachIndexed { index, (pkg, repo) ->
             val isSuggested = suggestedVersion != null && pkg.manifest.versionCode == suggestedVersion
             PackageItem(
                 item = pkg,
                 repo = repo,
                 onClick = { onVersionClick(pkg, repo) },
                 onLongClick = {},
+                modifier = if (index == 0) {
+                    Modifier.focusRequester(firstVersionFocusRequester)
+                } else {
+                    Modifier
+                },
                 backgroundColor = if (isSuggested) {
                     MaterialTheme.colorScheme.surfaceContainerHigh
                 } else {
@@ -1543,14 +1555,50 @@ private fun ScreenshotViewer(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         val pagerState = rememberPagerState(initialPage = startIndex) { screenshots.size }
+        val isTelevision = LocalIsTelevision.current
+        val coroutineScope = rememberCoroutineScope()
+        // Android TV must always have a focused element: this dialog opens no other focusable node, so
+        // the close button is it. Also lets left/right page through the screenshots, since the pager
+        // otherwise relies on a swipe gesture the remote can't produce. No effect on touch.
+        val closeFocusRequester = remember { FocusRequester() }
+        if (isTelevision) {
+            LaunchedEffect(Unit) {
+                repeat(20) {
+                    if (runCatching { closeFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                    delay(50)
+                }
+            }
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.96f)),
+                .background(Color.Black.copy(alpha = 0.96f))
+                .then(
+                    if (isTelevision) {
+                        Modifier.onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) {
+                                false
+                            } else if (event.key == Key.DirectionRight &&
+                                pagerState.currentPage < screenshots.lastIndex
+                            ) {
+                                coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                                true
+                            } else if (event.key == Key.DirectionLeft && pagerState.currentPage > 0) {
+                                coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
         ) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = !isTelevision,
             ) { page ->
                 AsyncImage(
                     model = screenshots[page].path,
@@ -1565,7 +1613,9 @@ private fun ScreenshotViewer(
                 onClick = onDismiss,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp),
+                    .padding(8.dp)
+                    .focusRequester(closeFocusRequester)
+                    .tvFocusScale(),
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,

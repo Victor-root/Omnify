@@ -134,7 +134,9 @@ import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.compose.components.ScrollToTopFab
+import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvDpadDownTo
+import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalAccentBarColor
@@ -400,21 +402,26 @@ fun AppListScreen(
         // Land focus on (re)entry, retrying briefly because the target isn't attached until the
         // grid/header is laid out. Preference: the exact last-opened tile, then the content grid (its
         // first tile), then the tabs — so there is always a focused element, whatever the screen state.
-        LaunchedEffect(restoreFocusId) {
-            val primary = if (restoreFocusId != null) restoreRequester else tabsFocusRequester
-            repeat(20) {
-                if (runCatching { primary.requestFocus() }.isSuccess) return@LaunchedEffect
-                delay(50)
-            }
+        // Also keyed on [sectionView]: opening or closing a carousel "see all" page swaps the whole
+        // header and grid content without changing [restoreFocusId], destroying whatever held focus
+        // (the carousel header row, or the section's back arrow/tile) with nothing re-requested to take
+        // its place. A remote key pressed with no focused node times out input dispatch and kills the
+        // app (an ANR) — so this must always land somewhere on that transition too.
+        LaunchedEffect(restoreFocusId, sectionView) {
             if (restoreFocusId != null) {
-                // The remembered tile isn't in the current list (e.g. opened from a carousel): land on
-                // the content, falling back to the tabs, so a remote press still has somewhere to go.
                 repeat(20) {
-                    val fallback = runCatching { contentFocusRequester.requestFocus() }.isSuccess ||
-                        runCatching { tabsFocusRequester.requestFocus() }.isSuccess
-                    if (fallback) return@LaunchedEffect
+                    if (runCatching { restoreRequester.requestFocus() }.isSuccess) return@LaunchedEffect
                     delay(50)
                 }
+            }
+            // The remembered tile isn't in the current list (e.g. opened from a carousel, or a section
+            // was just entered/left): land on the content grid, falling back to the tabs (absent while a
+            // section page is open), so a remote press always has somewhere to go.
+            repeat(20) {
+                val fallback = runCatching { contentFocusRequester.requestFocus() }.isSuccess ||
+                    runCatching { tabsFocusRequester.requestFocus() }.isSuccess
+                if (fallback) return@LaunchedEffect
+                delay(50)
             }
         }
     }
@@ -802,6 +809,10 @@ fun AppListScreen(
                             app = app,
                             isInstalled = app.key in externalInstalledKeys,
                             onClick = { openExternalApp(app.key) },
+                            modifier = Modifier.restoreFocusTarget(
+                                isTelevision && restoreFocusId == "ext:${app.key}",
+                                restoreRequester,
+                            ),
                         )
                     }
                 }
@@ -1053,6 +1064,9 @@ private fun UpdateAllButton(
         enabled = !isUpdating,
         modifier = Modifier
             .fillMaxWidth()
+            // TV only: an accent outline around the focused button (no-op on touch); a full-width row
+            // can't scale without overflowing the screen.
+            .tvFocusOutline(MaterialTheme.shapes.large)
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         if (isUpdating) {
@@ -1136,10 +1150,6 @@ fun SearchBar(
  *  change the bar height. */
 private val HomeBarHeight = 64.dp
 
-/** Android TV overscan-safe margin added around the app grid, so content (and a focused tile's
- *  scaled highlight) stays clear of the screen edges. Touch builds never use it. */
-private val TvOverscan = 24.dp
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchTopBar(
@@ -1160,7 +1170,14 @@ private fun SearchTopBar(
         // "Down" from the search field drops into the results below (no tabs while searching).
         modifier = Modifier.tvDpadDownTo(contentFocusRequester),
         navigationIcon = {
-            IconButton(onClick = onClose) {
+            IconButton(
+                onClick = onClose,
+                modifier = if (LocalIsTelevision.current) {
+                    Modifier.size(48.dp).tvFocusScale()
+                } else {
+                    Modifier
+                },
+            ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(R.string.cancel),
@@ -1491,7 +1508,14 @@ private fun SectionTopBar(
         // No tabs on a section page, so "down" from the back arrow drops straight into the content.
         modifier = Modifier.tvDpadDownTo(contentFocusRequester),
         navigationIcon = {
-            IconButton(onClick = onBack) {
+            IconButton(
+                onClick = onBack,
+                modifier = if (LocalIsTelevision.current) {
+                    Modifier.size(48.dp).tvFocusScale()
+                } else {
+                    Modifier
+                },
+            ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(R.string.cancel),

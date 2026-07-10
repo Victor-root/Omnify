@@ -43,6 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
@@ -73,6 +75,7 @@ import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
+import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
@@ -84,6 +87,7 @@ import com.looker.droidify.external.apkFileSize
 import com.looker.droidify.external.apkVersionLabel
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.common.RootDetection
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -169,11 +173,30 @@ fun ExternalAppDetailScreen(
         app?.let { viewModel.loadSupportedLanguages(it, isInstalled) }
     }
 
+    // TV / D-pad: the top bar doesn't release focus downward on its own, and startup focus was never
+    // requested at all — mirroring the F-Droid catalogue detail screen's primaryActionFocusRequester so
+    // both screens behave identically. No effect on touch.
+    val isTelevision = LocalIsTelevision.current
+    val primaryActionFocusRequester = remember { FocusRequester() }
+    if (isTelevision) {
+        LaunchedEffect(app?.key) {
+            repeat(20) {
+                if (runCatching { primaryActionFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                delay(50)
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 colors = accentTopAppBarColors(),
                 expandedHeight = AccentBarHeight,
+                modifier = if (isTelevision) {
+                    Modifier.tvDpadDownTo(primaryActionFocusRequester)
+                } else {
+                    Modifier
+                },
                 title = {
                     Text(
                         text = app?.label.orEmpty(),
@@ -321,6 +344,7 @@ fun ExternalAppDetailScreen(
                         onLaunch = { viewModel.launch(app) },
                         onUninstall = { viewModel.uninstall(app) },
                         onCancel = { viewModel.cancel(app) },
+                        primaryActionFocusRequester = primaryActionFocusRequester,
                     )
                 },
                 footer = heroFooter(

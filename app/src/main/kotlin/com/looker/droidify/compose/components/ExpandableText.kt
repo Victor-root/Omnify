@@ -84,7 +84,7 @@ fun ExpandableText(
         if (!alwaysExpanded && !expanded && isOverflowing) {
             Button(
                 onClick = { expanded = true },
-                modifier = Modifier.padding(top = 12.dp),
+                modifier = Modifier.padding(top = 12.dp).tvFocusScale(),
             ) {
                 Text(stringResource(R.string.show_more))
             }

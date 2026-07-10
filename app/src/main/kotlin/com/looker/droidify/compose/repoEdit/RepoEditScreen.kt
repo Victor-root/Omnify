@@ -47,8 +47,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.tvDpadDownTo
+import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.AccentBarHeight
+import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,6 +70,18 @@ fun RepoEditScreen(
     // would leave the user stuck in the header. This points at the first field; the key handler below
     // moves focus into the form. No effect on touch.
     val contentFocusRequester = remember { FocusRequester() }
+    val isTelevision = LocalIsTelevision.current
+    // Android TV must always land the D-pad focus somewhere on entry, or a remote press with nothing
+    // focused times out input dispatch and kills the app. Lands on the address field, retried briefly
+    // because it isn't laid out on the very first frame. No-op on touch.
+    if (isTelevision) {
+        LaunchedEffect(Unit) {
+            repeat(20) {
+                if (runCatching { contentFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                delay(50)
+            }
+        }
+    }
 
     LaunchedEffect(repoId) {
         repoId?.let { viewModel.loadRepo(it) }
@@ -94,6 +109,7 @@ fun RepoEditScreen(
                     IconButton(
                         onClick = { viewModel.saveRepository() },
                         enabled = isFormValid,
+                        modifier = Modifier.tvFocusScale(),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Check,
@@ -193,7 +209,7 @@ fun RepoEditScreen(
                 Button(
                     onClick = { viewModel.saveRepository(skipCheck = true) },
                     enabled = isFormValid || isLoading,
-                    modifier = Modifier.align(Alignment.End),
+                    modifier = Modifier.align(Alignment.End).tvFocusScale(),
                 ) {
                     Text(stringResource(R.string.skip))
                 }

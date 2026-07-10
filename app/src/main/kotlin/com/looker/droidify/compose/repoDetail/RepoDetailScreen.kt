@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,6 +72,10 @@ import com.looker.droidify.compose.appList.CatalogAppTile
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.errorButtonColors
 import com.looker.droidify.compose.components.tvDpadDownTo
+import com.looker.droidify.compose.components.TvOverscan
+import com.looker.droidify.compose.components.tvFocusOutline
+import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.repoDetail.components.LastUpdatedCard
 import com.looker.droidify.compose.repoDetail.components.UnsyncedRepoState
 import com.looker.droidify.compose.repoList.RepoIcon
@@ -83,6 +88,7 @@ import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.utility.text.toAnnotatedString
+import kotlinx.coroutines.delay
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,25 +120,52 @@ fun RepoDetailScreen(
         )
     }
 
-    // TV / D-pad: drop focus from the header (top bar or tab row) into the content below.
+    // TV / D-pad: the top bar drops focus down to the tab row first (not straight past it to the
+    // content), then the tab row drops down to the content — so "down" from the header always lands on
+    // the nearest thing below it instead of skipping the tabs entirely.
+    val tabsFocusRequester = remember { FocusRequester() }
     val contentFocusRequester = remember { FocusRequester() }
+    val isTelevision = LocalIsTelevision.current
+    // Android TV must always land the D-pad focus somewhere on entry, or a remote press with nothing
+    // focused times out input dispatch and kills the app. Prefer the tab row (present as soon as the
+    // repo loads), falling back to the content. No-op on touch.
+    if (isTelevision) {
+        LaunchedEffect(repo != null) {
+            val primary = if (repo != null) tabsFocusRequester else contentFocusRequester
+            repeat(20) {
+                if (runCatching { primary.requestFocus() }.isSuccess) return@LaunchedEffect
+                delay(50)
+            }
+            repeat(20) {
+                if (runCatching { contentFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                delay(50)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
-            Column(modifier = Modifier.tvDpadDownTo(contentFocusRequester)) {
+            Column {
                 TopAppBar(
                     colors = accentTopAppBarColors(),
                     expandedHeight = AccentBarHeight,
+                    modifier = Modifier.tvDpadDownTo(if (repo != null) tabsFocusRequester else contentFocusRequester),
                     title = { Text(stringResource(R.string.repository)) },
                     navigationIcon = { BackButton(onBackClick) },
                     actions = {
-                        IconButton(onClick = { onEditClick(viewModel.repoId) }) {
+                        IconButton(
+                            onClick = { onEditClick(viewModel.repoId) },
+                            modifier = Modifier.tvFocusScale(),
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = stringResource(R.string.edit),
                             )
                         }
-                        IconButton(onClick = { showDeleteDialog = true }) {
+                        IconButton(
+                            onClick = { showDeleteDialog = true },
+                            modifier = Modifier.tvFocusScale(),
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = stringResource(R.string.delete),
@@ -145,6 +178,14 @@ fun RepoDetailScreen(
                         selectedTab = selectedTab,
                         appCount = apps.size,
                         onSelectTab = { selectedTab = it },
+                        modifier = if (isTelevision) {
+                            Modifier
+                                .focusRequester(tabsFocusRequester)
+                                .focusGroup()
+                                .tvDpadDownTo(contentFocusRequester)
+                        } else {
+                            Modifier
+                        },
                     )
                 }
             }
@@ -217,12 +258,14 @@ private fun RepoDetailTabRow(
     selectedTab: RepoDetailTab,
     appCount: Int,
     onSelectTab: (RepoDetailTab) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    TabRow(selectedTabIndex = selectedTab.ordinal) {
+    TabRow(selectedTabIndex = selectedTab.ordinal, modifier = modifier) {
         Tab(
             selected = selectedTab == RepoDetailTab.INFO,
             onClick = { onSelectTab(RepoDetailTab.INFO) },
             text = { Text(stringResource(R.string.repo_tab_info)) },
+            modifier = Modifier.tvFocusScale(),
         )
         Tab(
             selected = selectedTab == RepoDetailTab.APPS,
@@ -235,6 +278,7 @@ private fun RepoDetailTabRow(
                 }
                 Text(label)
             },
+            modifier = Modifier.tvFocusScale(),
         )
     }
 }
@@ -296,6 +340,9 @@ private fun RepoInfoTab(
                     text = description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    // TV only: a D-pad focus stop so the description can be reached and read (no-op on
+                    // touch).
+                    modifier = Modifier.tvReadable(),
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -401,7 +448,9 @@ private fun RepoAppsTab(
         else -> {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = if (isTelevision) 150.dp else 100.dp),
-                contentPadding = PaddingValues(12.dp),
+                // On TV, inset from the screen edges (overscan safe area) so a focused tile's scaled-up
+                // highlight near an edge isn't clipped — same inset the main app list uses.
+                contentPadding = PaddingValues(if (isTelevision) 12.dp + TvOverscan else 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize(),
@@ -441,6 +490,9 @@ private fun InstallAllButton(
         enabled = !isInstalling,
         modifier = Modifier
             .fillMaxWidth()
+            // TV only: an accent outline around the focused button (no-op on touch); a full-width row
+            // can't scale without overflowing the screen.
+            .tvFocusOutline(MaterialTheme.shapes.large)
             .padding(horizontal = 4.dp, vertical = 4.dp),
     ) {
         if (isInstalling) {

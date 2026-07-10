@@ -14,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.looker.droidify.R
 import kotlinx.coroutines.launch
@@ -34,6 +35,7 @@ fun ScrollToTopFab(scrollState: ScrollState) {
     ) {
         FloatingActionButton(
             onClick = { coroutineScope.launch { scrollState.animateScrollTo(0) } },
+            modifier = Modifier.tvFocusScale(),
         ) {
             Icon(
                 imageVector = Icons.Filled.KeyboardArrowUp,
@@ -89,6 +91,7 @@ fun ScrollToTopFab(gridState: LazyGridState) {
                     }
                 }
             },
+            modifier = Modifier.tvFocusScale(),
         ) {
             Icon(
                 imageVector = Icons.Filled.KeyboardArrowUp,

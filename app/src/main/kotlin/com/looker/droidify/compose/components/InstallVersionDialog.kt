@@ -4,6 +4,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.looker.droidify.R
 
@@ -31,13 +32,19 @@ fun InstallVersionDialog(
         },
         confirmButton = {
             if (isDowngrade) {
-                TextButton(onClick = onUninstall) { Text(stringResource(R.string.uninstall)) }
+                TextButton(onClick = onUninstall, modifier = Modifier.tvFocusScale()) {
+                    Text(stringResource(R.string.uninstall))
+                }
             } else {
-                TextButton(onClick = onInstall) { Text(stringResource(R.string.install)) }
+                TextButton(onClick = onInstall, modifier = Modifier.tvFocusScale()) {
+                    Text(stringResource(R.string.install))
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            TextButton(onClick = onDismiss, modifier = Modifier.tvFocusScale()) {
+                Text(stringResource(R.string.cancel))
+            }
         },
     )
 }
