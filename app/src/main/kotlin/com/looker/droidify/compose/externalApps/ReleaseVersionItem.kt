@@ -83,6 +83,15 @@ fun ReleaseVersionItem(
                         content = MaterialTheme.colorScheme.onSecondaryContainer,
                     )
                 }
+                // A proper chip, not plain text below — so it reads at a glance in a repo that mixes
+                // stable and pre-release tags, instead of being easy to miss.
+                if (release.isPrerelease) {
+                    VersionChip(
+                        text = stringResource(R.string.external_prerelease_label),
+                        container = MaterialTheme.colorScheme.errorContainer,
+                        content = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                }
             }
             if (apkName != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -102,13 +111,6 @@ fun ReleaseVersionItem(
                         )
                     }
                 }
-            }
-            if (release.isPrerelease) {
-                Text(
-                    text = stringResource(R.string.external_prerelease_label),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.outline,
-                )
             }
         }
     }

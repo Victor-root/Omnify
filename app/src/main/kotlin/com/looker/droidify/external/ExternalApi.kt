@@ -72,6 +72,27 @@ class ExternalApi @Inject constructor(
         )
 
     /**
+     * Same lookup as [latestReleaseFor], but reports *why* nothing was found instead of collapsing every
+     * failure to null — used by the install/update flow (the one place the reason reaches the user as a
+     * message) so it can distinguish a genuine network failure from "every recent release is a
+     * pre-release and this source excludes them" or "none ships a compatible APK", which otherwise all
+     * looked identical (a generic "couldn't reach GitHub") even though only one of them actually is that.
+     */
+    suspend fun latestReleaseLookup(app: ExternalApp): ReleaseLookup = withContext(Dispatchers.IO) {
+        val releases = runCatching {
+            fetchReleases(app.provider, app.effectiveHost, app.owner, app.repo)
+        }.getOrNull()
+        val picked = releases?.pickInstallable(app.includePrereleases, app.apkFilter)
+        when {
+            picked != null -> ReleaseLookup.Found(picked)
+            releases == null -> ReleaseLookup.FetchFailed
+            releases.isNotEmpty() && releases.all { it.isPrerelease } && !app.includePrereleases ->
+                ReleaseLookup.OnlyPrereleasesExcluded
+            else -> ReleaseLookup.NoCompatibleApk
+        }
+    }
+
+    /**
      * All non-draft releases within the recent window (newest first) that ship at least one APK
      * this source's [ExternalApp.apkFilter] would accept — the external-app equivalent of the
      * F-Droid catalogue's version list, so the user can pick a specific past version to install
@@ -83,6 +104,10 @@ class ExternalApi @Inject constructor(
         runCatching { fetchReleases(app.provider, app.effectiveHost, app.owner, app.repo) }
             .getOrNull()
             .orEmpty()
+            // Mirrors pickInstallable's own filter: a pre-release the source excludes shouldn't appear
+            // in the version list either — the list should only ever offer what could actually be
+            // installed from it.
+            .filter { app.includePrereleases || !it.isPrerelease }
             .filter { selectApkAsset(it.assets, filter = app.apkFilter) != null }
     }
 
@@ -459,9 +484,21 @@ class ExternalApi @Inject constructor(
         includePrereleases: Boolean = false,
         apkFilter: String? = null,
     ): Release? = withContext(Dispatchers.IO) {
-        runCatching { fetchReleases(provider, host, owner, repo) }
-            .getOrNull()
-            ?.pickInstallable(includePrereleases, apkFilter)
+        val releases = runCatching { fetchReleases(provider, host, owner, repo) }.getOrNull()
+        val picked = releases?.pickInstallable(includePrereleases, apkFilter)
+        if (picked == null) {
+            // The caller (downloadAndInstall) can't tell "the request itself failed" apart from
+            // "it succeeded but nothing in the recent window was installable" — both surface as the
+            // same generic "couldn't reach" message. Logged here so the real cause (fetch failure vs. no
+            // installable candidate, e.g. every recent release is a pre-release with includePrereleases
+            // off, or none ship a matching APK) is visible in Logcat instead of only that one message.
+            Log.w(
+                TAG,
+                "$owner/$repo: no installable release (fetched=${releases?.size ?: "fetch failed"}, " +
+                    "includePrereleases=$includePrereleases, apkFilter=$apkFilter)",
+            )
+        }
+        picked
     }
 
     /** Fetches and decodes the recent-window release list for one repo, provider-appropriate URL and
@@ -608,12 +645,22 @@ class ExternalApi @Inject constructor(
     }
 
     private suspend fun getText(url: String, github: Boolean = false): String? {
-        val response = httpClient.get(url) {
-            if (github) {
-                header("Accept", "application/vnd.github+json")
-                header("X-GitHub-Api-Version", "2022-11-28")
-                githubAuthToken()?.let { header("Authorization", "Bearer $it") }
+        val response = try {
+            httpClient.get(url) {
+                if (github) {
+                    header("Accept", "application/vnd.github+json")
+                    header("X-GitHub-Api-Version", "2022-11-28")
+                    githubAuthToken()?.let { header("Authorization", "Bearer $it") }
+                }
             }
+        } catch (e: Exception) {
+            // Every caller wraps this in runCatching and silently falls back to null/empty on failure
+            // (a genuine network error must never crash a refresh or block the UI) — but that used to
+            // make a real failure indistinguishable from "nothing to report" in Logcat too. Logged here,
+            // the one shared place every request passes through, instead of at each of the many call
+            // sites.
+            Log.w(TAG, "GET $url failed", e)
+            throw e
         }
         if (github) {
             // GitHub signals the rate limit with 403/429 and X-RateLimit-Remaining: 0. The header is
@@ -623,7 +670,11 @@ class ExternalApi @Inject constructor(
             val status = response.status.value
             rateLimited = (status == 403 || status == 429) && remaining == 0
         }
-        return if (response.status.isSuccess()) response.bodyAsText() else null
+        if (!response.status.isSuccess()) {
+            Log.w(TAG, "GET $url -> HTTP ${response.status.value}")
+            return null
+        }
+        return response.bodyAsText()
     }
 
     @Serializable

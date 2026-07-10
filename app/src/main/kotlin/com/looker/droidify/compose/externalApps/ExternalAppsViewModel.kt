@@ -23,6 +23,7 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.ExternalAccountRef
 import com.looker.droidify.external.Release
+import com.looker.droidify.external.ReleaseLookup
 import com.looker.droidify.external.RepoRef
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkFileSize
@@ -614,24 +615,30 @@ class ExternalAppsViewModel @Inject constructor(
                     return@launch
                 }
                 withBusy(app.key) {
-                    val release = externalApi.latestReleaseFor(app)
-                    if (release == null) {
-                        // A null release here is often the GitHub rate limit; if so (and no token is
-                        // set) nudge the user toward adding one instead of a generic "no release".
-                        val suggestToken = externalApi.shouldSuggestGithubToken()
-                        // Or the repo only publishes pre-releases (e.g. ReVanced Manager): with the
-                        // option off they're all filtered out. Detect that so we can tell the user to
-                        // enable it, instead of a misleading "no app".
-                        val onlyPrereleases = !suggestToken && !includePrereleases &&
-                            externalApi.latestReleaseFor(app.copy(includePrereleases = true)) != null
-                        val message = when {
-                            suggestToken -> context.getString(R.string.external_rate_limited)
-                            onlyPrereleases ->
-                                context.getString(R.string.external_only_prereleases, app.path)
-                            else -> context.getString(R.string.external_no_release, app.path)
+                    // A plain null release here used to collapse every failure — the GitHub rate limit,
+                    // a repo that only publishes pre-releases (e.g. ReVanced Manager) with the option
+                    // off, or genuinely nothing installable — into one misleading "no release" message.
+                    // latestReleaseLookup reports which one it actually was.
+                    val release = when (val lookup = externalApi.latestReleaseLookup(app)) {
+                        is ReleaseLookup.Found -> lookup.release
+                        ReleaseLookup.FetchFailed -> {
+                            val suggestToken = externalApi.shouldSuggestGithubToken()
+                            _addError.value = if (suggestToken) {
+                                context.getString(R.string.external_rate_limited)
+                            } else {
+                                context.getString(R.string.external_no_release, app.path)
+                            }
+                            return@withBusy
                         }
-                        _addError.value = message
-                        return@withBusy
+                        ReleaseLookup.OnlyPrereleasesExcluded -> {
+                            _addError.value =
+                                context.getString(R.string.external_only_prereleases, app.path)
+                            return@withBusy
+                        }
+                        ReleaseLookup.NoCompatibleApk -> {
+                            _addError.value = context.getString(R.string.external_no_release, app.path)
+                            return@withBusy
+                        }
                     }
                     // Resolve the package id from the repo's build.gradle (Obtainium-style) so an app
                     // that's already installed is matched and shows its real on-device name + icon right
@@ -1084,16 +1091,24 @@ class ExternalAppsViewModel @Inject constructor(
                 iconChecked = true,
             )
             // The release to offer (and its APK) can change when either the pre-release setting or the
-            // APK filter changes, so re-resolve it in that case.
+            // APK filter changes, so re-resolve it in that case — and the version list must forget its
+            // cached fetch too (releaseHistory() filters by these same two fields), or reopening the
+            // detail screen within the cache's freshness window would keep showing the list as it looked
+            // under the old settings.
             if (includePrereleases != app.includePrereleases || trimmedFilter != app.apkFilter) {
-                externalApi.latestReleaseFor(updated)?.let { release ->
-                    updated = updated.copy(
-                        latestTag = release.tag,
-                        latestApkToken = release.apkVersionToken(filter = updated.apkFilter),
-                        latestApkName = release.apkFileName(filter = updated.apkFilter),
-                        latestApkSize = release.apkFileSize(filter = updated.apkFilter),
-                    )
-                }
+                releaseHistoryCache.remove(app.key)
+                val release = externalApi.latestReleaseFor(updated)
+                // Stale latest* fields must be cleared, not just left alone, when the new settings no
+                // longer resolve to any release (e.g. turning pre-releases off for a source that only
+                // publishes them) — otherwise the hero card kept showing the old "latest" version and
+                // offering Update against a release that isn't actually offered under the new settings
+                // any more.
+                updated = updated.copy(
+                    latestTag = release?.tag,
+                    latestApkToken = release?.apkVersionToken(filter = updated.apkFilter),
+                    latestApkName = release?.apkFileName(filter = updated.apkFilter),
+                    latestApkSize = release?.apkFileSize(filter = updated.apkFilter),
+                )
             }
             repository.upsertApp(updated)
         }
@@ -1138,18 +1153,28 @@ class ExternalAppsViewModel @Inject constructor(
         }
         updateDownload(app.key, DownloadStatus(read = 0, total = -1, bytesPerSecond = 0))
         try {
-            val release = releaseOverride ?: externalApi.latestReleaseFor(app)
-            if (release == null) {
-                val suggestToken = externalApi.shouldSuggestGithubToken()
-                snack(
-                    message = if (suggestToken) {
-                        context.getString(R.string.external_rate_limited)
-                    } else {
-                        context.getString(R.string.external_unreachable, app.sourceLabel)
-                    },
-                    long = suggestToken,
-                )
-                return
+            val release = releaseOverride ?: when (val lookup = externalApi.latestReleaseLookup(app)) {
+                is ReleaseLookup.Found -> lookup.release
+                ReleaseLookup.FetchFailed -> {
+                    val suggestToken = externalApi.shouldSuggestGithubToken()
+                    snack(
+                        message = if (suggestToken) {
+                            context.getString(R.string.external_rate_limited)
+                        } else {
+                            context.getString(R.string.external_unreachable, app.sourceLabel)
+                        },
+                        long = suggestToken,
+                    )
+                    return
+                }
+                ReleaseLookup.OnlyPrereleasesExcluded -> {
+                    snack(context.getString(R.string.external_only_prereleases, app.path))
+                    return
+                }
+                ReleaseLookup.NoCompatibleApk -> {
+                    snack(context.getString(R.string.external_no_apk, app.repo))
+                    return
+                }
             }
             val asset = selectApkAsset(release.assets, filter = app.apkFilter)
             if (asset == null) {

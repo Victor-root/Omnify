@@ -14,6 +14,26 @@ data class Release(
     val assets: List<ReleaseAsset>,
 )
 
+/**
+ * Result of looking up the release to offer for a source ([ExternalApi.latestReleaseLookup]) — unlike a
+ * plain nullable [Release], this tells the caller *why* nothing was found, so the install/update flow
+ * can show an accurate message instead of a generic "couldn't reach" for every kind of failure.
+ */
+sealed class ReleaseLookup {
+    data class Found(val release: Release) : ReleaseLookup()
+
+    /** The request itself failed (network/HTTP/parse error), or GitHub's rate limit was hit. */
+    data object FetchFailed : ReleaseLookup()
+
+    /** Every release in the recent window is a pre-release and the source has "include pre-releases"
+     *  turned off — nothing else disqualified them. */
+    data object OnlyPrereleasesExcluded : ReleaseLookup()
+
+    /** Releases were found (and, if relevant, pre-releases are allowed) but none of them ships an APK
+     *  this device can install. */
+    data object NoCompatibleApk : ReleaseLookup()
+}
+
 /** A downloadable file attached to a [Release]. */
 data class ReleaseAsset(
     val name: String,
