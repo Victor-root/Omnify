@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,6 +36,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -115,6 +117,8 @@ fun ExternalAppDetailScreen(
     val downloadTargetTag by viewModel.downloadTargetTag.collectAsStateWithLifecycle()
     val installStates by viewModel.installStates.collectAsStateWithLifecycle()
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
+    val installSources by viewModel.installSources.collectAsStateWithLifecycle()
+    val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
     val readme by viewModel.readme.collectAsStateWithLifecycle()
     val readmeError by viewModel.readmeError.collectAsStateWithLifecycle()
     val readmeTranslation by viewModel.readmeTranslation.collectAsStateWithLifecycle()
@@ -142,6 +146,48 @@ fun ExternalAppDetailScreen(
     }
 
     val app = apps.firstOrNull { it.key == appKey }
+
+    signatureConflict?.let { conflict ->
+        val conflictAppName = app?.label ?: appKey
+        val titleRes = if (conflict.isSystemApp) {
+            R.string.signature_conflict_system_title
+        } else {
+            R.string.signature_conflict_title
+        }
+        val messageRes = if (conflict.isSystemApp) {
+            R.string.signature_conflict_system_app
+        } else {
+            R.string.install_failed_signature_mismatch
+        }
+        AlertDialog(
+            onDismissRequest = viewModel::dismissSignatureConflict,
+            title = { Text(stringResource(titleRes)) },
+            text = { Text(stringResource(messageRes, conflictAppName)) },
+            confirmButton = {
+                if (conflict.isSystemApp) {
+                    // A system app can't be uninstalled — nothing to do but acknowledge.
+                    TextButton(onClick = viewModel::dismissSignatureConflict) {
+                        Text(stringResource(android.R.string.ok))
+                    }
+                } else {
+                    TextButton(
+                        onClick = {
+                            app?.let(viewModel::uninstall)
+                            viewModel.dismissSignatureConflict()
+                        },
+                    ) { Text(stringResource(R.string.uninstall)) }
+                }
+            },
+            dismissButton = {
+                if (!conflict.isSystemApp) {
+                    TextButton(onClick = viewModel::dismissSignatureConflict) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            },
+        )
+    }
+
     val installedVersion = installedVersions[appKey]
     // Read straight off installedVersions (not the separately-collected installedKeys StateFlow) so the
     // button and the footer's "Installé : …" text always agree within the same composition — two
@@ -331,9 +377,16 @@ fun ExternalAppDetailScreen(
         }
 
         // The installed version, if any — folded into the card's footer, mirroring how the F-Droid
-        // catalogue card shows its installed version there.
-        val footerText = installedVersion?.let {
-            stringResource(R.string.external_installed_version, it)
+        // catalogue card shows its installed version there. Also names where it actually came from when
+        // known, same as the catalogue card — makes a copy installed by a different client obvious
+        // instead of silently offering "Launch" with no explanation for why "Update" never appears.
+        val footerText = installedVersion?.let { version ->
+            val source = installSources[appKey]
+            if (source != null) {
+                stringResource(R.string.installed_version_source, version, source)
+            } else {
+                stringResource(R.string.external_installed_version, version)
+            }
         }
 
         // Split view only: the left pane (hero card + links + versions) scrolls on its own, separately

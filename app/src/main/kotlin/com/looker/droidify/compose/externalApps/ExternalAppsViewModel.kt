@@ -2,6 +2,7 @@ package com.looker.droidify.compose.externalApps
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.util.Log
@@ -12,6 +13,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
+import com.looker.droidify.compose.appDetail.SignatureConflict
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.data.AppRepository
@@ -45,6 +47,8 @@ import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
+import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
+import com.looker.droidify.utility.common.extension.installerSourceLabel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -54,6 +58,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.dropWhile
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -174,6 +180,22 @@ class ExternalAppsViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptySet())
 
+    /** Where each installed tracked app actually came from (Play, F-Droid, this app…), keyed by
+     *  [ExternalApp.key] — shown next to the installed version so a mismatch with what Omnify expects
+     *  (e.g. a copy installed by another client, which can't be updated across signing keys in place)
+     *  is visible instead of silently offering "Launch" with no explanation. Derived from
+     *  [installedVersions] so a key only ever appears here once it's confirmed installed. */
+    val installSources: StateFlow<Map<String, String>> = combine(
+        installedVersions,
+        repository.apps,
+    ) { versions, apps ->
+        val byKey = apps.associateBy { it.key }
+        versions.keys.mapNotNull { key ->
+            val pkg = byKey[key]?.packageName ?: return@mapNotNull null
+            key to context.installerSourceLabel(pkg)
+        }.toMap()
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
+
     /** Keys of tracked apps the user has favourited — the same store the F-Droid catalogue's own
      *  favourites use ([SettingsRepository.toggleFavourites]/`favouriteApps`), keyed by [ExternalApp.key]
      *  instead of a package name so a source can be favourited before it's even installed (unlike a
@@ -215,6 +237,26 @@ class ExternalAppsViewModel @Inject constructor(
     /** Keys with a non-download network op in flight (add / update check). */
     private val _busy = MutableStateFlow<Set<String>>(emptySet())
     val busy: StateFlow<Set<String>> = _busy
+
+    /** Set when the freshly-downloaded APK is signed by a different key than the copy already
+     *  installed on the device — same conflict, same dialog, as the F-Droid catalogue's own
+     *  [com.looker.droidify.compose.appDetail.AppDetailViewModel.signatureConflict]. Android can't
+     *  update across signers, so the UI asks the user to uninstall the existing app first instead of
+     *  firing a doomed system install (which would otherwise leave the tracked record silently
+     *  claiming a version that was never actually applied). */
+    private val _signatureConflict = MutableStateFlow<SignatureConflict?>(null)
+    val signatureConflict: StateFlow<SignatureConflict?> = _signatureConflict
+
+    fun dismissSignatureConflict() {
+        _signatureConflict.value = null
+    }
+
+    /** True when [packageName] is a system app (or an update to one). Those can't be uninstalled, so a
+     *  differently-signed release can never replace them — there's no point offering to. */
+    private fun isSystemApp(packageName: String): Boolean = runCatching {
+        val flags = context.packageManager.getApplicationInfo(packageName, 0).flags
+        (flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
+    }.getOrDefault(false)
 
     /** Drives the Add-source dialog: it stays open with a spinner while the (network) add runs, then
      *  closes itself on success. */
@@ -1247,22 +1289,26 @@ class ExternalAppsViewModel @Inject constructor(
             }
             // Read the real icon + app name from the APK we just downloaded (releases carry neither).
             val realLabel = cacheIconAndReadLabel(releaseFile.absolutePath, app.key)
+            if (context.packageManager.installedWithDifferentSignature(packageName, releaseFile)) {
+                // Different signer: Android can't update across keys. Ask the user to uninstall the
+                // existing copy first, same as the F-Droid catalogue's own dialog — and don't touch the
+                // tracked record at all, so it keeps correctly pointing at whatever's really installed.
+                _signatureConflict.value = SignatureConflict(isSystemApp = isSystemApp(packageName))
+                return
+            }
             installManager.install(InstallItem(PackageName(packageName), cacheFileName))
-            // Record which APK file this is (its identity), so future update checks compare the APK,
-            // not the tag.
+            // Record which APK file this release would install (its identity), so future update checks
+            // compare the APK, not the tag — and what the latest release now is. Deliberately installing
+            // an older pick from the version list (releaseOverride) isn't a signal that it's now the
+            // latest — leave latestTag/latestApkToken/latestApkName/latestApkSize as they were, so
+            // hasUpdate still correctly flags that a newer release exists. Installing via the normal
+            // Install/Update button (no override) installs exactly the release those fields already
+            // point at, so adopting them here is a no-op for that case and just keeps the values in sync.
             val token = release.apkVersionToken(filter = app.apkFilter)
             repository.upsertApp(
                 app.copy(
                     packageName = packageName,
                     label = realLabel ?: app.label,
-                    installedTag = release.tag,
-                    installedApkToken = token,
-                    // Deliberately installing an older pick from the version list (releaseOverride)
-                    // isn't a signal that it's now the latest — leave latestTag/latestApkToken/
-                    // latestApkName/latestApkSize as they were, so hasUpdate still correctly flags that
-                    // a newer release exists. Installing via the normal Install/Update button (no override)
-                    // installs exactly the release those fields already point at, so adopting them
-                    // here is a no-op for that case and just keeps the values in sync.
                     latestTag = if (releaseOverride == null) release.tag else app.latestTag,
                     latestApkToken = if (releaseOverride == null) token else app.latestApkToken,
                     latestApkName = if (releaseOverride == null) {
@@ -1277,6 +1323,33 @@ class ExternalAppsViewModel @Inject constructor(
                     },
                 ),
             )
+            // installedTag/installedApkToken/installedVersionName are only recorded once the system
+            // install actually reaches Installed — not right after merely enqueueing it above. Writing
+            // them optimistically here used to leave a stale "installed" record (and a wrongly-hidden
+            // update) whenever the install silently failed after this function had already returned,
+            // e.g. exactly the signature conflict this same function now catches, or a cancelled/failed
+            // system install dialog. This runs as its own job so it isn't cut short by this function's
+            // own finally block below.
+            viewModelScope.launch {
+                val terminal = installManager.state
+                    .map { it[PackageName(packageName)] }
+                    // Wait to actually see this install start (Pending/Installing) before accepting a
+                    // terminal value — otherwise a stale Installed/Failed already sitting in the map
+                    // from an earlier, unrelated attempt on the same package could be mistaken for this
+                    // one's result the instant this collector subscribes.
+                    .dropWhile { it != InstallState.Pending && it != InstallState.Installing }
+                    .first { it == InstallState.Installed || it == InstallState.Failed }
+                if (terminal == InstallState.Installed) {
+                    val current = repository.getApps().firstOrNull { it.key == app.key } ?: return@launch
+                    repository.upsertApp(
+                        current.copy(
+                            installedTag = release.tag,
+                            installedApkToken = token,
+                            installedVersionName = installedVersionName(packageName),
+                        ),
+                    )
+                }
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

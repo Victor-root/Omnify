@@ -30,6 +30,13 @@ data class ExternalApp(
      *  so a server-only version bump (new tag, same or no APK) isn't mistaken for an update. Null until
      *  first installed, or for apps installed before APK-token tracking existed. */
     val installedApkToken: String? = null,
+    /** The on-device APK's real versionName (from the package manager), captured at the same moment
+     *  as [installedTag]/[installedApkToken] — i.e. only once the install actually succeeded. Used to
+     *  tell a genuinely up-to-date record apart from a stale one (e.g. the recorded install never
+     *  really landed, or the app was since replaced by another install source): see [hasUpdateGiven].
+     *  Null for apps installed before this was tracked, which makes them self-heal through the same
+     *  fallback the very first time [hasUpdateGiven] runs. */
+    val installedVersionName: String? = null,
     /** Identity of the APK in the latest release that actually ships one. */
     val latestApkToken: String? = null,
     /** File name of the APK in the latest release (e.g. "GlassKeep-1.5.0.apk"), shown as the "latest
@@ -157,19 +164,27 @@ data class ExternalApp(
         }
 
     /**
-     * Same as [hasUpdate], but also catches an app that was already installed on the device before its
-     * source was tracked (or before APK-token tracking existed) — [installedTag]/[installedApkToken] are
-     * only ever recorded when Omnify itself performs the install, so a pre-existing install never
-     * populates them and [hasUpdate] silently stays false forever regardless of the real version gap.
-     * Falls back to comparing [installedVersionName] (the on-device APK's real versionName, read from
-     * the package manager) against the latest release's version, only when neither identity field is
-     * set at all — when either is set, [hasUpdate]'s provenance-based check is more precise and is
-     * trusted as-is (it correctly ignores a tag-only bump that ships no new APK).
+     * Same as [hasUpdate], but also catches a record that doesn't actually reflect what's on the
+     * device right now — either because it was installed before its source was tracked (or before
+     * APK-token tracking existed), or because the recorded install never really landed (e.g. a system
+     * install that silently failed, most commonly a signing-key conflict with a copy installed by
+     * another client) and [installedTag]/[installedApkToken]/[installedVersionName] were left pointing
+     * at a version that was never actually applied.
+     *
+     * Falls back to comparing [currentInstalledVersionName] (the on-device APK's real versionName,
+     * read from the package manager right now) against the latest release's version whenever it
+     * disagrees with our own recorded [installedVersionName] — that mismatch is exactly what "the
+     * record doesn't match reality" looks like. When they agree, [hasUpdate]'s provenance-based check
+     * is more precise and is trusted as-is (it correctly ignores a tag-only bump that ships no new APK).
      */
-    fun hasUpdateGiven(installedVersionName: String?): Boolean {
-        if (installedApkToken != null || installedTag != null) return hasUpdate
-        val installed = installedVersionName ?: return false
-        val latest = latestApkName?.let(::apkVersionLabel) ?: latestTag ?: return false
+    fun hasUpdateGiven(currentInstalledVersionName: String?): Boolean {
+        val recordMatchesReality = currentInstalledVersionName != null &&
+            currentInstalledVersionName == installedVersionName
+        if ((installedApkToken != null || installedTag != null) && recordMatchesReality) {
+            return hasUpdate
+        }
+        val installed = currentInstalledVersionName ?: return false
+        val latest = latestApkName?.let(::apkVersionLabel) ?: latestTag?.let(::apkVersionLabel) ?: return false
         return compareVersionStrings(latest, installed) > 0
     }
 
