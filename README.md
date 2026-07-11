@@ -13,31 +13,14 @@
 
 _Omnify, maintained by [Victor-root](https://github.com/Victor-root), based on [Droid-ify](https://github.com/Droid-ify/client) by LooKeR._
 
-[![Latest release](https://img.shields.io/github/v/release/Victor-root/Omnify?display_name=tag&color=%23d97706&style=for-the-badge)](https://github.com/Victor-root/Omnify/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/Victor-root/Omnify/total.svg?color=%236f9645&style=for-the-badge)](https://github.com/Victor-root/Omnify/releases/)
-[![Stars](https://img.shields.io/github/stars/Victor-root/Omnify?color=%2359a14f&style=for-the-badge)](https://github.com/Victor-root/Omnify/stargazers)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](LICENSE)
-
 </div>
 
 ---
 
 ## 📸 Screenshots
 
-<!--
-  Replace the four images below with up-to-date screenshots of the Enhanced UI.
-  Drop the files in metadata/en-US/images/phoneScreenshots/ (1.png … 4.png),
-  or add more <img> tags. Keep width ≈ 24% so they sit four-per-row on GitHub.
--->
-
-<div align="center">
-
-<img src="metadata/en-US/images/phoneScreenshots/1.png" width="24%" />
-<img src="metadata/en-US/images/phoneScreenshots/2.png" width="24%" />
-<img src="metadata/en-US/images/phoneScreenshots/3.png" width="24%" />
-<img src="metadata/en-US/images/phoneScreenshots/4.png" width="24%" />
-
-</div>
+Screenshots coming soon. Omnify isn't at a stable, release-ready state yet, so there is no release to take
+them from. A first release, and up-to-date screenshots to go with it, will be published once it is ready.
 
 ---
 
