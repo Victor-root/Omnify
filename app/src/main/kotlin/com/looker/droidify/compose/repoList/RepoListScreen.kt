@@ -45,7 +45,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.WavyProgressIndicatorDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -102,6 +101,7 @@ fun RepoListScreen(
 ) {
     val repos by viewModel.stream.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+    val syncingRepoIds by viewModel.syncingRepoIds.collectAsStateWithLifecycle()
 
     // The External sources live alongside the F-Droid repos here: this screen is source management
     // (enable / disable / add / remove). The apps themselves (install, launch…) are on the External
@@ -172,38 +172,21 @@ fun RepoListScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(externalViewModel.snackbarHostState) },
         topBar = {
-            Column {
-                TopAppBar(
-                    colors = accentTopAppBarColors(),
-                    expandedHeight = AccentBarHeight,
-                    modifier = Modifier.tvDpadDownTo(contentFocusRequester),
-                    title = { Text(text = stringResource(R.string.repositories)) },
-                    navigationIcon = { BackButton(onBackClick) },
-                    actions = {
-                        IconButton(onClick = { showAddChooser = true }) {
-                            Icon(
-                                painterResource(R.drawable.ic_tabler_plus),
-                                contentDescription = stringResource(R.string.add_source_title),
-                            )
-                        }
-                    },
-                )
-                // A thin wavy progress line pinned right under the header while a sync runs. It lives in a
-                // fixed-height slot that stays reserved whether or not a sync is running, so a sync
-                // starting — e.g. the instant a repo is toggled on — can never grow the header and shove
-                // the whole list down. The old centered circular spinner did exactly that: it appeared,
-                // pushed everything down, and the next toggle slid out from under the user's finger.
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(WavyProgressIndicatorDefaults.LinearContainerHeight),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isSyncing) {
-                        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+            TopAppBar(
+                colors = accentTopAppBarColors(),
+                expandedHeight = AccentBarHeight,
+                modifier = Modifier.tvDpadDownTo(contentFocusRequester),
+                title = { Text(text = stringResource(R.string.repositories)) },
+                navigationIcon = { BackButton(onBackClick) },
+                actions = {
+                    IconButton(onClick = { showAddChooser = true }) {
+                        Icon(
+                            painterResource(R.drawable.ic_tabler_plus),
+                            contentDescription = stringResource(R.string.add_source_title),
+                        )
                     }
-                }
-            }
+                },
+            )
         },
     ) { contentPadding ->
         LazyColumn(
@@ -212,6 +195,23 @@ fun RepoListScreen(
                 .focusRequester(contentFocusRequester)
                 .focusGroup(),
         ) {
+            // A thin wavy progress line + label, right at the top of the scrolling content (not pinned
+            // under the header) — it scrolls away with the rest of the list instead of permanently
+            // occupying a reserved slot under the top bar, so the whole header stays about a sync as
+            // briefly as the sync itself does.
+            if (isSyncing) {
+                item(key = "sync-banner") {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Text(
+                            text = stringResource(R.string.syncing),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        )
+                        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            }
             item(key = "external-header") {
                 SectionHeader(title = stringResource(R.string.tab_external))
             }
@@ -273,6 +273,7 @@ fun RepoListScreen(
                     onClick = { onRepoClick(repo.id) },
                     onToggle = { viewModel.toggleRepo(repo) },
                     repo = repo,
+                    isSyncing = repo.id in syncingRepoIds,
                 )
             }
         }
@@ -512,15 +513,21 @@ private fun SectionHeader(title: String) {
     )
 }
 
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun RepoItem(
     onClick: () -> Unit,
     onToggle: () -> Unit,
     repo: Repo,
+    // Whether this specific repo's own sync is currently enqueued/running (see
+    // RepoListViewModel.syncingRepoIds) — shown as a ring around the repo's own icon instead of only
+    // the screen-wide banner, so enabling several repos in quick succession shows each one's own status
+    // without the row changing size (which would risk mistapping the next one).
+    isSyncing: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             // TV only: a soft accent fill behind the focused row (no-op on touch).
@@ -529,37 +536,48 @@ private fun RepoItem(
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .then(modifier),
     ) {
-        RepoIcon(
-            iconUrl = repo.icon?.path,
-            fallbackUrl = defaultRepoIcon(repo.address),
-            name = repo.name,
-            modifier = Modifier.size(48.dp),
-            fallbackRes = defaultRepoIconRes(repo.address),
-        )
-        Spacer(modifier = Modifier.size(16.dp))
-        Column(modifier = Modifier.weight(1F)) {
-            Text(
-                text = repo.name,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RepoIcon(
+                iconUrl = repo.icon?.path,
+                fallbackUrl = defaultRepoIcon(repo.address),
+                name = repo.name,
+                modifier = Modifier.size(48.dp),
+                fallbackRes = defaultRepoIconRes(repo.address),
             )
-            if (repo.description.isNotEmpty()) {
+            Spacer(modifier = Modifier.size(16.dp))
+            Column(modifier = Modifier.weight(1F)) {
                 Text(
-                    text = repo.description.toAnnotatedString { },
+                    text = repo.name,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    maxLines = 4,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (repo.description.isNotEmpty()) {
+                    Text(
+                        text = repo.description.toAnnotatedString { },
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 4,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.size(8.dp))
+            FilledIconToggleButton(
+                checked = repo.enabled,
+                onCheckedChange = { onToggle() },
+                modifier = Modifier.tvFocusScale(),
+            ) {
+                Icon(imageVector = Icons.Default.Check, contentDescription = null)
             }
         }
-        Spacer(modifier = Modifier.size(8.dp))
-        FilledIconToggleButton(
-            checked = repo.enabled,
-            onCheckedChange = { onToggle() },
-            modifier = Modifier.tvFocusScale(),
-        ) {
-            Icon(imageVector = Icons.Default.Check, contentDescription = null)
+        // This repo's own sync progress — shown right on its row instead of only the screen-wide
+        // banner, so enabling several repos in quick succession shows each one's own status.
+        if (isSyncing) {
+            LinearWavyProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            )
         }
     }
 }

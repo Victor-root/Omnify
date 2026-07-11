@@ -157,6 +157,10 @@ class SyncWorker @AssistedInject constructor(
                 .setConstraints(defaultConstraints)
                 .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS)
                 .addTag(TAG)
+                // A per-repo tag, since WorkInfo never exposes its own inputData back (only tags,
+                // progress and outputData) — this is what lets isSyncingRepo() below tell *this*
+                // repo's sync apart from any other queued/running one.
+                .apply { if (repoId != null) addTag(repoSyncTag(repoId)) }
                 .build()
 
             // APPEND_OR_REPLACE, not KEEP: enabling several repos in quick succession enqueues one sync
@@ -220,5 +224,20 @@ class SyncWorker @AssistedInject constructor(
             WorkManager.getInstance(context)
                 .getWorkInfosByTagFlow(TAG)
                 .map { infos -> infos.any { it.state == WorkInfo.State.RUNNING } }
+
+        private fun repoSyncTag(repoId: Int): String = "$TAG.repo.$repoId"
+
+        /**
+         * Emits `true` while [repoId]'s own sync is enqueued or running — distinct from [isSyncing],
+         * which can't tell repos apart. Drives a focused progress indicator right on that repo's own
+         * row (e.g. around its enable toggle) instead of only the screen-wide bar, so enabling several
+         * repos in quick succession shows each one's own status without the list otherwise changing.
+         */
+        fun isSyncingRepo(context: Context, repoId: Int): Flow<Boolean> =
+            WorkManager.getInstance(context)
+                .getWorkInfosByTagFlow(repoSyncTag(repoId))
+                .map { infos ->
+                    infos.any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
+                }
     }
 }

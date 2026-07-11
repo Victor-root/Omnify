@@ -12,11 +12,15 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.dropWhile
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -54,9 +58,33 @@ class RepoListViewModel @Inject constructor(
     /** True while a sync runs — e.g. right after enabling a repo here. Drives the progress bar. */
     val isSyncing: StateFlow<Boolean> = SyncWorker.isSyncing(context).asStateFlow(false)
 
+    /** Repo ids whose own sync is currently enqueued/running — set optimistically the moment their
+     *  toggle is tapped, cleared once [SyncWorker.isSyncingRepo] reports that repo's sync is done. Lets
+     *  a row show its own progress (e.g. around the enable toggle) instead of only the screen-wide bar,
+     *  so enabling several repos in quick succession shows each one's own status. */
+    private val _syncingRepoIds = MutableStateFlow<Set<Int>>(emptySet())
+    val syncingRepoIds: StateFlow<Set<Int>> = _syncingRepoIds
+
     fun toggleRepo(repo: Repo) {
+        val enabling = !repo.enabled
+        if (enabling) {
+            _syncingRepoIds.value = _syncingRepoIds.value + repo.id
+            viewModelScope.launch {
+                // Wait for this repo's own sync to actually start (it may sit enqueued behind others
+                // toggled on just before it — see SyncWorker's APPEND_OR_REPLACE chaining), then clear
+                // once it's done, rather than guessing a fixed duration. Bounded: a sync that completes
+                // before this collector even attaches (never observed running) would otherwise wait
+                // forever for a "started" signal that already came and went.
+                withTimeoutOrNull(SYNC_WAIT_TIMEOUT_MS) {
+                    SyncWorker.isSyncingRepo(context, repo.id).dropWhile { !it }.first { !it }
+                }
+                _syncingRepoIds.value = _syncingRepoIds.value - repo.id
+            }
+        } else {
+            _syncingRepoIds.value = _syncingRepoIds.value - repo.id
+        }
         viewModelScope.launch {
-            repository.enableRepository(repo, !repo.enabled)
+            repository.enableRepository(repo, enabling)
         }
     }
 
@@ -64,5 +92,12 @@ class RepoListViewModel @Inject constructor(
         viewModelScope.launch {
             repository.deleteRepo(repoId)
         }
+    }
+
+    private companion object {
+        /** Safety net for [toggleRepo]'s wait on [SyncWorker.isSyncingRepo]: long enough for a real
+         *  sync (queued behind others, a big index, a slow connection), short enough that a row can't
+         *  spin forever if the "started" signal was somehow missed. */
+        const val SYNC_WAIT_TIMEOUT_MS = 5 * 60_000L
     }
 }
