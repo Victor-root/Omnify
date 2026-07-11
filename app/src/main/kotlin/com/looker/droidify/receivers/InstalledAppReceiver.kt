@@ -4,12 +4,16 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import com.looker.droidify.database.Database
+import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.extension.toInstalledItem
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 class InstalledAppReceiver(
     private val packageManager: PackageManager,
+    private val installedRepository: InstalledRepository,
+    private val scope: CoroutineScope,
 ) : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -22,9 +26,10 @@ class InstalledAppReceiver(
                 -> {
                     val packageInfo = packageManager.getPackageInfoCompat(packageName)
                     if (packageInfo != null) {
-                        Database.InstalledAdapter.put(packageInfo.toInstalledItem())
+                        val installedItem = packageInfo.toInstalledItem()
+                        scope.launch { installedRepository.put(installedItem) }
                     } else {
-                        Database.InstalledAdapter.delete(packageName)
+                        scope.launch { installedRepository.delete(packageName) }
                     }
                 }
             }

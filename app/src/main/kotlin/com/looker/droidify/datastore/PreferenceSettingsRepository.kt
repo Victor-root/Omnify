@@ -19,6 +19,7 @@ import com.looker.droidify.datastore.model.ProxyPreference
 import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.Theme
+import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.utility.common.Exporter
 import com.looker.droidify.utility.common.extension.updateAsMutable
 import kotlinx.coroutines.flow.Flow
@@ -86,6 +87,12 @@ class PreferenceSettingsRepository(
 
     override suspend fun setDynamicTheme(enable: Boolean) =
         DYNAMIC_THEME.update(enable)
+
+    override suspend fun setThemeColor(color: Int) =
+        THEME_COLOR.update(color)
+
+    override suspend fun setEdgeToEdge(enable: Boolean) =
+        EDGE_TO_EDGE.update(enable)
 
     override suspend fun setInstallerType(installerType: InstallerType) =
         INSTALLER_TYPE.update(installerType.name)
@@ -204,6 +211,27 @@ class PreferenceSettingsRepository(
         }
     }
 
+    override suspend fun setGithubToken(token: String) =
+        GITHUB_TOKEN.update(token)
+
+    override suspend fun setTranslationEngine(engine: TranslationEngine) =
+        TRANSLATION_ENGINE.update(engine.name)
+
+    override suspend fun setLibreTranslateUrl(url: String) =
+        LIBRETRANSLATE_URL.update(url)
+
+    override suspend fun setLibreTranslateApiKey(key: String) =
+        LIBRETRANSLATE_API_KEY.update(key)
+
+    override suspend fun setAutoTranslate(enable: Boolean) =
+        AUTO_TRANSLATE.update(enable)
+
+    override suspend fun setReadmeJavaScriptEnabled(enable: Boolean) =
+        README_JAVASCRIPT_ENABLED.update(enable)
+
+    override suspend fun setSplitViewEnabled(enable: Boolean) =
+        SPLIT_VIEW_ENABLED.update(enable)
+
     private fun mapSettings(preferences: Preferences): Settings {
         val installerType =
             InstallerType.valueOf(preferences[INSTALLER_TYPE] ?: InstallerType.Default.name)
@@ -230,6 +258,8 @@ class PreferenceSettingsRepository(
         val ignoreSignature = preferences[IGNORE_SIGNATURE] ?: false
         val theme = Theme.valueOf(preferences[THEME] ?: Theme.SYSTEM.name)
         val dynamicTheme = preferences[DYNAMIC_THEME] ?: false
+        val themeColor = preferences[THEME_COLOR] ?: DEFAULT_THEME_COLOR
+        val edgeToEdge = preferences[EDGE_TO_EDGE] ?: false
         val autoUpdate = preferences[AUTO_UPDATE] ?: false
         val autoSync = AutoSync.valueOf(preferences[AUTO_SYNC] ?: AutoSync.WIFI_ONLY.name)
         val sortOrder = SortOrder.valueOf(preferences[SORT_ORDER] ?: SortOrder.UPDATED.name)
@@ -242,12 +272,21 @@ class PreferenceSettingsRepository(
         val lastRbLogFetch = preferences[LAST_RB_FETCH]
         val lastModifiedDownloadStats = preferences[LAST_MODIFIED_DS]?.takeIf { it > 0L }
         val favouriteApps = preferences[FAVOURITE_APPS] ?: emptySet()
-        val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: true
+        val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: false
         val enabledRepoIds =
             preferences[ENABLED_REPO_IDS]?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
         val deleteApkOnInstall = preferences[DELETE_APK_ON_INSTALL] ?: false
         val downloadStatisticsEnabled = preferences[DOWNLOAD_STATISTICS_ENABLED] ?: true
         val reproducibilityLogsEnabled = preferences[REPRODUCIBILITY_LOGS_ENABLED] ?: true
+        val githubToken = preferences[GITHUB_TOKEN] ?: ""
+        val translationEngine = runCatching {
+            TranslationEngine.valueOf(preferences[TRANSLATION_ENGINE] ?: TranslationEngine.NONE.name)
+        }.getOrDefault(TranslationEngine.NONE)
+        val libreTranslateUrl = preferences[LIBRETRANSLATE_URL] ?: ""
+        val libreTranslateApiKey = preferences[LIBRETRANSLATE_API_KEY] ?: ""
+        val autoTranslate = preferences[AUTO_TRANSLATE] ?: false
+        val readmeJavaScriptEnabled = preferences[README_JAVASCRIPT_ENABLED] ?: false
+        val splitViewEnabled = preferences[SPLIT_VIEW_ENABLED] ?: true
 
         return Settings(
             language = language,
@@ -257,6 +296,8 @@ class PreferenceSettingsRepository(
             ignoreSignature = ignoreSignature,
             theme = theme,
             dynamicTheme = dynamicTheme,
+            themeColor = themeColor,
+            edgeToEdge = edgeToEdge,
             installerType = installerType,
             legacyInstallerComponent = legacyInstallerComponent,
             autoUpdate = autoUpdate,
@@ -273,6 +314,13 @@ class PreferenceSettingsRepository(
             deleteApkOnInstall = deleteApkOnInstall,
             dlStatsEnabled = downloadStatisticsEnabled,
             rbLogsEnabled = reproducibilityLogsEnabled,
+            githubToken = githubToken,
+            translationEngine = translationEngine,
+            libreTranslateUrl = libreTranslateUrl,
+            libreTranslateApiKey = libreTranslateApiKey,
+            autoTranslate = autoTranslate,
+            readmeJavaScriptEnabled = readmeJavaScriptEnabled,
+            splitViewEnabled = splitViewEnabled,
         )
     }
 
@@ -289,6 +337,8 @@ class PreferenceSettingsRepository(
         val UNSTABLE_UPDATES = booleanPreferencesKey("key_unstable_updates")
         val IGNORE_SIGNATURE = booleanPreferencesKey("key_ignore_signature")
         val DYNAMIC_THEME = booleanPreferencesKey("key_dynamic_theme")
+        val THEME_COLOR = intPreferencesKey("key_theme_color")
+        val EDGE_TO_EDGE = booleanPreferencesKey("key_edge_to_edge")
         val AUTO_UPDATE = booleanPreferencesKey("key_auto_updates")
         val PROXY_HOST = stringPreferencesKey("key_proxy_host")
         val PROXY_PORT = intPreferencesKey("key_proxy_port")
@@ -308,6 +358,13 @@ class PreferenceSettingsRepository(
         val LEGACY_INSTALLER_COMPONENT_TYPE =
             stringPreferencesKey("key_legacy_installer_component_type")
         val ENABLED_REPO_IDS = stringSetPreferencesKey("key_enabled_repo_ids")
+        val GITHUB_TOKEN = stringPreferencesKey("key_github_token")
+        val TRANSLATION_ENGINE = stringPreferencesKey("key_translation_engine")
+        val LIBRETRANSLATE_URL = stringPreferencesKey("key_libretranslate_url")
+        val LIBRETRANSLATE_API_KEY = stringPreferencesKey("key_libretranslate_api_key")
+        val AUTO_TRANSLATE = booleanPreferencesKey("key_auto_translate")
+        val README_JAVASCRIPT_ENABLED = booleanPreferencesKey("key_readme_javascript_enabled")
+        val SPLIT_VIEW_ENABLED = booleanPreferencesKey("key_split_view_enabled")
 
         // Enums
         val THEME = stringPreferencesKey("key_theme")
@@ -323,6 +380,8 @@ class PreferenceSettingsRepository(
             set(UNSTABLE_UPDATES, settings.unstableUpdate)
             set(THEME, settings.theme.name)
             set(DYNAMIC_THEME, settings.dynamicTheme)
+            set(THEME_COLOR, settings.themeColor)
+            set(EDGE_TO_EDGE, settings.edgeToEdge)
             when (settings.legacyInstallerComponent) {
                 is LegacyInstallerComponent.Component -> {
                     set(LEGACY_INSTALLER_COMPONENT_TYPE, "component")
@@ -364,6 +423,13 @@ class PreferenceSettingsRepository(
             set(DELETE_APK_ON_INSTALL, settings.deleteApkOnInstall)
             set(DOWNLOAD_STATISTICS_ENABLED, settings.dlStatsEnabled)
             set(REPRODUCIBILITY_LOGS_ENABLED, settings.rbLogsEnabled)
+            set(GITHUB_TOKEN, settings.githubToken)
+            set(TRANSLATION_ENGINE, settings.translationEngine.name)
+            set(LIBRETRANSLATE_URL, settings.libreTranslateUrl)
+            set(LIBRETRANSLATE_API_KEY, settings.libreTranslateApiKey)
+            set(AUTO_TRANSLATE, settings.autoTranslate)
+            set(README_JAVASCRIPT_ENABLED, settings.readmeJavaScriptEnabled)
+            set(SPLIT_VIEW_ENABLED, settings.splitViewEnabled)
             return this.toPreferences()
         }
     }

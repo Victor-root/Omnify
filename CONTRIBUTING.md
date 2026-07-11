@@ -1,6 +1,6 @@
-# 🤝 Contributing to Droid-ify
+# 🤝 Contributing to Omnify
 
-Thank you for your interest in contributing to Droid-ify! This document provides guidelines for
+Thank you for your interest in contributing to Omnify! This document provides guidelines for
 contributors.
 
 ## 🌟 Ways to Contribute
@@ -27,7 +27,7 @@ contributors.
 
 ### 🌐 Translations
 
-Help translate Droid-ify via [Weblate](https://hosted.weblate.org/engage/droidify/)
+Help translate Omnify via [Weblate](https://hosted.weblate.org/engage/droidify/)
 
 ### 📖 Documentation
 
@@ -129,8 +129,8 @@ Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
 ## 🔐 Security
 
-**Do not** report security vulnerabilities through public GitHub issues. Send details
-to `iamlooker@proton.me` instead.
+**Do not** report security vulnerabilities through public GitHub issues. Instead, report them
+privately via [GitHub Security Advisories](https://github.com/Victor-root/Omnify/security/advisories/new) on this repository.
 
 ## 📞 Getting Help
 
@@ -154,4 +154,4 @@ to uphold this code.
 
 ---
 
-**Thank you for contributing to Droid-ify!** 🚀
+**Thank you for contributing to Omnify!** 🚀

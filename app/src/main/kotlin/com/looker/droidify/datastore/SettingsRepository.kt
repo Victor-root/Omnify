@@ -7,6 +7,7 @@ import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.Theme
+import com.looker.droidify.datastore.model.TranslationEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -36,6 +37,10 @@ interface SettingsRepository {
     suspend fun setTheme(theme: Theme)
 
     suspend fun setDynamicTheme(enable: Boolean)
+
+    suspend fun setThemeColor(color: Int)
+
+    suspend fun setEdgeToEdge(enable: Boolean)
 
     suspend fun setInstallerType(installerType: InstallerType)
 
@@ -80,6 +85,20 @@ interface SettingsRepository {
     suspend fun setRBLogsEnabled(enabled: Boolean)
 
     suspend fun clearRbLogLastModified()
+
+    suspend fun setGithubToken(token: String)
+
+    suspend fun setTranslationEngine(engine: TranslationEngine)
+
+    suspend fun setLibreTranslateUrl(url: String)
+
+    suspend fun setLibreTranslateApiKey(key: String)
+
+    suspend fun setAutoTranslate(enable: Boolean)
+
+    suspend fun setReadmeJavaScriptEnabled(enable: Boolean)
+
+    suspend fun setSplitViewEnabled(enable: Boolean)
 }
 
 inline fun <T> SettingsRepository.get(crossinline block: suspend Settings.() -> T): Flow<T> {

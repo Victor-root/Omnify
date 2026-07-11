@@ -8,6 +8,7 @@ import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.looker.droidify.data.local.converters.Converters
 import com.looker.droidify.data.local.converters.PermissionConverter
+import com.looker.droidify.data.local.dao.ApkLocaleCacheDao
 import com.looker.droidify.data.local.dao.AppDao
 import com.looker.droidify.data.local.dao.AuthDao
 import com.looker.droidify.data.local.dao.DownloadStatsDao
@@ -18,6 +19,7 @@ import com.looker.droidify.data.local.dao.RepoDao
 import com.looker.droidify.data.local.model.AntiFeatureAppRelation
 import com.looker.droidify.data.local.model.AntiFeatureEntity
 import com.looker.droidify.data.local.model.AntiFeatureRepoRelation
+import com.looker.droidify.data.local.model.ApkLocaleCacheEntity
 import com.looker.droidify.data.local.model.AppEntity
 import com.looker.droidify.data.local.model.AuthenticationEntity
 import com.looker.droidify.data.local.model.AuthorEntity
@@ -43,12 +45,13 @@ import com.looker.droidify.data.local.model.ScreenshotEntity
 import com.looker.droidify.data.local.model.VersionEntity
 
 @Database(
-    version = 2,
+    version = 4,
     exportSchema = true,
     entities = [
         AntiFeatureEntity::class,
         AntiFeatureAppRelation::class,
         AntiFeatureRepoRelation::class,
+        ApkLocaleCacheEntity::class,
         AuthenticationEntity::class,
         AuthorEntity::class,
         AppEntity::class,
@@ -86,6 +89,7 @@ abstract class DroidifyDatabase : RoomDatabase() {
     abstract fun indexDao(): IndexDao
     abstract fun rbLogDao(): RBLogDao
     abstract fun downloadStatsDao(): DownloadStatsDao
+    abstract fun apkLocaleCacheDao(): ApkLocaleCacheDao
     abstract fun installedDao(): InstalledDao
 }
 

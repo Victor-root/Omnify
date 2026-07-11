@@ -1,6 +1,7 @@
 package com.looker.droidify.di
 
 import android.content.Context
+import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.installer.InstallManager
 import dagger.Module
@@ -19,5 +20,6 @@ object InstallModule {
     fun providesInstaller(
         @ApplicationContext context: Context,
         settingsRepository: SettingsRepository,
-    ): InstallManager = InstallManager(context, settingsRepository)
+        installedRepository: InstalledRepository,
+    ): InstallManager = InstallManager(context, settingsRepository, installedRepository)
 }

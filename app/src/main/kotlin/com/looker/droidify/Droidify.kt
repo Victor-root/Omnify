@@ -9,7 +9,6 @@ import android.content.IntentFilter
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
-import androidx.work.NetworkType
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -22,26 +21,19 @@ import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.ImageResult
 import coil3.request.SuccessResult
 import coil3.request.crossfade
-import com.looker.droidify.content.ProductPreferences
-import com.looker.droidify.database.Database
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.AutoSync
-import com.looker.droidify.index.RepositoryUpdater
 import com.looker.droidify.installer.InstallManager
-import com.looker.droidify.network.Downloader
+import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.receivers.InstalledAppReceiver
-import com.looker.droidify.service.Connection
-import com.looker.droidify.service.SyncService
-import com.looker.droidify.sync.SyncPreference
-import com.looker.droidify.sync.toJobNetworkType
-import com.looker.droidify.utility.common.Constants
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.getDrawableCompat
 import com.looker.droidify.utility.common.extension.getInstalledPackagesCompat
-import com.looker.droidify.utility.common.extension.jobScheduler
 import com.looker.droidify.utility.extension.toInstalledItem
 import com.looker.droidify.work.CleanUpWorker
+import com.looker.droidify.work.DownloadStatsWorker
+import com.looker.droidify.work.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
@@ -65,10 +57,10 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
     lateinit var settingsRepository: SettingsRepository
 
     @Inject
-    lateinit var installer: InstallManager
+    lateinit var installedRepository: InstalledRepository
 
     @Inject
-    lateinit var downloader: Downloader
+    lateinit var installer: InstallManager
 
     @Inject
     lateinit var httpClient: HttpClient
@@ -79,15 +71,13 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
     override fun onCreate() {
         super.onCreate()
 
-        val databaseUpdated = Database.init(this)
-        ProductPreferences.init(this, appScope)
-        RepositoryUpdater.init(appScope, downloader)
+        // A fresh install seeds + syncs its default repos from MainComposeActivity, so there's no
+        // legacy "database created -> full sync" step here any more.
         listenApplications()
         checkLanguage()
         updatePreference()
+        scheduleDownloadStats()
         appScope.launch { installer() }
-
-        if (databaseUpdated) forceSyncAll()
     }
 
     override fun onTerminate() {
@@ -101,11 +91,11 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
             .getInstalledPackagesCompat()
             ?.map { it.toInstalledItem() }
         if (installedItems != null) {
-            Database.InstalledAdapter.putAll(installedItems)
+            appScope.launch { installedRepository.putAll(installedItems) }
         }
         appScope.launch {
             registerReceiver(
-                InstalledAppReceiver(packageManager),
+                InstalledAppReceiver(packageManager, installedRepository, appScope),
                 IntentFilter().apply {
                     addAction(Intent.ACTION_PACKAGE_ADDED)
                     addAction(Intent.ACTION_PACKAGE_REMOVED)
@@ -152,43 +142,37 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
 
     private fun updateSyncJob(force: Boolean, autoSync: AutoSync) {
         if (autoSync == AutoSync.NEVER) {
-            jobScheduler?.cancel(Constants.JOB_ID_SYNC)
+            SyncWorker.cancelAll(this)
             return
         }
-        val jobScheduler = jobScheduler
-        val syncConditions = when (autoSync) {
-            AutoSync.ALWAYS -> SyncPreference(NetworkType.CONNECTED)
-            AutoSync.WIFI_ONLY -> SyncPreference(NetworkType.UNMETERED)
-            AutoSync.WIFI_PLUGGED_IN -> SyncPreference(NetworkType.UNMETERED, pluggedIn = true)
-        }
-        val isCompleted = jobScheduler?.allPendingJobs
-            ?.any { it.id == Constants.JOB_ID_SYNC } == false
-        if (force || isCompleted) {
-            val period = 12.hours.inWholeMilliseconds
-            val job = SyncService.Job.create(
-                context = this,
-                periodMillis = period,
-                networkType = syncConditions.toJobNetworkType(),
-                isCharging = syncConditions.pluggedIn,
-                isBatteryLow = syncConditions.batteryNotLow,
-            )
-            jobScheduler?.schedule(job)
-        }
+        // Auto-sync runs through the single data layer (SyncWorker -> RepoRepository -> Room), the
+        // same engine as the manual Sync button. The per-network-type conditions are simplified to
+        // "connected" for now.
+        SyncWorker.schedulePeriodicSync(this, 12.hours)
     }
 
     private fun forceSyncAll() {
-        Database.RepositoryAdapter.getAll().forEach {
-            if (it.lastModified.isNotEmpty() || it.entityTag.isNotEmpty()) {
-                Database.RepositoryAdapter.put(it.copy(lastModified = "", entityTag = ""))
+        SyncWorker.enqueueUserSync(this)
+    }
+
+    /**
+     * Powers the Discover home's "Most downloaded" carousel: the download-stats worker was never
+     * scheduled, so the stats table stayed empty and the carousel never had data. On launch we fetch
+     * once if it's never run (so the carousel appears promptly), then keep it fresh in the background.
+     * Honours the privacy setting — cancelled when the user turns stats off.
+     */
+    private fun scheduleDownloadStats() {
+        appScope.launch {
+            val settings = settingsRepository.getInitial()
+            if (!settings.dlStatsEnabled) {
+                DownloadStatsWorker.cancelPeriodic(this@Droidify)
+                return@launch
             }
+            if (settings.lastModifiedDownloadStats == null) {
+                DownloadStatsWorker.fetchDownloadStats(this@Droidify)
+            }
+            DownloadStatsWorker.schedulePeriodic(this@Droidify)
         }
-        Connection(
-            SyncService::class.java,
-            onBind = { connection, binder ->
-                binder.sync(SyncService.SyncRequest.FORCE)
-                connection.unbind(this)
-            },
-        ).bind(this)
     }
 
     class BootReceiver : BroadcastReceiver() {
@@ -215,7 +199,10 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
             .memoryCache(memoryCache)
             .diskCache(diskCache)
             .error(getDrawableCompat(R.drawable.ic_cannot_load).asImage())
-            .crossfade(350)
+            // No crossfade: while scrolling, icons load into view and each fade forces an offscreen
+            // alpha layer per icon every frame — the main scroll stutter on slower devices. Icons just
+            // appear instead, which reads fine at this size and keeps the grid smooth.
+            .crossfade(false)
             .components {
                 add(KtorNetworkFetcherFactory(httpClient = { httpClient }))
                 add(FallbackIconInterceptor())

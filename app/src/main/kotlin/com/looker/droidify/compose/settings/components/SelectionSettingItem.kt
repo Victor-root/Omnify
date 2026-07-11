@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -20,10 +21,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.tvFocusFill
 
 @Composable
 fun <T> SelectionSettingItem(
@@ -33,36 +36,43 @@ fun <T> SelectionSettingItem(
     onValueSelected: (T) -> Unit,
     valueToString: @Composable (T) -> String,
     modifier: Modifier = Modifier,
+    icon: Painter? = null,
     dialogTitle: String = title,
     dialogIcon: ImageVector? = null,
     enabled: Boolean = true,
 ) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
 
-    Column(
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
+            // TV only: a soft accent fill behind the focused row (no-op on touch).
+            .tvFocusFill(RoundedCornerShape(12.dp))
             .clickable(enabled = enabled) { showDialog = true }
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (enabled) {
-                MaterialTheme.colorScheme.onSurface
-            } else {
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-            },
-        )
-        Text(
-            text = valueToString(selectedValue),
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (enabled) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-            },
-        )
+        SettingLeadingIcon(icon, enabled)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                },
+            )
+            Text(
+                text = valueToString(selectedValue),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                },
+            )
+        }
     }
 
     if (showDialog) {
@@ -102,6 +112,8 @@ private fun <T> SelectionDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
+                            // TV only: a soft accent fill behind the focused option (no-op on touch).
+                            .tvFocusFill(RoundedCornerShape(8.dp))
                             .clickable { onValueSelected(value) }
                             .padding(vertical = 4.dp),
                     ) {

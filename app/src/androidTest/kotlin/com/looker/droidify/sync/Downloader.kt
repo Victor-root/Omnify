@@ -3,6 +3,7 @@ package com.looker.droidify.sync
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.ProgressListener
+import com.looker.droidify.network.RangeResult
 import com.looker.droidify.network.header.HeadersBuilder
 import com.looker.droidify.sync.common.assets
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +47,13 @@ val FakeDownloader = object : Downloader {
             index.writeTo(target)
             NetworkResponse.Success(200, null, null)
         }
+    }
+
+    override suspend fun getRange(
+        url: String,
+        headers: HeadersBuilder.() -> Unit,
+    ): RangeResult {
+        TODO("Not yet implemented")
     }
 
     suspend infix fun InputStream.writeTo(file: File) = withContext(Dispatchers.IO) {

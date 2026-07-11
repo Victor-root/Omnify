@@ -17,4 +17,8 @@ interface HeadersBuilder {
     fun authentication(base64: String)
 
     fun inRange(start: Long, end: Long? = null)
+
+    /** "The last [lastNBytes] bytes" (`Range: bytes=-N`) — for reading the tail of a file whose total
+     *  size isn't known yet (e.g. a ZIP's End-Of-Central-Directory record). */
+    fun inRangeSuffix(lastNBytes: Long)
 }

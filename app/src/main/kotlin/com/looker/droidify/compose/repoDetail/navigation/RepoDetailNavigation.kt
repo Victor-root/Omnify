@@ -22,11 +22,13 @@ fun NavController.navigateToRepoDetail(repoId: Int) {
 fun NavGraphBuilder.repoDetail(
     onBackClick: () -> Unit,
     onEditClick: (Int) -> Unit,
+    onAppClick: (String) -> Unit,
 ) {
     composable<RepoDetail> { backStackEntry ->
         RepoDetailScreen(
             onBackClick = onBackClick,
             onEditClick = onEditClick,
+            onAppClick = onAppClick,
         )
     }
 }

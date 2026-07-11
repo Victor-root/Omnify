@@ -49,6 +49,10 @@ data class VersionEntity(
     val src: FileV2?,
     val features: List<String>,
     val nativeCode: List<String>,
+    // SHA-256 fingerprint(s) of this version's signing certificate(s), lowercase hex — exactly the
+    // format the installed app's signature is stored in. Used to tell whether a catalogue update can
+    // actually replace the installed app (same signer) or not (different signer).
+    val signer: List<String>,
     val permissions: List<PermissionV2>,
     val permissionsSdk23: List<PermissionV2>,
     val appId: Int,
@@ -70,6 +74,7 @@ fun PackageV2.versionEntities(appId: Int): Map<VersionEntity, List<AntiFeatureAp
             src = version.src,
             features = version.manifest.features.map { it.name },
             nativeCode = version.manifest.nativecode,
+            signer = version.manifest.signer?.sha256 ?: emptyList(),
             permissions = version.manifest.usesPermission,
             permissionsSdk23 = version.manifest.usesPermissionSdk23,
             appId = appId,
@@ -87,6 +92,7 @@ fun PackageV2.versionEntities(appId: Int): Map<VersionEntity, List<AntiFeatureAp
 fun List<VersionEntity>.toPackages(
     locale: String,
     installed: InstalledEntity?,
+    antiFeatures: List<AntiFeatureAppRelation> = emptyList(),
 ) = map { version ->
     Package(
         id = version.id.toLong(),
@@ -99,7 +105,12 @@ fun List<VersionEntity>.toPackages(
         ),
         platforms = Platforms(version.nativeCode),
         features = version.features,
-        antiFeatures = emptyList(), // This would need to be populated from AntiFeatureAppRelation
+        // Anti-features are stored per (appId, versionCode) in anti_features_app_relation; pick this
+        // version's. The rewrite had dropped this (emptyList()), so the detail screen showed no
+        // Tracking/Ads/NonFree/KnownVuln warnings the old Droidify did.
+        antiFeatures = antiFeatures
+            .filter { it.versionCode == version.versionCode }
+            .map { it.tag },
         manifest = Manifest(
             versionCode = version.versionCode,
             versionName = version.versionName,
@@ -108,17 +119,22 @@ fun List<VersionEntity>.toPackages(
                 max = version.maxSdkVersion ?: -1,
                 target = version.targetSdkVersion,
             ),
-            signer = emptySet(), // This would need to be populated from somewhere
-            permissions = version.permissions.map {
-                Permission(
-                    name = it.name,
-                    sdKs = SDKs(
-                        min = -1, // PermissionV2 doesn't have minSdkVersion
-                        max = it.maxSdkVersion ?: -1,
-                        target = -1,
-                    ),
-                )
-            },
+            signer = version.signer.toSet(),
+            // Include the uses-permission-sdk-23 declarations too (requested at runtime on API 23+).
+            // The rewrite only mapped `permissions`, so those extra permissions were never shown.
+            // Dedupe by name in case a permission is declared in both lists.
+            permissions = (version.permissions + version.permissionsSdk23)
+                .distinctBy { it.name }
+                .map {
+                    Permission(
+                        name = it.name,
+                        sdKs = SDKs(
+                            min = -1, // PermissionV2 doesn't have minSdkVersion
+                            max = it.maxSdkVersion ?: -1,
+                            target = -1,
+                        ),
+                    )
+                },
         ),
         whatsNew = version.whatsNew.localizedValue(locale) ?: "",
     )

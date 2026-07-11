@@ -3,9 +3,13 @@ package com.looker.droidify.work
 import android.content.Context
 import android.util.Log
 import androidx.hilt.work.HiltWorker
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.looker.droidify.data.PrivacyRepository
@@ -15,12 +19,9 @@ import com.looker.droidify.datastore.Settings
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
-import com.looker.droidify.utility.common.Constants
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.exceptCancellation
 import com.looker.droidify.utility.common.generateMonthlyFileNames
-import com.looker.droidify.utility.common.toForegroundInfo
-import com.looker.droidify.utility.notifications.createDownloadStatsNotification
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import io.ktor.http.HttpStatusCode
@@ -31,7 +32,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.*
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.ExperimentalTime
 
@@ -53,11 +54,10 @@ class DownloadStatsWorker @AssistedInject constructor(
             return@withContext Result.success()
         }
         try {
-            setForegroundAsync(
-                context
-                    .createDownloadStatsNotification()
-                    .toForegroundInfo(Constants.NOTIFICATION_ID_STATS_DOWNLOAD),
-            )
+            // Runs as a normal background worker (no foreground service / notification): the fetch is
+            // a few small JSON files and finishes in seconds, and going foreground required the
+            // "syncing" notification channel — which this worker never created, so startForeground
+            // crashed the app. Silent in the background is also better UX for a stats refresh.
             fetchData(settings)
             Log.i(TAG, "Successfully processed download stats monthly files")
             Result.success()
@@ -72,40 +72,43 @@ class DownloadStatsWorker @AssistedInject constructor(
     private suspend fun fetchData(settings: Settings) = withContext(Dispatchers.IO) {
         supervisorScope {
             val lastModified = settings.lastModifiedDownloadStats
-            val fileNames = ConcurrentLinkedQueue(
-                generateMonthlyFileNames(lastModified),
-            )
+            val fileNames = generateMonthlyFileNames(lastModified)
 
             Log.d(TAG, "Fetching ${fileNames.size} monthly files")
-            while (fileNames.isNotEmpty()) {
-                if (downloadSemaphores.tryAcquire()) {
-                    launch {
-                        val fileName = fileNames.poll()
-                        if (fileName == null) {
-                            downloadSemaphores.release()
-                        } else {
-                            val target = Cache.getTemporaryFile(context)
-                            try {
-                                Log.i(TAG, "Downloading $fileName")
-                                val response = downloadFile(fileName, target)
-                                Log.i(TAG, "Downloaded $fileName with $response")
+            for (fileName in fileNames) {
+                // Suspend until a slot is free (cap: 2 concurrent). The previous code spun the loop on
+                // tryAcquire(), pegging a CPU core while waiting — costly during the first-launch load.
+                downloadSemaphores.acquire()
+                launch {
+                    // This runs in a launch{} inside a supervisorScope, so an uncaught throw here would
+                    // NOT bubble up to doWork()'s try/catch — it would crash the whole app. Catch
+                    // everything (a flaky download, a bad month file, even a temp-file failure): log it
+                    // and move on. The outer finally always frees the semaphore so a failure can't
+                    // deadlock the fetch loop either.
+                    try {
+                        val target = Cache.getTemporaryFile(context)
+                        try {
+                            Log.i(TAG, "Downloading $fileName")
+                            val response = downloadFile(fileName, target)
+                            Log.i(TAG, "Downloaded $fileName with $response")
 
-                                if (response is NetworkResponse.Success) {
-                                    val isModified =
-                                        response.statusCode != HttpStatusCode.NotModified.value
-                                    if (isModified) {
-                                        processDownloadStats(
-                                            response = response,
-                                            fileName = fileName,
-                                            target = target,
-                                        )
-                                    }
-                                }
-                            } finally {
-                                target.delete()
-                                downloadSemaphores.release()
+                            if (response is NetworkResponse.Success &&
+                                response.statusCode != HttpStatusCode.NotModified.value
+                            ) {
+                                processDownloadStats(
+                                    response = response,
+                                    fileName = fileName,
+                                    target = target,
+                                )
                             }
+                        } finally {
+                            target.delete()
                         }
+                    } catch (e: Exception) {
+                        e.exceptCancellation()
+                        Log.e(TAG, "Failed processing $fileName", e)
+                    } finally {
+                        downloadSemaphores.release()
                     }
                 }
             }
@@ -142,13 +145,54 @@ class DownloadStatsWorker @AssistedInject constructor(
         private const val IZZY_STATS_MONTHLY =
             "https://dlstats.izzyondroid.org/iod-stats-collector/stats/basic/monthly/"
 
+        private const val UNIQUE_ONE_TIME = "download_stats"
+        private const val UNIQUE_PERIODIC = "download_stats_periodic"
+
+        /** Delay before the initial stats fetch, to keep it clear of the first-launch cold-start +
+         *  catalogue-sync window on slow devices. */
+        private const val STARTUP_FETCH_DELAY_SECONDS = 45L
+
+        private val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        /** One-off fetch — used to populate stats promptly the first time (so the "Most downloaded"
+         *  carousel appears without waiting for the periodic tick). The worker no-ops if stats are
+         *  disabled. */
         fun fetchDownloadStats(context: Context) {
-            val workManager = WorkManager.getInstance(context)
-            workManager.enqueueUniqueWork(
-                "download_stats",
-                ExistingWorkPolicy.REPLACE,
-                OneTimeWorkRequestBuilder<DownloadStatsWorker>().build(),
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                UNIQUE_ONE_TIME,
+                ExistingWorkPolicy.KEEP,
+                OneTimeWorkRequestBuilder<DownloadStatsWorker>()
+                    .setConstraints(constraints)
+                    // Hold off the initial run so it doesn't download + parse 19 JSON files while the
+                    // catalogue sync and the heavy first Compose frame are already fighting for the CPU on
+                    // first launch (that contention froze the main thread long enough to ANR on slow TVs).
+                    // Stats only feed the "Most downloaded" row, so a short wait is invisible.
+                    .setInitialDelay(STARTUP_FETCH_DELAY_SECONDS, TimeUnit.SECONDS)
+                    .build(),
             )
+        }
+
+        /** Keeps download stats fresh in the background (only fetches months newer than the last
+         *  run). KEEP so re-scheduling on each launch doesn't reset the timer. */
+        fun schedulePeriodic(context: Context) {
+            val request = PeriodicWorkRequestBuilder<DownloadStatsWorker>(12, TimeUnit.HOURS)
+                .setConstraints(constraints)
+                // Delay the first periodic run so it doesn't fire immediately alongside the one-time
+                // fetch on first launch (two full 19-file stats passes at once spiked memory on low-RAM
+                // TVs). The one-time [fetchDownloadStats] populates stats now; the periodic refreshes later.
+                .setInitialDelay(12, TimeUnit.HOURS)
+                .build()
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                UNIQUE_PERIODIC,
+                ExistingPeriodicWorkPolicy.KEEP,
+                request,
+            )
+        }
+
+        fun cancelPeriodic(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_PERIODIC)
         }
     }
 }

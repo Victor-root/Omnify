@@ -1,6 +1,7 @@
 package com.looker.droidify.work
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
@@ -14,6 +15,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.hasKeyWithValueOfType
@@ -26,6 +28,8 @@ import com.looker.droidify.utility.common.toForegroundInfo
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
@@ -49,10 +53,21 @@ class SyncWorker @AssistedInject constructor(
                 val repo = repoRepository.getRepo(repoId)
                 if (repo != null) {
                     setForeground(createForegroundInfo(repo.name, -1))
+                    // The progress callback fires on every downloaded chunk; refreshing the foreground
+                    // notification each time floods WorkManager (it logs a "move to foreground" per
+                    // call) and is wasteful. Update only when the whole-percent changes, and at most a
+                    // few times a second.
+                    var lastPercent = -1
+                    var lastEmit = 0L
                     repoRepository.sync(repo) { state ->
                         val progress =
                             if (state is SyncState.IndexDownload.Progress) state.progress else -1
-                        setForegroundAsync(createForegroundInfo(repo.name, progress))
+                        val now = SystemClock.elapsedRealtime()
+                        if (progress != lastPercent && (progress < 0 || now - lastEmit >= 400L)) {
+                            lastPercent = progress
+                            lastEmit = now
+                            setForegroundAsync(createForegroundInfo(repo.name, progress))
+                        }
                     }
                 } else {
                     Log.w(TAG, "Repo not found for id=$repoId; falling back to syncAll")
@@ -66,14 +81,30 @@ class SyncWorker @AssistedInject constructor(
                 Result.success()
             } else {
                 Log.w(TAG, "Sync reported failure (repoId=$repoId)")
-                Result.retry()
+                retryOrGiveUp(repoId)
             }
         } catch (t: Throwable) {
             t.exceptCancellation()
             Log.e(TAG, "Sync failed with exception", t)
-            Result.retry()
+            retryOrGiveUp(repoId)
         }
     }
+
+    /**
+     * Retry a failed sync a few times, then give up with [Result.success] rather than [Result.retry].
+     * Syncs are chained under one unique work name (see [enqueueUserSync]); a work that retries forever
+     * would block every repo queued behind it, so a repo whose server is down or broken must not stall
+     * the others. Finishing "successfully" just lets the chain proceed — the repo keeps its old data and
+     * is retried by the next periodic or manual sync, not this run.
+     */
+    private fun retryOrGiveUp(repoId: Int?): Result =
+        if (runAttemptCount + 1 < MAX_SYNC_ATTEMPTS) {
+            Log.w(TAG, "Sync retry ${runAttemptCount + 1}/$MAX_SYNC_ATTEMPTS (repoId=$repoId)")
+            Result.retry()
+        } else {
+            Log.w(TAG, "Sync gave up after $MAX_SYNC_ATTEMPTS attempts (repoId=$repoId)")
+            Result.success()
+        }
 
     private fun createForegroundInfo(name: String, percent: Int): ForegroundInfo {
         val id = "sync_channel"
@@ -103,6 +134,9 @@ class SyncWorker @AssistedInject constructor(
 
     companion object {
         private const val TAG = "SyncWorker"
+        // Total tries (initial + retries) before a failing sync gives up so it can't block the ones
+        // chained behind it.
+        private const val MAX_SYNC_ATTEMPTS = 3
         private const val KEY_REPO_ID = "repo_id"
         private const val KEY_TRIGGER = "trigger"
         private const val TRIGGER_USER = "user"
@@ -123,13 +157,23 @@ class SyncWorker @AssistedInject constructor(
                 .setConstraints(defaultConstraints)
                 .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS)
                 .addTag(TAG)
+                // A per-repo tag, since WorkInfo never exposes its own inputData back (only tags,
+                // progress and outputData) — this is what lets isSyncingRepo() below tell *this*
+                // repo's sync apart from any other queued/running one.
+                .apply { if (repoId != null) addTag(repoSyncTag(repoId)) }
                 .build()
 
+            // APPEND_OR_REPLACE, not KEEP: enabling several repos in quick succession enqueues one sync
+            // each under the same unique name. KEEP dropped every sync after the first (only some repos
+            // synced, the rest needed a manual re-sync). Appending chains them so all enabled repos are
+            // synced, one after another — which also avoids decoding several large indexes at once (a
+            // memory spike on low-RAM devices). OR_REPLACE keeps the chain going even if one repo's sync
+            // ends up failing, instead of cancelling the ones queued behind it.
             WorkManager
                 .getInstance(context)
                 .enqueueUniqueWork(
                     uniqueWorkName = "$TAG.user",
-                    existingWorkPolicy = ExistingWorkPolicy.KEEP,
+                    existingWorkPolicy = ExistingWorkPolicy.APPEND_OR_REPLACE,
                     request = request,
                 )
             Log.i(TAG, "User sync enqueued (repoId=$repoId)")
@@ -147,6 +191,11 @@ class SyncWorker @AssistedInject constructor(
             val request = PeriodicWorkRequestBuilder<SyncWorker>(repeatInterval.toJavaDuration())
                 .setInputData(data)
                 .setConstraints(defaultConstraints)
+                // Delay the first periodic run by a full interval: a freshly-scheduled periodic work
+                // otherwise fires immediately, and on first launch it would run *alongside* the one-time
+                // launch sync — two full index parses at once exhausted memory on low-RAM TVs. The
+                // one-time sync covers "now"; the periodic only needs to cover later.
+                .setInitialDelay(repeatInterval.toJavaDuration())
                 .addTag(TAG)
                 .build()
 
@@ -165,5 +214,30 @@ class SyncWorker @AssistedInject constructor(
             WorkManager.getInstance(context).cancelAllWorkByTag(TAG)
             Log.i(TAG, "All sync work cancelled")
         }
+
+        /**
+         * Emits `true` while any sync (manual, repo-enable, periodic) is actively running. Drives
+         * the in-app progress bar so the user sees the catalog is loading — notably on first launch,
+         * where the list would otherwise look empty/broken until the first sync finishes.
+         */
+        fun isSyncing(context: Context): Flow<Boolean> =
+            WorkManager.getInstance(context)
+                .getWorkInfosByTagFlow(TAG)
+                .map { infos -> infos.any { it.state == WorkInfo.State.RUNNING } }
+
+        private fun repoSyncTag(repoId: Int): String = "$TAG.repo.$repoId"
+
+        /**
+         * Emits `true` while [repoId]'s own sync is enqueued or running — distinct from [isSyncing],
+         * which can't tell repos apart. Drives a focused progress indicator right on that repo's own
+         * row (e.g. around its enable toggle) instead of only the screen-wide bar, so enabling several
+         * repos in quick succession shows each one's own status without the list otherwise changing.
+         */
+        fun isSyncingRepo(context: Context, repoId: Int): Flow<Boolean> =
+            WorkManager.getInstance(context)
+                .getWorkInfosByTagFlow(repoSyncTag(repoId))
+                .map { infos ->
+                    infos.any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
+                }
     }
 }

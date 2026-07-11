@@ -41,6 +41,10 @@ internal class KtorHeadersBuilder(
         HttpHeaders.Range headsWith valueString
     }
 
+    override fun inRangeSuffix(lastNBytes: Long) {
+        HttpHeaders.Range headsWith "bytes=-$lastNBytes"
+    }
+
     private companion object {
         val HTTP_DATE_FORMAT: SimpleDateFormat
             get() = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US).apply {

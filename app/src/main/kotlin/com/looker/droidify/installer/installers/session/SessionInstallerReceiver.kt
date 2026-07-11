@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
+import android.util.Log
+import android.widget.Toast
 import com.looker.droidify.R
 import com.looker.droidify.data.model.toPackageName
 import com.looker.droidify.installer.InstallManager
@@ -12,6 +14,7 @@ import com.looker.droidify.utility.common.Constants.NOTIFICATION_CHANNEL_INSTALL
 import com.looker.droidify.utility.common.createNotificationChannel
 import com.looker.droidify.utility.common.extension.getPackageName
 import com.looker.droidify.utility.common.extension.notificationManager
+import com.looker.droidify.utility.common.log
 import com.looker.droidify.utility.notifications.createInstallNotification
 import com.looker.droidify.utility.notifications.installNotification
 import com.looker.droidify.utility.notifications.removeInstallNotification
@@ -58,6 +61,10 @@ class SessionInstallerReceiver : BroadcastReceiver() {
         val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
         val isUninstall = intent.getBooleanExtra(ACTION_UNINSTALL, false)
 
+        // Surface the exact PackageInstaller reason (e.g. INSTALL_FAILED_NO_MATCHING_ABIS,
+        // INSTALL_FAILED_VERIFICATION_FAILURE) so failures can be diagnosed from logcat.
+        log("Install result: package=$packageName status=$status message=$message", TAG, Log.INFO)
+
         val appName = packageManager.getPackageName(packageName)
 
         if (packageName != null) {
@@ -84,12 +91,36 @@ class SessionInstallerReceiver : BroadcastReceiver() {
 
                 else -> {
                     installManager.remove(packageName.toPackageName())
+                    // A signature conflict (STATUS_FAILURE_CONFLICT, "signatures do not match") means
+                    // the app is already installed from a different source/signer. Android can't
+                    // update across signers, so the raw message is useless to the user — tell them to
+                    // uninstall the existing copy first, both as a toast (they're usually still in the
+                    // app) and in the notification.
+                    val isSignatureConflict =
+                        status == PackageInstaller.STATUS_FAILURE_CONFLICT &&
+                            message?.contains("signature", ignoreCase = true) == true
+                    val shownMessage = when {
+                        isSignatureConflict -> context.getString(
+                            R.string.install_failed_signature_mismatch,
+                            (appName ?: packageName).toString(),
+                        )
+                        // A failed uninstall (e.g. a system app: DELETE_FAILED_INTERNAL_ERROR) would
+                        // otherwise fail silently and the user would just retry — say so clearly.
+                        isUninstall -> context.getString(
+                            R.string.uninstall_failed,
+                            (appName ?: packageName).toString(),
+                        )
+                        else -> message
+                    }
+                    if (isSignatureConflict || isUninstall) {
+                        Toast.makeText(context, shownMessage, Toast.LENGTH_LONG).show()
+                    }
                     val notification = context.createInstallNotification(
                         appName = appName.toString(),
                         state = InstallState.Failed,
                         isUninstall = isUninstall,
                     ) {
-                        setContentText(message)
+                        setContentText(shownMessage)
                     }
                     notificationManager?.installNotification(
                         packageName = packageName,
@@ -103,6 +134,7 @@ class SessionInstallerReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_UNINSTALL = "action_uninstall"
 
+        private const val TAG = "SessionInstaller"
         private const val SUCCESS_TIMEOUT = 5_000L
     }
 }

@@ -14,7 +14,7 @@ body:
       label: Before you submit
       description: Quick checks
       options:
-        - label: I have searched the issue tracker for [open](https://github.com/Droid-ify/client/issues) and [closed](https://github.com/Droid-ify/client/issues?q=is%3Aissue+is%3Aclosed) issues that are similar to the feature request I want to file, without success.
+        - label: I have searched the issue tracker for [open](https://github.com/Victor-root/Omnify/issues) and [closed](https://github.com/Victor-root/Omnify/issues?q=is%3Aissue+is%3Aclosed) issues that are similar to the feature request I want to file, without success.
           required: true
         - label: I'm on the latest version
           required: true
@@ -54,7 +54,7 @@ body:
   - type: input
     id: app-version
     attributes:
-      label: Droid-ify version
+      label: Omnify version
       description: Check in Settings or About
       placeholder: e.g. v0.5.1
     validations:

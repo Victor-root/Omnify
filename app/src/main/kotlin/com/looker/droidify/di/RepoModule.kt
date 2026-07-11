@@ -5,6 +5,7 @@ import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.encryption.EncryptionStorage
+import com.looker.droidify.data.local.dao.ApkLocaleCacheDao
 import com.looker.droidify.data.local.dao.AppDao
 import com.looker.droidify.data.local.dao.AuthDao
 import com.looker.droidify.data.local.dao.IndexDao
@@ -50,10 +51,12 @@ object RepoModule {
     fun provideAppRepository(
         appDao: AppDao,
         repoDao: RepoDao,
+        apkLocaleCacheDao: ApkLocaleCacheDao,
         settingsRepository: SettingsRepository,
     ): AppRepository = AppRepository(
         appDao = appDao,
         repoDao = repoDao,
+        apkLocaleCacheDao = apkLocaleCacheDao,
         settingsRepository = settingsRepository,
     )
 

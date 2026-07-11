@@ -10,6 +10,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.looker.droidify.compose.theme.LocalIsTelevision
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -19,7 +20,17 @@ fun BackButton(
 ) {
     IconButton(
         onClick = onClick,
-        modifier = modifier.size(width = (24 + 12).dp, height = 40.dp),
+        modifier = modifier
+            // TV: a square button so the focus halo is a clean circle (the slim default size makes it
+            // an oval); the focused arrow also scales up. Unchanged on touch.
+            .then(
+                if (LocalIsTelevision.current) {
+                    Modifier.size(48.dp)
+                } else {
+                    Modifier.size(width = (24 + 12).dp, height = 40.dp)
+                },
+            )
+            .tvFocusScale(),
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,

@@ -1,6 +1,7 @@
 package com.looker.droidify.data
 
 import android.content.Context
+import android.util.Log
 import com.looker.droidify.data.encryption.EncryptionStorage
 import com.looker.droidify.data.local.dao.AppDao
 import com.looker.droidify.data.local.dao.AuthDao
@@ -23,15 +24,17 @@ import com.looker.droidify.sync.SyncState
 import com.looker.droidify.sync.v1.V1Syncable
 import com.looker.droidify.sync.v2.EntrySyncable
 import com.looker.droidify.sync.v2.model.IndexV2
+import com.looker.droidify.utility.common.extension.exceptCancellation
 import com.looker.droidify.work.SyncWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.supervisorScope
 import java.io.File
 import javax.inject.Inject
 
@@ -104,7 +107,7 @@ class RepoRepository @Inject constructor(
             description = description,
             icon = icon,
         )
-    }
+    }.flowOn(Dispatchers.Default)
 
     suspend fun deleteRepo(id: Int) {
         repoDao.delete(id)
@@ -128,7 +131,7 @@ class RepoRepository @Inject constructor(
                 icon = icon,
             )
         }
-    }
+    }.distinctUntilChanged().flowOn(Dispatchers.Default)
 
     val addresses: Flow<Set<String>>
         get() = combine(
@@ -136,7 +139,7 @@ class RepoRepository @Inject constructor(
             repoDao.mirrors(),
         ) { repos, mirrors ->
             repos.map { it.address }.toSet() + mirrors.map { it.url }
-        }
+        }.flowOn(Dispatchers.Default)
 
     fun getEnabledRepos(): Flow<List<Repo>> = settingsRepository
         .get { enabledRepoIds }
@@ -206,7 +209,7 @@ class RepoRepository @Inject constructor(
         var success = false
         var parsedFingerprint: Fingerprint? = null
         var parsedIndex: IndexV2? = null
-        v2Syncable.sync(repo) { state ->
+        val handleState: (SyncState) -> Unit = { state ->
             onState?.invoke(state)
             when (state) {
                 is SyncState.JsonParsing.Success -> {
@@ -214,26 +217,75 @@ class RepoRepository @Inject constructor(
                     parsedIndex = state.index
                     success = true
                 }
-
+                // Surface failures instead of swallowing them — otherwise a sync that downloaded but
+                // couldn't parse/verify the index looks "successful" while the catalog stays empty.
+                is SyncState.IndexDownload.Failure ->
+                    Log.e(TAG, "Index download failed for ${repo.name} (id=${repo.id})", state.error)
+                is SyncState.JarParsing.Failure ->
+                    Log.e(TAG, "Index signature check failed for ${repo.name} (id=${repo.id})", state.error)
+                is SyncState.JsonParsing.Failure ->
+                    Log.e(TAG, "Index parse failed for ${repo.name} (id=${repo.id})", state.error)
                 else -> Unit
             }
         }
-        if (parsedIndex != null && parsedFingerprint != null) {
-            indexDao.insertIndex(
-                fingerprint = parsedFingerprint,
-                index = parsedIndex!!,
-                expectedRepoId = repo.id,
-            )
+        v2Syncable.sync(repo, handleState)
+        if (!success) {
+            // Plenty of repos (many small or unmaintained ones, e.g. NanoDroid) never published the
+            // newer v2 "entry.jar" index and only ever will serve the legacy v1 index-v1.jar. Without
+            // this fallback those repos silently failed to sync forever, and their catalogue stayed
+            // empty no matter how many times the user retried.
+            Log.i(TAG, "V2 sync unavailable for ${repo.name} (id=${repo.id}); falling back to v1 index")
+            v1Syncable.sync(repo, handleState)
+        }
+        val fingerprint = parsedFingerprint
+        val index = parsedIndex
+        if (index != null && fingerprint != null) {
+            try {
+                Log.i(TAG, "Saving index for ${repo.name} (id=${repo.id}): ${index.packages.size} packages")
+                indexDao.insertIndex(
+                    fingerprint = fingerprint,
+                    index = index,
+                    expectedRepoId = repo.id,
+                )
+                Log.i(TAG, "Saved ${repo.name} (id=${repo.id}); catalog now holds ${appDao.count()} apps")
+            } catch (t: Throwable) {
+                t.exceptCancellation()
+                // Saving the parsed index can fail (e.g. OOM while inserting a large index, or a DB
+                // error). Report it instead of letting the worker think the sync succeeded.
+                Log.e(TAG, "Saving the index failed for ${repo.name} (id=${repo.id})", t)
+                return false
+            }
+        } else {
+            Log.i(TAG, "No index to save for ${repo.name} (id=${repo.id}); success=$success (up to date or failed)")
         }
         return success
     }
 
-    suspend fun syncAll(): Boolean = supervisorScope {
+    suspend fun syncAll(): Boolean {
         val repos = getEnabledRepos().first()
-        repos.forEach { repo -> launch { sync(repo) } }
-        true
+        Log.i(TAG, "syncAll: ${repos.size} enabled repo(s): ${repos.joinToString { it.name }}")
+        var allSucceeded = true
+        // Sync repositories one at a time. Decoding a full index allocates many times the file size
+        // (the F-Droid index is tens of MB), so parsing several at once can exhaust the heap and OOM
+        // on a fresh full sync — and the failure was being swallowed, leaving the catalog empty.
+        // Sequential is slightly slower but reliable.
+        for (repo in repos) {
+            val synced = try {
+                sync(repo)
+            } catch (t: Throwable) {
+                t.exceptCancellation()
+                Log.e(TAG, "Sync failed for ${repo.name} (id=${repo.id})", t)
+                false
+            }
+            if (!synced) allSucceeded = false
+        }
+        return allSucceeded
     }
 
     private suspend fun getMirrors(repoId: Int): List<String> =
         repoDao.mirrors(repoId).map { it.url }
+
+    private companion object {
+        private const val TAG = "RepoRepository"
+    }
 }

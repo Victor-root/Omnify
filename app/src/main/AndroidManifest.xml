@@ -32,6 +32,7 @@
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/application_name"
+        android:largeHeap="true"
         android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@style/MainTheme"
@@ -47,19 +48,33 @@
 
         </receiver>
 
+        <!--
+          Compose entry point — the launcher and deeplink handler. The legacy Views
+          MainActivity has been removed; the migration to Jetpack Compose is ongoing.
+        -->
         <activity
-            android:name=".MainActivity"
+            android:name=".compose.MainComposeActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.SHOW_APP_INFO" />
-            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.SHOW_APP_INFO" />
+            </intent-filter>
+
+            <!-- Appear in the system "Share" sheet for a shared link (e.g. from a browser on a GitHub /
+                 GitLab / Codeberg page). The shared URL is routed to the "Add external source" flow,
+                 which detects whether it's a whole account or a single repo. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
 
             <intent-filter>
@@ -155,19 +170,6 @@
             </intent-filter>
 
         </activity>
-
-        <service
-            android:name=".service.SyncService"
-            android:foregroundServiceType="dataSync" />
-
-        <service
-            android:name=".service.SyncService$Job"
-            android:exported="false"
-            android:permission="android.permission.BIND_JOB_SERVICE" />
-
-        <service
-            android:name=".service.DownloadService"
-            android:foregroundServiceType="dataSync" />
 
         <receiver
             android:name=".installer.installers.session.SessionInstallerReceiver"

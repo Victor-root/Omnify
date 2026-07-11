@@ -1,6 +1,8 @@
 import com.android.build.gradle.internal.tasks.factory.dependsOn
 import io.gitlab.arturbosch.detekt.Detekt
 import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
+import java.io.FileInputStream
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -12,18 +14,29 @@ plugins {
     alias(libs.plugins.detekt)
 }
 
+// Release signing is read from a keystore.properties file at the project root (gitignored, never
+// committed). When it's absent — e.g. on CI or an F-Droid/IzzyOnDroid build server that signs the
+// APK itself — the release build is simply left unsigned instead of failing.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        FileInputStream(keystorePropertiesFile).use { load(it) }
+    }
+}
+val hasReleaseSigning = keystorePropertiesFile.exists()
+
 android {
-    val latestVersionName = "0.7.1"
+    val latestVersionName = "1.0"
     namespace = "com.looker.droidify"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.looker.droidify"
+        applicationId = "com.omnify.vroot"
         minSdk = 23
         versionName = latestVersionName
-        versionCode = 710
+        versionCode = 1000
 
         testInstrumentationRunner = "com.looker.droidify.TestRunner"
     }
@@ -35,10 +48,26 @@ android {
         arg("room.generateKotlin", "true")
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // Signed only when keystore.properties is present (see top of file). Without it the
+            // release APK is unsigned — fine for an F-Droid/IzzyOnDroid build that signs on their end.
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard.pro",
@@ -49,7 +78,10 @@ android {
             applicationIdSuffix = ".alpha"
             versionNameSuffix = ".a"
             isMinifyEnabled = true
-            isDebuggable = true
+            // Non-debuggable on purpose: ART skips profile-guided AOT for debuggable builds, so the
+            // baseline profile (and representative performance) only kicks in when this is false.
+            // It still inherits the debug signing config, so it installs directly from the IDE.
+            isDebuggable = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard.pro",
@@ -208,7 +240,22 @@ dependencies {
     implementation(libs.bundles.room)
     ksp(libs.room.compiler)
 
+    // On-device translation engine (optional, user-selectable). Models download on first use.
+    implementation(libs.mlkit.translate)
+    implementation(libs.mlkit.language.id)
+    // Local Markdown -> HTML rendering for READMEs on Gitea/Forgejo and GitLab (their render APIs
+    // require auth), so the README displays — and translates — without any external service.
+    implementation(libs.commonmark)
+    implementation(libs.commonmark.ext.gfm.tables)
+    implementation(libs.commonmark.ext.gfm.strikethrough)
+    implementation(libs.commonmark.ext.autolink)
+    implementation(libs.commonmark.ext.task.list.items)
+
     implementation(libs.work.ktx)
+
+    // Installs the bundled baseline profile (src/main/baseline-prof.txt) so ART AOT-compiles the
+    // hot startup + scrolling paths, removing the cold-start jank inherent to a JIT-only first run.
+    implementation(libs.profileinstaller)
 
     implementation(libs.hilt.core)
     implementation(libs.hilt.android)

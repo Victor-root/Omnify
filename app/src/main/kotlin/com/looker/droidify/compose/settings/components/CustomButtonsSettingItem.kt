@@ -39,6 +39,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.datastore.model.CustomButtonIcon
 
@@ -84,6 +86,7 @@ fun CustomButtonsSettingItem(
                         editingButton = null
                         showEditor = true
                     },
+                    modifier = Modifier.tvFocusScale(),
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -92,7 +95,7 @@ fun CustomButtonsSettingItem(
                     )
                 }
                 Box {
-                    IconButton(onClick = { showMenu = true }) {
+                    IconButton(onClick = { showMenu = true }, modifier = Modifier.tvFocusScale()) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = null,
@@ -174,6 +177,8 @@ private fun CustomButtonItem(
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            // TV only: a soft accent fill layered over the row's own background on focus (no-op on touch).
+            .tvFocusFill(MaterialTheme.shapes.medium)
             .clickable(onClick = onEdit)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -221,7 +226,10 @@ private fun CustomButtonItem(
         }
 
         Box {
-            IconButton(onClick = { showDeleteConfirmation = true }) {
+            IconButton(
+                onClick = { showDeleteConfirmation = true },
+                modifier = Modifier.tvFocusScale(),
+            ) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = null,

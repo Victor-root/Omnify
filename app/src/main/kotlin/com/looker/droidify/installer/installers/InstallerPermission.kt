@@ -70,7 +70,22 @@ fun requestShizuku() {
     Shizuku.requestPermission(SHIZUKU_PERMISSION_REQUEST_CODE)
 }
 
+private const val ROOT_TAG = "RootInstaller"
+
 fun isMagiskGranted(): Boolean {
-    com.topjohnwu.superuser.Shell.getCachedShell() ?: com.topjohnwu.superuser.Shell.getShell()
-    return com.topjohnwu.superuser.Shell.isAppGrantedRoot() == true
+    // getShell() throws (NoShellException) rather than just returning false when it can't obtain a
+    // root shell at all (su missing, request denied outright, timed out, …) — left uncaught, that
+    // exception was silently swallowed by whatever coroutine called this, so switching to Root looked
+    // like it simply did nothing instead of failing with a reason.
+    val shell = runCatching {
+        com.topjohnwu.superuser.Shell.getCachedShell() ?: com.topjohnwu.superuser.Shell.getShell()
+    }.onFailure {
+        android.util.Log.w(ROOT_TAG, "Couldn't obtain a root shell", it)
+    }.getOrNull()
+    val granted = com.topjohnwu.superuser.Shell.isAppGrantedRoot()
+    android.util.Log.d(
+        ROOT_TAG,
+        "isMagiskGranted: shellStatus=${shell?.status} isAppGrantedRoot=$granted",
+    )
+    return granted == true
 }

@@ -30,10 +30,16 @@ object Cache {
     private const val TEMP_DIR = "temporary"
 
     private fun ensureCacheDir(context: Context, name: String): File {
-        return File(
-            context.cacheDir,
-            name,
-        ).apply { isDirectory || mkdirs() || throw RuntimeException() }
+        val dir = File(context.cacheDir, name)
+        // mkdirs() returns false when a concurrent caller already created the directory, so the old
+        // `isDirectory || mkdirs() || throw` raced: two coroutines (e.g. the stats worker's parallel
+        // downloads) both saw it missing, one won mkdirs(), the other threw spuriously. Trust the
+        // final isDirectory check instead of mkdirs()'s return value.
+        if (!dir.isDirectory) {
+            dir.mkdirs()
+            if (!dir.isDirectory) throw RuntimeException("Failed to create cache dir: ${dir.path}")
+        }
+        return dir
     }
 
     private fun applyOrMode(file: File, mode: Int) {

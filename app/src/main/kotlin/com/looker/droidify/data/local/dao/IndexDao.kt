@@ -45,6 +45,10 @@ import com.looker.droidify.sync.v2.model.IndexV2
 import com.looker.droidify.sync.v2.model.LocalizedIcon
 import com.looker.droidify.sync.v2.model.LocalizedString
 
+/** Max package names per IN(...) lookup. SQLite allows 999 host parameters per statement on older
+ *  Android (pre-3.32); one slot is taken by repoId, so stay safely below that. */
+private const val MAX_IN_CLAUSE_VARIABLES = 900
+
 @Dao
 interface IndexDao {
 
@@ -54,7 +58,22 @@ interface IndexDao {
         index: IndexV2,
         expectedRepoId: Int = 0,
     ) {
-        val repo = index.repo.repoEntity(id = expectedRepoId, fingerprint = fingerprint)
+        // The index's own "repo.address" field is the repo author's self-declared canonical URL, which
+        // often differs harmlessly from the address the user actually configured (e.g. NanoDroid's index
+        // declares "www.nanolx.org" while the repo is set up as plain "nanolx.org"). Blindly adopting it
+        // here used to silently rewrite the stored address on every sync, which broke anything keyed on
+        // it — in particular the curated repo icon lookup, which stopped matching the moment the address
+        // changed and fell back to whatever generic icon the index happens to ship. The configured
+        // address (and the URL we actually fetch from) must stay exactly what the user set up; the
+        // index's own address is already preserved separately as the primary mirror.
+        val existingAddress = existingRepoAddress(expectedRepoId)
+        val repo = index.repo.repoEntity(id = expectedRepoId, fingerprint = fingerprint).let { entity ->
+            if (existingAddress != null) {
+                entity.copy(address = existingAddress, webBaseUrl = existingAddress)
+            } else {
+                entity
+            }
+        }
         val repoId = upsertRepo(repo)
         insertRepoScopeData(repoId, index)
 
@@ -79,12 +98,26 @@ interface IndexDao {
         }
 
         val packageNames = packageEntries.map { it.key }
-        val existing = appIdsByPackageNames(repoId, packageNames)
+        // SQLite caps host parameters per statement at 999 on older Android (pre-3.32, e.g. Android 11).
+        // A large repo (F-Droid ships thousands of apps) would blow past that in a single IN(...) lookup
+        // and the whole sync would fail, so resolve the existing ids in chunks.
+        val existing = packageNames.chunked(MAX_IN_CLAUSE_VARIABLES).flatMap { chunk ->
+            appIdsByPackageNames(repoId, chunk)
+        }
         val existingIdByPackage = mutableMapOf<String, Int>().apply {
             existing.forEach { put(it.packageName, it.id) }
         }
 
-        val toUpdate = appEntities.filter { existingIdByPackage.containsKey(it.packageName) }
+        // Carry over each existing app's real id before upserting it. Without it, the entity's id
+        // stays at the AppEntity default (0), so the INSERT half of @Upsert conflicts on the
+        // (packageName, repoId) unique index rather than the primary key — a constraint @Upsert's
+        // generated fallback doesn't recognize, so it throws instead of falling back to an UPDATE,
+        // aborting this whole @Transaction (repo metadata, other apps, everything) on EVERY resync of
+        // an app that was already in the catalogue. Only a repo's very first sync (nothing to update
+        // yet) was ever unaffected.
+        val toUpdate = appEntities.mapNotNull { entity ->
+            existingIdByPackage[entity.packageName]?.let { id -> entity.copy(id = id) }
+        }
         val toInsert = appEntities.filter { !existingIdByPackage.containsKey(it.packageName) }
 
         if (toUpdate.isNotEmpty()) upsertApps(toUpdate)
@@ -121,8 +154,12 @@ interface IndexDao {
 
             allCategoryAppRelations += metadata.categories.map { CategoryAppRelation(appId, it) }
 
-            allAppNames += metadata.name?.localizedAppName(appId)
-                ?: listOf(LocalizedAppNameEntity(appId, locale = "en-US", name = packageName))
+            // metadata.name is a non-null empty map (not null) whenever an index entry declares no
+            // name anywhere, so the old `?:` fallback (only triggers on null) never caught that case
+            // and left the app with zero rows in localized_app_name — crashing every query that reads
+            // it (its "name" column is declared non-null). ifEmpty catches null-mapped-to-emptyList too.
+            allAppNames += metadata.name?.localizedAppName(appId).orEmpty()
+                .ifEmpty { listOf(LocalizedAppNameEntity(appId, locale = "en-US", name = packageName)) }
             metadata.summary?.localizedAppSummary(appId)?.let { allAppSummaries += it }
             metadata.description?.localizedAppDescription(appId)?.let { allAppDescriptions += it }
             metadata.icon?.localizedAppIcon(appId)?.let { allAppIcons += it }
@@ -153,6 +190,11 @@ interface IndexDao {
         if (allGraphics.isNotEmpty()) insertGraphics(allGraphics)
         if (allDonations.isNotEmpty()) insertDonate(allDonations)
     }
+
+    /** The address currently stored for [repoId] (before this sync's upsert), or null when the repo
+     *  doesn't exist yet. Used to keep the user-configured address stable across resyncs. */
+    @Query("SELECT address FROM repository WHERE id = :repoId")
+    suspend fun existingRepoAddress(repoId: Int): String?
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertRepo(repoEntity: RepoEntity): Long

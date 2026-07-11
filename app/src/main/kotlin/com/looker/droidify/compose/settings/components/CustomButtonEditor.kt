@@ -35,6 +35,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.tvFocusOutline
+import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.datastore.model.CustomButtonIcon
 import java.util.*
@@ -207,6 +209,10 @@ private fun IconOption(
     Box(
         modifier = modifier
             .size(48.dp)
+            // TV only: the focused option grows and gains a ring, so a grid of identical circles stays
+            // navigable with the D-pad (no-op on touch).
+            .tvFocusScale()
+            .tvFocusOutline(CircleShape)
             .clip(CircleShape)
             .background(backgroundColor)
             .clickable(onClick = onClick),

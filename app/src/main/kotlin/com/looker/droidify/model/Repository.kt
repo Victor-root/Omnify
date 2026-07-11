@@ -375,14 +375,6 @@ data class Repository(
                 fingerprint = "3576596CECDD70488D61CFD90799A49B7FFD26A81A8FEF1BADEC88D069FA72C1",
             ),
             defaultRepository(
-                address = "https://www.cromite.org/fdroid/repo",
-                name = "Cromite",
-                description = "The official repository for Cromite. " +
-                    "Cromite is a Chromium fork based on Bromite with " +
-                    "built-in support for ad blocking and an eye for privacy.",
-                fingerprint = "49F37E74DEE483DCA2B991334FB5A0200787430D0B5F9A783DD5F13695E9517B",
-            ),
-            defaultRepository(
                 address = "https://brave-browser-apk-release.s3.brave.com/fdroid/repo",
                 name = "Brave Browser",
                 description = "The official repository for Brave Stable releases.",

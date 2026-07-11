@@ -16,9 +16,19 @@ suspend fun Downloader.downloadIndex(
     fileName: String,
     url: String,
     diff: Boolean = false,
+    clean: Boolean = false,
     onProgress: ProgressListener? = null,
 ): File = withContext(Dispatchers.IO) {
     val indexFile = Cache.getIndexFile(context, "repo_${repo.id}_$fileName")
+    // downloadToFile resumes by appending from the current file length — correct for an interrupted
+    // release download, but wrong for a full index re-download. A *complete* index can be left in the
+    // cache when the database is reset (e.g. a schema migration wipes the catalog but the cache dir
+    // survives); appending the freshly downloaded index onto that stale file produces a corrupt index
+    // that fails to parse, so the catalog stays empty. Callers doing a full download pass clean=true
+    // to start from an empty file. This is safe here because we only reach a full download when the
+    // index actually changed (the entry/diff check already handled "up to date"), so the server
+    // returns the whole index, never a 304.
+    if (clean) indexFile.delete()
     downloadToFile(
         url = url,
         target = indexFile,

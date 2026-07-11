@@ -23,6 +23,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.compose.appDetail.DownloadStatus
+import com.looker.droidify.compose.components.CompactInstallProgressRow
+import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.utility.common.sdkName
@@ -39,6 +42,13 @@ fun PackageItem(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     backgroundColor: Color = MaterialTheme.colorScheme.surface,
+    // Download/install progress for THIS specific version, when the user picked it from the list —
+    // shown inline instead of the repo/SDK detail lines, so progress is visible right where it was
+    // tapped instead of only in the hero card (out of view once scrolled down to this list). Both null/
+    // false means this row isn't the active one.
+    downloadStatus: DownloadStatus? = null,
+    installing: Boolean = false,
+    onCancel: (() -> Unit)? = null,
     label: @Composable RowScope.() -> Unit,
 ) {
     Surface(
@@ -48,6 +58,8 @@ fun PackageItem(
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .clip(MaterialTheme.shapes.large)
+            // TV only: visible focus ring (no-op on touch).
+            .tvFocusOutline(MaterialTheme.shapes.large)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -63,23 +75,36 @@ fun PackageItem(
                     Text(
                         text = stringResource(R.string.version_FORMAT, item.manifest.versionName).uppercase(),
                         style = MaterialTheme.typography.titleSmall,
+                        // Take only the space left after the chip (fill = false) so a very long version
+                        // name wraps instead of crushing the "suggested"/"installed" chip to one letter
+                        // per line.
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                     label()
                 }
-                Text(
-                    text = stringResource(R.string.provided_by_FORMAT, repo.name),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.outline,
-                )
-                Text(
-                    text = stringResource(
-                        R.string.label_sdk_version,
-                        sdkName[item.manifest.usesSDKs.target]!!,
-                        sdkName[item.manifest.usesSDKs.min]!!,
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.outline,
-                )
+                if ((downloadStatus != null || installing) && onCancel != null) {
+                    CompactInstallProgressRow(
+                        status = downloadStatus,
+                        installing = installing,
+                        onCancel = onCancel,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.provided_by_FORMAT, repo.name),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.label_sdk_version,
+                            sdkName[item.manifest.usesSDKs.target]!!,
+                            sdkName[item.manifest.usesSDKs.min]!!,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
                 val context = LocalContext.current
