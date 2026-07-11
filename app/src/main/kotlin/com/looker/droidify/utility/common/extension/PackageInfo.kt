@@ -1,13 +1,16 @@
 package com.looker.droidify.utility.common.extension
 
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.pm.Signature
+import com.looker.droidify.R
 import com.looker.droidify.data.encryption.sha256
 import com.looker.droidify.data.model.hex
 import com.looker.droidify.utility.common.SdkCheck
+import java.io.File
 
 val PackageInfo.singleSignature: Signature?
     get() = if (SdkCheck.isPie) {
@@ -131,6 +134,62 @@ fun PackageManager.getPackageArchiveInfoCompat(
     }
 } catch (e: Exception) {
     null
+}
+
+/** Friendly name of the app that installed [packageName] (Play, F-Droid, this app…), the raw
+ *  installer id, or a generic label for a sideloaded app with no recorded installer. Shared between
+ *  the F-Droid catalogue and external-source detail pages, so both surface where an update would
+ *  actually come from (useful to spot e.g. an app installed by a different client that can't be
+ *  updated in place across a signing-key mismatch). */
+fun Context.installerSourceLabel(packageName: String): String {
+    val installer = runCatching {
+        if (SdkCheck.isR) {
+            packageManager.getInstallSourceInfo(packageName).installingPackageName
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.getInstallerPackageName(packageName)
+        }
+    }.getOrNull()
+    return when (installer) {
+        null, "" -> getString(R.string.installer_unknown)
+        "com.android.vending" -> "Google Play"
+        "org.fdroid.fdroid", "org.fdroid.basic" -> "F-Droid"
+        this.packageName -> getString(R.string.installer_self_name)
+        else -> installer
+    }
+}
+
+/**
+ * True when [packageName] is already installed but signed by a different key than [apkFile]. Android
+ * refuses to update an app across signers (INSTALL_FAILED_UPDATE_INCOMPATIBLE), so callers use this to
+ * detect the conflict up front and offer an uninstall instead of letting the system installer fail.
+ * Returns false when the app isn't installed or when either set of signatures can't be read (don't
+ * block on uncertainty). Shared by the F-Droid catalogue and external-source install flows.
+ */
+@Suppress("DEPRECATION", "PackageManagerGetSignatures")
+fun PackageManager.installedWithDifferentSignature(packageName: String, apkFile: File): Boolean {
+    val installedSignatures = signaturesOf { flags ->
+        runCatching { getPackageInfo(packageName, flags) }.getOrNull()
+    }
+    if (installedSignatures.isEmpty()) return false
+    val apkSignatures = signaturesOf { flags ->
+        runCatching { getPackageArchiveInfo(apkFile.absolutePath, flags) }.getOrNull()
+    }
+    if (apkSignatures.isEmpty()) return false
+    return installedSignatures.intersect(apkSignatures).isEmpty()
+}
+
+/** Signing certificates of a package, as hex strings, using the right API for the SDK level. */
+@Suppress("DEPRECATION", "PackageManagerGetSignatures", "NewApi")
+private fun signaturesOf(getInfo: (flags: Int) -> PackageInfo?): Set<String> {
+    val flags = if (SdkCheck.isPie) {
+        PackageManager.GET_SIGNING_CERTIFICATES
+    } else {
+        PackageManager.GET_SIGNATURES
+    }
+    val info = getInfo(flags) ?: return emptySet()
+    val signatures = if (SdkCheck.isPie) info.signingInfo?.apkContentsSigners else info.signatures
+    return signatures?.mapNotNull { it?.toCharsString() }?.toSet().orEmpty()
 }
 
 fun PackageManager.getInstalledPackagesCompat(

@@ -3,9 +3,6 @@ package com.looker.droidify.compose.appDetail
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
@@ -41,6 +38,8 @@ import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
+import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
+import com.looker.droidify.utility.common.extension.installerSourceLabel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -526,7 +525,7 @@ class AppDetailViewModel @Inject constructor(
             when (result) {
                 DownloadResult.Ready -> {
                     val releaseFile = Cache.getReleaseFile(context, cacheFileName)
-                    if (installedWithDifferentSignature(packageName, releaseFile)) {
+                    if (context.packageManager.installedWithDifferentSignature(packageName, releaseFile)) {
                         // Different signer: Android can't update across keys. The detail screen shows a
                         // dialog — offering to uninstall the existing copy first, unless it's a system
                         // app, which can't be removed (so there's nothing the user can do, and we must
@@ -552,40 +551,6 @@ class AppDetailViewModel @Inject constructor(
         }
     }
 
-    /**
-     * True when [packageName] is already installed but signed by a different key than [apkFile].
-     * Android refuses to update an app across signers (INSTALL_FAILED_UPDATE_INCOMPATIBLE), so we
-     * detect it here rather than letting the system installer fail. Returns false when the app isn't
-     * installed or when either set of signatures can't be read (don't block on uncertainty).
-     */
-    @Suppress("DEPRECATION", "PackageManagerGetSignatures")
-    private fun installedWithDifferentSignature(packageName: String, apkFile: File): Boolean {
-        val pm = context.packageManager
-        val installedSignatures = signaturesOf { flags ->
-            runCatching { pm.getPackageInfo(packageName, flags) }.getOrNull()
-        }
-        if (installedSignatures.isEmpty()) return false
-        val apkSignatures = signaturesOf { flags ->
-            runCatching { pm.getPackageArchiveInfo(apkFile.absolutePath, flags) }.getOrNull()
-        }
-        if (apkSignatures.isEmpty()) return false
-        return installedSignatures.intersect(apkSignatures).isEmpty()
-    }
-
-    /** Signing certificates of a package, as hex strings, using the right API for the SDK level. */
-    @Suppress("DEPRECATION", "PackageManagerGetSignatures", "NewApi")
-    private fun signaturesOf(getInfo: (flags: Int) -> PackageInfo?): Set<String> {
-        val usesNewApi = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
-        val flags = if (usesNewApi) {
-            PackageManager.GET_SIGNING_CERTIFICATES
-        } else {
-            PackageManager.GET_SIGNATURES
-        }
-        val info = getInfo(flags) ?: return emptySet()
-        val signatures = if (usesNewApi) info.signingInfo?.apkContentsSigners else info.signatures
-        return signatures?.mapNotNull { it?.toCharsString() }?.toSet().orEmpty()
-    }
-
     /** True when [packageName] is a system app (or an update to one). Those can't be uninstalled, so a
      *  differently-signed catalogue version can never replace them — there's no point offering it. */
     private fun isSystemApp(packageName: String): Boolean = runCatching {
@@ -599,28 +564,8 @@ class AppDetailViewModel @Inject constructor(
         }.getOrNull() ?: return null
         return InstalledInfo(
             version = info.versionName.orEmpty(),
-            source = installerSourceLabel(),
+            source = context.installerSourceLabel(packageName),
         )
-    }
-
-    /** Friendly name of the app that installed this package (Play, F-Droid, this app…), the raw
-     *  installer id, or a generic label for a sideloaded app with no recorded installer. */
-    private fun installerSourceLabel(): String {
-        val installer = runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                context.packageManager.getInstallSourceInfo(packageName).installingPackageName
-            } else {
-                @Suppress("DEPRECATION")
-                context.packageManager.getInstallerPackageName(packageName)
-            }
-        }.getOrNull()
-        return when (installer) {
-            null, "" -> context.getString(R.string.installer_unknown)
-            "com.android.vending" -> "Google Play"
-            "org.fdroid.fdroid", "org.fdroid.basic" -> "F-Droid"
-            context.packageName -> context.getString(R.string.installer_self_name)
-            else -> installer
-        }
     }
 
     private fun toast(message: String) {
