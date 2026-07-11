@@ -67,6 +67,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
@@ -88,6 +89,7 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
+import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkFileSize
 import com.looker.droidify.external.apkVersionLabel
@@ -110,6 +112,7 @@ fun ExternalAppDetailScreen(
 ) {
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
+    val downloadTargetTag by viewModel.downloadTargetTag.collectAsStateWithLifecycle()
     val installStates by viewModel.installStates.collectAsStateWithLifecycle()
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
     val readme by viewModel.readme.collectAsStateWithLifecycle()
@@ -265,6 +268,11 @@ fun ExternalAppDetailScreen(
             Spacer(Modifier.padding(contentPadding))
             return@Scaffold
         }
+        // Mirrors ExternalLifecycleActions' own installing check — whether the version list should show
+        // progress on a row at all (combined with downloadTargetTag to know which one).
+        val installing = installStates[appKey] == InstallState.Pending ||
+            installStates[appKey] == InstallState.Installing
+        val activeDownloadTag = downloadTargetTag[appKey]
         // A release the user tapped in the version list, awaiting confirmation to install (null = no
         // dialog). Unlike the F-Droid catalogue's version dialog, downgrades are never flagged here: a
         // release carries no version code ahead of the download, so there's nothing to compare against
@@ -430,6 +438,10 @@ fun ExternalAppDetailScreen(
                         releaseHistory = releaseHistory,
                         onVersionClick = { versionToInstall = it },
                         onAnchorPositioned = { leftPaneVersionsAnchorY = it },
+                        downloadStatus = downloads[appKey],
+                        installing = installing,
+                        activeDownloadTag = activeDownloadTag,
+                        onCancel = { viewModel.cancel(app) },
                     )
                 }
                 VerticalDivider()
@@ -460,6 +472,10 @@ fun ExternalAppDetailScreen(
                         onAnchorPositioned = { versionsAnchorY = it },
                         showSidebarSections = false,
                         showLeadingSeparator = false,
+                        downloadStatus = downloads[appKey],
+                        installing = installing,
+                        activeDownloadTag = activeDownloadTag,
+                        onCancel = { viewModel.cancel(app) },
                     )
                 }
             }
@@ -536,6 +552,10 @@ fun ExternalAppDetailScreen(
                         onAnchorPositioned = { versionsAnchorY = it },
                         showSidebarSections = true,
                         showLeadingSeparator = true,
+                        downloadStatus = downloads[appKey],
+                        installing = installing,
+                        activeDownloadTag = activeDownloadTag,
+                        onCancel = { viewModel.cancel(app) },
                     )
                 }
             }
@@ -575,6 +595,12 @@ private fun ExternalAppDetailBody(
     // other, left pane there, so a separator at the very top of this one would float with nothing
     // above it.
     showLeadingSeparator: Boolean,
+    // Download/install progress, and which release it applies to — so the version list can show it on
+    // the specific row the user tapped instead of only in the hero card. See ReleaseVersionItem.
+    downloadStatus: DownloadStatus?,
+    installing: Boolean,
+    activeDownloadTag: String?,
+    onCancel: () -> Unit,
 ) {
     val density = LocalDensity.current
     // Keyed on app.key (stable for this screen), NOT on the html: the WebView captures its
@@ -700,6 +726,10 @@ private fun ExternalAppDetailBody(
             releaseHistory = releaseHistory,
             onVersionClick = onVersionClick,
             onAnchorPositioned = onAnchorPositioned,
+            downloadStatus = downloadStatus,
+            installing = installing,
+            activeDownloadTag = activeDownloadTag,
+            onCancel = onCancel,
         )
     }
 }
@@ -757,6 +787,10 @@ private fun ExternalVersionsSection(
     releaseHistory: List<Release>?,
     onVersionClick: (Release) -> Unit,
     onAnchorPositioned: (Int) -> Unit,
+    downloadStatus: DownloadStatus?,
+    installing: Boolean,
+    activeDownloadTag: String?,
+    onCancel: () -> Unit,
 ) {
     if (releaseHistory.isNullOrEmpty()) return
     Column(
@@ -777,6 +811,8 @@ private fun ExternalVersionsSection(
         var versionsExpanded by remember(app.key) { mutableStateOf(false) }
         val visibleCount = if (versionsExpanded) releaseHistory.size else VERSIONS_COLLAPSED_COUNT
         releaseHistory.take(visibleCount).forEach { release ->
+            val isThisRowDownloading = activeDownloadTag == release.tag &&
+                (downloadStatus != null || installing)
             ReleaseVersionItem(
                 release = release,
                 apkName = release.apkFileName(filter = app.apkFilter),
@@ -784,6 +820,9 @@ private fun ExternalVersionsSection(
                 isSuggested = release.tag == app.latestTag,
                 isInstalled = release.tag == app.installedTag,
                 onClick = { onVersionClick(release) },
+                downloadStatus = if (isThisRowDownloading) downloadStatus else null,
+                installing = isThisRowDownloading && downloadStatus == null,
+                onCancel = if (isThisRowDownloading) onCancel else null,
             )
         }
         if (releaseHistory.size > VERSIONS_COLLAPSED_COUNT) {

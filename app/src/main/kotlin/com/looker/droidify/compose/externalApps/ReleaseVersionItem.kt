@@ -21,6 +21,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.compose.appDetail.DownloadStatus
+import com.looker.droidify.compose.components.CompactInstallProgressRow
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.external.Release
 import com.looker.droidify.network.DataSize
@@ -41,6 +43,13 @@ fun ReleaseVersionItem(
     isInstalled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // Download/install progress for THIS specific release, when the user picked it from the list —
+    // shown inline instead of the file name/size line, so progress is visible right where it was
+    // tapped instead of only in the hero card (out of view once scrolled down to this list). Both
+    // null/false means this row isn't the active one.
+    downloadStatus: DownloadStatus? = null,
+    installing: Boolean = false,
+    onCancel: (() -> Unit)? = null,
 ) {
     Surface(
         shape = MaterialTheme.shapes.large,
@@ -93,7 +102,14 @@ fun ReleaseVersionItem(
                     )
                 }
             }
-            if (apkName != null) {
+            if ((downloadStatus != null || installing) && onCancel != null) {
+                CompactInstallProgressRow(
+                    status = downloadStatus,
+                    installing = installing,
+                    onCancel = onCancel,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            } else if (apkName != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = apkName,

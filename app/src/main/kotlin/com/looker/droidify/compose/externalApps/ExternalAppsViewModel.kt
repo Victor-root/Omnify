@@ -201,6 +201,17 @@ class ExternalAppsViewModel @Inject constructor(
     private val _downloads = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
     val downloads: StateFlow<Map<String, DownloadStatus>> = _downloads
 
+    /**
+     * Release tag (app.key -> tag) that [downloads]/[installStates] currently applies to for that app —
+     * set the moment a download starts and left alone afterwards (there's always at most one
+     * download/install per app in flight, guarded below, so a stale entry is harmless: it's only ever
+     * read together with that app's download/install actually being active). Lets the version list show
+     * progress on the specific row the user tapped instead of only in the hero card, which stays out of
+     * view once the user has scrolled down to the list.
+     */
+    private val _downloadTargetTag = MutableStateFlow<Map<String, String>>(emptyMap())
+    val downloadTargetTag: StateFlow<Map<String, String>> = _downloadTargetTag
+
     /** Keys with a non-download network op in flight (add / update check). */
     private val _busy = MutableStateFlow<Set<String>>(emptySet())
     val busy: StateFlow<Set<String>> = _busy
@@ -918,6 +929,7 @@ class ExternalAppsViewModel @Inject constructor(
      *  whatever [installOrUpdate] would offer. */
     fun installVersion(app: ExternalApp, release: Release) {
         if (_downloads.value.containsKey(app.key)) return
+        _downloadTargetTag.value = _downloadTargetTag.value + (app.key to release.tag)
         downloadJobs[app.key] = viewModelScope.launch { downloadAndInstall(app, release) }
     }
 

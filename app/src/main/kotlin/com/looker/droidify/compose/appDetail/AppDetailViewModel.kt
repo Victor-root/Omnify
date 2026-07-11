@@ -218,6 +218,18 @@ class AppDetailViewModel @Inject constructor(
      */
     val downloadStatus: StateFlow<DownloadStatus?> = _downloadStatus
 
+    private val _downloadTargetVersionCode = MutableStateFlow<Long?>(null)
+
+    /**
+     * versionCode of whichever release [downloadStatus]/[installState] currently applies to — set the
+     * moment a download starts and left alone afterwards (there's always at most one download/install
+     * in flight, guarded below, so a stale value is harmless: it's only ever read together with
+     * [downloadStatus]/[installState] actually being active). Lets the version list show progress on
+     * the specific row the user tapped instead of only in the hero card, which stays out of view once
+     * the user has scrolled down to the list.
+     */
+    val downloadTargetVersionCode: StateFlow<Long?> = _downloadTargetVersionCode
+
     /**
      * Set when the freshly-downloaded APK is signed by a different key than the copy already
      * installed on the device. Android can't update across signers, so the UI shows a dialog asking
@@ -421,6 +433,7 @@ class AppDetailViewModel @Inject constructor(
             toast("No version of this app is compatible with your device")
             return
         }
+        _downloadTargetVersionCode.value = target.first.manifest.versionCode
         downloadJob = viewModelScope.launch { downloadAndInstall(target.first, target.second) }
     }
 
@@ -428,6 +441,7 @@ class AppDetailViewModel @Inject constructor(
      *  hash), instead of the auto-selected best one. */
     fun installVersion(pkg: Package, repo: Repo) {
         if (_downloadStatus.value != null) return
+        _downloadTargetVersionCode.value = pkg.manifest.versionCode
         downloadJob = viewModelScope.launch { downloadAndInstall(pkg, repo) }
     }
 

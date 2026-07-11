@@ -170,6 +170,7 @@ fun AppDetailScreen(
     val customButtons by viewModel.customButtons.collectAsStateWithLifecycle()
     val installState by viewModel.installState.collectAsStateWithLifecycle()
     val downloadStatus by viewModel.downloadStatus.collectAsStateWithLifecycle()
+    val downloadTargetVersionCode by viewModel.downloadTargetVersionCode.collectAsStateWithLifecycle()
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
     val descriptionTranslation by viewModel.descriptionTranslation.collectAsStateWithLifecycle()
@@ -392,6 +393,7 @@ fun AppDetailScreen(
                     customButtons = customButtons,
                     installState = installState,
                     downloadStatus = downloadStatus,
+                    downloadTargetVersionCode = downloadTargetVersionCode,
                     installedInfo = installedInfo,
                     isFavourite = isFavourite,
                     onToggleFavourite = viewModel::toggleFavourite,
@@ -558,6 +560,7 @@ private fun AppDetail(
     customButtons: List<CustomButton>,
     installState: InstallState?,
     downloadStatus: DownloadStatus?,
+    downloadTargetVersionCode: Long?,
     installedInfo: InstalledInfo?,
     isFavourite: Boolean,
     onToggleFavourite: () -> Unit,
@@ -582,6 +585,9 @@ private fun AppDetail(
     // and the button would wrongly offer "Install" even though a version is plainly marked installed
     // further down in the (correctly cross-repo) version list below. Search across every repo instead.
     val installedPackage = packages.map { it.first }.firstOrNull { it.installed }
+    // Mirrors PrimaryActions' own installing check — whether the version list should show progress on
+    // a row at all (combined with downloadTargetVersionCode to know which one).
+    val installing = installState == InstallState.Pending || installState == InstallState.Installing
     // A version the user tapped in the list, awaiting confirmation to install (null = no dialog).
     var versionToInstall by remember { mutableStateOf<Pair<Package, Repo>?>(null) }
     // A downgrade the user confirmed: kept while the current app uninstalls, then installed automatically
@@ -715,6 +721,10 @@ private fun AppDetail(
                         app = app,
                         onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
                         onAnchorPositioned = { leftPaneVersionsAnchorY = it },
+                        downloadStatus = downloadStatus,
+                        installing = installing,
+                        downloadTargetVersionCode = downloadTargetVersionCode,
+                        onCancel = onCancel,
                     )
                 }
             }
@@ -742,6 +752,10 @@ private fun AppDetail(
                     onAnchorPositioned = { versionsAnchorY = it },
                     viewportPx = viewportPx,
                     showSidebarSections = false,
+                    downloadStatus = downloadStatus,
+                    installing = installing,
+                    downloadTargetVersionCode = downloadTargetVersionCode,
+                    onCancel = onCancel,
                 )
             }
         }
@@ -818,6 +832,10 @@ private fun AppDetail(
                     onAnchorPositioned = { versionsAnchorY = it },
                     viewportPx = viewportPx,
                     showSidebarSections = true,
+                    downloadStatus = downloadStatus,
+                    installing = installing,
+                    downloadTargetVersionCode = downloadTargetVersionCode,
+                    onCancel = onCancel,
                 )
             }
         }
@@ -852,6 +870,12 @@ private fun AppDetailBody(
     // False in split view: the tablet-landscape left pane shows links, permissions, supported languages
     // and versions itself (see AppDetail), so this body must not repeat them.
     showSidebarSections: Boolean,
+    // Download/install progress, and which version it applies to — so the version list can show it on
+    // the specific row the user tapped instead of only in the hero card. See PackageItem.
+    downloadStatus: DownloadStatus?,
+    installing: Boolean,
+    downloadTargetVersionCode: Long?,
+    onCancel: () -> Unit,
 ) {
     // Summary + description come first, right after the hero card, before anything else.
     Spacer(modifier = Modifier.height(8.dp))
@@ -1004,6 +1028,10 @@ private fun AppDetailBody(
             app = app,
             onVersionClick = onVersionClick,
             onAnchorPositioned = onAnchorPositioned,
+            downloadStatus = downloadStatus,
+            installing = installing,
+            downloadTargetVersionCode = downloadTargetVersionCode,
+            onCancel = onCancel,
         )
     }
 }
@@ -1021,6 +1049,10 @@ private fun VersionsSection(
     app: App,
     onVersionClick: (Package, Repo) -> Unit,
     onAnchorPositioned: (Int) -> Unit,
+    downloadStatus: DownloadStatus?,
+    installing: Boolean,
+    downloadTargetVersionCode: Long?,
+    onCancel: () -> Unit,
 ) {
     Column(modifier = Modifier.onGloballyPositioned { onAnchorPositioned(it.positionInParent().y.toInt()) }) {
         SectionTitle(stringResource(R.string.versions))
@@ -1080,6 +1112,8 @@ private fun VersionsSection(
         val visibleCount = if (versionsExpanded) MAX_VERSIONS_SHOWN else VERSIONS_COLLAPSED_COUNT
         shownPackages.take(visibleCount).forEachIndexed { index, (pkg, repo) ->
             val isSuggested = suggestedVersion != null && pkg.manifest.versionCode == suggestedVersion
+            val isThisRowDownloading = downloadTargetVersionCode == pkg.manifest.versionCode &&
+                (downloadStatus != null || installing)
             PackageItem(
                 item = pkg,
                 repo = repo,
@@ -1095,6 +1129,9 @@ private fun VersionsSection(
                 } else {
                     MaterialTheme.colorScheme.surface
                 },
+                downloadStatus = if (isThisRowDownloading) downloadStatus else null,
+                installing = isThisRowDownloading && downloadStatus == null,
+                onCancel = if (isThisRowDownloading) onCancel else null,
             ) {
                 // Both chips can apply at once (the installed version is also the suggested one), so show
                 // them side by side instead of one excluding the other.
