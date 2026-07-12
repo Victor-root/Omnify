@@ -91,6 +91,7 @@ import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvPageScroll
+import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
@@ -740,6 +741,13 @@ private fun ExternalAppDetailBody(
             README_COLLAPSED_HEIGHT
         }
         val readmeCanCollapse = showSidebarSections && fullReadmeHeight > collapsedReadmeHeight
+        // A software-layered WebView (see ReadmeWebView's forceSoftwareLayer doc comment) can only ever
+        // draw into a bitmap capped to roughly one screen's worth of pixels — confirmed on a real device
+        // via logcat: "not displayed because it is too large to fit into a software layer", an
+        // unrecoverable, fully blank render, not a partial one. A README taller than one viewport is
+        // switched to the (small, historically emulator-only) hardware-rendering crash risk instead of a
+        // *guaranteed* blank screen on real hardware for anything past a short README.
+        val readmeNeedsHardwareLayer = viewportPx > 0 && readmeHeightPx > viewportPx
         // On TV this Box is the single focus stop for the whole README: landing here, the D-pad
         // pages the screen up/down through it (the WebView itself is non-focusable on TV, so the
         // remote no longer steps over its links and images). A plain wrapper on touch.
@@ -757,6 +765,7 @@ private fun ExternalAppDetailBody(
                 javaScriptEnabled = readmeJavaScriptEnabled,
                 onContentHeight = { readmeHeightPx = it },
                 scrollState = scrollState,
+                forceSoftwareLayer = !readmeNeedsHardwareLayer,
                 modifier = Modifier
                     .fillMaxWidth()
                     // Until the content height is known, give it a sensible height so it can render
@@ -880,6 +889,7 @@ private fun ExternalLinksSection(
  * straight to it. Extracted so both the single-column body and the tablet-landscape split view's left
  * pane render the exact same content.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ExternalVersionsSection(
     app: ExternalApp,
@@ -891,7 +901,16 @@ private fun ExternalVersionsSection(
     activeDownloadTag: String?,
     onCancel: () -> Unit,
 ) {
-    if (releaseHistory.isNullOrEmpty()) return
+    // Skip only once genuinely confirmed empty (releaseHistory != null). While still loading
+    // (releaseHistory == null) the section stays in composition with a loading row below instead of
+    // vanishing — on TV, tvPageScroll's D-pad paging (see the README Box above) releases focus once it
+    // reaches whatever is currently the bottom of the scrollable content; if this whole section doesn't
+    // exist yet because the release fetch is still in flight, that "bottom" is reached and D-pad focus
+    // released *before* the real versions ever land, with nothing further down to land on. Keeping a
+    // real (focusable) row here the whole time means the page's scrollable height already accounts for
+    // this space from the first frame, and there's always something to page down to instead of the
+    // remote silently hitting a dead end mid-load.
+    if (releaseHistory != null && releaseHistory.isEmpty()) return
     Column(
         modifier = Modifier.onGloballyPositioned {
             onAnchorPositioned(it.positionInParent().y.toInt())
@@ -905,31 +924,49 @@ private fun ExternalVersionsSection(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
-        // Collapsed to the newest few by default — same as the F-Droid catalogue's version
-        // list, so a long history doesn't turn the whole page into an endless scroll.
-        var versionsExpanded by remember(app.key) { mutableStateOf(false) }
-        val visibleCount = if (versionsExpanded) releaseHistory.size else VERSIONS_COLLAPSED_COUNT
-        releaseHistory.take(visibleCount).forEach { release ->
-            val isThisRowDownloading = activeDownloadTag == release.tag &&
-                (downloadStatus != null || installing)
-            ReleaseVersionItem(
-                release = release,
-                apkName = release.apkFileName(filter = app.apkFilter),
-                apkSize = release.apkFileSize(filter = app.apkFilter),
-                isSuggested = release.tag == app.latestTag,
-                isInstalled = release.tag == app.installedTag,
-                onClick = { onVersionClick(release) },
-                downloadStatus = if (isThisRowDownloading) downloadStatus else null,
-                installing = isThisRowDownloading && downloadStatus == null,
-                onCancel = if (isThisRowDownloading) onCancel else null,
-            )
-        }
-        if (releaseHistory.size > VERSIONS_COLLAPSED_COUNT) {
-            ShowMoreRow(
-                hiddenCount = releaseHistory.size - VERSIONS_COLLAPSED_COUNT,
-                expanded = versionsExpanded,
-                onToggle = { versionsExpanded = !versionsExpanded },
-            )
+        if (releaseHistory == null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .tvReadable()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                CircularWavyProgressIndicator(modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = stringResource(R.string.loading),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            // Collapsed to the newest few by default — same as the F-Droid catalogue's version
+            // list, so a long history doesn't turn the whole page into an endless scroll.
+            var versionsExpanded by remember(app.key) { mutableStateOf(false) }
+            val visibleCount = if (versionsExpanded) releaseHistory.size else VERSIONS_COLLAPSED_COUNT
+            releaseHistory.take(visibleCount).forEach { release ->
+                val isThisRowDownloading = activeDownloadTag == release.tag &&
+                    (downloadStatus != null || installing)
+                ReleaseVersionItem(
+                    release = release,
+                    apkName = release.apkFileName(filter = app.apkFilter),
+                    apkSize = release.apkFileSize(filter = app.apkFilter),
+                    isSuggested = release.tag == app.latestTag,
+                    isInstalled = release.tag == app.installedTag,
+                    onClick = { onVersionClick(release) },
+                    downloadStatus = if (isThisRowDownloading) downloadStatus else null,
+                    installing = isThisRowDownloading && downloadStatus == null,
+                    onCancel = if (isThisRowDownloading) onCancel else null,
+                )
+            }
+            if (releaseHistory.size > VERSIONS_COLLAPSED_COUNT) {
+                ShowMoreRow(
+                    hiddenCount = releaseHistory.size - VERSIONS_COLLAPSED_COUNT,
+                    expanded = versionsExpanded,
+                    onToggle = { versionsExpanded = !versionsExpanded },
+                )
+            }
         }
         Spacer(Modifier.height(16.dp))
     }

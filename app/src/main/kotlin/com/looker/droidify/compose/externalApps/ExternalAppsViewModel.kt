@@ -1002,20 +1002,29 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    /** Re-checks every enabled app for a newer release tag (e.g. on opening the screen). Disabled
-     *  sources are skipped, like a disabled repository. Throttled: this fires on every screen entry,
-     *  and each enabled source costs a GitHub API call, so re-checking more than once every few minutes
-     *  would needlessly burn the anonymous 60-requests/hour budget without surfacing fresher updates. */
+    /** Re-checks every app for a newer release tag (e.g. on opening the screen) and backfills icon/
+     *  name/TV-support metadata. The release check itself is enabled-only, like a disabled repository —
+     *  each one costs a GitHub API call, so a source nobody's opted into yet shouldn't burn the anonymous
+     *  60-requests/hour budget on updates nobody's watching for. The metadata backfill runs for every
+     *  tracked app regardless of enabled state, though: it's what the pre-install browsing UI (the
+     *  sources list, "Choix d'Omnify") shows *before* the user ever opts in, so a still-disabled source
+     *  deserves its real icon too — previously it was gated behind the same enabled-only filter as the
+     *  release check, so a source seeded disabled (the curated pack) never got its repoIconUrl backfilled
+     *  and stayed on the owner-avatar fallback (see ExternalAppIcon.kt) indefinitely, even after the
+     *  source had been sitting there for months. It's still genuinely one-time per repo either way (the
+     *  *Checked flags below), so this doesn't add ongoing cost, only a one-off scan the first time each
+     *  source is ever seen. Throttled: this fires on every screen entry. */
     fun refresh() {
         val now = SystemClock.elapsedRealtime()
         if (now - lastNetworkRefreshAt < REFRESH_THROTTLE_MS) return
         lastNetworkRefreshAt = now
         viewModelScope.launch {
-            apps.value.filter { it.enabled }.forEach { app ->
-                // A release may not exist yet (e.g. the seeded Omnify source has no published release).
-                // We still scan the repo below — a source's icon / name / TV support don't depend on a
-                // downloadable APK — and simply keep the existing release fields when there's none.
-                val release = externalApi.latestReleaseFor(app)
+            apps.value.forEach { app ->
+                // A release may not exist yet (e.g. the seeded Omnify source has no published release),
+                // or the source may simply not be enabled yet — either way we still scan the repo below
+                // for its icon / name / TV support, which don't depend on a downloadable APK, and simply
+                // keep the existing release fields when there's none.
+                val release = if (app.enabled) externalApi.latestReleaseFor(app) else null
                 // Track the APK file's identity, not just the tag, so updates are detected from the
                 // actual APK (see ExternalApp.hasUpdate); keep its file name for the "latest APK" line.
                 val tag = release?.tag ?: app.latestTag

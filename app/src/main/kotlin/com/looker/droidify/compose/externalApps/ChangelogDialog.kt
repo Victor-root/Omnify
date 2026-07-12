@@ -151,6 +151,12 @@ fun ChangelogDialog(
                                 javaScriptEnabled = javaScriptEnabled,
                                 onContentHeight = { heightPx = it },
                                 scrollState = scrollState,
+                                // See ReadmeWebView's forceSoftwareLayer doc comment: its software layer
+                                // can only draw roughly one screen's worth of pixels — a changelog with
+                                // several releases' worth of notes can easily run taller than that, and
+                                // without this the WebView would silently render nothing at all past a
+                                // short one.
+                                forceSoftwareLayer = viewportPx <= 0 || heightPx <= viewportPx,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(
