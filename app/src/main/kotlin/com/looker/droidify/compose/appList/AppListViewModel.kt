@@ -348,9 +348,15 @@ class AppListViewModel @Inject constructor(
         return listOf(shizuku) + apps.filter { it.packageName.name != SHIZUKU_PACKAGE }
     }
 
-    /** "Made for TV" carousel — apps that declare the Android TV (leanback) launcher feature. Shown
-     *  only on the TV build (the caller gates the UI too), so couch users get a row of apps that
-     *  actually work with a remote. The query is skipped entirely off TV to spare the work. */
+    /** "Made for TV" carousel — apps that declare the Android TV (leanback) launcher feature, OR are
+     *  tagged with a genuinely TV-relevant category (see [TV_RELEVANT_CATEGORIES]). The manifest feature
+     *  alone is nearly unused across the whole F-Droid catalogue (checked against the live index: 3
+     *  packages total, main + archive + IzzyOnDroid combined) — most apps that work great on TV (VLC,
+     *  Kodi, Jellyfin, mpv, …) simply never declare it, since F-Droid doesn't require Play Store TV
+     *  compliance. The category union surfaces those real, already-catalogued apps instead of leaving the
+     *  carousel almost empty. Shown only on the TV build (the caller gates the UI too), so couch users
+     *  get a row of apps that actually work with a remote. The query is skipped entirely off TV to spare
+     *  the work. */
     val tvApps: StateFlow<List<AppMinimal>> = catalogChanges
         .mapLatest {
             if (!isTelevisionDevice) {
@@ -359,6 +365,8 @@ class AppListViewModel @Inject constructor(
                 appRepository.apps(
                     sortOrder = SortOrder.UPDATED,
                     featuresToInclude = listOf(LEANBACK_FEATURE),
+                    categoriesToInclude = TV_RELEVANT_CATEGORIES,
+                    featuresOrCategories = true,
                 ).take(DISCOVER_ROW_COUNT)
             }
         }
@@ -381,6 +389,8 @@ class AppListViewModel @Inject constructor(
                     SECTION_TV -> appRepository.apps(
                         sortOrder = SortOrder.UPDATED,
                         featuresToInclude = listOf(LEANBACK_FEATURE),
+                        categoriesToInclude = TV_RELEVANT_CATEGORIES,
+                        featuresOrCategories = true,
                     ).take(SECTION_PAGE_LIMIT)
                     SECTION_SHIZUKU -> shizukuFirst(
                         appRepository.apps(
@@ -447,6 +457,17 @@ const val SECTION_ROOT = "::root"
 /** The manifest <uses-feature> an app declares when it ships an Android TV (leanback) launcher — our
  *  marker for "made for TV". */
 private const val LEANBACK_FEATURE = "android.software.leanback"
+
+/** F-Droid category defaultNames that are a reliable "this is genuinely useful on TV" signal even for
+ *  apps that never bother declaring [LEANBACK_FEATURE] (see tvApps' doc comment) — media playback,
+ *  emulation and remote-control apps are used on a couch with a D-pad far more than any other category. */
+private val TV_RELEVANT_CATEGORIES = listOf(
+    "Local Media Player",
+    "Online Media Player",
+    "Cast",
+    "Emulator",
+    "Remote Controller",
+)
 
 /** The manifest <uses-permission> an app declares to talk to Shizuku — our marker for "uses Shizuku". */
 private const val SHIZUKU_PERMISSION = "moe.shizuku.manager.permission.API_V23"
