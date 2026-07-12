@@ -610,35 +610,56 @@ private fun RepoItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // TV only: a soft accent fill behind the focused row (no-op on touch).
-            .tvFocusFill(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            // Not directly focusable/clickable itself: it used to be, with the toggle further down also
+            // independently focusable inside it, and a parent that's focusable AND contains focusable
+            // children breaks D-pad navigation (the children become unreachable — Compose's directional
+            // focus search won't descend into the currently-focused node's own subtree) and could show
+            // two focus highlights competing at once. A focusGroup instead: itself never gets focus, so
+            // the row-open target below and the toggle are true siblings the remote can move between.
+            .focusGroup()
             .then(modifier),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RepoIcon(
-                iconUrl = repo.icon?.path,
-                fallbackUrl = defaultRepoIcon(repo.address),
-                name = repo.name,
-                modifier = Modifier.size(48.dp),
-                fallbackRes = defaultRepoIconRes(repo.address),
-            )
-            Spacer(modifier = Modifier.size(16.dp))
-            Column(modifier = Modifier.weight(1F)) {
-                Text(
-                    text = repo.name,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(
+                start = 16.dp,
+                end = 16.dp,
+                top = 12.dp,
+                bottom = if (isSyncing) 4.dp else 12.dp,
+            ),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .weight(1f)
+                    // TV only: a soft accent fill behind the focused row (no-op on touch).
+                    .tvFocusFill(RoundedCornerShape(12.dp))
+                    .clickable(onClick = onClick)
+                    .padding(vertical = 4.dp),
+            ) {
+                RepoIcon(
+                    iconUrl = repo.icon?.path,
+                    fallbackUrl = defaultRepoIcon(repo.address),
+                    name = repo.name,
+                    modifier = Modifier.size(48.dp),
+                    fallbackRes = defaultRepoIconRes(repo.address),
                 )
-                if (repo.description.isNotEmpty()) {
+                Spacer(modifier = Modifier.size(16.dp))
+                Column(modifier = Modifier.weight(1F)) {
                     Text(
-                        text = repo.description.toAnnotatedString { },
+                        text = repo.name,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        maxLines = 4,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (repo.description.isNotEmpty()) {
+                        Text(
+                            text = repo.description.toAnnotatedString { },
+                            overflow = TextOverflow.Ellipsis,
+                            maxLines = 4,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.size(8.dp))
@@ -656,7 +677,8 @@ private fun RepoItem(
             LinearWavyProgressIndicator(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 4.dp, bottom = 12.dp),
             )
         }
     }
@@ -679,46 +701,57 @@ private fun ExternalSourceItem(
     brandWithAppIcon: Boolean = false,
 ) {
     val contentAlpha = if (app.enabled) 1f else 0.4f
-    // Tapping the row opens the source's single app directly: a single-repo source maps to exactly one
-    // app, so there's no separate app list to show (only accounts get that). The toggle and overflow
-    // menu below sit on top and consume their own taps, so they still work without opening the app.
+    // Not directly focusable/clickable itself — see RepoItem's identical focusGroup comment: a row that's
+    // both focusable AND contains focusable children (the toggle, the overflow menu) breaks D-pad
+    // navigation between them and can show two competing focus highlights at once. The icon/name area
+    // below carries its own dedicated click target instead, as a true sibling of the toggle and menu.
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            // TV only: a soft accent fill behind the focused row (no-op on touch).
-            .tvFocusFill(RoundedCornerShape(12.dp))
-            .clickable(onClick = onOpen)
+            .focusGroup()
             .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
     ) {
-        if (brandWithAppIcon) {
-            AppLauncherIcon(modifier = Modifier.size(48.dp).alpha(contentAlpha))
-        } else {
-            ExternalAppIcon(
-                app = app,
-                isInstalled = isInstalled,
-                size = 48.dp,
-                modifier = Modifier.alpha(contentAlpha),
-            )
-        }
-        Spacer(modifier = Modifier.size(16.dp))
-        Column(
+        // Tapping this opens the source's single app directly: a single-repo source maps to exactly one
+        // app, so there's no separate app list to show (only accounts get that).
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .weight(1F)
-                .alpha(contentAlpha),
+                .weight(1f)
+                // TV only: a soft accent fill behind the focused row (no-op on touch).
+                .tvFocusFill(RoundedCornerShape(12.dp))
+                .clickable(onClick = onOpen)
+                .padding(vertical = 4.dp),
         ) {
-            Text(
-                text = app.label,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = "${app.sourceLabel} · ${app.path}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (brandWithAppIcon) {
+                AppLauncherIcon(modifier = Modifier.size(48.dp).alpha(contentAlpha))
+            } else {
+                ExternalAppIcon(
+                    app = app,
+                    isInstalled = isInstalled,
+                    size = 48.dp,
+                    modifier = Modifier.alpha(contentAlpha),
+                )
+            }
+            Spacer(modifier = Modifier.size(16.dp))
+            Column(
+                modifier = Modifier
+                    .weight(1F)
+                    .alpha(contentAlpha),
+            ) {
+                Text(
+                    text = app.label,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "${app.sourceLabel} · ${app.path}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         Spacer(modifier = Modifier.size(8.dp))
         // Edit / remove live in an overflow menu so the row stays narrow and the source name has room
@@ -789,63 +822,74 @@ private fun ExternalAccountItem(
     onRemove: () -> Unit,
 ) {
     val contentAlpha = if (account.enabled) 1f else 0.4f
-    // Tapping the row opens the account's detail screen (its list of apps), like tapping an F-Droid
-    // repo. The toggle and overflow menu below consume their own taps, so they keep working.
+    // Not directly focusable/clickable itself — see RepoItem's identical focusGroup comment: a row that's
+    // both focusable AND contains focusable children (the toggle, the overflow menu) breaks D-pad
+    // navigation between them and can show two competing focus highlights at once. The icon/name area
+    // below carries its own dedicated click target instead, as a true sibling of the toggle and menu.
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            // TV only: a soft accent fill behind the focused row (no-op on touch).
-            .tvFocusFill(RoundedCornerShape(12.dp))
-            .clickable(onClick = onOpen)
+            .focusGroup()
             .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
     ) {
-        if (account.key == ExternalAccount.OMNIFY_KEY) {
-            // The built-in Omnify source is branded with the app's own logo so it's recognisable.
-            AppLauncherIcon(
-                modifier = Modifier
-                    .size(48.dp)
-                    .alpha(contentAlpha),
-            )
-        } else {
-            RepoIcon(
-                iconUrl = account.iconUrl,
-                fallbackUrl = null,
-                name = account.label,
-                modifier = Modifier
-                    .size(48.dp)
-                    .alpha(contentAlpha),
-            )
-        }
-        Spacer(modifier = Modifier.size(16.dp))
-        Column(
+        // Tapping this opens the account's detail screen (its list of apps), like tapping an F-Droid repo.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .weight(1F)
-                .alpha(contentAlpha),
+                .weight(1f)
+                // TV only: a soft accent fill behind the focused row (no-op on touch).
+                .tvFocusFill(RoundedCornerShape(12.dp))
+                .clickable(onClick = onOpen)
+                .padding(vertical = 4.dp),
         ) {
-            Text(text = account.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            // Subtitle: the app count once known; "disabled" while off (it isn't scanned until enabled);
-            // a spinner + "searching…" during the first scan of a freshly-enabled account, so it's
-            // obvious at a glance that discovery is actually running, not just idle/stuck text.
-            val isScanning = account.enabled && appCount == 0 && account.lastScan == 0L
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isScanning) {
-                    CircularWavyProgressIndicator(modifier = Modifier.size(12.dp))
-                    Spacer(modifier = Modifier.size(6.dp))
-                }
-                val status = when {
-                    appCount > 0 -> stringResource(R.string.external_account_apps, appCount)
-                    !account.enabled -> stringResource(R.string.external_account_disabled)
-                    isScanning -> stringResource(R.string.external_account_scanning)
-                    else -> stringResource(R.string.external_account_apps, 0)
-                }
-                Text(
-                    text = "${account.sourceLabel} · $status",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+            if (account.key == ExternalAccount.OMNIFY_KEY) {
+                // The built-in Omnify source is branded with the app's own logo so it's recognisable.
+                AppLauncherIcon(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .alpha(contentAlpha),
                 )
+            } else {
+                RepoIcon(
+                    iconUrl = account.iconUrl,
+                    fallbackUrl = null,
+                    name = account.label,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .alpha(contentAlpha),
+                )
+            }
+            Spacer(modifier = Modifier.size(16.dp))
+            Column(
+                modifier = Modifier
+                    .weight(1F)
+                    .alpha(contentAlpha),
+            ) {
+                Text(text = account.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // Subtitle: the app count once known; "disabled" while off (it isn't scanned until
+                // enabled); a spinner + "searching…" during the first scan of a freshly-enabled account,
+                // so it's obvious at a glance that discovery is actually running, not just idle/stuck text.
+                val isScanning = account.enabled && appCount == 0 && account.lastScan == 0L
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isScanning) {
+                        CircularWavyProgressIndicator(modifier = Modifier.size(12.dp))
+                        Spacer(modifier = Modifier.size(6.dp))
+                    }
+                    val status = when {
+                        appCount > 0 -> stringResource(R.string.external_account_apps, appCount)
+                        !account.enabled -> stringResource(R.string.external_account_disabled)
+                        isScanning -> stringResource(R.string.external_account_scanning)
+                        else -> stringResource(R.string.external_account_apps, 0)
+                    }
+                    Text(
+                        text = "${account.sourceLabel} · $status",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.size(8.dp))
