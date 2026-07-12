@@ -3,6 +3,7 @@ package com.looker.droidify.compose.externalApps
 import android.content.Context
 import android.graphics.Color as AndroidColor
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -106,6 +107,13 @@ fun ReadmeWebView(
                     allowContentAccess = false
                 }
                 setBackgroundColor(AndroidColor.TRANSPARENT)
+                // Software layer, not hardware: this content is static text/small images shown once
+                // per screen open, never worth the risk of HWUI's GL-functor WebView compositing path
+                // (RenderThread crashes — SIGSEGV null deref in GLFunctorDrawable::onDraw/
+                // SkSurface::getCanvas — a known Android WebView-hardware-rendering bug, reproduced here
+                // reliably on an emulator though not on a real device). Trades a little rendering
+                // performance, invisible for this small, largely static content, for not crashing.
+                setLayerType(View.LAYER_TYPE_SOFTWARE, null)
                 // The parent scroll owns scrolling; the WebView is sized to its content.
                 isVerticalScrollBarEnabled = false
                 isNestedScrollingEnabled = false
@@ -124,6 +132,11 @@ fun ReadmeWebView(
                     descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
                 }
                 fun reportHeight() {
+                    // The last two of these run up to 1.5s later (postDelayed), after the screen may
+                    // already have moved on (navigated away, dialog dismissed) and this view detached —
+                    // touching a torn-down WebView's content/resources then is a real native-crash
+                    // vector, not just a wasted call.
+                    if (!isAttachedToWindow) return
                     val pixels = (contentHeight * resources.displayMetrics.density).toInt()
                     if (pixels > 0) onContentHeight(pixels)
                 }
