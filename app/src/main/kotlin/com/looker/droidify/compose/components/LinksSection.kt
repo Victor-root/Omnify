@@ -2,6 +2,7 @@ package com.looker.droidify.compose.components
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.looker.droidify.compose.theme.LocalIsTelevision
 
 /** A section header: an optional leading icon and a title — used identically by the F-Droid
  *  catalogue and external app detail screens above their "Links" (and similar) sections. */
@@ -62,7 +64,20 @@ fun LinkRow(
             // TV only: a soft green fill behind the focused row (a full-width row can't scale without
             // overflowing the screen). No-op on touch.
             .tvFocusFill(RoundedCornerShape(12.dp))
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(
+                when {
+                    onClick != null -> Modifier.clickable(onClick = onClick)
+                    // TV only, while still resolving/genuinely unavailable: a plain clickable's
+                    // focusability disappears along with it once onClick is null, leaving a hole the
+                    // D-pad silently skips over. Landable-but-inert instead (the tvFocusFill above
+                    // already supplies the highlight, so just .focusable(), not the full tvReadable),
+                    // keeps this row a real stop so "down" from the README always has somewhere to go
+                    // while a link is still being checked, instead of possibly finding nothing
+                    // focusable until whatever loads next.
+                    LocalIsTelevision.current -> Modifier.focusable()
+                    else -> Modifier
+                },
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

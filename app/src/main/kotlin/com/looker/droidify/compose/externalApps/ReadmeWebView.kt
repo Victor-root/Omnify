@@ -71,6 +71,13 @@ fun ReadmeWebView(
     onContentHeight: (Int) -> Unit,
     modifier: Modifier = Modifier,
     scrollState: ScrollState? = null,
+    // True (the default, and always true before the content height is first known) forces a software
+    // draw layer — see the comment further down for why. A software layer's backing bitmap is capped to
+    // roughly one screen's worth of pixels (confirmed via logcat: "not displayed because it is too large
+    // to fit into a software layer" — an unrecoverable, silent failure with no visible content at all,
+    // not a partial render), so a caller whose README is taller than that must pass false here once it
+    // knows, or the whole WebView renders nothing.
+    forceSoftwareLayer: Boolean = true,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val uriHandler = LocalUriHandler.current
@@ -107,13 +114,16 @@ fun ReadmeWebView(
                     allowContentAccess = false
                 }
                 setBackgroundColor(AndroidColor.TRANSPARENT)
-                // Software layer, not hardware: this content is static text/small images shown once
-                // per screen open, never worth the risk of HWUI's GL-functor WebView compositing path
-                // (RenderThread crashes — SIGSEGV null deref in GLFunctorDrawable::onDraw/
-                // SkSurface::getCanvas — a known Android WebView-hardware-rendering bug, reproduced here
-                // reliably on an emulator though not on a real device). Trades a little rendering
-                // performance, invisible for this small, largely static content, for not crashing.
-                setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                // Software layer, not hardware, while forceSoftwareLayer holds: avoids the risk of
+                // HWUI's GL-functor WebView compositing path (RenderThread crashes — SIGSEGV null deref
+                // in GLFunctorDrawable::onDraw/SkSurface::getCanvas — a known Android WebView-hardware-
+                // rendering bug, reproduced here reliably on an emulator though not confirmed on a real
+                // device). See forceSoftwareLayer's own doc comment for why this can't just always be on:
+                // its bitmap budget is far too small for anything but a short README.
+                setLayerType(
+                    if (forceSoftwareLayer) View.LAYER_TYPE_SOFTWARE else View.LAYER_TYPE_NONE,
+                    null,
+                )
                 // The parent scroll owns scrolling; the WebView is sized to its content.
                 isVerticalScrollBarEnabled = false
                 isNestedScrollingEnabled = false
@@ -172,6 +182,13 @@ fun ReadmeWebView(
             // Keep the live setting in sync even if the user flips it in Settings and returns to an
             // already-composed screen (factory only runs once, at first creation).
             web.settings.javaScriptEnabled = allowJavaScript
+            // Re-applied on every recomposition where it changed (factory only sets the *initial* value,
+            // taken when the content height wasn't known yet — see forceSoftwareLayer's doc comment).
+            // setLayerType with the same type it's already on is a cheap no-op.
+            val wantedLayerType = if (forceSoftwareLayer) View.LAYER_TYPE_SOFTWARE else View.LAYER_TYPE_NONE
+            if (web.layerType != wantedLayerType) {
+                web.setLayerType(wantedLayerType, null)
+            }
             // Reload only when the rendered document actually changes (not on every recomposition).
             if (web.tag != document) {
                 web.tag = document
