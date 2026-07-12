@@ -3,6 +3,7 @@ package com.looker.droidify.compose.settings.components
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -172,57 +173,72 @@ private fun CustomButtonItem(
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
+    // Not directly focusable/clickable itself: the delete IconButton at the end is its own independently
+    // focusable control, so a row that's ALSO directly focusable/clickable put two focus targets in the
+    // same space — confusing on TV (which one is "it"?) and unreachable-by-D-pad for the delete button,
+    // since Compose's directional focus search won't descend into the currently-focused node's own
+    // subtree. A focusGroup instead, with the icon/label area carrying its own dedicated click target as
+    // a true sibling of the delete button.
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            // TV only: a soft accent fill layered over the row's own background on focus (no-op on touch).
-            .tvFocusFill(MaterialTheme.shapes.medium)
-            .clickable(onClick = onEdit)
+            .focusGroup()
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
+                .weight(1f)
+                // TV only: a soft accent fill layered over the row's own background on focus (no-op on
+                // touch).
+                .tvFocusFill(MaterialTheme.shapes.medium)
+                .clickable(onClick = onEdit)
+                .padding(4.dp),
         ) {
-            if (button.icon == CustomButtonIcon.TEXT_ONLY) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (button.icon == CustomButtonIcon.TEXT_ONLY) {
+                    Text(
+                        text = button.label.take(2).uppercase(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(button.icon.toDrawableRes()),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = button.label.take(2).uppercase(),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    text = button.label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-            } else {
-                Icon(
-                    painter = painterResource(button.icon.toDrawableRes()),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(20.dp),
+                Text(
+                    text = button.urlTemplate,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = button.label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = button.urlTemplate,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
 
         Box {
