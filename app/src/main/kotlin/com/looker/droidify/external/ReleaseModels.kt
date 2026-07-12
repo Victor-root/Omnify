@@ -12,6 +12,11 @@ data class Release(
     val tag: String,
     val isPrerelease: Boolean,
     val assets: List<ReleaseAsset>,
+    /** The release's own notes, in Markdown, as written by the maintainer when publishing it — GitHub/
+     *  Gitea's "body" field, GitLab's "description". Used as a changelog fallback when the repo ships
+     *  no CHANGELOG-style file at all (see [ExternalApi.fetchChangelogHtml]). Null when the provider
+     *  reports none, or the release has no notes written. */
+    val body: String? = null,
 )
 
 /**
@@ -60,6 +65,7 @@ data class RestReleaseDto(
     val prerelease: Boolean = false,
     val draft: Boolean = false,
     @SerialName("html_url") val htmlUrl: String? = null,
+    val body: String? = null,
     val assets: List<RestAssetDto> = emptyList(),
 ) {
     fun toRelease(): Release = Release(
@@ -74,6 +80,7 @@ data class RestReleaseDto(
                 size = it.size.takeIf { size -> size > 0L },
             )
         },
+        body = body?.takeIf { it.isNotBlank() },
     )
 }
 
@@ -96,6 +103,7 @@ data class GitlabReleaseDto(
     @SerialName("tag_name") val tagName: String,
     val name: String? = null,
     @SerialName("upcoming_release") val upcomingRelease: Boolean = false,
+    val description: String? = null,
     val assets: GitlabAssets = GitlabAssets(),
 ) {
     fun toRelease(): Release = Release(
@@ -103,6 +111,7 @@ data class GitlabReleaseDto(
         isPrerelease = upcomingRelease,
         // Prefer the direct asset URL (the real file) over the generic redirect URL.
         assets = assets.links.map { ReleaseAsset(it.name, it.directAssetUrl ?: it.url) },
+        body = description?.takeIf { it.isNotBlank() },
     )
 }
 
