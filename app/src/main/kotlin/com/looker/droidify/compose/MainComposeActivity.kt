@@ -52,6 +52,7 @@ import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.external.ExternalAccount
+import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.SourceProvider
@@ -80,6 +81,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -97,6 +101,9 @@ class MainComposeActivity : ComponentActivity() {
 
     @Inject
     lateinit var externalAppRepository: ExternalAppRepository
+
+    @Inject
+    lateinit var externalApi: ExternalApi
 
     @Inject
     lateinit var installer: InstallManager
@@ -117,6 +124,8 @@ class MainComposeActivity : ComponentActivity() {
         private const val KEY_OMNIFY_SEED = "omnify_seed_v6"
         private const val KEY_OMNIFY_CURATED_MIGRATED = "omnify_curated_migrated_v1"
         private const val KEY_TV_PACK_SEEDED_V1 = "tv_pack_seeded_v1"
+        private const val KEY_TV_PACK_ICONS_BACKFILLED_V1 = "tv_pack_icons_backfilled_v1"
+        private const val KEY_ADAPTIVE_ICON_RESCAN_V1 = "adaptive_icon_rescan_v1"
     }
 
     /** Omnify's own repo (github.com/Victor-root/Omnify) as the built-in update channel, active by
@@ -226,6 +235,16 @@ class MainComposeActivity : ComponentActivity() {
             curated = true,
         ),
     )
+
+    /** True when [repoIconUrl] looks like an adaptive-icon layer fragment rather than a real composed
+     *  icon — the abbreviated ("_fore"/"_back"/"_fg"/"_bg") adaptive-layer suffixes that
+     *  [com.looker.droidify.external.ExternalApi]'s icon ranking now excludes, kept in sync with that
+     *  same suffix list so a rescan finds exactly what a fresh scan would no longer pick. */
+    private fun isAdaptiveIconLayerFragment(repoIconUrl: String): Boolean {
+        val stem = repoIconUrl.substringAfterLast('/').substringBeforeLast('.').lowercase()
+        return stem.endsWith("_fore") || stem.endsWith("_fg") ||
+            stem.endsWith("_back") || stem.endsWith("_bg")
+    }
 
     private val firstRunPrefs by lazy { getSharedPreferences(FIRST_RUN_PREFS, Context.MODE_PRIVATE) }
 
@@ -415,9 +434,90 @@ class MainComposeActivity : ComponentActivity() {
             // ran — so it can never clobber an existing customisation. A future addition to the pack needs
             // its own new flag (mirroring KEY_OMNIFY_CURATED_MIGRATED above), since this one only ever
             // fires once per install.
+            //
+            // Each entry's real repo icon / TV support is resolved right here, in parallel, before it's
+            // ever persisted — mirroring what adding an external source manually already does (see
+            // ExternalAppsViewModel.addSource) — instead of leaving it to a later ExternalAppsViewModel
+            // .refresh() call. Relying on refresh() alone hit a real startup race: refresh() snapshots
+            // the tracked-apps list the moment it's called (from AppListScreen's own one-shot
+            // LaunchedEffect), which can run before this seeding block below has finished inserting these
+            // entries — silently skipping them for that pass — and since refresh() throttles its release
+            // check to once every 10 minutes, they'd then sit on the owner-avatar fallback for a while
+            // after every fresh install, exactly as reported.
             if (!firstRunPrefs.getBoolean(KEY_TV_PACK_SEEDED_V1, false)) {
-                curatedTvPack().forEach { externalAppRepository.addApp(it) }
+                val seededApps = coroutineScope {
+                    curatedTvPack().map { app ->
+                        async(Dispatchers.IO) {
+                            val meta = runCatching { externalApi.fetchRepoMetadata(app) }.getOrNull()
+                            app.copy(
+                                repoIconUrl = meta?.iconCandidates?.firstOrNull(),
+                                iconChecked = meta != null,
+                                supportsTelevision = meta?.supportsTelevision ?: false,
+                                tvChecked = meta != null,
+                            )
+                        }
+                    }.awaitAll()
+                }
+                seededApps.forEach { externalAppRepository.addApp(it) }
                 firstRunPrefs.edit().putBoolean(KEY_TV_PACK_SEEDED_V1, true).apply()
+            }
+
+            // One-time: backfill the real repo icon onto curated pack entries seeded by an earlier build
+            // before the icon was resolved at seed time above — otherwise those installs would be stuck
+            // showing the owner-avatar fallback indefinitely (the same startup race described above,
+            // just for a version of Omnify that always hit it). Only touches entries that are still on
+            // the fallback (repoIconUrl null, iconChecked false) and never overrides a user-picked icon.
+            if (!firstRunPrefs.getBoolean(KEY_TV_PACK_ICONS_BACKFILLED_V1, false)) {
+                val staleCuratedApps = externalAppRepository.getApps()
+                    .filter { it.curated && !it.iconChecked && !it.iconOverridden && it.repoIconUrl == null }
+                if (staleCuratedApps.isNotEmpty()) {
+                    val backfilledApps = coroutineScope {
+                        staleCuratedApps.map { app ->
+                            async(Dispatchers.IO) {
+                                val meta = runCatching { externalApi.fetchRepoMetadata(app) }.getOrNull()
+                                app.copy(
+                                    repoIconUrl = meta?.iconCandidates?.firstOrNull(),
+                                    iconChecked = meta != null,
+                                    supportsTelevision = if (!app.tvChecked) {
+                                        meta?.supportsTelevision ?: app.supportsTelevision
+                                    } else {
+                                        app.supportsTelevision
+                                    },
+                                    tvChecked = app.tvChecked || meta != null,
+                                )
+                            }
+                        }.awaitAll()
+                    }
+                    backfilledApps.forEach { externalAppRepository.upsertApp(it) }
+                }
+                firstRunPrefs.edit().putBoolean(KEY_TV_PACK_ICONS_BACKFILLED_V1, true).apply()
+            }
+
+            // One-time: re-scan any tracked app whose icon was already resolved to an adaptive-icon
+            // layer fragment rather than the real composed icon — a rankIconPaths bug (fixed) that
+            // mis-scored abbreviated adaptive layer names ("_fore"/"_back" instead of the full
+            // "_foreground"/"_background") as if they were the composed square icon, confirmed on
+            // fgl27/smarttwitchtv (Smart Twitch TV): its foreground-only layer, near-blank on its own,
+            // outranked the repo's real icon and rendered solid white. Detects the same pattern generically
+            // (not hardcoded to that one repo) so any other source hit by it self-heals too.
+            if (!firstRunPrefs.getBoolean(KEY_ADAPTIVE_ICON_RESCAN_V1, false)) {
+                val misIdentifiedApps = externalAppRepository.getApps()
+                    .filter { it.repoIconUrl != null && !it.iconOverridden && isAdaptiveIconLayerFragment(it.repoIconUrl) }
+                if (misIdentifiedApps.isNotEmpty()) {
+                    val rescannedApps = coroutineScope {
+                        misIdentifiedApps.map { app ->
+                            async(Dispatchers.IO) {
+                                val meta = runCatching { externalApi.fetchRepoMetadata(app) }.getOrNull()
+                                app.copy(
+                                    repoIconUrl = meta?.iconCandidates?.firstOrNull(),
+                                    iconChecked = meta != null,
+                                )
+                            }
+                        }.awaitAll()
+                    }
+                    rescannedApps.forEach { externalAppRepository.upsertApp(it) }
+                }
+                firstRunPrefs.edit().putBoolean(KEY_ADAPTIVE_ICON_RESCAN_V1, true).apply()
             }
 
             // Self-heal an empty catalog. A schema migration recreates the database: the repo rows

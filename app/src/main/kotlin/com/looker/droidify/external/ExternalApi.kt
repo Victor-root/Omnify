@@ -843,7 +843,15 @@ private fun iconVariantRank(stem: String): Int? {
     // (ic_launcher, launcher_icon, icon…) is the fully-composed square icon and is preferred — so a
     // transparent foreground never outranks the real icon, whatever the project names it.
     return when {
-        stem.endsWith("_foreground") -> 2
+        // Adaptive-icon background layer — a solid colour/pattern alone, never a usable standalone icon.
+        // "_back"/"_bg" are common abbreviations of "_background" the excluded list above only catches
+        // spelled out in full.
+        stem.endsWith("_back") || stem.endsWith("_bg") -> null
+        // "_fore"/"_fg" are the same kind of abbreviation for "_foreground" — confirmed on
+        // fgl27/smarttwitchtv, whose adaptive layers are ic_launcher_adaptive_fore/_back rather than the
+        // full words, which let the (near-transparent alone) foreground layer outrank the real composed
+        // ic_launcher.png on density and get picked as the app's icon — rendering solid white.
+        stem.endsWith("_foreground") || stem.endsWith("_fore") || stem.endsWith("_fg") -> 2
         stem.endsWith("_round") -> 3
         else -> 4
     }
