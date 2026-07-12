@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -178,13 +177,17 @@ fun CompactInstallProgressRow(
             }
         }
         val fraction = status?.fraction
+        // No explicit height here (unlike the rest of this compact row): LinearWavyProgressIndicator
+        // draws its wave motion within its own default-sized bounds, and constraining it to a slim
+        // 4.dp — squeezed down to fit this row — clipped the wave peaks, leaving what looked like a
+        // flat bar instead of the same "zigouigoui" motion DownloadProgressRow/InstallingRow show.
         if (fraction != null) {
             LinearWavyProgressIndicator(
                 progress = { fraction },
-                modifier = Modifier.fillMaxWidth().height(4.dp),
+                modifier = Modifier.fillMaxWidth(),
             )
         } else {
-            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth().height(4.dp))
+            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }
