@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.Repo
+import com.looker.droidify.datastore.SettingsRepository
+import com.looker.droidify.datastore.get
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.work.SyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,8 +30,18 @@ import javax.inject.Inject
 class RepoListViewModel @Inject constructor(
     private val repository: RepoRepository,
     private val appRepository: AppRepository,
+    private val settingsRepository: SettingsRepository,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
+
+    /** Section keys ("external", "fdroid", "omnify_picks") the user has collapsed on this screen —
+     *  sections start expanded, collapsing one is remembered across app restarts. */
+    val collapsedSections: StateFlow<Set<String>> =
+        settingsRepository.get { collapsedRepoSections }.asStateFlow(emptySet())
+
+    fun toggleSectionCollapsed(sectionKey: String) {
+        viewModelScope.launch { settingsRepository.toggleRepoSectionCollapsed(sectionKey) }
+    }
 
     // A single-app repo's own declared icon is often unusable (many self-hosted repos never customise
     // it and fdroidserver defaults to a QR code of the repo address); its one app's real launcher icon

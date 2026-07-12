@@ -80,6 +80,11 @@ data class Settings(
      *  page scrolling on the right). On by default on eligible screens; off hides the feature entirely
      *  for users who don't want it, regardless of the per-screen toggle button. */
     val splitViewEnabled: Boolean = true,
+    /** Repositories screen sections the user has collapsed, by a fixed key ("external", "fdroid",
+     *  "omnify_picks" — see [com.looker.droidify.compose.repoList.RepoListScreen]'s section list), not
+     *  the (localized, so unstable across a language change) header title. Sections start expanded;
+     *  collapsing one is remembered across app restarts, same as any other setting. */
+    val collapsedRepoSections: Set<String> = emptySet(),
 )
 
 @OptIn(ExperimentalSerializationApi::class)

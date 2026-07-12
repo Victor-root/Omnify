@@ -24,6 +24,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -102,6 +104,7 @@ fun RepoListScreen(
     val repos by viewModel.stream.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     val syncingRepoIds by viewModel.syncingRepoIds.collectAsStateWithLifecycle()
+    val collapsedSections by viewModel.collapsedSections.collectAsStateWithLifecycle()
 
     // The External sources live alongside the F-Droid repos here: this screen is source management
     // (enable / disable / add / remove). The apps themselves (install, launch…) are on the External
@@ -226,83 +229,104 @@ fun RepoListScreen(
                     }
                 }
             }
+            val externalCollapsed = SECTION_KEY_EXTERNAL in collapsedSections
             item(key = "external-header") {
-                SectionHeader(title = stringResource(R.string.repo_section_external))
+                SectionHeader(
+                    title = stringResource(R.string.repo_section_external),
+                    collapsed = externalCollapsed,
+                    onToggle = { viewModel.toggleSectionCollapsed(SECTION_KEY_EXTERNAL) },
+                )
             }
-            if (regularAccounts.isEmpty() && regularExternalApps.isEmpty()) {
-                item(key = "external-empty") {
-                    Text(
-                        text = stringResource(R.string.external_empty_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
+            if (!externalCollapsed) {
+                if (regularAccounts.isEmpty() && regularExternalApps.isEmpty()) {
+                    item(key = "external-empty") {
+                        Text(
+                            text = stringResource(R.string.external_empty_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                }
+                items(regularAccounts, key = { "acc-${it.key}" }) { account ->
+                    ExternalAccountItem(
+                        account = account,
+                        appCount = accountAppCounts[account.key] ?: 0,
+                        onOpen = { onAccountClick(account.key) },
+                        onToggle = { externalViewModel.setAccountEnabled(account, !account.enabled) },
+                        onRescan = { externalViewModel.rescanAccount(account) },
+                        onRemove = { externalViewModel.removeAccount(account) },
+                    )
+                }
+                items(regularExternalApps, key = { "ext-${it.key}" }) { app ->
+                    ExternalSourceItem(
+                        app = app,
+                        isInstalled = app.key in externalInstalledKeys,
+                        onOpen = { onSourceClick(app.key) },
+                        onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
+                        onEdit = { editingExternal = app },
+                        onRemove = { externalViewModel.remove(app.key) },
                     )
                 }
             }
-            items(regularAccounts, key = { "acc-${it.key}" }) { account ->
-                ExternalAccountItem(
-                    account = account,
-                    appCount = accountAppCounts[account.key] ?: 0,
-                    onOpen = { onAccountClick(account.key) },
-                    onToggle = { externalViewModel.setAccountEnabled(account, !account.enabled) },
-                    onRescan = { externalViewModel.rescanAccount(account) },
-                    onRemove = { externalViewModel.removeAccount(account) },
-                )
-            }
-            items(regularExternalApps, key = { "ext-${it.key}" }) { app ->
-                ExternalSourceItem(
-                    app = app,
-                    isInstalled = app.key in externalInstalledKeys,
-                    onOpen = { onSourceClick(app.key) },
-                    onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
-                    onEdit = { editingExternal = app },
-                    onRemove = { externalViewModel.remove(app.key) },
-                )
-            }
 
+            val fdroidCollapsed = SECTION_KEY_FDROID in collapsedSections
             item(key = "repos-header") {
-                SectionHeader(title = stringResource(R.string.repo_section_fdroid))
-            }
-            items(sortedRepos, key = { "repo-${it.id}" }) { repo ->
-                RepoItem(
-                    onClick = { onRepoClick(repo.id) },
-                    onToggle = { viewModel.toggleRepo(repo) },
-                    repo = repo,
-                    isSyncing = repo.id in syncingRepoIds,
+                SectionHeader(
+                    title = stringResource(R.string.repo_section_fdroid),
+                    collapsed = fdroidCollapsed,
+                    onToggle = { viewModel.toggleSectionCollapsed(SECTION_KEY_FDROID) },
                 )
+            }
+            if (!fdroidCollapsed) {
+                items(sortedRepos, key = { "repo-${it.id}" }) { repo ->
+                    RepoItem(
+                        onClick = { onRepoClick(repo.id) },
+                        onToggle = { viewModel.toggleRepo(repo) },
+                        repo = repo,
+                        isSyncing = repo.id in syncingRepoIds,
+                    )
+                }
             }
 
             // A hand-picked, growing set of sources Omnify itself suggests (starting with its own repo),
             // separate from anything the user added themselves — disabled by default (aside from
             // Omnify's own update channel, seeded active), left entirely to the user to opt into.
+            val omnifyPicksCollapsed = SECTION_KEY_OMNIFY_PICKS in collapsedSections
             item(key = "omnify-picks-header") {
-                SectionHeader(title = stringResource(R.string.repo_section_omnify_picks))
+                SectionHeader(
+                    title = stringResource(R.string.repo_section_omnify_picks),
+                    collapsed = omnifyPicksCollapsed,
+                    onToggle = { viewModel.toggleSectionCollapsed(SECTION_KEY_OMNIFY_PICKS) },
+                )
             }
             // The Omnify repo itself leads the section, with the Victor-root account (every other app
             // of its own author) right below it — both are curated, but the repo is the one people
             // actually want first (it's Omnify's own update channel).
-            items(curatedExternalApps, key = { "ext-${it.key}" }) { app ->
-                ExternalSourceItem(
-                    app = app,
-                    isInstalled = app.key in externalInstalledKeys,
-                    onOpen = { onSourceClick(app.key) },
-                    onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
-                    onEdit = null,
-                    onRemove = null,
-                    // Only Omnify's own source is branded with the app's own launcher icon; future picks
-                    // show their real repo/app icon like any other external source.
-                    brandWithAppIcon = app.key == ExternalApp.OMNIFY_REPO_KEY,
-                )
-            }
-            items(curatedAccounts, key = { "acc-${it.key}" }) { account ->
-                ExternalAccountItem(
-                    account = account,
-                    appCount = accountAppCounts[account.key] ?: 0,
-                    onOpen = { onAccountClick(account.key) },
-                    onToggle = { externalViewModel.setAccountEnabled(account, !account.enabled) },
-                    onRescan = { externalViewModel.rescanAccount(account) },
-                    onRemove = { externalViewModel.removeAccount(account) },
-                )
+            if (!omnifyPicksCollapsed) {
+                items(curatedExternalApps, key = { "ext-${it.key}" }) { app ->
+                    ExternalSourceItem(
+                        app = app,
+                        isInstalled = app.key in externalInstalledKeys,
+                        onOpen = { onSourceClick(app.key) },
+                        onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
+                        onEdit = null,
+                        onRemove = null,
+                        // Only Omnify's own source is branded with the app's own launcher icon; future
+                        // picks show their real repo/app icon like any other external source.
+                        brandWithAppIcon = app.key == ExternalApp.OMNIFY_REPO_KEY,
+                    )
+                }
+                items(curatedAccounts, key = { "acc-${it.key}" }) { account ->
+                    ExternalAccountItem(
+                        account = account,
+                        appCount = accountAppCounts[account.key] ?: 0,
+                        onOpen = { onAccountClick(account.key) },
+                        onToggle = { externalViewModel.setAccountEnabled(account, !account.enabled) },
+                        onRescan = { externalViewModel.rescanAccount(account) },
+                        onRemove = { externalViewModel.removeAccount(account) },
+                    )
+                }
             }
         }
     }
@@ -531,15 +555,39 @@ internal fun AppLauncherIcon(modifier: Modifier = Modifier) {
     }
 }
 
+/** A tracked source section's title, with a chevron to collapse/expand it — sections start expanded;
+ *  [collapsed] is whatever the user last chose, remembered across app restarts (see
+ *  [RepoListViewModel.collapsedSections]). Lets someone with many sources jump straight to the section
+ *  they want by folding away the ones they don't, instead of always scrolling past all of them. */
 @Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp),
-    )
+private fun SectionHeader(title: String, collapsed: Boolean, onToggle: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .tvFocusFill(RoundedCornerShape(12.dp))
+            .clickable(onClick = onToggle)
+            .padding(start = 16.dp, end = 12.dp, top = 20.dp, bottom = 4.dp),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = if (collapsed) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+    }
 }
+
+/** Keys for [RepoListViewModel.collapsedSections] — fixed and language-independent (unlike the header
+ *  titles themselves), so a collapsed choice survives a device language change. */
+private const val SECTION_KEY_EXTERNAL = "external"
+private const val SECTION_KEY_FDROID = "fdroid"
+private const val SECTION_KEY_OMNIFY_PICKS = "omnify_picks"
 
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

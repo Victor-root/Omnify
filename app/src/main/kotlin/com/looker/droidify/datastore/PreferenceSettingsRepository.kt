@@ -172,6 +172,16 @@ class PreferenceSettingsRepository(
         }
     }
 
+    override suspend fun toggleRepoSectionCollapsed(sectionKey: String) {
+        dataStore.edit { preference ->
+            val currentSet = preference[COLLAPSED_REPO_SECTIONS] ?: emptySet()
+            val newSet = currentSet.updateAsMutable {
+                if (!add(sectionKey)) remove(sectionKey)
+            }
+            preference[COLLAPSED_REPO_SECTIONS] = newSet
+        }
+    }
+
     override suspend fun setRepoEnabled(repoId: Int, enabled: Boolean) {
         dataStore.edit { preference ->
             val currentSet = preference[ENABLED_REPO_IDS] ?: emptySet()
@@ -287,6 +297,7 @@ class PreferenceSettingsRepository(
         val autoTranslate = preferences[AUTO_TRANSLATE] ?: false
         val readmeJavaScriptEnabled = preferences[README_JAVASCRIPT_ENABLED] ?: false
         val splitViewEnabled = preferences[SPLIT_VIEW_ENABLED] ?: true
+        val collapsedRepoSections = preferences[COLLAPSED_REPO_SECTIONS] ?: emptySet()
 
         return Settings(
             language = language,
@@ -321,6 +332,7 @@ class PreferenceSettingsRepository(
             autoTranslate = autoTranslate,
             readmeJavaScriptEnabled = readmeJavaScriptEnabled,
             splitViewEnabled = splitViewEnabled,
+            collapsedRepoSections = collapsedRepoSections,
         )
     }
 
@@ -365,6 +377,7 @@ class PreferenceSettingsRepository(
         val AUTO_TRANSLATE = booleanPreferencesKey("key_auto_translate")
         val README_JAVASCRIPT_ENABLED = booleanPreferencesKey("key_readme_javascript_enabled")
         val SPLIT_VIEW_ENABLED = booleanPreferencesKey("key_split_view_enabled")
+        val COLLAPSED_REPO_SECTIONS = stringSetPreferencesKey("key_collapsed_repo_sections")
 
         // Enums
         val THEME = stringPreferencesKey("key_theme")
@@ -430,6 +443,7 @@ class PreferenceSettingsRepository(
             set(AUTO_TRANSLATE, settings.autoTranslate)
             set(README_JAVASCRIPT_ENABLED, settings.readmeJavaScriptEnabled)
             set(SPLIT_VIEW_ENABLED, settings.splitViewEnabled)
+            set(COLLAPSED_REPO_SECTIONS, settings.collapsedRepoSections)
             return this.toPreferences()
         }
     }
