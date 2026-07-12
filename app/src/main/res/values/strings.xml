@@ -256,7 +256,9 @@
     <string name="proxy_type">Proxy type</string>
     <string name="recently_updated">Recently updated</string>
     <string name="repositories">Repositories</string>
+    <string name="repo_section_external">External repositories</string>
     <string name="repo_section_fdroid">F-Droid repositories</string>
+    <string name="repo_section_omnify_picks">Omnify\'s picks</string>
     <string name="repo_tab_info">Info</string>
     <string name="repo_tab_apps">Apps</string>
     <string name="repo_enabled_title">Enabled</string>

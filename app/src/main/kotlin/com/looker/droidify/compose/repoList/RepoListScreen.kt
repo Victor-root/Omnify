@@ -149,6 +149,20 @@ fun RepoListScreen(
     val sortedExternalApps = remember(externalApps) {
         externalApps.filter { it.accountKey == null }.sortedBy { it.label.trim().lowercase() }
     }
+    // Omnify's own suggestions (see ExternalApp.curated/ExternalAccount.curated) get their own
+    // "Omnify's picks" section further down, separate from whatever the user added themselves.
+    val regularAccounts = remember(sortedAccounts) {
+        sortedAccounts.filter { !it.curated }
+    }
+    val curatedAccounts = remember(sortedAccounts) {
+        sortedAccounts.filter { it.curated }
+    }
+    val regularExternalApps = remember(sortedExternalApps) {
+        sortedExternalApps.filter { !it.curated }
+    }
+    val curatedExternalApps = remember(sortedExternalApps) {
+        sortedExternalApps.filter { it.curated }
+    }
     val sortedRepos = remember(repos) {
         repos.sortedBy { it.name.trim().lowercase() }
     }
@@ -213,9 +227,9 @@ fun RepoListScreen(
                 }
             }
             item(key = "external-header") {
-                SectionHeader(title = stringResource(R.string.tab_external))
+                SectionHeader(title = stringResource(R.string.repo_section_external))
             }
-            if (sortedAccounts.isEmpty() && sortedExternalApps.isEmpty()) {
+            if (regularAccounts.isEmpty() && regularExternalApps.isEmpty()) {
                 item(key = "external-empty") {
                     Text(
                         text = stringResource(R.string.external_empty_hint),
@@ -225,23 +239,7 @@ fun RepoListScreen(
                     )
                 }
             }
-            // The built-in Omnify repo is pinned at the very top and can only be enabled/disabled (no
-            // edit/remove, since it's the app's own update channel).
-            val omnifyApp = sortedExternalApps.firstOrNull { it.key == ExternalApp.OMNIFY_REPO_KEY }
-            if (omnifyApp != null) {
-                item(key = "ext-${omnifyApp.key}") {
-                    ExternalSourceItem(
-                        app = omnifyApp,
-                        isInstalled = omnifyApp.key in externalInstalledKeys,
-                        onOpen = { onSourceClick(omnifyApp.key) },
-                        onToggle = { externalViewModel.setSourceEnabled(omnifyApp, !omnifyApp.enabled) },
-                        onEdit = null,
-                        onRemove = null,
-                        brandWithAppIcon = true,
-                    )
-                }
-            }
-            items(sortedAccounts, key = { "acc-${it.key}" }) { account ->
+            items(regularAccounts, key = { "acc-${it.key}" }) { account ->
                 ExternalAccountItem(
                     account = account,
                     appCount = accountAppCounts[account.key] ?: 0,
@@ -251,10 +249,7 @@ fun RepoListScreen(
                     onRemove = { externalViewModel.removeAccount(account) },
                 )
             }
-            items(
-                sortedExternalApps.filter { it.key != ExternalApp.OMNIFY_REPO_KEY },
-                key = { "ext-${it.key}" },
-            ) { app ->
+            items(regularExternalApps, key = { "ext-${it.key}" }) { app ->
                 ExternalSourceItem(
                     app = app,
                     isInstalled = app.key in externalInstalledKeys,
@@ -274,6 +269,39 @@ fun RepoListScreen(
                     onToggle = { viewModel.toggleRepo(repo) },
                     repo = repo,
                     isSyncing = repo.id in syncingRepoIds,
+                )
+            }
+
+            // A hand-picked, growing set of sources Omnify itself suggests (starting with its own repo),
+            // separate from anything the user added themselves — disabled by default (aside from
+            // Omnify's own update channel, seeded active), left entirely to the user to opt into.
+            item(key = "omnify-picks-header") {
+                SectionHeader(title = stringResource(R.string.repo_section_omnify_picks))
+            }
+            // The Omnify repo itself leads the section, with the Victor-root account (every other app
+            // of its own author) right below it — both are curated, but the repo is the one people
+            // actually want first (it's Omnify's own update channel).
+            items(curatedExternalApps, key = { "ext-${it.key}" }) { app ->
+                ExternalSourceItem(
+                    app = app,
+                    isInstalled = app.key in externalInstalledKeys,
+                    onOpen = { onSourceClick(app.key) },
+                    onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
+                    onEdit = null,
+                    onRemove = null,
+                    // Only Omnify's own source is branded with the app's own launcher icon; future picks
+                    // show their real repo/app icon like any other external source.
+                    brandWithAppIcon = app.key == ExternalApp.OMNIFY_REPO_KEY,
+                )
+            }
+            items(curatedAccounts, key = { "acc-${it.key}" }) { account ->
+                ExternalAccountItem(
+                    account = account,
+                    appCount = accountAppCounts[account.key] ?: 0,
+                    onOpen = { onAccountClick(account.key) },
+                    onToggle = { externalViewModel.setAccountEnabled(account, !account.enabled) },
+                    onRescan = { externalViewModel.rescanAccount(account) },
+                    onRemove = { externalViewModel.removeAccount(account) },
                 )
             }
         }

@@ -30,6 +30,10 @@ data class ExternalAccount(
     /** Epoch millis of the last repo-list scan (0 = never), driving the once-a-day auto rescan that
      *  picks up newly published apps. */
     val lastScan: Long = 0,
+    /** True for an account Omnify itself ships pre-seeded as a suggestion (see MainComposeActivity),
+     *  shown in the "Omnify's picks" section on the repositories screen instead of the regular sources
+     *  list — mirrors [com.looker.droidify.external.ExternalApp.curated]. */
+    val curated: Boolean = false,
 ) {
     val effectiveHost: String
         get() = host.ifEmpty {
