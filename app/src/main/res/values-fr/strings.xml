@@ -102,7 +102,9 @@
     <string name="saving_details">Enregistrement des détails…</string>
     <string name="recently_updated">Récemment mis à jour</string>
     <string name="repositories">Dépôts</string>
+    <string name="repo_section_external">Dépôts externes</string>
     <string name="repo_section_fdroid">Dépôts F-Droid</string>
+    <string name="repo_section_omnify_picks">Choix d\'Omnify</string>
     <string name="repo_tab_info">Infos</string>
     <string name="repo_tab_apps">Applications</string>
     <string name="repo_enabled_title">Activé</string>

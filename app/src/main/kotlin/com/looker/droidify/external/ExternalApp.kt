@@ -80,6 +80,11 @@ data class ExternalApp(
      *  or null for a manually added single-repo source. Apps with an account are managed as one row in
      *  the sources list (the account) instead of individually, and follow the account's enabled state. */
     val accountKey: String? = null,
+    /** True for a source Omnify itself ships pre-seeded as a suggestion (see MainComposeActivity),
+     *  shown in its own "Omnify's picks" section on the repositories screen instead of the regular
+     *  sources list — a hand-picked, growing set of apps worth discovering, distinct from a source the
+     *  user added themselves. */
+    val curated: Boolean = false,
 ) {
     /** The host actually called: [host] when set, otherwise the provider's public default. */
     val effectiveHost: String

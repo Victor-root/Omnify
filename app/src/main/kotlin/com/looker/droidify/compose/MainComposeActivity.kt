@@ -115,6 +115,7 @@ class MainComposeActivity : ComponentActivity() {
         private const val OMNIFY_SOURCE_OWNER = "Victor-root"
         private const val OMNIFY_SOURCE_REPO = "Omnify"
         private const val KEY_OMNIFY_SEED = "omnify_seed_v6"
+        private const val KEY_OMNIFY_CURATED_MIGRATED = "omnify_curated_migrated_v1"
     }
 
     /** Omnify's own repo (github.com/Victor-root/Omnify) as the built-in update channel, active by
@@ -130,6 +131,7 @@ class MainComposeActivity : ComponentActivity() {
         packageName = BuildConfig.APPLICATION_ID,
         installedTag = BuildConfig.VERSION_NAME,
         enabled = true,
+        curated = true,
     )
 
     /** The developer's whole GitHub account as a second, opt-in source: disabled by default (the user
@@ -143,6 +145,7 @@ class MainComposeActivity : ComponentActivity() {
         description = getString(R.string.external_account_omnify_description),
         enabled = false,
         includeForks = true,
+        curated = true,
     )
 
     private val firstRunPrefs by lazy { getSharedPreferences(FIRST_RUN_PREFS, Context.MODE_PRIVATE) }
@@ -309,6 +312,22 @@ class MainComposeActivity : ComponentActivity() {
                 externalAppRepository.upsertApp(omnifyUpdateSource())
                 externalAppRepository.upsertAccount(victorAccount())
                 firstRunPrefs.edit().putBoolean(KEY_OMNIFY_SEED, true).apply()
+            }
+
+            // One-time: backfill curated = true onto the already-seeded Omnify source and account, for
+            // an install that seeded them before the "Omnify's picks" section existed — the
+            // KEY_OMNIFY_SEED guard above only re-runs the full seed once, so an existing entry would
+            // otherwise keep the old default (curated = false) forever. Only touches that one field, so
+            // any other customization (e.g. the user disabling it) survives untouched, unlike re-running
+            // the full seed above.
+            if (!firstRunPrefs.getBoolean(KEY_OMNIFY_CURATED_MIGRATED, false)) {
+                externalAppRepository.getApps()
+                    .firstOrNull { it.key == ExternalApp.OMNIFY_REPO_KEY && !it.curated }
+                    ?.let { externalAppRepository.upsertApp(it.copy(curated = true)) }
+                externalAppRepository.getAccounts()
+                    .firstOrNull { it.key == ExternalAccount.OMNIFY_KEY && !it.curated }
+                    ?.let { externalAppRepository.upsertAccount(it.copy(curated = true)) }
+                firstRunPrefs.edit().putBoolean(KEY_OMNIFY_CURATED_MIGRATED, true).apply()
             }
 
             // Self-heal an empty catalog. A schema migration recreates the database: the repo rows
