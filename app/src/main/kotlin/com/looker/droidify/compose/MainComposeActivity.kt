@@ -116,6 +116,7 @@ class MainComposeActivity : ComponentActivity() {
         private const val OMNIFY_SOURCE_REPO = "Omnify"
         private const val KEY_OMNIFY_SEED = "omnify_seed_v6"
         private const val KEY_OMNIFY_CURATED_MIGRATED = "omnify_curated_migrated_v1"
+        private const val KEY_TV_PACK_SEEDED_V1 = "tv_pack_seeded_v1"
     }
 
     /** Omnify's own repo (github.com/Victor-root/Omnify) as the built-in update channel, active by
@@ -146,6 +147,84 @@ class MainComposeActivity : ComponentActivity() {
         enabled = false,
         includeForks = true,
         curated = true,
+    )
+
+    /**
+     * A hand-picked set of FOSS Android TV apps, seeded once as disabled "Omnify's picks" entries (see
+     * [KEY_TV_PACK_SEEDED_V1]). F-Droid's catalogue turned out to have almost nothing genuinely tagged
+     * for TV (the `android.software.leanback` manifest feature is nearly unused catalogue-wide — checked
+     * against the live index: 3 packages total across the main, archive and IzzyOnDroid repos combined),
+     * so this pack exists to give couch/remote users real, actively-maintained, ad-free options beyond
+     * that. Each was checked individually for license, whether it actually ships an installable APK on
+     * its own GitHub/GitLab releases (required for Omnify's external tracking to work), and recent
+     * activity — apps with unclear FOSS status, no direct release APK, or a history of shipping malware
+     * were deliberately left out even when otherwise popular.
+     */
+    private fun curatedTvPack(): List<ExternalApp> = listOf(
+        ExternalApp(
+            provider = SourceProvider.GITHUB,
+            owner = "theothernt",
+            repo = "AerialViews",
+            label = "Aerial Views",
+            enabled = false,
+            curated = true,
+        ),
+        ExternalApp(
+            provider = SourceProvider.GITHUB,
+            owner = "mlm-games",
+            repo = "Fluffy",
+            label = "Fluffy",
+            enabled = false,
+            curated = true,
+        ),
+        ExternalApp(
+            provider = SourceProvider.GITLAB,
+            owner = "flauncher",
+            repo = "flauncher",
+            label = "FLauncher",
+            enabled = false,
+            curated = true,
+        ),
+        ExternalApp(
+            provider = SourceProvider.GITLAB,
+            owner = "Atharok",
+            repo = "BtRemote",
+            label = "BtRemote",
+            enabled = false,
+            curated = true,
+        ),
+        ExternalApp(
+            provider = SourceProvider.GITHUB,
+            owner = "GhostenEditor",
+            repo = "Ghosten-Player",
+            label = "Ghosten Player",
+            enabled = false,
+            curated = true,
+        ),
+        ExternalApp(
+            provider = SourceProvider.GITHUB,
+            owner = "Laskco",
+            repo = "mpvNova",
+            label = "mpv Nova",
+            enabled = false,
+            curated = true,
+        ),
+        ExternalApp(
+            provider = SourceProvider.GITHUB,
+            owner = "fgl27",
+            repo = "smarttwitchtv",
+            label = "Smart Twitch TV",
+            enabled = false,
+            curated = true,
+        ),
+        ExternalApp(
+            provider = SourceProvider.GITHUB,
+            owner = "futo-org",
+            repo = "fcast",
+            label = "FCast Receiver",
+            enabled = false,
+            curated = true,
+        ),
     )
 
     private val firstRunPrefs by lazy { getSharedPreferences(FIRST_RUN_PREFS, Context.MODE_PRIVATE) }
@@ -328,6 +407,17 @@ class MainComposeActivity : ComponentActivity() {
                     .firstOrNull { it.key == ExternalAccount.OMNIFY_KEY && !it.curated }
                     ?.let { externalAppRepository.upsertAccount(it.copy(curated = true)) }
                 firstRunPrefs.edit().putBoolean(KEY_OMNIFY_CURATED_MIGRATED, true).apply()
+            }
+
+            // One-time: seed the curated Android TV app pack (see curatedTvPack's doc comment), disabled
+            // by default like every other curated entry. addApp (not upsertApp): skips silently if a key
+            // already exists — e.g. the user had already added one of these repos themselves before this
+            // ran — so it can never clobber an existing customisation. A future addition to the pack needs
+            // its own new flag (mirroring KEY_OMNIFY_CURATED_MIGRATED above), since this one only ever
+            // fires once per install.
+            if (!firstRunPrefs.getBoolean(KEY_TV_PACK_SEEDED_V1, false)) {
+                curatedTvPack().forEach { externalAppRepository.addApp(it) }
+                firstRunPrefs.edit().putBoolean(KEY_TV_PACK_SEEDED_V1, true).apply()
             }
 
             // Self-heal an empty catalog. A schema migration recreates the database: the repo rows

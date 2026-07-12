@@ -51,6 +51,13 @@ interface AppDao {
         // Each entry keeps only apps that declare it as a manifest <uses-permission> on some version
         // (e.g. "moe.shizuku.manager.permission.API_V23" for apps that integrate with Shizuku).
         permissionsToInclude: List<String>? = null,
+        // When both featuresToInclude and categoriesToInclude are given, combine them with OR instead of
+        // the default AND — "declares this manifest feature, OR is tagged with one of these categories".
+        // Used by the "Made for TV" carousel: very few F-Droid apps actually declare the Android TV
+        // leanback feature (confirmed against the live index: 3 packages catalogue-wide), so pairing it
+        // with genuinely TV-relevant categories (media players, emulators, remote controllers, …) surfaces
+        // real, already-catalogued apps like VLC or Kodi that the manifest flag alone misses entirely.
+        featuresOrCategories: Boolean = false,
         // Keep only apps updated at least once since they were added (lastUpdated > added). Used by the
         // "Recently updated" carousel so it isn't a copy of the "New apps" one.
         updatedOnly: Boolean = false,
@@ -66,6 +73,7 @@ interface AppDao {
             antiFeaturesToExclude = antiFeaturesToExclude,
             featuresToInclude = featuresToInclude,
             permissionsToInclude = permissionsToInclude,
+            featuresOrCategories = featuresOrCategories,
             updatedOnly = updatedOnly,
             locale = locale,
         ),
@@ -259,6 +267,7 @@ interface AppDao {
         antiFeaturesToExclude: List<Tag>?,
         featuresToInclude: List<String>?,
         permissionsToInclude: List<String>?,
+        featuresOrCategories: Boolean = false,
         updatedOnly: Boolean,
         locale: String,
     ): SimpleSQLiteQuery {
@@ -334,7 +343,27 @@ interface AppDao {
                 append(" AND app.lastUpdated > app.added")
             }
 
-            if (categoriesToInclude != null) {
+            // Combines the featuresToInclude and categoriesToInclude clauses below into one OR'd group
+            // instead of each being its own separate AND — see featuresOrCategories' doc comment.
+            val combineFeaturesAndCategoriesWithOr =
+                featuresOrCategories && featuresToInclude != null && categoriesToInclude != null
+
+            if (combineFeaturesAndCategoriesWithOr) {
+                append(" AND (")
+                append(
+                    featuresToInclude!!.joinToString(" AND ") {
+                        "EXISTS (SELECT 1 FROM version WHERE version.appId = app.id AND version.features LIKE ?)"
+                    },
+                )
+                args.addAll(featuresToInclude.map { "%\"$it\"%" })
+                append(" OR category_app_relation.defaultName IN (")
+                append(categoriesToInclude!!.joinToString(", ") { "?" })
+                append(")")
+                args.addAll(categoriesToInclude)
+                append(")")
+            }
+
+            if (categoriesToInclude != null && !combineFeaturesAndCategoriesWithOr) {
                 append(" AND category_app_relation.defaultName IN (")
                 append(categoriesToInclude.joinToString(", ") { "?" })
                 append(")")
@@ -366,12 +395,14 @@ interface AppDao {
             // versions. `features` is a JSON list (e.g. ["android.software.leanback"]); matching the
             // quoted name avoids a prefix matching a longer feature. EXISTS (rather than a JOIN) keeps
             // one row per app and doesn't disturb the GROUP BY below.
-            featuresToInclude?.forEach { feature ->
-                append(
-                    " AND EXISTS (SELECT 1 FROM version WHERE version.appId = app.id" +
-                        " AND version.features LIKE ?)",
-                )
-                args.add("%\"$feature\"%")
+            if (!combineFeaturesAndCategoriesWithOr) {
+                featuresToInclude?.forEach { feature ->
+                    append(
+                        " AND EXISTS (SELECT 1 FROM version WHERE version.appId = app.id" +
+                            " AND version.features LIKE ?)",
+                    )
+                    args.add("%\"$feature\"%")
+                }
             }
 
             // Same idea for required <uses-permission> declarations. Permissions are stored as a JSON

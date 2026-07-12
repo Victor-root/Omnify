@@ -46,6 +46,9 @@ class AppRepository @Inject constructor(
         antiFeaturesToExclude: List<Tag>? = null,
         featuresToInclude: List<String>? = null,
         permissionsToInclude: List<String>? = null,
+        // See AppDao.query's doc comment: OR instead of AND between featuresToInclude and
+        // categoriesToInclude when both are given.
+        featuresOrCategories: Boolean = false,
         updatedOnly: Boolean = false,
     ): List<AppMinimal> = withContext(Dispatchers.Default) {
         val currentLocale = localeStream.first()
@@ -59,6 +62,7 @@ class AppRepository @Inject constructor(
             antiFeaturesToExclude = antiFeaturesToExclude?.ifEmpty { null },
             featuresToInclude = featuresToInclude?.ifEmpty { null },
             permissionsToInclude = permissionsToInclude?.ifEmpty { null },
+            featuresOrCategories = featuresOrCategories,
             updatedOnly = updatedOnly,
             locale = currentLocale,
         )

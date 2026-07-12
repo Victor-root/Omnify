@@ -163,8 +163,12 @@ fun RepoListScreen(
     val regularExternalApps = remember(sortedExternalApps) {
         sortedExternalApps.filter { !it.curated }
     }
+    // Omnify's own repo is pinned first (its brand icon anchors the section), everything else
+    // alphabetical — now that the curated pack has grown past a single entry (see MainComposeActivity's
+    // curatedTvPack), plain alphabetical sorting would otherwise scatter Omnify's own entry among the rest.
     val curatedExternalApps = remember(sortedExternalApps) {
         sortedExternalApps.filter { it.curated }
+            .sortedBy { if (it.key == ExternalApp.OMNIFY_REPO_KEY) "" else it.label.trim().lowercase() }
     }
     val sortedRepos = remember(repos) {
         repos.sortedBy { it.name.trim().lowercase() }
