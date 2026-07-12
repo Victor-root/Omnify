@@ -268,22 +268,30 @@ fun AppDetailScreen(
 
     // TV / D-pad: this requester points at the main action button (Install / Update / Launch). The
     // TopAppBar doesn't release focus downward on its own, so "down" on the back arrow would otherwise
-    // leave the user stuck in the header; it now drops onto that button. No effect with touch.
+    // leave the user stuck in the header; it now drops onto that button. No effect with touch. Also the
+    // startup focus target: the earlier "opens already scrolled" bug that made focusing this directly
+    // risky (its own relocation could overshoot while the page's layout was still settling) is now fixed
+    // properly at the scroll level (see the BringIntoViewSpec below), so it no longer needs the
+    // always-visible favourite heart as a workaround.
     val primaryActionFocusRequester = remember { FocusRequester() }
-    // Startup focus lands on the favourite heart instead: it sits at the very top of the hero card,
-    // already fully visible at scroll position 0, so requesting focus there can never trigger Compose's
-    // own scroll-into-view — unlike the primary action button further down, whose relocation could
-    // overshoot while the page's layout was still settling and leave the card clipped under the top bar.
-    val favoriteFocusRequester = remember { FocusRequester() }
     val isTelevision = LocalIsTelevision.current
-    // TV: open the detail with focus already on the heart instead of the back arrow, retrying briefly
-    // until it's laid out. Keyed on the loaded app so it runs once per app. No-op on touch.
+    // TV: whether the user has pressed any key on this screen yet. Once true, focus is entirely theirs —
+    // nothing below may redirect it again. Set from the screen-root key handler (see the Scaffold
+    // modifier below), which sees every key press regardless of what currently has focus.
+    var userInteracted by remember { mutableStateOf(false) }
+    // TV: open the detail with focus already on the primary action button instead of the back arrow,
+    // retrying briefly until it's laid out. Keyed on the loaded app AND on installedInfo: the app's
+    // metadata (successState) and its real installed state (installedInfo) resolve from two independent
+    // flows, the latter via a package-manager read on a background dispatcher — it can genuinely land
+    // after the metadata does, which flips PrimaryActions from Install to Launch and recomposes a brand
+    // new button node the first retry burst never saw. Re-running the burst whenever installedInfo
+    // changes catches that. No-op on touch.
     val successPackageName = successState?.app?.metadata?.packageName?.name
     if (isTelevision) {
-        LaunchedEffect(successPackageName) {
+        LaunchedEffect(successPackageName, installedInfo) {
             if (successPackageName != null) {
                 repeat(20) {
-                    if (runCatching { favoriteFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                    if (runCatching { primaryActionFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
                     delay(50)
                 }
             }
@@ -291,17 +299,55 @@ fun AppDetailScreen(
     }
 
     Scaffold(
+        // TV only: the remote's alternate "menu" key (e.g. the Nvidia Shield's, which opens Android TV's
+        // own quick settings from the home screen) opens this app's Android "App info" management page —
+        // the same target as the gear on the hero card — when the app is installed. Attached at the
+        // screen root (not just the top bar) so it fires no matter which element currently has focus; see
+        // the equivalent choice on AppListScreen's Scaffold for why (topBar/content are siblings, not
+        // ancestor/descendant).
+        modifier = if (isTelevision) {
+            Modifier.onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) {
+                    // Marks startup focus as "settled" — see userInteracted and the TopAppBar's own
+                    // onFocusChanged below, which stop correcting focus the moment this is true.
+                    userInteracted = true
+                }
+                if (installedInfo != null && successPackageName != null &&
+                    event.type == KeyEventType.KeyDown && event.key == Key.Menu
+                ) {
+                    context.openAppInfo(successPackageName)
+                    true
+                } else {
+                    false
+                }
+            }
+        } else {
+            Modifier
+        },
         topBar = {
             TopAppBar(
                 colors = accentTopAppBarColors(),
                 expandedHeight = AccentBarHeight,
-                modifier = Modifier.onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
-                        runCatching { favoriteFocusRequester.requestFocus() }.isSuccess
-                    } else {
-                        false
+                modifier = Modifier
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                            runCatching { primaryActionFocusRequester.requestFocus() }.isSuccess
+                        } else {
+                            false
+                        }
                     }
-                },
+                    // TV: self-healing net for startup focus. Whenever focus ends up here before the user
+                    // has pressed anything (a lost retry race, a recomposition tearing down the button
+                    // node that held it, whatever the exact cause — this was seen intermittently and
+                    // never pinned to one single trigger), bounce it back to the primary action button
+                    // instead of leaving the remote user stuck on the back arrow. Stops the instant a real
+                    // key press happens (userInteracted), so it can never fight deliberate navigation back
+                    // up into the header later in the visit.
+                    .onFocusChanged { focusState ->
+                        if (isTelevision && !userInteracted && focusState.hasFocus) {
+                            runCatching { primaryActionFocusRequester.requestFocus() }
+                        }
+                    },
                 title = {
                     when (state) {
                         AppDetailState.Loading -> Text(stringResource(R.string.application))
@@ -412,7 +458,6 @@ fun AppDetailScreen(
                     descriptionTranslation = descriptionTranslation,
                     supportedLanguages = supportedLanguages,
                     primaryActionFocusRequester = primaryActionFocusRequester,
-                    favoriteFocusRequester = favoriteFocusRequester,
                     scrollState = scrollState,
                     useSplitView = useSplitView,
                     modifier = Modifier.padding(padding),
@@ -574,7 +619,6 @@ private fun AppDetail(
     descriptionTranslation: DescriptionTranslation,
     supportedLanguages: SupportedLanguages,
     primaryActionFocusRequester: FocusRequester,
-    favoriteFocusRequester: FocusRequester,
     scrollState: ScrollState,
     useSplitView: Boolean,
     modifier: Modifier = Modifier,
@@ -632,10 +676,17 @@ private fun AppDetail(
     val installableRepo = installable?.second
     val updateAvailable = installedPackage != null && installablePackage != null &&
         installedPackage.manifest.versionCode < installablePackage.manifest.versionCode
+    val isTelevision = LocalIsTelevision.current
     val coroutineScope = rememberCoroutineScope()
     // Where the versions section actually lands once composed (in the scrolling Column's own
     // coordinate space), so the hero card's "see all versions" link can jump straight to it.
     var versionsAnchorY by remember { mutableStateOf(0) }
+    // TV: "see all versions" only scrolls the page, it never moves focus — so the D-pad selection stays
+    // on the (now off-screen) link, and pressing "up" immediately snaps the scroll straight back there
+    // instead of stepping up through the version list one row at a time. Landing focus on the LAST
+    // visible version row after the jump fixes that: from there "up" walks back through the list
+    // normally, exactly as if the user had scrolled there themselves.
+    val lastVersionFocusRequester = remember { FocusRequester() }
     // Split view only: the left pane (hero card + links + versions) scrolls on its own, separately from
     // the right pane, so a long version list there doesn't overflow the pane uncontrolled. Its own
     // "see all versions" anchor, parallel to versionsAnchorY above.
@@ -664,7 +715,6 @@ private fun AppDetail(
             onUninstall = onUninstall,
             onCancel = onCancel,
             primaryActionFocusRequester = primaryActionFocusRequester,
-            favoriteFocusRequester = favoriteFocusRequester,
             onViewVersionsClick = if (packages.isNotEmpty()) {
                 {
                     coroutineScope.launch {
@@ -672,6 +722,14 @@ private fun AppDetail(
                             leftPaneScrollState.animateScrollTo(leftPaneVersionsAnchorY)
                         } else {
                             scrollState.animateScrollTo(versionsAnchorY)
+                            if (isTelevision) {
+                                repeat(20) {
+                                    if (runCatching { lastVersionFocusRequester.requestFocus() }.isSuccess) {
+                                        return@launch
+                                    }
+                                    delay(50)
+                                }
+                            }
                         }
                     }
                 }
@@ -771,7 +829,6 @@ private fun AppDetail(
         // focus is still inside the card, and defers to the real (default) one everywhere else, so
         // scrolling the description/README into view still works normally once focus reaches it.
         var heroCardHasFocus by remember { mutableStateOf(true) }
-        val isTelevision = LocalIsTelevision.current
         val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
         val bringIntoViewSpec = remember(isTelevision, defaultBringIntoViewSpec) {
             if (!isTelevision) {
@@ -836,6 +893,7 @@ private fun AppDetail(
                     installing = installing,
                     downloadTargetVersionCode = downloadTargetVersionCode,
                     onCancel = onCancel,
+                    lastVersionFocusRequester = lastVersionFocusRequester,
                 )
             }
         }
@@ -876,6 +934,10 @@ private fun AppDetailBody(
     installing: Boolean,
     downloadTargetVersionCode: Long?,
     onCancel: () -> Unit,
+    // TV only: focus target for the hero card's "see all versions" link, attached to the last visible
+    // version row (see VersionsSection). Null in split view, where the versions list lives in the left
+    // pane's own direct VersionsSection call instead of through this body.
+    lastVersionFocusRequester: FocusRequester? = null,
 ) {
     // Summary + description come first, right after the hero card, before anything else.
     Spacer(modifier = Modifier.height(8.dp))
@@ -1032,6 +1094,7 @@ private fun AppDetailBody(
             installing = installing,
             downloadTargetVersionCode = downloadTargetVersionCode,
             onCancel = onCancel,
+            lastVersionFocusRequester = lastVersionFocusRequester,
         )
     }
 }
@@ -1053,6 +1116,7 @@ private fun VersionsSection(
     installing: Boolean,
     downloadTargetVersionCode: Long?,
     onCancel: () -> Unit,
+    lastVersionFocusRequester: FocusRequester? = null,
 ) {
     Column(modifier = Modifier.onGloballyPositioned { onAnchorPositioned(it.positionInParent().y.toInt()) }) {
         SectionTitle(stringResource(R.string.versions))
@@ -1110,6 +1174,9 @@ private fun VersionsSection(
         // whole page an endless scroll. Collapses back on switching repo tabs, since that's a new list.
         var versionsExpanded by remember(selectedRepoId) { mutableStateOf(false) }
         val visibleCount = if (versionsExpanded) MAX_VERSIONS_SHOWN else VERSIONS_COLLAPSED_COUNT
+        // Where "see all versions" (see the hero card link) lands focus, so D-pad "up" from there walks
+        // back up through the list normally instead of jumping straight back to that now off-screen link.
+        val lastVisibleIndex = minOf(visibleCount, shownPackages.size) - 1
         shownPackages.take(visibleCount).forEachIndexed { index, (pkg, repo) ->
             val isSuggested = suggestedVersion != null && pkg.manifest.versionCode == suggestedVersion
             val isThisRowDownloading = downloadTargetVersionCode == pkg.manifest.versionCode &&
@@ -1119,11 +1186,15 @@ private fun VersionsSection(
                 repo = repo,
                 onClick = { onVersionClick(pkg, repo) },
                 onLongClick = {},
-                modifier = if (index == 0) {
-                    Modifier.focusRequester(firstVersionFocusRequester)
-                } else {
-                    Modifier
-                },
+                modifier = Modifier
+                    .then(if (index == 0) Modifier.focusRequester(firstVersionFocusRequester) else Modifier)
+                    .then(
+                        if (index == lastVisibleIndex && lastVersionFocusRequester != null) {
+                            Modifier.focusRequester(lastVersionFocusRequester)
+                        } else {
+                            Modifier
+                        },
+                    ),
                 backgroundColor = if (isSuggested) {
                     MaterialTheme.colorScheme.surfaceContainerHigh
                 } else {
@@ -1199,7 +1270,6 @@ private fun AppHeaderCard(
     onUninstall: () -> Unit,
     onCancel: () -> Unit,
     primaryActionFocusRequester: FocusRequester,
-    favoriteFocusRequester: FocusRequester,
     onViewVersionsClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
@@ -1255,7 +1325,6 @@ private fun AppHeaderCard(
         subtitle = author?.let { stringResource(R.string.by_author_FORMAT, it) },
         isFavorite = isFavorite,
         onToggleFavorite = onToggleFavorite,
-        favoriteFocusRequester = favoriteFocusRequester,
         onManageClick = if (isInstalled) {
             { heroContext.openAppInfo(packageName) }
         } else {
