@@ -345,6 +345,12 @@ fun AppListScreen(
     // On TV the header must never scroll away (the tabs would become unreachable with a remote), so the
     // collapse-on-scroll is only wired up off TV. Other edge-to-edge behaviour is left untouched.
     val collapsibleHeader = edgeToEdge && !isTelevision
+    // Android TV: some remotes (e.g. the Nvidia Shield's) have a distinct "menu" key, the same one the
+    // system launcher uses to open quick settings from the home screen — mirrored here on Omnify's own
+    // main screen to open its own overflow menu (Favourites/Repositories/Settings), regardless of which
+    // tile currently has focus. Hoisted up from AppListMainTopBar so the key handler (attached to the
+    // whole screen, not just the top bar) can reach it.
+    var overflowExpanded by remember { mutableStateOf(false) }
 
     // First launch: show a full-screen "fetching" state (like F-Droid) instead of an empty grid.
     // `newApps` is empty exactly when the catalogue has no apps, so it doubles as the "nothing loaded
@@ -391,8 +397,10 @@ fun AppListScreen(
     // Returning from a detail screen recreates this whole screen, so focus would otherwise snap back to
     // the tabs. We remember the tile the user last opened (the id survives navigation via rememberSaveable)
     // and attach [restoreRequester] to whichever visible grid tile matches, so the remote lands back where
-    // it was. Tiles in the Discover carousels can't be re-targeted (a nested, unsaved horizontal list), so
-    // those fall back to the top of the content grid below.
+    // it was — including a Discover carousel tile (see [DiscoverCarousel]'s own restoreFocusId param),
+    // since those are just as reachable a starting point as the flat grid. Anything not currently visible
+    // at all (e.g. the tile scrolled off-screen, or a section was just entered/left) falls back to the
+    // top of the content grid, then the tabs.
     var restoreFocusId by rememberSaveable { mutableStateOf<String?>(null) }
     val restoreRequester = remember { FocusRequester() }
     val openApp: (String) -> Unit = { packageName ->
@@ -433,11 +441,32 @@ fun AppListScreen(
 
     Scaffold(
         // Edge-to-edge: let the header collapse as the grid scrolls. Pinned otherwise (and on TV).
-        modifier = if (collapsibleHeader) {
-            Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
-        } else {
-            Modifier
-        },
+        modifier = (
+            if (collapsibleHeader) {
+                Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
+            } else {
+                Modifier
+            }
+            ).then(
+            if (isTelevision) {
+                // Attached at the screen root (not just the top bar) so it fires no matter which tile
+                // currently has focus — the top bar and the content grid are siblings under Scaffold,
+                // not ancestor/descendant, so a handler placed only on the former would never see a key
+                // event routed to the latter.
+                Modifier.onPreviewKeyEvent { event ->
+                    if (!sectionView && !searchExpanded &&
+                        event.type == KeyEventType.KeyDown && event.key == Key.Menu
+                    ) {
+                        overflowExpanded = true
+                        true
+                    } else {
+                        false
+                    }
+                }
+            } else {
+                Modifier
+            },
+        ),
         snackbarHost = { SnackbarHost(externalViewModel.snackbarHostState) },
         floatingActionButton = { ScrollToTopFab(gridState) },
         topBar = {
@@ -456,6 +485,8 @@ fun AppListScreen(
                     AppListTopBar(
                         onSync = viewModel::sync,
                         contentFocusRequester = contentFocusRequester,
+                        overflowExpanded = overflowExpanded,
+                        onOverflowExpandedChange = { overflowExpanded = it },
                         searchExpanded = searchExpanded,
                         onToggleSearch = {
                             searchExpanded = !searchExpanded
@@ -631,6 +662,8 @@ fun AppListScreen(
                             externalApps = tvExternalApps,
                             externalInstalledKeys = externalInstalledKeys,
                             onExternalAppClick = openExternalApp,
+                            restoreFocusId = restoreFocusId,
+                            restoreRequester = restoreRequester,
                         )
                     }
                 }
@@ -643,6 +676,8 @@ fun AppListScreen(
                             onAppClick = openApp,
                             onSeeAll = { viewModel.openSection(SECTION_WHATS_NEW) },
                             modifier = Modifier.padding(bottom = 8.dp),
+                            restoreFocusId = restoreFocusId,
+                            restoreRequester = restoreRequester,
                         )
                     }
                 }
@@ -655,6 +690,8 @@ fun AppListScreen(
                             onAppClick = openApp,
                             onSeeAll = { viewModel.openSection(SECTION_RECENTLY_UPDATED) },
                             modifier = Modifier.padding(bottom = 8.dp),
+                            restoreFocusId = restoreFocusId,
+                            restoreRequester = restoreRequester,
                         )
                     }
                 }
@@ -669,6 +706,8 @@ fun AppListScreen(
                             onAppClick = openApp,
                             onSeeAll = { viewModel.openSection(SECTION_MOST_DOWNLOADED) },
                             modifier = Modifier.padding(bottom = 8.dp),
+                            restoreFocusId = restoreFocusId,
+                            restoreRequester = restoreRequester,
                         )
                     }
                 }
@@ -683,6 +722,8 @@ fun AppListScreen(
                             onAppClick = openApp,
                             onSeeAll = { viewModel.openSection(SECTION_SHIZUKU) },
                             modifier = Modifier.padding(bottom = 8.dp),
+                            restoreFocusId = restoreFocusId,
+                            restoreRequester = restoreRequester,
                         )
                     }
                 }
@@ -697,6 +738,8 @@ fun AppListScreen(
                             onAppClick = openApp,
                             onSeeAll = { viewModel.openSection(SECTION_ROOT) },
                             modifier = Modifier.padding(bottom = 8.dp),
+                            restoreFocusId = restoreFocusId,
+                            restoreRequester = restoreRequester,
                         )
                     }
                 }
@@ -1224,6 +1267,8 @@ private fun SearchTopBar(
 private fun AppListTopBar(
     onSync: () -> Unit,
     contentFocusRequester: FocusRequester,
+    overflowExpanded: Boolean,
+    onOverflowExpandedChange: (Boolean) -> Unit,
     searchExpanded: Boolean,
     onToggleSearch: () -> Unit,
     searchState: TextFieldState,
@@ -1245,6 +1290,8 @@ private fun AppListTopBar(
             onNavigateToSettings = onNavigateToSettings,
             favouritesOnly = favouritesOnly,
             onToggleFavourites = onToggleFavourites,
+            overflowExpanded = overflowExpanded,
+            onOverflowExpandedChange = onOverflowExpandedChange,
             title = title,
         )
         AnimatedVisibility(
@@ -1271,9 +1318,10 @@ private fun AppListMainTopBar(
     onNavigateToSettings: () -> Unit,
     favouritesOnly: Boolean,
     onToggleFavourites: () -> Unit,
+    overflowExpanded: Boolean,
+    onOverflowExpandedChange: (Boolean) -> Unit,
     title: @Composable () -> Unit,
 ) {
-    var overflowExpanded by remember { mutableStateOf(false) }
     // The three action buttons sat edge-to-edge on a tablet's much wider bar, and the overflow menu
     // looked tiny against all that width — both made mis-taps easy. Phones (the vast majority of
     // devices) are completely untouched.
@@ -1328,7 +1376,7 @@ private fun AppListMainTopBar(
             // here so the header stays uncluttered.
             Box {
                 IconButton(
-                    onClick = { overflowExpanded = true },
+                    onClick = { onOverflowExpandedChange(true) },
                     modifier = Modifier
                     // TV: a square button so the focus halo is a clean circle (the narrow expressive
                     // size makes it an oval); the focused icon also scales up. Unchanged on touch.
@@ -1348,7 +1396,7 @@ private fun AppListMainTopBar(
                 }
                 DropdownMenu(
                     expanded = overflowExpanded,
-                    onDismissRequest = { overflowExpanded = false },
+                    onDismissRequest = { onOverflowExpandedChange(false) },
                     modifier = if (isTablet) Modifier.widthIn(min = 280.dp) else Modifier,
                 ) {
                     DropdownMenuItem(
@@ -1360,7 +1408,7 @@ private fun AppListMainTopBar(
                         },
                         onClick = {
                             onToggleFavourites()
-                            overflowExpanded = false
+                            onOverflowExpandedChange(false)
                         },
                         leadingIcon = {
                             Icon(Icons.Filled.Favorite, contentDescription = null)
@@ -1385,7 +1433,7 @@ private fun AppListMainTopBar(
                         },
                         onClick = {
                             onNavigateToRepos()
-                            overflowExpanded = false
+                            onOverflowExpandedChange(false)
                         },
                         leadingIcon = {
                             Icon(painterResource(R.drawable.ic_tabler_box), contentDescription = null)
@@ -1405,7 +1453,7 @@ private fun AppListMainTopBar(
                         },
                         onClick = {
                             onNavigateToSettings()
-                            overflowExpanded = false
+                            onOverflowExpandedChange(false)
                         },
                         leadingIcon = {
                             Icon(
@@ -1473,8 +1521,9 @@ private fun LazyGridScope.expandedAppItems(
 }
 
 /** Attaches [requester] to this element only when [matches] (the tile the user last opened, so focus
- *  returns to it). A plain `this` otherwise. */
-private fun Modifier.restoreFocusTarget(matches: Boolean, requester: FocusRequester): Modifier =
+ *  returns to it). A plain `this` otherwise. Not private: also used by [DiscoverCarousel] in
+ *  DiscoverHome.kt, so a carousel tile can be re-targeted on return from its detail screen too. */
+fun Modifier.restoreFocusTarget(matches: Boolean, requester: FocusRequester): Modifier =
     if (matches) focusRequester(requester) else this
 
 /** "Categories" heading above the categories list. */

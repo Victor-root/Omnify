@@ -26,8 +26,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -54,11 +52,6 @@ fun HeroCard(
     modifier: Modifier = Modifier,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
-    // TV only: the screen's startup-focus target, attached to the heart. Unlike the primary action
-    // button (further down, past the icon/name/stats), the heart sits at the very top of the card —
-    // already fully visible the instant the screen opens — so landing focus here can never trigger a
-    // scroll-into-view that outruns the still-settling layout and clips the card under the top bar.
-    favoriteFocusRequester: FocusRequester? = null,
     // Android's own "App info" page (uninstall, clear cache/data, permissions, battery, notifications).
     // Overlaid top-start, mirroring the favourite heart at top-end, so it no longer competes for space
     // with the primary action buttons below (where a long localised label, e.g. French "Mettre à jour",
@@ -153,13 +146,6 @@ fun HeroCard(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .then(if (LocalIsTelevision.current) Modifier.size(48.dp) else Modifier)
-                        .then(
-                            if (favoriteFocusRequester != null) {
-                                Modifier.focusRequester(favoriteFocusRequester)
-                            } else {
-                                Modifier
-                            },
-                        )
                         .tvFocusScale(),
                 ) {
                     Icon(

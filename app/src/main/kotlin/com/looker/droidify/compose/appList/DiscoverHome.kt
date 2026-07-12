@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -74,6 +75,11 @@ fun DiscoverCarousel(
     externalApps: List<ExternalApp> = emptyList(),
     externalInstalledKeys: Set<String> = emptySet(),
     onExternalAppClick: (String) -> Unit = {},
+    // TV only: re-targets whichever tile the user last opened from this carousel, so returning from its
+    // detail screen lands focus back on it instead of falling through to the grid/tabs. Both default to
+    // "never matches" for callers (e.g. none currently) that don't opt in.
+    restoreFocusId: String? = null,
+    restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
     // Wider tiles on TV so the larger icon (and its card) fit; the compact width stays on touch. Read
     // here in the composable body, not inside the LazyRow content (which isn't a composable scope).
@@ -132,7 +138,10 @@ fun DiscoverCarousel(
                     app = app,
                     isInstalled = app.packageName.name in installedPackages,
                     onClick = { onAppClick(app.packageName.name) },
-                    modifier = Modifier.width(tileWidth),
+                    modifier = Modifier.width(tileWidth).restoreFocusTarget(
+                        restoreFocusId == "app:${app.packageName.name}",
+                        restoreRequester,
+                    ),
                 )
             }
             items(externalApps, key = { "ext-${it.key}" }, contentType = { "ext-tile" }) { app ->
@@ -140,7 +149,10 @@ fun DiscoverCarousel(
                     app = app,
                     isInstalled = app.key in externalInstalledKeys,
                     onClick = { onExternalAppClick(app.key) },
-                    modifier = Modifier.width(tileWidth),
+                    modifier = Modifier.width(tileWidth).restoreFocusTarget(
+                        restoreFocusId == "ext:${app.key}",
+                        restoreRequester,
+                    ),
                 )
             }
         }

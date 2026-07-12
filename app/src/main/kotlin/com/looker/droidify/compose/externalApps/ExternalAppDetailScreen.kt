@@ -53,6 +53,11 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
@@ -238,29 +243,71 @@ fun ExternalAppDetailScreen(
     // requested at all — mirroring the F-Droid catalogue detail screen so both screens behave
     // identically. No effect on touch.
     val isTelevision = LocalIsTelevision.current
+    // Startup focus (and the top bar's down-escape) lands on the primary action button (Install / Update
+    // / Launch). It used to target the favourite heart instead, because the heart sits at the very top
+    // of the hero card and landing there could never trigger Compose's own scroll-into-view — unlike the
+    // primary button further down, whose relocation could overshoot while the page's layout was still
+    // settling. That scroll bug is now fixed at the scroll level itself, so it no longer needs the heart
+    // as a workaround.
     val primaryActionFocusRequester = remember { FocusRequester() }
-    // Startup focus (and the top bar's down-escape) lands on the favourite heart instead of the primary
-    // action button: the heart sits at the very top of the hero card, already fully visible at scroll
-    // position 0, so requesting focus there can never trigger Compose's own scroll-into-view — unlike
-    // the primary button further down, whose relocation could overshoot while the page's layout was
-    // still settling and leave the card clipped under the top bar.
-    val favoriteFocusRequester = remember { FocusRequester() }
+    // TV: whether the user has pressed any key on this screen yet. Once true, focus is entirely theirs —
+    // nothing below may redirect it again. Set from the screen-root key handler (see the Scaffold
+    // modifier below), which sees every key press regardless of what currently has focus.
+    var userInteracted by remember { mutableStateOf(false) }
     if (isTelevision) {
         LaunchedEffect(app?.key) {
             repeat(20) {
-                if (runCatching { favoriteFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                if (runCatching { primaryActionFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
                 delay(50)
             }
         }
     }
 
     Scaffold(
+        // TV only: the remote's alternate "menu" key (e.g. the Nvidia Shield's, which opens Android TV's
+        // own quick settings from the home screen) opens this app's Android "App info" management page —
+        // the same target as the gear on the hero card — when the app is installed. Attached at the
+        // screen root (not just the top bar) so it fires no matter which element currently has focus; see
+        // the equivalent choice on AppListScreen's Scaffold for why (topBar/content are siblings, not
+        // ancestor/descendant).
+        modifier = if (isTelevision) {
+            Modifier.onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) {
+                    // Marks startup focus as "settled" — see userInteracted and the TopAppBar's own
+                    // onFocusChanged below, which stop correcting focus the moment this is true.
+                    userInteracted = true
+                }
+                val packageName = app?.packageName
+                if (isInstalled && packageName != null &&
+                    event.type == KeyEventType.KeyDown && event.key == Key.Menu
+                ) {
+                    context.openAppInfo(packageName)
+                    true
+                } else {
+                    false
+                }
+            }
+        } else {
+            Modifier
+        },
         topBar = {
             TopAppBar(
                 colors = accentTopAppBarColors(),
                 expandedHeight = AccentBarHeight,
                 modifier = if (isTelevision) {
-                    Modifier.tvDpadDownTo(favoriteFocusRequester)
+                    Modifier
+                        .tvDpadDownTo(primaryActionFocusRequester)
+                        // TV: self-healing net for startup focus. Whatever focus ends up here before the
+                        // user has pressed anything (a lost retry race, a recomposition tearing down the
+                        // button node that held it, whatever the exact cause), bounce it back to the
+                        // primary action button instead of leaving the remote user stuck on the back
+                        // arrow. Stops the instant a real key press happens (userInteracted), so it can
+                        // never fight deliberate navigation back up into the header later in the visit.
+                        .onFocusChanged { focusState ->
+                            if (!userInteracted && focusState.hasFocus) {
+                                runCatching { primaryActionFocusRequester.requestFocus() }
+                            }
+                        }
                 } else {
                     Modifier
                 },
@@ -407,7 +454,6 @@ fun ExternalAppDetailScreen(
                 subtitle = stringResource(R.string.by_author_FORMAT, app.owner),
                 isFavorite = app.key in favourites,
                 onToggleFavorite = { viewModel.toggleFavourite(app) },
-                favoriteFocusRequester = favoriteFocusRequester,
                 // "App info" as a gear on the hero card itself, same as the F-Droid catalogue detail
                 // screen — frees the action row below for the primary/uninstall buttons alone.
                 onManageClick = if (isInstalled) {
