@@ -192,7 +192,12 @@ class ExternalApi @Inject constructor(
         // first found anything, and the two are merged (a project can plausibly use both for different
         // parts of the app).
         val i18nLocales = paths.mapNotNull { localeFromI18nAssetPath(it) }
-        (androidLocales + i18nLocales + listOfNotNull("en".takeIf { hasDefaultValues })).distinct().sorted()
+        // A Kotlin Multiplatform app using moko-resources (see localeFromMokoResourcesPath) — its own,
+        // third convention, tried unconditionally like the other two.
+        val mokoLocales = paths.mapNotNull { localeFromMokoResourcesPath(it) }
+        (androidLocales + i18nLocales + mokoLocales + listOfNotNull("en".takeIf { hasDefaultValues }))
+            .distinct()
+            .sorted()
     }
 
     /**
@@ -396,10 +401,12 @@ class ExternalApi @Inject constructor(
     }
 
     /**
-     * URL to the project's changelog file, when it ships one at the repo root under a common name —
-     * mirrors the F-Droid catalogue's "Changelog" link, which comes from the index's own metadata; an
-     * external source has none, so this looks for the file itself. Null when none of the common names
-     * exist.
+     * URL to the project's changelog, when it ships one at the repo root under a common name — mirrors
+     * the F-Droid catalogue's "Changelog" link, which comes from the index's own metadata; an external
+     * source has none, so this looks for the file itself. Some projects (RustDesk among them) keep no
+     * such file at all and document every change exclusively through the provider's own Releases
+     * feature instead, so that's tried next, linking to the releases page itself. Null when neither a
+     * file nor any release with actual notes exists.
      */
     suspend fun fetchChangelogUrl(app: ExternalApp): String? = withContext(Dispatchers.IO) {
         for (name in CHANGELOG_NAMES) {
@@ -407,13 +414,32 @@ class ExternalApi @Inject constructor(
                 return@withContext app.fileViewUrl(name)
             }
         }
-        null
+        val hasReleaseNotes = runCatching { genuineReleaseNotes(app).isNotEmpty() }.getOrDefault(false)
+        if (hasReleaseNotes) app.releasesUrl else null
+    }
+
+    /**
+     * The repo's most recent releases that carry genuine per-version notes — filters out both empty
+     * bodies and the case where every fetched release repeats the exact same static text. A maintainer's
+     * release automation sometimes pastes one boilerplate file into every release instead of writing
+     * real per-version notes (confirmed on AnkiDroid, whose releases all carry the identical generic
+     * "which APK to install" blurb) — that isn't a changelog, and confidently rendering duplicate
+     * boilerplate as one would be worse than reporting none. A single release's notes are always trusted
+     * as-is (nothing to compare against). Empty when there's nothing genuine, or on any failure.
+     */
+    private suspend fun genuineReleaseNotes(app: ExternalApp): List<Release> {
+        val notes = fetchReleases(app.provider, app.effectiveHost, app.owner, app.repo)
+            .filterNot { it.body.isNullOrBlank() }
+            .take(CHANGELOG_RELEASE_NOTES_LIMIT)
+        val looksGenuine = notes.size <= 1 || notes.map { it.body }.distinct().size > 1
+        return if (looksGenuine) notes else emptyList()
     }
 
     /**
      * The project's changelog, rendered as HTML exactly like [readmeHtml] — shown in its own in-app
-     * page instead of opening the browser, so checking what's new doesn't leave the app. Null when
-     * none of the common changelog file names exist (or on any failure).
+     * page instead of opening the browser, so checking what's new doesn't leave the app. Falls back to
+     * the provider's own release notes (see [genuineReleaseNotes]) when no changelog file exists — see
+     * [fetchChangelogUrl]. Null when there's genuinely neither (or on any failure).
      */
     suspend fun fetchChangelogHtml(app: ExternalApp): String? = withContext(Dispatchers.IO) {
         runCatching {
@@ -421,7 +447,10 @@ class ExternalApi @Inject constructor(
                 val markdown = getText(app.readmeBaseUrl + name) ?: continue
                 return@runCatching inlineRelativeImages(renderMarkdownToHtml(markdown), app)
             }
-            null
+            val releaseNotes = genuineReleaseNotes(app)
+            if (releaseNotes.isEmpty()) return@runCatching null
+            val markdown = releaseNotes.joinToString("\n\n---\n\n") { "## ${it.tag}\n\n${it.body}" }
+            inlineRelativeImages(renderMarkdownToHtml(markdown), app)
         }.getOrNull()
     }
 
@@ -832,12 +861,18 @@ private fun densityRank(dir: String): Int = when {
 }
 
 /** Matches a `res/values-<qualifier>/<file>` path, capturing the qualifier — the same convention
- *  Android resource directories always use, regardless of module depth. */
-private val RES_VALUES_DIR_REGEX = Regex("""/res/values-([^/]+)/[^/]+$""")
+ *  Android resource directories always use, regardless of module depth. Also matches
+ *  `composeResources/values-<qualifier>/<file>`: JetBrains Compose Multiplatform's own resource
+ *  system (`org.jetbrains.compose.resources`) reuses Android's exact `values-<qualifier>` naming, just
+ *  under its own generated `composeResources` directory instead of a real `res/` — confirmed on
+ *  NewPipe's in-progress Compose Multiplatform rewrite (`shared/src/commonMain/composeResources/
+ *  values-iw/strings.xml`), which the plain `res/` form alone completely missed. */
+private val RES_VALUES_DIR_REGEX = Regex("""/(?:res|composeResources)/values-([^/]+)/[^/]+$""")
 
 /** Matches a file directly inside an unqualified `res/values/` (no "-xx" suffix at all) — the app's
- *  base/default strings, treated as English (see [ExternalApi.fetchSourceLocales]). */
-private val RES_DEFAULT_VALUES_REGEX = Regex("""/res/values/[^/]+$""")
+ *  base/default strings, treated as English (see [ExternalApi.fetchSourceLocales]). Also matches the
+ *  `composeResources/values/` equivalent — see [RES_VALUES_DIR_REGEX]. */
+private val RES_DEFAULT_VALUES_REGEX = Regex("""/(?:res|composeResources)/values/[^/]+$""")
 
 /** A plain locale qualifier: a 2-3 letter ISO 639 code, optionally with a `-r<REGION>` region (a
  *  2-letter ISO 3166 code or a 3-digit UN M.49 area code) — e.g. "fr", "pt-rBR", "es-r419". */
@@ -852,12 +887,10 @@ private val BCP47_LOCALE_QUALIFIER_REGEX =
 
 /** Extracts a locale code in BCP47 form ("fr", "pt-BR") — what `Locale.forLanguageTag()` (used by the
  *  display code downstream) actually understands, NOT the "-r" infix Android uses only for resource
- *  *directory names* ("values-pt-rBR") — from a repo file path, or null when it isn't inside a
- *  locale-qualified `res/values-*` directory at all (the default `res/values/`, or a non-locale
- *  qualifier like `values-night`/`values-v21`/`values-land`, neither of which this regex's letters-only,
- *  2-3 character shape matches). */
-private fun localeFromResValuesPath(path: String): String? {
-    val qualifier = RES_VALUES_DIR_REGEX.find(path)?.groupValues?.get(1) ?: return null
+ *  *directory names* ("values-pt-rBR") — from a raw qualifier string (a `values-<qualifier>` directory
+ *  name, or a [MOKO_RESOURCES_DIR_REGEX] one), or null when it matches neither the simple nor the
+ *  BCP47 shape (e.g. a non-locale qualifier like "night"/"v21"/"land"). */
+private fun localeCodeFromQualifier(qualifier: String): String? {
     SIMPLE_LOCALE_QUALIFIER_REGEX.matchEntire(qualifier)?.let { m ->
         val region = m.groupValues[3]
         return if (region.isNotEmpty()) "${m.groupValues[1]}-$region" else m.groupValues[1]
@@ -869,6 +902,31 @@ private fun localeFromResValuesPath(path: String): String? {
     return null
 }
 
+/** Locale from a `res/values-*`/`composeResources/values-*` path, or null when it isn't inside a
+ *  locale-qualified directory at all (the default `values/`, or a non-locale qualifier). */
+private fun localeFromResValuesPath(path: String): String? {
+    val qualifier = RES_VALUES_DIR_REGEX.find(path)?.groupValues?.get(1) ?: return null
+    return localeCodeFromQualifier(qualifier)
+}
+
+/** Matches a `moko-resources/<qualifier>/<file>` path, capturing the qualifier. moko-resources (a
+ *  Kotlin Multiplatform resource library — confirmed used by Mihon) puts each locale's strings in its
+ *  own bare-named directory (`moko-resources/fr/strings.xml`) instead of naming the locale into the
+ *  file itself, which the file itself (always generically "strings.xml"/"plurals.xml") never carries —
+ *  invisible to both [RES_VALUES_DIR_REGEX] (no `res`/`composeResources` segment at all) and the i18n
+ *  file-name heuristic (the locale isn't in the file name). */
+private val MOKO_RESOURCES_DIR_REGEX = Regex("""(?:^|/)moko-resources/([^/]+)/[^/]+$""")
+
+/** Locale from a `moko-resources/<qualifier>/<file>` path — "base" is moko-resources' own name for the
+ *  English source directory (mirroring `res/values`' unqualified-default convention), everything else
+ *  is parsed the same way a `res/values-<qualifier>` directory name would be. Null when the qualifier
+ *  matches neither. */
+private fun localeFromMokoResourcesPath(path: String): String? {
+    val qualifier = MOKO_RESOURCES_DIR_REGEX.find(path)?.groupValues?.get(1) ?: return null
+    if (qualifier == "base") return "en"
+    return localeCodeFromQualifier(qualifier)
+}
+
 /** A directory name suggesting a translation-file folder, for cross-platform (Flutter, React Native,
  *  web) apps that don't use Android's res/values-xx/ convention at all — their UI strings live in their
  *  own asset files instead, one per locale, usually inside a folder along these lines. */
@@ -878,10 +936,14 @@ private val I18N_DIR_HINT_REGEX = Regex(
 )
 
 /** A translation file's locale, either as the whole file name ("en.json", "pt_BR.arb") or as a
- *  trailing `_locale`/`-locale` suffix before the extension ("app_en.arb", "strings-pt-BR.json") —
- *  the two conventions Flutter (ARB, `slang`/`easy_localization`) and most JS i18n libraries use. */
+ *  trailing `_locale`/`-locale` suffix before the extension ("app_en.arb", "strings-pt-BR.json"). Covers
+ *  Flutter (ARB, `slang`/`easy_localization`) and most JS i18n libraries (json/yaml), plus hand-rolled
+ *  per-locale dictionaries some cross-platform/native projects write directly in their own language
+ *  instead of a data format — Rust (e.g. RustDesk's `src/lang/fr.rs`), Dart, Java `.properties`, and
+ *  gettext `.po`. Each is still gated on [I18N_DIR_HINT_REGEX] and the strict locale-code file name
+ *  below, so a random source file can't be mistaken for a translation one just by sharing an extension. */
 private val I18N_FILE_LOCALE_REGEX = Regex(
-    """(?:^|[_-])([a-zA-Z]{2,3}(?:[_-][A-Za-z]{2,4})?)\.(?:arb|json|ya?ml)$""",
+    """(?:^|[_-])([a-zA-Z]{2,3}(?:[_-][A-Za-z]{2,4})?)\.(?:arb|json|ya?ml|rs|dart|properties|po)$""",
 )
 
 /** Best-effort locale extraction for non-Android translation conventions: a file inside an i18n/l10n-
@@ -891,12 +953,20 @@ private val I18N_FILE_LOCALE_REGEX = Regex(
 private fun localeFromI18nAssetPath(path: String): String? {
     if (!I18N_DIR_HINT_REGEX.containsMatchIn(path.substringBeforeLast('/'))) return null
     val fileName = path.substringAfterLast('/')
+    // Rust's own reserved module-file names ("mod.rs" declares the directory as a module, "lib.rs"/
+    // "main.rs" a crate root) — near-universal in any Rust source directory, translations or not, and
+    // "mod"/"lib" are short enough to otherwise look exactly like a real (if obscure) locale code.
+    if (fileName.endsWith(".rs") && fileName.substringBeforeLast('.') in RUST_RESERVED_FILE_NAMES) {
+        return null
+    }
     val raw = I18N_FILE_LOCALE_REGEX.find(fileName)?.groupValues?.get(1) ?: return null
     val language = raw.substringBefore('_').substringBefore('-')
     val region = raw.substringAfter('_', "").ifEmpty { raw.substringAfter('-', "") }
     if (language.length !in 2..3) return null
     return if (region.isNotEmpty()) "$language-${region.uppercase()}" else language.lowercase()
 }
+
+private val RUST_RESERVED_FILE_NAMES = setOf("mod", "lib", "main")
 
 /** How many 100-item pages of GitLab's tree API to walk while looking for the manifest / icons. */
 private const val GITLAB_TREE_MAX_PAGES = 50
@@ -912,10 +982,18 @@ private val README_NAMES = listOf(
     "README.md", "readme.md", "Readme.md", "README.markdown", "README.MD", "README", "readme",
 )
 
-/** Changelog file names tried in order against a repo's branchless raw base. */
+/** Changelog file names tried in order against a repo's branchless raw base. Mirrors [README_NAMES]'
+ *  case-variant coverage, plus the other common conventions (NEWS, RELEASES) it didn't cover before. */
 private val CHANGELOG_NAMES = listOf(
-    "CHANGELOG.md", "changelog.md", "CHANGELOG.rst", "CHANGES.md", "CHANGES", "HISTORY.md", "CHANGELOG",
+    "CHANGELOG.md", "changelog.md", "Changelog.md", "CHANGELOG.MD", "CHANGELOG.rst", "CHANGES.md",
+    "changes.md", "CHANGES", "CHANGES.rst", "HISTORY.md", "history.md", "HISTORY.rst", "HISTORY",
+    "NEWS.md", "NEWS", "RELEASES.md", "RELEASES", "CHANGELOG",
 )
+
+/** How many of a repo's most recent releases (newest first) to fold into the release-notes changelog
+ *  fallback (see [ExternalApi.fetchChangelogHtml]) — enough to read like a real "what's new across the
+ *  last few versions" changelog without pulling in the entire release history in one page. */
+private const val CHANGELOG_RELEASE_NOTES_LIMIT = 5
 
 /** GitHub's and Gitea/Codeberg's repo REST payload share this field for whether issues are enabled. */
 @Serializable

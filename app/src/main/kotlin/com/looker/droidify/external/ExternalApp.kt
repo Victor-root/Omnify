@@ -143,6 +143,15 @@ data class ExternalApp(
         SourceProvider.GITLAB -> "https://$effectiveHost/$owner/$repo/-/blob/HEAD/$fileName"
     }
 
+    /** The provider's own "all releases" page — the changelog destination for a repo that documents
+     *  its changes only through release notes rather than a checked-in CHANGELOG-style file (see
+     *  [com.looker.droidify.external.ExternalApi.fetchChangelogUrl]). */
+    val releasesUrl: String
+        get() = when (provider) {
+            SourceProvider.GITLAB -> "https://$effectiveHost/$owner/$repo/-/releases"
+            SourceProvider.GITHUB, SourceProvider.CODEBERG -> "https://$effectiveHost/$owner/$repo/releases"
+        }
+
     /**
      * A logo to show *before* the app is installed: the source account's avatar. GitHub exposes a
      * stable per-owner avatar at `github.com/<owner>.png` (for AdAway that's the AdAway logo). The
