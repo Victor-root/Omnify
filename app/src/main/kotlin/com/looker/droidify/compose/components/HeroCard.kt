@@ -122,7 +122,7 @@ fun HeroCard(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .then(if (LocalIsTelevision.current) Modifier.size(48.dp) else Modifier)
-                        .tvFocusScale(),
+                        .tvFocusScale(debugLabel = "hero-manage-gear"),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Settings,
@@ -146,7 +146,7 @@ fun HeroCard(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .then(if (LocalIsTelevision.current) Modifier.size(48.dp) else Modifier)
-                        .tvFocusScale(),
+                        .tvFocusScale(debugLabel = "hero-favorite-heart"),
                 ) {
                     Icon(
                         painter = painterResource(
@@ -211,7 +211,8 @@ fun HeroStatsRow(
 fun HeroSourceCodeStatItem(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         // TV only: a soft accent fill behind the focused stat (no-op on touch).
-        modifier = modifier.tvFocusFill(RoundedCornerShape(8.dp)).clickable(onClick = onClick),
+        modifier = modifier.tvFocusFill(RoundedCornerShape(8.dp), debugLabel = "hero-source-code-stat")
+            .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
@@ -261,7 +262,7 @@ fun heroFooter(
                     modifier = Modifier
                         .clip(MaterialTheme.shapes.small)
                         // TV only: a soft accent fill behind the focused link (no-op on touch).
-                        .tvFocusFill(MaterialTheme.shapes.small)
+                        .tvFocusFill(MaterialTheme.shapes.small, debugLabel = "hero-see-all-versions")
                         .clickable(onClick = onViewVersionsClick)
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                 ) {

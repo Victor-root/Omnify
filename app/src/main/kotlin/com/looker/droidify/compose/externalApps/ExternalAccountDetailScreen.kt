@@ -97,7 +97,7 @@ fun ExternalAccountDetailScreen(
 
     Scaffold(
         topBar = {
-            Column(modifier = Modifier.tvDpadDownTo(contentFocusRequester)) {
+            Column(modifier = Modifier.tvDpadDownTo(contentFocusRequester, debugLabel = "account-topappbar")) {
                 TopAppBar(
                     colors = accentTopAppBarColors(),
                     expandedHeight = AccentBarHeight,

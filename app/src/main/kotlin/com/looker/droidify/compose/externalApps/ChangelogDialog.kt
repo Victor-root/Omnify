@@ -105,7 +105,7 @@ fun ChangelogDialog(
                         colors = accentTopAppBarColors(),
                         expandedHeight = AccentBarHeight,
                         modifier = if (isTelevision) {
-                            Modifier.tvDpadDownTo(contentFocusRequester)
+                            Modifier.tvDpadDownTo(contentFocusRequester, debugLabel = "changelog-topappbar")
                         } else {
                             Modifier
                         },
@@ -138,7 +138,11 @@ fun ChangelogDialog(
                                     if (isTelevision) {
                                         Modifier
                                             .focusRequester(contentFocusRequester)
-                                            .tvPageScroll(scrollState, (viewportPx * 0.85f).toInt())
+                                            .tvPageScroll(
+                                                scrollState,
+                                                (viewportPx * 0.85f).toInt(),
+                                                debugLabel = "changelog-content",
+                                            )
                                     } else {
                                         Modifier
                                     },

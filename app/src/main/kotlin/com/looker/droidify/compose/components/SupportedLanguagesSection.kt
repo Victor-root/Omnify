@@ -76,7 +76,7 @@ fun SupportedLanguagesSection(languages: SupportedLanguages) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .tvFocusFill(RoundedCornerShape(12.dp))
+                .tvFocusFill(RoundedCornerShape(12.dp), debugLabel = "supported-languages-row")
                 .clickable { expanded = !expanded }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,

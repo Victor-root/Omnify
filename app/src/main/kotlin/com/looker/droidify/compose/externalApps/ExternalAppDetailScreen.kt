@@ -47,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -90,6 +91,7 @@ import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvDpadDownTo
+import com.looker.droidify.compose.components.tvDpadKeyLog
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -205,6 +207,19 @@ fun ExternalAppDetailScreen(
     // Hoisted above the Scaffold (not inside its content lambda) so both the content column and the
     // scroll-to-top FAB can read/drive the same scroll position.
     val scrollState = rememberScrollState()
+    // TV D-pad diagnostics: logs every scroll-position change regardless of which focus transition (if
+    // any) caused it — the tvFocus* modifiers' own logs only fire on a focus change, so a scroll jump
+    // that happens WITHOUT one (e.g. a stray BringIntoView call, or something scrolling as a side effect
+    // rather than a direct consequence of a logged focus move) would otherwise be invisible. Temporary,
+    // see TvFocus.kt's own debug-logging doc comment.
+    LaunchedEffect(Unit) {
+        snapshotFlow { scrollState.value }.collect { value ->
+            Log.d(
+                "TvFocusDebug",
+                "ExternalAppDetailScreen scrollState -> $value at ${System.currentTimeMillis()}",
+            )
+        }
+    }
     val coroutineScope = rememberCoroutineScope()
     // Where the versions section actually lands once composed (in the scrolling Column's own
     // coordinate space), so the hero card's "see all versions" link can jump straight to it.
@@ -256,10 +271,19 @@ fun ExternalAppDetailScreen(
     // nothing below may redirect it again. Set from the screen-root key handler (see the Scaffold
     // modifier below), which sees every key press regardless of what currently has focus.
     var userInteracted by remember { mutableStateOf(false) }
+    // TV: true for a short window right after each "down" press — read by the BringIntoViewSpec override
+    // further down, so its own doc comment explains why this exists.
+    var suppressBringIntoView by remember { mutableStateOf(false) }
     if (isTelevision) {
         LaunchedEffect(app?.key) {
             repeat(20) {
-                if (runCatching { primaryActionFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                val result = runCatching { primaryActionFocusRequester.requestFocus() }
+                Log.d(
+                    "TvFocusDebug",
+                    "ExternalAppDetailScreen startup retry #$it: primaryActionFocusRequester.requestFocus() " +
+                        "success=${result.isSuccess} at ${System.currentTimeMillis()}",
+                )
+                if (result.isSuccess) return@LaunchedEffect
                 delay(50)
             }
         }
@@ -273,22 +297,45 @@ fun ExternalAppDetailScreen(
         // the equivalent choice on AppListScreen's Scaffold for why (topBar/content are siblings, not
         // ancestor/descendant).
         modifier = if (isTelevision) {
-            Modifier.onPreviewKeyEvent { event ->
-                if (event.type == KeyEventType.KeyDown) {
-                    // Marks startup focus as "settled" — see userInteracted and the TopAppBar's own
-                    // onFocusChanged below, which stop correcting focus the moment this is true.
-                    userInteracted = true
+            Modifier
+                .tvDpadKeyLog("ExternalAppDetailScreen-root")
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown) {
+                        // Marks startup focus as "settled" — see userInteracted and the TopAppBar's own
+                        // onFocusChanged below, which stop correcting focus the moment this is true.
+                        if (!userInteracted) {
+                            Log.d(
+                                "TvFocusDebug",
+                                "ExternalAppDetailScreen-root: userInteracted set true by ${event.key} at " +
+                                    "${System.currentTimeMillis()}",
+                            )
+                        }
+                        userInteracted = true
+                    }
+                    // TV: suppress scroll-into-view for a short window after "down". Compose's own "bring
+                    // the newly focused item into view" reflex fires on every plain focus change, not just
+                    // the README's own explicit page-scroll hand-off — confirmed via real logcat moving
+                    // between the short rows below the README (links, languages, versions): each one nudges
+                    // scrollState back by tens to ~100px even though the previous position was already
+                    // fully valid, reading as the screen sliding backward right after the user pressed
+                    // down. Read by the BringIntoViewSpec override further down (see its own doc comment).
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                        suppressBringIntoView = true
+                        coroutineScope.launch {
+                            delay(320)
+                            suppressBringIntoView = false
+                        }
+                    }
+                    val packageName = app?.packageName
+                    if (isInstalled && packageName != null &&
+                        event.type == KeyEventType.KeyDown && event.key == Key.Menu
+                    ) {
+                        context.openAppInfo(packageName)
+                        true
+                    } else {
+                        false
+                    }
                 }
-                val packageName = app?.packageName
-                if (isInstalled && packageName != null &&
-                    event.type == KeyEventType.KeyDown && event.key == Key.Menu
-                ) {
-                    context.openAppInfo(packageName)
-                    true
-                } else {
-                    false
-                }
-            }
         } else {
             Modifier
         },
@@ -298,15 +345,38 @@ fun ExternalAppDetailScreen(
                 expandedHeight = AccentBarHeight,
                 modifier = if (isTelevision) {
                     Modifier
-                        .tvDpadDownTo(primaryActionFocusRequester)
-                        // TV: self-healing net for startup focus. Whatever focus ends up here before the
-                        // user has pressed anything (a lost retry race, a recomposition tearing down the
-                        // button node that held it, whatever the exact cause), bounce it back to the
-                        // primary action button instead of leaving the remote user stuck on the back
-                        // arrow. Stops the instant a real key press happens (userInteracted), so it can
-                        // never fight deliberate navigation back up into the header later in the visit.
+                        .tvDpadDownTo(primaryActionFocusRequester, debugLabel = "external-topappbar")
+                        // TV: self-healing net for startup focus (userInteracted still false) AND for a
+                        // second, distinct case confirmed by a real device log: pressing "up" deep in the
+                        // scrolled content (e.g. from the last version row, or from the README once it
+                        // releases D-pad paging) can make Compose's own directional focus search jump
+                        // straight to this top bar instead of the actually-adjacent element — its default
+                        // 2D search picks whatever candidate is geometrically closest across the *whole*
+                        // screen when nothing qualifies nearby, and the fixed (non-scrolling) top bar
+                        // apparently wins that comparison from deep inside the scrolling content in a way
+                        // an off-screen sibling doesn't. scrollState.value stays large in that case (a
+                        // genuine, deliberate walk back up through the content would have already scrolled
+                        // back toward the top by the time focus reaches here) — that's what distinguishes
+                        // it from someone actually meaning to reach the header. Bounces to the primary
+                        // action button either way, since that is at least a real, expected landing spot
+                        // instead of a random teleport.
                         .onFocusChanged { focusState ->
-                            if (!userInteracted && focusState.hasFocus) {
+                            val stuckAtStartup = !userInteracted
+                            val teleportedFromDeepContent = userInteracted && scrollState.value > 0
+                            if (focusState.hasFocus) {
+                                Log.d(
+                                    "TvFocusDebug",
+                                    "ExternalAppDetailScreen TopAppBar: hasFocus=true, userInteracted=" +
+                                        "$userInteracted, scrollState=${scrollState.value} at " +
+                                        "${System.currentTimeMillis()}" +
+                                        if (stuckAtStartup || teleportedFromDeepContent) {
+                                            " -> self-healing back to primary action"
+                                        } else {
+                                            ""
+                                        },
+                                )
+                            }
+                            if (focusState.hasFocus && (stuckAtStartup || teleportedFromDeepContent)) {
                                 runCatching { primaryActionFocusRequester.requestFocus() }
                             }
                         }
@@ -593,6 +663,14 @@ fun ExternalAppDetailScreen(
             // landed. This suppresses it before it ever happens instead: a BringIntoViewSpec that's a
             // no-op while focus is still inside the card, and defers to the real (default) one everywhere
             // else, so scrolling the README into view still works normally once focus reaches it.
+            //
+            // The same reflex resurfaces further down the page too: moving focus between the short rows
+            // right after the README (links, languages, the first few version rows) nudges scrollState
+            // back by tens to ~100px on every single step, even though the position reached by paging
+            // through the README already shows all of them — confirmed via real logcat. suppressBringIntoView
+            // (set for a short window after every "down" press — see the screen root's own key handler)
+            // covers that case the same way: no-op the reflex right when it would otherwise fire, rather
+            // than fight the resulting scroll after the fact (confirmed janky the same way).
             var heroCardHasFocus by remember { mutableStateOf(true) }
             val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
             val bringIntoViewSpec = remember(isTelevision, defaultBringIntoViewSpec) {
@@ -604,13 +682,14 @@ fun ExternalAppDetailScreen(
                             offset: Float,
                             size: Float,
                             containerSize: Float,
-                        ): Float = if (heroCardHasFocus && scrollState.value == 0) {
-                            // Only suppress while we're already sitting at the very top: that's the one
-                            // case where the whole card is guaranteed to already fit. Coming back UP from
-                            // the README with the card scrolled out of view still needs the normal
-                            // behaviour, or focus moving further up within the card (say, from the "see
-                            // all versions" link back toward the icon) would get stuck exactly where it
-                            // re-entered instead of continuing to reveal the rest of the card above it.
+                        ): Float = if ((heroCardHasFocus && scrollState.value == 0) || suppressBringIntoView) {
+                            // Only suppress the hero-card case while we're already sitting at the very
+                            // top: that's the one case where the whole card is guaranteed to already fit.
+                            // Coming back UP from the README with the card scrolled out of view still
+                            // needs the normal behaviour, or focus moving further up within the card (say,
+                            // from the "see all versions" link back toward the icon) would get stuck
+                            // exactly where it re-entered instead of continuing to reveal the rest of the
+                            // card above it.
                             0f
                         } else {
                             defaultBringIntoViewSpec.calculateScrollDistance(offset, size, containerSize)
@@ -628,7 +707,17 @@ fun ExternalAppDetailScreen(
                 ) {
                     Column(
                         modifier = if (isTelevision) {
-                            Modifier.focusGroup().onFocusChanged { heroCardHasFocus = it.hasFocus }
+                            Modifier.focusGroup().onFocusChanged {
+                                if (it.hasFocus != heroCardHasFocus) {
+                                    Log.d(
+                                        "TvFocusDebug",
+                                        "ExternalAppDetailScreen heroCardHasFocus: $heroCardHasFocus -> " +
+                                            "${it.hasFocus}, scrollState=${scrollState.value} at " +
+                                            "${System.currentTimeMillis()}",
+                                    )
+                                }
+                                heroCardHasFocus = it.hasFocus
+                            }
                         } else {
                             Modifier
                         },
@@ -716,6 +805,10 @@ private fun ExternalAppDetailBody(
     // WebView re-reports its height every time the document reloads, so translating or reverting
     // resizes correctly on its own.
     var readmeHeightPx by remember(app.key) { mutableStateOf(0) }
+    // TV: explicit hand-off target for the README's page-scroll once it reaches its bottom bound — see
+    // tvPageScroll's own doc comment for why this is passed explicitly rather than left to Compose's
+    // default focus search.
+    val firstLinkFocusRequester = remember(app.key) { FocusRequester() }
 
     if (!isInstalled) {
         PreInstallNotice(
@@ -765,13 +858,28 @@ private fun ExternalAppDetailBody(
                 .onGloballyPositioned { readmeTopY = it.positionInParent().y.toInt() }
                 .heightIn(max = if (readmeExpanded || !readmeCanCollapse) fullReadmeHeight else collapsedReadmeHeight)
                 .clipToBounds()
-                .tvPageScroll(scrollState, (viewportPx * 0.85f).toInt()),
+                .tvPageScroll(
+                    scrollState,
+                    (viewportPx * 0.85f).toInt(),
+                    debugLabel = "readme",
+                    downTarget = if (showSidebarSections) firstLinkFocusRequester else null,
+                ),
         ) {
             ReadmeWebView(
                 html = readmeHtml,
                 baseUrl = app.readmeWebBaseUrl,
                 javaScriptEnabled = readmeJavaScriptEnabled,
-                onContentHeight = { readmeHeightPx = it },
+                onContentHeight = {
+                    if (it != readmeHeightPx) {
+                        Log.d(
+                            "TvFocusDebug",
+                            "ExternalAppDetailScreen readmeHeightPx: $readmeHeightPx -> $it, " +
+                                "scrollState=${scrollState.value}/${scrollState.maxValue} at " +
+                                "${System.currentTimeMillis()}",
+                        )
+                    }
+                    readmeHeightPx = it
+                },
                 scrollState = scrollState,
                 forceSoftwareLayer = !readmeNeedsHardwareLayer,
                 modifier = Modifier
@@ -823,6 +931,7 @@ private fun ExternalAppDetailBody(
             issueTrackerLink = issueTrackerLink,
             changelogLink = changelogLink,
             onChangelogClick = onChangelogClick,
+            firstRowFocusRequester = firstLinkFocusRequester,
         )
     }
 
@@ -866,6 +975,9 @@ private fun ExternalLinksSection(
     issueTrackerLink: LinkCheckState?,
     changelogLink: LinkCheckState?,
     onChangelogClick: () -> Unit,
+    // TV: the README's page-scroll hands D-pad focus straight here once it reaches its bottom bound.
+    // Null in the split-view left pane, where this section isn't right below a page-scrolling README.
+    firstRowFocusRequester: FocusRequester? = null,
 ) {
     val uriHandler = LocalUriHandler.current
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -877,6 +989,7 @@ private fun ExternalLinksSection(
                 if (issueTrackerLink == null) R.string.loading else R.string.external_no_issue_tracker,
             ),
             onClick = issueTrackerLink?.url?.let { url -> { uriHandler.openUri(url) } },
+            focusRequester = firstRowFocusRequester,
         )
         LinkRow(
             iconRes = R.drawable.ic_history,
@@ -948,7 +1061,7 @@ private fun ExternalVersionsSection(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .tvReadable()
+                    .tvReadable(debugLabel = "versions-loading-row")
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
                 CircularWavyProgressIndicator(modifier = Modifier.size(16.dp))
@@ -983,6 +1096,15 @@ private fun ExternalVersionsSection(
                     downloadStatus = if (isThisRowDownloading) downloadStatus else null,
                     installing = isThisRowDownloading && downloadStatus == null,
                     onCancel = if (isThisRowDownloading) onCancel else null,
+                    modifier = Modifier.onFocusChanged {
+                        if (it.isFocused) {
+                            Log.d(
+                                "TvFocusDebug",
+                                "FOCUS -> external-version-row (${release.tag}) at " +
+                                    "${System.currentTimeMillis()}",
+                            )
+                        }
+                    },
                 )
             }
             if (releaseHistory.size > VERSIONS_COLLAPSED_COUNT) {
@@ -990,6 +1112,14 @@ private fun ExternalVersionsSection(
                     hiddenCount = releaseHistory.size - VERSIONS_COLLAPSED_COUNT,
                     expanded = versionsExpanded,
                     onToggle = { versionsExpanded = !versionsExpanded },
+                    modifier = Modifier.onFocusChanged {
+                        if (it.isFocused) {
+                            Log.d(
+                                "TvFocusDebug",
+                                "FOCUS -> external-versions-show-more at ${System.currentTimeMillis()}",
+                            )
+                        }
+                    },
                 )
             }
         }

@@ -3,6 +3,7 @@ package com.looker.droidify.compose.appDetail
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
@@ -67,6 +68,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -125,6 +127,7 @@ import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvDpadDownTo
+import com.looker.droidify.compose.components.tvDpadKeyLog
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
@@ -204,6 +207,16 @@ fun AppDetailScreen(
     // Hoisted above the Scaffold (not inside AppDetail) so both the content column and the
     // scroll-to-top FAB can read/drive the same scroll position.
     val scrollState = rememberScrollState()
+    // TV D-pad diagnostics: logs every scroll-position change regardless of which focus transition (if
+    // any) caused it — the tvFocus* modifiers' own logs only fire on a focus change, so a scroll jump
+    // that happens WITHOUT one (e.g. a stray BringIntoView call, or something scrolling as a side effect
+    // rather than a direct consequence of a logged focus move) would otherwise be invisible. Temporary,
+    // see TvFocus.kt's own debug-logging doc comment.
+    LaunchedEffect(Unit) {
+        snapshotFlow { scrollState.value }.collect { value ->
+            Log.d("TvFocusDebug", "AppDetailScreen scrollState -> $value at ${System.currentTimeMillis()}")
+        }
+    }
 
     // Play Store-style two-pane layout: only on a tablet-width screen in landscape (never on phones, TV,
     // or portrait), and only when the user hasn't turned the feature off entirely in Settings. A small
@@ -291,7 +304,13 @@ fun AppDetailScreen(
         LaunchedEffect(successPackageName, installedInfo) {
             if (successPackageName != null) {
                 repeat(20) {
-                    if (runCatching { primaryActionFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                    val result = runCatching { primaryActionFocusRequester.requestFocus() }
+                    Log.d(
+                        "TvFocusDebug",
+                        "AppDetailScreen startup retry #$it: primaryActionFocusRequester.requestFocus() " +
+                            "success=${result.isSuccess} at ${System.currentTimeMillis()}",
+                    )
+                    if (result.isSuccess) return@LaunchedEffect
                     delay(50)
                 }
             }
@@ -306,21 +325,30 @@ fun AppDetailScreen(
         // the equivalent choice on AppListScreen's Scaffold for why (topBar/content are siblings, not
         // ancestor/descendant).
         modifier = if (isTelevision) {
-            Modifier.onPreviewKeyEvent { event ->
-                if (event.type == KeyEventType.KeyDown) {
-                    // Marks startup focus as "settled" — see userInteracted and the TopAppBar's own
-                    // onFocusChanged below, which stop correcting focus the moment this is true.
-                    userInteracted = true
+            Modifier
+                .tvDpadKeyLog("AppDetailScreen-root")
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown) {
+                        // Marks startup focus as "settled" — see userInteracted and the TopAppBar's own
+                        // onFocusChanged below, which stop correcting focus the moment this is true.
+                        if (!userInteracted) {
+                            Log.d(
+                                "TvFocusDebug",
+                                "AppDetailScreen-root: userInteracted set true by ${event.key} at " +
+                                    "${System.currentTimeMillis()}",
+                            )
+                        }
+                        userInteracted = true
+                    }
+                    if (installedInfo != null && successPackageName != null &&
+                        event.type == KeyEventType.KeyDown && event.key == Key.Menu
+                    ) {
+                        context.openAppInfo(successPackageName)
+                        true
+                    } else {
+                        false
+                    }
                 }
-                if (installedInfo != null && successPackageName != null &&
-                    event.type == KeyEventType.KeyDown && event.key == Key.Menu
-                ) {
-                    context.openAppInfo(successPackageName)
-                    true
-                } else {
-                    false
-                }
-            }
         } else {
             Modifier
         },
@@ -331,20 +359,47 @@ fun AppDetailScreen(
                 modifier = Modifier
                     .onPreviewKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
-                            runCatching { primaryActionFocusRequester.requestFocus() }.isSuccess
+                            val result = runCatching { primaryActionFocusRequester.requestFocus() }
+                            Log.d(
+                                "TvFocusDebug",
+                                "TopAppBar: DOWN bridges to primaryActionFocusRequester, success=" +
+                                    "${result.isSuccess} at ${System.currentTimeMillis()}",
+                            )
+                            result.isSuccess
                         } else {
                             false
                         }
                     }
-                    // TV: self-healing net for startup focus. Whenever focus ends up here before the user
-                    // has pressed anything (a lost retry race, a recomposition tearing down the button
-                    // node that held it, whatever the exact cause — this was seen intermittently and
-                    // never pinned to one single trigger), bounce it back to the primary action button
-                    // instead of leaving the remote user stuck on the back arrow. Stops the instant a real
-                    // key press happens (userInteracted), so it can never fight deliberate navigation back
-                    // up into the header later in the visit.
+                    // TV: self-healing net for startup focus (userInteracted still false) AND for a
+                    // second, distinct case confirmed by a real device log: pressing "up" or "left" deep
+                    // in the scrolled content (well past the header, e.g. from the last version row, or
+                    // from the README) can make Compose's own directional focus search jump straight to
+                    // this top bar instead of the actually-adjacent element — its default 2D search picks
+                    // whatever candidate is geometrically closest across the *whole* screen when nothing
+                    // qualifies nearby, and the fixed (non-scrolling) top bar apparently wins that
+                    // comparison from deep inside the scrolling content in a way an off-screen sibling
+                    // doesn't. scrollState.value stays large in that case (a genuine, deliberate walk back
+                    // up through the content would have already scrolled back toward the top by the time
+                    // focus reaches here) — that's what distinguishes it from someone actually meaning to
+                    // reach the header. Bounces to the primary action button either way, same as the
+                    // startup case, since that is at least a real, expected landing spot instead of a
+                    // random teleport.
                     .onFocusChanged { focusState ->
-                        if (isTelevision && !userInteracted && focusState.hasFocus) {
+                        val stuckAtStartup = !userInteracted
+                        val teleportedFromDeepContent = userInteracted && scrollState.value > 0
+                        if (isTelevision && focusState.hasFocus) {
+                            Log.d(
+                                "TvFocusDebug",
+                                "TopAppBar: hasFocus=true, userInteracted=$userInteracted, scrollState=" +
+                                    "${scrollState.value} at ${System.currentTimeMillis()}" +
+                                    if (stuckAtStartup || teleportedFromDeepContent) {
+                                        " -> self-healing back to primary action"
+                                    } else {
+                                        ""
+                                    },
+                            )
+                        }
+                        if (isTelevision && focusState.hasFocus && (stuckAtStartup || teleportedFromDeepContent)) {
                             runCatching { primaryActionFocusRequester.requestFocus() }
                         }
                     },
@@ -384,7 +439,7 @@ fun AppDetailScreen(
                                     shareApp(context, success.app.metadata.packageName.name, repo)
                                 }
                             },
-                            modifier = Modifier.tvFocusScale(),
+                            modifier = Modifier.tvFocusScale(debugLabel = "topbar-share"),
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_share),
@@ -547,7 +602,7 @@ private fun PrimaryActions(
             when {
                 !isInstalled -> Button(
                     onClick = onInstallOrUpdate,
-                    modifier = tvPrimaryButton.tvFocusScale(1.10f),
+                    modifier = tvPrimaryButton.tvFocusScale(1.10f, debugLabel = "primary-install-button"),
                     // Slimmer than the default (which reserves generous side margins for text-only
                     // buttons): with an icon and a longer localised label (e.g. "Mettre à jour"), the
                     // default padding pushed the label onto two lines on a normal-width button.
@@ -564,7 +619,7 @@ private fun PrimaryActions(
 
                 updateAvailable -> Button(
                     onClick = onInstallOrUpdate,
-                    modifier = tvPrimaryButton.tvFocusScale(1.10f),
+                    modifier = tvPrimaryButton.tvFocusScale(1.10f, debugLabel = "primary-update-button"),
                     contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                 ) {
                     Icon(
@@ -578,13 +633,13 @@ private fun PrimaryActions(
 
                 else -> Button(
                     onClick = onLaunch,
-                    modifier = tvPrimaryButton.tvFocusScale(1.10f),
+                    modifier = tvPrimaryButton.tvFocusScale(1.10f, debugLabel = "primary-launch-button"),
                 ) { Text(stringResource(R.string.launch)) }
             }
             if (isInstalled) {
                 OutlinedButton(
                     onClick = onUninstall,
-                    modifier = tvSecondaryButton.tvFocusScale(1.10f),
+                    modifier = tvSecondaryButton.tvFocusScale(1.10f, debugLabel = "secondary-uninstall-button"),
                 ) {
                     Text(stringResource(R.string.uninstall))
                 }
@@ -868,7 +923,16 @@ private fun AppDetail(
             ) {
                 Column(
                     modifier = if (isTelevision) {
-                        Modifier.focusGroup().onFocusChanged { heroCardHasFocus = it.hasFocus }
+                        Modifier.focusGroup().onFocusChanged {
+                            if (it.hasFocus != heroCardHasFocus) {
+                                Log.d(
+                                    "TvFocusDebug",
+                                    "heroCardHasFocus: $heroCardHasFocus -> ${it.hasFocus}, " +
+                                        "scrollState=${scrollState.value} at ${System.currentTimeMillis()}",
+                                )
+                            }
+                            heroCardHasFocus = it.hasFocus
+                        }
                     } else {
                         Modifier
                     },
@@ -991,7 +1055,7 @@ private fun AppDetailBody(
             modifier = Modifier
                 .padding(horizontal = 16.dp)
                 .onGloballyPositioned { descriptionTopY = it.positionInParent().y.toInt() }
-                .tvReadable(),
+                .tvReadable(debugLabel = "description"),
         )
     }
 
@@ -1138,7 +1202,7 @@ private fun VersionsSection(
             ScrollableTabRow(
                 selectedTabIndex = selectedIndex,
                 edgePadding = 16.dp,
-                modifier = Modifier.fillMaxWidth().tvDpadDownTo(firstVersionFocusRequester),
+                modifier = Modifier.fillMaxWidth().tvDpadDownTo(firstVersionFocusRequester, debugLabel = "repo-tabs"),
             ) {
                 repos.forEachIndexed { index, repo ->
                     Tab(
@@ -1194,7 +1258,16 @@ private fun VersionsSection(
                         } else {
                             Modifier
                         },
-                    ),
+                    )
+                    .onFocusChanged {
+                        if (it.isFocused) {
+                            Log.d(
+                                "TvFocusDebug",
+                                "FOCUS -> version-row[$index] (${pkg.manifest.versionName}) at " +
+                                    "${System.currentTimeMillis()}",
+                            )
+                        }
+                    },
                 backgroundColor = if (isSuggested) {
                     MaterialTheme.colorScheme.surfaceContainerHigh
                 } else {
@@ -1369,7 +1442,7 @@ private fun WhatsNewSection(whatsNew: String) {
             text = whatsNew,
             style = MaterialTheme.typography.bodyMedium,
             // TV: a D-pad focus stop so the remote can land here and scroll it into view. No-op on touch.
-            modifier = Modifier.padding(horizontal = 16.dp).tvReadable(),
+            modifier = Modifier.padding(horizontal = 16.dp).tvReadable(debugLabel = "whats-new"),
         )
     }
 }
@@ -1597,7 +1670,7 @@ private fun PermissionsSection(permissions: List<Permission>) {
             modifier = Modifier
                 .fillMaxWidth()
                 // TV only: a soft green fill behind the focused row (no-op on touch).
-                .tvFocusFill(RoundedCornerShape(12.dp))
+                .tvFocusFill(RoundedCornerShape(12.dp), debugLabel = "permissions-row")
                 .clickable { expanded = !expanded }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1778,7 +1851,7 @@ private fun ScreenshotViewer(
                     .align(Alignment.TopEnd)
                     .padding(8.dp)
                     .focusRequester(closeFocusRequester)
-                    .tvFocusScale(),
+                    .tvFocusScale(debugLabel = "screenshot-dialog-close"),
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
