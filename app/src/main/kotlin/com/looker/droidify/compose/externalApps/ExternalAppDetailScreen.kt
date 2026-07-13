@@ -101,6 +101,7 @@ import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkFileSize
 import com.looker.droidify.external.apkVersionLabel
+import com.looker.droidify.external.compareVersionStrings
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.common.RootDetection
 import com.looker.droidify.utility.common.extension.openAppInfo
@@ -536,6 +537,7 @@ fun ExternalAppDetailScreen(
                     ExternalVersionsSection(
                         app = app,
                         releaseHistory = releaseHistory,
+                        installedVersion = installedVersion,
                         onVersionClick = { versionToInstall = it },
                         onAnchorPositioned = { leftPaneVersionsAnchorY = it },
                         downloadStatus = downloads[appKey],
@@ -555,6 +557,7 @@ fun ExternalAppDetailScreen(
                     ExternalAppDetailBody(
                         app = app,
                         isInstalled = isInstalled,
+                        installedVersion = installedVersion,
                         readmeHtml = readmeHtml,
                         readmeError = readmeError,
                         readmeJavaScriptEnabled = readmeJavaScriptEnabled,
@@ -635,6 +638,7 @@ fun ExternalAppDetailScreen(
                     ExternalAppDetailBody(
                         app = app,
                         isInstalled = isInstalled,
+                        installedVersion = installedVersion,
                         readmeHtml = readmeHtml,
                         readmeError = readmeError,
                         readmeJavaScriptEnabled = readmeJavaScriptEnabled,
@@ -676,6 +680,10 @@ fun ExternalAppDetailScreen(
 private fun ExternalAppDetailBody(
     app: ExternalApp,
     isInstalled: Boolean,
+    // The real on-device versionName (from the package manager), used to mark the version list's
+    // genuinely-installed row — see ExternalVersionsSection's own doc comment for why this, not
+    // app.installedTag, is the reliable source.
+    installedVersion: String?,
     readmeHtml: String?,
     readmeError: String?,
     readmeJavaScriptEnabled: Boolean,
@@ -832,6 +840,7 @@ private fun ExternalAppDetailBody(
         ExternalVersionsSection(
             app = app,
             releaseHistory = releaseHistory,
+            installedVersion = installedVersion,
             onVersionClick = onVersionClick,
             onAnchorPositioned = onAnchorPositioned,
             downloadStatus = downloadStatus,
@@ -894,6 +903,16 @@ private fun ExternalLinksSection(
 private fun ExternalVersionsSection(
     app: ExternalApp,
     releaseHistory: List<Release>?,
+    // The real on-device versionName (from the package manager) — NOT app.installedTag. That field is
+    // only ever written once a tracked install genuinely reaches InstallState.Installed, but Android can
+    // still report a false success on a silently-failed install (most commonly a signing-key conflict
+    // with a copy installed by another client — see ExternalApp.hasUpdateGiven's own doc comment on this
+    // exact class of bug), leaving installedTag pointing at a release that was never actually applied.
+    // hasUpdateGiven already self-heals from that by falling back to this same live version whenever it
+    // disagrees with the stored one; this row-level "installed" badge needs the identical fallback, or it
+    // keeps confidently marking the wrong release "installed" even after the update banner (correctly,
+    // via that same live check) says otherwise.
+    installedVersion: String?,
     onVersionClick: (Release) -> Unit,
     onAnchorPositioned: (Int) -> Unit,
     downloadStatus: DownloadStatus?,
@@ -948,12 +967,18 @@ private fun ExternalVersionsSection(
             releaseHistory.take(visibleCount).forEach { release ->
                 val isThisRowDownloading = activeDownloadTag == release.tag &&
                     (downloadStatus != null || installing)
+                val apkName = release.apkFileName(filter = app.apkFilter)
+                // See installedVersion's own doc comment: compares against the real live on-device
+                // version, not the possibly-stale app.installedTag, the same self-healing fallback
+                // hasUpdateGiven already relies on for the update banner above.
+                val isInstalled = installedVersion != null &&
+                    compareVersionStrings(apkVersionLabel(apkName ?: release.tag), installedVersion) == 0
                 ReleaseVersionItem(
                     release = release,
-                    apkName = release.apkFileName(filter = app.apkFilter),
+                    apkName = apkName,
                     apkSize = release.apkFileSize(filter = app.apkFilter),
                     isSuggested = release.tag == app.latestTag,
-                    isInstalled = release.tag == app.installedTag,
+                    isInstalled = isInstalled,
                     onClick = { onVersionClick(release) },
                     downloadStatus = if (isThisRowDownloading) downloadStatus else null,
                     installing = isThisRowDownloading && downloadStatus == null,
