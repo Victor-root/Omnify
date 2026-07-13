@@ -944,14 +944,19 @@ private val I18N_DIR_HINT_REGEX = Regex(
 )
 
 /** A translation file's locale, either as the whole file name ("en.json", "pt_BR.arb") or as a
- *  trailing `_locale`/`-locale` suffix before the extension ("app_en.arb", "strings-pt-BR.json"). Covers
- *  Flutter (ARB, `slang`/`easy_localization`) and most JS i18n libraries (json/yaml), plus hand-rolled
- *  per-locale dictionaries some cross-platform/native projects write directly in their own language
- *  instead of a data format — Rust (e.g. RustDesk's `src/lang/fr.rs`), Dart, Java `.properties`, and
- *  gettext `.po`. Each is still gated on [I18N_DIR_HINT_REGEX] and the strict locale-code file name
- *  below, so a random source file can't be mistaken for a translation one just by sharing an extension. */
+ *  trailing `_locale`/`-locale` suffix before the extension ("app_en.arb", "strings-pt-BR.json") —
+ *  with an optional script subtag recognized in between and dropped ("zh-Hant-TW.json" resolves to
+ *  "zh-TW", the same script-dropping [localeCodeFromQualifier] already does for BCP47 qualifiers), so
+ *  a 3-subtag code is consumed whole instead of falling through to a garbled match on just its last
+ *  segment. Covers Flutter (ARB, `slang`/`easy_localization`) and most JS i18n libraries (json/yaml),
+ *  plus hand-rolled per-locale dictionaries some cross-platform/native projects write directly in
+ *  their own language instead of a data format — Rust (e.g. RustDesk's `src/lang/fr.rs`), Dart, Java
+ *  `.properties`, and gettext `.po`. Each is still gated on [I18N_DIR_HINT_REGEX] and the strict
+ *  locale-code file name below, so a random source file can't be mistaken for a translation one just
+ *  by sharing an extension. */
 private val I18N_FILE_LOCALE_REGEX = Regex(
-    """(?:^|[_-])([a-zA-Z]{2,3}(?:[_-][A-Za-z]{2,4})?)\.(?:arb|json|ya?ml|rs|dart|properties|po)$""",
+    """(?:^|[_-])([a-zA-Z]{2,3})(?:[_-][A-Za-z]{4})?(?:[_-]([A-Za-z]{2}|[0-9]{3}))?""" +
+        """\.(?:arb|json|ya?ml|rs|dart|properties|po)$""",
 )
 
 /** Best-effort locale extraction for non-Android translation conventions: a file inside an i18n/l10n-
@@ -967,10 +972,9 @@ private fun localeFromI18nAssetPath(path: String): String? {
     if (fileName.endsWith(".rs") && fileName.substringBeforeLast('.') in RUST_RESERVED_FILE_NAMES) {
         return null
     }
-    val raw = I18N_FILE_LOCALE_REGEX.find(fileName)?.groupValues?.get(1) ?: return null
-    val language = raw.substringBefore('_').substringBefore('-')
-    val region = raw.substringAfter('_', "").ifEmpty { raw.substringAfter('-', "") }
-    if (language.length !in 2..3) return null
+    val match = I18N_FILE_LOCALE_REGEX.find(fileName) ?: return null
+    val language = match.groupValues[1]
+    val region = match.groupValues[2]
     return if (region.isNotEmpty()) "$language-${region.uppercase()}" else language.lowercase()
 }
 

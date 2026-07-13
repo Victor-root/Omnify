@@ -95,7 +95,23 @@ fun SupportedLanguagesSection(languages: SupportedLanguages) {
                     text = stringResource(R.string.supported_languages),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                if (reliable) {
+                val onlyDefaultEnglish = localeCodes.size == 1 && localeCodes.single().equals("en", ignoreCase = true)
+                if (reliable && onlyDefaultEnglish) {
+                    // The unqualified default resource config always decodes as "en" (see
+                    // ApkResourceLocales' own doc comment), so a result of exactly ["en"] and nothing
+                    // else is never a genuine "zero languages" case — it's "nothing beyond the
+                    // fallback baseline was found," which is the one place this detection is still
+                    // known to sometimes fall short (a real translation present in the APK but missed
+                    // by the heuristics that separate it from a bundled library's own strings) —
+                    // flagged here rather than asserted as fact. Once at least one language beyond
+                    // that baseline is found, there's no comparable mechanism by which that finding
+                    // itself would be wrong, so no caveat is shown then.
+                    Text(
+                        text = stringResource(R.string.language_only_default_experimental),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else if (reliable) {
                     // Real UI languages, from an installed APK or a directly-inspected one: state it
                     // definitely.
                     Text(

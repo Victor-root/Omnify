@@ -68,6 +68,32 @@ object ApkZipLocator {
     }
 
     /**
+     * Scans [centralDirectory] for every entry whose name matches [predicate], returning their names.
+     * Unlike [findEntry] (one known name), this is for enumerating a whole directory — e.g. every
+     * per-language `.pak` file under `assets/locales/` — when the set of names isn't known ahead of
+     * time. Metadata-only, like [findEntry]: a caller that needs an entry's actual data still looks it
+     * up by exact name afterwards.
+     */
+    fun findEntryNames(centralDirectory: ByteArray, predicate: (String) -> Boolean): List<String> {
+        val names = mutableListOf<String>()
+        var pos = 0
+        val end = centralDirectory.size
+        while (pos + 46 <= end) {
+            if (!matchesAt(centralDirectory, pos, CENTRAL_DIR_SIGNATURE)) break
+            val nameLength = u16(centralDirectory, pos + 28)
+            val extraLength = u16(centralDirectory, pos + 30)
+            val commentLength = u16(centralDirectory, pos + 32)
+            val nameStart = pos + 46
+            if (nameStart + nameLength <= end) {
+                val name = String(centralDirectory, nameStart, nameLength, Charsets.US_ASCII)
+                if (predicate(name)) names += name
+            }
+            pos = nameStart + nameLength + extraLength + commentLength
+        }
+        return names
+    }
+
+    /**
      * Reads a Local File Header ([localHeaderBytes], starting exactly at [CentralDirectoryEntry
      * .localHeaderOffset]) to find precisely where the entry's actual file data begins — its name and
      * extra-field lengths can differ slightly from the Central Directory's copy, so this can't be

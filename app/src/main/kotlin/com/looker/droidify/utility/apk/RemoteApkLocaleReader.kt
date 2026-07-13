@@ -59,15 +59,47 @@ object RemoteApkLocaleReader {
             inRange(centralDir.offset, centralDir.offset + centralDir.size - 1)
             headers()
         } ?: return null.also { Log.d(TAG, "$apkUrl: central directory fetch failed") }
+
+        // Some frameworks don't localise through Android's resource-table mechanism at all — their UI
+        // strings live entirely in their own per-language asset files instead, invisible to
+        // resources.arsc no matter how thoroughly it's parsed:
+        // - Chromium-based apps (Brave, and any other Chromium/CEF-derived app): `assets/locales/
+        //   <code>.pak` (confirmed against a real Brave APK: 85 assets/locales/*.pak files, zero
+        //   res/values-xx/ directories).
+        // - Flutter apps using the `easy_localization` package (the most common Flutter i18n approach —
+        //   the alternatives compile translations straight into the Dart AOT snapshot instead, with no
+        //   equivalent per-file signal to read: the official, ARB-based `flutter gen-l10n`, and also the
+        //   `slang` package, confirmed on a real app — iyox Wormhole — whose resources.arsc carried zero
+        //   app-authored strings in any locale and shipped no per-locale asset file of any kind, despite
+        //   genuinely having real en/de/it/cs/zh translations compiled in; there's no static, readable
+        //   signal for this class at all): `assets/flutter_assets/assets/<i18n-ish-dir>/<code>.json`
+        //   (confirmed against a real Obtainium APK: 29 per-locale JSON files under assets/flutter_assets/
+        //   assets/translations/, and resources.arsc genuinely carrying zero Obtainium-authored strings
+        //   in any locale — only AndroidX/Material boilerplate).
+        // Just the file NAMES are needed — already in hand from the same central directory fetched for
+        // resources.arsc below, so this costs no extra request. Each pattern's own non-locale files
+        // (Chromium's chrome_100_percent.pak/chrome_200_percent.pak/resources.pak; a Flutter app's other,
+        // non-i18n JSON assets) don't match the locale-code shape and are naturally excluded.
+        val assetLocales = (
+            ApkZipLocator.findEntryNames(centralDirectoryBytes) { PAK_LOCALE_REGEX.matches(it) }
+                .mapNotNull { PAK_LOCALE_REGEX.find(it)?.groupValues?.get(1) } +
+                ApkZipLocator.findEntryNames(centralDirectoryBytes) { FLUTTER_ASSET_LOCALE_REGEX.matches(it) }
+                    .mapNotNull { FLUTTER_ASSET_LOCALE_REGEX.find(it)?.groupValues?.get(1) }
+            ).distinct()
+        if (assetLocales.isNotEmpty()) {
+            Log.d(TAG, "$apkUrl: found ${assetLocales.size} per-locale asset file(s) outside resources.arsc")
+        }
+
         val entry = ApkZipLocator.findEntry(centralDirectoryBytes, ENTRY_NAME)
-            ?: return null.also { Log.d(TAG, "$apkUrl: no $ENTRY_NAME entry in central directory") }
+            ?: return assetLocales.ifEmpty { null }
+                .also { Log.d(TAG, "$apkUrl: no $ENTRY_NAME entry in central directory") }
         if (entry.uncompressedSize <= 0 || entry.uncompressedSize > MAX_ARSC_BYTES) {
             Log.d(TAG, "$apkUrl: $ENTRY_NAME uncompressed size out of bounds (${entry.uncompressedSize}B)")
-            return null
+            return assetLocales.ifEmpty { null }
         }
         if (entry.compressionMethod != COMPRESSION_STORED && entry.compressionMethod != COMPRESSION_DEFLATED) {
             Log.d(TAG, "$apkUrl: unsupported compression method ${entry.compressionMethod}")
-            return null
+            return assetLocales.ifEmpty { null }
         }
 
         // The Local File Header's own name/extra-field lengths can differ slightly from the Central
@@ -76,19 +108,23 @@ object RemoteApkLocaleReader {
         val localHeaderBytes = fetchBytes(downloader, apkUrl) {
             inRange(entry.localHeaderOffset, entry.localHeaderOffset + 29)
             headers()
-        } ?: return null.also { Log.d(TAG, "$apkUrl: local file header fetch failed") }
+        } ?: return assetLocales.ifEmpty { null }
+            .also { Log.d(TAG, "$apkUrl: local file header fetch failed") }
         val dataStart = ApkZipLocator.localFileDataOffset(localHeaderBytes, entry.localHeaderOffset)
-            ?: return null.also { Log.d(TAG, "$apkUrl: couldn't compute local file data offset") }
+            ?: return assetLocales.ifEmpty { null }
+                .also { Log.d(TAG, "$apkUrl: couldn't compute local file data offset") }
 
         val compressedBytes = fetchBytes(downloader, apkUrl) {
             inRange(dataStart, dataStart + entry.compressedSize - 1)
             headers()
-        } ?: return null.also { Log.d(TAG, "$apkUrl: $ENTRY_NAME data fetch failed (${entry.compressedSize}B)") }
+        } ?: return assetLocales.ifEmpty { null }
+            .also { Log.d(TAG, "$apkUrl: $ENTRY_NAME data fetch failed (${entry.compressedSize}B)") }
 
         val arscBytes = when (entry.compressionMethod) {
             COMPRESSION_STORED -> compressedBytes
             else -> inflateRaw(compressedBytes, entry.uncompressedSize.toInt())
-                ?: return null.also { Log.d(TAG, "$apkUrl: inflate failed (${compressedBytes.size}B compressed)") }
+                ?: return assetLocales.ifEmpty { null }
+                    .also { Log.d(TAG, "$apkUrl: inflate failed (${compressedBytes.size}B compressed)") }
         }
         if (arscBytes.size.toLong() != entry.uncompressedSize) {
             Log.d(
@@ -96,13 +132,44 @@ object RemoteApkLocaleReader {
                 "$apkUrl: decoded $ENTRY_NAME size mismatch (got ${arscBytes.size}B, " +
                     "expected ${entry.uncompressedSize}B)",
             )
-            return null
+            return assetLocales.ifEmpty { null }
         }
 
-        val locales = ApkResourceLocales.localeCodes(arscBytes)
-        Log.d(TAG, "$apkUrl: parsed ${arscBytes.size}B $ENTRY_NAME -> ${locales?.size ?: "unparsable"} locale(s)")
-        return locales
+        val arscLocales = ApkResourceLocales.localeCodes(arscBytes)
+        Log.d(
+            TAG,
+            "$apkUrl: parsed ${arscBytes.size}B $ENTRY_NAME -> ${arscLocales?.size ?: "unparsable"} " +
+                "locale(s), plus ${assetLocales.size} from per-locale asset files",
+        )
+        // Union, not "prefer one over the other": an app can genuinely mix both mechanisms (some
+        // Chromium-derived apps keep a few Android-native strings — e.g. notification channel names —
+        // in res/values-xx/ on top of their .pak-bundled UI text), and either list alone can be null/
+        // empty while the other still has a real answer.
+        return ((arscLocales.orEmpty()) + assetLocales).distinct().sorted().ifEmpty { arscLocales }
     }
+
+    /** Matches a Chromium `.pak` locale-resource-bundle file name under `assets/locales/` (e.g.
+     *  `assets/locales/fr.pak`, `assets/locales/zh-CN.pak`, `assets/locales/es-419.pak`), capturing the
+     *  locale code. Chromium's own non-locale .pak files (chrome_100_percent.pak, resources.pak, …)
+     *  don't match this shape — they contain underscores/digits a locale code never does — so they're
+     *  naturally excluded without an explicit denylist. */
+    private val PAK_LOCALE_REGEX = Regex("""assets/locales/([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,4})?)\.pak$""")
+
+    /** Matches a Flutter `easy_localization`-package translation file (e.g. `assets/flutter_assets/
+     *  assets/translations/fr.json`, `.../assets/lang/zh-Hant-TW.json`) — Flutter bundles a Flutter
+     *  app's own declared assets under `assets/flutter_assets/`, and easy_localization ships one JSON
+     *  per locale inside whatever sub-path the app's own developer configured (translations/i18n/l10n/
+     *  lang/locales/…, hence matched loosely rather than to one fixed name). Up to two optional subtags
+     *  (not just one) so a language+script+region code like "zh-Hant-TW" is captured whole instead of
+     *  just its last segment, plus an optional trailing CLDR/POSIX-style `@variant` suffix (e.g.
+     *  `en@pirate.json`, confirmed shipped as a genuine, deliberately-translated locale variant by a
+     *  real app) — without it, that suffix isn't part of a plain `.json` extension match at all, so
+     *  the whole file name fails to match and the variant is silently skipped entirely. */
+    private val FLUTTER_ASSET_LOCALE_REGEX = Regex(
+        """assets/flutter_assets/assets/(?:i18n|l10n|intl|locales?|translations?|lang(?:uages?)?)/""" +
+            """([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,4}){0,2}(?:@[a-zA-Z0-9]+)?)\.json$""",
+        RegexOption.IGNORE_CASE,
+    )
 
     private suspend fun fetchBytes(
         downloader: Downloader,
