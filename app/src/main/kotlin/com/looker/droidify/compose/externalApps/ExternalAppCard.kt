@@ -111,14 +111,14 @@ fun ExternalLifecycleActions(
                 isTelevision -> Modifier.height(60.dp).widthIn(min = 340.dp)
                 isTablet -> Modifier.widthIn(min = 220.dp, max = 360.dp)
                 else -> Modifier.weight(1f)
-            }.tvFocusScale(1.10f).let {
+            }.tvFocusScale(1.10f, debugLabel = "external-primary-button").let {
                 if (primaryActionFocusRequester != null) it.focusRequester(primaryActionFocusRequester) else it
             }
             val secondaryButtonModifier = if (isTelevision) {
                 Modifier.height(60.dp).widthIn(min = 200.dp)
             } else {
                 Modifier
-            }.tvFocusScale(1.10f)
+            }.tvFocusScale(1.10f, debugLabel = "external-secondary-button")
             when {
                 !isInstalled -> Button(
                     onClick = onInstallOrUpdate,

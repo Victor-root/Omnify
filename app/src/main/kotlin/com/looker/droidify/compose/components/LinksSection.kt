@@ -17,6 +17,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,14 +58,20 @@ fun LinkRow(
     title: String,
     url: String?,
     unavailableText: String? = null,
+    // TV: lets a caller (e.g. the README's page-scroll) hand D-pad focus straight to this row once it
+    // reaches a scroll bound, instead of relying on Compose's own default focus search. Null (the
+    // default) leaves this row out of that hand-off. Placed before onClick so a trailing-lambda call
+    // site still binds its lambda to onClick, not to this parameter.
+    focusRequester: FocusRequester? = null,
     onClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             // TV only: a soft green fill behind the focused row (a full-width row can't scale without
             // overflowing the screen). No-op on touch.
-            .tvFocusFill(RoundedCornerShape(12.dp))
+            .tvFocusFill(RoundedCornerShape(12.dp), debugLabel = "link-row-$title")
             .then(
                 when {
                     onClick != null -> Modifier.clickable(onClick = onClick)
