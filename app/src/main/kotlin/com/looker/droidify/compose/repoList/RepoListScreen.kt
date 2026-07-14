@@ -596,9 +596,17 @@ private fun SectionHeader(title: String, collapsed: Boolean, onToggle: () -> Uni
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            // The extra breathing room above a new section lives here, OUTSIDE the highlight — a real
+            // screenshot showed the title sitting visibly below-centre in the focus/hover box, because
+            // this used to be a single .padding(top = 20.dp, bottom = 4.dp) *inside* the tvFocusFill+
+            // clickable chain: Compose sizes the highlight around the row's full padded bounds, so that
+            // 16dp top/bottom mismatch became a 16dp-taller gap above the text than below it. Same total
+            // 20dp gap above the row as before (16dp here + 4dp below, inside the now-symmetric padding),
+            // just split so the highlight box itself stays centred on its content.
+            .padding(top = 16.dp)
             .tvFocusFill(RoundedCornerShape(12.dp))
             .clickable(onClick = onToggle)
-            .padding(start = 16.dp, end = 12.dp, top = 20.dp, bottom = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
         Text(
             text = title,
