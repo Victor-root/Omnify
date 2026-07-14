@@ -93,6 +93,7 @@
     <string name="suggested">Suggérée</string>
     <string name="sync_repositories">Synchroniser les dépôts</string>
     <string name="source_code">Code source</string>
+    <string name="readme_render_failed">L\'aperçu du README n\'a pas pu s\'afficher — vous pouvez tout de même le consulter sur la page du projet</string>
     <string name="size">Taille</string>
     <string name="skip">Ignorer</string>
     <string name="search">Chercher</string>

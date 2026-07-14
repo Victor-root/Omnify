@@ -2,12 +2,15 @@ package com.looker.droidify.compose.externalApps
 
 import android.content.Context
 import android.graphics.Color as AndroidColor
+import android.os.Build
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.material3.MaterialTheme
@@ -78,6 +81,10 @@ fun ReadmeWebView(
     // not a partial render), so a caller whose README is taller than that must pass false here once it
     // knows, or the whole WebView renders nothing.
     forceSoftwareLayer: Boolean = true,
+    // Called if the WebView's renderer process dies (system-triggered, typically under memory pressure —
+    // see onRenderProcessGone below) so the caller can show a fallback instead of a permanently blank gap.
+    // Never called under normal operation.
+    onRendererGone: () -> Unit = {},
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val uriHandler = LocalUriHandler.current
@@ -114,12 +121,13 @@ fun ReadmeWebView(
                     allowContentAccess = false
                 }
                 setBackgroundColor(AndroidColor.TRANSPARENT)
-                // Software layer, not hardware, while forceSoftwareLayer holds: avoids the risk of
-                // HWUI's GL-functor WebView compositing path (RenderThread crashes — SIGSEGV null deref
-                // in GLFunctorDrawable::onDraw/SkSurface::getCanvas — a known Android WebView-hardware-
-                // rendering bug, reproduced here reliably on an emulator though not confirmed on a real
-                // device). See forceSoftwareLayer's own doc comment for why this can't just always be on:
-                // its bitmap budget is far too small for anything but a short README.
+                // Software layer, not hardware, while forceSoftwareLayer holds — see its own doc comment
+                // for why this can't just always be on for every caller (a size cap far too small for
+                // anything but a short README). The hardware path's real risk (RenderThread crashing in
+                // GLFunctorDrawable::onDraw when the WebView's renderer process has died — confirmed via a
+                // real Android TV tombstone) is handled below via onRenderProcessGone instead of avoided
+                // by force here, since disabling hardware rendering outright would silently blank every
+                // README taller than one screen, which is most of them.
                 setLayerType(
                     if (forceSoftwareLayer) View.LAYER_TYPE_SOFTWARE else View.LAYER_TYPE_NONE,
                     null,
@@ -160,6 +168,28 @@ fun ReadmeWebView(
                         view.postDelayed({ reportHeight() }, 1500)
                     }
 
+                    // The renderer process died — usually the system reclaiming memory under pressure,
+                    // confirmed as the real-world trigger for a native SIGSEGV crash on a real Android TV
+                    // device (a real tombstone: RenderThread null-derefing in GLFunctorDrawable::onDraw,
+                    // Skia's hook into a WebView's hardware-accelerated draw). Its native compositor state
+                    // — including whatever hardware-layer draw hook HWUI still holds for this view — dies
+                    // with it, so any further draw of this WebView crashes the same way. Detaching and
+                    // destroying it here, the moment Android tells us it's gone, stops that before it can
+                    // happen again; returning true tells the system this is handled (no default recovery
+                    // UI). onRendererGone lets the caller show a fallback instead of a permanent blank gap.
+                    // API 26+ only (minSdk 23) — harmless no-op override on older platforms, which never
+                    // call it themselves.
+                    @RequiresApi(Build.VERSION_CODES.O)
+                    override fun onRenderProcessGone(
+                        view: WebView,
+                        detail: RenderProcessGoneDetail,
+                    ): Boolean {
+                        (view.parent as? ViewGroup)?.removeView(view)
+                        view.destroy()
+                        onRendererGone()
+                        return true
+                    }
+
                     // Open tapped links in the browser instead of navigating inside the README.
                     override fun shouldOverrideUrlLoading(
                         view: WebView,
@@ -195,7 +225,16 @@ fun ReadmeWebView(
                 web.loadDataWithBaseURL(baseUrl, document, "text/html", "UTF-8", null)
             }
         },
-        onRelease = { it.destroy() },
+        // Detach from the view hierarchy before destroying, not just destroy() alone: a WebView still
+        // attached when destroy() runs can have RenderThread try to draw its (now torn-down) native
+        // hardware layer on the very next frame, a null-deref SIGSEGV crash confirmed on a real Android TV
+        // device navigating away from this screen. stopLoading() first: an in-flight page load can also
+        // touch native state mid-teardown otherwise.
+        onRelease = { web ->
+            web.stopLoading()
+            (web.parent as? ViewGroup)?.removeView(web)
+            web.destroy()
+        },
     )
 }
 

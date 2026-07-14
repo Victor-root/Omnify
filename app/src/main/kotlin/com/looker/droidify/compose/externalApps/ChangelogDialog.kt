@@ -1,6 +1,8 @@
 package com.looker.droidify.compose.externalApps
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -31,8 +34,10 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -61,6 +66,9 @@ fun ChangelogDialog(
     unavailable: Boolean,
     baseUrl: String,
     javaScriptEnabled: Boolean,
+    // The project's own page, opened if the WebView's renderer process dies mid-render (see
+    // ReadmeWebView's onRenderProcessGone) so there's still a way to read the changelog.
+    webUrl: String,
     onDismiss: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -89,6 +97,10 @@ fun ChangelogDialog(
         // it (see tvPageScroll). No effect on touch.
         val backFocusRequester = remember { FocusRequester() }
         val contentFocusRequester = remember { FocusRequester() }
+        val uriHandler = LocalUriHandler.current
+        // True once the WebView's own renderer process has died (see ReadmeWebView's onRendererGone) —
+        // shows a link to read the changelog on its own host instead of a permanently blank dialog.
+        var rendererGone by remember { mutableStateOf(false) }
         if (isTelevision) {
             LaunchedEffect(html) {
                 val primary = if (html != null) contentFocusRequester else backFocusRequester
@@ -124,7 +136,7 @@ fun ChangelogDialog(
                 },
             ) { contentPadding ->
                 when {
-                    html != null -> {
+                    html != null && !rendererGone -> {
                         val scrollState = rememberScrollState()
                         val density = LocalDensity.current
                         var heightPx by remember { mutableStateOf(0) }
@@ -161,6 +173,7 @@ fun ChangelogDialog(
                                 // without this the WebView would silently render nothing at all past a
                                 // short one.
                                 forceSoftwareLayer = viewportPx <= 0 || heightPx <= viewportPx,
+                                onRendererGone = { rendererGone = true },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(
@@ -171,6 +184,25 @@ fun ChangelogDialog(
                                         },
                                     ),
                             )
+                        }
+                    }
+
+                    rendererGone -> Column(
+                        modifier = Modifier
+                            .padding(contentPadding)
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.readme_render_failed),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(onClick = { uriHandler.openUri(webUrl) }) {
+                            Text(stringResource(R.string.source_code))
                         }
                     }
 
