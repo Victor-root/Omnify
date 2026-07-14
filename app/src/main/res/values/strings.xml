@@ -243,6 +243,7 @@
     <string name="language_not_supported_FORMAT">%s: not translated</string>
     <string name="language_from_store_listing">From the store listing (install to see the app\'s real languages)</string>
     <string name="language_only_default_experimental">Only the default English was detected — this detection is experimental and may be incomplete</string>
+    <string name="language_only_default_confirmed">Only English was found, confirmed by independently checking the project\'s own source code</string>
     <string name="plus_more_FORMAT">+%d more</string>
     <string name="processing_FORMAT">Processing %1$s…</string>
     <string name="project_website">Website</string>

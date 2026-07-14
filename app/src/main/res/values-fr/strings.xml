@@ -72,6 +72,7 @@
     <string name="language_not_supported_FORMAT">%s : non traduit</string>
     <string name="language_from_store_listing">D\'après la fiche store (installez l\'app pour les vraies langues)</string>
     <string name="language_only_default_experimental">Seul l\'anglais par défaut a été détecté — cette détection est expérimentale et peut être incomplète</string>
+    <string name="language_only_default_confirmed">Seul l\'anglais a été trouvé, confirmé par une vérification indépendante du code source du projet</string>
     <string name="plus_more_FORMAT">+%d plus</string>
     <string name="settings">Paramètres</string>
     <string name="open_DESC_FORMAT">Ouvrir %s \?</string>

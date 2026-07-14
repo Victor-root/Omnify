@@ -34,6 +34,10 @@ import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.percentBy
 import com.looker.droidify.datastore.model.TranslationEngine
+import com.looker.droidify.external.ExternalApi
+import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.SourceProvider
+import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.common.cache.Cache
@@ -72,6 +76,7 @@ class AppDetailViewModel @Inject constructor(
     private val installedRepository: InstalledRepository,
     private val downloader: Downloader,
     private val translationManager: TranslationManager,
+    private val externalApi: ExternalApi,
     @param:ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -302,9 +307,21 @@ class AppDetailViewModel @Inject constructor(
      */
     private val _remoteApkLocales = MutableStateFlow<List<String>?>(null)
 
-    init {
-        viewModelScope.launch { trackRemoteApkLocales() }
-    }
+    /** True while [trackRemoteApkLocales] has an actual fetch in flight — distinct from
+     *  [_remoteApkLocales] staying null forever once that fetch gives up, which is *not* loading. */
+    private val _remoteApkPending = MutableStateFlow(false)
+
+    /**
+     * Result of cross-checking a default-English-only [baseSupportedLanguages] against the app's own
+     * published source code — see [trackSourceLocaleCrossCheck]. Null until that check has run (or if
+     * it never applies/can't run); a list once it has, "en" alone meaning it agrees nothing further
+     * exists, anything more meaning it found a language the compiled-resource check above missed.
+     */
+    private val _sourceCrossCheck = MutableStateFlow<List<String>?>(null)
+
+    /** True while [trackSourceLocaleCrossCheck] has an actual check in flight — same distinction as
+     *  [_remoteApkPending], for the same reason. */
+    private val _sourceCrossCheckPending = MutableStateFlow(false)
 
     /**
      * Locale codes the app is translated into (its supported languages), for the detail screen's
@@ -320,7 +337,7 @@ class AppDetailViewModel @Inject constructor(
      *    while tier 2 is still resolving, or if it fails (network error, a repo host that doesn't
      *    support range requests, ...).
      */
-    val supportedLanguages: StateFlow<SupportedLanguages> = combine(
+    private val baseSupportedLanguages: StateFlow<SupportedLanguages> = combine(
         state.map { (it as? AppDetailState.Success)?.app?.appId }.distinctUntilChanged(),
         installedInfo,
         _remoteApkLocales,
@@ -344,6 +361,98 @@ class AppDetailViewModel @Inject constructor(
         }
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(SupportedLanguages())
 
+    init {
+        // Both read state (declared above) directly; trackSourceLocaleCrossCheck also reads
+        // baseSupportedLanguages, just declared above this block — a property is only assigned once its
+        // own initializer line runs, so this init block must come after it, not before (a launch{} body
+        // runs eagerly enough on viewModelScope's default dispatcher to hit that gap immediately: a real
+        // NullPointerException from combine() reading baseSupportedLanguages while it was still null,
+        // confirmed via a real crash log, when this init block was placed above it instead).
+        viewModelScope.launch { trackRemoteApkLocales() }
+        viewModelScope.launch { trackSourceLocaleCrossCheck() }
+    }
+
+    /**
+     * [baseSupportedLanguages], cross-checked against the app's own published source code (see
+     * [trackSourceLocaleCrossCheck]) whenever that compiled-resource-based check either never became
+     * reliable at all (tier 3, the store-listing approximation) or found only the default English and
+     * nothing else — the two cases it's known to sometimes fall short (see
+     * [com.looker.droidify.compose.components.SupportedLanguagesSection]'s own doc comment on the
+     * latter; a real example of the former — a Codeberg-hosted app whose compiled-resource check never
+     * resolved at all — is what surfaced the need to also cover it here). A tier-3 result that the
+     * cross-check actually resolves is replaced outright (a real source-code answer beats a guess,
+     * whatever it finds); the English-only case behaves as before — a second, disagreeing opinion is
+     * folded straight in as an additional language, a second, *agreeing* opinion upgrades the existing
+     * caveat to an actual confirmation ([SupportedLanguages.sourceCrossChecked]) instead of just
+     * repeating the same single-method answer a second time. Deliberately does not otherwise touch or
+     * reorder the tiers above: this is a second opinion for the cases they're least sure of, not a
+     * replacement for the whole system.
+     */
+    val supportedLanguages: StateFlow<SupportedLanguages> = combine(
+        baseSupportedLanguages,
+        _sourceCrossCheck,
+        _remoteApkPending,
+        _sourceCrossCheckPending,
+    ) { base, sourceLocales, remoteApkPending, sourceCrossCheckPending ->
+        val onlyDefaultEnglish = base.reliable && base.codes.size == 1 &&
+            base.codes.single().equals("en", ignoreCase = true)
+        val merged = when {
+            sourceLocales == null -> base
+            !base.reliable -> SupportedLanguages(codes = sourceLocales, reliable = true)
+            onlyDefaultEnglish && sourceLocales.any { !it.equals("en", ignoreCase = true) } ->
+                base.copy(codes = (base.codes + sourceLocales).distinct())
+            onlyDefaultEnglish -> base.copy(sourceCrossChecked = true)
+            else -> base
+        }
+        merged.copy(isLoading = remoteApkPending || sourceCrossCheckPending)
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(SupportedLanguages())
+
+    /**
+     * Runs the source-code cross-check (see [supportedLanguages]'s own doc comment) whenever
+     * [baseSupportedLanguages] either never became reliable at all (tier 3, the store-listing
+     * approximation — regardless of what it happens to show) or settled on the default-English-only
+     * result, using the app's own `sourceCode` link from the F-Droid index — the same field the
+     * "Source code" row links to. Skipped entirely (leaving [_sourceCrossCheck] at null, i.e. no change
+     * to what's shown) when there's no such link, it doesn't parse as a supported host, or the repo
+     * tree can't be read at all (private repo, network failure, self-hosted instance that turns out not
+     * to be Gitea/Forgejo, …) — this is strictly a bonus second opinion, never a reason to block or
+     * worsen what's already shown.
+     */
+    private suspend fun trackSourceLocaleCrossCheck() {
+        combine(state, baseSupportedLanguages) { s, base -> s to base }
+            .distinctUntilChanged()
+            .collectLatest { (currentState, base) ->
+                _sourceCrossCheck.value = null
+                _sourceCrossCheckPending.value = false
+                val onlyDefaultEnglish = base.reliable && base.codes.size == 1 &&
+                    base.codes.single().equals("en", ignoreCase = true)
+                if (base.reliable && !onlyDefaultEnglish) return@collectLatest
+                _sourceCrossCheckPending.value = true
+                try {
+                    val success = currentState as? AppDetailState.Success ?: return@collectLatest
+                    val sourceUrl = success.app.links?.sourceCode?.takeIf { it.isNotBlank() }
+                        ?: return@collectLatest
+                    val ref = parseExternalSource(sourceUrl) ?: return@collectLatest
+                    val provider = ref.provider ?: run {
+                        if (externalApi.isGiteaInstance(ref.host, ref.owner, ref.repo)) {
+                            SourceProvider.CODEBERG
+                        } else {
+                            null
+                        }
+                    } ?: return@collectLatest
+                    val probe =
+                        ExternalApp(provider = provider, host = ref.host, owner = ref.owner, repo = ref.repo)
+                    val sourceLocales = externalApi.fetchSourceLocales(probe)?.takeIf { it.isNotEmpty() }
+                        ?: return@collectLatest
+                    _sourceCrossCheck.value = sourceLocales
+                } finally {
+                    // Runs on every exit path (including the early returns above), so isLoading never
+                    // gets stuck true when the check is skipped or fails partway through.
+                    _sourceCrossCheckPending.value = false
+                }
+            }
+    }
+
     /** The locale codes the installed APK actually ships resources for (its real UI languages), read
      *  from the package's AssetManager. Empty if it can't be read. */
     private fun installedApkLocales(): List<String> = runCatching {
@@ -364,27 +473,35 @@ class AppDetailViewModel @Inject constructor(
             .distinctUntilChanged()
             .collectLatest { (currentState, installed) ->
                 _remoteApkLocales.value = null
+                _remoteApkPending.value = false
                 if (installed != null) return@collectLatest
                 val success = currentState as? AppDetailState.Success ?: return@collectLatest
                 val installable = success.packages
                     .selectForDevice(success.app.metadata.suggestedVersionCode)
                     ?: return@collectLatest
-                val (pkg, repo) = installable
-                val cached = appRepository.cachedApkLocales(pkg.apk.hash)
-                if (!cached.isNullOrEmpty()) {
-                    _remoteApkLocales.value = cached
-                    return@collectLatest
+                _remoteApkPending.value = true
+                try {
+                    val (pkg, repo) = installable
+                    val cached = appRepository.cachedApkLocales(pkg.apk.hash)
+                    if (!cached.isNullOrEmpty()) {
+                        _remoteApkLocales.value = cached
+                        return@collectLatest
+                    }
+                    val url = repo.address.removeSuffix("/") + "/" + pkg.apk.name.removePrefix("/")
+                    val locales = RemoteApkLocaleReader.fetchLocales(downloader, url) {
+                        repo.authentication?.let { authentication(it.username, it.password) }
+                    } ?: return@collectLatest
+                    // See the comment on the empty-check in supportedLanguages above: a genuinely empty
+                    // result from a *download* isn't trusted enough to assert or cache — it falls through
+                    // to the store-listing approximation instead of a possibly-wrong "not translated".
+                    if (locales.isEmpty()) return@collectLatest
+                    appRepository.cacheApkLocales(pkg.apk.hash, locales)
+                    _remoteApkLocales.value = locales
+                } finally {
+                    // Runs on every exit path (including the early returns above), so isLoading never
+                    // gets stuck true when the fetch fails or comes back empty.
+                    _remoteApkPending.value = false
                 }
-                val url = repo.address.removeSuffix("/") + "/" + pkg.apk.name.removePrefix("/")
-                val locales = RemoteApkLocaleReader.fetchLocales(downloader, url) {
-                    repo.authentication?.let { authentication(it.username, it.password) }
-                } ?: return@collectLatest
-                // See the comment on the empty-check in supportedLanguages above: a genuinely empty
-                // result from a *download* isn't trusted enough to assert or cache — it falls through to
-                // the store-listing approximation instead of a possibly-wrong confident "not translated".
-                if (locales.isEmpty()) return@collectLatest
-                appRepository.cacheApkLocales(pkg.apk.hash, locales)
-                _remoteApkLocales.value = locales
             }
     }
 

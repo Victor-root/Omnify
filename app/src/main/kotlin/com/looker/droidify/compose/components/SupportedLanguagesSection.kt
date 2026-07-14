@@ -14,7 +14,9 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,10 +37,27 @@ import java.util.Locale
  * directly inspecting a not-yet-installed APK's own compiled resources; false when they're only an
  * approximation from store-listing metadata. Shared by the F-Droid catalogue and external app detail
  * screens, so the two present this identically.
+ *
+ * [sourceCrossChecked] is true when [codes] is the default-English-only result (see
+ * [SupportedLanguagesSection]'s own doc comment on that case) *and* a second, independent check of the
+ * app's own published source code (see [com.looker.droidify.compose.appDetail.AppDetailViewModel]'s
+ * source-locale cross-check) agrees no further language exists — upgrading the experimental caveat to
+ * an actual confirmation instead of just repeating the same single-method answer. Always false for a
+ * result with more than one language: the cross-check's only job is to catch a language the first
+ * method missed, and finding one already speaks for itself (folded straight into [codes]).
+ *
+ * [isLoading] is true while a more reliable answer than [codes]'s current one is still being resolved
+ * in the background (the not-yet-installed APK check, or its own source-code cross-check) — the
+ * catalogue's [codes]/[reliable] can otherwise visibly flip more than once as each tier resolves (a
+ * store-listing guess, then a confirmed answer, then possibly an upgraded caveat), which reads as the
+ * section just being wrong the first time rather than still working. [SupportedLanguagesSection] shows
+ * a spinner instead of any text while this holds, so whatever's shown once it clears is final.
  */
 data class SupportedLanguages(
     val codes: List<String> = emptyList(),
     val reliable: Boolean = false,
+    val sourceCrossChecked: Boolean = false,
+    val isLoading: Boolean = false,
 )
 
 /**
@@ -47,6 +66,7 @@ data class SupportedLanguages(
  * approximation) it shows a caveat instead of asserting anything, so it can never wrongly claim a
  * language isn't translated. The full list expands below, device language first and ticked.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SupportedLanguagesSection(languages: SupportedLanguages) {
     var expanded by remember { mutableStateOf(false) }
@@ -79,7 +99,12 @@ fun SupportedLanguagesSection(languages: SupportedLanguages) {
                 .tvFocusFill(RoundedCornerShape(12.dp), debugLabel = "supported-languages-row")
                 .clickable { expanded = !expanded }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            // Top, not centre: the caveat/confirmation text below the title can wrap to several lines
+            // (e.g. "Only English was found, confirmed by independently checking…"), and centring the
+            // whole row then put the count badge and chevron awkwardly beside the caption's middle line
+            // instead of beside the title — confirmed by a real screenshot. Top keeps them level with the
+            // title regardless of how long the caption underneath grows.
+            verticalAlignment = Alignment.Top,
         ) {
             Icon(
                 // The same translate glyph as the top bar's Translate button, so the languages section
@@ -96,7 +121,27 @@ fun SupportedLanguagesSection(languages: SupportedLanguages) {
                     style = MaterialTheme.typography.titleMedium,
                 )
                 val onlyDefaultEnglish = localeCodes.size == 1 && localeCodes.single().equals("en", ignoreCase = true)
-                if (reliable && onlyDefaultEnglish) {
+                if (languages.isLoading) {
+                    // A more reliable answer than whatever's in [codes] right now is still being
+                    // resolved in the background (see SupportedLanguages' own doc comment on
+                    // isLoading) — a loading bar instead of that in-between text, so nothing shown
+                    // here ever has to be walked back once the real answer comes in.
+                    LinearWavyProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                    )
+                } else if (reliable && onlyDefaultEnglish && languages.sourceCrossChecked) {
+                    // A second, independent check (the app's own published source code, not its
+                    // compiled resources) agrees no further language exists — see SupportedLanguages'
+                    // own doc comment on sourceCrossChecked. Two independent methods agreeing is worth
+                    // actually saying, instead of just repeating the single-method caveat below.
+                    Text(
+                        text = stringResource(R.string.language_only_default_confirmed),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else if (reliable && onlyDefaultEnglish) {
                     // The unqualified default resource config always decodes as "en" (see
                     // ApkResourceLocales' own doc comment), so a result of exactly ["en"] and nothing
                     // else is never a genuine "zero languages" case — it's "nothing beyond the
@@ -139,11 +184,11 @@ fun SupportedLanguagesSection(languages: SupportedLanguages) {
                     )
                 }
             }
-            Text(
-                text = languageList.size.toString(),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (!languages.isLoading) {
+                // Held back while still loading too: the count itself (not just which caveat/text is
+                // shown) can still change once a more reliable tier resolves.
+                CountBadge(languageList.size)
+            }
             Icon(
                 imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                 contentDescription = null,
