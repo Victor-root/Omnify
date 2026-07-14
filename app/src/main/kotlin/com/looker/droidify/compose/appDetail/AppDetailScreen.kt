@@ -108,6 +108,7 @@ import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
 import com.looker.droidify.compose.appDetail.components.PackageItem
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.CountBadge
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.ExpandableText
@@ -1687,11 +1688,7 @@ private fun PermissionsSection(permissions: List<Permission>) {
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f),
             )
-            Text(
-                text = permissions.size.toString(),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            CountBadge(permissions.size)
             Icon(
                 imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                 contentDescription = null,
