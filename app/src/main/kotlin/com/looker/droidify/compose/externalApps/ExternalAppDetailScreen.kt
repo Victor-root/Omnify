@@ -68,6 +68,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -461,6 +462,7 @@ fun ExternalAppDetailScreen(
                 unavailable = changelogUnavailable,
                 baseUrl = app.readmeWebBaseUrl,
                 javaScriptEnabled = readmeJavaScriptEnabled,
+                webUrl = app.webUrl,
                 onDismiss = {
                     showChangelog = false
                     viewModel.dismissChangelog()
@@ -800,11 +802,15 @@ private fun ExternalAppDetailBody(
     onCancel: () -> Unit,
 ) {
     val density = LocalDensity.current
+    val uriHandler = LocalUriHandler.current
     // Keyed on app.key (stable for this screen), NOT on the html: the WebView captures its
     // height callback once, so the callback must keep targeting the same state instance. The
     // WebView re-reports its height every time the document reloads, so translating or reverting
     // resizes correctly on its own.
     var readmeHeightPx by remember(app.key) { mutableStateOf(0) }
+    // True once the WebView's own renderer process has died (see ReadmeWebView's onRendererGone) — shows
+    // a link to read the README on its own host instead of a permanently blank gap.
+    var readmeRendererGone by remember(app.key) { mutableStateOf(false) }
     // TV: explicit hand-off target for the README's page-scroll once it reaches its bottom bound — see
     // tvPageScroll's own doc comment for why this is passed explicitly rather than left to Compose's
     // default focus search.
@@ -825,7 +831,7 @@ private fun ExternalAppDetailBody(
     // README — sized to its content (it doesn't scroll itself) so it scrolls with the rest.
     // GitHub leaves repo-relative image paths un-rewritten, so the WebView resolves them
     // against the raw content host. While it loads, show a spinner instead of empty space.
-    if (readmeHtml != null) {
+    if (readmeHtml != null && !readmeRendererGone) {
         // Collapsed to fill the space left below it down to the bottom of the screen — same idea as
         // the F-Droid catalogue's description. A WebView has no line count to cap, so a pixel height is
         // capped instead; Compose coerces the WebView's own (larger) requested height down to it, so
@@ -882,6 +888,7 @@ private fun ExternalAppDetailBody(
                 },
                 scrollState = scrollState,
                 forceSoftwareLayer = !readmeNeedsHardwareLayer,
+                onRendererGone = { readmeRendererGone = true },
                 modifier = Modifier
                     .fillMaxWidth()
                     // Until the content height is known, give it a sensible height so it can render
@@ -897,6 +904,26 @@ private fun ExternalAppDetailBody(
                 ) {
                     Text(stringResource(R.string.show_more))
                 }
+            }
+        }
+    } else if (readmeRendererGone) {
+        // The WebView's renderer process died mid-render (see ReadmeWebView's onRenderProcessGone) —
+        // rare, but leaving the space blank with no explanation or way forward would be worse than this.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = stringResource(R.string.readme_render_failed),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = { uriHandler.openUri(app.webUrl) }) {
+                Text(stringResource(R.string.source_code))
             }
         }
     } else if (readmeError != null) {

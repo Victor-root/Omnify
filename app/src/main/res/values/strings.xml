@@ -292,6 +292,7 @@
     <string name="socks_proxy">SOCKS proxy</string>
     <string name="sorting_order">Sorting order</string>
     <string name="source_code">Source code</string>
+    <string name="readme_render_failed">The README preview couldn\'t be displayed — you can still read it on the project\'s own page</string>
     <string name="source_code_no_longer_available">Source code no longer available</string>
     <string name="special_credits">Special credits</string>
     <string name="author">Author</string>
