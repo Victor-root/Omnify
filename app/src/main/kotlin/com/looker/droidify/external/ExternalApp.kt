@@ -85,6 +85,11 @@ data class ExternalApp(
      *  sources list — a hand-picked, growing set of apps worth discovering, distinct from a source the
      *  user added themselves. */
     val curated: Boolean = false,
+    /** True for a [curated] source that's part of the Android TV pack (see MainComposeActivity's
+     *  curatedTvPack) — grouped into their own "Made for TV" sub-heading within "Omnify's picks" on the
+     *  repositories screen, rather than mixed in alphabetically with every other curated pick. Meaningless
+     *  when [curated] is false. */
+    val curatedTv: Boolean = false,
 ) {
     /** The host actually called: [host] when set, otherwise the provider's public default. */
     val effectiveHost: String

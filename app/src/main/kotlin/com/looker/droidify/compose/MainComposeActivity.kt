@@ -125,6 +125,7 @@ class MainComposeActivity : ComponentActivity() {
         private const val KEY_OMNIFY_CURATED_MIGRATED = "omnify_curated_migrated_v1"
         private const val KEY_TV_PACK_SEEDED_V1 = "tv_pack_seeded_v1"
         private const val KEY_TV_PACK_ICONS_BACKFILLED_V1 = "tv_pack_icons_backfilled_v1"
+        private const val KEY_TV_PACK_CURATEDTV_BACKFILLED_V1 = "tv_pack_curatedtv_backfilled_v1"
         private const val KEY_ADAPTIVE_ICON_RESCAN_V1 = "adaptive_icon_rescan_v1"
     }
 
@@ -177,6 +178,7 @@ class MainComposeActivity : ComponentActivity() {
             label = "Aerial Views",
             enabled = false,
             curated = true,
+            curatedTv = true,
         ),
         ExternalApp(
             provider = SourceProvider.GITHUB,
@@ -185,6 +187,7 @@ class MainComposeActivity : ComponentActivity() {
             label = "Fluffy",
             enabled = false,
             curated = true,
+            curatedTv = true,
         ),
         ExternalApp(
             provider = SourceProvider.GITLAB,
@@ -193,6 +196,7 @@ class MainComposeActivity : ComponentActivity() {
             label = "FLauncher",
             enabled = false,
             curated = true,
+            curatedTv = true,
         ),
         ExternalApp(
             provider = SourceProvider.GITLAB,
@@ -201,6 +205,7 @@ class MainComposeActivity : ComponentActivity() {
             label = "BtRemote",
             enabled = false,
             curated = true,
+            curatedTv = true,
         ),
         ExternalApp(
             provider = SourceProvider.GITHUB,
@@ -209,6 +214,7 @@ class MainComposeActivity : ComponentActivity() {
             label = "Ghosten Player",
             enabled = false,
             curated = true,
+            curatedTv = true,
         ),
         ExternalApp(
             provider = SourceProvider.GITHUB,
@@ -217,6 +223,7 @@ class MainComposeActivity : ComponentActivity() {
             label = "mpv Nova",
             enabled = false,
             curated = true,
+            curatedTv = true,
         ),
         ExternalApp(
             provider = SourceProvider.GITHUB,
@@ -225,6 +232,7 @@ class MainComposeActivity : ComponentActivity() {
             label = "Smart Twitch TV",
             enabled = false,
             curated = true,
+            curatedTv = true,
         ),
         ExternalApp(
             provider = SourceProvider.GITHUB,
@@ -233,6 +241,7 @@ class MainComposeActivity : ComponentActivity() {
             label = "FCast Receiver",
             enabled = false,
             curated = true,
+            curatedTv = true,
         ),
     )
 
@@ -518,6 +527,19 @@ class MainComposeActivity : ComponentActivity() {
                     rescannedApps.forEach { externalAppRepository.upsertApp(it) }
                 }
                 firstRunPrefs.edit().putBoolean(KEY_ADAPTIVE_ICON_RESCAN_V1, true).apply()
+            }
+
+            // One-time: mark already-seeded TV pack entries with curatedTv, so an install seeded before
+            // that field existed still gets its own "Made for TV" grouping on the repositories screen
+            // (see RepoListScreen) instead of staying mixed in alphabetically among general curated picks
+            // forever. Purely local (matching against curatedTvPack()'s own keys) — no network involved,
+            // unlike the icon/TV-support backfills above.
+            if (!firstRunPrefs.getBoolean(KEY_TV_PACK_CURATEDTV_BACKFILLED_V1, false)) {
+                val tvPackKeys = curatedTvPack().map { it.key }.toSet()
+                externalAppRepository.getApps()
+                    .filter { it.curated && !it.curatedTv && it.key in tvPackKeys }
+                    .forEach { externalAppRepository.upsertApp(it.copy(curatedTv = true)) }
+                firstRunPrefs.edit().putBoolean(KEY_TV_PACK_CURATEDTV_BACKFILLED_V1, true).apply()
             }
 
             // Self-heal an empty catalog. A schema migration recreates the database: the repo rows
