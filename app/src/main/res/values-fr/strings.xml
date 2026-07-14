@@ -129,6 +129,7 @@
     <string name="discover_recently_updated">Récemment mis à jour</string>
     <string name="discover_most_downloaded">Les plus téléchargés</string>
     <string name="discover_tv_apps">Conçues pour la TV</string>
+    <string name="tv_apps_only">Afficher uniquement les applications conçues pour la TV</string>
     <string name="discover_shizuku">Compatibles Shizuku</string>
     <string name="discover_root">Pour appareils rootés</string>
     <string name="no_installed_apps">Aucune application installée</string>
