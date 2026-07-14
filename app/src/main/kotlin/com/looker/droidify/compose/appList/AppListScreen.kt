@@ -573,7 +573,15 @@ fun AppListScreen(
                 bottom = contentPadding.calculateBottomPadding() + TvOverscan,
             )
         } else {
-            contentPadding
+            // Touch: the grid otherwise starts flush against the pinned header, tiles look cramped
+            // against it. A small extra top gap gives the first row some breathing room.
+            val direction = LocalLayoutDirection.current
+            PaddingValues(
+                start = contentPadding.calculateStartPadding(direction),
+                top = contentPadding.calculateTopPadding() + 8.dp,
+                end = contentPadding.calculateEndPadding(direction),
+                bottom = contentPadding.calculateBottomPadding(),
+            )
         }
         // "Page swiping" (user setting): a horizontal drag over the grid switches to the neighbouring
         // tab. Only on touch, and only on the plain tab lists (not while searching or on a carousel
