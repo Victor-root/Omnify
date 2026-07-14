@@ -64,6 +64,12 @@ class AppListViewModel @Inject constructor(
     val favouritesOnly: StateFlow<Boolean> = _favouritesOnly
     private val favouriteApps: Flow<Set<String>> = settingsRepository.get { favouriteApps }.distinctUntilChanged()
 
+    // TV-only filter (Android TV only — see AppListScreen's header toggle). Session-only like
+    // favouritesOnly above, not persisted: it's a "just for this browsing session" narrowing, not a
+    // lasting preference.
+    private val _tvOnly = MutableStateFlow(false)
+    val tvOnly: StateFlow<Boolean> = _tvOnly
+
     /** Whether a left/right swipe on the home grid switches tab (user setting, off by default). */
     val homeScreenSwiping = settingsRepository.get { homeScreenSwiping }.asStateFlow(false)
 
@@ -89,23 +95,49 @@ class AppListViewModel @Inject constructor(
         appRepository.downloadStatsChanges.drop(1).sample(CATALOG_REFRESH_MS),
     ).distinctUntilChanged().asStateFlow(0)
 
+    /** Package names of apps genuinely made for TV — refreshed once per catalogue change, not on every
+     *  keystroke/filter change, since [appsState] below intersects it in on every recompute while [tvOnly]
+     *  is on. Deliberately stricter than [tvApps]'s own carousel query: that carousel also folds in the
+     *  loose [TV_RELEVANT_CATEGORIES] list ("Local Media Player", "Cast", etc.), which is a fine discovery
+     *  heuristic when capped to a handful of results, but turned out far too broad ("openbar") once used
+     *  uncapped as a strict hide-everything-else filter. Here we only trust the real technical signal: the
+     *  app's manifest actually declaring the `android.software.leanback` feature. */
+    private val tvPackageNames: StateFlow<Set<String>> = catalogChanges
+        .mapLatest {
+            appRepository.apps(
+                // Order is irrelevant here — only used to build a membership set, never shown directly.
+                sortOrder = SortOrder.UPDATED,
+                featuresToInclude = listOf(LEANBACK_FEATURE),
+            ).mapTo(mutableSetOf()) { it.packageName.name }
+        }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptySet())
+
     val appsState: StateFlow<List<AppMinimal>> = combine(
         searchQueryStream,
         selectedCategories,
         favouritesOnly,
         favouriteApps,
-    ) { searchQuery, categories, favOnly, favSet ->
-        AppQuery(searchQuery, categories, favOnly, favSet)
+        tvOnly,
+    ) { searchQuery, categories, favOnly, favSet, tvOnlyValue ->
+        AppQuery(searchQuery, categories, favOnly, favSet, tvOnlyValue)
     }
         .combine(catalogChanges) { query, _ -> query }
-        .mapLatest { query ->
+        .combine(tvPackageNames) { query, tvNames -> query to tvNames }
+        .mapLatest { (query, tvNames) ->
             val items = appRepository.apps(
                 // The sort picker was removed; the main list always shows the freshest apps first.
                 sortOrder = SortOrder.UPDATED,
                 searchQuery = query.search,
                 categoriesToInclude = query.categories.toList(),
             )
-            if (query.favOnly) items.filter { it.packageName.name in query.favSet } else items
+            val favFiltered = if (query.favOnly) {
+                items.filter { it.packageName.name in query.favSet }
+            } else {
+                items
+            }
+            if (query.tvOnly) favFiltered.filter { it.packageName.name in tvNames } else favFiltered
         }
         // Off the main thread, and skip re-emitting an identical list (the catalogue flow fires
         // repeatedly during a sync) so the grid doesn't needlessly re-diff and re-animate.
@@ -261,6 +293,10 @@ class AppListViewModel @Inject constructor(
 
     fun toggleFavouritesOnly() {
         _favouritesOnly.value = !_favouritesOnly.value
+    }
+
+    fun toggleTvOnly() {
+        _tvOnly.value = !_tvOnly.value
     }
 
     /** True while any sync runs (first launch, manual, repo-enable, periodic) — drives the bar. */
@@ -490,6 +526,7 @@ private data class AppQuery(
     val categories: Set<DefaultName>,
     val favOnly: Boolean,
     val favSet: Set<String>,
+    val tvOnly: Boolean,
 )
 
 /**

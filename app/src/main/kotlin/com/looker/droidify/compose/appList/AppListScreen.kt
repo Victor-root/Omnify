@@ -64,10 +64,12 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -168,6 +170,7 @@ fun AppListScreen(
     val tvApps by viewModel.tvApps.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val favouritesOnly by viewModel.favouritesOnly.collectAsStateWithLifecycle()
+    val tvOnly by viewModel.tvOnly.collectAsStateWithLifecycle()
     val expandedSections by viewModel.expandedSections.collectAsStateWithLifecycle()
     val expandedSectionApps by viewModel.expandedSectionApps.collectAsStateWithLifecycle()
     val openedSection by viewModel.openedSection.collectAsStateWithLifecycle()
@@ -204,6 +207,11 @@ fun AppListScreen(
     // System back leaves the favourites filter and returns to the full Discover home.
     BackHandler(enabled = favouritesOnly && !searchExpanded && !sectionView) {
         viewModel.toggleFavouritesOnly()
+    }
+    // Same for the TV-only filter (Android TV only — the toggle itself is never reachable off TV, so
+    // tvOnly is always false there and this is a no-op).
+    BackHandler(enabled = tvOnly && !searchExpanded && !sectionView) {
+        viewModel.toggleTvOnly()
     }
     // Entering or leaving a section page swaps the whole list, so start it at the top. Compare against
     // the last section we handled (saveable) rather than firing on every composition: returning from an
@@ -328,6 +336,10 @@ fun AppListScreen(
     val tvExternalApps = remember(enabledExternalApps) {
         enabledExternalApps.filter { it.supportsTelevision }
     }
+    // The External tab's own grid: narrowed to tvExternalApps while the header's TV-only toggle is on,
+    // reusing the exact same list the "Made for TV" carousel/section already computes above instead of
+    // filtering twice.
+    val gridExternalApps = if (tvOnly) tvExternalApps else enabledExternalApps
     // "Track only" sources keep updating in the background but are kept out of the Updates tab/count.
     // hasUpdateGiven (not the plain hasUpdate) also catches an app installed before its source was
     // tracked, by falling back to its real on-device version — see ExternalApp.hasUpdateGiven.
@@ -517,6 +529,8 @@ fun AppListScreen(
                         },
                         favouritesOnly = favouritesOnly,
                         onToggleFavourites = viewModel::toggleFavouritesOnly,
+                        tvOnly = tvOnly,
+                        onToggleTvOnly = viewModel::toggleTvOnly,
                     )
                     AppTabRow(
                         selectedTab = selectedTab,
@@ -618,13 +632,13 @@ fun AppListScreen(
             // Installed package names, used to badge every tile that's already installed.
             val installedPackages = installedVersionNames.keys
             if (selectedTab == AppTab.EXTERNAL) {
-                if (enabledExternalApps.isEmpty()) {
+                if (gridExternalApps.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "external-empty") {
                         ExternalTabEmpty()
                     }
                 }
                 // Install happens on the detail screen; the grid mirrors the catalogue tabs exactly.
-                items(items = enabledExternalApps, key = { it.key }, contentType = { "ext-tile" }) { app ->
+                items(items = gridExternalApps, key = { it.key }, contentType = { "ext-tile" }) { app ->
                     ExternalAppTile(
                         app = app,
                         isInstalled = app.key in externalInstalledKeys,
@@ -1276,6 +1290,8 @@ private fun AppListTopBar(
     onNavigateToSettings: () -> Unit,
     favouritesOnly: Boolean,
     onToggleFavourites: () -> Unit,
+    tvOnly: Boolean,
+    onToggleTvOnly: () -> Unit,
     title: @Composable () -> Unit,
 ) {
     // QKSMS-style reveal: the main bar stays put and, on tapping the magnifier, the search field
@@ -1290,6 +1306,8 @@ private fun AppListTopBar(
             onNavigateToSettings = onNavigateToSettings,
             favouritesOnly = favouritesOnly,
             onToggleFavourites = onToggleFavourites,
+            tvOnly = tvOnly,
+            onToggleTvOnly = onToggleTvOnly,
             overflowExpanded = overflowExpanded,
             onOverflowExpandedChange = onOverflowExpandedChange,
             title = title,
@@ -1318,6 +1336,8 @@ private fun AppListMainTopBar(
     onNavigateToSettings: () -> Unit,
     favouritesOnly: Boolean,
     onToggleFavourites: () -> Unit,
+    tvOnly: Boolean,
+    onToggleTvOnly: () -> Unit,
     overflowExpanded: Boolean,
     onOverflowExpandedChange: (Boolean) -> Unit,
     title: @Composable () -> Unit,
@@ -1370,6 +1390,26 @@ private fun AppListMainTopBar(
                     painterResource(R.drawable.ic_tabler_refresh),
                     contentDescription = stringResource(R.string.sync),
                 )
+            }
+            // TV only: narrow every list (Available/Installed/Updates/External) down to apps actually
+            // made for TV (see AppListViewModel's tvOnly/tvPackageNames) — a real toggle, not a one-way
+            // filter, so the couch user can flip back to the full catalogue just as easily. A
+            // FilledIconToggleButton (not a plain IconButton) so the "on" state reads at a glance from
+            // across the room, the same way the tab row's own selection does. Never shown off TV: touch
+            // already has the favourites filter for narrowing the list, and TV-compatibility isn't a
+            // remotely useful axis to filter by with a mouse/finger.
+            if (LocalIsTelevision.current) {
+                Spacer(Modifier.width(buttonSpacing))
+                FilledIconToggleButton(
+                    checked = tvOnly,
+                    onCheckedChange = { onToggleTvOnly() },
+                    modifier = Modifier.size(48.dp).tvFocusScale(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Tv,
+                        contentDescription = stringResource(R.string.tv_apps_only),
+                    )
+                }
             }
             Spacer(Modifier.width(buttonSpacing))
             // Overflow: the less-used destinations (favourites filter, repositories, settings) live
