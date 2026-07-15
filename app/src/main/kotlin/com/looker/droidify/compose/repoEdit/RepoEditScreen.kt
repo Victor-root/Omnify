@@ -46,6 +46,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -126,6 +127,7 @@ fun RepoEditScreen(
                 .fillMaxSize()
                 .padding(paddingValues),
         ) {
+            FloatingAppCardsBackground()
             Column(
                 modifier = Modifier
                     .fillMaxSize()

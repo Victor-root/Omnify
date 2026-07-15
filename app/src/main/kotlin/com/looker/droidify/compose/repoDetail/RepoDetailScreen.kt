@@ -71,6 +71,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appList.CatalogAppTile
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.errorButtonColors
+import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvFocusOutline
@@ -191,6 +192,7 @@ fun RepoDetailScreen(
             }
         },
     ) { paddingValues ->
+        FloatingAppCardsBackground(Modifier.padding(paddingValues))
         val currentRepo = repo
         when {
             currentRepo == null -> {
