@@ -626,7 +626,9 @@ fun ExternalAppDetailScreen(
                         .weight(0.6f)
                         .fillMaxHeight()
                         .onSizeChanged { viewportPx = it.height }
-                        .verticalScroll(scrollState),
+                        .verticalScroll(scrollState)
+                        // So the last version card isn't glued to the bottom of the screen.
+                        .padding(bottom = 24.dp),
                 ) {
                     ExternalAppDetailBody(
                         app = app,
@@ -706,6 +708,8 @@ fun ExternalAppDetailScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(contentPadding)
+                        // So the last version card isn't glued to the bottom of the screen.
+                        .padding(bottom = 24.dp)
                         .onSizeChanged { viewportPx = it.height }
                         .verticalScroll(scrollState),
                 ) {
