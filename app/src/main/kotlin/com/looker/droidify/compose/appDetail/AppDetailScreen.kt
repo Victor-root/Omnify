@@ -118,6 +118,7 @@ import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.LinkRow
+import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.RootBadge
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionSeparator
@@ -1271,11 +1272,7 @@ private fun VersionsSection(
                             )
                         }
                     },
-                backgroundColor = if (isSuggested) {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                } else {
-                    MaterialTheme.colorScheme.surface
-                },
+                highlighted = isSuggested,
                 downloadStatus = if (isThisRowDownloading) downloadStatus else null,
                 installing = isThisRowDownloading && downloadStatus == null,
                 onCancel = if (isThisRowDownloading) onCancel else null,
@@ -1507,54 +1504,61 @@ private fun GoogleServicesCard(
     modifier: Modifier = Modifier,
 ) {
     val hasHardGap = dependencies.any { it.coverage == MicrogCoverage.NONE }
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = MaterialTheme.shapes.medium,
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_tabler_brand_google),
-                    contentDescription = null,
-                    tint = if (hasHardGap) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    },
-                    modifier = Modifier.size(22.dp),
-                )
-                Column {
-                    Text(
-                        text = stringResource(
-                            if (hasHardGap) {
-                                R.string.google_services_hard_title
-                            } else {
-                                R.string.google_services_soft_title
-                            },
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
+    val shape = MaterialTheme.shapes.medium
+    // See the doc comment on premiumCardBorder's HeroCard usage: the border must live on this
+    // outer Box, not inside Surface's own modifier, or its own background paints over it.
+    Box(modifier = modifier.fillMaxWidth().then(premiumCardBorder(shape))) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            // White instead of a flat grey card — the gradient border above is what ties it to
+            // the theme, not a flat colour fill.
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = shape,
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_tabler_brand_google),
+                        contentDescription = null,
+                        tint = if (hasHardGap) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                        modifier = Modifier.size(22.dp),
                     )
-                    Text(
-                        text = stringResource(
-                            if (hasHardGap) {
-                                R.string.google_services_hard_summary
-                            } else {
-                                R.string.google_services_soft_summary
-                            },
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Column {
+                        Text(
+                            text = stringResource(
+                                if (hasHardGap) {
+                                    R.string.google_services_hard_title
+                                } else {
+                                    R.string.google_services_soft_title
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = stringResource(
+                                if (hasHardGap) {
+                                    R.string.google_services_hard_summary
+                                } else {
+                                    R.string.google_services_soft_summary
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-            }
-            dependencies.forEach { dependency ->
-                GoogleServiceDependencyRow(dependency)
+                dependencies.forEach { dependency ->
+                    GoogleServiceDependencyRow(dependency)
+                }
             }
         }
     }

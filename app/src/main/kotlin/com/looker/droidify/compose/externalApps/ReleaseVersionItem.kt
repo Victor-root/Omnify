@@ -3,6 +3,7 @@ package com.looker.droidify.compose.externalApps
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.CompactInstallProgressRow
+import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.external.Release
 import com.looker.droidify.network.DataSize
@@ -51,22 +53,35 @@ fun ReleaseVersionItem(
     installing: Boolean = false,
     onCancel: (() -> Unit)? = null,
 ) {
-    Surface(
-        shape = MaterialTheme.shapes.large,
-        color = if (isSuggested) {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
+    val cardShape = MaterialTheme.shapes.large
+    // The border lives on this outer Box, not inside Surface's own modifier: Surface paints its
+    // background as part of its internal implementation, which chains after whatever modifier
+    // it's given — a border passed straight into Surface's modifier ended up painted OVER by
+    // that internal fill and was never actually visible. Drawn on a wrapping Box instead, it's
+    // guaranteed to render on top of the Surface, not underneath it.
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .clip(MaterialTheme.shapes.large)
-            // TV only: visible focus ring (no-op on touch).
-            .tvFocusOutline(MaterialTheme.shapes.large)
-            .clickable(onClick = onClick, role = Role.Button),
+            // Same treatment as the hero card, only for the one suggested release — that's the
+            // pick this screen wants to draw the eye to, not every entry in a long version list,
+            // which would drown the highlight out.
+            .then(if (isSuggested) premiumCardBorder(cardShape) else Modifier),
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)) {
+        Surface(
+            shape = cardShape,
+            // White for every card, suggested included — the border above (not a grey fill) is
+            // what now marks the suggested one, matching the hero card's own white-plus-border
+            // look.
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(cardShape)
+                // TV only: visible focus ring (no-op on touch).
+                .tvFocusOutline(cardShape)
+                .clickable(onClick = onClick, role = Role.Button),
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -128,6 +143,7 @@ fun ReleaseVersionItem(
                     }
                 }
             }
+        }
         }
     }
 }

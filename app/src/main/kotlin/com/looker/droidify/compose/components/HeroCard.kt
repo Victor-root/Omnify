@@ -62,12 +62,23 @@ fun HeroCard(
     stats: (@Composable () -> Unit)? = null,
     footer: (@Composable () -> Unit)? = null,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = MaterialTheme.shapes.large,
-    ) {
+    val shape = MaterialTheme.shapes.large
+    // The border lives on this outer Box, not inside Surface's own modifier: Surface paints its
+    // background as part of its internal implementation, which chains after whatever modifier
+    // it's given — a border passed straight into Surface's modifier ended up painted OVER by
+    // that internal fill and was never actually visible. Drawn on a wrapping Box instead, it's
+    // guaranteed to render on top of the Surface, not underneath it.
+    Box(modifier = modifier.fillMaxWidth().then(premiumCardBorder(shape))) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            // Plain white (not the grey surfaceContainerHigh): against the aurora background
+            // behind it (see FloatingAppCardsBackground), a flat grey card read as washed-out and
+            // didn't stand out. The gradient border (premiumCardBorder) above is what ties it
+            // back to the theme instead of a flat colour fill.
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = shape,
+        ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -162,6 +173,7 @@ fun HeroCard(
                     )
                 }
             }
+        }
         }
     }
 }

@@ -1,7 +1,6 @@
 package com.looker.droidify.compose.repoDetail
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -72,6 +71,7 @@ import com.looker.droidify.compose.appList.CatalogAppTile
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.errorButtonColors
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
+import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvFocusOutline
@@ -365,25 +365,29 @@ private fun RepoInfoTab(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            border = BorderStroke(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-            ),
-        ) {
-            SwitchSettingItem(
-                title = stringResource(R.string.repo_enabled_title),
-                description = if (repo.enabled) {
-                    stringResource(R.string.repo_enabled_desc_on)
-                } else {
-                    stringResource(R.string.repo_enabled_desc_off)
-                },
-                checked = repo.enabled,
-                onCheckedChange = onToggle,
-            )
+        val repoCardShape = MaterialTheme.shapes.large
+        // The border lives on this outer Box, not inside Surface's own modifier — see the doc
+        // comment on premiumCardBorder's HeroCard usage for why (Surface's own background paints
+        // over a border passed straight into its modifier).
+        Box(modifier = Modifier.fillMaxWidth().then(premiumCardBorder(repoCardShape))) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = repoCardShape,
+                // White instead of a flat bordered grey card — the gradient border above is what
+                // ties it to the theme, not a flat colour fill.
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                SwitchSettingItem(
+                    title = stringResource(R.string.repo_enabled_title),
+                    description = if (repo.enabled) {
+                        stringResource(R.string.repo_enabled_desc_on)
+                    } else {
+                        stringResource(R.string.repo_enabled_desc_off)
+                    },
+                    checked = repo.enabled,
+                    onCheckedChange = onToggle,
+                )
+            }
         }
     }
 }
@@ -518,31 +522,32 @@ private fun FingerprintCard(
     title: String,
     content: AnnotatedString,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.surfaceVariant,
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+    val shape = MaterialTheme.shapes.large
+    // See the doc comment on premiumCardBorder's HeroCard usage: the border must live on this
+    // outer Box, not inside Surface's own modifier, or its own background paints over it.
+    Box(modifier = Modifier.fillMaxWidth().then(premiumCardBorder(shape))) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = shape,
+            color = MaterialTheme.colorScheme.surface,
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.secondary,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = content,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.secondary,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = content,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
