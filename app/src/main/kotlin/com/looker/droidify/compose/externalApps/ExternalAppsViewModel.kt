@@ -437,7 +437,8 @@ class ExternalAppsViewModel @Inject constructor(
                 return@launch
             }
             val release = externalApi.latestReleaseFor(app) ?: return@launch
-            val asset = selectApkAsset(release.assets, filter = app.apkFilter) ?: return@launch
+            val asset = selectApkAsset(release.assets, filter = app.apkFilter, releaseTag = release.tag)
+                ?: return@launch
             // The asset's own update timestamp/id (already used to detect updates — see
             // ExternalApp.hasUpdate) doubles as a stable cache key for this specific build; falls back
             // to the download URL for providers that expose neither.
@@ -709,7 +710,8 @@ class ExternalAppsViewModel @Inject constructor(
                     val addApkSize = release.apkFileSize(filter = app.apkFilter)
                     Log.d(
                         TAG,
-                        "addApp ${app.key}: asset=${selectApkAsset(release.assets, filter = app.apkFilter)?.name} " +
+                        "addApp ${app.key}: asset=" +
+                            "${selectApkAsset(release.assets, filter = app.apkFilter, releaseTag = release.tag)?.name} " +
                             "size=$addApkSize rawAssetSizes=${release.assets.map { it.name to it.size }}",
                     )
                     repository.addApp(
@@ -1239,7 +1241,7 @@ class ExternalAppsViewModel @Inject constructor(
                     return
                 }
             }
-            val asset = selectApkAsset(release.assets, filter = app.apkFilter)
+            val asset = selectApkAsset(release.assets, filter = app.apkFilter, releaseTag = release.tag)
             if (asset == null) {
                 snack(context.getString(R.string.external_no_apk, app.repo))
                 return

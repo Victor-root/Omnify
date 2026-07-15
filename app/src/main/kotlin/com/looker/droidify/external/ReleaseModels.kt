@@ -132,13 +132,14 @@ data class GitlabLinkDto(
  *
  * Release assets carry no ABI metadata, only file names, so we first narrow to the user's optional
  * name [filter] (a regex — e.g. to force a particular split), then match the device's ABIs (most
- * preferred first) against the name, then fall back to a universal build, then the only/first APK.
- * Returns null when the release ships no APK.
+ * preferred first) against the name, then fall back to a universal build, then a same-priority
+ * tie-break (see below), then the first APK. Returns null when the release ships no APK.
  */
 fun selectApkAsset(
     assets: List<ReleaseAsset>,
     deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
     filter: String? = null,
+    releaseTag: String? = null,
 ): ReleaseAsset? {
     val apks = applyApkFilter(
         assets.filter { it.name.endsWith(".apk", ignoreCase = true) },
@@ -155,12 +156,32 @@ fun selectApkAsset(
         }
         if (match != null) return match
     }
-    // No ABI-specific build matched: prefer a universal one, else just the first APK.
-    return apks.firstOrNull { apk ->
+    // No ABI-specific build matched: prefer a universal one.
+    apks.firstOrNull { apk ->
         val name = apk.name.lowercase()
         "universal" in name || "noarch" in name || "all" in name
-    } ?: apks.first()
+    }?.let { return it }
+
+    // Still tied: several ABI-agnostic APKs with no "universal"-style naming either — confirmed on a
+    // real release (Magisk's, shipping both "app-debug.apk" and "Magisk-v30.7.apk" side by side).
+    // Upload order alone (what plain apks.first() would fall back to) isn't a meaningful ranking and
+    // can just as easily surface a leftover debug build first. Two more signals narrow it down before
+    // giving up: drop anything that looks like a development build, then prefer whichever name
+    // actually carries the release's own version tag — each step only applies if it doesn't eliminate
+    // every candidate (same "never refuse everything over one signal" spirit as [applyApkFilter]).
+    val nonDebug = apks.filterNot { apk ->
+        DEBUG_BUILD_MARKERS.any { marker -> marker in apk.name.lowercase() }
+    }.ifEmpty { apks }
+    val taggedMatch = releaseTag?.trimStart('v', 'V')?.takeIf { it.isNotBlank() }?.let { tag ->
+        nonDebug.filter { it.name.contains(tag, ignoreCase = true) }
+    }?.ifEmpty { null }
+    return (taggedMatch ?: nonDebug).first()
 }
+
+/** Name fragments marking an APK as a development build rather than the intended release, never
+ *  preferred over a same-priority sibling asset. Kept short and unambiguous on purpose — a false
+ *  positive here would wrongly reject someone's actual release. */
+private val DEBUG_BUILD_MARKERS = listOf("debug", "unsigned")
 
 /**
  * Restricts [apks] to those whose file name matches the user's APK [filter] (a regex). A blank or
@@ -222,7 +243,7 @@ fun Release.apkVersionToken(
     deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
     filter: String? = null,
 ): String? {
-    val apk = selectApkAsset(assets, deviceAbis, filter) ?: return null
+    val apk = selectApkAsset(assets, deviceAbis, filter, releaseTag = tag) ?: return null
     return apk.updatedAt ?: apk.id?.toString() ?: apk.name
 }
 
@@ -233,7 +254,7 @@ fun Release.apkFileName(
     deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
     filter: String? = null,
 ): String? =
-    selectApkAsset(assets, deviceAbis, filter)?.name
+    selectApkAsset(assets, deviceAbis, filter, releaseTag = tag)?.name
 
 /** The size in bytes of the APK this release would install, for the "Taille" stat shown before
  *  installing — mirrors the F-Droid catalogue's APK size stat. Null when the release ships no APK, or
@@ -242,7 +263,7 @@ fun Release.apkFileSize(
     deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
     filter: String? = null,
 ): Long? =
-    selectApkAsset(assets, deviceAbis, filter)?.size
+    selectApkAsset(assets, deviceAbis, filter, releaseTag = tag)?.size
 
 private val versionInFileName = Regex("""\d+(?:\.\d+)+""")
 
