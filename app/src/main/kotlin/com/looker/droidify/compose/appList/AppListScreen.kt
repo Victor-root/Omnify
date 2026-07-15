@@ -135,6 +135,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.data.model.AppMinimal
+import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvDpadDownTo
@@ -557,6 +558,7 @@ fun AppListScreen(
             }
         },
     ) { contentPadding ->
+        FloatingAppCardsBackground(Modifier.padding(contentPadding))
         if (catalogLoading) {
             RepoFetchingState(modifier = Modifier.padding(contentPadding))
             return@Scaffold

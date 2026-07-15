@@ -77,6 +77,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
@@ -218,6 +219,7 @@ fun RepoListScreen(
             )
         },
     ) { contentPadding ->
+        FloatingAppCardsBackground(Modifier.padding(contentPadding))
         LazyColumn(
             contentPadding = contentPadding,
             modifier = Modifier

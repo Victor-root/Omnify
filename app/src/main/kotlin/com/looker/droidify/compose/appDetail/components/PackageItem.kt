@@ -4,6 +4,7 @@ import android.content.Context
 import android.text.format.DateFormat
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -17,7 +18,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.CompactInstallProgressRow
+import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
@@ -41,7 +42,10 @@ fun PackageItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
-    backgroundColor: Color = MaterialTheme.colorScheme.surface,
+    // The one version this screen wants to draw the eye to (typically "suggested") — white like
+    // every other row, but with the same gradient border as the hero card (see premiumCardBorder)
+    // instead of the old flat grey fill, so it doesn't drown out in a long version list.
+    highlighted: Boolean = false,
     // Download/install progress for THIS specific version, when the user picked it from the list —
     // shown inline instead of the repo/SDK detail lines, so progress is visible right where it was
     // tapped instead of only in the hero card (out of view once scrolled down to this list). Both null/
@@ -51,22 +55,38 @@ fun PackageItem(
     onCancel: (() -> Unit)? = null,
     label: @Composable RowScope.() -> Unit,
 ) {
-    Surface(
-        shape = MaterialTheme.shapes.large,
-        color = backgroundColor,
-        modifier = modifier
+    val shape = MaterialTheme.shapes.large
+    // The border lives on this outer Box, not inside Surface's own modifier: Surface paints its
+    // background as part of its internal implementation, which chains after whatever modifier
+    // it's given — a border passed straight into Surface's modifier ended up painted OVER by
+    // that internal fill and was never actually visible. Drawn on a wrapping Box instead, it's
+    // guaranteed to render on top of the Surface, not underneath it. The caller's own `modifier`
+    // (TV focus requesters, focus-change logging) stays on the actually-clickable Surface below,
+    // not this Box, so focus targeting keeps landing on the real focusable element.
+    // padding lives here, not on the Surface below: the border is drawn around THIS Box's bounds,
+    // so if the Surface were the one inset from it, the border would trace a bigger rectangle than
+    // the actual visible white card and look like it's floating outside it.
+    Box(
+        modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .clip(MaterialTheme.shapes.large)
-            // TV only: visible focus ring (no-op on touch).
-            .tvFocusOutline(MaterialTheme.shapes.large)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick,
-                role = Role.Button,
-            ),
+            .then(if (highlighted) premiumCardBorder(shape) else Modifier),
     ) {
-        Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)) {
+        Surface(
+            shape = shape,
+            color = MaterialTheme.colorScheme.surface,
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(shape)
+                // TV only: visible focus ring (no-op on touch).
+                .tvFocusOutline(shape)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                    role = Role.Button,
+                ),
+        ) {
+            Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)) {
             Column(Modifier.weight(1F)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -120,6 +140,7 @@ fun PackageItem(
                     color = MaterialTheme.colorScheme.outline,
                 )
             }
+        }
         }
     }
 }
