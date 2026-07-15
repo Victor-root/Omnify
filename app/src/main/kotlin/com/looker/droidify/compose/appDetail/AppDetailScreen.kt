@@ -853,7 +853,7 @@ private fun AppDetail(
                     .onSizeChanged { viewportPx = it.height }
                     .verticalScroll(scrollState)
                     .focusGroup()
-                    .padding(top = 16.dp),
+                    .padding(top = 16.dp, bottom = 24.dp),
             ) {
                 AppDetailBody(
                     app = app,
@@ -922,8 +922,9 @@ private fun AppDetail(
                     // the explicit focus target, see primaryActionFocusRequester).
                     .focusGroup()
                     .then(modifier)
-                    // Breathing room so the header section isn't glued under the top bar.
-                    .padding(top = 16.dp),
+                    // Breathing room so the header section isn't glued under the top bar, and the
+                    // last version card isn't glued to the bottom of the screen either.
+                    .padding(top = 16.dp, bottom = 24.dp),
             ) {
                 Column(
                     modifier = if (isTelevision) {
