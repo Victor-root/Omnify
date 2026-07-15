@@ -159,7 +159,12 @@ fun ChangelogDialog(
                                         Modifier
                                     },
                                 )
-                                .verticalScroll(scrollState),
+                                // overscrollEffect = null: this container hosts a hardware-accelerated
+                                // WebView, and Android 12+'s stretch overscroll deterministically
+                                // crashes RenderThread when it redraws that WebView at the scroll
+                                // boundary — see the same parameter in ExternalAppDetailScreen for the
+                                // full story.
+                                .verticalScroll(scrollState, overscrollEffect = null),
                         ) {
                             ReadmeWebView(
                                 html = html,
