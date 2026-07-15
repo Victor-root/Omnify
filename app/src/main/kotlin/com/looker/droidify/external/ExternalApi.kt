@@ -1,5 +1,6 @@
 package com.looker.droidify.external
 
+import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
 import com.looker.droidify.datastore.SettingsRepository
@@ -25,6 +26,7 @@ import org.commonmark.ext.task.list.items.TaskListItemsExtension
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
 import java.net.URLEncoder
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -219,24 +221,42 @@ class ExternalApi @Inject constructor(
         return false
     }
 
+    /** Shared cache for [fetchTreePaths], keyed by repo identity — [fetchIconCandidates],
+     *  [fetchRepoMetadata] and [fetchSourceLocales] each need the same file listing, and without this
+     *  they'd each fire their own request (up to 3 for the same repo in the same scan/screen-open). Also
+     *  outlives any single screen/ViewModel (this class is a singleton for the app's process lifetime),
+     *  so reopening an app's detail page doesn't burn a fresh api.github.com call every time either.
+     *  [TREE_CACHE_TTL_MS] keeps it from going stale forever: rare (new translations, new files) but real,
+     *  so a background sync/reopen after that window re-checks for real instead of trusting this forever. */
+    private val treeCache = ConcurrentHashMap<String, Pair<Long, List<String>>>()
+
     /** The repo's whole file tree (blob paths), or empty on any failure. Each provider exposes a
      *  recursive tree API; GitHub and Gitea/Forgejo share the same `{tree:[…]}` shape, GitLab returns a
-     *  paged array. */
-    private suspend fun fetchTreePaths(app: ExternalApp): List<String> = when (app.provider) {
-        SourceProvider.GITHUB -> {
-            val url = "https://api.github.com/repos/${app.owner}/${app.repo}/git/trees/HEAD?recursive=1"
-            val text = runCatching { getText(url, github = true) }.getOrNull() ?: return emptyList()
-            runCatching { parseTreePaths(text, "${app.owner}/${app.repo}") }.getOrNull() ?: emptyList()
+     *  paged array. See [treeCache]. */
+    private suspend fun fetchTreePaths(app: ExternalApp): List<String> {
+        val cacheKey = "${app.provider}|${app.effectiveHost}|${app.owner}|${app.repo}"
+        treeCache[cacheKey]?.let { (fetchedAt, paths) ->
+            if (SystemClock.elapsedRealtime() - fetchedAt < TREE_CACHE_TTL_MS) return paths
         }
+        val paths = when (app.provider) {
+            SourceProvider.GITHUB -> {
+                val url =
+                    "https://api.github.com/repos/${app.owner}/${app.repo}/git/trees/HEAD?recursive=1"
+                val text = runCatching { getText(url, github = true) }.getOrNull() ?: return emptyList()
+                runCatching { parseTreePaths(text, "${app.owner}/${app.repo}") }.getOrNull() ?: emptyList()
+            }
 
-        SourceProvider.CODEBERG -> {
-            val url = "https://${app.effectiveHost}/api/v1/repos/${app.owner}/${app.repo}" +
-                "/git/trees/HEAD?recursive=true&per_page=1000"
-            val text = runCatching { getText(url) }.getOrNull() ?: return emptyList()
-            runCatching { parseTreePaths(text, "${app.owner}/${app.repo}") }.getOrNull() ?: emptyList()
+            SourceProvider.CODEBERG -> {
+                val url = "https://${app.effectiveHost}/api/v1/repos/${app.owner}/${app.repo}" +
+                    "/git/trees/HEAD?recursive=true&per_page=1000"
+                val text = runCatching { getText(url) }.getOrNull() ?: return emptyList()
+                runCatching { parseTreePaths(text, "${app.owner}/${app.repo}") }.getOrNull() ?: emptyList()
+            }
+
+            SourceProvider.GITLAB -> fetchGitlabTreePaths(app)
         }
-
-        SourceProvider.GITLAB -> fetchGitlabTreePaths(app)
+        if (paths.isNotEmpty()) treeCache[cacheKey] = SystemClock.elapsedRealtime() to paths
+        return paths
     }
 
     /** GitLab's tree API is a paged bare array (max 100/page); walk a bounded number of pages. Large
@@ -758,6 +778,12 @@ class ExternalApi @Inject constructor(
 
 /** How many distinct icon candidates we keep for the picker (one per icon family, best density). */
 private const val MAX_ICON_CANDIDATES = 12
+
+/** Freshness window for [ExternalApi.treeCache] — long enough that browsing an app's screens or a
+ *  catalogue re-scan doesn't burn a fresh api.github.com call per repo, short enough that a genuinely
+ *  new translation or source file shows up again within the same day rather than staying cached forever.
+ *  Matches [com.looker.droidify.compose.externalApps.ExternalAppsViewModel]'s own per-app caches. */
+private const val TREE_CACHE_TTL_MS = 15 * 60 * 1000L
 
 /** An `owner/repo` pair returned when listing a whole account's repositories. */
 data class RepoRef(val owner: String, val repo: String)
