@@ -591,7 +591,10 @@ fun ExternalAppDetailScreen(
                     modifier = Modifier
                         .weight(0.4f)
                         .fillMaxHeight()
-                        .verticalScroll(leftPaneScrollState),
+                        // No WebView in this pane, so no crash risk here — but the right pane next to
+                        // it has its overscroll disabled (see below), and one pane stretching while
+                        // its neighbour doesn't reads as a glitch, so both go without.
+                        .verticalScroll(leftPaneScrollState, overscrollEffect = null),
                 ) {
                     headerCard()
                     ExternalLinksSection(
@@ -626,7 +629,9 @@ fun ExternalAppDetailScreen(
                         .weight(0.6f)
                         .fillMaxHeight()
                         .onSizeChanged { viewportPx = it.height }
-                        .verticalScroll(scrollState)
+                        // No stretch overscroll: this pane hosts the README WebView — see the same
+                        // parameter on the single-column layout below for the full native-crash story.
+                        .verticalScroll(scrollState, overscrollEffect = null)
                         // So the last version card isn't glued to the bottom of the screen.
                         .padding(bottom = 24.dp),
                 ) {
@@ -711,7 +716,17 @@ fun ExternalAppDetailScreen(
                         // So the last version card isn't glued to the bottom of the screen.
                         .padding(bottom = 24.dp)
                         .onSizeChanged { viewportPx = it.height }
-                        .verticalScroll(scrollState),
+                        // overscrollEffect = null: NO stretch overscroll on this container — it hosts
+                        // a hardware-accelerated WebView (the README), and Android 12+'s stretch effect
+                        // redraws that WebView's GL draw functor through an unclipped-saveLayer path in
+                        // libhwui whose clip bounds go degenerate right at the scroll boundary, where
+                        // GLFunctorDrawable::onDraw null-derefs an unallocated SkSurface — a native
+                        // SIGSEGV (fault addr 0x20, RenderThread) that fires DETERMINISTICALLY the
+                        // moment the user hits the very bottom of any tall-README page. Confirmed in
+                        // AOSP source (never fixed there, Android 12 through current) and the exact
+                        // same crash react-native-webview hit at scale (their issue #2364 / PR #2874).
+                        // Losing the stretch visual on this one screen is the documented tradeoff.
+                        .verticalScroll(scrollState, overscrollEffect = null),
                 ) {
                     Column(
                         modifier = if (isTelevision) {

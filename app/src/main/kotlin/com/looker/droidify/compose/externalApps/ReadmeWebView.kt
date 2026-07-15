@@ -10,6 +10,7 @@ import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.scrollBy
@@ -110,8 +111,16 @@ fun ReadmeWebView(
     }
     AndroidView(
         modifier = modifier,
+        // The WebView sits inside a plain FrameLayout rather than being the AndroidView root itself:
+        // defense-in-depth against the Android 12+ libhwui crash this screen used to hit (RenderThread
+        // SIGSEGV in GLFunctorDrawable::onDraw when a stretch/saveLayer path redraws the WebView's GL
+        // functor with degenerate clip bounds). The primary fix is disabling the stretch overscroll on
+        // the scroll containers hosting this composable (overscrollEffect = null at every call site),
+        // but the interposed FrameLayout also changes the clip geometry so the fatal unclipped-saveLayer
+        // branch isn't taken even if some other effect ever promotes this subtree to a layer — the exact
+        // mitigation react-native-webview shipped at scale for the same crash (their PR #2874).
         factory = { context ->
-            NonScrollingWebView(context).apply {
+            val web = NonScrollingWebView(context).apply {
                 settings.apply {
                     // Explicit `this.`: a bare `javaScriptEnabled` here still binds to the outer
                     // Composable parameter of the same name (a val, hence "val cannot be reassigned")
@@ -207,8 +216,21 @@ fun ReadmeWebView(
                     }
                 }
             }
+            FrameLayout(context).apply {
+                addView(
+                    web,
+                    FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    ),
+                )
+            }
         },
-        update = { web ->
+        update = { frame ->
+            // The child can be gone: onRenderProcessGone below detaches and destroys it when its
+            // renderer process dies, and this update block can still run once more before the caller's
+            // onRendererGone state swap removes this composable from composition entirely.
+            val web = frame.getChildAt(0) as? WebView ?: return@AndroidView
             // Keep the live setting in sync even if the user flips it in Settings and returns to an
             // already-composed screen (factory only runs once, at first creation).
             web.settings.javaScriptEnabled = allowJavaScript
@@ -229,11 +251,14 @@ fun ReadmeWebView(
         // attached when destroy() runs can have RenderThread try to draw its (now torn-down) native
         // hardware layer on the very next frame, a null-deref SIGSEGV crash confirmed on a real Android TV
         // device navigating away from this screen. stopLoading() first: an in-flight page load can also
-        // touch native state mid-teardown otherwise.
-        onRelease = { web ->
-            web.stopLoading()
-            (web.parent as? ViewGroup)?.removeView(web)
-            web.destroy()
+        // touch native state mid-teardown otherwise. (Null child: already torn down by
+        // onRenderProcessGone — nothing left to release.)
+        onRelease = { frame ->
+            (frame.getChildAt(0) as? WebView)?.let { web ->
+                web.stopLoading()
+                frame.removeView(web)
+                web.destroy()
+            }
         },
     )
 }
