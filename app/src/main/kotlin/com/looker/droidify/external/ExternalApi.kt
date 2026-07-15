@@ -110,7 +110,7 @@ class ExternalApi @Inject constructor(
             // in the version list either — the list should only ever offer what could actually be
             // installed from it.
             .filter { app.includePrereleases || !it.isPrerelease }
-            .filter { selectApkAsset(it.assets, filter = app.apkFilter) != null }
+            .filter { selectApkAsset(it.assets, filter = app.apkFilter, releaseTag = it.tag) != null }
     }
 
     /** Probes whether [host] runs Gitea/Forgejo by hitting its repo API. Lets a pasted URL whose host
