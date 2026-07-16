@@ -173,13 +173,32 @@ data class ExternalApp(
      * A different APK than the one installed is available. Compared by APK identity (the file itself),
      * so a new release tag with no new APK doesn't count. Falls back to the release tag only for apps
      * installed before APK-token tracking existed (their token is backfilled on the next install).
+     *
+     * Before trusting that file-identity comparison, though: if the real on-device version
+     * ([installedVersionName]) already matches the version the latest release's APK reports
+     * ([latestApkName]/[latestTag]), treat that as up to date regardless of what the tokens say. A
+     * release can ship more than one APK for the same version under different file names (confirmed
+     * real: Magisk's GitHub release carries both "app-debug.apk" and "Magisk-v30.7.apk" side by
+     * side) — [installedApkToken] then just reflects *which of those files* got picked at install
+     * time, not a genuinely different version, so a since-fixed selection heuristic (or a filter
+     * change) can otherwise wave a false "update available" forever at everyone who installed
+     * before the fix, even though reinstalling would fetch the exact same version again.
      */
     val hasUpdate: Boolean
-        get() = when {
-            installedApkToken != null && latestApkToken != null ->
-                installedApkToken != latestApkToken
-            installedTag != null && latestTag != null -> latestTag != installedTag
-            else -> false
+        get() {
+            val installedLabel = installedVersionName
+            val latestLabel = latestApkName?.let(::apkVersionLabel) ?: latestTag?.let(::apkVersionLabel)
+            if (installedLabel != null && latestLabel != null &&
+                installedLabel.equals(latestLabel, ignoreCase = true)
+            ) {
+                return false
+            }
+            return when {
+                installedApkToken != null && latestApkToken != null ->
+                    installedApkToken != latestApkToken
+                installedTag != null && latestTag != null -> latestTag != installedTag
+                else -> false
+            }
         }
 
     /**
