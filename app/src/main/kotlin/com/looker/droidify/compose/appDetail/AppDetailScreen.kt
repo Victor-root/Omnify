@@ -1425,12 +1425,20 @@ private fun AppHeaderCard(
             )
         },
         // The real installed version + its source (e.g. a fork installed over the upstream package
-        // keeps its own version), folded into the card instead of sitting orphaned below it.
+        // keeps its own version), folded into the card instead of sitting orphaned below it. A signer
+        // mismatch (see InstalledInfo.signatureMismatch) means whatever that is belongs to a different
+        // app that happens to share this package name, not to this catalogue entry — say so instead of
+        // implying the version/source shown is this app's own state.
         footer = heroFooter(
             infoText = installedInfo?.let { info ->
-                stringResource(R.string.installed_version_source, info.version, info.source)
+                if (info.signatureMismatch) {
+                    stringResource(R.string.installed_signature_mismatch, info.version, info.source)
+                } else {
+                    stringResource(R.string.installed_version_source, info.version, info.source)
+                }
             },
             onViewVersionsClick = onViewVersionsClick,
+            isWarning = installedInfo?.signatureMismatch == true,
         ),
     )
 }

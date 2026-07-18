@@ -200,8 +200,12 @@ class AppListViewModel @Inject constructor(
     val installedApps: StateFlow<List<AppMinimal>> = combine(
         appsState,
         installedInfo,
-    ) { apps, installed ->
-        apps.filter { it.packageName.name in installed.versions }
+        suggestedVersions,
+    ) { apps, installed, suggested ->
+        apps.filter { app ->
+            val pkg = app.packageName.name
+            pkg in installed.versions && !isIdentityMismatch(pkg, installed, suggested)
+        }
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
 
     /** The Updates tab's list — installed apps with an available update. Precomputed like [installedApps];
@@ -268,6 +272,25 @@ class AppListViewModel @Inject constructor(
             catalogueSigners.none { it.equals(installedSigner, ignoreCase = true) }
         if (signerConflict && pkg in installed.systemApps) return false
         return true
+    }
+
+    /**
+     * True when [pkg]'s installed signing certificate is known to conflict with every signer the
+     * catalogue declares for it — i.e. whatever's installed under this package name isn't actually a
+     * build of this catalogue entry (a different app happens to share the package name, e.g. a
+     * de-Googled Signal fork sharing Signal's real org.thoughtcrime.securesms). Both fingerprints are
+     * already lowercase-hex SHA-256 sitting in [installedInfo]/[suggestedVersions], so this is a free
+     * comparison. False (assume no conflict) whenever either side has nothing to compare.
+     */
+    private fun isIdentityMismatch(
+        pkg: String,
+        installed: InstalledInfo,
+        suggested: Map<String, SuggestedVersion>,
+    ): Boolean {
+        val installedSigner = installed.signatures[pkg]?.takeIf { it.isNotBlank() } ?: return false
+        val catalogueSigners = suggested[pkg]?.signers ?: return false
+        if (catalogueSigners.isEmpty()) return false
+        return catalogueSigners.none { it.equals(installedSigner, ignoreCase = true) }
     }
 
     private fun isSystemApp(packageName: String): Boolean = runCatching {

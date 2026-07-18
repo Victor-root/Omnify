@@ -255,6 +255,10 @@ fun HeroSourceCodeStatItem(onClick: () -> Unit, modifier: Modifier = Modifier) {
 fun heroFooter(
     infoText: String?,
     onViewVersionsClick: (() -> Unit)?,
+    // True when infoText is actually a warning (e.g. the installed app under this package name doesn't
+    // match this catalogue entry's own signer) rather than routine info — shown in the theme's error
+    // colour instead of the usual muted one so it doesn't read as an ordinary detail.
+    isWarning: Boolean = false,
 ): (@Composable () -> Unit)? {
     if (infoText == null && onViewVersionsClick == null) return null
     return {
@@ -263,7 +267,11 @@ fun heroFooter(
                 Text(
                     text = text,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isWarning) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     textAlign = TextAlign.Center,
                 )
             }

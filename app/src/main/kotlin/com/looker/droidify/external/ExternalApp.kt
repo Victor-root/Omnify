@@ -46,6 +46,15 @@ data class ExternalApp(
      *  F-Droid catalogue's APK size stat. Null when not yet known or the provider doesn't expose it
      *  (GitLab's release link assets carry no size). */
     val latestApkSize: Long? = null,
+    /** Direct download URL of the APK [latestApkName] refers to — captured for free alongside the other
+     *  latest* fields whenever a release is fetched (it's already part of that same response), instead
+     *  of costing a dedicated network call later. Used to read the APK's real signing certificate via a
+     *  cheap HTTP range request ([com.looker.droidify.utility.apk.ApkSigningBlockReader]) and cross-check
+     *  it against whatever's actually installed under [packageName] — the same package-name-collision
+     *  risk the F-Droid catalogue can hit (a de-Googled fork sharing an app's real package id, say), just
+     *  without an index to compare against ahead of time. Null for sources added before this existed,
+     *  which simply skip that check until their next refresh backfills it. */
+    val latestApkUrl: String? = null,
     /** Whether to consider pre-releases when picking the latest release. */
     val includePrereleases: Boolean = false,
     /** Optional regex matched against APK file names to choose which APK to install when a release
