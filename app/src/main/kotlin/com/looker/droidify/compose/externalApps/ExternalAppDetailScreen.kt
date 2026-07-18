@@ -129,6 +129,7 @@ fun ExternalAppDetailScreen(
     val installStates by viewModel.installStates.collectAsStateWithLifecycle()
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
     val installSources by viewModel.installSources.collectAsStateWithLifecycle()
+    val signatureMismatches by viewModel.signatureMismatches.collectAsStateWithLifecycle()
     val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
     val readme by viewModel.readme.collectAsStateWithLifecycle()
     val readmeError by viewModel.readmeError.collectAsStateWithLifecycle()
@@ -200,10 +201,18 @@ fun ExternalAppDetailScreen(
     }
 
     val installedVersion = installedVersions[appKey]
+    // True when whatever's actually installed under this package name isn't a build of this tracked
+    // source at all (see viewModel.signatureMismatches) — a different app happens to share the package
+    // name. Folded into isInstalled below (so the primary action correctly offers "Installer" instead of
+    // "Ouvrir", which would otherwise silently launch that other app — tapping Install then goes through
+    // the real download flow, which detects the same conflict and asks to uninstall first) and used again
+    // further down to word the footer as a warning instead of implying the shown version/source is this
+    // app's own state.
+    val signatureMismatch = appKey in signatureMismatches
     // Read straight off installedVersions (not the separately-collected installedKeys StateFlow) so the
     // button and the footer's "Installé : …" text always agree within the same composition — two
     // independently-collected StateFlows can otherwise land on different frames for a moment.
-    val isInstalled = installedVersion != null
+    val isInstalled = installedVersion != null && !signatureMismatch
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     // Hoisted above the Scaffold (not inside its content lambda) so both the content column and the
@@ -503,12 +512,15 @@ fun ExternalAppDetailScreen(
         // catalogue card shows its installed version there. Also names where it actually came from when
         // known, same as the catalogue card — makes a copy installed by a different client obvious
         // instead of silently offering "Launch" with no explanation for why "Update" never appears.
+        // signatureMismatch (computed above) means whatever that is belongs to a different app that
+        // happens to share this package name, not to this tracked source — say so instead of implying
+        // the version/source shown is this app's own state.
         val footerText = installedVersion?.let { version ->
-            val source = installSources[appKey]
-            if (source != null) {
-                stringResource(R.string.installed_version_source, version, source)
-            } else {
-                stringResource(R.string.external_installed_version, version)
+            val source = installSources[appKey] ?: stringResource(R.string.installer_unknown)
+            when {
+                signatureMismatch -> stringResource(R.string.installed_signature_mismatch, version, source)
+                installSources[appKey] != null -> stringResource(R.string.installed_version_source, version, source)
+                else -> stringResource(R.string.external_installed_version, version)
             }
         }
 
@@ -574,6 +586,7 @@ fun ExternalAppDetailScreen(
                     } else {
                         null
                     },
+                    isWarning = signatureMismatch,
                 ),
             )
         }

@@ -27,6 +27,7 @@ import com.looker.droidify.external.ExternalAccountRef
 import com.looker.droidify.external.Release
 import com.looker.droidify.external.ReleaseLookup
 import com.looker.droidify.external.RepoRef
+import com.looker.droidify.external.apkDownloadUrl
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkFileSize
 import com.looker.droidify.external.apkVersionToken
@@ -44,11 +45,15 @@ import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.translation.TranslationManager
+import com.looker.droidify.utility.apk.ApkSigningBlockReader
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
+import com.looker.droidify.utility.common.extension.calculateHash
+import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
 import com.looker.droidify.utility.common.extension.installerSourceLabel
+import com.looker.droidify.utility.common.extension.singleSignature
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -56,6 +61,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.dropWhile
@@ -195,6 +201,79 @@ class ExternalAppsViewModel @Inject constructor(
             key to context.installerSourceLabel(pkg)
         }.toMap()
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
+
+    /**
+     * Keys ([ExternalApp.key]) whose installed app's real signing certificate doesn't match any signer
+     * declared by the latest known release's own APK — read via [ApkSigningBlockReader], a cheap HTTP
+     * range read, never a full download. A package name alone isn't proof of identity: Android lets a
+     * completely different app claim the same package name a tracked source uses (a de-Googled fork
+     * sharing an app's real package id, say) as long as it got there first — the same collision risk
+     * [com.looker.droidify.data.local.model.toPackages] documents for the F-Droid catalogue, just without
+     * an index to cross-check against ahead of time here. A key simply absent from this set (rather than
+     * present with false) means either there's nothing to compare yet or the check hasn't completed —
+     * treat "absent" the same as "no mismatch", never block on it. See [trackSignatureMismatches].
+     */
+    private val _signatureMismatches = MutableStateFlow<Set<String>>(emptySet())
+    val signatureMismatches: StateFlow<Set<String>> = _signatureMismatches
+
+    /** In-memory cache of [ApkSigningBlockReader] results, keyed by APK URL — a source's latestApkUrl
+     *  rarely changes between refreshes, so this avoids re-reading the signing block over the network
+     *  every time the installed set is merely re-evaluated (e.g. on screen resume). Not persisted:
+     *  losing it on process death just means the next check re-reads once, the same cost as the very
+     *  first check ever. */
+    private val signerHashCache = mutableMapOf<String, Set<String>?>()
+
+    init {
+        viewModelScope.launch { trackSignatureMismatches() }
+    }
+
+    /**
+     * Keeps [signatureMismatches] current: for every tracked app that's both installed and has a known
+     * latest-release APK URL, compares the installed signing certificate (read live from the package
+     * manager, same as everywhere else this comparison is made) against [ApkSigningBlockReader]'s
+     * reading of that URL. Runs sequentially and in the background — this is a bonus safety signal, not
+     * something any button waits on — and never flags a mismatch when either side can't be determined
+     * (don't warn on uncertainty, same philosophy as the F-Droid catalogue's own version of this check).
+     */
+    private suspend fun trackSignatureMismatches() {
+        combine(repository.apps, installedVersions) { apps, installed -> apps to installed }
+            .distinctUntilChanged()
+            .collectLatest { (apps, installed) ->
+                val candidates = apps.filter { it.key in installed.keys && it.latestApkUrl != null }
+                if (candidates.isEmpty()) {
+                    _signatureMismatches.value = emptySet()
+                    return@collectLatest
+                }
+                val mismatches = mutableSetOf<String>()
+                candidates.forEach { app ->
+                    val pkg = app.packageName ?: return@forEach
+                    val apkUrl = app.latestApkUrl ?: return@forEach
+                    val installedSigner = context.packageManager
+                        .getPackageInfoCompat(pkg)
+                        ?.singleSignature
+                        ?.calculateHash()
+                        ?.lowercase()
+                        ?: return@forEach
+                    // Deliberately not signerHashCache.getOrPut(apkUrl) { ... }: getOrPut only treats a
+                    // *missing* key as a cache miss, but a failed read is cached as a null *value* under
+                    // an already-present key — indistinguishable from "missing" to getOrPut, so it would
+                    // silently re-fetch over the network on every single re-evaluation instead of caching
+                    // the failure once, defeating the whole point of this cache for exactly the hosts most
+                    // likely to need it (ones that don't support range requests at all).
+                    val expectedSigners = if (signerHashCache.containsKey(apkUrl)) {
+                        signerHashCache.getValue(apkUrl)
+                    } else {
+                        ApkSigningBlockReader.fetchSignerHashes(downloader, apkUrl).also {
+                            signerHashCache[apkUrl] = it
+                        }
+                    } ?: return@forEach
+                    if (expectedSigners.none { it.equals(installedSigner, ignoreCase = true) }) {
+                        mismatches += app.key
+                    }
+                }
+                _signatureMismatches.value = mismatches
+            }
+    }
 
     /** Keys of tracked apps the user has favourited — the same store the F-Droid catalogue's own
      *  favourites use ([SettingsRepository.toggleFavourites]/`favouriteApps`), keyed by [ExternalApp.key]
@@ -728,6 +807,7 @@ class ExternalAppsViewModel @Inject constructor(
                             latestApkToken = release.apkVersionToken(filter = app.apkFilter),
                             latestApkName = release.apkFileName(filter = app.apkFilter),
                             latestApkSize = addApkSize,
+                            latestApkUrl = release.apkDownloadUrl(filter = app.apkFilter),
                         ),
                     )
                     snack(context.getString(R.string.external_added, app.repo))
@@ -900,6 +980,7 @@ class ExternalAppsViewModel @Inject constructor(
                 latestApkToken = release.apkVersionToken(filter = candidate.apkFilter),
                 latestApkName = release.apkFileName(filter = candidate.apkFilter),
                 latestApkSize = release.apkFileSize(filter = candidate.apkFilter),
+                latestApkUrl = release.apkDownloadUrl(filter = candidate.apkFilter),
             )
         }
         return result
@@ -1033,6 +1114,7 @@ class ExternalAppsViewModel @Inject constructor(
                 val token = release?.apkVersionToken(filter = app.apkFilter) ?: app.latestApkToken
                 val apkName = release?.apkFileName(filter = app.apkFilter) ?: app.latestApkName
                 val apkSize = release?.apkFileSize(filter = app.apkFilter) ?: app.latestApkSize
+                val apkUrl = release?.apkDownloadUrl(filter = app.apkFilter) ?: app.latestApkUrl
                 if (release != null) {
                     Log.d(
                         TAG,
@@ -1073,6 +1155,7 @@ class ExternalAppsViewModel @Inject constructor(
                     token != app.latestApkToken ||
                     apkName != app.latestApkName ||
                     apkSize != app.latestApkSize ||
+                    apkUrl != app.latestApkUrl ||
                     packageId != app.packageName ||
                     repoIcon != app.repoIconUrl ||
                     resolvedLabel != app.label ||
@@ -1094,6 +1177,7 @@ class ExternalAppsViewModel @Inject constructor(
                             latestApkToken = token,
                             latestApkName = apkName,
                             latestApkSize = apkSize,
+                            latestApkUrl = apkUrl,
                             repoIconUrl = repoIcon,
                             iconChecked = current.iconChecked || (needsIcon && scanned),
                             supportsTelevision = supportsTv,
@@ -1173,6 +1257,7 @@ class ExternalAppsViewModel @Inject constructor(
                     latestApkToken = release?.apkVersionToken(filter = updated.apkFilter),
                     latestApkName = release?.apkFileName(filter = updated.apkFilter),
                     latestApkSize = release?.apkFileSize(filter = updated.apkFilter),
+                    latestApkUrl = release?.apkDownloadUrl(filter = updated.apkFilter),
                 )
             }
             repository.upsertApp(updated)
@@ -1331,6 +1416,11 @@ class ExternalAppsViewModel @Inject constructor(
                         release.apkFileSize(filter = app.apkFilter)
                     } else {
                         app.latestApkSize
+                    },
+                    latestApkUrl = if (releaseOverride == null) {
+                        release.apkDownloadUrl(filter = app.apkFilter)
+                    } else {
+                        app.latestApkUrl
                     },
                 ),
             )

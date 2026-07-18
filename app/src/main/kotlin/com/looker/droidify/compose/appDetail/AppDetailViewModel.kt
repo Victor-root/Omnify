@@ -42,8 +42,11 @@ import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
+import com.looker.droidify.utility.common.extension.calculateHash
+import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
 import com.looker.droidify.utility.common.extension.installerSourceLabel
+import com.looker.droidify.utility.common.extension.singleSignature
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -180,6 +183,54 @@ class AppDetailViewModel @Inject constructor(
         installedRefresh.value++
     }
 
+    // Declared here, ahead of installedInfo below (which reads it inside a combine()), rather than in
+    // its original position further down the file: a property initializer reading another val that's
+    // still declared later in the class body sees that val's pre-initialization JVM default (null for
+    // a StateFlow) rather than its real value, since class properties initialize top-to-bottom in
+    // source order — the same "leaking this" hazard the trackSourceLocaleCrossCheck/init-block comment
+    // below already documents for baseSupportedLanguages, hit again here for the same reason.
+    val state: StateFlow<AppDetailState> = appRepository
+        .getApp(PackageName(packageName))
+        .map { apps ->
+            when {
+                apps.isEmpty() -> AppDetailState.Error("No app found for $packageName")
+                else -> {
+                    val packages = apps.flatMap {
+                        val repo = repoRepository.getRepo(it.repoId.toInt())
+                        if (repo != null && it.packages != null) {
+                            it.packages.map { pkg -> pkg to repo }
+                        } else {
+                            emptyList()
+                        }
+                    }.sortedByDescending { (pkg, _) -> pkg.manifest.versionCode }
+                    // The same app can come from several repos (e.g. F-Droid + IzzyOnDroid) that ship
+                    // different newest versions. apps.first() is just one of them, and its suggested code
+                    // is only that repo's own max — so if the older repo wins, Install/Update would cap
+                    // there and ignore a newer build elsewhere. Use the newest version across all repos as
+                    // the suggested version, so the whole screen offers the most recent build wherever it
+                    // lives (device-compatibility is still applied later by selectForDevice).
+                    val base = apps.first()
+                    val newest = packages.firstOrNull()?.first?.manifest
+                    val app = if (newest != null) {
+                        base.copy(
+                            metadata = base.metadata.copy(
+                                suggestedVersionCode = newest.versionCode,
+                                suggestedVersionName = newest.versionName,
+                            ),
+                        )
+                    } else {
+                        base
+                    }
+                    AppDetailState.Success(app = app, packages = packages)
+                }
+            }
+        }
+        .onStart { emit(AppDetailState.Loading) }
+        // The map above resolves each repo and rebuilds the package list; keep that off the main
+        // thread so opening a detail page (and the Room re-emissions during a sync) never ANRs.
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(AppDetailState.Loading)
+
     /**
      * The real installed version + where it was installed from, or null when not installed. Read
      * from the package manager (re-read on any install/uninstall, and on resume via [installedRefresh])
@@ -194,8 +245,12 @@ class AppDetailViewModel @Inject constructor(
             // InstalledAppReceiver), so an uninstall from this screen flips the button to Install
             // without waiting for a resume or hitting a resume-timing race.
             installedRepository.getStream(packageName),
-        ) { _, _, _ -> }
-            .map { readInstalledInfo() }
+            // The catalogue's own declared signer(s) for this app, needed to tell whether whatever is
+            // installed under this package name is actually a build of this catalogue entry — see
+            // readInstalledInfo's signatureMismatch.
+            state,
+        ) { _, _, _, currentState -> currentState }
+            .map { readInstalledInfo(it) }
             .flowOn(Dispatchers.Default)
             .asStateFlow(null)
 
@@ -256,48 +311,6 @@ class AppDetailViewModel @Inject constructor(
     fun setPreferredRepo(repoId: Int) {
         _preferredRepoId.value = repoId
     }
-
-    val state: StateFlow<AppDetailState> = appRepository
-        .getApp(PackageName(packageName))
-        .map { apps ->
-            when {
-                apps.isEmpty() -> AppDetailState.Error("No app found for $packageName")
-                else -> {
-                    val packages = apps.flatMap {
-                        val repo = repoRepository.getRepo(it.repoId.toInt())
-                        if (repo != null && it.packages != null) {
-                            it.packages.map { pkg -> pkg to repo }
-                        } else {
-                            emptyList()
-                        }
-                    }.sortedByDescending { (pkg, _) -> pkg.manifest.versionCode }
-                    // The same app can come from several repos (e.g. F-Droid + IzzyOnDroid) that ship
-                    // different newest versions. apps.first() is just one of them, and its suggested code
-                    // is only that repo's own max — so if the older repo wins, Install/Update would cap
-                    // there and ignore a newer build elsewhere. Use the newest version across all repos as
-                    // the suggested version, so the whole screen offers the most recent build wherever it
-                    // lives (device-compatibility is still applied later by selectForDevice).
-                    val base = apps.first()
-                    val newest = packages.firstOrNull()?.first?.manifest
-                    val app = if (newest != null) {
-                        base.copy(
-                            metadata = base.metadata.copy(
-                                suggestedVersionCode = newest.versionCode,
-                                suggestedVersionName = newest.versionName,
-                            ),
-                        )
-                    } else {
-                        base
-                    }
-                    AppDetailState.Success(app = app, packages = packages)
-                }
-            }
-        }
-        .onStart { emit(AppDetailState.Loading) }
-        // The map above resolves each repo and rebuilds the package list; keep that off the main
-        // thread so opening a detail page (and the Room re-emissions during a sync) never ANRs.
-        .flowOn(Dispatchers.Default)
-        .asStateFlow(AppDetailState.Loading)
 
     /**
      * The not-yet-installed app's real supported languages, read directly from its APK's compiled
@@ -675,14 +688,40 @@ class AppDetailViewModel @Inject constructor(
         (flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
     }.getOrDefault(false)
 
-    private fun readInstalledInfo(): InstalledInfo? {
+    private fun readInstalledInfo(currentState: AppDetailState): InstalledInfo? {
         val info = runCatching {
             context.packageManager.getPackageInfo(packageName, 0)
         }.getOrNull() ?: return null
         return InstalledInfo(
             version = info.versionName.orEmpty(),
             source = context.installerSourceLabel(packageName),
+            signatureMismatch = isSignatureMismatch(currentState),
         )
+    }
+
+    /**
+     * True when whatever is installed under [packageName] is signed by a key none of this catalogue
+     * entry's known releases declare — i.e. a *different* app happens to share this package name (a
+     * de-Googled Signal fork sharing Signal's real org.thoughtcrime.securesms, say), not an actual build
+     * of this app. Both sides of the comparison are already lowercase-hex SHA-256 fingerprints sitting in
+     * Room (the index's declared signer per version, and the installed app's real signing cert), so this
+     * costs nothing beyond the comparison itself. False (don't warn) whenever there's nothing to compare
+     * — no catalogue data yet, no version declares a signer, or the installed signature can't be read as
+     * a single certificate — since an unconfirmed mismatch is worse than a missed one here.
+     */
+    private fun isSignatureMismatch(currentState: AppDetailState): Boolean {
+        val success = currentState as? AppDetailState.Success ?: return false
+        val expectedSigners = success.packages
+            .flatMap { (pkg, _) -> pkg.manifest.signer }
+            .mapTo(mutableSetOf()) { it.lowercase() }
+        if (expectedSigners.isEmpty()) return false
+        val installedSigner = context.packageManager
+            .getPackageInfoCompat(packageName)
+            ?.singleSignature
+            ?.calculateHash()
+            ?.lowercase()
+            ?: return false
+        return installedSigner !in expectedSigners
     }
 
     private fun toast(message: String) {
@@ -690,10 +729,13 @@ class AppDetailViewModel @Inject constructor(
     }
 }
 
-/** The version of this app currently installed on the device, and where it was installed from. */
+/** The version of this app currently installed on the device, and where it was installed from.
+ *  [signatureMismatch] true means this isn't actually a build of the catalogue entry showing it — see
+ *  [AppDetailViewModel.isSignatureMismatch]. */
 data class InstalledInfo(
     val version: String,
     val source: String,
+    val signatureMismatch: Boolean = false,
 )
 
 /** A blocked update because the installed app is signed by a different key. [isSystemApp] means it

@@ -96,7 +96,21 @@ fun List<VersionEntity>.toPackages(
 ) = map { version ->
     Package(
         id = version.id.toLong(),
-        installed = installed != null && installed.versionCode == version.versionCode,
+        // A package name match alone isn't enough: Android lets a completely different app claim the
+        // same package name a catalogue entry uses (a de-Googled Signal fork sharing Signal's real
+        // org.thoughtcrime.securesms, say) as long as nothing with that name is currently installed.
+        // Whichever one actually got there first owns the name on the device; the other's index entry
+        // would otherwise be reported as "installed" purely because the names line up. Cross-checking
+        // the installed app's real signing certificate against this version's declared signer(s) (both
+        // already lowercase-hex SHA-256, see [VersionEntity.signer]'s own doc comment) tells the two
+        // apart for free — no network call needed, both sides are already in Room. Skipped only when
+        // one side has no signer data to compare (an index that never populated it, or a signature
+        // Android couldn't read) rather than assuming a mismatch on missing data.
+        installed = installed != null && installed.versionCode == version.versionCode &&
+            (
+                version.signer.isEmpty() || installed.signature.isBlank() ||
+                    version.signer.any { it.equals(installed.signature, ignoreCase = true) }
+                ),
         added = version.added,
         apk = ApkFile(
             name = version.apk.name,

@@ -265,6 +265,15 @@ fun Release.apkFileSize(
 ): Long? =
     selectApkAsset(assets, deviceAbis, filter, releaseTag = tag)?.size
 
+/** The direct download URL of the APK this release would install — used to read its signing
+ *  certificate via a cheap HTTP range request ([com.looker.droidify.utility.apk.ApkSigningBlockReader])
+ *  instead of downloading the whole file. Null when the release ships no APK. */
+fun Release.apkDownloadUrl(
+    deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
+    filter: String? = null,
+): String? =
+    selectApkAsset(assets, deviceAbis, filter, releaseTag = tag)?.downloadUrl
+
 private val versionInFileName = Regex("""\d+(?:\.\d+)+""")
 
 /** Pulls a dotted version number out of an APK file name (e.g. "GlassKeep-v1.4.6.apk" -> "1.4.6") for
