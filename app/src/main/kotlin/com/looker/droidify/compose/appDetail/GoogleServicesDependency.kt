@@ -2,6 +2,7 @@ package com.looker.droidify.compose.appDetail
 
 import androidx.annotation.StringRes
 import com.looker.droidify.R
+import com.looker.droidify.utility.apk.ApkBinaryManifest
 
 /**
  * Detects, from an app's manifest, which specific Google Play Services capabilities it relies on, so
@@ -161,6 +162,55 @@ private val googleServiceMarkers = listOf(
         coverage = MicrogCoverage.NONE,
     ),
 )
+
+/**
+ * True when [permissionNames] declares the push (FCM/GCM) capability — the exact same markers the PUSH
+ * group above uses, exposed as a plain check so a deeper, per-app verification (does the app's real
+ * compiled manifest still carry a *component* reachable through that permission, not merely the
+ * permission declaration itself — see [com.looker.droidify.compose.appDetail.AppDetailViewModel]'s own
+ * verification) can gate on the identical signal this file's own detection uses, without duplicating the
+ * marker values and risking the two drifting apart.
+ */
+fun declaresPushCapability(permissionNames: Set<String>): Boolean =
+    googleServiceMarkers.any { it.group == CapabilityGroup.PUSH && permissionNames.any(it::matches) }
+
+/** Intent actions a Firebase Cloud Messaging / legacy GCM push delivery reaches an app through — the
+ *  actions a component must be bound to for the app to receive pushes at all. Shared by both halves of
+ *  the push verification (the on-device OS query for an installed app, and the manifest parse for a
+ *  remote/cached APK) so they can never drift apart on what "a push component" means. */
+val PUSH_INTENT_ACTIONS = listOf(
+    "com.google.firebase.MESSAGING_EVENT",
+    "com.google.android.c2dm.intent.RECEIVE",
+)
+
+/**
+ * True when [className] belongs to a bundled Google library's own namespace rather than the app's own
+ * code. The distinction matters because Android's manifest merger folds every bundled library's manifest
+ * into the app's: the Firebase messaging library always contributes its own generic
+ * `FirebaseInstanceIdReceiver`/`FirebaseMessagingService` declarations, which therefore appear in EVERY
+ * app that merely *bundles* the library — including a de-Googled fork whose patches removed all of the
+ * app's own push services but (naturally) couldn't touch what the library itself declares. Those
+ * library components alone can't deliver a push into the app's own code: that takes an app-authored
+ * component (in practice a `FirebaseMessagingService` subclass — the only way `onMessageReceived`/
+ * `onNewToken` ever reach app code), declared in the app's own namespace.
+ */
+fun isGoogleLibraryComponent(className: String): Boolean =
+    className.startsWith("com.google.firebase.") || className.startsWith("com.google.android.gms.")
+
+/**
+ * Whether [manifestBytes] (a compiled AndroidManifest.xml, from any source — a remote range-read, a
+ * cached APK on disk) declares NO app-authored component bound to a push intent action — i.e. the push
+ * permission this app declares is a vestigial leftover (a bundled library's residue) rather than a
+ * capability its own code can actually use. Null when the manifest can't be parsed at all — the caller
+ * should change nothing then. See [isGoogleLibraryComponent] for why library-namespace components are
+ * excluded rather than counted, confirmed against a real de-Googled fork's production manifest.
+ */
+fun pushCapabilityIsVestigial(manifestBytes: ByteArray): Boolean? {
+    val components = ApkBinaryManifest.components(manifestBytes) ?: return null
+    return components
+        .filter { component -> component.actions.any { it in PUSH_INTENT_ACTIONS } }
+        .all { isGoogleLibraryComponent(it.className) }
+}
 
 /**
  * The Google-services capabilities [packageName] depends on, given its manifest [permissionNames] and

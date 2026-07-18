@@ -179,6 +179,7 @@ fun AppDetailScreen(
     val downloadTargetVersionCode by viewModel.downloadTargetVersionCode.collectAsStateWithLifecycle()
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
+    val pushCapabilityConfirmedAbsent by viewModel.pushCapabilityConfirmedAbsent.collectAsStateWithLifecycle()
     val descriptionTranslation by viewModel.descriptionTranslation.collectAsStateWithLifecycle()
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
@@ -500,6 +501,7 @@ fun AppDetailScreen(
                     downloadStatus = downloadStatus,
                     downloadTargetVersionCode = downloadTargetVersionCode,
                     installedInfo = installedInfo,
+                    pushCapabilityConfirmedAbsent = pushCapabilityConfirmedAbsent,
                     isFavourite = isFavourite,
                     onToggleFavourite = viewModel::toggleFavourite,
                     onSelectRepo = viewModel::setPreferredRepo,
@@ -666,6 +668,7 @@ private fun AppDetail(
     downloadStatus: DownloadStatus?,
     downloadTargetVersionCode: Long?,
     installedInfo: InstalledInfo?,
+    pushCapabilityConfirmedAbsent: Boolean,
     isFavourite: Boolean,
     onToggleFavourite: () -> Unit,
     onSelectRepo: (Int) -> Unit,
@@ -860,6 +863,7 @@ private fun AppDetail(
                     installablePackage = installablePackage,
                     packages = packages,
                     customButtons = customButtons,
+                    pushCapabilityConfirmedAbsent = pushCapabilityConfirmedAbsent,
                     onCustomButtonClick = onCustomButtonClick,
                     descriptionTranslation = descriptionTranslation,
                     supportedLanguages = supportedLanguages,
@@ -949,6 +953,7 @@ private fun AppDetail(
                     installablePackage = installablePackage,
                     packages = packages,
                     customButtons = customButtons,
+                    pushCapabilityConfirmedAbsent = pushCapabilityConfirmedAbsent,
                     onCustomButtonClick = onCustomButtonClick,
                     descriptionTranslation = descriptionTranslation,
                     supportedLanguages = supportedLanguages,
@@ -984,6 +989,7 @@ private fun AppDetailBody(
     installablePackage: Package?,
     packages: List<Pair<Package, Repo>>,
     customButtons: List<CustomButton>,
+    pushCapabilityConfirmedAbsent: Boolean,
     onCustomButtonClick: (url: String) -> Unit,
     descriptionTranslation: DescriptionTranslation,
     supportedLanguages: SupportedLanguages,
@@ -1069,15 +1075,24 @@ private fun AppDetailBody(
     // device and whether microG covers it. Package-name aware, so a services *provider* like microG
     // (com.google.android.gms) never warns about needing itself.
     val gmsPackage = installablePackage ?: packages.firstOrNull()?.first
-    val gmsDependencies = remember(gmsPackage, app.metadata.packageName.name) {
+    val gmsDependencies = remember(gmsPackage, app.metadata.packageName.name, pushCapabilityConfirmedAbsent) {
         if (gmsPackage == null) {
             emptyList()
         } else {
-            detectGoogleServicesDependencies(
+            val detected = detectGoogleServicesDependencies(
                 packageName = app.metadata.packageName.name,
                 permissionNames = gmsPackage.manifest.permissions.mapTo(HashSet()) { it.name },
                 featureNames = gmsPackage.features.toHashSet(),
             )
+            // The index only sees the declared permission, not whether a live component still uses it
+            // (see AppDetailViewModel.pushCapabilityConfirmedAbsent's own doc comment) — once that's been
+            // actively confirmed absent from the real manifest, drop the row instead of warning about a
+            // capability this build genuinely no longer has.
+            if (pushCapabilityConfirmedAbsent) {
+                detected.filterNot { it.labelRes == R.string.gms_cap_push }
+            } else {
+                detected
+            }
         }
     }
     if (gmsDependencies.isNotEmpty()) {
@@ -1568,6 +1583,19 @@ private fun GoogleServicesCard(
                 dependencies.forEach { dependency ->
                     GoogleServiceDependencyRow(dependency)
                 }
+                // See detectGoogleServicesDependencies' own doc comment: this reads declared manifest
+                // permissions from the index, not which components actually still use them — a de-Googled
+                // fork built by patching an app's source (rather than rebuilding its manifest) can disable
+                // the code behind a permission while leaving the permission itself declared, which this
+                // card can't tell apart from a genuine dependency. Said plainly instead of presenting each
+                // row as a verified fact, so a legitimately de-Googled build the patcher forgot to fully
+                // clean up isn't read as the maintainer having misrepresented it.
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = stringResource(R.string.google_services_detection_caveat),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

@@ -8,7 +8,7 @@ import androidx.navigation.toRoute
 import com.looker.droidify.compose.repoDetail.navigation.RepoDetail
 import com.looker.droidify.compose.repoList.defaultRepoName
 import com.looker.droidify.data.AppRepository
-import com.looker.droidify.data.InstalledRepository
+import com.looker.droidify.data.InstalledIdentityRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.datastore.model.SortOrder
@@ -33,7 +33,7 @@ class RepoDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repoRepository: RepoRepository,
     private val appRepository: AppRepository,
-    private val installedRepository: InstalledRepository,
+    installedIdentityRepository: InstalledIdentityRepository,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -60,8 +60,11 @@ class RepoDetailViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
 
-    val installedPackages: StateFlow<Set<String>> = installedRepository.getAllStream()
-        .map { items -> items.map { it.packageName }.toSet() }
+    /** Genuinely-installed package names (name AND signer verified — see
+     *  [InstalledIdentityRepository], the shared source every catalogue screen reads), driving this
+     *  page's tile checkmarks and the "install all" pending count. */
+    val installedPackages: StateFlow<Set<String>> = installedIdentityRepository.verifiedInstalled
+        .map { it.keys }
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptySet())
 

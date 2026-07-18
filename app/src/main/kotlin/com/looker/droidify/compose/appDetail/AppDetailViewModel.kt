@@ -15,6 +15,7 @@ import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.App
+import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.data.model.Package
@@ -39,7 +40,9 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.translation.TranslationManager
+import com.looker.droidify.utility.apk.RangeCapableMirrors
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
+import com.looker.droidify.utility.apk.RemoteApkManifestReader
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.utility.common.extension.calculateHash
@@ -67,6 +70,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
+import java.util.zip.ZipFile
 import javax.inject.Inject
 
 @HiltViewModel
@@ -325,6 +329,20 @@ class AppDetailViewModel @Inject constructor(
     private val _remoteApkPending = MutableStateFlow(false)
 
     /**
+     * True once a check has actively CONFIRMED that the app's real compiled manifest carries no
+     * component reachable via a push (FCM/GCM) intent action, despite [declaresPushCapability] flagging
+     * the permission from the index alone — i.e. the permission is a vestigial declaration for this
+     * specific build, not a real dependency (see [RemoteApkManifestReader]'s own doc comment for a real
+     * example: a de-Googled Signal fork whose push-receiving services are entirely removed from its
+     * manifest while the permission itself was left declared). False is the safe default: nothing
+     * checked yet, the app doesn't even declare the permission, or the check couldn't complete — the
+     * Google-services card keeps showing the index-only signal until this actively contradicts it, never
+     * the other way around. Kept updated by [trackPushComponentVerification], started once in [init].
+     */
+    private val _pushCapabilityConfirmedAbsent = MutableStateFlow(false)
+    val pushCapabilityConfirmedAbsent: StateFlow<Boolean> = _pushCapabilityConfirmedAbsent
+
+    /**
      * Result of cross-checking a default-English-only [baseSupportedLanguages] against the app's own
      * published source code — see [trackSourceLocaleCrossCheck]. Null until that check has run (or if
      * it never applies/can't run); a list once it has, "en" alone meaning it agrees nothing further
@@ -383,6 +401,7 @@ class AppDetailViewModel @Inject constructor(
         // confirmed via a real crash log, when this init block was placed above it instead).
         viewModelScope.launch { trackRemoteApkLocales() }
         viewModelScope.launch { trackSourceLocaleCrossCheck() }
+        viewModelScope.launch { trackPushComponentVerification() }
     }
 
     /**
@@ -464,6 +483,116 @@ class AppDetailViewModel @Inject constructor(
                     _sourceCrossCheckPending.value = false
                 }
             }
+    }
+
+    /**
+     * Keeps [pushCapabilityConfirmedAbsent] current. Runs only once the app's declared permissions
+     * already match [declaresPushCapability] — nothing to verify otherwise. Installed: asks the OS
+     * which components resolve the push intent actions in this exact package
+     * ([hasAppOwnedPushComponent] — live, authoritative, and free, no network call at all). Not
+     * installed: reads the real compiled manifest of the release this screen would install — from an
+     * already-downloaded local copy when one exists, else via [RemoteApkManifestReader] — and runs the
+     * same component-level analysis ([pushCapabilityIsVestigial]) on it. Either way, the question is
+     * NOT "does any push component exist" but "does any component OUTSIDE a bundled Google library's
+     * own namespace exist" — see [isGoogleLibraryComponent] for why, confirmed against a real
+     * de-Googled fork whose merged manifest still carries the Firebase library's own generic push
+     * components while every app-authored one is gone. Only an *absence* of app-authored components is
+     * trusted (see [pushCapabilityConfirmedAbsent]'s "never act on uncertainty" rule) — presence
+     * changes nothing, since the index-only signal already shows the warning either way.
+     *
+     * [downloadStatus] is part of the trigger (its non-null -> null transition at the end of a
+     * download re-fires the collector) so that a download that just landed in the cache — e.g. an
+     * install attempt a signature conflict then blocked — is re-checked immediately: the state/
+     * installedInfo pair alone doesn't change in that case, so nothing else would re-run this.
+     */
+    private suspend fun trackPushComponentVerification() {
+        combine(state, installedInfo, downloadStatus) { s, installed, download ->
+            Triple(s, installed, download != null)
+        }
+            .distinctUntilChanged()
+            .collectLatest { (currentState, installed, downloadActive) ->
+                if (downloadActive) return@collectLatest
+                _pushCapabilityConfirmedAbsent.value = false
+                val success = currentState as? AppDetailState.Success ?: return@collectLatest
+                val permissionNames = success.packages
+                    .flatMap { (pkg, _) -> pkg.manifest.permissions }
+                    .mapTo(hashSetOf()) { it.name }
+                if (!declaresPushCapability(permissionNames)) return@collectLatest
+                // A signer mismatch means whatever's installed under this package name isn't actually a
+                // build of this app (see InstalledInfo.signatureMismatch) — querying the OS here would
+                // check that *other* app's components, not this one's, so this falls through to the
+                // manifest-based path exactly as if nothing were installed at all.
+                val confirmedAbsent = if (installed != null && !installed.signatureMismatch) {
+                    !hasAppOwnedPushComponent()
+                } else {
+                    val installable = success.packages
+                        .selectForDevice(success.app.metadata.suggestedVersionCode)
+                        ?: return@collectLatest
+                    val (pkg, repo) = installable
+                    // A local, already-downloaded copy (e.g. left over from an install attempt that a
+                    // signature conflict blocked) beats any remote read: no network cost at all. Then
+                    // the repo's own address; and if THAT host doesn't support range requests
+                    // (confirmed against a real one: a GitLab Pages-hosted repo that ignores the Range
+                    // header entirely and returns the full, 100+MB file every time), derived mirrors of
+                    // the same file on its backing forge (see RangeCapableMirrors) — identity-checked
+                    // against the index's declared byte size, and never sent the repo's own
+                    // credentials, which belong to the origin host alone. The whole file is never
+                    // silently downloaded just to check a warning label.
+                    val directUrl = repo.address.removeSuffix("/") + "/" + pkg.apk.name.removePrefix("/")
+                    val manifestBytes = cachedManifestBytes(pkg)
+                        ?: RemoteApkManifestReader.fetchManifestBytes(downloader, directUrl) {
+                            repo.authentication?.let { authentication(it.username, it.password) }
+                        }
+                        ?: RangeCapableMirrors.candidates(directUrl).firstNotNullOfOrNull { mirrorUrl ->
+                            RemoteApkManifestReader.fetchManifestBytes(
+                                downloader,
+                                mirrorUrl,
+                                expectedTotalSize = pkg.apk.size.value,
+                            )
+                        }
+                        ?: return@collectLatest
+                    pushCapabilityIsVestigial(manifestBytes) ?: return@collectLatest
+                }
+                _pushCapabilityConfirmedAbsent.value = confirmedAbsent
+            }
+    }
+
+    /**
+     * The compiled manifest bytes from a fully downloaded, hash-verified local copy of [pkg]'s APK
+     * (see [downloadAndInstall]'s own cache, keyed the same way) — null when there's no such cached
+     * copy, or it can't be read as a ZIP; the caller then falls back to a remote read. A plain local
+     * file read, so unlike [RemoteApkManifestReader] it works regardless of whether the host supports
+     * HTTP range requests.
+     */
+    private fun cachedManifestBytes(pkg: Package): ByteArray? {
+        val cacheFileName = pkg.apk.hash.replace('/', '-') + ".apk"
+        val file = Cache.getReleaseFile(context, cacheFileName)
+        if (!file.exists()) return null
+        return runCatching {
+            ZipFile(file).use { zip ->
+                val entry = zip.getEntry("AndroidManifest.xml") ?: return@use null
+                zip.getInputStream(entry).use { it.readBytes() }
+            }
+        }.getOrNull()
+    }
+
+    /**
+     * True when the OS resolves a push intent action to a component of this exact installed package
+     * whose class is the app's own — not a bundled Google library's (see [isGoogleLibraryComponent]:
+     * the Firebase library's own generic components are declared in every app that merely bundles it,
+     * so their presence proves nothing about whether the app's own code can receive a push). The live,
+     * on-device equivalent of [pushCapabilityIsVestigial]'s manifest analysis, for an app that's
+     * already installed, where the real answer is available for free instead of needing a network read.
+     */
+    @Suppress("DEPRECATION")
+    private fun hasAppOwnedPushComponent(): Boolean = PUSH_INTENT_ACTIONS.any { action ->
+        val intent = Intent(action).setPackage(packageName)
+        val resolved = context.packageManager.queryIntentServices(intent, 0) +
+            context.packageManager.queryBroadcastReceivers(intent, 0)
+        resolved.any { info ->
+            val className = info.serviceInfo?.name ?: info.activityInfo?.name
+            className != null && !isGoogleLibraryComponent(className)
+        }
     }
 
     /** The locale codes the installed APK actually ships resources for (its real UI languages), read
@@ -703,25 +832,19 @@ class AppDetailViewModel @Inject constructor(
      * True when whatever is installed under [packageName] is signed by a key none of this catalogue
      * entry's known releases declare — i.e. a *different* app happens to share this package name (a
      * de-Googled Signal fork sharing Signal's real org.thoughtcrime.securesms, say), not an actual build
-     * of this app. Both sides of the comparison are already lowercase-hex SHA-256 fingerprints sitting in
-     * Room (the index's declared signer per version, and the installed app's real signing cert), so this
-     * costs nothing beyond the comparison itself. False (don't warn) whenever there's nothing to compare
-     * — no catalogue data yet, no version declares a signer, or the installed signature can't be read as
-     * a single certificate — since an unconfirmed mismatch is worse than a missed one here.
+     * of this app. [signerMismatch] is the one shared definition of the comparison (see
+     * [com.looker.droidify.data.InstalledIdentityRepository]); this call site only differs from the
+     * shared verified-installed flow in scope — it compares against EVERY known version's signers (not
+     * just the suggested one), since being a build of any version of this entry counts here.
      */
     private fun isSignatureMismatch(currentState: AppDetailState): Boolean {
         val success = currentState as? AppDetailState.Success ?: return false
-        val expectedSigners = success.packages
-            .flatMap { (pkg, _) -> pkg.manifest.signer }
-            .mapTo(mutableSetOf()) { it.lowercase() }
-        if (expectedSigners.isEmpty()) return false
+        val expectedSigners = success.packages.flatMapTo(mutableSetOf()) { (pkg, _) -> pkg.manifest.signer }
         val installedSigner = context.packageManager
             .getPackageInfoCompat(packageName)
             ?.singleSignature
             ?.calculateHash()
-            ?.lowercase()
-            ?: return false
-        return installedSigner !in expectedSigners
+        return signerMismatch(installedSigner, expectedSigners)
     }
 
     private fun toast(message: String) {
