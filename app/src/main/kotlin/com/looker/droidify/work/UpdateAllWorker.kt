@@ -17,6 +17,7 @@ import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.selectForDevice
+import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.network.Downloader
@@ -146,19 +147,17 @@ class UpdateAllWorker @AssistedInject constructor(
      * True when [packageName] is already installed but signed by a key the [pkg] release isn't. The
      * index records each release's signer(s) in [Package.manifest].signer (a SHA-256 of the cert); we
      * compute the installed cert's hash the same way ([singleSignature] + [calculateHash]) so the two
-     * are directly comparable. Returns false when the app isn't installed, the release declares no
-     * signer, or the installed signature can't be read as a single cert (don't skip on uncertainty).
+     * are directly comparable via [signerMismatch] — the one shared definition of this comparison (see
+     * [com.looker.droidify.data.InstalledIdentityRepository]), which also handles the
+     * nothing-to-compare cases (not installed, no declared signer, unreadable signature) as "no
+     * conflict" rather than skipping on uncertainty.
      */
     private fun installedWithDifferentSignature(packageName: String, pkg: Package): Boolean {
-        val releaseSigners = pkg.manifest.signer.map { it.lowercase() }.toSet()
-        if (releaseSigners.isEmpty()) return false
         val installedSigner = applicationContext.packageManager
             .getPackageInfoCompat(packageName)
             ?.singleSignature
             ?.calculateHash()
-            ?.lowercase()
-            ?: return false
-        return installedSigner !in releaseSigners
+        return signerMismatch(installedSigner, pkg.manifest.signer)
     }
 
     companion object {

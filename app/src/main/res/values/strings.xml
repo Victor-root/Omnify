@@ -36,6 +36,7 @@
     <string name="gms_cap_signin_desc">Signing in with a Google account uses a Google service that is absent without Play services. It is often one sign-in option among others.</string>
     <string name="gms_cap_maps_v1">Google Maps v1 (legacy system library)</string>
     <string name="gms_cap_maps_v1_desc">This app uses the legacy Google Maps v1 library, absent on de-Googled devices and not provided by microG (its servers were shut down in 2013). Map screens may crash.</string>
+    <string name="google_services_detection_caveat">Detected from the permissions declared in the app\'s manifest. A de-Googled build made by patching an app\'s code can leave an unused permission declared even after removing what used it, so a row here does not always mean the capability is still actually reachable in this specific build.</string>
     <string name="allow_unknown_sources">Allow installing apps</string>
     <string name="allow_unknown_sources_DESC">Omnify needs permission to install apps. Allow it now so you\'re not interrupted at your first install.\n\nAfter you enable it in settings, Android closes Omnify to apply the change (especially on TV). This is normal: just reopen the app.</string>
     <string name="allow">Allow</string>

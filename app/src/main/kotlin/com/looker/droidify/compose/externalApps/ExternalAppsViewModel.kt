@@ -19,6 +19,7 @@ import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.model.PackageName
+import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
@@ -176,16 +177,6 @@ class ExternalAppsViewModel @Inject constructor(
         }.toMap()
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
 
-    /** Keys of tracked apps that are currently installed on the device. Derived from [installedVersions]
-     *  itself (rather than its own independent package-manager scan) so the two can never disagree — a
-     *  key can't appear "installed" here without an entry there, which used to be possible for a moment
-     *  since each was its own independently re-subscribed StateFlow and could refresh out of step. */
-    val installedKeys: StateFlow<Set<String>> = installedVersions
-        .map { it.keys }
-        .distinctUntilChanged()
-        .flowOn(Dispatchers.Default)
-        .asStateFlow(emptySet())
-
     /** Where each installed tracked app actually came from (Play, F-Droid, this app…), keyed by
      *  [ExternalApp.key] — shown next to the installed version so a mismatch with what Omnify expects
      *  (e.g. a copy installed by another client, which can't be updated across signing keys in place)
@@ -215,6 +206,21 @@ class ExternalAppsViewModel @Inject constructor(
      */
     private val _signatureMismatches = MutableStateFlow<Set<String>>(emptySet())
     val signatureMismatches: StateFlow<Set<String>> = _signatureMismatches
+
+    /** Keys of tracked apps that are currently installed on the device *and* really are that tracked
+     *  app (not a different one that merely reused its package name — see [signatureMismatches]).
+     *  Derived from [installedVersions] itself (rather than its own independent package-manager scan)
+     *  so the two can never disagree — a key can't appear "installed" here without an entry there,
+     *  which used to be possible for a moment since each was its own independently re-subscribed
+     *  StateFlow and could refresh out of step. Drives the Explorer/account grid tiles' "installed"
+     *  badge, the same signer check the detail screen's own primary-action button applies locally. */
+    val installedKeys: StateFlow<Set<String>> = combine(
+        installedVersions,
+        signatureMismatches,
+    ) { versions, mismatches -> versions.keys - mismatches }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptySet())
 
     /** In-memory cache of [ApkSigningBlockReader] results, keyed by APK URL — a source's latestApkUrl
      *  rarely changes between refreshes, so this avoids re-reading the signing block over the network
@@ -267,7 +273,11 @@ class ExternalAppsViewModel @Inject constructor(
                             signerHashCache[apkUrl] = it
                         }
                     } ?: return@forEach
-                    if (expectedSigners.none { it.equals(installedSigner, ignoreCase = true) }) {
+                    // signerMismatch: the one shared definition of this comparison (see
+                    // InstalledIdentityRepository) — same rule as the catalogue side, different source
+                    // for the expected signers (the release APK's own signing block; there's no index
+                    // declaring them ahead of time here).
+                    if (signerMismatch(installedSigner, expectedSigners)) {
                         mismatches += app.key
                     }
                 }

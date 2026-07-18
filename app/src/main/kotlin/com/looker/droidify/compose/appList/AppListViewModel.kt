@@ -6,8 +6,10 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import com.looker.droidify.data.AppRepository
+import com.looker.droidify.data.InstalledIdentityRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.SuggestedVersion
+import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.datastore.SettingsRepository
@@ -43,6 +45,7 @@ import javax.inject.Inject
 class AppListViewModel @Inject constructor(
     private val appRepository: AppRepository,
     private val installedRepository: InstalledRepository,
+    installedIdentityRepository: InstalledIdentityRepository,
     private val settingsRepository: SettingsRepository,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -172,18 +175,6 @@ class AppListViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(InstalledInfo())
 
-    /**
-     * Installed packageName -> the real on-device versionName (e.g. "6.5.5-c"). Read from the
-     * package manager, so the Installed/Updates tabs show what's actually installed rather than the
-     * catalogue's version (which can differ, e.g. a fork installed over the upstream package).
-     */
-    val installedVersionNames: StateFlow<Map<String, String>> = installedRepository
-        .getAllStream()
-        .map { items -> items.associate { it.packageName to it.version } }
-        .distinctUntilChanged()
-        .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyMap())
-
     // packageName -> the catalogue version we'd install on this device (versionCode + signer
     // fingerprints), taken as the newest across all repos, re-queried whenever the catalogue changes.
     private val suggestedVersions: StateFlow<Map<String, SuggestedVersion>> = catalogChanges
@@ -193,19 +184,31 @@ class AppListViewModel @Inject constructor(
         .asStateFlow(emptyMap())
 
     /**
+     * Installed packageName -> the real on-device versionName (e.g. "6.5.5-c"), for genuinely-installed
+     * catalogue apps only — name AND signer verified by [InstalledIdentityRepository], the one shared
+     * source every catalogue screen reads for its "installed" signal, so a different app occupying the
+     * same package name (a de-Googled fork sharing an app's real package id, say) never reads as
+     * installed on any tile/badge fed from here.
+     */
+    val installedVersionNames: StateFlow<Map<String, String>> = installedIdentityRepository
+        .verifiedInstalled
+        .map { verified -> verified.mapValues { (_, item) -> item.version } }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyMap())
+
+    /**
      * The Installed tab's list, kept precomputed in the background (recomputed only when the catalogue
      * or the installed set changes, NOT when the tab is selected). Switching to the tab then just reads
      * this — no filtering happens on the switch, so it's instant instead of lagging while it filters.
+     * Membership comes from the same verified set as [installedVersionNames], so the tab and the tile
+     * badges can never disagree.
      */
     val installedApps: StateFlow<List<AppMinimal>> = combine(
         appsState,
-        installedInfo,
-        suggestedVersions,
-    ) { apps, installed, suggested ->
-        apps.filter { app ->
-            val pkg = app.packageName.name
-            pkg in installed.versions && !isIdentityMismatch(pkg, installed, suggested)
-        }
+        installedVersionNames,
+    ) { apps, installed ->
+        apps.filter { it.packageName.name in installed }
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
 
     /** The Updates tab's list — installed apps with an available update. Precomputed like [installedApps];
@@ -264,33 +267,12 @@ class AppListViewModel @Inject constructor(
         val suggestedVersion = suggested[pkg] ?: return false
         if (suggestedVersion.versionCode <= installedCode) return false
 
-        // A newer version exists. Suppress it only when it can't replace the installed app.
-        val installedSigner = installed.signatures[pkg]
-        val catalogueSigners = suggestedVersion.signers
-        val signerConflict = !installedSigner.isNullOrEmpty() &&
-            catalogueSigners.isNotEmpty() &&
-            catalogueSigners.none { it.equals(installedSigner, ignoreCase = true) }
+        // A newer version exists. Suppress it only when it can't replace the installed app —
+        // signerMismatch is the one shared definition of that comparison (see
+        // InstalledIdentityRepository).
+        val signerConflict = signerMismatch(installed.signatures[pkg], suggestedVersion.signers)
         if (signerConflict && pkg in installed.systemApps) return false
         return true
-    }
-
-    /**
-     * True when [pkg]'s installed signing certificate is known to conflict with every signer the
-     * catalogue declares for it — i.e. whatever's installed under this package name isn't actually a
-     * build of this catalogue entry (a different app happens to share the package name, e.g. a
-     * de-Googled Signal fork sharing Signal's real org.thoughtcrime.securesms). Both fingerprints are
-     * already lowercase-hex SHA-256 sitting in [installedInfo]/[suggestedVersions], so this is a free
-     * comparison. False (assume no conflict) whenever either side has nothing to compare.
-     */
-    private fun isIdentityMismatch(
-        pkg: String,
-        installed: InstalledInfo,
-        suggested: Map<String, SuggestedVersion>,
-    ): Boolean {
-        val installedSigner = installed.signatures[pkg]?.takeIf { it.isNotBlank() } ?: return false
-        val catalogueSigners = suggested[pkg]?.signers ?: return false
-        if (catalogueSigners.isEmpty()) return false
-        return catalogueSigners.none { it.equals(installedSigner, ignoreCase = true) }
     }
 
     private fun isSystemApp(packageName: String): Boolean = runCatching {

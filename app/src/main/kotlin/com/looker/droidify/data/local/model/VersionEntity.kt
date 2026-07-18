@@ -12,6 +12,7 @@ import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Permission
 import com.looker.droidify.data.model.Platforms
 import com.looker.droidify.data.model.SDKs
+import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.sync.v2.model.ApkFileV2
 import com.looker.droidify.sync.v2.model.FileV2
@@ -100,17 +101,12 @@ fun List<VersionEntity>.toPackages(
         // same package name a catalogue entry uses (a de-Googled Signal fork sharing Signal's real
         // org.thoughtcrime.securesms, say) as long as nothing with that name is currently installed.
         // Whichever one actually got there first owns the name on the device; the other's index entry
-        // would otherwise be reported as "installed" purely because the names line up. Cross-checking
-        // the installed app's real signing certificate against this version's declared signer(s) (both
-        // already lowercase-hex SHA-256, see [VersionEntity.signer]'s own doc comment) tells the two
-        // apart for free — no network call needed, both sides are already in Room. Skipped only when
-        // one side has no signer data to compare (an index that never populated it, or a signature
-        // Android couldn't read) rather than assuming a mismatch on missing data.
+        // would otherwise be reported as "installed" purely because the names line up. [signerMismatch]
+        // is the ONE shared definition of that identity comparison (see InstalledIdentityRepository) —
+        // both sides are already lowercase-hex SHA-256 in Room (see [VersionEntity.signer]'s own doc
+        // comment), so this costs nothing and never fires on missing data.
         installed = installed != null && installed.versionCode == version.versionCode &&
-            (
-                version.signer.isEmpty() || installed.signature.isBlank() ||
-                    version.signer.any { it.equals(installed.signature, ignoreCase = true) }
-                ),
+            !signerMismatch(installed.signature, version.signer),
         added = version.added,
         apk = ApkFile(
             name = version.apk.name,

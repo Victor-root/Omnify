@@ -25,6 +25,7 @@
     <string name="gms_cap_signin_desc">La connexion via un compte Google passe par un service Google absent sans Play Services. C\'est souvent une option de connexion parmi d\'autres.</string>
     <string name="gms_cap_maps_v1">Google Maps v1 (bibliothèque système héritée)</string>
     <string name="gms_cap_maps_v1_desc">Cette app utilise l\'ancienne bibliothèque Google Maps v1, absente des appareils dégooglisés et non fournie par microG (ses serveurs sont éteints depuis 2013). Les écrans de carte concernés risquent de planter.</string>
+    <string name="google_services_detection_caveat">Détecté d\'après les autorisations déclarées dans le manifeste de l\'app. Une version dégooglisée obtenue en patchant le code d\'une app peut laisser une autorisation déclarée même après en avoir retiré ce qui l\'utilisait : une ligne ici ne signifie donc pas toujours que la fonction concernée est encore réellement accessible dans cette version précise.</string>
     <string name="allow_unknown_sources">Autoriser l\'installation d\'applis</string>
     <string name="allow_unknown_sources_DESC">Omnify a besoin de l\'autorisation d\'installer des applis. Autorisez-la maintenant pour ne pas être interrompu lors de votre première installation.\n\nAprès l\'avoir activée dans les réglages, Android ferme Omnify pour appliquer ce changement (surtout sur TV) : c\'est normal, il suffit de rouvrir l\'appli.</string>
     <string name="allow">Autoriser</string>
