@@ -481,5 +481,5 @@
     <string name="uninstall_failed">Impossible de désinstaller %1$s</string>
     <string name="installer_unknown">Source inconnue</string>
     <string name="installed_version_source">Installé : %1$s · via %2$s</string>
-    <string name="installed_signature_mismatch">Une autre application utilise déjà ce nom de paquet sur votre appareil (%1$s · via %2$s, clé de signature différente). Il ne s\'agit probablement pas de cette application.</string>
+    <string name="installed_signature_mismatch">Une autre application utilise déjà ce nom de paquet sur votre appareil (%1$s · via %2$s, clé de signature différente).</string>
 </resources>
