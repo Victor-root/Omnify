@@ -2,8 +2,11 @@ package com.looker.droidify.utility.apk
 
 /**
  * Parses an Android compiled (binary XML) `AndroidManifest.xml` far enough to list every `<service>`
- * and `<receiver>` component it declares, each with its class name and the intent actions its nested
- * `<intent-filter>`s bind it to.
+ * and `<receiver>` component it declares (each with its class name and the intent actions its nested
+ * `<intent-filter>`s bind it to — see [components]), and separately to read its `<uses-sdk>` element's
+ * `minSdkVersion`/`targetSdkVersion` (see [usesSdk]) — the same min/target shown for a catalogue release
+ * ([com.looker.droidify.compose.appDetail.components.PackageItem]), read here for a tracked external
+ * source's release instead, which carries no such metadata of its own.
  *
  * Why component-level parsing instead of just searching the manifest's string pool for a marker
  * string: a permission or intent-action string being *present* says nothing about WHOSE component
@@ -40,9 +43,18 @@ object ApkBinaryManifest {
     /** `Res_value.dataType` for a string: `data` is then a string-pool index. */
     private const val TYPE_STRING = 0x03
 
+    /** `Res_value.dataType` for a plain (decimal/hex-written) integer literal: `data` IS the value,
+     *  no string-pool lookup needed. `minSdkVersion`/`targetSdkVersion` compile to one of these. */
+    private const val TYPE_INT_DEC = 0x10
+    private const val TYPE_INT_HEX = 0x11
+
     /** One declared `<service>` or `<receiver>`: its `android:name` class (as written — possibly
      *  relative, e.g. ".MyService") and every `<action android:name=…>` nested anywhere inside it. */
     data class Component(val tag: String, val className: String, val actions: List<String>)
+
+    /** `android:minSdkVersion`/`android:targetSdkVersion` off a manifest's `<uses-sdk>` element. Either
+     *  field is null when the element omits that attribute (or the manifest has no `<uses-sdk>` at all). */
+    data class UsesSdk(val minSdkVersion: Int?, val targetSdkVersion: Int?)
 
     /**
      * Every `<service>`/`<receiver>` in [manifest] (compiled binary XML bytes), or null when the bytes
@@ -51,17 +63,82 @@ object ApkBinaryManifest {
      * an untrusted remote file.
      */
     fun components(manifest: ByteArray): List<Component>? = runCatching {
-        if (manifest.size < 8 || u16(manifest, 0) != RES_XML_TYPE) return@runCatching null
-        val totalSize = u32(manifest, 4)
-        var pos = u16(manifest, 2).toLong()
-        val end = minOf(totalSize, manifest.size.toLong())
-        var pool: List<String>? = null
         val components = mutableListOf<Component>()
         // The <service>/<receiver> currently open, collecting nested <action> names until its end tag.
         // Components can't nest inside each other, so one slot (not a stack) is enough.
         var openTag: String? = null
         var openClassName: String? = null
         var openActions: MutableList<String>? = null
+        val parsed = walkElements(
+            manifest,
+            onStart = { element ->
+                when (element.name) {
+                    "service", "receiver" -> {
+                        openTag = element.name
+                        openClassName = element.attributes["name"]
+                        openActions = mutableListOf()
+                    }
+                    "action" -> {
+                        val actions = openActions
+                        if (actions != null) element.attributes["name"]?.let(actions::add)
+                    }
+                }
+            },
+            onEnd = { name ->
+                if ((name == "service" || name == "receiver") && name == openTag) {
+                    val className = openClassName
+                    if (className != null) {
+                        components.add(Component(name, className, openActions.orEmpty()))
+                    }
+                    openTag = null
+                    openClassName = null
+                    openActions = null
+                }
+            },
+        )
+        if (!parsed) return@runCatching null
+        components
+    }.getOrNull()
+
+    /**
+     * `<uses-sdk>`'s `minSdkVersion`/`targetSdkVersion` in [manifest], or null when the bytes can't be
+     * parsed at all — same "couldn't determine" contract as [components]. A manifest with no `<uses-sdk>`
+     * element parses fine and returns [UsesSdk] with both fields null, not null itself. Never throws.
+     */
+    fun usesSdk(manifest: ByteArray): UsesSdk? = runCatching {
+        var min: Int? = null
+        var target: Int? = null
+        val parsed = walkElements(
+            manifest,
+            onStart = { element ->
+                if (element.name == "uses-sdk") {
+                    min = element.intAttributes["minSdkVersion"]
+                    target = element.intAttributes["targetSdkVersion"]
+                }
+            },
+            onEnd = {},
+        )
+        if (!parsed) return@runCatching null
+        UsesSdk(min, target)
+    }.getOrNull()
+
+    /**
+     * Walks every start/end element tag in [manifest], resolving the shared string pool first —
+     * the one piece of chunk-format traversal [components] and [usesSdk] both need, kept in this single
+     * place so a fix to how elements/attributes are read never has to be made twice. [onStart]/[onEnd]
+     * run for every element in document order; returns false when the bytes aren't parseable binary XML
+     * (missing/corrupt header, or a start/end element chunk seen before the string pool that names it).
+     */
+    private inline fun walkElements(
+        manifest: ByteArray,
+        onStart: (StartElement) -> Unit,
+        onEnd: (name: String) -> Unit,
+    ): Boolean {
+        if (manifest.size < 8 || u16(manifest, 0) != RES_XML_TYPE) return false
+        val totalSize = u32(manifest, 4)
+        var pos = u16(manifest, 2).toLong()
+        val end = minOf(totalSize, manifest.size.toLong())
+        var pool: List<String>? = null
         while (pos + 8 <= end) {
             val chunkType = u16(manifest, pos.toInt())
             val chunkSize = u32(manifest, pos.toInt() + 4)
@@ -72,45 +149,30 @@ object ApkBinaryManifest {
                     pool = parseStringPool(manifest, pos.toInt())
                 }
                 RES_XML_START_ELEMENT_TYPE -> {
-                    val strings = pool ?: return@runCatching null
-                    val element = readStartElement(manifest, pos.toInt(), strings)
-                    when (element.name) {
-                        "service", "receiver" -> {
-                            openTag = element.name
-                            openClassName = element.attributes["name"]
-                            openActions = mutableListOf()
-                        }
-                        "action" -> {
-                            val actions = openActions
-                            if (actions != null) element.attributes["name"]?.let(actions::add)
-                        }
-                    }
+                    val strings = pool ?: return false
+                    onStart(readStartElement(manifest, pos.toInt(), strings))
                 }
                 RES_XML_END_ELEMENT_TYPE -> {
-                    val strings = pool ?: return@runCatching null
+                    val strings = pool ?: return false
                     // ResXMLTree_node: header(8) + lineNumber(4) + comment(4), then the end-element
                     // extension: ns(4) + name(4).
                     val nameIndex = u32(manifest, pos.toInt() + 20).toInt()
-                    val name = strings.getOrNull(nameIndex)
-                    if ((name == "service" || name == "receiver") && name == openTag) {
-                        val className = openClassName
-                        if (className != null) {
-                            components.add(Component(name, className, openActions.orEmpty()))
-                        }
-                        openTag = null
-                        openClassName = null
-                        openActions = null
-                    }
+                    onEnd(strings.getOrNull(nameIndex) ?: "")
                 }
             }
             pos += chunkSize
         }
-        components
-    }.getOrNull()
+        return true
+    }
 
-    /** One parsed start-element: its tag name and attribute name -> string value map (non-string
-     *  attribute values are skipped — only string-valued ones like `android:name` are needed here). */
-    private class StartElement(val name: String, val attributes: Map<String, String>)
+    /** One parsed start-element: its tag name, its string-valued attributes (e.g. `android:name`), and
+     *  its integer-valued ones (e.g. `minSdkVersion`) — a plain-int attribute is compiled with no
+     *  string-pool entry at all, so it can only ever surface via [intAttributes], never [attributes]. */
+    private class StartElement(
+        val name: String,
+        val attributes: Map<String, String>,
+        val intAttributes: Map<String, Int>,
+    )
 
     /** Reads a `RES_XML_START_ELEMENT` chunk: ResXMLTree_node header(8) + lineNumber(4) + comment(4),
      *  then ResXMLTree_attrExt: ns(4) + name(4) + attributeStart(2) + attributeSize(2) +
@@ -124,6 +186,7 @@ object ApkBinaryManifest {
         val attributeSize = u16(manifest, chunkStart + 26)
         val attributeCount = u16(manifest, chunkStart + 28)
         val attributes = HashMap<String, String>(attributeCount)
+        val intAttributes = HashMap<String, Int>(attributeCount)
         val base = chunkStart + 16 + attributeStart
         for (i in 0 until attributeCount) {
             val attr = base + i * attributeSize
@@ -133,14 +196,19 @@ object ApkBinaryManifest {
             val rawValueIndex = u32(manifest, attr + 8)
             val dataType = manifest[attr + 15].toInt() and 0xFF
             val data = u32(manifest, attr + 16).toInt()
-            val value = when {
-                rawValueIndex != NO_RAW_VALUE -> pool.getOrNull(rawValueIndex.toInt())
-                dataType == TYPE_STRING -> pool.getOrNull(data)
-                else -> null
+            when {
+                rawValueIndex != NO_RAW_VALUE -> {
+                    val raw = pool.getOrNull(rawValueIndex.toInt())
+                    if (raw != null) {
+                        attributes[attrName] = raw
+                        raw.toIntOrNull()?.let { intAttributes[attrName] = it }
+                    }
+                }
+                dataType == TYPE_STRING -> pool.getOrNull(data)?.let { attributes[attrName] = it }
+                dataType == TYPE_INT_DEC || dataType == TYPE_INT_HEX -> intAttributes[attrName] = data
             }
-            if (value != null) attributes[attrName] = value
         }
-        return StartElement(name, attributes)
+        return StartElement(name, attributes, intAttributes)
     }
 
     /** Parses a `ResStringPool` chunk starting at [poolStart] — same format, and same reading logic,

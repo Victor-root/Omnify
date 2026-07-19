@@ -46,8 +46,10 @@ import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.translation.TranslationManager
+import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.apk.ApkSigningBlockReader
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
+import com.looker.droidify.utility.apk.RemoteApkManifestReader
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.utility.common.extension.calculateHash
@@ -410,6 +412,31 @@ class ExternalAppsViewModel @Inject constructor(
             val releases = externalApi.releaseHistory(app)
             releaseHistoryCache[app.key] = SystemClock.elapsedRealtime() to releases
             _releaseHistory.value = releases
+        }
+    }
+
+    /** [ApkBinaryManifest.usesSdk] results, keyed by APK download URL — populated lazily as version rows
+     *  become visible (see [loadSdkInfo]), not eagerly for the whole release history at once: unlike a
+     *  release's own date/size (already part of the release API response — see [Release.apkFileSize]),
+     *  min/target SDK lives inside the APK's own manifest, so getting it costs a dedicated range-request
+     *  fetch. A key present with a null value means the fetch genuinely found nothing (GitLab exposes no
+     *  size either — see [Release.apkFileSize] — an unsupported host, or an unparseable manifest); a key
+     *  absent means it hasn't been requested yet. */
+    private val _sdkInfoByApkUrl = MutableStateFlow<Map<String, ApkBinaryManifest.UsesSdk?>>(emptyMap())
+    val sdkInfoByApkUrl: StateFlow<Map<String, ApkBinaryManifest.UsesSdk?>> = _sdkInfoByApkUrl
+
+    /** URLs already requested (in flight or done) — checked synchronously before launching a fetch so a
+     *  row recomposing while its own fetch is still in flight never starts a second one. */
+    private val sdkInfoRequested = mutableSetOf<String>()
+
+    /** Fetches and caches [apkUrl]'s declared min/target SDK; a no-op if already requested (or done).
+     *  Called from the version list as each row is shown, one fetch per distinct APK ever. */
+    fun loadSdkInfo(apkUrl: String) {
+        if (!sdkInfoRequested.add(apkUrl)) return
+        viewModelScope.launch {
+            val manifest = RemoteApkManifestReader.fetchManifestBytes(downloader, apkUrl)
+            val sdk = manifest?.let(ApkBinaryManifest::usesSdk)
+            _sdkInfoByApkUrl.update { it + (apkUrl to sdk) }
         }
     }
 
