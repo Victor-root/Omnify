@@ -1,6 +1,5 @@
 package com.looker.droidify.datastore
 
-import android.net.Uri
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
@@ -20,9 +19,12 @@ interface SettingsRepository {
 
     suspend fun getInitial(): Settings
 
-    suspend fun export(target: Uri)
-
-    suspend fun import(target: Uri)
+    /** Overwrites every backed-up-and-restorable field of the current settings with [settings] in one
+     *  atomic edit. Used exclusively by [com.looker.droidify.data.backup.BackupRepository] during a
+     *  restore; the caller decides which fields of [settings] were actually selected for restore before
+     *  calling this (e.g. by copying over an already-current favourites/enabledRepoIds if those
+     *  categories were left unchecked). */
+    suspend fun applySettings(settings: Settings)
 
     suspend fun setLanguage(language: String)
 

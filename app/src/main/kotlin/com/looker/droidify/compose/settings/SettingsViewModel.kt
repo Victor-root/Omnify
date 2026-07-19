@@ -11,14 +11,11 @@ import androidx.lifecycle.viewModelScope
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.data.PrivacyRepository
-import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.StringHandler
-import com.looker.droidify.data.model.Authentication
-import com.looker.droidify.data.model.Repo
-import com.looker.droidify.database.RepositoryExporter
-import com.looker.droidify.model.Repository
+import com.looker.droidify.data.backup.BackupCategory
+import com.looker.droidify.data.backup.BackupInspection
+import com.looker.droidify.data.backup.BackupRepository
 import com.looker.droidify.datastore.CustomButtonRepository
-import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.datastore.Settings
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.model.AutoSync
@@ -44,12 +41,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.*
 import javax.inject.Inject
-import kotlin.io.encoding.Base64
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -58,10 +53,8 @@ import kotlin.time.Duration.Companion.hours
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val privacyRepository: PrivacyRepository,
-    private val repositoryExporter: RepositoryExporter,
-    private val repoRepository: RepoRepository,
+    private val backupRepository: BackupRepository,
     private val customButtonRepository: CustomButtonRepository,
-    private val externalAppRepository: ExternalAppRepository,
     private val handler: StringHandler,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -75,6 +68,11 @@ class SettingsViewModel @Inject constructor(
 
     private val _isBackgroundAllowed = MutableStateFlow(true)
     val isBackgroundAllowed = _isBackgroundAllowed.asStateFlow()
+
+    /** Set once a restore file has been picked and read, so the UI can show a checkbox dialog scoped to
+     *  exactly what that archive contains; null when no restore is in progress. */
+    private val _pendingRestore = MutableStateFlow<BackupInspection?>(null)
+    val pendingRestore: StateFlow<BackupInspection?> = _pendingRestore.asStateFlow()
 
     fun updateBackgroundAccessState(allowed: Boolean) {
         _isBackgroundAllowed.value = allowed
@@ -320,85 +318,44 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun exportSettings(uri: Uri) {
+    /** Writes a new backup zip containing exactly [categories] to [uri] (an already-created document from
+     *  a `CreateDocument` picker). */
+    fun backup(uri: Uri, categories: Set<BackupCategory>) {
         viewModelScope.launch {
-            settingsRepository.export(uri)
+            backupRepository.createBackup(uri, categories).fold(
+                onSuccess = { showSnackbar(R.string.backup_success) },
+                onFailure = { showSnackbar(R.string.backup_failed) },
+            )
         }
     }
 
-    fun importSettings(uri: Uri) {
+    /** Reads [uri] (an `OpenDocument`-picked file) and, on success, populates [pendingRestore] so the UI
+     *  can show a checkbox dialog scoped to what the archive actually contains. Shows an error directly
+     *  and leaves [pendingRestore] untouched if the file isn't a readable Omnify backup. */
+    fun inspectRestoreFile(uri: Uri) {
         viewModelScope.launch {
-            try {
-                settingsRepository.import(uri)
-            } catch (e: Exception) {
-                showSnackbar(R.string.file_format_error_DESC)
-            }
-        }
-    }
-
-    fun exportRepos(uri: Uri) {
-        viewModelScope.launch {
-            // getRepo() (unlike the repos flow) also resolves credentials and mirrors, so the
-            // backup keeps private-repo logins.
-            val repos = repoRepository.repos.first()
-                .mapNotNull { repoRepository.getRepo(it.id) }
-                .map { it.toExportRepository() }
-            repositoryExporter.export(repos, uri)
-        }
-    }
-
-    fun importRepos(uri: Uri) {
-        viewModelScope.launch {
-            val imported = try {
-                repositoryExporter.import(uri)
-            } catch (e: Exception) {
-                showSnackbar(R.string.file_format_error_DESC)
-                return@launch
-            }
-            // Skip repos we already have: RepoEntity has no unique address constraint, so a blind
-            // insert would create duplicates.
-            val existing = repoRepository.addresses.first()
-                .map { it.normalizeRepoAddress() }
-                .toSet()
-            imported.forEach { repo ->
-                if (repo.address.normalizeRepoAddress() in existing) return@forEach
-                val (username, password) = repo.authentication.basicCredentials()
-                repoRepository.insertRepo(
-                    address = repo.address,
-                    fingerprint = repo.fingerprint.ifEmpty { null },
-                    username = username,
-                    password = password,
-                    name = repo.name.ifEmpty { null },
-                    description = repo.description.ifEmpty { null },
-                )
-            }
-            // Restore the backup's enabled state (enabling also triggers a sync). Re-query because
-            // insertRepo doesn't return a usable Repo — same approach as the default-repo seeding.
-            val enabledAddresses = imported
-                .filter { it.enabled }
-                .map { it.address.normalizeRepoAddress() }
-                .toSet()
-            repoRepository.repos.first()
-                .filter { it.address.normalizeRepoAddress() in enabledAddresses && !it.enabled }
-                .forEach { repoRepository.enableRepository(it, enable = true) }
-        }
-    }
-
-    fun exportExternalSources(uri: Uri) {
-        viewModelScope.launch {
-            externalAppRepository.exportToUri(uri).onFailure {
-                showSnackbar(R.string.file_format_error_DESC)
-            }
-        }
-    }
-
-    fun importExternalSources(uri: Uri) {
-        viewModelScope.launch {
-            externalAppRepository.importFromUri(uri).fold(
-                onSuccess = { count -> if (count > 0) showSnackbar(R.string.external_imported) },
+            backupRepository.inspectBackup(uri).fold(
+                onSuccess = { inspection -> _pendingRestore.value = inspection },
                 onFailure = { showSnackbar(R.string.file_format_error_DESC) },
             )
         }
+    }
+
+    /** Applies exactly [categories] from the archive [pendingRestore] currently holds, then clears it. */
+    fun confirmRestore(categories: Set<BackupCategory>) {
+        val inspection = _pendingRestore.value ?: return
+        viewModelScope.launch {
+            backupRepository.restoreBackup(inspection, categories).fold(
+                onSuccess = { showSnackbar(R.string.restore_success) },
+                onFailure = { showSnackbar(R.string.restore_failed) },
+            )
+            _pendingRestore.value = null
+        }
+    }
+
+    /** Dismisses the pending restore dialog without applying anything. */
+    fun cancelRestore() {
+        _pendingRestore.value = null
     }
 
     fun addCustomButton(button: CustomButton) {
@@ -416,29 +373,6 @@ class SettingsViewModel @Inject constructor(
     fun removeCustomButton(buttonId: String) {
         viewModelScope.launch {
             customButtonRepository.removeButton(buttonId)
-        }
-    }
-
-    fun exportCustomButtons(uri: Uri) {
-        viewModelScope.launch {
-            customButtonRepository.exportToUri(uri).onFailure {
-                showSnackbar(R.string.file_format_error_DESC)
-            }
-        }
-    }
-
-    fun importCustomButtons(uri: Uri) {
-        viewModelScope.launch {
-            customButtonRepository.importFromUri(uri).fold(
-                onSuccess = { count ->
-                    if (count > 0) {
-                        showSnackbar(R.string.custom_buttons_imported)
-                    }
-                },
-                onFailure = {
-                    showSnackbar(R.string.file_format_error_DESC)
-                },
-            )
         }
     }
 
@@ -462,42 +396,4 @@ private fun String.toLocale(): Locale = when {
     contains("-r") -> Locale(substring(0, 2), substring(4))
     contains("_") -> Locale(substring(0, 2), substring(3))
     else -> Locale(this)
-}
-
-/** Trailing-slash-insensitive form used to match repo addresses across backup and DB. */
-private fun String.normalizeRepoAddress(): String = trimEnd('/')
-
-/** Maps a Room [Repo] to the legacy [Repository] shape understood by [RepositoryExporter]. */
-private fun Repo.toExportRepository(): Repository = Repository(
-    id = id.toLong(),
-    address = address,
-    mirrors = mirrors,
-    name = name,
-    description = description.raw,
-    // Legacy index-format version; unused on re-import, kept for backup-format compatibility.
-    version = 21,
-    enabled = enabled,
-    fingerprint = fingerprint?.value ?: "",
-    lastModified = "",
-    entityTag = "",
-    updated = 0L,
-    timestamp = versionInfo?.timestamp ?: 0L,
-    authentication = authentication?.toBasicAuth() ?: "",
-)
-
-/** Legacy "Basic <base64(user:pass)>" credential string (matches KtorHeadersBuilder). */
-private fun Authentication.toBasicAuth(): String =
-    "Basic " + Base64.encode("$username:$password".encodeToByteArray())
-
-/** Splits a legacy "Basic <base64(user:pass)>" string back into (username, password). */
-private fun String.basicCredentials(): Pair<String?, String?> {
-    if (isBlank()) return null to null
-    return try {
-        val decoded = Base64.decode(removePrefix("Basic ").trim()).decodeToString()
-        val separator = decoded.indexOf(':')
-        if (separator < 0) null to null
-        else decoded.substring(0, separator) to decoded.substring(separator + 1)
-    } catch (e: IllegalArgumentException) {
-        null to null
-    }
 }

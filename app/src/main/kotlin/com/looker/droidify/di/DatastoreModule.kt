@@ -12,17 +12,13 @@ import com.looker.droidify.datastore.PreferenceSettingsRepository
 import com.looker.droidify.datastore.Settings
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.SettingsSerializer
-import com.looker.droidify.datastore.exporter.SettingsExporter
 import com.looker.droidify.datastore.migration.ProtoToPreferenceMigration
-import com.looker.droidify.utility.common.Exporter
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.serialization.json.Json
 import javax.inject.Singleton
 
 private const val PREFERENCES = "settings_file"
@@ -58,22 +54,6 @@ object DatastoreModule {
 
     @Singleton
     @Provides
-    fun provideSettingsExporter(
-        @ApplicationContext context: Context,
-        @ApplicationScope scope: CoroutineScope,
-        @IoDispatcher dispatcher: CoroutineDispatcher,
-    ): Exporter<Settings> = SettingsExporter(
-        context = context,
-        scope = scope,
-        ioDispatcher = dispatcher,
-        json = Json {
-            encodeDefaults = true
-            prettyPrint = true
-        },
-    )
-
-    @Singleton
-    @Provides
     fun provideEncryptionStorage(
         dataStore: DataStore<Preferences>,
         @IoDispatcher dispatcher: CoroutineDispatcher,
@@ -83,6 +63,5 @@ object DatastoreModule {
     @Provides
     fun provideSettingsRepository(
         dataStore: DataStore<Preferences>,
-        exporter: Exporter<Settings>,
-    ): SettingsRepository = PreferenceSettingsRepository(dataStore, exporter)
+    ): SettingsRepository = PreferenceSettingsRepository(dataStore)
 }

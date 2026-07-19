@@ -1,6 +1,5 @@
 package com.looker.droidify.datastore
 
-import android.net.Uri
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.IOException
@@ -20,7 +19,6 @@ import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.datastore.model.TranslationEngine
-import com.looker.droidify.utility.common.Exporter
 import com.looker.droidify.utility.common.extension.updateAsMutable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -36,7 +34,6 @@ import kotlin.time.Instant
 @OptIn(ExperimentalTime::class)
 class PreferenceSettingsRepository(
     private val dataStore: DataStore<Preferences>,
-    private val exporter: Exporter<Settings>,
 ) : SettingsRepository {
 
     override val data: Flow<Settings> = dataStore.data
@@ -52,18 +49,9 @@ class PreferenceSettingsRepository(
         return data.first()
     }
 
-    override suspend fun export(target: Uri) {
-        val currentSettings = getInitial()
-        exporter.export(currentSettings, target)
-    }
-
-    override suspend fun import(target: Uri) {
-        val importedSettings = exporter.import(target)
-        val updatedFavorites = importedSettings.favouriteApps +
-            getInitial().favouriteApps
-        val updatedSettings = importedSettings.copy(favouriteApps = updatedFavorites)
+    override suspend fun applySettings(settings: Settings) {
         dataStore.edit {
-            it.setting(updatedSettings)
+            it.setting(settings)
         }
     }
 
@@ -391,6 +379,7 @@ class PreferenceSettingsRepository(
             set(INCOMPATIBLE_VERSIONS, settings.incompatibleVersions)
             set(NOTIFY_UPDATES, settings.notifyUpdate)
             set(UNSTABLE_UPDATES, settings.unstableUpdate)
+            set(IGNORE_SIGNATURE, settings.ignoreSignature)
             set(THEME, settings.theme.name)
             set(DYNAMIC_THEME, settings.dynamicTheme)
             set(THEME_COLOR, settings.themeColor)

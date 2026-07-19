@@ -5,8 +5,6 @@ import app.cash.turbine.test
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.Theme
-import com.looker.droidify.utility.common.Exporter
-import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -35,16 +33,14 @@ class PreferenceSettingsRepositoryTest {
     private val testScope = TestScope(testDispatcher)
 
     private lateinit var repository: PreferenceSettingsRepository
-    private lateinit var exporter: Exporter<Settings>
 
     @Before
     fun setup() {
-        exporter = mockk(relaxed = true)
         val dataStore = PreferenceDataStoreFactory.create(
             scope = testScope,
             produceFile = { File(tmpFolder.newFolder(), "test_settings.preferences_pb") },
         )
-        repository = PreferenceSettingsRepository(dataStore, exporter)
+        repository = PreferenceSettingsRepository(dataStore)
     }
 
     @Test
