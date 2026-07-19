@@ -233,7 +233,6 @@ dependencies {
     implementation(libs.libsu.core)
     implementation(libs.bundles.shizuku)
 
-    implementation(libs.jackson.core)
     implementation(libs.serialization)
 
     implementation(libs.bundles.ktor)

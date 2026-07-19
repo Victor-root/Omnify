@@ -1,7 +1,6 @@
 package com.looker.droidify.datastore
 
 import android.content.Context
-import android.net.Uri
 import com.looker.droidify.datastore.model.CustomButton
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -77,40 +76,6 @@ class CustomButtonRepository @Inject constructor(
         mutex.withLock {
             saveToFile(buttons)
             _buttons.value = buttons
-        }
-    }
-
-    suspend fun importFromUri(uri: Uri): Result<Int> = withContext(Dispatchers.IO) {
-        runCatching {
-            val inputStream = context.contentResolver.openInputStream(uri)
-                ?: throw IllegalStateException("Cannot open input stream")
-            val jsonString = inputStream.bufferedReader().use { it.readText() }
-            val importedButtons = json.decodeFromString(
-                ListSerializer(CustomButton.serializer()),
-                jsonString,
-            )
-            mutex.withLock {
-                ensureLoadedInternal()
-                val existingIds = _buttons.value.map { it.id }.toSet()
-                val newButtons = importedButtons.filter { it.id !in existingIds }
-                val mergedButtons = _buttons.value + newButtons
-                saveToFile(mergedButtons)
-                _buttons.value = mergedButtons
-                newButtons.size
-            }
-        }
-    }
-
-    suspend fun exportToUri(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
-            ensureLoaded()
-            val jsonString = json.encodeToString(
-                ListSerializer(CustomButton.serializer()),
-                _buttons.value,
-            )
-            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                outputStream.write(jsonString.toByteArray())
-            } ?: throw IllegalStateException("Cannot open output stream")
         }
     }
 

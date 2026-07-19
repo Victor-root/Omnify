@@ -58,6 +58,7 @@ import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.cleanUpIntervals
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.localeCodesList
 import com.looker.droidify.compose.settings.components.ActionSettingItem
+import com.looker.droidify.compose.settings.components.BackupCategoryDialog
 import com.looker.droidify.compose.settings.components.CustomButtonsSettingItem
 import com.looker.droidify.compose.settings.components.SelectionSettingItem
 import com.looker.droidify.compose.settings.components.SettingHeader
@@ -65,6 +66,7 @@ import com.looker.droidify.compose.settings.components.SwitchSettingItem
 import com.looker.droidify.compose.settings.components.TextInputSettingItem
 import com.looker.droidify.compose.settings.components.ThemeColorPickerDialog
 import com.looker.droidify.compose.settings.components.WarningBanner
+import com.looker.droidify.data.backup.BackupCategory
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
@@ -78,19 +80,23 @@ import com.looker.droidify.utility.common.requestBatteryFreedom
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.time.Duration
 
-private const val BACKUP_MIME_TYPE = "application/json"
-private const val SETTINGS_BACKUP_NAME = "droidify_settings.json"
-private const val REPO_BACKUP_NAME = "droidify_repos.json"
-private const val EXTERNAL_BACKUP_NAME = "droidify_external_sources.json"
-private const val CUSTOM_BUTTONS_BACKUP_NAME = "custom_buttons.json"
+private const val BACKUP_MIME_TYPE = "application/zip"
 
-// Backups are JSON. Older exports were written without a file extension, and file managers then
-// report them as application/octet-stream (or text/plain) — which made the backup file appear
-// greyed out / unselectable in the import picker. Accept those types too so any backup is pickable.
-private val IMPORT_MIME_TYPES = arrayOf("application/json", "application/octet-stream", "text/plain")
+// Some file managers report a zip as application/octet-stream or application/x-zip-compressed instead
+// of application/zip — accept all three so a real backup file is never greyed out in the picker
+// (mirrors the same file-manager MIME-detection quirk the old per-category JSON import worked around).
+private val RESTORE_MIME_TYPES = arrayOf(
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/octet-stream",
+)
+
+private fun defaultBackupFileName(): String =
+    "omnify-backup-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".zip"
 
 /** Localised label for a translation engine choice in the dropdown. */
 @Composable
@@ -132,62 +138,33 @@ fun SettingsScreen(
         viewModel.updateBackgroundAccessState(context.isIgnoreBatteryEnabled())
     }
 
-    val exportSettingsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument(BACKUP_MIME_TYPE),
-    ) { uri -> uri?.let { viewModel.exportSettings(it) } }
+    val pendingRestore by viewModel.pendingRestore.collectAsStateWithLifecycle()
 
-    val importSettingsLauncher = rememberLauncherForActivityResult(
+    // The category checkboxes are confirmed before the file even exists (CreateDocument creates it),
+    // so the selection has to be held here until that picker returns a Uri to actually write to.
+    var pendingBackupCategories by remember { mutableStateOf<Set<BackupCategory>?>(null) }
+
+    val backupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(BACKUP_MIME_TYPE),
+    ) { uri ->
+        val categories = pendingBackupCategories
+        if (uri != null && categories != null) {
+            viewModel.backup(uri, categories)
+        }
+        pendingBackupCategories = null
+    }
+
+    val restoreLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
         if (uri != null) {
-            viewModel.importSettings(uri)
+            viewModel.inspectRestoreFile(uri)
         } else {
             viewModel.showSnackbar(R.string.file_format_error_DESC)
         }
     }
 
-    val exportReposLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument(BACKUP_MIME_TYPE),
-    ) { uri -> uri?.let { viewModel.exportRepos(it) } }
-
-    val importReposLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri != null) {
-            viewModel.importRepos(uri)
-        } else {
-            viewModel.showSnackbar(R.string.file_format_error_DESC)
-        }
-    }
-
-    val exportExternalLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument(BACKUP_MIME_TYPE),
-    ) { uri -> uri?.let { viewModel.exportExternalSources(it) } }
-
-    val importExternalLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri != null) {
-            viewModel.importExternalSources(uri)
-        } else {
-            viewModel.showSnackbar(R.string.file_format_error_DESC)
-        }
-    }
-
-    val exportCustomButtonsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument(BACKUP_MIME_TYPE),
-    ) { uri -> uri?.let { viewModel.exportCustomButtons(it) } }
-
-    val importCustomButtonsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri != null) {
-            viewModel.importCustomButtons(uri)
-        } else {
-            viewModel.showSnackbar(R.string.file_format_error_DESC)
-        }
-    }
-
+    var showBackupDialog by remember { mutableStateOf(false) }
     var showColorPicker by remember { mutableStateOf(false) }
 
     // TV / D-pad: drop focus from the header into the settings list (the top bar won't on its own).
@@ -546,55 +523,19 @@ fun SettingsScreen(
 
             item {
                 ActionSettingItem(
-                    title = stringResource(R.string.import_settings_title),
-                    description = stringResource(R.string.import_settings_DESC),
-                    icon = painterResource(R.drawable.ic_download),
-                    onClick = { importSettingsLauncher.launch(IMPORT_MIME_TYPES) },
-                )
-            }
-
-            item {
-                ActionSettingItem(
-                    title = stringResource(R.string.export_settings_title),
-                    description = stringResource(R.string.export_settings_DESC),
+                    title = stringResource(R.string.backup_title),
+                    description = stringResource(R.string.backup_row_DESC),
                     icon = painterResource(R.drawable.ic_save),
-                    onClick = { exportSettingsLauncher.launch(SETTINGS_BACKUP_NAME) },
+                    onClick = { showBackupDialog = true },
                 )
             }
 
             item {
                 ActionSettingItem(
-                    title = stringResource(R.string.import_repos_title),
-                    description = stringResource(R.string.import_repos_DESC),
+                    title = stringResource(R.string.restore_title),
+                    description = stringResource(R.string.restore_row_DESC),
                     icon = painterResource(R.drawable.ic_download),
-                    onClick = { importReposLauncher.launch(IMPORT_MIME_TYPES) },
-                )
-            }
-
-            item {
-                ActionSettingItem(
-                    title = stringResource(R.string.export_repos_title),
-                    description = stringResource(R.string.export_repos_DESC),
-                    icon = painterResource(R.drawable.ic_save),
-                    onClick = { exportReposLauncher.launch(REPO_BACKUP_NAME) },
-                )
-            }
-
-            item {
-                ActionSettingItem(
-                    title = stringResource(R.string.import_external_title),
-                    description = stringResource(R.string.import_external_DESC),
-                    icon = painterResource(R.drawable.ic_download),
-                    onClick = { importExternalLauncher.launch(IMPORT_MIME_TYPES) },
-                )
-            }
-
-            item {
-                ActionSettingItem(
-                    title = stringResource(R.string.export_external_title),
-                    description = stringResource(R.string.export_external_DESC),
-                    icon = painterResource(R.drawable.ic_save),
-                    onClick = { exportExternalLauncher.launch(EXTERNAL_BACKUP_NAME) },
+                    onClick = { restoreLauncher.launch(RESTORE_MIME_TYPES) },
                 )
             }
 
@@ -608,8 +549,6 @@ fun SettingsScreen(
                     onAddButton = viewModel::addCustomButton,
                     onUpdateButton = viewModel::updateCustomButton,
                     onRemoveButton = viewModel::removeCustomButton,
-                    onExport = { exportCustomButtonsLauncher.launch(CUSTOM_BUTTONS_BACKUP_NAME) },
-                    onImport = { importCustomButtonsLauncher.launch(IMPORT_MIME_TYPES) },
                 )
             }
 
@@ -676,6 +615,31 @@ fun SettingsScreen(
                 showColorPicker = false
             },
             onDismiss = { showColorPicker = false },
+        )
+    }
+
+    if (showBackupDialog) {
+        BackupCategoryDialog(
+            title = stringResource(R.string.backup_dialog_title),
+            confirmLabel = stringResource(R.string.backup_title),
+            availableCategories = BackupCategory.entries.toSet(),
+            onConfirm = { categories ->
+                pendingBackupCategories = categories
+                showBackupDialog = false
+                backupLauncher.launch(defaultBackupFileName())
+            },
+            onDismiss = { showBackupDialog = false },
+        )
+    }
+
+    val restoreInspection = pendingRestore
+    if (restoreInspection != null) {
+        BackupCategoryDialog(
+            title = stringResource(R.string.restore_dialog_title),
+            confirmLabel = stringResource(R.string.restore_title),
+            availableCategories = restoreInspection.availableCategories,
+            onConfirm = { categories -> viewModel.confirmRestore(categories) },
+            onDismiss = { viewModel.cancelRestore() },
         )
     }
 }
