@@ -141,14 +141,21 @@ object ApkSigningBlockReader {
 
     // ---- APK Signature Scheme v2/v3 Block value: uint32-length-prefixed nested sequences ----
 
-    /** [blockValue] is the v2/v3 ID-value pair's own value: a length-prefixed sequence of
-     *  length-prefixed "signer" records. Returns every X.509 certificate (DER bytes) declared by every
-     *  signer — v2 and v3 share the exact same layout up to and including the certificate list, the only
-     *  fields this reads; whatever follows (v3's min/max SDK, additional attributes, signatures, public
-     *  key) is never parsed. */
+    /** [blockValue] is the v2/v3 ID-value pair's own value: a length-prefixed sequence (4-byte total
+     *  length, then that many bytes of content) whose content is itself back-to-back length-prefixed
+     *  "signer" records — the same two-level shape [parseCertificatesFromSignedData] unwraps one level
+     *  down for the digests/certificates sequences, so the outer 4-byte length here is skipped the same
+     *  way before [forEachLengthPrefixed] walks the individual signers. Returns every X.509 certificate
+     *  (DER bytes) declared by every signer — v2 and v3 share the exact same layout up to and including
+     *  the certificate list, the only fields this reads; whatever follows (v3's min/max SDK, additional
+     *  attributes, signatures, public key) is never parsed. */
     private fun parseSignerCertificates(blockValue: ByteArray): List<ByteArray> {
+        if (blockValue.size < 4) return emptyList()
+        val signersLen = u32(blockValue, 0)
+        if (4 + signersLen > blockValue.size) return emptyList()
+        val signers = blockValue.copyOfRange(4, (4 + signersLen).toInt())
         val certs = mutableListOf<ByteArray>()
-        forEachLengthPrefixed(blockValue) { signer ->
+        forEachLengthPrefixed(signers) { signer ->
             if (signer.size >= 4) {
                 val signedDataLen = u32(signer, 0)
                 if (4 + signedDataLen <= signer.size) {

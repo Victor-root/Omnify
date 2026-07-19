@@ -279,7 +279,13 @@ class ExternalAppsViewModel @Inject constructor(
                     // InstalledIdentityRepository) — same rule as the catalogue side, different source
                     // for the expected signers (the release APK's own signing block; there's no index
                     // declaring them ahead of time here).
-                    if (signerMismatch(installedSigner, expectedSigners)) {
+                    val mismatch = signerMismatch(installedSigner, expectedSigners)
+                    Log.d(
+                        TAG,
+                        "signature check ${app.key}: apkUrl=$apkUrl installed=$installedSigner " +
+                            "expected=$expectedSigners mismatch=$mismatch",
+                    )
+                    if (mismatch) {
                         mismatches += app.key
                     }
                 }
