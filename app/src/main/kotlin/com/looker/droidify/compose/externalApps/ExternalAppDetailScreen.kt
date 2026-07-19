@@ -106,8 +106,8 @@ import com.looker.droidify.external.apkDownloadUrl
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkFileSize
 import com.looker.droidify.external.apkUpdatedAt
-import com.looker.droidify.external.apkVersionLabel
 import com.looker.droidify.external.compareVersionStrings
+import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.common.RootDetection
@@ -496,9 +496,10 @@ fun ExternalAppDetailScreen(
         var viewportPx by remember { mutableStateOf(0) }
 
         // The repo's release tag (e.g. "v2.5.0") often doesn't match the APK's own version — the file
-        // name usually does (e.g. "GlassKeep-1.4.6.apk" for a "v2.5.0" release), so that's what's shown
-        // as the hero "Version" whenever a build is available, falling back to the tag otherwise.
-        val heroVersion = app.latestApkName?.let { apkVersionLabel(it) } ?: app.latestTag
+        // name usually does (e.g. "GlassKeep-1.4.6.apk" for a "v2.5.0" release) — but some projects ship
+        // the same fixed file name on every release (confirmed real: RivoPhoneApp's "app-release.apk")
+        // and only the tag actually carries a version; releaseVersionLabel tries both in that order.
+        val heroVersion = releaseVersionLabel(app.latestApkName, app.latestTag).takeIf { it.isNotEmpty() }
         // Mirrors the F-Droid catalogue's "Taille" stat; null (hidden) when the provider's release
         // API doesn't expose a file size (GitLab's release link assets carry none).
         val heroSize = app.latestApkSize?.let { DataSize(it).toString() }
@@ -1164,7 +1165,7 @@ private fun ExternalVersionsSection(
                 // version, not the possibly-stale app.installedTag, the same self-healing fallback
                 // hasUpdateGiven already relies on for the update banner above.
                 val isInstalled = installedVersion != null &&
-                    compareVersionStrings(apkVersionLabel(apkName ?: release.tag), installedVersion) == 0
+                    compareVersionStrings(releaseVersionLabel(apkName, release.tag), installedVersion) == 0
                 val apkUrl = release.apkDownloadUrl(filter = app.apkFilter)
                 if (apkUrl != null) {
                     LaunchedEffect(apkUrl) { onRequestSdkInfo(apkUrl) }

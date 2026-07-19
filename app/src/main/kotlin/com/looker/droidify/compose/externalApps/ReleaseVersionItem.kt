@@ -31,6 +31,7 @@ import com.looker.droidify.compose.components.CompactInstallProgressRow
 import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.external.Release
+import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.common.sdkName
@@ -107,7 +108,12 @@ fun ReleaseVersionItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = release.tag,
+                        // releaseVersionLabel reads identically to the hero card's own "Version" stat
+                        // (see ExternalAppDetailScreen's heroVersion) instead of the raw server-side
+                        // tag: usually a dotted number pulled from the APK's file name, falling back to
+                        // one pulled from the tag itself for a project whose file name is fixed across
+                        // every release (confirmed real: RivoPhoneApp's "app-release.apk").
+                        text = releaseVersionLabel(apkName, release.tag),
                         style = MaterialTheme.typography.titleSmall,
                         // Take only the space left after the chips (fill = false) so a very long tag
                         // wraps instead of crushing the chips to one letter per line.

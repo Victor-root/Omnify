@@ -287,10 +287,28 @@ fun Release.apkDownloadUrl(
 
 private val versionInFileName = Regex("""\d+(?:\.\d+)+""")
 
+/** A dotted version number pulled out of [text] (e.g. "GlassKeep-v1.4.6.apk" -> "1.4.6"), or null when
+ *  none is present. */
+private fun dottedVersionOrNull(text: String): String? = versionInFileName.find(text)?.value
+
 /** Pulls a dotted version number out of an APK file name (e.g. "GlassKeep-v1.4.6.apk" -> "1.4.6") for
  *  a tidy "latest APK" line, falling back to the whole file name when none is present. */
-fun apkVersionLabel(fileName: String): String =
-    versionInFileName.find(fileName)?.value ?: fileName
+fun apkVersionLabel(fileName: String): String = dottedVersionOrNull(fileName) ?: fileName
+
+/**
+ * The best human-readable version for a release, shown identically everywhere a version needs to read
+ * (the hero card's "Version" stat, the version list, the installed-row match check): a dotted number
+ * pulled from [apkFileName] when it actually carries one — usually more accurate than the project's own
+ * tag (e.g. "GlassKeep-v1.4.6.apk" for a "v2.5.0" tag) — falling back to one pulled from [tag] instead
+ * when the file name doesn't (confirmed real: RivoPhoneApp ships the same fixed "app-release.apk" name
+ * on every release, but still tags each one), and finally to whichever of the two is available verbatim
+ * when neither carries a recognisable dotted number. Empty only when both are null.
+ */
+fun releaseVersionLabel(apkFileName: String?, tag: String?): String {
+    apkFileName?.let(::dottedVersionOrNull)?.let { return it }
+    tag?.let(::dottedVersionOrNull)?.let { return it }
+    return tag ?: apkFileName ?: ""
+}
 
 /**
  * Compares two dotted version strings (e.g. "2.7.0" vs "2.6.0") component by component, numerically —
