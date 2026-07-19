@@ -491,5 +491,5 @@
     <string name="uninstall_failed">Couldn\'t uninstall %1$s</string>
     <string name="installer_unknown">Unknown source</string>
     <string name="installed_version_source">Installed: %1$s · from %2$s</string>
-    <string name="installed_signature_mismatch">A different app already uses this package name on your device (%1$s · from %2$s, different signing key). It\'s probably not this app.</string>
+    <string name="installed_signature_mismatch">A different app already uses this package name on your device (%1$s · from %2$s, different signing key).</string>
 </resources>
