@@ -102,11 +102,14 @@ import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
 import com.looker.droidify.installer.model.InstallState
+import com.looker.droidify.external.apkDownloadUrl
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.external.apkFileSize
+import com.looker.droidify.external.apkUpdatedAt
 import com.looker.droidify.external.apkVersionLabel
 import com.looker.droidify.external.compareVersionStrings
 import com.looker.droidify.network.DataSize
+import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.common.RootDetection
 import com.looker.droidify.utility.common.extension.openAppInfo
 import kotlinx.coroutines.delay
@@ -137,6 +140,7 @@ fun ExternalAppDetailScreen(
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
+    val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     val issueTrackerLink by viewModel.issueTrackerLink.collectAsStateWithLifecycle()
     val changelogLink by viewModel.changelogLink.collectAsStateWithLifecycle()
     val changelogHtml by viewModel.changelogHtml.collectAsStateWithLifecycle()
@@ -634,6 +638,8 @@ fun ExternalAppDetailScreen(
                         installing = installing,
                         activeDownloadTag = activeDownloadTag,
                         onCancel = { viewModel.cancel(app) },
+                        sdkInfoByApkUrl = sdkInfoByApkUrl,
+                        onRequestSdkInfo = viewModel::loadSdkInfo,
                     )
                 }
                 VerticalDivider()
@@ -673,6 +679,8 @@ fun ExternalAppDetailScreen(
                         installing = installing,
                         activeDownloadTag = activeDownloadTag,
                         onCancel = { viewModel.cancel(app) },
+                        sdkInfoByApkUrl = sdkInfoByApkUrl,
+                        onRequestSdkInfo = viewModel::loadSdkInfo,
                     )
                 }
             }
@@ -785,6 +793,8 @@ fun ExternalAppDetailScreen(
                         installing = installing,
                         activeDownloadTag = activeDownloadTag,
                         onCancel = { viewModel.cancel(app) },
+                        sdkInfoByApkUrl = sdkInfoByApkUrl,
+                        onRequestSdkInfo = viewModel::loadSdkInfo,
                     )
                 }
             }
@@ -834,6 +844,10 @@ private fun ExternalAppDetailBody(
     installing: Boolean,
     activeDownloadTag: String?,
     onCancel: () -> Unit,
+    // Lazily-fetched min/target SDK per APK URL (see ExternalAppsViewModel.loadSdkInfo), threaded down
+    // to ExternalVersionsSection the same way as every other version-list value.
+    sdkInfoByApkUrl: Map<String, ApkBinaryManifest.UsesSdk?>,
+    onRequestSdkInfo: (String) -> Unit,
 ) {
     val density = LocalDensity.current
     val uriHandler = LocalUriHandler.current
@@ -1017,6 +1031,8 @@ private fun ExternalAppDetailBody(
             installing = installing,
             activeDownloadTag = activeDownloadTag,
             onCancel = onCancel,
+            sdkInfoByApkUrl = sdkInfoByApkUrl,
+            onRequestSdkInfo = onRequestSdkInfo,
         )
     }
 }
@@ -1093,6 +1109,8 @@ private fun ExternalVersionsSection(
     installing: Boolean,
     activeDownloadTag: String?,
     onCancel: () -> Unit,
+    sdkInfoByApkUrl: Map<String, ApkBinaryManifest.UsesSdk?>,
+    onRequestSdkInfo: (String) -> Unit,
 ) {
     // Skip only once genuinely confirmed empty (releaseHistory != null). While still loading
     // (releaseHistory == null) the section stays in composition with a loading row below instead of
@@ -1147,10 +1165,16 @@ private fun ExternalVersionsSection(
                 // hasUpdateGiven already relies on for the update banner above.
                 val isInstalled = installedVersion != null &&
                     compareVersionStrings(apkVersionLabel(apkName ?: release.tag), installedVersion) == 0
+                val apkUrl = release.apkDownloadUrl(filter = app.apkFilter)
+                if (apkUrl != null) {
+                    LaunchedEffect(apkUrl) { onRequestSdkInfo(apkUrl) }
+                }
                 ReleaseVersionItem(
                     release = release,
                     apkName = apkName,
                     apkSize = release.apkFileSize(filter = app.apkFilter),
+                    apkDate = release.apkUpdatedAt(filter = app.apkFilter),
+                    sdkInfo = apkUrl?.let { sdkInfoByApkUrl[it] },
                     isSuggested = release.tag == app.latestTag,
                     isInstalled = isInstalled,
                     onClick = { onVersionClick(release) },

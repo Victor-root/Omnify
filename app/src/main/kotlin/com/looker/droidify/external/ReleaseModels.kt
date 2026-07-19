@@ -265,6 +265,17 @@ fun Release.apkFileSize(
 ): Long? =
     selectApkAsset(assets, deviceAbis, filter, releaseTag = tag)?.size
 
+/** ISO-8601 timestamp of when the APK this release would install was last uploaded, for the release
+ *  date shown in the version list — mirrors the F-Droid catalogue's own per-version date
+ *  ([com.looker.droidify.compose.appDetail.components.PackageItem]). Null when the release ships no APK,
+ *  or the provider's release API doesn't expose an upload time (GitLab's link assets carry none, same
+ *  limitation [Release.apkFileSize] already documents). */
+fun Release.apkUpdatedAt(
+    deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
+    filter: String? = null,
+): String? =
+    selectApkAsset(assets, deviceAbis, filter, releaseTag = tag)?.updatedAt
+
 /** The direct download URL of the APK this release would install — used to read its signing
  *  certificate via a cheap HTTP range request ([com.looker.droidify.utility.apk.ApkSigningBlockReader])
  *  instead of downloading the whole file. Null when the release ships no APK. */
