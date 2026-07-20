@@ -40,6 +40,7 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.translation.TranslationManager
+import com.looker.droidify.utility.apk.InstalledApkLocaleReader
 import com.looker.droidify.utility.apk.RangeCapableMirrors
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.apk.RemoteApkManifestReader
@@ -379,10 +380,11 @@ class AppDetailViewModel @Inject constructor(
             apkLocales.isNotEmpty() -> SupportedLanguages(apkLocales, reliable = true)
             // Not installed, but directly confirmed from the APK itself -> equally reliable. An empty
             // result is excluded here on purpose: unlike installedApkLocales() (read straight from the
-            // installed APK via AssetManager, always trustworthy), a *download* coming back with zero
-            // locale-specific resource configs can just as easily mean the fetch/parse silently missed
-            // something as it can mean a genuinely unlocalized app — a false "not translated" is worse
-            // than falling back to the approximation below, so it's treated as inconclusive.
+            // installed APK's own resources.arsc, already on disk — a local file read essentially never
+            // fails the way a remote fetch can), a *download* coming back with zero locale-specific
+            // resource configs can just as easily mean the fetch/parse silently missed something as it
+            // can mean a genuinely unlocalized app — a false "not translated" is worse than falling back
+            // to the approximation below, so it's treated as inconclusive.
             !remoteLocales.isNullOrEmpty() -> SupportedLanguages(remoteLocales, reliable = true)
             // Not installed and not yet confirmed: only the store-listing translations, which may
             // differ from the app's UI -> present as approximate so we never wrongly claim a language
@@ -595,13 +597,10 @@ class AppDetailViewModel @Inject constructor(
         }
     }
 
-    /** The locale codes the installed APK actually ships resources for (its real UI languages), read
-     *  from the package's AssetManager. Empty if it can't be read. */
-    private fun installedApkLocales(): List<String> = runCatching {
-        context.packageManager.getResourcesForApplication(packageName)
-            .assets.locales
-            .filter { it.isNotBlank() }
-    }.getOrDefault(emptyList())
+    /** The locale codes the installed APK actually ships resources for (its real, boilerplate-filtered
+     *  UI languages — see [InstalledApkLocaleReader]). Empty if it can't be read. */
+    private fun installedApkLocales(): List<String> =
+        InstalledApkLocaleReader.fetchLocales(context.packageManager, packageName).orEmpty()
 
     /**
      * Whenever the app isn't installed and a device-installable package is known, resolves its real

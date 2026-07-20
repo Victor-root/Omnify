@@ -77,6 +77,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.appDetail.DownloadStatus
+import com.looker.droidify.compose.appDetail.GoogleServiceDependency
+import com.looker.droidify.compose.appDetail.GoogleServicesCard
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.HeroCard
@@ -141,6 +143,7 @@ fun ExternalAppDetailScreen(
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
+    val googleServicesByApkUrl by viewModel.googleServicesByApkUrl.collectAsStateWithLifecycle()
     val issueTrackerLink by viewModel.issueTrackerLink.collectAsStateWithLifecycle()
     val changelogLink by viewModel.changelogLink.collectAsStateWithLifecycle()
     val changelogHtml by viewModel.changelogHtml.collectAsStateWithLifecycle()
@@ -162,6 +165,14 @@ fun ExternalAppDetailScreen(
     }
 
     val app = apps.firstOrNull { it.key == appKey }
+
+    // Google-services detection needs the latest release's own compiled manifest — fetched lazily, once
+    // per app, same pattern as the SDK-info check (see ExternalAppsViewModel.loadGoogleServicesInfo).
+    LaunchedEffect(app?.key, app?.latestApkUrl) {
+        val latestApkUrl = app?.latestApkUrl
+        if (app != null && latestApkUrl != null) viewModel.loadGoogleServicesInfo(app, latestApkUrl)
+    }
+    val googleServicesDependencies = app?.latestApkUrl?.let { googleServicesByApkUrl[it] }.orEmpty()
 
     signatureConflict?.let { conflict ->
         val conflictAppName = app?.label ?: appKey
@@ -623,6 +634,13 @@ fun ExternalAppDetailScreen(
                             viewModel.loadChangelogHtml(app)
                         },
                     )
+                    if (googleServicesDependencies.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        GoogleServicesCard(
+                            dependencies = googleServicesDependencies,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
                     supportedLanguages?.let { languages ->
                         Spacer(Modifier.height(8.dp))
                         SupportedLanguagesSection(languages = languages)
@@ -682,6 +700,7 @@ fun ExternalAppDetailScreen(
                         onCancel = { viewModel.cancel(app) },
                         sdkInfoByApkUrl = sdkInfoByApkUrl,
                         onRequestSdkInfo = viewModel::loadSdkInfo,
+                        googleServicesDependencies = googleServicesDependencies,
                     )
                 }
             }
@@ -796,6 +815,7 @@ fun ExternalAppDetailScreen(
                         onCancel = { viewModel.cancel(app) },
                         sdkInfoByApkUrl = sdkInfoByApkUrl,
                         onRequestSdkInfo = viewModel::loadSdkInfo,
+                        googleServicesDependencies = googleServicesDependencies,
                     )
                 }
             }
@@ -849,6 +869,9 @@ private fun ExternalAppDetailBody(
     // to ExternalVersionsSection the same way as every other version-list value.
     sdkInfoByApkUrl: Map<String, ApkBinaryManifest.UsesSdk?>,
     onRequestSdkInfo: (String) -> Unit,
+    // Lazily-fetched Google-services dependencies for the app's latest release (see
+    // ExternalAppsViewModel.loadGoogleServicesInfo) — empty while unresolved or when none are detected.
+    googleServicesDependencies: List<GoogleServiceDependency>,
 ) {
     val density = LocalDensity.current
     val uriHandler = LocalUriHandler.current
@@ -1008,6 +1031,14 @@ private fun ExternalAppDetailBody(
             changelogLink = changelogLink,
             onChangelogClick = onChangelogClick,
             firstRowFocusRequester = firstLinkFocusRequester,
+        )
+    }
+
+    if (showSidebarSections && googleServicesDependencies.isNotEmpty()) {
+        Spacer(Modifier.height(8.dp))
+        GoogleServicesCard(
+            dependencies = googleServicesDependencies,
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
     }
 

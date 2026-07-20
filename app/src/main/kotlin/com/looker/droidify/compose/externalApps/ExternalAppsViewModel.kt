@@ -13,7 +13,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
+import com.looker.droidify.compose.appDetail.GoogleServiceDependency
 import com.looker.droidify.compose.appDetail.SignatureConflict
+import com.looker.droidify.compose.appDetail.detectGoogleServicesDependencies
+import com.looker.droidify.compose.appDetail.pushCapabilityIsVestigial
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.data.AppRepository
@@ -48,6 +51,7 @@ import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.apk.ApkSigningBlockReader
+import com.looker.droidify.utility.apk.InstalledApkLocaleReader
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.apk.RemoteApkManifestReader
 import com.looker.droidify.utility.common.cache.Cache
@@ -446,6 +450,48 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
+    /** [detectGoogleServicesDependencies] results (with the same component-level push verification the
+     *  F-Droid catalogue's detail screen runs — see [pushCapabilityIsVestigial]), keyed by APK download
+     *  URL, populated lazily like [sdkInfoByApkUrl]. Unreachable before this for a tracked external
+     *  source, which carries no F-Droid-index manifest metadata of its own to feed the check from — read
+     *  here straight from the release APK's own compiled manifest instead ([ApkBinaryManifest.
+     *  permissionsAndFeatures]). A key present with an empty list means the check completed and found
+     *  nothing detected (or the app's package id couldn't be resolved at all — see [ExternalApi.
+     *  fetchPackageId]); a key absent means it hasn't been requested yet. */
+    private val _googleServicesByApkUrl =
+        MutableStateFlow<Map<String, List<GoogleServiceDependency>>>(emptyMap())
+    val googleServicesByApkUrl: StateFlow<Map<String, List<GoogleServiceDependency>>> =
+        _googleServicesByApkUrl
+
+    private val googleServicesRequested = mutableSetOf<String>()
+
+    /** Fetches and caches [apkUrl]'s Google-services dependencies for [app]; a no-op if already
+     *  requested (or done). Called once per app's latest APK, from the detail screen. */
+    fun loadGoogleServicesInfo(app: ExternalApp, apkUrl: String) {
+        if (!googleServicesRequested.add(apkUrl)) return
+        viewModelScope.launch {
+            val packageId = app.packageName ?: externalApi.fetchPackageId(app)
+            val manifest = packageId?.let { RemoteApkManifestReader.fetchManifestBytes(downloader, apkUrl) }
+            val parsed = manifest?.let(ApkBinaryManifest::permissionsAndFeatures)
+            val dependencies = if (packageId != null && manifest != null && parsed != null) {
+                val detected =
+                    detectGoogleServicesDependencies(packageId, parsed.permissionNames, parsed.featureNames)
+                // Same precision refinement the catalogue applies: a merged manifest can still declare
+                // the push permission purely as a bundled Firebase/GCM library's own residue, with every
+                // app-authored component that would let it actually reach the app removed — see
+                // pushCapabilityIsVestigial's own doc comment.
+                if (pushCapabilityIsVestigial(manifest) == true) {
+                    detected.filterNot { it.labelRes == R.string.gms_cap_push }
+                } else {
+                    detected
+                }
+            } else {
+                emptyList()
+            }
+            _googleServicesByApkUrl.update { it + (apkUrl to dependencies) }
+        }
+    }
+
     /** The detail screen's "Issue tracker" and "Changelog" links, resolved from the provider itself
      *  (an external source has no index metadata to read these from, unlike the F-Droid catalogue).
      *  Null while still checking; once checked, [LinkCheckState.url] is null when the repo genuinely
@@ -540,10 +586,12 @@ class ExternalAppsViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            // Tried first: the source repo's own res/values-xx/ folders — ground truth independent of
-            // whether the release build/download the APK check below relies on behaves (see the comment
-            // on ExternalApi.fetchSourceLocales). Falls through to that APK check when the repo doesn't
-            // use standard Android resource folders for its translations (or the tree fetch itself fails).
+            // The source repo's own res/values-xx/ folders — read independent of whether the release
+            // build/download the APK check below relies on behaves (see the comment on
+            // ExternalApi.fetchSourceLocales). On its own this is NOT sufficient: a repo can carry
+            // translation folders a release build then strips via resConfigs/shrinkResources, or that
+            // belong to a different module than the one actually published — so it's cross-checked
+            // against the real shipped APK below rather than trusted blind.
             val cachedSource = sourceLocalesCache[app.key]
             val sourceLocales = if (cachedSource != null &&
                 SystemClock.elapsedRealtime() - cachedSource.first < README_FRESHNESS_MS
@@ -554,43 +602,57 @@ class ExternalAppsViewModel @Inject constructor(
                     sourceLocalesCache[app.key] = SystemClock.elapsedRealtime() to it
                 }
             }
-            if (!sourceLocales.isNullOrEmpty()) {
-                _supportedLanguages.value = SupportedLanguages(sourceLocales, reliable = true)
-                return@launch
+
+            val release = externalApi.latestReleaseFor(app)
+            val asset = release?.let {
+                selectApkAsset(it.assets, filter = app.apkFilter, releaseTag = it.tag)
             }
-            val release = externalApi.latestReleaseFor(app) ?: return@launch
-            val asset = selectApkAsset(release.assets, filter = app.apkFilter, releaseTag = release.tag)
-                ?: return@launch
-            // The asset's own update timestamp/id (already used to detect updates — see
-            // ExternalApp.hasUpdate) doubles as a stable cache key for this specific build; falls back
-            // to the download URL for providers that expose neither.
-            val cacheKey = release.apkVersionToken(filter = app.apkFilter) ?: asset.downloadUrl
-            val cached = appRepository.cachedApkLocales(cacheKey)
-            if (!cached.isNullOrEmpty()) {
-                _supportedLanguages.value = SupportedLanguages(cached, reliable = true)
-                return@launch
+            val apkLocales = if (release != null && asset != null) {
+                // The asset's own update timestamp/id (already used to detect updates — see
+                // ExternalApp.hasUpdate) doubles as a stable cache key for this specific build; falls
+                // back to the download URL for providers that expose neither.
+                val cacheKey = release.apkVersionToken(filter = app.apkFilter) ?: asset.downloadUrl
+                appRepository.cachedApkLocales(cacheKey)
+                    ?: RemoteApkLocaleReader.fetchLocales(downloader, asset.downloadUrl)?.also {
+                        // An empty result is the one answer this check can't fully trust: unlike a real
+                        // installed APK, a *download* coming back with zero locale-specific resource
+                        // configs can just as easily mean the fetch/parse silently missed something (a
+                        // CDN that mishandles range requests, …) as it can mean a genuinely unlocalized
+                        // app — so it's cached (and treated as a real answer) only when non-empty.
+                        if (it.isNotEmpty()) appRepository.cacheApkLocales(cacheKey, it)
+                    }
+            } else {
+                null
             }
-            val locales = RemoteApkLocaleReader.fetchLocales(downloader, asset.downloadUrl) ?: return@launch
-            // An empty result is the one answer this check can't fully trust: unlike a real installed
-            // APK (read straight from AssetManager), a *download* coming back with zero locale-specific
-            // resource configs can just as easily mean the fetch/parse silently missed something (a CDN
-            // that mishandles range requests, a resource-shrunk build, …) as it can mean a genuinely
-            // unlocalized app. A false "not translated" is worse than showing nothing, so it's treated as
-            // inconclusive here — not cached, not shown — rather than asserted as ground truth.
-            if (locales.isEmpty()) return@launch
-            appRepository.cacheApkLocales(cacheKey, locales)
-            _supportedLanguages.value = SupportedLanguages(locales, reliable = true)
+
+            val languages = when {
+                !sourceLocales.isNullOrEmpty() && !apkLocales.isNullOrEmpty() -> {
+                    // Trust only what's confirmed present in the actual shipped release — the artifact
+                    // the user will really install — falling back to the APK's own list alone when
+                    // nothing in the source-tree scan survives the intersection (a locale-code
+                    // representation mismatch between the two paths, most likely), rather than an empty
+                    // "not translated" answer that would be just as misleading as the bug this fixes.
+                    sourceLocales.filter { it in apkLocales }.ifEmpty { apkLocales }
+                }
+                !apkLocales.isNullOrEmpty() -> apkLocales
+                // The APK-based check itself was inconclusive (no installable release, a host that
+                // mishandles range requests, a network failure, …) — fall back to the source-tree scan
+                // alone rather than showing nothing at all.
+                else -> sourceLocales
+            }
+            if (!languages.isNullOrEmpty()) {
+                _supportedLanguages.value = SupportedLanguages(languages, reliable = true)
+            }
         }
     }
 
-    /** The locale codes the installed APK actually ships resources for (its real UI languages), read
-     *  from the package's AssetManager. Empty if [packageName] is null or it can't be read. */
-    private fun installedApkLocales(packageName: String?): List<String> = runCatching {
+    /** The locale codes the installed APK actually ships resources for (its real, boilerplate-filtered
+     *  UI languages — see [InstalledApkLocaleReader]). Empty if [packageName] is null or it can't be
+     *  read. */
+    private fun installedApkLocales(packageName: String?): List<String> {
         if (packageName == null) return emptyList()
-        context.packageManager.getResourcesForApplication(packageName)
-            .assets.locales
-            .filter { it.isNotBlank() }
-    }.getOrDefault(emptyList())
+        return InstalledApkLocaleReader.fetchLocales(context.packageManager, packageName).orEmpty()
+    }
 
     fun loadReadme(app: ExternalApp) {
         // A different app's README is about to load, so drop any translation left on the previous one.
