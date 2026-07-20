@@ -588,10 +588,11 @@ class ExternalAppsViewModel @Inject constructor(
         viewModelScope.launch {
             // The source repo's own res/values-xx/ folders — read independent of whether the release
             // build/download the APK check below relies on behaves (see the comment on
-            // ExternalApi.fetchSourceLocales). On its own this is NOT sufficient: a repo can carry
-            // translation folders a release build then strips via resConfigs/shrinkResources, or that
-            // belong to a different module than the one actually published — so it's cross-checked
-            // against the real shipped APK below rather than trusted blind.
+            // ExternalApi.fetchSourceLocales). Only ever used as a fallback for when the APK-based check
+            // below can't run at all: a repo can carry translation folders a release build then strips
+            // via resConfigs/shrinkResources, or belonging to a different module than the one actually
+            // published, so this alone is never trusted over a real answer from the shipped release
+            // itself — see the languages `when` block below.
             val cachedSource = sourceLocalesCache[app.key]
             val sourceLocales = if (cachedSource != null &&
                 SystemClock.elapsedRealtime() - cachedSource.first < README_FRESHNESS_MS
@@ -625,21 +626,22 @@ class ExternalAppsViewModel @Inject constructor(
                 null
             }
 
-            val languages = when {
-                !sourceLocales.isNullOrEmpty() && !apkLocales.isNullOrEmpty() -> {
-                    // Trust only what's confirmed present in the actual shipped release — the artifact
-                    // the user will really install — falling back to the APK's own list alone when
-                    // nothing in the source-tree scan survives the intersection (a locale-code
-                    // representation mismatch between the two paths, most likely), rather than an empty
-                    // "not translated" answer that would be just as misleading as the bug this fixes.
-                    sourceLocales.filter { it in apkLocales }.ifEmpty { apkLocales }
-                }
-                !apkLocales.isNullOrEmpty() -> apkLocales
-                // The APK-based check itself was inconclusive (no installable release, a host that
-                // mishandles range requests, a network failure, …) — fall back to the source-tree scan
-                // alone rather than showing nothing at all.
-                else -> sourceLocales
-            }
+            // The real shipped release wins outright over the source-tree scan whenever it gave a real
+            // answer, rather than intersecting the two: sourceLocales only ever scans for STANDARD
+            // Android resource conventions (res/values-xx/, moko-resources, a generic i18n-dir hint —
+            // see ExternalApi.fetchSourceLocales), which several real, common frameworks don't use for
+            // their actual translations at all — confirmed real on Brave (Chromium-based: locales live
+            // in assets/locales/*.pak, RemoteApkLocaleReader's own dedicated detector for exactly this)
+            // and on Flutter apps using easy_localization (assets/flutter_assets/.../*.json, also its
+            // own dedicated detector). For those, the source-tree scan legitimately finds only the base
+            // module's own literal "en" string and nothing else — not because the shipped build is
+            // missing 84 real, correctly-detected languages, but because the scan's own convention list
+            // was never meant to see them at all. Intersecting against that incomplete signal silently
+            // threw away every locale RemoteApkLocaleReader had already verified straight from the real
+            // APK. The source-tree scan is now only ever a fallback for when the APK-based check itself
+            // couldn't be run at all (no installable release, a host that mishandles range requests, a
+            // network failure, …), never a filter over a real answer it already gave.
+            val languages = if (!apkLocales.isNullOrEmpty()) apkLocales else sourceLocales
             if (!languages.isNullOrEmpty()) {
                 _supportedLanguages.value = SupportedLanguages(languages, reliable = true)
             }
