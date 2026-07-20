@@ -53,6 +53,11 @@ private class NonScrollingWebView(context: Context) : WebView(context) {
 /** Roughly one text line per wheel notch — mirrors the platform's own View.scrollBy sizing. */
 private const val WheelScrollFactorPx = 60f
 
+/** How opaque the README page's own background is over the aurora wash behind it — low enough that
+ *  the wash reads at roughly the same strength it does everywhere else in the app (not diluted away
+ *  to nothing by a near-opaque overlay), high enough that body text stays legible against it. */
+private const val ReadmeBackgroundAlpha = 0.55f
+
 /**
  * Renders a project README (GitHub-rendered HTML) in a WebView, so it looks like it does on the web:
  * images sized responsively (CSS `max-width`), badges, code blocks and tables handled by the engine
@@ -86,6 +91,13 @@ fun ReadmeWebView(
     // see onRenderProcessGone below) so the caller can show a fallback instead of a permanently blank gap.
     // Never called under normal operation.
     onRendererGone: () -> Unit = {},
+    // True when there's a FloatingAppCardsBackground aurora wash actually drawn behind this WebView for
+    // a translucent page background to blend with — the external-source detail screen has one, so its
+    // caller opts in; ChangelogDialog opens its own separate Android Window with no such wash behind it
+    // (just its own opaque Surface/scrim), where translucency would show through to that instead and
+    // look like a rendering glitch rather than the intended aurora blend. False (opaque, the original
+    // behaviour) by default for exactly that reason.
+    translucentBackground: Boolean = false,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val uriHandler = LocalUriHandler.current
@@ -97,10 +109,20 @@ fun ReadmeWebView(
     // ("val cannot be reassigned"), so the receiver-side assignment needs `this.javaScriptEnabled =`
     // explicitly, and reading the parameter's value here under its own name keeps both sides unambiguous.
     val allowJavaScript = javaScriptEnabled
-    val document = remember(html, colorScheme) {
+    val document = remember(html, colorScheme, translucentBackground) {
         wrapReadmeHtml(
             body = html,
-            background = colorScheme.surface,
+            // Translucent, not the flat opaque surface colour, when translucentBackground is set: the
+            // WebView's own background is already set to transparent below specifically so the aurora
+            // wash behind it shows through here the same as everywhere else in the app — a fully opaque
+            // body painted a flat white/near-black over it instead, even with that transparency in
+            // place. Code blocks/tables/quotes below keep their own solid background for contrast; only
+            // the page itself is tinted rather than opaque.
+            background = if (translucentBackground) {
+                colorScheme.surface.copy(alpha = ReadmeBackgroundAlpha)
+            } else {
+                colorScheme.surface
+            },
             text = colorScheme.onSurface,
             link = colorScheme.primary,
             codeBackground = colorScheme.surfaceVariant,
@@ -310,7 +332,7 @@ private fun wrapReadmeHtml(
     <style>
       body {
         margin: 0; padding: 16px;
-        background: ${background.css}; color: ${text.css};
+        background: ${background.cssRgba}; color: ${text.css};
         font-family: sans-serif; font-size: 15px; line-height: 1.6;
         overflow-wrap: break-word; word-wrap: break-word;
       }
@@ -371,6 +393,12 @@ private fun wrapReadmeHtml(
     """.trimIndent()
 }
 
-/** `#RRGGBB` form for use in the WebView's inline CSS. */
+/** `#RRGGBB` form for use in the WebView's inline CSS. Drops alpha — see [cssRgba] for a colour
+ *  that needs to stay translucent (e.g. over the aurora wash behind the page). */
 private val Color.css: String
     get() = "#%06X".format(0xFFFFFF and toArgb())
+
+/** `rgba(r, g, b, a)` form, alpha included — for a CSS colour that must stay translucent, unlike
+ *  [css] (which always renders fully opaque). */
+private val Color.cssRgba: String
+    get() = "rgba(${(red * 255).toInt()}, ${(green * 255).toInt()}, ${(blue * 255).toInt()}, $alpha)"

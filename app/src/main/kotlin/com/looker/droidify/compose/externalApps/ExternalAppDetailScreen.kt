@@ -948,6 +948,7 @@ private fun ExternalAppDetailBody(
                 html = readmeHtml,
                 baseUrl = app.readmeWebBaseUrl,
                 javaScriptEnabled = readmeJavaScriptEnabled,
+                translucentBackground = true,
                 onContentHeight = {
                     if (it != readmeHeightPx) {
                         Log.d(
