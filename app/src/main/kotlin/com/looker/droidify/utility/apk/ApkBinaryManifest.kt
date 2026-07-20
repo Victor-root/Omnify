@@ -3,10 +3,13 @@ package com.looker.droidify.utility.apk
 /**
  * Parses an Android compiled (binary XML) `AndroidManifest.xml` far enough to list every `<service>`
  * and `<receiver>` component it declares (each with its class name and the intent actions its nested
- * `<intent-filter>`s bind it to — see [components]), and separately to read its `<uses-sdk>` element's
+ * `<intent-filter>`s bind it to — see [components]), to read its `<uses-sdk>` element's
  * `minSdkVersion`/`targetSdkVersion` (see [usesSdk]) — the same min/target shown for a catalogue release
- * ([com.looker.droidify.compose.appDetail.components.PackageItem]), read here for a tracked external
- * source's release instead, which carries no such metadata of its own.
+ * ([com.looker.droidify.compose.appDetail.components.PackageItem]) — and to list its declared
+ * `<uses-permission>`/`<uses-feature>` names (see [permissionsAndFeatures]), feeding the same
+ * Google-services detection a catalogue app's F-Droid-index metadata does
+ * ([com.looker.droidify.compose.appDetail.detectGoogleServicesDependencies]). All three read here for a
+ * tracked external source's release, which carries no such metadata of its own.
  *
  * Why component-level parsing instead of just searching the manifest's string pool for a marker
  * string: a permission or intent-action string being *present* says nothing about WHOSE component
@@ -55,6 +58,13 @@ object ApkBinaryManifest {
     /** `android:minSdkVersion`/`android:targetSdkVersion` off a manifest's `<uses-sdk>` element. Either
      *  field is null when the element omits that attribute (or the manifest has no `<uses-sdk>` at all). */
     data class UsesSdk(val minSdkVersion: Int?, val targetSdkVersion: Int?)
+
+    /** A manifest's declared `<uses-permission>`/`<uses-permission-sdk-23>` names and `<uses-feature>`
+     *  names — the same two ingredients
+     *  [com.looker.droidify.compose.appDetail.detectGoogleServicesDependencies] needs, read here for a
+     *  tracked external source's release, which carries no F-Droid-index metadata of its own to read
+     *  them from instead. */
+    data class PermissionsAndFeatures(val permissionNames: Set<String>, val featureNames: Set<String>)
 
     /**
      * Every `<service>`/`<receiver>` in [manifest] (compiled binary XML bytes), or null when the bytes
@@ -120,6 +130,31 @@ object ApkBinaryManifest {
         )
         if (!parsed) return@runCatching null
         UsesSdk(min, target)
+    }.getOrNull()
+
+    /**
+     * Every `<uses-permission>`/`<uses-permission-sdk-23>`/`<uses-feature>` name declared in [manifest],
+     * or null when the bytes can't be parsed at all — same "couldn't determine" contract as [components]
+     * and [usesSdk]. Feeds [com.looker.droidify.compose.appDetail.detectGoogleServicesDependencies] for a
+     * tracked external source's release, the same way the F-Droid index's per-package manifest permission/
+     * feature lists feed it for a catalogue app. Never throws.
+     */
+    fun permissionsAndFeatures(manifest: ByteArray): PermissionsAndFeatures? = runCatching {
+        val permissions = mutableSetOf<String>()
+        val features = mutableSetOf<String>()
+        val parsed = walkElements(
+            manifest,
+            onStart = { element ->
+                when (element.name) {
+                    "uses-permission", "uses-permission-sdk-23" ->
+                        element.attributes["name"]?.let(permissions::add)
+                    "uses-feature" -> element.attributes["name"]?.let(features::add)
+                }
+            },
+            onEnd = {},
+        )
+        if (!parsed) return@runCatching null
+        PermissionsAndFeatures(permissions, features)
     }.getOrNull()
 
     /**

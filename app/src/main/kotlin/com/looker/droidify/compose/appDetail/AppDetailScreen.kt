@@ -1521,9 +1521,13 @@ private fun LinksSection(app: App) {
  * (a "hard" gap like billing or Maps v1) the header is firmer; otherwise it's a soft, informative note.
  * Below the header, one row per detected capability lists what it's for and a microG-coverage chip, so
  * the user knows precisely whether installing microG would fix it.
+ *
+ * Not file-private: reused as-is by the external-source detail screen
+ * ([com.looker.droidify.compose.externalApps.ExternalAppDetailScreen]), so a tracked GitHub/GitLab/
+ * Codeberg app gets the identical warning a catalogue app does, instead of a second, drifting copy.
  */
 @Composable
-private fun GoogleServicesCard(
+fun GoogleServicesCard(
     dependencies: List<GoogleServiceDependency>,
     modifier: Modifier = Modifier,
 ) {
