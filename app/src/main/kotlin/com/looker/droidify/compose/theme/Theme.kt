@@ -456,7 +456,14 @@ fun DroidifyTheme(
                 content()
                 // When edge-to-edge is OFF, paint an opaque accent bar over the navigation-bar area so
                 // it looks like a solid coloured bar matching the top bar. When ON, leave it out so the
-                // app shows through the transparent navigation bar (immersive, content behind it).
+                // app shows through the transparent navigation bar (immersive, content behind it) — this
+                // only actually works, though, when every screen's own content genuinely reaches that
+                // area instead of stopping short of it: see
+                // [com.looker.droidify.compose.components.forFloatingBackground]'s doc comment for a real
+                // bug that looked exactly like an OEM/vendor navigation-bar limitation (confirmed opaque
+                // and theme-independent on a real device) but was actually every screen's own Scaffold
+                // painting its default, theme-neutral containerColor under the bar while their real
+                // content stayed padded away from it.
                 if (!edgeToEdge) {
                     Box(
                         modifier = Modifier

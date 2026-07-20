@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
+import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -122,119 +123,124 @@ fun RepoEditScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-        ) {
-            FloatingAppCardsBackground()
-            Column(
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Its own, edge-to-edge-aware padding (see forFloatingBackground's doc comment) — not the
+            // real content's paddingValues below, so the wash reaches a transparent navigation bar
+            // instead of stopping short of it.
+            FloatingAppCardsBackground(Modifier.padding(paddingValues.forFloatingBackground()))
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .padding(paddingValues),
             ) {
-                val hasAddressError by remember { derivedStateOf { errorState.addressError != null } }
-                OutlinedTextField(
-                    value = viewModel.addressState.text.toString(),
-                    onValueChange = { viewModel.addressState.edit { replace(0, length, it) } },
-                    label = { Text(stringResource(R.string.address)) },
-                    isError = hasAddressError,
-                    supportingText = { errorState.addressError?.let { Text(it) } },
-                    singleLine = true,
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(contentFocusRequester),
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                val hasFingerprintError by remember { derivedStateOf { errorState.fingerprintError != null } }
-                OutlinedTextField(
-                    value = viewModel.fingerprintState.text.toString(),
-                    onValueChange = { viewModel.fingerprintState.edit { replace(0, length, it) } },
-                    label = { Text(stringResource(R.string.fingerprint)) },
-                    isError = hasFingerprintError,
-                    supportingText = { errorState.fingerprintError?.let { Text(it) } },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                        .fillMaxSize()
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState()),
                 ) {
-                    Text(stringResource(R.string.requires_authentication))
-                    Switch(
-                        checked = authEnabled,
-                        onCheckedChange = { viewModel.setAuthEnabled(it) },
+                    val hasAddressError by remember { derivedStateOf { errorState.addressError != null } }
+                    OutlinedTextField(
+                        value = viewModel.addressState.text.toString(),
+                        onValueChange = { viewModel.addressState.edit { replace(0, length, it) } },
+                        label = { Text(stringResource(R.string.address)) },
+                        isError = hasAddressError,
+                        supportingText = { errorState.addressError?.let { Text(it) } },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(contentFocusRequester),
                     )
-                }
 
-                AnimatedVisibility(visible = authEnabled) {
-                    Column {
-                        Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                        val hasUsernameError by remember { derivedStateOf { errorState.usernameError != null } }
-                        OutlinedTextField(
-                            value = viewModel.usernameState.text.toString(),
-                            onValueChange = { viewModel.usernameState.edit { replace(0, length, it) } },
-                            label = { Text(stringResource(R.string.username)) },
-                            isError = hasUsernameError,
-                            supportingText = { errorState.usernameError?.let { Text(it) } },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
+                    val hasFingerprintError by remember { derivedStateOf { errorState.fingerprintError != null } }
+                    OutlinedTextField(
+                        value = viewModel.fingerprintState.text.toString(),
+                        onValueChange = { viewModel.fingerprintState.edit { replace(0, length, it) } },
+                        label = { Text(stringResource(R.string.fingerprint)) },
+                        isError = hasFingerprintError,
+                        supportingText = { errorState.fingerprintError?.let { Text(it) } },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(stringResource(R.string.requires_authentication))
+                        Switch(
+                            checked = authEnabled,
+                            onCheckedChange = { viewModel.setAuthEnabled(it) },
                         )
+                    }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                    AnimatedVisibility(visible = authEnabled) {
+                        Column {
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                        val hasPasswordError by remember { derivedStateOf { errorState.passwordError != null } }
-                        OutlinedTextField(
-                            value = viewModel.passwordState.text.toString(),
-                            onValueChange = { viewModel.passwordState.edit { replace(0, length, it) } },
-                            label = { Text(stringResource(R.string.password)) },
-                            isError = hasPasswordError,
-                            supportingText = { errorState.passwordError?.let { Text(it) } },
-                            visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                            val hasUsernameError by remember { derivedStateOf { errorState.usernameError != null } }
+                            OutlinedTextField(
+                                value = viewModel.usernameState.text.toString(),
+                                onValueChange = { viewModel.usernameState.edit { replace(0, length, it) } },
+                                label = { Text(stringResource(R.string.username)) },
+                                isError = hasUsernameError,
+                                supportingText = { errorState.usernameError?.let { Text(it) } },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            val hasPasswordError by remember { derivedStateOf { errorState.passwordError != null } }
+                            OutlinedTextField(
+                                value = viewModel.passwordState.text.toString(),
+                                onValueChange = { viewModel.passwordState.edit { replace(0, length, it) } },
+                                label = { Text(stringResource(R.string.password)) },
+                                isError = hasPasswordError,
+                                supportingText = { errorState.passwordError?.let { Text(it) } },
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Skip check button
+                    Button(
+                        onClick = { viewModel.saveRepository(skipCheck = true) },
+                        enabled = isFormValid || isLoading,
+                        modifier = Modifier.align(Alignment.End).tvFocusScale(),
+                    ) {
+                        Text(stringResource(R.string.skip))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Skip check button
-                Button(
-                    onClick = { viewModel.saveRepository(skipCheck = true) },
-                    enabled = isFormValid || isLoading,
-                    modifier = Modifier.align(Alignment.End).tvFocusScale(),
+                // Loading overlay
+                AnimatedVisibility(
+                    visible = isLoading,
+                    modifier = Modifier.fillMaxSize(),
                 ) {
-                    Text(stringResource(R.string.skip))
-                }
-            }
-
-            // Loading overlay
-            AnimatedVisibility(
-                visible = isLoading,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = stringResource(R.string.checking_repository),
-                            color = Color.White,
-                        )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = stringResource(R.string.checking_repository),
+                                color = Color.White,
+                            )
+                        }
                     }
                 }
             }

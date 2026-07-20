@@ -113,6 +113,7 @@ import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.ExpandableText
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
+import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.InstallVersionDialog
@@ -472,7 +473,7 @@ fun AppDetailScreen(
         },
         floatingActionButton = { ScrollToTopFab(scrollState) },
     ) { padding ->
-        FloatingAppCardsBackground(Modifier.padding(padding))
+        FloatingAppCardsBackground(Modifier.padding(padding.forFloatingBackground()))
         when (state) {
             AppDetailState.Loading -> {
                 Box(

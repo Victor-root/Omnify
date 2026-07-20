@@ -81,6 +81,7 @@ import com.looker.droidify.compose.appDetail.GoogleServiceDependency
 import com.looker.droidify.compose.appDetail.GoogleServicesCard
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
+import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.InstallVersionDialog
@@ -454,7 +455,7 @@ fun ExternalAppDetailScreen(
         snackbarHost = { SnackbarHost(viewModel.snackbarHostState) },
         floatingActionButton = { ScrollToTopFab(scrollState) },
     ) { contentPadding ->
-        FloatingAppCardsBackground(Modifier.padding(contentPadding))
+        FloatingAppCardsBackground(Modifier.padding(contentPadding.forFloatingBackground()))
         if (app == null) {
             // The source was removed (or not loaded yet); nothing to show.
             Spacer(Modifier.padding(contentPadding))
