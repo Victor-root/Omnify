@@ -381,6 +381,16 @@ class MainComposeActivity : ComponentActivity() {
         // when off, DroidifyTheme paints an opaque accent bar over the navigation bar so it looks like
         // a solid coloured bar; when on, the app shows through the transparent bars.
         enableEdgeToEdge()
+        // Belt-and-braces: enableEdgeToEdge()'s own transparency can in principle lose to the theme's
+        // static android:navigationBarColor/statusBarColor (styles.xml) on some OEM skins that re-apply
+        // the themed window background after the activity's window is created. Setting both explicitly,
+        // after enableEdgeToEdge(), wins regardless of the theme's own static value or any OEM
+        // re-application order — confirmed via Logcat to already read back as transparent even before
+        // this call, so it isn't the cause of a real device's navigation bar staying opaque (that
+        // turned out not to be fixable from any of these window-level APIs — see the doc comment on
+        // DroidifyTheme's edge-to-edge Box in Theme.kt).
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
         // Stop the system tinting the bars: under edge-to-edge it enforces a translucent contrast scrim
         // on 3-button navigation, which darkened our accent navigation-bar overlay so it no longer
         // matched the header. We colour the bars ourselves, so opt out and keep the exact accent.

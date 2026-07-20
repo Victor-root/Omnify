@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
+import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvDpadDownTo
@@ -121,7 +122,7 @@ fun ExternalAccountDetailScreen(
             }
         },
     ) { paddingValues ->
-        FloatingAppCardsBackground(Modifier.padding(paddingValues))
+        FloatingAppCardsBackground(Modifier.padding(paddingValues.forFloatingBackground()))
         val currentAccount = account
         when {
             currentAccount == null -> {

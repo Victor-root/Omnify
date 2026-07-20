@@ -78,6 +78,7 @@ import coil3.compose.AsyncImage
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
+import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
@@ -219,7 +220,7 @@ fun RepoListScreen(
             )
         },
     ) { contentPadding ->
-        FloatingAppCardsBackground(Modifier.padding(contentPadding))
+        FloatingAppCardsBackground(Modifier.padding(contentPadding.forFloatingBackground()))
         LazyColumn(
             contentPadding = contentPadding,
             modifier = Modifier

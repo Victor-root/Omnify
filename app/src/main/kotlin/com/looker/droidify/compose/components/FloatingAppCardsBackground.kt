@@ -11,6 +11,9 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -24,7 +27,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
+import com.looker.droidify.compose.theme.LocalEdgeToEdge
 import com.looker.droidify.compose.theme.LocalIsTelevision
 
 /**
@@ -35,7 +40,9 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
  *
  * Meant to be the FIRST child inside a screen's own content [Box] (right after applying
  * `contentPadding`, before the real list/content), so whatever the screen composes afterwards in
- * that same Box draws on top and is never obscured by this.
+ * that same Box draws on top and is never obscured by this. Use [PaddingValues.forFloatingBackground]
+ * rather than a screen's raw `contentPadding` for this specific composable's own modifier — see that
+ * function's doc comment for why.
  *
  * Off on TV: a 10-foot UI already asks a lot of weaker set-top GPUs, and this is pure decoration
  * the user isn't looking closely at from the couch — not worth the extra always-on compositing.
@@ -89,6 +96,37 @@ fun FloatingAppCardsBackground(modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+/**
+ * [this] with its bottom inset (the navigation-bar-safe area a `Scaffold`'s default
+ * `contentWindowInsets` reserves) dropped when edge-to-edge is on — for [FloatingAppCardsBackground]'s
+ * own modifier specifically, never for a screen's real (interactive) content padding.
+ *
+ * Confirmed real on a physical device: a `Scaffold` always paints its own (theme-neutral, never
+ * accent-coloured — see `DroidifyTheme.withNeutralSurfaces`) `containerColor` across its FULL bounds,
+ * genuinely reaching under a transparent edge-to-edge navigation bar; only the CONTENT handed
+ * `contentPadding` is inset away from that bar, not the Scaffold's own background paint. With every
+ * caller previously padding this composable by the same full `contentPadding` as their real content,
+ * the aurora wash stopped artificially short of the bottom edge, leaving that flat, static, neutral
+ * `containerColor` as the only thing visible under the nav bar — a hard seam that never moved or
+ * followed the live accent, exactly matching the reported bug. Dropping just the bottom inset here
+ * lets the wash itself reach the transparent bar and blend with it, while a screen's actual
+ * interactive content keeps its full, correct `contentPadding` (still clear of the gesture area).
+ *
+ * A no-op when edge-to-edge is OFF: `DroidifyTheme` then paints its own opaque accent bar over that
+ * exact region regardless (see its edge-to-edge Box), so there is nothing to blend with there.
+ */
+@Composable
+fun PaddingValues.forFloatingBackground(): PaddingValues {
+    if (!LocalEdgeToEdge.current) return this
+    val direction = LocalLayoutDirection.current
+    return PaddingValues(
+        start = calculateStartPadding(direction),
+        top = calculateTopPadding(),
+        end = calculateEndPadding(direction),
+        bottom = 0.dp,
+    )
 }
 
 private data class AuroraBlobSpec(
