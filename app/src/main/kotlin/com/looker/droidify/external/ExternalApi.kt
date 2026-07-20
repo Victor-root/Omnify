@@ -110,7 +110,11 @@ class ExternalApi @Inject constructor(
             // in the version list either — the list should only ever offer what could actually be
             // installed from it.
             .filter { app.includePrereleases || !it.isPrerelease }
-            .filter { selectApkAsset(it.assets, filter = app.apkFilter, releaseTag = it.tag) != null }
+            // Strict, not selectApkAsset's own mercy fallback (see hasApkMatchingFilter's doc comment):
+            // otherwise a monorepo publishing more than one app's releases (e.g. bitwarden/android) would
+            // list every release regardless of which app it belongs to, since selectApkAsset always
+            // returns *something* once a release has any APK at all.
+            .filter { it.hasApkMatchingFilter(app.apkFilter) }
     }
 
     /** Probes whether [host] runs Gitea/Forgejo by hitting its repo API. Lets a pasted URL whose host

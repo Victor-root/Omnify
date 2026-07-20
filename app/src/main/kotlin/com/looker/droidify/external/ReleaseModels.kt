@@ -185,13 +185,24 @@ private val DEBUG_BUILD_MARKERS = listOf("debug", "unsigned")
 
 /**
  * Restricts [apks] to those whose file name matches the user's APK [filter] (a regex). A blank or
- * invalid pattern, or one that matches nothing, leaves the list untouched — better to offer *an* APK
- * than refuse everything over a typo (the ABI logic still picks the right one).
+ * invalid pattern leaves the list untouched. When the filter matches nothing in [apks] and [strict] is
+ * false (the default), the list is also left untouched — better to offer *an* APK than refuse
+ * everything over a typo (the ABI logic still picks the right one). [strict] is for callers deciding
+ * WHICH release to pick in the first place (see [hasCompatibleApk], [hasApkMatchingFilter]): there, a
+ * release whose assets don't actually match a real, working filter must not be treated as a candidate
+ * at all — confirmed real on a monorepo publishing more than one app's releases interleaved in the same
+ * stream (bitwarden/android's Password Manager and Authenticator), where the lenient fallback let a
+ * filter meant to pin down one of the two silently match the other's release instead.
  */
-private fun applyApkFilter(apks: List<ReleaseAsset>, filter: String?): List<ReleaseAsset> {
+private fun applyApkFilter(
+    apks: List<ReleaseAsset>,
+    filter: String?,
+    strict: Boolean = false,
+): List<ReleaseAsset> {
     val pattern = filter?.trim()?.takeIf { it.isNotEmpty() } ?: return apks
     val regex = runCatching { Regex(pattern, RegexOption.IGNORE_CASE) }.getOrNull() ?: return apks
-    return apks.filter { regex.containsMatchIn(it.name) }.ifEmpty { apks }
+    val matched = apks.filter { regex.containsMatchIn(it.name) }
+    return if (strict) matched else matched.ifEmpty { apks }
 }
 
 /** ABI tokens we recognise in APK file names, used to tell a foreign-architecture build apart from a
@@ -219,7 +230,12 @@ private fun ReleaseAsset.isForeignAbi(deviceAbis: List<String>): Boolean {
  * Whether this release ships an APK that can actually run on the device, after the user's name
  * [filter]: at least one APK that isn't a foreign-architecture build. Drives the "fall back to an
  * older release" logic — when the newest release has only, say, an x86 APK, [ExternalApi] keeps
- * looking down the list for one this device can install.
+ * looking down the list for one this device can install. [filter] is applied strictly (see
+ * [applyApkFilter]): a release whose assets don't match a real, working filter isn't "compatible", so
+ * a release belonging to a different app entirely (a monorepo publishing more than one) can't slip past
+ * a filter meant to exclude it. [ExternalApi.pickInstallable]'s own graceful "pick the newest release
+ * with any APK at all" fallback still applies typo-tolerance across the whole release window, so this
+ * strictness never strands the user over a genuine typo — only over a filter that's actually working.
  */
 fun Release.hasCompatibleApk(
     deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
@@ -228,8 +244,26 @@ fun Release.hasCompatibleApk(
     val apks = applyApkFilter(
         assets.filter { it.name.endsWith(".apk", ignoreCase = true) },
         filter,
+        strict = true,
     )
     return apks.any { !it.isForeignAbi(deviceAbis) }
+}
+
+/**
+ * Whether this release ships at least one APK whose file name would survive the user's [filter],
+ * strictly (see [applyApkFilter]) and without any device-ABI check — unlike [hasCompatibleApk], which
+ * additionally requires ABI compatibility (appropriate for picking *the* release to install, wrong for
+ * [ExternalApi.releaseHistory]'s version list, which deliberately still shows a release shipping only a
+ * foreign-architecture build). Used so a monorepo's version history doesn't list a release belonging to
+ * a different app than the one the filter is meant to pin down.
+ */
+fun Release.hasApkMatchingFilter(filter: String?): Boolean {
+    val apks = applyApkFilter(
+        assets.filter { it.name.endsWith(".apk", ignoreCase = true) },
+        filter,
+        strict = true,
+    )
+    return apks.isNotEmpty()
 }
 
 /**
