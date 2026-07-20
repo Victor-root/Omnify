@@ -22,10 +22,16 @@ object RemoteApkLocaleReader {
     private const val ENTRY_NAME = "resources.arsc"
 
     /** Generous but bounded: real resources.arsc files are typically well under 5MB even for very
-     *  heavily localized apps (F-Droid's own client, translated into 100+ languages, is ~4.7MB) — this
-     *  just guards against reading an unreasonable amount of data for a pathological or adversarial
-     *  file rather than genuinely expecting to hit this limit. */
-    private const val MAX_ARSC_BYTES = 20L * 1024 * 1024
+     *  heavily localized apps (F-Droid's own client, translated into 100+ languages, is ~4.7MB) — but a
+     *  browser embedding Chromium's full localization data straight into the standard Android resource
+     *  table, rather than as separate per-locale asset files, is a real, confirmed exception: Brave's own
+     *  "universal" (non-split) release build carries a genuine, valid ~36MB resources.arsc across its
+     *  ~85 supported languages (confirmed via a real device's Logcat: 38056328B, previously rejected
+     *  outright by a 20MB cap sized only against F-Droid-client-scale apps, silently losing every one of
+     *  those languages). Comfortable headroom above that real, confirmed value — this still guards
+     *  against reading an unbounded amount of data for a pathological or adversarial file, just no
+     *  longer at a size a legitimate heavily-localized app can actually exceed. */
+    private const val MAX_ARSC_BYTES = 64L * 1024 * 1024
 
     /** EOCD is 22 bytes plus an optional (near-always empty, for an APK) comment of up to 65535 bytes
      *  — this tail comfortably covers both with margin to spare. */
@@ -63,9 +69,14 @@ object RemoteApkLocaleReader {
         // Some frameworks don't localise through Android's resource-table mechanism at all — their UI
         // strings live entirely in their own per-language asset files instead, invisible to
         // resources.arsc no matter how thoroughly it's parsed:
-        // - Chromium-based apps (Brave, and any other Chromium/CEF-derived app): `assets/locales/
-        //   <code>.pak` (confirmed against a real Brave APK: 85 assets/locales/*.pak files, zero
-        //   res/values-xx/ directories).
+        // - A Chromium-based app's PER-DEVICE-LANGUAGE-SPLIT install (Android App Bundle config splits,
+        //   e.g. split_config.fr.apk): `assets/locales/<code>.pak`. NOT what a Chromium app's own
+        //   "universal"/non-split release build does, though: confirmed on a real Brave release APK
+        //   (Bravearm64Universal, real device Logcat) that it carries no assets/locales/*.pak at all —
+        //   its ~85 languages are compiled straight into a single, large resources.arsc instead (see
+        //   MAX_ARSC_BYTES), exactly like an ordinary Android app's res/values-xx/ folders would produce.
+        //   This detector still matters for a genuinely split-installed app's own base/config APKs
+        //   (see InstalledApkLocaleReader), where the real per-locale .pak files do live at this path.
         // - Flutter apps using the `easy_localization` package (the most common Flutter i18n approach —
         //   the alternatives compile translations straight into the Dart AOT snapshot instead, with no
         //   equivalent per-file signal to read: the official, ARB-based `flutter gen-l10n`, and also the
@@ -80,12 +91,7 @@ object RemoteApkLocaleReader {
         // resources.arsc below, so this costs no extra request. Each pattern's own non-locale files
         // (Chromium's chrome_100_percent.pak/chrome_200_percent.pak/resources.pak; a Flutter app's other,
         // non-i18n JSON assets) don't match the locale-code shape and are naturally excluded.
-        val assetLocales = (
-            ApkZipLocator.findEntryNames(centralDirectoryBytes) { PAK_LOCALE_REGEX.matches(it) }
-                .mapNotNull { PAK_LOCALE_REGEX.find(it)?.groupValues?.get(1) } +
-                ApkZipLocator.findEntryNames(centralDirectoryBytes) { FLUTTER_ASSET_LOCALE_REGEX.matches(it) }
-                    .mapNotNull { FLUTTER_ASSET_LOCALE_REGEX.find(it)?.groupValues?.get(1) }
-            ).distinct()
+        val assetLocales = assetLocalesFromEntryNames(ApkZipLocator.findEntryNames(centralDirectoryBytes) { true })
         if (assetLocales.isNotEmpty()) {
             Log.d(TAG, "$apkUrl: found ${assetLocales.size} per-locale asset file(s) outside resources.arsc")
         }
@@ -170,6 +176,21 @@ object RemoteApkLocaleReader {
             """([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,4}){0,2}(?:@[a-zA-Z0-9]+)?)\.json$""",
         RegexOption.IGNORE_CASE,
     )
+
+    /**
+     * Locale codes carried by per-locale asset file names among [entryNames] (a Chromium `.pak` bundle
+     * or a Flutter `easy_localization` JSON file — see [PAK_LOCALE_REGEX]/[FLUTTER_ASSET_LOCALE_REGEX]),
+     * not resources.arsc entries. Shared with [InstalledApkLocaleReader], which walks an installed
+     * package's own local ZIP entries the same way this walks a remote APK's central-directory-derived
+     * ones — the two frameworks' locales are invisible to [ApkResourceLocales] either way, so both
+     * callers need this same detection, not just the download path.
+     */
+    fun assetLocalesFromEntryNames(entryNames: List<String>): List<String> = (
+        entryNames.filter { PAK_LOCALE_REGEX.matches(it) }
+            .mapNotNull { PAK_LOCALE_REGEX.find(it)?.groupValues?.get(1) } +
+            entryNames.filter { FLUTTER_ASSET_LOCALE_REGEX.matches(it) }
+                .mapNotNull { FLUTTER_ASSET_LOCALE_REGEX.find(it)?.groupValues?.get(1) }
+        ).distinct()
 
     private suspend fun fetchBytes(
         downloader: Downloader,

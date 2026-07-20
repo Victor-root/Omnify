@@ -358,12 +358,19 @@ class AppDetailViewModel @Inject constructor(
     /**
      * Locale codes the app is translated into (its supported languages), for the detail screen's
      * "supported languages" section, most reliable first:
-     * 1. Installed: the real UI languages read from the installed APK (the truth — what the user
-     *    actually sees in the app).
-     * 2. Not installed: the real UI languages read directly from the not-yet-downloaded APK's own
-     *    compiled resources ([_remoteApkLocales]) — equally reliable, just not yet confirmed by an
-     *    actual install. Resolved in the background (see [trackRemoteApkLocales]); this section shows
-     *    tier 3 until it resolves.
+     * 1. Installed via a normal (non-split) APK: the real UI languages read from it (the truth — what
+     *    the user actually sees in the app).
+     * 1b. Installed via Android App Bundle language splits (confirmed real: Brave — split_config.en.apk/
+     *    split_config.fr.apk present, ~85 real UI languages absent): the base APK alone can only ever
+     *    answer "which languages happen to be installed on THIS device," never "which does this app
+     *    support" — the OS only fetches the splits matching the device's own configured languages. Still
+     *    unioned with tier 2 below rather than trusted alone, exactly because it's known incomplete here.
+     * 2. Not installed (or a split install still being cross-checked): the real UI languages read
+     *    directly from the not-yet-downloaded release APK's own compiled resources
+     *    ([_remoteApkLocales]) — typically distributed as one universal, non-split build even for an app
+     *    that also ships as a Bundle, so this sees the complete picture a split install's own base APK
+     *    can't. Resolved in the background (see [trackRemoteApkLocales]); this section shows tier 3
+     *    until it resolves.
      * 3. The F-Droid store-listing translations from the index — an approximation, since an app can
      *    ship a translated UI without a translated store listing (and vice versa). Only actually shown
      *    while tier 2 is still resolving, or if it fails (network error, a repo host that doesn't
@@ -373,22 +380,28 @@ class AppDetailViewModel @Inject constructor(
         state.map { (it as? AppDetailState.Success)?.app?.appId }.distinctUntilChanged(),
         installedInfo,
         _remoteApkLocales,
-    ) { appId, installed, remoteLocales ->
+        _remoteApkPending,
+    ) { appId, installed, remoteLocales, remotePending ->
         val apkLocales = if (installed != null) installedApkLocales() else emptyList()
         when {
-            // Installed: the real UI languages from the APK -> reliable, so the status can be definite.
-            apkLocales.isNotEmpty() -> SupportedLanguages(apkLocales, reliable = true)
-            // Not installed, but directly confirmed from the APK itself -> equally reliable. An empty
-            // result is excluded here on purpose: unlike installedApkLocales() (read straight from the
-            // installed APK's own resources.arsc, already on disk — a local file read essentially never
-            // fails the way a remote fetch can), a *download* coming back with zero locale-specific
-            // resource configs can just as easily mean the fetch/parse silently missed something as it
-            // can mean a genuinely unlocalized app — a false "not translated" is worse than falling back
-            // to the approximation below, so it's treated as inconclusive.
-            !remoteLocales.isNullOrEmpty() -> SupportedLanguages(remoteLocales, reliable = true)
-            // Not installed and not yet confirmed: only the store-listing translations, which may
-            // differ from the app's UI -> present as approximate so we never wrongly claim a language
-            // isn't translated.
+            // Installed, and either a normal (non-split) install where that's already the complete
+            // picture, or a split install whose remote cross-check (tier 1b above) already ran and found
+            // nothing to add -> trust the installed read outright.
+            apkLocales.isNotEmpty() && remoteLocales.isNullOrEmpty() && !remotePending ->
+                SupportedLanguages(apkLocales, reliable = true)
+            // Not installed, or installed via splits and still (or now) cross-checked against the real
+            // release -> equally reliable, unioned with whatever the installed splits already confirmed
+            // rather than replacing it (either side can legitimately see a locale the other one misses).
+            // An empty *result* from the remote check alone is excluded here on purpose: unlike a local
+            // file read (essentially never fails the way a remote fetch can), a download coming back with
+            // zero locale-specific resource configs can just as easily mean the fetch/parse silently
+            // missed something as it can mean a genuinely unlocalized app — a false "not translated" is
+            // worse than falling back to the approximation below, so it's treated as inconclusive.
+            !remoteLocales.isNullOrEmpty() ->
+                SupportedLanguages((apkLocales + remoteLocales).distinct().sorted(), reliable = true)
+            // Not installed (or split-installed) and not yet confirmed: only the store-listing
+            // translations, which may differ from the app's UI -> present as approximate so we never
+            // wrongly claim a language isn't translated.
             appId != null -> SupportedLanguages(appRepository.supportedLocales(appId), reliable = false)
             else -> SupportedLanguages(emptyList(), reliable = false)
         }
@@ -602,12 +615,25 @@ class AppDetailViewModel @Inject constructor(
     private fun installedApkLocales(): List<String> =
         InstalledApkLocaleReader.fetchLocales(context.packageManager, packageName).orEmpty()
 
+    /** True when [packageName] was installed from an Android App Bundle's language/density/ABI splits
+     *  rather than one monolithic APK — the OS then only ever fetches the splits matching THIS device's
+     *  own configuration (confirmed real: an installed Brave carrying split_config.en.apk and
+     *  split_config.fr.apk only, out of ~85 languages it actually ships), so [installedApkLocales] alone
+     *  can answer "which languages are on this device," never "which does this app support." Used by
+     *  [trackRemoteApkLocales] to still cross-check such an app against its real release even though
+     *  it's installed. False (and the base APK trusted alone) on any read failure. */
+    private fun isInstalledViaSplitApks(): Boolean =
+        runCatching { context.packageManager.getApplicationInfo(packageName, 0).splitPublicSourceDirs }
+            .getOrNull()?.isNotEmpty() == true
+
     /**
-     * Whenever the app isn't installed and a device-installable package is known, resolves its real
-     * supported languages by inspecting the actual (not-yet-downloaded) APK — cached by APK hash
-     * ([AppRepository.cachedApkLocales]/[AppRepository.cacheApkLocales]) so the same build is only
-     * ever fetched once, even across app restarts. Runs for the lifetime of the ViewModel; each new
-     * distinct (state, installed) pair supersedes whatever fetch was in flight for the previous one.
+     * Whenever the app isn't installed at all, or is installed only via App Bundle language splits (see
+     * [isInstalledViaSplitApks]) whose base APK can't answer the question alone, and a device-installable
+     * package is known, resolves its real supported languages by inspecting the actual (not-yet-
+     * downloaded, typically non-split) release APK — cached by APK hash ([AppRepository.cachedApkLocales]/
+     * [AppRepository.cacheApkLocales]) so the same build is only ever fetched once, even across app
+     * restarts. Runs for the lifetime of the ViewModel; each new distinct (state, installed) pair
+     * supersedes whatever fetch was in flight for the previous one.
      */
     private suspend fun trackRemoteApkLocales() {
         combine(state, installedInfo) { s, installed -> s to installed }
@@ -615,7 +641,7 @@ class AppDetailViewModel @Inject constructor(
             .collectLatest { (currentState, installed) ->
                 _remoteApkLocales.value = null
                 _remoteApkPending.value = false
-                if (installed != null) return@collectLatest
+                if (installed != null && !isInstalledViaSplitApks()) return@collectLatest
                 val success = currentState as? AppDetailState.Success ?: return@collectLatest
                 val installable = success.packages
                     .selectForDevice(success.app.metadata.suggestedVersionCode)
