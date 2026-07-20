@@ -183,31 +183,37 @@ data class ExternalApp(
      * so a new release tag with no new APK doesn't count. Falls back to the release tag only for apps
      * installed before APK-token tracking existed (their token is backfilled on the next install).
      *
-     * Before trusting that file-identity comparison, though: if the real on-device version
-     * ([installedVersionName]) already matches the version the latest release's APK reports
-     * ([latestApkName]/[latestTag]), treat that as up to date regardless of what the tokens say. A
-     * release can ship more than one APK for the same version under different file names (confirmed
-     * real: Magisk's GitHub release carries both "app-debug.apk" and "Magisk-v30.7.apk" side by
-     * side) — [installedApkToken] then just reflects *which of those files* got picked at install
-     * time, not a genuinely different version, so a since-fixed selection heuristic (or a filter
-     * change) can otherwise wave a false "update available" forever at everyone who installed
-     * before the fix, even though reinstalling would fetch the exact same version again.
+     * A token/tag difference alone doesn't always mean a real update, though: a release can ship more
+     * than one APK for the same version under different file names (confirmed real: Magisk's GitHub
+     * release carries both "app-debug.apk" and "Magisk-v30.7.apk" side by side) — [installedApkToken]
+     * then just reflects *which of those files* got picked at install time, not a genuinely different
+     * version, so a since-fixed selection heuristic (or a filter change) can otherwise wave a false
+     * "update available" forever at everyone who installed before the fix, even though reinstalling
+     * would fetch the exact same version again. That specific case is only genuinely ambiguous when the
+     * release TAG itself is unchanged too (the same published release, just a different asset picked
+     * from it) — so the version-name-label agreement above is trusted to suppress the update only then,
+     * never on its own. Trusting it unconditionally previously hid a real update whenever two different
+     * releases' dotted version labels happened to collapse to the same string (confirmed real: a
+     * project tagging build-iteration rebuilds "v8.7.3-1"/"v8.7.3-2" without bumping the app's own
+     * versionName — the hyphenated suffix isn't part of the dotted-version extraction, so both tags
+     * reduce to the identical "8.7.3" label despite being genuinely different releases with genuinely
+     * different APKs).
      */
     val hasUpdate: Boolean
         get() {
-            val installedLabel = installedVersionName
-            val latestLabel = latestApkName?.let(::apkVersionLabel) ?: latestTag?.let(::apkVersionLabel)
-            if (installedLabel != null && latestLabel != null &&
-                installedLabel.equals(latestLabel, ignoreCase = true)
-            ) {
-                return false
-            }
-            return when {
+            val tokenOrTagChanged = when {
                 installedApkToken != null && latestApkToken != null ->
                     installedApkToken != latestApkToken
                 installedTag != null && latestTag != null -> latestTag != installedTag
                 else -> false
             }
+            if (!tokenOrTagChanged) return false
+            val sameRelease = installedTag != null && installedTag == latestTag
+            val installedLabel = installedVersionName
+            val latestLabel = latestApkName?.let(::apkVersionLabel) ?: latestTag?.let(::apkVersionLabel)
+            val sameLabel = installedLabel != null && latestLabel != null &&
+                installedLabel.equals(latestLabel, ignoreCase = true)
+            return !(sameRelease && sameLabel)
         }
 
     /**
