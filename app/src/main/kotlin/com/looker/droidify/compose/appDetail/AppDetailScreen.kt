@@ -267,10 +267,7 @@ fun AppDetailScreen(
                     }
                 } else {
                     TextButton(
-                        onClick = {
-                            viewModel.uninstall()
-                            viewModel.dismissSignatureConflict()
-                        },
+                        onClick = viewModel::confirmSignatureConflictUninstall,
                     ) { Text(stringResource(R.string.uninstall)) }
                 }
             },

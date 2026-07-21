@@ -306,6 +306,26 @@ class AppDetailViewModel @Inject constructor(
         _signatureConflict.value = null
     }
 
+    /**
+     * Confirms the signature-conflict dialog: uninstalls the differently-signed copy and, once it's
+     * actually gone, automatically installs the new APK that was already downloaded and verified for
+     * this update (see [InstallManager.reinstall]) — rather than just uninstalling and stopping there,
+     * which used to leave the app not installed at all until the user noticed and tapped Install again
+     * by hand. [SignatureConflict.cacheFileName] is only null for the system-app case, which never shows
+     * this confirm action in the first place (see [AppDetailScreen]'s dialog).
+     */
+    fun confirmSignatureConflictUninstall() {
+        val conflict = _signatureConflict.value
+        _signatureConflict.value = null
+        viewModelScope.launch {
+            if (conflict?.packageName != null && conflict.cacheFileName != null) {
+                installManager.reinstall(PackageName(conflict.packageName), conflict.cacheFileName)
+            } else {
+                installManager.uninstall(PackageName(packageName))
+            }
+        }
+    }
+
     private var downloadJob: Job? = null
 
     /** Repo the user picked to install from via the version tabs, or null to auto-pick across every
@@ -879,8 +899,11 @@ class AppDetailViewModel @Inject constructor(
                         // dialog — offering to uninstall the existing copy first, unless it's a system
                         // app, which can't be removed (so there's nothing the user can do, and we must
                         // not keep telling them to uninstall in a loop).
-                        _signatureConflict.value =
-                            SignatureConflict(isSystemApp = isSystemApp(packageName))
+                        _signatureConflict.value = SignatureConflict(
+                            isSystemApp = isSystemApp(packageName),
+                            packageName = packageName,
+                            cacheFileName = cacheFileName,
+                        )
                     } else {
                         installManager.install(packageName installFrom cacheFileName)
                     }
@@ -952,9 +975,18 @@ data class InstalledInfo(
 )
 
 /** A blocked update because the installed app is signed by a different key. [isSystemApp] means it
- *  can't be uninstalled, so the update can never be applied — the dialog says so instead of looping. */
+ *  can't be uninstalled, so the update can never be applied — the dialog says so instead of looping.
+ *  [packageName] and [cacheFileName] are the already-downloaded, hash-verified new APK waiting in the
+ *  cache — confirming the dialog uninstalls the old copy under [packageName] and, once it's actually
+ *  gone, installs this file automatically (see [InstallManager.reinstall]) instead of just uninstalling
+ *  and leaving the user to tap Install again by hand. Carried on the conflict itself (not read back off
+ *  whatever screen state happens to be displayed when the dialog is confirmed) so the confirm action is
+ *  reliable even if that state changed or reloaded meanwhile. Both null only for the system-app case,
+ *  where there is no confirm action at all. */
 data class SignatureConflict(
     val isSystemApp: Boolean,
+    val packageName: String? = null,
+    val cacheFileName: String? = null,
 )
 
 private const val TAG = "AppDetailViewModel"
