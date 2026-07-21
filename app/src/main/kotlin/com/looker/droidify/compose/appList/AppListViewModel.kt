@@ -184,11 +184,13 @@ class AppListViewModel @Inject constructor(
         .asStateFlow(emptyMap())
 
     /**
-     * Installed packageName -> the real on-device versionName (e.g. "6.5.5-c"), for genuinely-installed
-     * catalogue apps only — name AND signer verified by [InstalledIdentityRepository], the one shared
-     * source every catalogue screen reads for its "installed" signal, so a different app occupying the
-     * same package name (a de-Googled fork sharing an app's real package id, say) never reads as
-     * installed on any tile/badge fed from here.
+     * Installed packageName -> the real on-device versionName (e.g. "6.5.5-c"), for installed catalogue
+     * apps — matched by package name via [InstalledIdentityRepository], the one shared source every
+     * catalogue screen reads for its "installed" signal, so every tile/badge fed from here always
+     * agrees. Deliberately not signer-verified: a differently-signed build (installed from a different
+     * source than this repo) still counts as installed rather than looking uninstalled — see
+     * [InstalledIdentityRepository]'s own doc comment for why, and the detail screens' own signer check
+     * for where that distinction is actually surfaced (a warning, not an exclusion).
      */
     val installedVersionNames: StateFlow<Map<String, String>> = installedIdentityRepository
         .verifiedInstalled

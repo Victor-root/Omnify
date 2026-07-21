@@ -1364,6 +1364,14 @@ private fun AppHeaderCard(
     // repo's generic icon.png, then the installed app's own launcher icon, then a placeholder. Repos
     // like TwinHelix ship no icon in their index, so without the launcher-icon fallback the header
     // showed a blank placeholder even though the list (which has this fallback) showed the real logo.
+    // Deliberately keyed on [installedInfo] (a real, version/signer-agnostic PackageManager query) and
+    // NOT on [isInstalled] (which requires this exact catalogue release's versionCode to be the one on
+    // device, for the Install/Update/Launch button's own logic): an app installed from a different
+    // source at a version this repo doesn't even list — PPSSPP from Google Play while the repo tops out
+    // at an older release, say — genuinely has a launcher icon to fall back to, and withholding it here
+    // just because it isn't literally this catalogue release left a blank placeholder for an app that
+    // very much has an icon.
+    val hasLauncherIconFallback = installedInfo != null
     val minimal = app?.minimal()
     val version = app?.metadata?.suggestedVersionName?.nonBlank()
     val size = installablePackage?.apk?.size?.toString()
@@ -1393,7 +1401,7 @@ private fun AppHeaderCard(
             if (minimal != null) {
                 AppMinimalIcon(
                     app = minimal,
-                    isInstalled = isInstalled,
+                    isInstalled = hasLauncherIconFallback,
                     modifier = Modifier
                         .size(88.dp)
                         .clip(RoundedCornerShape(20.dp)),

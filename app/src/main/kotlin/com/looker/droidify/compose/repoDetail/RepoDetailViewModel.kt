@@ -60,8 +60,8 @@ class RepoDetailViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
 
-    /** Genuinely-installed package names (name AND signer verified — see
-     *  [InstalledIdentityRepository], the shared source every catalogue screen reads), driving this
+    /** Installed package names (matched by name — see [InstalledIdentityRepository], the shared source
+     *  every catalogue screen reads, for why this deliberately isn't signer-verified), driving this
      *  page's tile checkmarks and the "install all" pending count. */
     val installedPackages: StateFlow<Set<String>> = installedIdentityRepository.verifiedInstalled
         .map { it.keys }

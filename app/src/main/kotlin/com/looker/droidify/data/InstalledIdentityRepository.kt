@@ -32,16 +32,20 @@ fun signerMismatch(installedSigner: String?, declaredSigners: Collection<String>
 }
 
 /**
- * The single source of truth for "which catalogue apps are genuinely installed on this device" —
- * package name AND signing certificate verified against what the catalogue itself declares, using
- * [signerMismatch] above. Every catalogue-side "installed" signal (detail-screen install state, list/
- * grid tile checkmarks, the Installed tab, a repository page's app grid) derives from this one flow,
- * so they can never disagree with each other, and a future change to the identity rule lands
- * everywhere at once.
+ * The single source of truth for "which catalogue apps count as installed on this device" — by package
+ * name alone. Every catalogue-side "installed" signal (detail-screen install state, list/grid tile
+ * checkmarks, the Installed tab, a repository page's app grid) derives from this one flow, so they can
+ * never disagree with each other, and a future change to the rule lands everywhere at once.
  *
- * An installed package the catalogue doesn't know at all (nothing to compare against) stays included:
- * consumers intersect with their own app lists anyway, and "unknown" must never be treated as
- * "mismatched" (see [signerMismatch]'s doc comment).
+ * Deliberately NOT filtered by [signerMismatch]: a package name occupied by a differently-signed build
+ * (the same app from a different distribution channel — Google Play vs. this repo, say — is the common
+ * case; a genuinely unrelated app squatting the name is rare) still counts as installed here, so it
+ * shows up normally in the Installed tab and offers updates like any other installed app. The signer
+ * check itself still runs, independently, wherever a screen needs to warn about it or decide whether an
+ * update can actually be applied in place ([signerMismatch]'s other call sites: the detail screens' own
+ * warning footer, [com.looker.droidify.compose.appList.AppListViewModel]'s update-suppression-for-
+ * system-apps rule, the update worker) — this flow only answers "is something here at all", not "is it
+ * provably the same build".
  */
 @Singleton
 class InstalledIdentityRepository @Inject constructor(
@@ -51,19 +55,18 @@ class InstalledIdentityRepository @Inject constructor(
 ) {
 
     /**
-     * packageName -> the genuinely-installed app's [InstalledItem], live: re-emits on any
-     * install/uninstall (via [InstalledRepository]'s stream, kept current by InstalledAppReceiver) and
-     * on any catalogue change (a sync can change an app's declared signers). Shared across every
-     * subscriber rather than recomputed per collector — the signer re-query is a real database read.
+     * packageName -> the installed app's [InstalledItem], live: re-emits on any install/uninstall (via
+     * [InstalledRepository]'s stream, kept current by InstalledAppReceiver). Still combined with catalogue
+     * changes (kept as an input, though no longer used to filter) so a sync-triggered signer change
+     * doesn't leave a stale emission. Shared across every subscriber rather than recomputed per
+     * collector.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val verifiedInstalled: Flow<Map<String, InstalledItem>> = combine(
         installedRepository.getAllStream(),
         appRepository.catalogChanges.mapLatest { appRepository.suggestedVersions() },
-    ) { items, suggested ->
-        items
-            .filterNot { item -> signerMismatch(item.signature, suggested[item.packageName]?.signers.orEmpty()) }
-            .associateBy { it.packageName }
+    ) { items, _ ->
+        items.associateBy { it.packageName }
     }
         .distinctUntilChanged()
         .shareIn(scope, SharingStarted.WhileSubscribed(SHARE_TIMEOUT_MS), replay = 1)
