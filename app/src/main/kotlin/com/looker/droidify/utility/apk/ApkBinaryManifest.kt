@@ -8,8 +8,11 @@ package com.looker.droidify.utility.apk
  * ([com.looker.droidify.compose.appDetail.components.PackageItem]) — and to list its declared
  * `<uses-permission>`/`<uses-feature>` names (see [permissionsAndFeatures]), feeding the same
  * Google-services detection a catalogue app's F-Droid-index metadata does
- * ([com.looker.droidify.compose.appDetail.detectGoogleServicesDependencies]). All three read here for a
- * tracked external source's release, which carries no such metadata of its own.
+ * ([com.looker.droidify.compose.appDetail.detectGoogleServicesDependencies]), and to read the
+ * `<application>` element's `icon` resource reference (see [applicationIconResourceId]), the starting
+ * point for [RemoteApkIconReader]'s remote icon extraction. All read here for a tracked external
+ * source's release (or a catalogue release with no icon of its own), neither of which carries such
+ * metadata already resolved.
  *
  * Why component-level parsing instead of just searching the manifest's string pool for a marker
  * string: a permission or intent-action string being *present* says nothing about WHOSE component
@@ -50,6 +53,12 @@ object ApkBinaryManifest {
      *  no string-pool lookup needed. `minSdkVersion`/`targetSdkVersion` compile to one of these. */
     private const val TYPE_INT_DEC = 0x10
     private const val TYPE_INT_HEX = 0x11
+
+    /** `Res_value.dataType` for a resource reference (`@mipmap/ic_launcher`, say): `data` is the
+     *  referenced resource's 32-bit id (packageId<<24 | typeId<<16 | entryId), to be looked up in
+     *  `resources.arsc` — never a string-pool index. `android:icon` always compiles to one of these
+     *  (confirmed against a real APK). */
+    private const val TYPE_REFERENCE = 0x01
 
     /** One declared `<service>` or `<receiver>`: its `android:name` class (as written — possibly
      *  relative, e.g. ".MyService") and every `<action android:name=…>` nested anywhere inside it. */
@@ -133,6 +142,28 @@ object ApkBinaryManifest {
     }.getOrNull()
 
     /**
+     * The `<application android:icon="…">` attribute's resource id (e.g. `0x7f0b0000`), for resolving
+     * the app's real launcher icon out of `resources.arsc` when a catalogue's own repo serves none
+     * (see [RemoteApkIconReader]) — or null when the bytes can't be parsed, or the element/attribute is
+     * missing. `android:icon` always compiles to a plain resource reference (`Res_value.dataType`
+     * [TYPE_REFERENCE]), never a string or literal int, so only that form is read here. Never throws.
+     */
+    fun applicationIconResourceId(manifest: ByteArray): Int? = runCatching {
+        var iconResId: Int? = null
+        val parsed = walkElements(
+            manifest,
+            onStart = { element ->
+                if (element.name == "application") {
+                    iconResId = element.referenceAttributes["icon"]
+                }
+            },
+            onEnd = {},
+        )
+        if (!parsed) return@runCatching null
+        iconResId
+    }.getOrNull()
+
+    /**
      * Every `<uses-permission>`/`<uses-permission-sdk-23>`/`<uses-feature>` name declared in [manifest],
      * or null when the bytes can't be parsed at all — same "couldn't determine" contract as [components]
      * and [usesSdk]. Feeds [com.looker.droidify.compose.appDetail.detectGoogleServicesDependencies] for a
@@ -200,13 +231,16 @@ object ApkBinaryManifest {
         return true
     }
 
-    /** One parsed start-element: its tag name, its string-valued attributes (e.g. `android:name`), and
-     *  its integer-valued ones (e.g. `minSdkVersion`) — a plain-int attribute is compiled with no
-     *  string-pool entry at all, so it can only ever surface via [intAttributes], never [attributes]. */
+    /** One parsed start-element: its tag name, its string-valued attributes (e.g. `android:name`), its
+     *  integer-valued ones (e.g. `minSdkVersion`), and its resource-reference ones (e.g. `android:icon`)
+     *  — a plain-int attribute is compiled with no string-pool entry at all, so it can only ever surface
+     *  via [intAttributes], never [attributes]; a reference likewise only ever surfaces via
+     *  [referenceAttributes], its `data` being a resource id rather than a value of its own. */
     private class StartElement(
         val name: String,
         val attributes: Map<String, String>,
         val intAttributes: Map<String, Int>,
+        val referenceAttributes: Map<String, Int>,
     )
 
     /** Reads a `RES_XML_START_ELEMENT` chunk: ResXMLTree_node header(8) + lineNumber(4) + comment(4),
@@ -222,6 +256,7 @@ object ApkBinaryManifest {
         val attributeCount = u16(manifest, chunkStart + 28)
         val attributes = HashMap<String, String>(attributeCount)
         val intAttributes = HashMap<String, Int>(attributeCount)
+        val referenceAttributes = HashMap<String, Int>(attributeCount)
         val base = chunkStart + 16 + attributeStart
         for (i in 0 until attributeCount) {
             val attr = base + i * attributeSize
@@ -241,9 +276,10 @@ object ApkBinaryManifest {
                 }
                 dataType == TYPE_STRING -> pool.getOrNull(data)?.let { attributes[attrName] = it }
                 dataType == TYPE_INT_DEC || dataType == TYPE_INT_HEX -> intAttributes[attrName] = data
+                dataType == TYPE_REFERENCE -> referenceAttributes[attrName] = data
             }
         }
-        return StartElement(name, attributes, intAttributes)
+        return StartElement(name, attributes, intAttributes, referenceAttributes)
     }
 
     /** Parses a `ResStringPool` chunk starting at [poolStart] — same format, and same reading logic,

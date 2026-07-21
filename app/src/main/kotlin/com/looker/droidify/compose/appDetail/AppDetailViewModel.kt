@@ -42,6 +42,7 @@ import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.apk.InstalledApkLocaleReader
 import com.looker.droidify.utility.apk.RangeCapableMirrors
+import com.looker.droidify.utility.apk.RemoteApkIconReader
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.apk.RemoteApkManifestReader
 import com.looker.droidify.utility.common.cache.Cache
@@ -350,6 +351,19 @@ class AppDetailViewModel @Inject constructor(
     private val _remoteApkPending = MutableStateFlow(false)
 
     /**
+     * The app's real icon, extracted straight from its release APK ([RemoteApkIconReader]) and cached
+     * locally ([CatalogRemoteIconCache]) — only ever populated when the repo's own index declares no
+     * icon at all (confirmed real: F-Droid's official repo, for PPSSPP) AND the app isn't installed
+     * (which would otherwise fall back to its on-device launcher icon instead — see
+     * [com.looker.droidify.compose.appDetail.AppDetailScreen]'s header, which tries that first). Null
+     * until resolved, or if it never applies/the extraction fails — the header then falls back to its
+     * existing chain exactly as before this existed. Kept updated by [trackRemoteIcon], started once in
+     * [init].
+     */
+    private val _remoteIcon = MutableStateFlow<File?>(null)
+    val remoteIcon: StateFlow<File?> = _remoteIcon
+
+    /**
      * True once a check has actively CONFIRMED that the app's real compiled manifest carries no
      * component reachable via a push (FCM/GCM) intent action, despite [declaresPushCapability] flagging
      * the permission from the index alone — i.e. the permission is a vestigial declaration for this
@@ -449,6 +463,7 @@ class AppDetailViewModel @Inject constructor(
         viewModelScope.launch { trackRemoteApkLocales() }
         viewModelScope.launch { trackSourceLocaleCrossCheck() }
         viewModelScope.launch { trackPushComponentVerification() }
+        viewModelScope.launch { trackRemoteIcon() }
     }
 
     /**
@@ -754,6 +769,50 @@ class AppDetailViewModel @Inject constructor(
                     // gets stuck true when the fetch fails or comes back empty.
                     _remoteApkPending.value = false
                 }
+            }
+    }
+
+    /**
+     * Extracts the app's real icon straight out of its release APK ([RemoteApkIconReader]) when the
+     * repo's own index declares none at all AND the app isn't installed on this device (which would
+     * otherwise be the header's own launcher-icon fallback — see [AppDetailScreen], no network read
+     * needed for that case). Cached locally by APK hash ([CatalogRemoteIconCache]) so the same build's
+     * icon is only ever fetched once, even across app restarts — same caching shape as
+     * [trackRemoteApkLocales]'s locale cache. Runs for the lifetime of the ViewModel; each new distinct
+     * (state, installed) pair supersedes whatever fetch was in flight for the previous one.
+     */
+    private suspend fun trackRemoteIcon() {
+        combine(state, installedInfo) { s, installed -> s to installed }
+            .distinctUntilChanged()
+            .collectLatest { (currentState, installed) ->
+                _remoteIcon.value = null
+                if (installed != null) return@collectLatest
+                val success = currentState as? AppDetailState.Success ?: return@collectLatest
+                if (success.app.metadata.icon != null) return@collectLatest
+                val installable = success.packages
+                    .selectForDevice(success.app.metadata.suggestedVersionCode)
+                    ?: return@collectLatest
+                val (pkg, repo) = installable
+                val cached = CatalogRemoteIconCache.iconFile(context, pkg.apk.hash)
+                if (cached.exists()) {
+                    _remoteIcon.value = cached
+                    return@collectLatest
+                }
+                val url = repo.address.removeSuffix("/") + "/" + pkg.apk.name.removePrefix("/")
+                val iconBytes = RemoteApkIconReader.fetchIconBytes(downloader, url) {
+                    repo.authentication?.let { authentication(it.username, it.password) }
+                }
+                    // Same Pages-hosted-repo fallback trackRemoteApkLocales relies on — see its own
+                    // comment on this exact retry for why.
+                    ?: RangeCapableMirrors.candidates(url).firstNotNullOfOrNull { mirrorUrl ->
+                        RemoteApkIconReader.fetchIconBytes(
+                            downloader,
+                            mirrorUrl,
+                            expectedTotalSize = pkg.apk.size.value,
+                        )
+                    }
+                    ?: return@collectLatest
+                _remoteIcon.value = CatalogRemoteIconCache.save(context, pkg.apk.hash, iconBytes)
             }
     }
 
