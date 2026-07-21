@@ -491,5 +491,5 @@
     <string name="uninstall_failed">Couldn\'t uninstall %1$s</string>
     <string name="installer_unknown">Unknown source</string>
     <string name="installed_version_source">Installed: %1$s · from %2$s</string>
-    <string name="installed_signature_mismatch">A different app already uses this package name on your device (%1$s · from %2$s, different signing key).</string>
+    <string name="installed_signature_mismatch">The installed copy (%1$s, from %2$s) wasn\'t signed by this source. Android can\'t update it directly in that case: you\'ll need to uninstall it first, then install this one.</string>
 </resources>

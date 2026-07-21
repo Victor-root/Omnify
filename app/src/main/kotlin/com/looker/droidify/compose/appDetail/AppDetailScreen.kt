@@ -154,6 +154,7 @@ import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
 
 /**
  * Maximum number of version rows rendered on the detail screen. The screen is a single
@@ -180,6 +181,7 @@ fun AppDetailScreen(
     val downloadTargetVersionCode by viewModel.downloadTargetVersionCode.collectAsStateWithLifecycle()
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
+    val remoteIcon by viewModel.remoteIcon.collectAsStateWithLifecycle()
     val pushCapabilityConfirmedAbsent by viewModel.pushCapabilityConfirmedAbsent.collectAsStateWithLifecycle()
     val descriptionTranslation by viewModel.descriptionTranslation.collectAsStateWithLifecycle()
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
@@ -499,6 +501,7 @@ fun AppDetailScreen(
                     downloadStatus = downloadStatus,
                     downloadTargetVersionCode = downloadTargetVersionCode,
                     installedInfo = installedInfo,
+                    remoteIcon = remoteIcon,
                     pushCapabilityConfirmedAbsent = pushCapabilityConfirmedAbsent,
                     isFavourite = isFavourite,
                     onToggleFavourite = viewModel::toggleFavourite,
@@ -666,6 +669,7 @@ private fun AppDetail(
     downloadStatus: DownloadStatus?,
     downloadTargetVersionCode: Long?,
     installedInfo: InstalledInfo?,
+    remoteIcon: File?,
     pushCapabilityConfirmedAbsent: Boolean,
     isFavourite: Boolean,
     onToggleFavourite: () -> Unit,
@@ -765,6 +769,7 @@ private fun AppDetail(
             installablePackage = installablePackage,
             installedInfo = installedInfo,
             isInstalled = installedPackage != null,
+            remoteIcon = remoteIcon,
             isFavorite = isFavourite,
             onToggleFavorite = onToggleFavourite,
             updateAvailable = updateAvailable,
@@ -1347,6 +1352,7 @@ private fun AppHeaderCard(
     installablePackage: Package?,
     installedInfo: InstalledInfo?,
     isInstalled: Boolean,
+    remoteIcon: File?,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
     updateAvailable: Boolean,
@@ -1398,7 +1404,20 @@ private fun AppHeaderCard(
     HeroCard(
         modifier = modifier,
         icon = {
-            if (minimal != null) {
+            if (minimal != null && minimal.icon == null && remoteIcon != null) {
+                // The repo declares no icon at all AND the app isn't installed (see [remoteIcon]'s own
+                // doc comment on the ViewModel): the only real icon left to show is the one extracted
+                // straight out of its release APK, so it's rendered directly rather than routed through
+                // AppMinimalIcon's repo/launcher/placeholder chain, none of which would find anything.
+                AsyncImage(
+                    model = remoteIcon,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .size(88.dp)
+                        .clip(RoundedCornerShape(20.dp)),
+                )
+            } else if (minimal != null) {
                 AppMinimalIcon(
                     app = minimal,
                     isInstalled = hasLauncherIconFallback,
