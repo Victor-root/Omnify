@@ -12,7 +12,6 @@ import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Permission
 import com.looker.droidify.data.model.Platforms
 import com.looker.droidify.data.model.SDKs
-import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.sync.v2.model.ApkFileV2
 import com.looker.droidify.sync.v2.model.FileV2
@@ -97,16 +96,16 @@ fun List<VersionEntity>.toPackages(
 ) = map { version ->
     Package(
         id = version.id.toLong(),
-        // A package name match alone isn't enough: Android lets a completely different app claim the
-        // same package name a catalogue entry uses (a de-Googled Signal fork sharing Signal's real
-        // org.thoughtcrime.securesms, say) as long as nothing with that name is currently installed.
-        // Whichever one actually got there first owns the name on the device; the other's index entry
-        // would otherwise be reported as "installed" purely because the names line up. [signerMismatch]
-        // is the ONE shared definition of that identity comparison (see InstalledIdentityRepository) —
-        // both sides are already lowercase-hex SHA-256 in Room (see [VersionEntity.signer]'s own doc
-        // comment), so this costs nothing and never fires on missing data.
-        installed = installed != null && installed.versionCode == version.versionCode &&
-            !signerMismatch(installed.signature, version.signer),
+        // Matched by package name + exact versionCode alone — deliberately NOT also gated on
+        // [signerMismatch]: a differently-signed install of the same versionCode (the same app from a
+        // different distribution channel, most commonly) still counts as "this release, installed" here,
+        // so the detail screen's Update/Launch button and the versions list's "Installée" checkmark
+        // behave as if there were no signer to compare at all — matching every other "is this installed"
+        // signal in the app (see [com.looker.droidify.data.InstalledIdentityRepository]'s own doc
+        // comment for the same call). The signer comparison itself still runs, independently, wherever a
+        // screen needs to actually WARN about it (the detail screen's own footer message) or decide
+        // whether an update can be applied in place without an uninstall first.
+        installed = installed != null && installed.versionCode == version.versionCode,
         added = version.added,
         apk = ApkFile(
             name = version.apk.name,

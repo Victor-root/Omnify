@@ -213,17 +213,13 @@ class ExternalAppsViewModel @Inject constructor(
     private val _signatureMismatches = MutableStateFlow<Set<String>>(emptySet())
     val signatureMismatches: StateFlow<Set<String>> = _signatureMismatches
 
-    /** Keys of tracked apps that are currently installed on the device *and* really are that tracked
-     *  app (not a different one that merely reused its package name — see [signatureMismatches]).
-     *  Derived from [installedVersions] itself (rather than its own independent package-manager scan)
-     *  so the two can never disagree — a key can't appear "installed" here without an entry there,
-     *  which used to be possible for a moment since each was its own independently re-subscribed
-     *  StateFlow and could refresh out of step. Drives the Explorer/account grid tiles' "installed"
-     *  badge, the same signer check the detail screen's own primary-action button applies locally. */
-    val installedKeys: StateFlow<Set<String>> = combine(
-        installedVersions,
-        signatureMismatches,
-    ) { versions, mismatches -> versions.keys - mismatches }
+    /** Keys of tracked apps that are currently installed on the device, by package name — deliberately
+     *  NOT excluding [signatureMismatches]: a differently-signed install (most commonly, the same app
+     *  from a different distribution channel) still counts as installed here, matching the detail
+     *  screen's own [ExternalAppDetailScreen] `isInstalled`. Drives the Explorer/account grid tiles'
+     *  "installed" badge, so it always agrees with the detail screen for the same app. */
+    val installedKeys: StateFlow<Set<String>> = installedVersions
+        .map { it.keys }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptySet())
