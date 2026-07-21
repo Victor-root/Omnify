@@ -355,6 +355,12 @@ class AppDetailViewModel @Inject constructor(
      *  [_remoteApkPending], for the same reason. */
     private val _sourceCrossCheckPending = MutableStateFlow(false)
 
+    /** The base language detected from the app's own source strings (see [ExternalApi.detectBaseLanguage]),
+     *  set only for the default-English-only case — a non-null value other than "en" is the real single
+     *  language of a monolingual app the unqualified default was merely assumed to be English. Null when
+     *  not applicable, not resolved, or undetermined. */
+    private val _detectedBaseLanguage = MutableStateFlow<String?>(null)
+
     /**
      * Locale codes the app is translated into (its supported languages), for the detail screen's
      * "supported languages" section, most reliable first:
@@ -382,7 +388,13 @@ class AppDetailViewModel @Inject constructor(
         _remoteApkLocales,
         _remoteApkPending,
     ) { appId, installed, remoteLocales, remotePending ->
-        val apkLocales = if (installed != null) installedApkLocales() else emptyList()
+        // A signature mismatch means the package name is occupied by a DIFFERENT app (a different
+        // signer) that merely shares the id — reading its on-disk APK would report that foreign app's
+        // languages as this catalogue entry's. Treat that as not-installed for the locale read, exactly
+        // as the sibling push-capability check does (see trackPushComponentVerification), so the real
+        // release is fetched instead (trackRemoteApkLocales makes the same exception).
+        val trustInstalled = installed != null && !installed.signatureMismatch
+        val apkLocales = if (trustInstalled) installedApkLocales() else emptyList()
         when {
             // Installed, and either a normal (non-split) install where that's already the complete
             // picture, or a split install whose remote cross-check (tier 1b above) already ran and found
@@ -438,18 +450,36 @@ class AppDetailViewModel @Inject constructor(
     val supportedLanguages: StateFlow<SupportedLanguages> = combine(
         baseSupportedLanguages,
         _sourceCrossCheck,
+        _detectedBaseLanguage,
         _remoteApkPending,
         _sourceCrossCheckPending,
-    ) { base, sourceLocales, remoteApkPending, sourceCrossCheckPending ->
+    ) { base, sourceLocales, detectedBase, remoteApkPending, sourceCrossCheckPending ->
         val onlyDefaultEnglish = base.reliable && base.codes.size == 1 &&
             base.codes.single().equals("en", ignoreCase = true)
-        val merged = when {
+        val withoutDetection = when {
             sourceLocales == null -> base
             !base.reliable -> SupportedLanguages(codes = sourceLocales, reliable = true)
             onlyDefaultEnglish && sourceLocales.any { !it.equals("en", ignoreCase = true) } ->
                 base.copy(codes = (base.codes + sourceLocales).distinct())
             onlyDefaultEnglish -> base.copy(sourceCrossChecked = true)
             else -> base
+        }
+        // A monolingual app whose single "language" is only the unqualified default the resource table
+        // assumes is English: when its base strings were actually detected to be some OTHER language,
+        // that's the real (and only) language — replace the mislabelled lone "en" outright. This catches
+        // both the reliable default-English-only result AND the unreliable tier-3 result a monolingual
+        // app falls into (empty remote read), since either can leave the answer a bare "en". English
+        // needs no correction, so a detected "en" (or an undetermined null) leaves the answer untouched.
+        val resolvedToLoneEnglish = withoutDetection.codes.size == 1 &&
+            withoutDetection.codes.single().equals("en", ignoreCase = true)
+        val merged = if (
+            resolvedToLoneEnglish &&
+            detectedBase != null &&
+            !detectedBase.equals("en", ignoreCase = true)
+        ) {
+            SupportedLanguages(codes = listOf(detectedBase), reliable = true)
+        } else {
+            withoutDetection
         }
         merged.copy(isLoading = remoteApkPending || sourceCrossCheckPending)
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(SupportedLanguages())
@@ -470,6 +500,7 @@ class AppDetailViewModel @Inject constructor(
             .distinctUntilChanged()
             .collectLatest { (currentState, base) ->
                 _sourceCrossCheck.value = null
+                _detectedBaseLanguage.value = null
                 _sourceCrossCheckPending.value = false
                 val onlyDefaultEnglish = base.reliable && base.codes.size == 1 &&
                     base.codes.single().equals("en", ignoreCase = true)
@@ -489,6 +520,19 @@ class AppDetailViewModel @Inject constructor(
                     } ?: return@collectLatest
                     val probe =
                         ExternalApp(provider = provider, host = ref.host, owner = ref.owner, repo = ref.repo)
+                    // Whenever the app could end up labelled English-only — the reliable
+                    // default-English-only case, but ALSO the unreliable tier-3 case a monolingual app
+                    // falls into (its APK carries no locale-specific config at all, so the remote read
+                    // comes back empty and never becomes reliable) — the "en" is only the unqualified
+                    // default convention. Detect the app's real base language from its own source strings
+                    // so a monolingual non-English app (e.g. a French-only app) is named correctly instead
+                    // of shown as English. Only actually applied by [supportedLanguages] when the answer
+                    // would otherwise be a lone "en"; harmless (ignored) for a genuinely multilingual app.
+                    // Set before fetchSourceLocales' own early-returns below so it applies even when the
+                    // source scan finds nothing beyond that same default. We only reach here when the base
+                    // is unreliable or default-English-only (see the guard above), i.e. exactly the cases
+                    // where an English-only mislabel is possible.
+                    _detectedBaseLanguage.value = externalApi.detectBaseLanguage(probe)
                     val sourceLocales = externalApi.fetchSourceLocales(probe)?.takeIf { it.isNotEmpty() }
                         ?: return@collectLatest
                     _sourceCrossCheck.value = sourceLocales
@@ -641,7 +685,13 @@ class AppDetailViewModel @Inject constructor(
             .collectLatest { (currentState, installed) ->
                 _remoteApkLocales.value = null
                 _remoteApkPending.value = false
-                if (installed != null && !isInstalledViaSplitApks()) return@collectLatest
+                // Skip the remote fetch only when a GENUINE build of this app is installed (matching
+                // signer) as a normal, non-split APK — that on-disk read is already complete. A signer
+                // mismatch (a different app under the same package name) or a language-split install
+                // both need the real release fetched instead, since the installed base APK either isn't
+                // this app at all or can't list the languages the device didn't install.
+                val genuinelyInstalled = installed != null && !installed.signatureMismatch
+                if (genuinelyInstalled && !isInstalledViaSplitApks()) return@collectLatest
                 val success = currentState as? AppDetailState.Success ?: return@collectLatest
                 val installable = success.packages
                     .selectForDevice(success.app.metadata.suggestedVersionCode)
@@ -657,7 +707,22 @@ class AppDetailViewModel @Inject constructor(
                     val url = repo.address.removeSuffix("/") + "/" + pkg.apk.name.removePrefix("/")
                     val locales = RemoteApkLocaleReader.fetchLocales(downloader, url) {
                         repo.authentication?.let { authentication(it.username, it.password) }
-                    } ?: return@collectLatest
+                    }
+                        // If the origin host ignores Range requests (confirmed real: a GitLab/GitHub
+                        // Pages-hosted repo that returns the whole file for every Range), retry against
+                        // derived range-capable mirrors of the same file on its backing forge — identity-
+                        // checked against the index's declared byte size, and never sent the repo's own
+                        // credentials (they belong to the origin host alone). Same fallback the sibling
+                        // push-capability read already uses; without it the section was stuck on the
+                        // store-listing approximation for every Pages-hosted repo.
+                        ?: RangeCapableMirrors.candidates(url).firstNotNullOfOrNull { mirrorUrl ->
+                            RemoteApkLocaleReader.fetchLocales(
+                                downloader,
+                                mirrorUrl,
+                                expectedTotalSize = pkg.apk.size.value,
+                            )
+                        }
+                        ?: return@collectLatest
                     // See the comment on the empty-check in supportedLanguages above: a genuinely empty
                     // result from a *download* isn't trusted enough to assert or cache — it falls through
                     // to the store-listing approximation instead of a possibly-wrong "not translated".

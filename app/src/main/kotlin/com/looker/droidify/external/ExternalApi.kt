@@ -4,6 +4,7 @@ import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
 import com.looker.droidify.datastore.SettingsRepository
+import com.looker.droidify.utility.common.LanguageDetector
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -204,6 +205,93 @@ class ExternalApi @Inject constructor(
         (androidLocales + i18nLocales + mokoLocales + listOfNotNull("en".takeIf { hasDefaultValues }))
             .distinct()
             .sorted()
+    }
+
+    /**
+     * Best-effort ISO language code of the app's own base/default UI strings — read straight from the
+     * source repo's unqualified `res/values/` (or `composeResources/values/`) string files and
+     * language-detected ([LanguageDetector]). Android's unqualified default resource config carries no
+     * language tag, so a MONOLINGUAL app authored in a language other than English is otherwise reported
+     * as English purely by convention (see [com.looker.droidify.utility.apk.ApkResourceLocales]'s
+     * DEFAULT_LOCALE); this is what tells "written in French" apart from "written in English" for such an
+     * app, so it can be named correctly instead of mislabelled English. Null when the base strings can't
+     * be read, aren't in `res/values/`, or the language can't be told confidently. Never throws.
+     */
+    suspend fun detectBaseLanguage(app: ExternalApp): String? = withContext(Dispatchers.IO) {
+        val paths = fetchTreePaths(app)
+        if (paths.isEmpty()) return@withContext null
+        // The classic case first: base strings declared in res/values/ XML. When that carries nothing
+        // detectable — a Compose-first app whose only res/values/ string is its app name — fall back to
+        // the app's own Kotlin UI source, where such an app writes its visible text instead.
+        detectLanguageFromValuesXml(app, paths)
+            ?: detectLanguageFromUiSource(app, paths)
+    }
+
+    /**
+     * Language of the base strings declared in the app's unqualified `res/values/` (or
+     * `composeResources/values/`) XML — the classic Android string-resource case. Null when there are
+     * no such files, or too little text to tell (e.g. a Compose-only app whose `res/values/strings.xml`
+     * holds nothing but the app name — see [detectLanguageFromUiSource]).
+     */
+    private suspend fun detectLanguageFromValuesXml(app: ExternalApp, paths: List<String>): String? {
+        val baseFiles = paths
+            .filter { RES_DEFAULT_VALUES_REGEX.containsMatchIn(it) && it.endsWith(".xml", ignoreCase = true) }
+            .sortedBy { valueFileOrder(it) }
+            .take(MAX_BASE_STRING_FILES)
+        if (baseFiles.isEmpty()) return null
+        val text = buildString {
+            for (file in baseFiles) {
+                val xml = fetchRaw(app, file) ?: continue
+                ANDROID_STRING_VALUE_REGEX.findAll(xml).forEach { match ->
+                    val value = unescapeAndroidString(match.groupValues[1])
+                    // A resource reference ("@string/…") is not human text — skip it so it can't skew
+                    // the detection.
+                    if (value.isNotBlank() && !value.startsWith("@")) {
+                        append(value)
+                        append(' ')
+                    }
+                }
+                if (length >= MAX_BASE_STRING_CHARS) break
+            }
+        }
+        return LanguageDetector.detect(text)
+    }
+
+    /**
+     * Language of the app's own UI text when it's written straight into Jetpack Compose / Kotlin source
+     * as string literals rather than `res/values/` resources — an increasingly common pattern for
+     * Compose-first apps (a real example: a French-only call blocker whose entire `res/values/strings.xml`
+     * is just its app name, with every visible label a hardcoded French string literal inside its
+     * `@Composable` screens). Reads only the UI-layer Kotlin files (screens, sheets, dialogs, …, see
+     * [isUiSourcePath]) — not service/network/util code, which is far likelier to hold English log and
+     * error strings that would skew the guess — and language-detects their multi-word string literals.
+     * A single bare token ("app_name", an identifier, a tag) is a key, not a sentence, so only literals
+     * with an internal space are sampled. Null when no UI source is found or the text is too thin or too
+     * ambiguous to tell confidently.
+     */
+    private suspend fun detectLanguageFromUiSource(app: ExternalApp, paths: List<String>): String? {
+        val uiFiles = paths
+            .filter { it.endsWith(".kt", ignoreCase = true) && isUiSourcePath(it) }
+            .sortedBy { uiSourceFileOrder(it) }
+            .take(MAX_UI_SOURCE_FILES)
+        if (uiFiles.isEmpty()) return null
+        val text = buildString {
+            for (file in uiFiles) {
+                val source = fetchRaw(app, file) ?: continue
+                KOTLIN_STRING_LITERAL_REGEX.findAll(source).forEach { match ->
+                    val literal = match.groupValues[1]
+                    // Only multi-word literals are UI sentences carrying function words to score; a lone
+                    // token is a key/tag/identifier. An interpolated `${'$'}count` just adds an unmatched
+                    // long token, so no template stripping is needed to keep the sample clean.
+                    if (literal.any { it.isWhitespace() } && literal.any { it.isLetter() }) {
+                        append(literal)
+                        append(' ')
+                    }
+                }
+                if (length >= MAX_UI_SOURCE_CHARS) break
+            }
+        }
+        return LanguageDetector.detect(text)
     }
 
     /**
@@ -978,15 +1066,19 @@ private val I18N_DIR_HINT_REGEX = Regex(
  *  with an optional script subtag recognized in between and dropped ("zh-Hant-TW.json" resolves to
  *  "zh-TW", the same script-dropping [localeCodeFromQualifier] already does for BCP47 qualifiers), so
  *  a 3-subtag code is consumed whole instead of falling through to a garbled match on just its last
- *  segment. Covers Flutter (ARB, `slang`/`easy_localization`) and most JS i18n libraries (json/yaml),
- *  plus hand-rolled per-locale dictionaries some cross-platform/native projects write directly in
- *  their own language instead of a data format — Rust (e.g. RustDesk's `src/lang/fr.rs`), Dart, Java
- *  `.properties`, and gettext `.po`. Each is still gated on [I18N_DIR_HINT_REGEX] and the strict
- *  locale-code file name below, so a random source file can't be mistaken for a translation one just
- *  by sharing an extension. */
+ *  segment. An optional non-locale infix before the extension is allowed and dropped, so a double
+ *  extension like the `slang` package's own `de.i18n.json` / `zh-CN.i18n.yaml` naming is captured
+ *  ("de", "zh-CN") — without it the `i18n` segment sits where the locale-or-extension is expected and
+ *  the whole name failed to match, so slang (which the doc claimed to cover but the regex didn't) was
+ *  silently missed. Covers Flutter (ARB, `slang`/`easy_localization`) and most JS i18n libraries
+ *  (json/yaml), plus hand-rolled per-locale dictionaries some cross-platform/native projects write
+ *  directly in their own language instead of a data format — Rust (e.g. RustDesk's `src/lang/fr.rs`),
+ *  Dart, Java `.properties`, and gettext `.po`. Each is still gated on [I18N_DIR_HINT_REGEX] and the
+ *  strict locale-code file name below, so a random source file can't be mistaken for a translation one
+ *  just by sharing an extension. */
 private val I18N_FILE_LOCALE_REGEX = Regex(
     """(?:^|[_-])([a-zA-Z]{2,3})(?:[_-][A-Za-z]{4})?(?:[_-]([A-Za-z]{2}|[0-9]{3}))?""" +
-        """\.(?:arb|json|ya?ml|rs|dart|properties|po)$""",
+        """(?:\.[a-zA-Z0-9]+)?\.(?:arb|json|ya?ml|rs|dart|properties|po)$""",
 )
 
 /** Best-effort locale extraction for non-Android translation conventions: a file inside an i18n/l10n-
@@ -1141,6 +1233,59 @@ data class RepoMetadata(
 /** How many manifest / value files we'll fetch while resolving the app name, to bound network use. */
 private const val MAX_MANIFESTS = 8
 private const val MAX_VALUE_FILES = 12
+
+/** Bounds for [ExternalApi.detectBaseLanguage]'s read of the base string files: how many `res/values/`
+ *  XML files to fetch, and how much extracted text is enough to detect a language before stopping. */
+private const val MAX_BASE_STRING_FILES = 8
+private const val MAX_BASE_STRING_CHARS = 20_000
+
+/** Bounds for the Compose/Kotlin UI-source fallback (see [ExternalApi.detectLanguageFromUiSource]):
+ *  how many UI-layer `.kt` files to fetch, and how much extracted literal text is enough. Screens come
+ *  first (see [uiSourceFileOrder]), so the cap is rarely reached before the language is already clear. */
+private const val MAX_UI_SOURCE_FILES = 12
+private const val MAX_UI_SOURCE_CHARS = 20_000
+
+/** The inner text of a single-line double-quoted Kotlin string literal, for sampling a Compose app's
+ *  hardcoded UI text ([ExternalApi.detectLanguageFromUiSource]). The delimiting double-quotes are the
+ *  two escaped-quote string fragments on either side of the raw-string body, so the pattern reads as
+ *  `"…"` (match from one double-quote to the next) while keeping the backslash-heavy body a raw string.
+ *  The body allows an escaped char so an embedded escaped quote doesn't end the match early. Triple-
+ *  quoted source literals aren't specifically handled; UI labels almost never use them. */
+private val KOTLIN_STRING_LITERAL_REGEX = Regex("\"" + """((?:\\.|[^"\\\n])*)""" + "\"")
+
+/** Whether a source path is UI-layer code — Compose screens/sheets/dialogs/components, or a classic
+ *  Activity/Fragment — where an app's own visible text lives, as opposed to service/network/util code
+ *  (more likely to carry English log and error strings). Matched on the whole path so both a `/ui/`-style
+ *  package and a bare `SomethingScreen.kt` file name are covered; test sources are excluded. */
+private fun isUiSourcePath(path: String): Boolean {
+    val lower = path.lowercase()
+    if ("/androidtest/" in lower || "/test/" in lower || "/build/" in lower) return false
+    return "/ui/" in lower || "/screen" in lower || "/compose" in lower ||
+        "/presentation/" in lower || "/sheet" in lower || "/dialog" in lower ||
+        "/component" in lower ||
+        UI_FILE_NAME_REGEX.containsMatchIn(path.substringAfterLast('/'))
+}
+
+/** A UI-layer Kotlin file by its name alone, for repos that don't package UI under a `/ui/` directory. */
+private val UI_FILE_NAME_REGEX = Regex("""(Screen|Activity|Fragment|Sheet|Dialog|Composable|Page|Nav)s?\.kt$""")
+
+/** Richest-text UI files first: full screens and sheets carry the most labels, so they alone usually
+ *  suffice within [MAX_UI_SOURCE_FILES] before thinner dialog/component files are ever reached. */
+private fun uiSourceFileOrder(path: String): Int {
+    val lower = path.lowercase()
+    return when {
+        "screen" in lower -> 0
+        "sheet" in lower -> 1
+        "activity" in lower || "fragment" in lower -> 2
+        "dialog" in lower -> 3
+        else -> 4
+    }
+}
+
+/** Captures the inner text of an Android `<string …>value</string>` or a string-array/plurals `<item>`
+ *  element, for language-detecting an app's base UI strings ([ExternalApi.detectBaseLanguage]). */
+private val ANDROID_STRING_VALUE_REGEX =
+    Regex("""<(?:string|item)\b[^>]*>(.*?)</(?:string|item)>""", RegexOption.DOT_MATCHES_ALL)
 
 /** Module directory names that commonly hold the launcher app in a multi-module repo, tried early. */
 private val APP_MODULE_HINTS = listOf("presentation", "mobile", "application", "android-app", "androidApp")
