@@ -44,16 +44,40 @@ object RemoteApkLocaleReader {
      * fall back to a less reliable signal in that case. A non-null (possibly empty) list is a genuine,
      * reliable answer: empty means a valid table with no locale-specific resources at all (an
      * unlocalized/English-only app). Never throws.
+     *
+     * [expectedTotalSize] (when non-null) is compared against the remote file's real total size, read
+     * from the first range response's own Content-Range header — a mismatch aborts with null. Its
+     * purpose is identity, not integrity: when [apkUrl] is a derived mirror of the file rather than the
+     * repo's own address (see [RangeCapableMirrors], used when the origin host ignores Range requests),
+     * an exact size match against what the repo index declares confirms the mirror holds the same
+     * artifact and not, say, a newer build under the same name. Mirrors [RemoteApkManifestReader]'s own
+     * identity check.
      */
     suspend fun fetchLocales(
         downloader: Downloader,
         apkUrl: String,
+        expectedTotalSize: Long? = null,
         headers: HeadersBuilder.() -> Unit = {},
     ): List<String>? {
-        val tail = fetchBytes(downloader, apkUrl) {
+        val tailResult = downloader.getRange(apkUrl) {
             inRangeSuffix(TAIL_FETCH_BYTES)
             headers()
-        } ?: return null.also { Log.d(TAG, "$apkUrl: tail fetch failed (range not supported or network error)") }
+        }
+        val tail = when (tailResult) {
+            is RangeResult.Success -> {
+                if (expectedTotalSize != null && tailResult.totalSize != expectedTotalSize) {
+                    Log.d(
+                        TAG,
+                        "$apkUrl: total size mismatch (remote ${tailResult.totalSize}B, " +
+                            "expected ${expectedTotalSize}B) — not the same artifact",
+                    )
+                    return null
+                }
+                tailResult.bytes
+            }
+            RangeResult.RangeNotSupported, is RangeResult.Failed ->
+                return null.also { Log.d(TAG, "$apkUrl: tail fetch failed (range not supported or network error)") }
+        }
         val centralDir = ApkZipLocator.findCentralDirectory(tail)
             ?: return null.also { Log.d(TAG, "$apkUrl: no End-Of-Central-Directory found in ${tail.size}B tail") }
         if (centralDir.size <= 0 || centralDir.size > MAX_ARSC_BYTES) {
@@ -77,16 +101,17 @@ object RemoteApkLocaleReader {
         //   MAX_ARSC_BYTES), exactly like an ordinary Android app's res/values-xx/ folders would produce.
         //   This detector still matters for a genuinely split-installed app's own base/config APKs
         //   (see InstalledApkLocaleReader), where the real per-locale .pak files do live at this path.
-        // - Flutter apps using the `easy_localization` package (the most common Flutter i18n approach —
-        //   the alternatives compile translations straight into the Dart AOT snapshot instead, with no
-        //   equivalent per-file signal to read: the official, ARB-based `flutter gen-l10n`, and also the
-        //   `slang` package, confirmed on a real app — iyox Wormhole — whose resources.arsc carried zero
-        //   app-authored strings in any locale and shipped no per-locale asset file of any kind, despite
-        //   genuinely having real en/de/it/cs/zh translations compiled in; there's no static, readable
-        //   signal for this class at all): `assets/flutter_assets/assets/<i18n-ish-dir>/<code>.json`
-        //   (confirmed against a real Obtainium APK: 29 per-locale JSON files under assets/flutter_assets/
-        //   assets/translations/, and resources.arsc genuinely carrying zero Obtainium-authored strings
-        //   in any locale — only AndroidX/Material boilerplate).
+        // - Cross-platform apps shipping one translation JSON per locale under an i18n-ish directory
+        //   somewhere in `assets/` (see ASSET_JSON_LOCALE_REGEX): Flutter `easy_localization`
+        //   (`assets/flutter_assets/assets/<i18n-ish-dir>/<code>.json`, confirmed against a real Obtainium
+        //   APK — 29 per-locale files under assets/flutter_assets/assets/translations/, resources.arsc
+        //   carrying zero Obtainium-authored strings), Capacitor/Ionic ngx-translate
+        //   (`assets/public/assets/i18n/<code>.json`) and Cordova (`assets/www/**/<code>.json`). Some
+        //   Flutter i18n approaches instead compile translations straight into the Dart AOT snapshot with
+        //   NO per-file signal at all — the official ARB-based `flutter gen-l10n`, and the `slang` package
+        //   (confirmed on iyox Wormhole: resources.arsc carried zero app-authored strings and no per-locale
+        //   asset file of any kind, despite genuinely having en/de/it/cs/zh) — those degrade safely to a
+        //   less-reliable tier rather than a false "English only".
         // Just the file NAMES are needed — already in hand from the same central directory fetched for
         // resources.arsc below, so this costs no extra request. Each pattern's own non-locale files
         // (Chromium's chrome_100_percent.pak/chrome_200_percent.pak/resources.pak; a Flutter app's other,
@@ -161,35 +186,39 @@ object RemoteApkLocaleReader {
      *  naturally excluded without an explicit denylist. */
     private val PAK_LOCALE_REGEX = Regex("""assets/locales/([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,4})?)\.pak$""")
 
-    /** Matches a Flutter `easy_localization`-package translation file (e.g. `assets/flutter_assets/
-     *  assets/translations/fr.json`, `.../assets/lang/zh-Hant-TW.json`) — Flutter bundles a Flutter
-     *  app's own declared assets under `assets/flutter_assets/`, and easy_localization ships one JSON
-     *  per locale inside whatever sub-path the app's own developer configured (translations/i18n/l10n/
-     *  lang/locales/…, hence matched loosely rather than to one fixed name). Up to two optional subtags
-     *  (not just one) so a language+script+region code like "zh-Hant-TW" is captured whole instead of
-     *  just its last segment, plus an optional trailing CLDR/POSIX-style `@variant` suffix (e.g.
-     *  `en@pirate.json`, confirmed shipped as a genuine, deliberately-translated locale variant by a
-     *  real app) — without it, that suffix isn't part of a plain `.json` extension match at all, so
-     *  the whole file name fails to match and the variant is silently skipped entirely. */
-    private val FLUTTER_ASSET_LOCALE_REGEX = Regex(
-        """assets/flutter_assets/assets/(?:i18n|l10n|intl|locales?|translations?|lang(?:uages?)?)/""" +
+    /** Matches a per-locale translation JSON file bundled under `assets/`, whatever the cross-platform
+     *  framework that put it there: Flutter `easy_localization` (`assets/flutter_assets/assets/
+     *  translations/fr.json`), Capacitor/Ionic ngx-translate (`assets/public/assets/i18n/fr.json`),
+     *  Cordova (`assets/www/.../i18n/fr.json`) — all ship one JSON per locale inside an i18n-ish directory
+     *  (i18n/l10n/intl/lang/locales/translations/…), just under a different `assets/` sub-path per
+     *  framework. The optional wildcard path segment before the i18n-ish directory matches all of them
+     *  (and a Flutter app that
+     *  declares its translations at project root, `assets/flutter_assets/translations/`, with no nested
+     *  `assets/`) rather than hard-coding one framework's prefix. Up to two optional subtags (not just
+     *  one) so a language+script+region code like "zh-Hant-TW" is captured whole instead of just its last
+     *  segment, plus an optional trailing CLDR/POSIX-style `@variant` suffix (e.g. `en@pirate.json`,
+     *  confirmed shipped as a genuine, deliberately-translated locale variant by a real app) — without
+     *  it, that suffix isn't part of a plain `.json` extension match at all, so the whole file name fails
+     *  to match and the variant is silently skipped entirely. */
+    private val ASSET_JSON_LOCALE_REGEX = Regex(
+        """assets/(?:.*/)?(?:i18n|l10n|intl|locales?|translations?|lang(?:uages?)?)/""" +
             """([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,4}){0,2}(?:@[a-zA-Z0-9]+)?)\.json$""",
         RegexOption.IGNORE_CASE,
     )
 
     /**
-     * Locale codes carried by per-locale asset file names among [entryNames] (a Chromium `.pak` bundle
-     * or a Flutter `easy_localization` JSON file — see [PAK_LOCALE_REGEX]/[FLUTTER_ASSET_LOCALE_REGEX]),
-     * not resources.arsc entries. Shared with [InstalledApkLocaleReader], which walks an installed
-     * package's own local ZIP entries the same way this walks a remote APK's central-directory-derived
-     * ones — the two frameworks' locales are invisible to [ApkResourceLocales] either way, so both
-     * callers need this same detection, not just the download path.
+     * Locale codes carried by per-locale asset file names among [entryNames] (a Chromium `.pak` bundle,
+     * or a cross-platform framework's per-locale translation JSON — see [PAK_LOCALE_REGEX]/
+     * [ASSET_JSON_LOCALE_REGEX]), not resources.arsc entries. Shared with [InstalledApkLocaleReader],
+     * which walks an installed package's own local ZIP entries the same way this walks a remote APK's
+     * central-directory-derived ones — those frameworks' locales are invisible to [ApkResourceLocales]
+     * either way, so both callers need this same detection, not just the download path.
      */
     fun assetLocalesFromEntryNames(entryNames: List<String>): List<String> = (
         entryNames.filter { PAK_LOCALE_REGEX.matches(it) }
             .mapNotNull { PAK_LOCALE_REGEX.find(it)?.groupValues?.get(1) } +
-            entryNames.filter { FLUTTER_ASSET_LOCALE_REGEX.matches(it) }
-                .mapNotNull { FLUTTER_ASSET_LOCALE_REGEX.find(it)?.groupValues?.get(1) }
+            entryNames.filter { ASSET_JSON_LOCALE_REGEX.matches(it) }
+                .mapNotNull { ASSET_JSON_LOCALE_REGEX.find(it)?.groupValues?.get(1) }
         ).distinct()
 
     private suspend fun fetchBytes(

@@ -55,6 +55,23 @@ object ApkResourceLocales {
      *  resource ID," as opposed to a real byte offset to that entry's data. */
     private const val NO_ENTRY = 0xFFFFFFFFL
 
+    /** [ResTable_type.flags] bits (the byte at chunkStart+9). FLAG_SPARSE: the offsets array is a compact
+     *  list of only the POPULATED entries — 4-byte (uint16 idx, uint16 offset/4) pairs — instead of one
+     *  dense uint32 slot per resource id. FLAG_OFFSET16: the dense array uses uint16 offsets (real byte
+     *  offset = value * 4) with 0xFFFF as the "absent" sentinel, instead of uint32s. Both are opt-in aapt2
+     *  optimizations (aapt2 --enable-sparse-encoding / --enable-compact-entries, AGP resource
+     *  optimization) that a developer-built release APK served verbatim (IzzyOnDroid, a self-hosted repo)
+     *  can carry. Read here so such a table is decoded correctly rather than misparsed as dense uint32 —
+     *  which silently defeated the boilerplate-name filter and over-reported languages as reliable. Any
+     *  flag bit outside these two is unrecognised, so the chunk is treated as unparseable (null) rather
+     *  than guessed at. */
+    private const val FLAG_SPARSE = 0x01
+    private const val FLAG_OFFSET16 = 0x02
+
+    /** The uint16 "no entry" sentinel used by FLAG_OFFSET16 dense offset arrays (the uint32 [NO_ENTRY]'s
+     *  16-bit counterpart). */
+    private const val NO_ENTRY_16 = 0xFFFF
+
     /** [ResStringPool_header.flags] bit meaning the pool's strings are UTF-8 (length-prefixed byte
      *  runs) rather than the default UTF-16 (length-prefixed code-unit runs). */
     private const val UTF8_FLAG = 1 shl 8
@@ -257,6 +274,14 @@ object ApkResourceLocales {
      */
     private fun readTypeChunk(arsc: ByteArray, chunkStart: Long, keyPool: List<String>?): Triple<Int, Locale, EntryCounts>? {
         val typeId = arsc[(chunkStart + 8).toInt()].toInt() and 0xFF
+        // The offsets-array encoding (see FLAG_SPARSE/FLAG_OFFSET16) — the byte at chunkStart+9. A flag
+        // bit outside the two we can decode means an encoding we don't understand, so bail to "couldn't
+        // determine" rather than misparse a dense uint32 array out of a compact one.
+        val flags = arsc[(chunkStart + 9).toInt()].toInt() and 0xFF
+        if ((flags and (FLAG_SPARSE or FLAG_OFFSET16).inv()) != 0) return null
+        val sparse = (flags and FLAG_SPARSE) != 0
+        val offset16 = (flags and FLAG_OFFSET16) != 0
+        if (sparse && offset16) return null
         val entryCount = u32(arsc, (chunkStart + 12).toInt())
         if (entryCount > arsc.size) return null
         val entriesStart = u32(arsc, (chunkStart + 16).toInt())
@@ -290,18 +315,35 @@ object ApkResourceLocales {
                 script = script,
             )
         }
-        // The offsets array (one uint32 per potential entry of this type) starts right after the
-        // embedded ResTable_config, whose own leading "size" field is how long it actually is.
+        // The offsets array starts right after the embedded ResTable_config, whose own leading "size"
+        // field is how long it actually is. Its slot width depends on the encoding: a dense uint32 slot
+        // per potential resource id (default, and FLAG_OFFSET16's uint16 variant), or a compact 4-byte
+        // (idx, offset/4) pair per POPULATED entry only under FLAG_SPARSE.
         val offsetsStart = configStart + configSize.toInt()
         val entryCountInt = entryCount.toInt()
-        if (offsetsStart + entryCountInt * 4 > arsc.size) return null
+        val slotWidth = if (offset16) 2 else 4
+        if (offsetsStart + entryCountInt * slotWidth > arsc.size) return null
         var total = 0L
         var nonBoilerplate = 0L
         for (i in 0 until entryCountInt) {
-            val offset = u32(arsc, offsetsStart + i * 4)
-            if (offset == NO_ENTRY) continue
+            // The byte offset (from entriesStart) to this populated entry's data, or `continue` for a
+            // dense slot that isn't populated. Sparse arrays list only populated entries, so every slot
+            // counts; both compact forms store the offset pre-divided by 4.
+            val entryOffset: Long = when {
+                offset16 -> {
+                    val raw = u16(arsc, offsetsStart + i * 2)
+                    if (raw == NO_ENTRY_16) continue
+                    raw.toLong() * 4
+                }
+                sparse -> u16(arsc, offsetsStart + i * 4 + 2).toLong() * 4
+                else -> {
+                    val raw = u32(arsc, offsetsStart + i * 4)
+                    if (raw == NO_ENTRY) continue
+                    raw
+                }
+            }
             total++
-            val entryDataStart = chunkStart + entriesStart + offset
+            val entryDataStart = chunkStart + entriesStart + entryOffset
             val name = keyPool?.let { pool ->
                 if (entryDataStart + 8 > arsc.size) return@let null
                 val keyIndex = u32(arsc, (entryDataStart + 4).toInt()).toInt()
@@ -314,15 +356,15 @@ object ApkResourceLocales {
 
     /** A dependency's own pre-translated resource-key names — AndroidX AppCompat, Material Components
      *  2/3, Compose Material3 (including its date/time pickers and bottom sheets), Preference, Media3,
-     *  Biometric, MediaRouter, Google Play Services, androidx.browser, and a handful of others — seen
-     *  shipping into an app's `resources.arsc` regardless of whether the app itself translates
-     *  anything, confirmed against real string *values* (not just names) across two 30+-app audit
-     *  rounds: every one of these resolved to generic framework text (button labels, a11y
-     *  descriptions, date/time-picker strings, media transport controls, biometric-prompt copy, …),
-     *  never anything referencing an app's own actual feature vocabulary. Necessarily incomplete — new
-     *  dependency versions, or dependencies neither audit round happened to sample, can add more — see
-     *  [MIN_ENTRY_FRACTION]'s doc comment for how the threshold stays safe against a name this list
-     *  doesn't yet know about. */
+     *  Biometric, MediaRouter, Google Play Services, androidx.browser, Leanback (the Android-TV UI
+     *  library), and a handful of others — seen shipping into an app's `resources.arsc` regardless of
+     *  whether the app itself translates anything, confirmed against real string *values* (not just
+     *  names) across two 30+-app audit rounds: every one of these resolved to generic framework text
+     *  (button labels, a11y descriptions, date/time-picker strings, media transport controls,
+     *  biometric-prompt copy, …), never anything referencing an app's own actual feature vocabulary.
+     *  Necessarily incomplete — new dependency versions, or dependencies neither audit round happened to
+     *  sample, can add more — see [MIN_ENTRY_FRACTION]'s doc comment for how the threshold stays safe
+     *  against a name this list doesn't yet know about. */
     private val BOILERPLATE_KEY_PREFIXES = listOf(
         "abc_", "mtrl_", "m3_", "m3c_", "mc2_", "material_", "bottomsheet_", "character_counter_",
         "call_notification_", "searchview_", "side_sheet_", "nav_app_bar_", "path_password_",
@@ -333,6 +375,12 @@ object ApkResourceLocales {
         "date_range_input_", "time_picker_", "twofortyfouram_", "brvah_",
         "common_google_play_services_", "fallback_menu_item_", "ucrop_", "mr_chooser_",
         "mr_controller_", "mr_route_name_",
+        // androidx.leanback: ~39 pre-translated strings shipped into ~70 locales by the standard
+        // Android-TV UI library — the exact over-report vector for a small TV app on this TV-focused
+        // fork (a leanback-only locale carries only lb_/orb_ keys, which clear the 0.15 floor whenever
+        // the app's own English string count is under ~220). Confirmed: every leanback string is
+        // lb_-prefixed except the single orb_-prefixed search-orb one.
+        "lb_", "orb_",
     )
 
     /** As [BOILERPLATE_KEY_PREFIXES], but names too short or generic-looking to safely prefix-match
