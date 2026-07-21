@@ -352,6 +352,27 @@ class ExternalAppsViewModel @Inject constructor(
         _signatureConflict.value = null
     }
 
+    /**
+     * Confirms the signature-conflict dialog: uninstalls the differently-signed copy and, once it's
+     * actually gone, automatically installs the new APK that was already downloaded for this update
+     * (see [InstallManager.reinstall]) — rather than just uninstalling and stopping there, which used to
+     * leave the app not installed at all until the user noticed and tapped Install again by hand. Reads
+     * the package/file to reinstall off the conflict itself (see [SignatureConflict]), not off whatever
+     * [ExternalApp] is currently displayed, so it stays correct even if that screen state changed.
+     */
+    fun confirmSignatureConflictUninstall() {
+        val conflict = _signatureConflict.value
+        _signatureConflict.value = null
+        val pkg = conflict?.packageName ?: return
+        viewModelScope.launch {
+            if (conflict.cacheFileName != null) {
+                installManager.reinstall(PackageName(pkg), conflict.cacheFileName)
+            } else {
+                installManager.uninstall(PackageName(pkg))
+            }
+        }
+    }
+
     /** True when [packageName] is a system app (or an update to one). Those can't be uninstalled, so a
      *  differently-signed release can never replace them — there's no point offering to. */
     private fun isSystemApp(packageName: String): Boolean = runCatching {
@@ -1496,7 +1517,11 @@ class ExternalAppsViewModel @Inject constructor(
                 // Different signer: Android can't update across keys. Ask the user to uninstall the
                 // existing copy first, same as the F-Droid catalogue's own dialog — and don't touch the
                 // tracked record at all, so it keeps correctly pointing at whatever's really installed.
-                _signatureConflict.value = SignatureConflict(isSystemApp = isSystemApp(packageName))
+                _signatureConflict.value = SignatureConflict(
+                    isSystemApp = isSystemApp(packageName),
+                    packageName = packageName,
+                    cacheFileName = cacheFileName,
+                )
                 return
             }
             installManager.install(InstallItem(PackageName(packageName), cacheFileName))

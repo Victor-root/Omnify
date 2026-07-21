@@ -199,10 +199,7 @@ fun ExternalAppDetailScreen(
                     }
                 } else {
                     TextButton(
-                        onClick = {
-                            app?.let(viewModel::uninstall)
-                            viewModel.dismissSignatureConflict()
-                        },
+                        onClick = viewModel::confirmSignatureConflictUninstall,
                     ) { Text(stringResource(R.string.uninstall)) }
                 }
             },
