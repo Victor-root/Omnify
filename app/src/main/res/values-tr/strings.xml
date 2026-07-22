@@ -201,15 +201,7 @@
     <string name="repository_not_found">Depo bulunamadı</string>
     <string name="special_credits">Katkıda bulunanlar</string>
     <string name="shizuku_not_installed">Shizuku/Sui kurulu değil</string>
-    <string name="import_settings_title">Favorileri ve ayarları içe aktar</string>
     <string name="import_export">Yedekle ve Geri Yükle</string>
-    <string name="import_settings_DESC">Ayarları ve favorileri bir dosyadan içe aktar</string>
-    <string name="export_settings_title">Favorileri ve ayarları dışa aktar</string>
-    <string name="export_repos_DESC">Depoları bir dosyaya dışa aktar</string>
-    <string name="import_repos_title">Depoları içe aktar</string>
-    <string name="export_settings_DESC">Ayarları ve favorileri bir dosyaya dışa aktar</string>
-    <string name="export_repos_title">Depoları dışa aktar</string>
-    <string name="import_repos_DESC">Depoları bir dosyadan içe aktar</string>
     <string name="cannot_open_link">Bağlantı açılamıyor</string>
     <string name="has_tethered_network">Belirli bir ağ hizmetine bağlı</string>
     <string name="require_background_access">Batarya optimizasyonu\'nu devre dışı bırakın</string>
@@ -273,7 +265,4 @@
     <string name="custom_button_templates">Şablonlar</string>
     <string name="custom_button_icon">İkon</string>
     <string name="custom_button_delete_confirmation">\"%1$s\" butonu silinsin mi?</string>
-    <string name="custom_buttons_export">Butonları dışa aktar</string>
-    <string name="custom_buttons_import">Butonları içe aktar</string>
-    <string name="custom_buttons_imported">Özel butonlar içe aktarıldı</string>
 </resources>

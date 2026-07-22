@@ -198,15 +198,7 @@
     <string name="repository_not_found">指定されたリポジトリは見つかりませんでした</string>
     <string name="special_credits">スペシャルクレジット</string>
     <string name="shizuku_not_installed">Shizuku はインストールされていません</string>
-    <string name="import_settings_title">設定をインポート</string>
     <string name="import_export">インポート / エクスポート</string>
-    <string name="import_settings_DESC">ファイルから設定とお気に入りをインポートする</string>
-    <string name="export_settings_title">設定をエクスポート</string>
-    <string name="export_repos_DESC">全てのリポジトリをファイルにエクスポートする</string>
-    <string name="import_repos_title">リポジトリをインポート</string>
-    <string name="export_settings_DESC">設定とお気に入りをファイルにエクスポートする</string>
-    <string name="export_repos_title">リポジトリをエクスポート</string>
-    <string name="import_repos_DESC">ファイルから全てのリポジトリをインポートする</string>
     <string name="uninstalled_application">アンインストール</string>
     <string name="uninstalled_application_DESC">%s をアンインストールしました</string>
     <string name="installation_failed">インストールに失敗しました</string>

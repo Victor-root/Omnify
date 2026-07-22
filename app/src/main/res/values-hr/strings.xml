@@ -204,15 +204,7 @@
     <string name="repository_not_found">Repozitorij nije pronađen</string>
     <string name="special_credits">Posebne zasluge</string>
     <string name="shizuku_not_installed">Shizuku/Sui nije instaliran</string>
-    <string name="import_settings_title">Uvezi favorite i postavke</string>
     <string name="import_export">Sigurnosna kopija i obnavljanje</string>
-    <string name="import_settings_DESC">Uvezi postavke i favorite iz datoteke</string>
-    <string name="export_settings_title">Izvezi favorite i postavke</string>
-    <string name="export_repos_DESC">Izvezi repozitorije u datoteku</string>
-    <string name="import_repos_title">Uvezi repozitorije</string>
-    <string name="export_settings_DESC">Izvezi postavke i favorite u datoteku</string>
-    <string name="export_repos_title">Izvezi repozitorije</string>
-    <string name="import_repos_DESC">Uvezi repozitorije iz datoteke</string>
     <string name="has_tethered_network">Ovisi od određenih instanci mrežne usluge</string>
     <string name="cannot_open_link">Nije moguće otvoriti poveznicu</string>
     <string name="require_background_access_DESC">Za ispravan rad sinkronizacije u pozadini potrebno je onemogućiti optimizaciju baterije</string>
@@ -276,7 +268,4 @@
     <string name="custom_button_templates">Predlošci</string>
     <string name="custom_button_icon">Ikona</string>
     <string name="custom_button_delete_confirmation">Izbrisati gumb „%1$s”?</string>
-    <string name="custom_buttons_export">Izvezi gumbove</string>
-    <string name="custom_buttons_import">Uvezi gumbove</string>
-    <string name="custom_buttons_imported">Prilagođeni gumbi su uvezeni</string>
 </resources>

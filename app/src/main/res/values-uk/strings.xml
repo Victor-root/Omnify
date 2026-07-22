@@ -207,15 +207,7 @@
     <string name="repository_not_found">Репозиторій не знайдено</string>
     <string name="special_credits">Спеціальні кредити</string>
     <string name="shizuku_not_installed">Shizuku/Sui не встановлено</string>
-    <string name="import_settings_title">Імпортувати обране та налаштування</string>
     <string name="import_export">Резервне копіювання та відновлення</string>
-    <string name="import_settings_DESC">Імпорт налаштувань та обраного з файлу</string>
-    <string name="export_settings_title">Експорт обраного та налаштувань</string>
-    <string name="export_repos_DESC">Експорт репозиторіїв у файл</string>
-    <string name="import_repos_title">Імпорт репозиторіїв</string>
-    <string name="export_settings_DESC">Експорт налаштувань та обраного у файл</string>
-    <string name="export_repos_title">Експортні репозиторії</string>
-    <string name="import_repos_DESC">Імпорт репозиторіїв з файлу</string>
     <string name="cannot_open_link">Не вдається відкрити посилання</string>
     <string name="has_tethered_network">Залежить від певного екземпляра мережевої служби</string>
     <string name="require_background_access">Вимкнути оптимізацію батареї</string>

@@ -197,15 +197,7 @@
     <string name="connection_error_DESC">Impossibile connettersi al server</string>
     <string name="contains_nsfw">Contiene contenuti non sicuri per il lavoro (NSFW)</string>
     <string name="socket_error_DESC">Il server non è riuscito a fornire un nuovo pacchetto</string>
-    <string name="import_settings_title">Importa preferiti e impostazioni</string>
     <string name="import_export">Backup e ripristino</string>
-    <string name="import_settings_DESC">Importa impostazioni e preferiti da un file</string>
-    <string name="export_settings_title">Esporta preferiti e impostazioni</string>
-    <string name="export_repos_DESC">Esporta i repository in un file</string>
-    <string name="import_repos_title">Importa repository</string>
-    <string name="export_settings_DESC">Esporta impostazioni e preferiti in un file</string>
-    <string name="export_repos_title">Esporta repository</string>
-    <string name="import_repos_DESC">Importa i repository da un file</string>
     <string name="shizuku_not_alive">Shizuku/Sui non è in esecuzione</string>
     <string name="proxy_port_error_not_int">La porta proxy può essere solo un numero intero</string>
     <string name="repository_not_found">Il repository non è stato trovato</string>
@@ -276,7 +268,4 @@
     <string name="custom_button_templates">Modelli</string>
     <string name="custom_button_icon">Icona</string>
     <string name="custom_button_delete_confirmation">Eliminare il bottone \"%1$s\"?</string>
-    <string name="custom_buttons_export">Esporta bottoni</string>
-    <string name="custom_buttons_import">Importa bottoni</string>
-    <string name="custom_buttons_imported">Bottoni personalizzati importati</string>
 </resources>

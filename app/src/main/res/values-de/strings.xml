@@ -201,15 +201,7 @@
     <string name="special_credits">Besonderer Dank</string>
     <string name="proxy_port_error_not_int">Proxyport muss eine ganze Zahl sein</string>
     <string name="repository_not_found">Paketquelle wurde nicht gefunden</string>
-    <string name="import_settings_title">Einstellungen und Favoriten importieren</string>
     <string name="import_export">Sicherung und Wiederherstellung</string>
-    <string name="import_settings_DESC">Einstellungen und Favoriten aus einer Datei importieren</string>
-    <string name="export_settings_title">Einstellungen und Favoriten exportieren</string>
-    <string name="export_repos_DESC">Paketquellen in eine Datei exportieren</string>
-    <string name="import_repos_title">Paketquellen importieren</string>
-    <string name="export_settings_DESC">Einstellungen und Favoriten in eine Datei exportieren</string>
-    <string name="export_repos_title">Paketquellen exportieren</string>
-    <string name="import_repos_DESC">Paketquellen aus einer Datei importieren</string>
     <string name="cannot_open_link">Der Link kann nicht geöffnet werden</string>
     <string name="has_tethered_network">Von einem bestimmten Netzwerkdienst abhängig</string>
     <string name="ignore_signature">Signaturprüfung ignorieren</string>
@@ -270,10 +262,7 @@
     <string name="custom_button_templates">Vorlagen</string>
     <string name="custom_button_icon">Symbol</string>
     <string name="custom_button_delete_confirmation">Die Schaltfläche \"%1$s\" löschen?</string>
-    <string name="custom_buttons_export">Schaltflächen exportieren</string>
-    <string name="custom_buttons_import">Schaltflächen importieren</string>
     <string name="custom_buttons">Eigene Schaltflächen</string>
-    <string name="custom_buttons_imported">Eigene Schaltflächen importiert</string>
     <string name="copied_to_clipboard">Kopiert</string>
     <string name="title_activity_main_compose">MainComposeActivity</string>
 </resources>

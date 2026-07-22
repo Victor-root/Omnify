@@ -3,7 +3,6 @@ package com.looker.droidify.data.local.dao
 import androidx.room.Dao
 import androidx.room.MapColumn
 import androidx.room.Query
-import androidx.room.RewriteQueriesToDropUnusedColumns
 import com.looker.droidify.data.local.model.CategoryEntity
 import com.looker.droidify.data.local.model.LocalizedRepoIconEntity
 import com.looker.droidify.data.local.model.MirrorEntity
@@ -54,12 +53,11 @@ interface RepoDao {
 
     @Query(
         """
-        SELECT * FROM category
+        SELECT category.* FROM category
         JOIN category_repo_relation ON category.defaultName = category_repo_relation.defaultName
         WHERE category_repo_relation.id = :repoId
         """,
     )
-    @RewriteQueriesToDropUnusedColumns
     fun categoriesByRepoId(repoId: Int): Flow<List<CategoryEntity>>
 
     @Query("SELECT * FROM mirror WHERE repoId = :repoId")

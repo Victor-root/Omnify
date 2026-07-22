@@ -229,6 +229,7 @@ fun ReadmeWebView(
 
                     // API < 24 calls this String overload instead of the request one above.
                     @Suppress("OverridingDeprecatedMember", "DEPRECATION")
+                    @Deprecated("Deprecated in Java", ReplaceWith("shouldOverrideUrlLoading(view, request)"))
                     override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
                         openExternally(url)
 

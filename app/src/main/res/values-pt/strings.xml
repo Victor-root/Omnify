@@ -204,15 +204,7 @@
     <string name="home_screen_swiping_DESC">Deslizar para esquerda ou direita para trocar a página</string>
     <string name="proxy_port_error_not_int">A porta do proxy só pode ser um número inteiro</string>
     <string name="repository_not_found">O repositório não foi encontrado</string>
-    <string name="import_settings_title">Importar favoritos e configurações</string>
     <string name="import_export">Backup e restauração</string>
-    <string name="import_settings_DESC">Importar definições e favoritos de um ficheiro</string>
-    <string name="export_settings_title">Exportar favoritos e configurações</string>
-    <string name="export_repos_DESC">Exportar repositórios para um ficheiro</string>
-    <string name="import_repos_title">Importar repositórios</string>
-    <string name="export_settings_DESC">Exportar definições e favoritos para um ficheiro</string>
-    <string name="export_repos_title">Exportar repositórios</string>
-    <string name="import_repos_DESC">Importar repositórios de um ficheiro</string>
     <string name="cannot_open_link">Não foi possível abrir a ligação</string>
     <string name="has_tethered_network">Depende de uma determinada instância de um serviço de rede</string>
     <string name="require_background_access">Desativar as otimizações de pilha</string>
@@ -271,7 +263,4 @@
     <string name="custom_button_templates">Modelos</string>
     <string name="custom_button_icon">Ícone</string>
     <string name="custom_button_delete_confirmation">Eliminar \"%1$s\"?</string>
-    <string name="custom_buttons_export">Exportar botões</string>
-    <string name="custom_buttons_import">Importar botões</string>
-    <string name="custom_buttons_imported">Botões importados com sucesso</string>
 </resources>

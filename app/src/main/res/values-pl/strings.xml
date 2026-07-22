@@ -207,15 +207,7 @@
     <string name="home_screen_swiping_DESC">Przesuń palcem w lewo lub prawo, aby zmienić stronę</string>
     <string name="proxy_port_error_not_int">Port proxy może być wyłącznie liczbą całkowitą</string>
     <string name="repository_not_found">Nie znaleziono repozytorium</string>
-    <string name="import_settings_title">Importuj ulubione i ustawienia</string>
     <string name="import_export">Kopia zapasowa i przywracanie</string>
-    <string name="import_settings_DESC">Importuj ustawienia i ulubione z pliku</string>
-    <string name="export_settings_title">Eksportuj ulubione i ustawienia</string>
-    <string name="export_repos_DESC">Eksportuj repozytoria do pliku</string>
-    <string name="import_repos_title">Importuj repozytoria</string>
-    <string name="export_settings_DESC">Eksportuj ustawienia i ulubione do pliku</string>
-    <string name="export_repos_title">Eksportuj repozytoria</string>
-    <string name="import_repos_DESC">Importuj repozytoria z pliku</string>
     <string name="has_tethered_network">Zależy od konkretnej instancji usługi sieciowej</string>
     <string name="cannot_open_link">Nie można otworzyć łącza</string>
     <string name="require_background_access_DESC">Aby synchronizacja w tle działała poprawnie, wymagane jest wyłączenie optymalizacji baterii</string>
@@ -267,9 +259,6 @@
     <string name="custom_button_templates">Szablony</string>
     <string name="custom_button_icon">Ikona</string>
     <string name="custom_button_delete_confirmation">Czy usunąć przycisk \"%1$s\"?</string>
-    <string name="custom_buttons_export">Eksportuj przyciski</string>
-    <string name="custom_buttons_import">Importuj przyciski</string>
-    <string name="custom_buttons_imported">Zaimportowano przyciski niestandardowe</string>
     <string name="rb_info">Jeśli kompilacja jest odtwarzalna, to znaczy, że dany plik apk został skompilowany z dostarczonego źródła</string>
     <string name="total_downloads">Łączna liczba pobrań</string>
     <string name="download_stats">Statystyki pobierania</string>

@@ -204,15 +204,7 @@
     <string name="home_screen_swiping_DESC">Posuňte vlevo nebo v pravo pro změnu stránky</string>
     <string name="repository_not_found">Repozitář nebyl nalezen</string>
     <string name="proxy_port_error_not_int">Port proxy smí být pouze celé číslo</string>
-    <string name="import_settings_title">Importovat oblíbené a nastavení</string>
     <string name="import_export">Záloha a obnovení</string>
-    <string name="import_settings_DESC">Importovat nastavení a oblíbené ze souboru</string>
-    <string name="export_settings_title">Exportovat oblíbené a nastavení</string>
-    <string name="export_repos_DESC">Exportovat repozitáře do souboru</string>
-    <string name="import_repos_title">Importovat repozitáře</string>
-    <string name="export_settings_DESC">Exportovat nastavení a oblíbené do souboru</string>
-    <string name="export_repos_title">Exportovat repozitáře</string>
-    <string name="import_repos_DESC">Importovat repozitáře ze souboru</string>
     <string name="cannot_open_link">Odkaz se nepodařilo otevřít</string>
     <string name="has_tethered_network">Závisí na určité instanci síťové služby</string>
     <string name="require_background_access_DESC">Zakázání optimalizací baterie je vyžadováno pro správnou funkčnost synchronizace na pozadí</string>
@@ -275,8 +267,5 @@
     <string name="custom_button_templates">Šablony</string>
     <string name="custom_button_icon">Ikona</string>
     <string name="custom_button_delete_confirmation">Odstranit tlačítko „%1$s“?</string>
-    <string name="custom_buttons_export">Exportovat tlačítka</string>
-    <string name="custom_buttons_import">Importovat tlačítka</string>
-    <string name="custom_buttons_imported">Vlastní tlačítka importována</string>
     <string name="copied_to_clipboard">Zkopírováno</string>
 </resources>

@@ -198,15 +198,7 @@
     <string name="repository_not_found">Không tìm thấy kho lưu trữ sau</string>
     <string name="special_credits">Công trạng đặc biệt</string>
     <string name="shizuku_not_installed">Shizuku/Sui chưa được cài đặt</string>
-    <string name="import_settings_title">Nhập thiết đặt</string>
     <string name="import_export">Bảo lưu và phục hồi</string>
-    <string name="import_settings_DESC">Nhập thiết đặt và mục yêu thích từ tệp</string>
-    <string name="export_settings_title">Xuất thiết đặt</string>
-    <string name="export_repos_DESC">Xuất mọi kho lưu trữ sang tệp</string>
-    <string name="import_repos_title">Nhập kho lưu trữ</string>
-    <string name="export_settings_DESC">Xuất thiết đặt và mục yêu thích sang tệp</string>
-    <string name="export_repos_title">Xuất kho lưu trữ</string>
-    <string name="import_repos_DESC">Nhập mọi kho lưu trữ từ tệp</string>
     <string name="cannot_open_link">Không thể mở liên kết</string>
     <string name="has_tethered_network">Bị phụ thuộc vào một dịch vụ mạng nhất định</string>
     <string name="require_background_access">Tắt tối ưu pin</string>

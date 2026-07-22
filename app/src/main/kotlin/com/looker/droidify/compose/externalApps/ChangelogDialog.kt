@@ -81,8 +81,7 @@ fun ChangelogDialog(
         val view = LocalView.current
         SideEffect {
             val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
-            window.statusBarColor = barColor.toArgb()
-            window.navigationBarColor = barColor.toArgb()
+            applyDialogBarColor(window, barColor.toArgb())
             val lightIcons = barColor.luminance() > 0.5f
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = lightIcons
@@ -235,4 +234,17 @@ fun ChangelogDialog(
             }
         }
     }
+}
+
+/**
+ * Sets this dialog window's status/navigation bar background to [argb]. No modern replacement covers
+ * this: WindowCompat/WindowInsetsControllerCompat only manage bar icon appearance and visibility, never
+ * an explicit background colour, so matching the dialog's own separate window to the current screen's
+ * accent (see the call site's own doc comment) still has to go through these deprecated
+ * [android.view.Window] properties directly.
+ */
+@Suppress("DEPRECATION")
+private fun applyDialogBarColor(window: android.view.Window, argb: Int) {
+    window.statusBarColor = argb
+    window.navigationBarColor = argb
 }

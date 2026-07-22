@@ -39,12 +39,6 @@
     <string name="error_shizuku_not_granted">Shizuku/Sui luba puudub</string>
     <string name="error_shizuku_not_installed">Shizuku/Sui pole paigaldatud</string>
     <string name="import_export">Varundamine ja taastamine</string>
-    <string name="import_settings_title">Impordi lemmikud ja seaded</string>
-    <string name="import_settings_DESC">Impordi seaded ja lemmikud failist</string>
-    <string name="export_settings_title">Ekspordi lemmikud ja seaded</string>
-    <string name="import_repos_DESC">Impordi hoidlad failist</string>
-    <string name="export_repos_title">Ekspordi hoidlad</string>
-    <string name="export_repos_DESC">Ekspordi hoidlad faili</string>
     <string name="enable_repo">Luba hoidla</string>
     <string name="favourites">Lemmikud</string>
     <string name="fingerprint">Sõrmejälg</string>
@@ -81,11 +75,9 @@
     <string name="socket_error_DESC">Serveril ei õnnestunud uut paketti pakkuda</string>
     <string name="incompatible_versions">Ühildumatud versioonid</string>
     <string name="delete_repository_DESC">Kas kustutada hoidla?</string>
-    <string name="import_repos_title">Impordi hoidlad</string>
     <string name="downloading_FORMAT">%s allalaadimine…</string>
     <string name="incompatible_api_DESC_FORMAT">Sinu %1$s (API versioon %2$d) ei ole toetatud. %3$s</string>
     <string name="error_shizuku_not_installed_DESC">Shizuku/Sui pole paigaldatud</string>
-    <string name="export_settings_DESC">Ekspordi seaded ja lemmikud faili</string>
     <string name="file_format_error_DESC">Kehtetu failivorming</string>
     <string name="incompatible_api_min_DESC_FORMAT">Väikseim API versioon on %d</string>
     <string name="incompatible_platforms_DESC_FORMAT">Sinu %1$s platvormi ei toetata. Toetatud platvormid: %2$s</string>
@@ -262,9 +254,6 @@
     <string name="custom_buttons">Kohandatud nupud</string>
     <string name="custom_buttons_description">Lisa rakenduse üksikasjade juurde kiirlingid välistele teenustele</string>
     <string name="custom_buttons_section">Rakenduse info lingid</string>
-    <string name="custom_buttons_export">Ekspordi nupud</string>
-    <string name="custom_buttons_import">Impordi nupud</string>
-    <string name="custom_buttons_imported">Kohandatud nupud imporditud</string>
     <string name="custom_button_add">Lisa nupp</string>
     <string name="custom_button_edit">Muuda nuppu</string>
     <string name="custom_button_label">Silt</string>

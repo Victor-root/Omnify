@@ -45,7 +45,6 @@
     <string name="downloaded_FORMAT">𐌰𐍄𐌳𐍂𐌰𐌲𐌰𐌽 %s</string>
     <string name="downloading">𐌰𐍄𐌳𐍂𐌰𐌲𐌰𐌳𐌰</string>
     <string name="import_export">𐌱𐌰𐌹𐌺-𐌰𐍀 𐌾𐌰𐌷 𐌲𐌰𐌽𐌰𐍃𐌾𐌰𐌽</string>
-    <string name="import_settings_title">𐌸𐍉 𐌻𐌹𐌿𐌱𐍉𐍃𐍄𐍉𐌽𐌰 𐌾𐌰𐌷 𐌻𐌰𐌲𐌴𐌹𐌽𐌹𐌽𐍃 𐌹𐌽𐌽𐌰𐍄𐌱𐌰𐌹𐍂𐌰𐌽</string>
     <string name="fingerprint">𐍆𐌹𐌲𐍂𐌰𐌸𐍂𐌿𐌺𐍃</string>
     <string name="http_error_DESC">𐌰𐌽𐌳𐌰𐌷𐌰𐍆𐍄𐍃 𐌿𐌽𐍂𐌰𐌹𐌷𐍄𐌰 𐍃𐌺𐌰𐌻𐌺𐌰𐌸𐌴𐍅𐌹𐌶𐌹𐍃</string>
     <string name="http_proxy">𐌷𐍄𐍄𐍀 𐍀𐍂𐌰𐌿𐌺𐍃𐌴𐌹</string>
@@ -106,7 +105,6 @@
     <string name="confirmation">𐌲𐌰𐍄𐌿𐌻𐌲𐌴𐌹𐌽𐍃</string>
     <string name="connecting">𐌲𐌰𐍅𐌹𐌳𐌰𐌳𐌰…</string>
     <string name="downloading_FORMAT">𐌰𐍄𐌳𐍂𐌰𐌲𐌰𐌳𐌰 %s…</string>
-    <string name="import_settings_DESC">𐌻𐌰𐌲𐌴𐌹𐌽𐌹𐌽𐍃 𐌾𐌰𐌷 𐌻𐌹𐌿𐌱𐍉𐍃𐍄𐍉𐌽𐌰 𐍆𐌰𐌾𐌻𐌹𐍃 𐌹𐌽𐌽𐌰𐍄𐌱𐌰𐌹𐍂𐌰𐌽</string>
     <string name="has_non_free_components">𐌷𐌰𐌱𐌰𐌹𐌸 𐌽𐌹-𐍆𐍂𐌹𐌾𐍉𐍃 𐌳𐌰𐌹𐌻𐌹𐌽𐍃</string>
     <plurals name="hours">
         <item quantity="one">𐍈𐌴𐌹𐌻𐌰</item>

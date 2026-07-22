@@ -204,15 +204,7 @@
     <string name="repositories">Репозиторијуми</string>
     <string name="compiled_for_debugging">Састављено за отклањање грешака</string>
     <string name="unknown_FORMAT">Непознато: %s</string>
-    <string name="import_settings_title">Увоз омиљених и подешавања</string>
     <string name="import_export">Резервна копија и враћање података</string>
-    <string name="import_settings_DESC">Увезите подешавања и омиљене из фајла</string>
-    <string name="export_settings_title">Извоз омиљених и подешавања</string>
-    <string name="export_repos_DESC">Извезите репозиторијуме у фајл</string>
-    <string name="import_repos_title">Увоз репозиторијума</string>
-    <string name="export_settings_DESC">Извезите подешавања и омиљене у фајл</string>
-    <string name="export_repos_title">Извоз репозиторијума</string>
-    <string name="import_repos_DESC">Увезите репозиторијуме из фајла</string>
     <string name="cannot_open_link">Није могуће отворити линк</string>
     <string name="has_tethered_network">Зависи од одређене инстанце мрежне услуге</string>
     <string name="require_background_access_DESC">Онемогућавање оптимизације батерије је неопходно да би синхронизација у позадини правилно функционисала</string>

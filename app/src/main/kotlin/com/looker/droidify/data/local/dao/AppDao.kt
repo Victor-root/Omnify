@@ -1,7 +1,7 @@
 package com.looker.droidify.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.MapInfo
+import androidx.room.MapColumn
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Transaction
@@ -351,13 +351,13 @@ interface AppDao {
             if (combineFeaturesAndCategoriesWithOr) {
                 append(" AND (")
                 append(
-                    featuresToInclude!!.joinToString(" AND ") {
+                    featuresToInclude.joinToString(" AND ") {
                         "EXISTS (SELECT 1 FROM version WHERE version.appId = app.id AND version.features LIKE ?)"
                     },
                 )
                 args.addAll(featuresToInclude.map { "%\"$it\"%" })
                 append(" OR category_app_relation.defaultName IN (")
-                append(categoriesToInclude!!.joinToString(", ") { "?" })
+                append(categoriesToInclude.joinToString(", ") { "?" })
                 append(")")
                 args.addAll(categoriesToInclude)
                 append(")")
@@ -492,7 +492,6 @@ interface AppDao {
     suspend fun suggestedVersionName(appId: Int): String
 
     // Batch fetch suggested (max versionCode) versionName for multiple appIds
-    @MapInfo(keyColumn = "appId", valueColumn = "versionName")
     @Query(
         """
         SELECT v.appId AS appId, MAX(v.versionName) AS versionName
@@ -500,7 +499,12 @@ interface AppDao {
         GROUP BY appId
         """,
     )
-    suspend fun suggestedVersionNamesAll(): Map<Int, String>
+    suspend fun suggestedVersionNamesAll(): Map<
+        @MapColumn("appId")
+        Int,
+        @MapColumn("versionName")
+        String,
+        >
 
     data class AppVersionCodeRow(
         val packageName: String,

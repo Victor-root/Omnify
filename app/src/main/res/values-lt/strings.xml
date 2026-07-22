@@ -207,12 +207,4 @@
     <string name="special_credits">Specialūs kreditai</string>
     <string name="cannot_open_link">Negalima atidaryti nuorodos</string>
     <string name="import_export">Importuoti/eksportuoti</string>
-    <string name="import_settings_title">Importuoti nustatymus</string>
-    <string name="import_settings_DESC">Importuokite nustatymus ir mėgstamiausius iš failo</string>
-    <string name="export_settings_title">Eksportuoti nustatymus</string>
-    <string name="export_settings_DESC">Eksportuoti nustatymus ir mėgstamiausius iš failo</string>
-    <string name="import_repos_title">Importuoti saugyklas</string>
-    <string name="import_repos_DESC">Importuoti visas saugyklas iš failo</string>
-    <string name="export_repos_title">Eksportuoti saugyklas</string>
-    <string name="export_repos_DESC">Eksportuoti visas saugyklas į failą</string>
 </resources>

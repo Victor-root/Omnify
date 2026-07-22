@@ -198,15 +198,7 @@
     <string name="home_screen_swiping_DESC">左右滑动以切换页面</string>
     <string name="repository_not_found">未找到存储库</string>
     <string name="proxy_port_error_not_int">代理的端口只能是整数</string>
-    <string name="import_settings_title">导入收藏夹和设置</string>
     <string name="import_export">备份与还原</string>
-    <string name="import_settings_DESC">从文件导入设置和收藏夹</string>
-    <string name="export_settings_title">导出收藏夹和设置</string>
-    <string name="export_repos_DESC">导出存储库到文件</string>
-    <string name="import_repos_title">导入存储库</string>
-    <string name="export_settings_DESC">导出设置和收藏夹到文件</string>
-    <string name="export_repos_title">导出存储库</string>
-    <string name="import_repos_DESC">从文件导入存储库</string>
     <string name="has_tethered_network">依赖特定网络服务实例</string>
     <string name="cannot_open_link">无法打开链接</string>
     <string name="require_background_access">停用电池最佳化</string>

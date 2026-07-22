@@ -213,15 +213,7 @@
     <string name="home_screen_swiping_DESC">اسحب لليسار أو لليمين لتبديل الصفحة</string>
     <string name="proxy_port_error_not_int">يجب أن يكون منفذ الوسيط رقمًا صحيحًا</string>
     <string name="repository_not_found">لم يُعثَر على المستودع</string>
-    <string name="import_settings_title">استيراد المفضَّلات والإعدادات</string>
     <string name="import_export">النسخ الاحتياطي والاستعادة</string>
-    <string name="import_settings_DESC">استورد الإعدادات والمفضَّلات من ملف</string>
-    <string name="export_settings_title">تصدير المفضَّلات والإعدادات</string>
-    <string name="export_repos_DESC">صدِّر كل المستودعات في ملف</string>
-    <string name="import_repos_title">استيراد المستودعات</string>
-    <string name="export_settings_DESC">صدِّر الإعدادات والمفضَّلات إلى ملف</string>
-    <string name="export_repos_title">تصدير المستودعات</string>
-    <string name="import_repos_DESC">استورد كل المستودعات من ملف</string>
     <string name="cannot_open_link">تعذَّر فتح الرابط</string>
     <string name="has_tethered_network">يعتمد على حالة معينة لخدمة الشبكة</string>
     <string name="require_background_access">تعطيل تحسينات البطارية</string>
@@ -284,8 +276,5 @@
     <string name="custom_button_templates">القوالب</string>
     <string name="custom_button_icon">أيقونة</string>
     <string name="custom_button_delete_confirmation">حذف الزر \"%1$s\"؟</string>
-    <string name="custom_buttons_export">صدِّر الأزرار</string>
-    <string name="custom_buttons_import">استورد أزرار</string>
-    <string name="custom_buttons_imported">استوردت الأزرار المخصّصة</string>
     <string name="copied_to_clipboard">نُسخ</string>
 </resources>

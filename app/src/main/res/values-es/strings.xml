@@ -204,15 +204,7 @@
     <string name="home_screen_swiping_DESC">Deslizar a la izquierda o a la derecha para cambiar de página</string>
     <string name="repository_not_found">El repositorio no ha sido encontrado</string>
     <string name="proxy_port_error_not_int">El puerto del proxy sólo puede ser un número entero</string>
-    <string name="import_settings_title">Importar configuración y favoritos</string>
     <string name="import_export">Respaldar y restaurar</string>
-    <string name="import_settings_DESC">Importar los ajustes y los favoritos desde un archivo</string>
-    <string name="export_settings_title">Exportar favoritos y ajustes</string>
-    <string name="export_repos_DESC">Exportar repositorios a un archivo</string>
-    <string name="import_repos_title">Importar repositorios</string>
-    <string name="export_settings_DESC">Exportar los ajustes y los favoritos a un archivo</string>
-    <string name="export_repos_title">Exportar repositorios</string>
-    <string name="import_repos_DESC">Importar repositorios de un archivo</string>
     <string name="cannot_open_link">No se puede abrir el enlace</string>
     <string name="has_tethered_network">Depende de una determinada instancia de un servicio de red</string>
     <string name="require_background_access">Desactivar optimización de batería</string>
@@ -274,9 +266,6 @@
     <string name="custom_button_templates">Plantillas</string>
     <string name="custom_button_icon">ícono</string>
     <string name="custom_button_delete_confirmation">¿Borrar el botón \"%1$s\"?</string>
-    <string name="custom_buttons_export">Exportar botones</string>
-    <string name="custom_buttons_import">Importar botones</string>
-    <string name="custom_buttons_imported">Botones personalizados importados</string>
     <string name="copied_to_clipboard">Copiado</string>
     <string name="custom_button_url_hint">https://example.com/{{package_name}}</string>
 </resources>

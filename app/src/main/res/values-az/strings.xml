@@ -199,14 +199,6 @@
     <string name="error_shizuku_not_installed">Shizuku/Sui quraşdırılmayıb</string>
     <string name="error_shizuku_not_installed_DESC">Shizuku/Sui yüklənməyib</string>
     <string name="import_export">Yedəkləmə və bərpa etmə</string>
-    <string name="import_settings_title">Favoritləri və parametrləri daxil edin</string>
-    <string name="import_settings_DESC">Fayldan favoritləri və parametrləri daxil edin</string>
-    <string name="export_settings_title">Favoritləri və parametrləri daşıyın</string>
-    <string name="export_settings_DESC">Parametrləri və favoritləri fayla daşıyın</string>
-    <string name="import_repos_title">Repozitoriyanı daxil edin</string>
-    <string name="import_repos_DESC">Fayldan repozitoriyanı daxil edin</string>
-    <string name="export_repos_title">Repozitoriyaları daşıyın</string>
-    <string name="export_repos_DESC">Repozitoriyaları fayla daşıyın</string>
     <string name="has_non_free_components">Azad olmayan komponentlər var</string>
     <string name="has_tethered_network">Şəbəkə xidmətinin müəyyən nümunəsindən asılıdır</string>
     <string name="home_screen_swiping">Səhifə sürüşdürmə</string>

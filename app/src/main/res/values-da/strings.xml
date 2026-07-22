@@ -40,9 +40,6 @@
     <string name="downloading">Henter</string>
     <string name="downloading_FORMAT">Henter %s…</string>
     <string name="import_export">Backup og gendan</string>
-    <string name="import_settings_title">Importér favoritter og indstillinger</string>
-    <string name="import_settings_DESC">Importér indstillinger og favoritter fra en fil</string>
-    <string name="export_settings_title">Eksportér favoritter og indstillinger</string>
     <string name="favourites">Favoritter</string>
     <string name="file_format_error_DESC">Ugyldigt filformat</string>
     <string name="fingerprint">Fingeraftryk</string>
@@ -176,7 +173,6 @@
     <string name="update_all">Opdater alle</string>
     <string name="updates">Opdateringer</string>
     <string name="donate">Donér</string>
-    <string name="export_settings_DESC">Eksportér indstillinger og favoritter til en fil</string>
     <string name="has_non_free_components">Har ikke-frie komponenter</string>
     <string name="has_tethered_network">Afhænger af en bestemt instans af en netværkstjeneste</string>
     <string name="home_screen_swiping_DESC">Stryg til venstre eller højre for at skifte siden</string>
@@ -201,10 +197,6 @@
     <string name="compiled_for_debugging">Kompileret til fejlfinding</string>
     <string name="delete_repository_DESC">Slet repositoriet?</string>
     <string name="edit_repository">Rediger</string>
-    <string name="import_repos_title">Importér repositories</string>
-    <string name="import_repos_DESC">Importér repositories fra en fil</string>
-    <string name="export_repos_title">Eksportér repositories</string>
-    <string name="export_repos_DESC">Eksportér repositories til en fil</string>
     <string name="enable_repo">Aktivér repository</string>
     <string name="credits">Krediteringer</string>
     <string name="update">Opdatering</string>

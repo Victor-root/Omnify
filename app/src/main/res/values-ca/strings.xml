@@ -193,16 +193,8 @@
     <string name="enable_repo">Habiliteu el repositori</string>
     <string name="waiting_to_start_installation">S\'està esperant per iniciar la instal·lació…</string>
     <string name="installing">Instal·lació</string>
-    <string name="import_settings_DESC">Importa configuració i preferits des de fitxer</string>
     <string name="has_tethered_network">Enllaçat a un determinat servei de xarxa</string>
     <string name="import_export">Importa/Exporta</string>
-    <string name="import_settings_title">Importa Configuració</string>
     <string name="cannot_open_link">No es pot obrir l\'enllaç</string>
-    <string name="export_settings_title">Exporta la Configuració</string>
-    <string name="export_settings_DESC">Exporta la configuració i preferits a un fitxer</string>
-    <string name="import_repos_title">Importa repositoris</string>
-    <string name="import_repos_DESC">Importa tots els repositoris des de un fitxer</string>
-    <string name="export_repos_title">Exporta els repositoris</string>
-    <string name="export_repos_DESC">Exporta tots els repositoris a un fitxer</string>
     <string name="home_screen_swiping">Lliscar la pantalla d\'inici</string>
 </resources>

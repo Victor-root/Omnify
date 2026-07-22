@@ -1190,7 +1190,12 @@ private fun AppDetailBody(
  * The repo tabs (when more than one offers the app) and the version list — extracted only so
  * [AppDetail] can wrap it in a single [onGloballyPositioned] anchor for the hero card's "see all
  * versions" link; the content is unchanged.
+ *
+ * Uses the deprecated [ScrollableTabRow] rather than its suggested Primary/Secondary replacements:
+ * those default to a different colour variant than this row currently shows (no colours/indicator are
+ * overridden here), so swapping would risk a real look change rather than a mechanical rename.
  */
+@Suppress("DEPRECATION")
 @Composable
 private fun VersionsSection(
     packages: List<Pair<Package, Repo>>,
@@ -1527,7 +1532,7 @@ private fun LinksSection(app: App) {
         author?.web?.nonBlank()?.let { url ->
             LinkRow(
                 R.drawable.ic_person,
-                author?.name?.nonBlank() ?: stringResource(R.string.author_website),
+                author.name?.nonBlank() ?: stringResource(R.string.author_website),
                 url,
             ) { open(url) }
         }
