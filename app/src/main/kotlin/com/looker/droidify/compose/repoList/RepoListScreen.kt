@@ -989,7 +989,7 @@ private fun ExternalAccountItem(
 /** Asks which kind of source to add: an F-Droid repository, a single external repo/app, or a whole
  *  external account (all of its apps), explaining each, then routes to the matching add flow. */
 @Composable
-private fun AddSourceChooserDialog(
+internal fun AddSourceChooserDialog(
     onDismiss: () -> Unit,
     onChooseFdroid: () -> Unit,
     onChooseExternal: () -> Unit,
@@ -1089,7 +1089,7 @@ private fun GithubLimitHint(remaining: Int?) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun AddExternalSourceDialog(
+internal fun AddExternalSourceDialog(
     isLoading: Boolean,
     errorMessage: String?,
     hasGithubToken: Boolean,
@@ -1189,7 +1189,7 @@ private fun AddExternalSourceDialog(
  *  discovered app) and an "include forks" toggle (some accounts publish their apps as forks). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun AddExternalAccountDialog(
+internal fun AddExternalAccountDialog(
     isLoading: Boolean,
     hasGithubToken: Boolean,
     githubRemaining: Int?,
@@ -1285,7 +1285,7 @@ private fun AddExternalAccountDialog(
 
 /** Edits an existing external source's settings (the URL is fixed, so it isn't shown). */
 @Composable
-private fun EditExternalSourceDialog(
+internal fun EditExternalSourceDialog(
     app: ExternalApp,
     iconCandidates: List<String>?,
     onDismiss: () -> Unit,

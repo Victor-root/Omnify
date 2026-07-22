@@ -6,6 +6,8 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.navOptions
 import com.looker.droidify.compose.repoList.RepoListScreen
+import com.looker.droidify.compose.theme.LocalIsTelevision
+import com.looker.droidify.compose.tv.TvRepoListScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -29,13 +31,25 @@ fun NavGraphBuilder.repoList(
     onSourceClick: (String) -> Unit,
 ) {
     composable<RepoList> {
-        RepoListScreen(
-            onRepoClick = onRepoClick,
-            onBackClick = onBackClick,
-            onAddRepo = onAddRepo,
-            onAccountClick = onAccountClick,
-            onSourceClick = onSourceClick,
-            viewModel = hiltViewModel(),
-        )
+        // Android TV gets its own reskinned source-management screen; the phone screen is untouched.
+        if (LocalIsTelevision.current) {
+            TvRepoListScreen(
+                onRepoClick = onRepoClick,
+                onBackClick = onBackClick,
+                onAddRepo = onAddRepo,
+                onAccountClick = onAccountClick,
+                onSourceClick = onSourceClick,
+                viewModel = hiltViewModel(),
+            )
+        } else {
+            RepoListScreen(
+                onRepoClick = onRepoClick,
+                onBackClick = onBackClick,
+                onAddRepo = onAddRepo,
+                onAccountClick = onAccountClick,
+                onSourceClick = onSourceClick,
+                viewModel = hiltViewModel(),
+            )
+        }
     }
 }
