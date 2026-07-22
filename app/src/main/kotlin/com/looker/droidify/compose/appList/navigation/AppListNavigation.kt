@@ -7,6 +7,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navOptions
 import com.looker.droidify.compose.appList.AppListScreen
 import com.looker.droidify.compose.appList.AppListViewModel
+import com.looker.droidify.compose.theme.LocalIsTelevision
+import com.looker.droidify.compose.tv.TvHomeScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -30,12 +32,24 @@ fun NavGraphBuilder.appList(
 ) {
     composable<AppList> {
         val viewModel: AppListViewModel = hiltViewModel()
-        AppListScreen(
-            onAppClick = onAppClick,
-            onExternalAppClick = onExternalAppClick,
-            viewModel = viewModel,
-            onNavigateToRepos = onNavigateToRepos,
-            onNavigateToSettings = onNavigateToSettings,
-        )
+        // Android TV gets an entirely separate, Google-Play-TV-style home built for a D-pad; the phone
+        // screen is left untouched and simply isn't composed there. Both read the same ViewModel.
+        if (LocalIsTelevision.current) {
+            TvHomeScreen(
+                viewModel = viewModel,
+                onAppClick = onAppClick,
+                onExternalAppClick = onExternalAppClick,
+                onNavigateToRepos = onNavigateToRepos,
+                onNavigateToSettings = onNavigateToSettings,
+            )
+        } else {
+            AppListScreen(
+                onAppClick = onAppClick,
+                onExternalAppClick = onExternalAppClick,
+                viewModel = viewModel,
+                onNavigateToRepos = onNavigateToRepos,
+                onNavigateToSettings = onNavigateToSettings,
+            )
+        }
     }
 }
