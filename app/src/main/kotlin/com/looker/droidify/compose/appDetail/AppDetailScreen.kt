@@ -553,7 +553,7 @@ private fun shareApp(context: Context, packageName: String, repo: Repo) {
 }
 
 @Composable
-private fun PrimaryActions(
+internal fun PrimaryActions(
     packageName: String,
     isInstalled: Boolean,
     updateAvailable: Boolean,
@@ -1823,7 +1823,7 @@ private fun App.hasLinks(): Boolean = listOfNotNull(
 ).any { it.isNotBlank() }
 
 @Composable
-private fun ScreenshotsRow(screenshots: List<FilePath>) {
+internal fun ScreenshotsRow(screenshots: List<FilePath>) {
     var fullscreenIndex by remember { mutableStateOf<Int?>(null) }
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),

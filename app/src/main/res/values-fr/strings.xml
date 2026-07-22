@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="address">Adresse</string>
+    <string name="tv_back">Retour</string>
     <string name="action_failed">L’action a échoué</string>
     <string name="already_exists">Existe déjà</string>
     <string name="anti_features">Anti-fonctionnalités</string>
