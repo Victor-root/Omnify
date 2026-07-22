@@ -130,6 +130,7 @@ import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
+import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvDpadKeyLog
 import com.looker.droidify.compose.components.tvFocusFill
@@ -1304,6 +1305,7 @@ private fun VersionsSection(
                             Modifier
                         },
                     )
+                    .tvBringIntoViewOnFocus()
                     .onFocusChanged {
                         if (it.isFocused) {
                             Log.d(

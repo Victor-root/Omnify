@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -19,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -134,6 +137,25 @@ fun Modifier.tvReadable(debugLabel: String? = null): Modifier {
             blocked
         }
         .focusable()
+}
+
+/**
+ * Android TV only: explicitly scrolls this element into view whenever it gains D-pad focus, instead of
+ * relying on Compose's own default "bring the newly focused node into view" reflex — this same screen
+ * already had to work around that default behaving unreliably for the hero card (see the
+ * `BringIntoViewSpec` override in AppDetailScreen), so items further down the page (version rows, …)
+ * get an explicit, guaranteed request instead of trusting it happens on its own.
+ */
+@Composable
+fun Modifier.tvBringIntoViewOnFocus(): Modifier {
+    if (!LocalIsTelevision.current) return this
+    val requester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    return this
+        .bringIntoViewRequester(requester)
+        .onFocusEvent {
+            if (it.isFocused) scope.launch { requester.bringIntoView() }
+        }
 }
 
 /**

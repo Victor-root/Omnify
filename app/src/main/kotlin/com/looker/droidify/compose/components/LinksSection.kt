@@ -72,6 +72,7 @@ fun LinkRow(
             // TV only: a soft green fill behind the focused row (a full-width row can't scale without
             // overflowing the screen). No-op on touch.
             .tvFocusFill(RoundedCornerShape(12.dp), debugLabel = "link-row-$title")
+            .tvBringIntoViewOnFocus()
             .then(
                 when {
                     onClick != null -> Modifier.clickable(onClick = onClick)
