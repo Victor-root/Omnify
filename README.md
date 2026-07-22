@@ -44,8 +44,10 @@ such a strong foundation.
 
 ### 📦 Install apps from anywhere (*External sources*)
 
-Add a project's GitHub releases as a source and install & update its app with **no
-F-Droid repository required**.
+Add a project's **GitHub, GitLab, Codeberg, or self-hosted Gitea/Forgejo**
+releases as a source and install & update its app with **no F-Droid repository
+required**. Track a whole publisher account at once instead of one project at a
+time.
 
 - Automatically picks the right APK for your CPU architecture (with an optional
   name filter), and falls back to an older release if the latest has none
@@ -56,6 +58,14 @@ F-Droid repository required**.
   project README rendered in-app.
 - Per-source settings (custom name, pre-releases, mute), an optional no-scope
   GitHub token to lift the API rate limit, and included in your backup.
+- **Omnify's picks**: a curated list of noteworthy sources, disabled by
+  default, one tap away.
+
+### 📺 Made for Android TV
+
+A proper 10-foot interface, not an afterthought: full D-pad navigation, a
+scaled-up UI, automatic "Made for TV" detection for both catalogue and
+external apps, and a curated pack of FOSS TV apps ready to install.
 
 ### 🎨 Modern Material You interface
 
@@ -76,13 +86,22 @@ of **online**, **self-hosted**, or **fully offline on-device** engines. An
 optional auto-translate toggle does it for you, and nothing is downloaded until
 you pick the on-device engine.
 
+### 💾 Backup & restore
+
+Back up repositories, external sources, settings, favourites and custom
+buttons independently, all in one file. Restoring only ever adds to what's
+already there, never wipes it.
+
 ---
 
 ## 🛡️ Security & privacy
 
 - Signing certificate **verified against the repository index before any install**.
 - Anti-feature warnings and the full runtime-permission list on the detail screen.
-- A badge flags apps that depend on **proprietary Google services**.
+- A badge flags apps that depend on **proprietary Google services**, and how
+  well **microG** covers what they actually need.
+- Recovers an app's real supported languages even when its own listing doesn't
+  declare them.
 - The optional GitHub token is **scope-less** (it only lifts the rate limit), and
   translation can run **fully offline**.
 
