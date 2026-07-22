@@ -214,7 +214,7 @@ fun TvAppDetailScreen(
 }
 
 @Composable
-private fun TvBackButton(onBackClick: () -> Unit) {
+internal fun TvBackButton(onBackClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = spacedBy(8.dp),
@@ -240,7 +240,7 @@ private fun TvMetaChips(category: String?, version: String?, license: String?) {
 }
 
 @Composable
-private fun TvChip(text: String) {
+internal fun TvChip(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelLarge,
@@ -253,7 +253,7 @@ private fun TvChip(text: String) {
 }
 
 @Composable
-private fun TvFavouriteButton(isFavourite: Boolean, onToggle: () -> Unit) {
+internal fun TvFavouriteButton(isFavourite: Boolean, onToggle: () -> Unit) {
     OutlinedButton(
         onClick = onToggle,
         modifier = Modifier.height(52.dp).width(260.dp).tvBringIntoViewOnFocus(),
@@ -308,7 +308,7 @@ private fun TvVersionsList(packages: List<Pair<com.looker.droidify.data.model.Pa
 }
 
 @Composable
-private fun TvSectionTitle(text: String) {
+internal fun TvSectionTitle(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleLarge,
@@ -317,7 +317,7 @@ private fun TvSectionTitle(text: String) {
 }
 
 @Composable
-private fun TvCentered(content: @Composable () -> Unit) {
+internal fun TvCentered(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center,

@@ -7,6 +7,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.looker.droidify.compose.externalApps.ExternalAccountDetailScreen
 import com.looker.droidify.compose.externalApps.ExternalAppDetailScreen
+import com.looker.droidify.compose.theme.LocalIsTelevision
+import com.looker.droidify.compose.tv.TvExternalAppDetailScreen
 import kotlinx.serialization.Serializable
 
 /** Detail screen for a single tracked external app, addressed by its [ExternalApp.key]. */
@@ -20,11 +22,20 @@ fun NavController.navigateToExternalAppDetail(appKey: String) {
 fun NavGraphBuilder.externalAppDetail(onBackClick: () -> Unit) {
     composable<ExternalAppDetail> { backStackEntry ->
         val route = backStackEntry.toRoute<ExternalAppDetail>()
-        ExternalAppDetailScreen(
-            appKey = route.appKey,
-            viewModel = hiltViewModel(),
-            onBackClick = onBackClick,
-        )
+        // Android TV gets its own lean detail screen; the phone screen is untouched.
+        if (LocalIsTelevision.current) {
+            TvExternalAppDetailScreen(
+                appKey = route.appKey,
+                viewModel = hiltViewModel(),
+                onBackClick = onBackClick,
+            )
+        } else {
+            ExternalAppDetailScreen(
+                appKey = route.appKey,
+                viewModel = hiltViewModel(),
+                onBackClick = onBackClick,
+            )
+        }
     }
 }
 
