@@ -1,157 +1,93 @@
 # 🤝 Contributing to Omnify
 
-Thank you for your interest in contributing to Omnify! This document provides guidelines for
-contributors.
-
-## 🌟 Ways to Contribute
-
-### 🐛 Bug Reports
-
-- Search existing issues before creating new ones
-- Use bug report templates when available
-- Include system information and reproduction steps
-- Add screenshots when applicable
-
-### 💡 Feature Requests
-
-- Check for existing requests to avoid duplicates
-- Clearly describe the feature and its use case
-- Explain why it would be valuable
-
-### 🔧 Code Contributions
-
-- **Bug fixes** - Fix reported issues
-- **New features** - Implement requested features
-- **Performance improvements** - Optimize existing code
-- **Code refactoring** - Improve code quality
-
-### 🌐 Translations
-
-Help translate Omnify via [Weblate](https://hosted.weblate.org/engage/droidify/)
-
-### 📖 Documentation
-
-Improve README, guides, and code comments
-
-## 🚀 Getting Started
-
-1. **Fork and clone** the repository
-2. **Set up environment** following [Building from Source](docs/building.md)
-3. **Create a branch** for your contribution
-4. **Make changes** following our guidelines
-5. **Test thoroughly** on different Android versions
-6. **Create a pull request**
-
-## 📋 Development Guidelines
-
-### Code Style
-
-- Follow [Kotlin Coding Conventions](https://kotlinlang.org/docs/coding-conventions.html)
-- Use meaningful variable and function names
-- Prefer `val` over `var` when possible
-- Use Android Studio's default formatting (Ctrl+Alt+L)
-- 4 spaces for indentation, 120 character line limit
-- Organize imports and remove unused ones
-
-### Architecture
-
-- Follow Clean Architecture principles
-- **Domain layer**: Business logic and models
-- **Data layer**: Repository implementations and data sources
-- **Presentation layer**: UI components and ViewModels
-- Use Hilt for dependency injection
-- Write meaningful tests for business logic
-
-### Git Workflow
-
-Use [Conventional Commits](https://www.conventionalcommits.org/) format:
-
-```
-<type>: <description>
-```
-
-**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `chore`
-
-**Branch naming**:
-
-- `feature/description`
-- `fix/description`
-- `docs/description`
-
-## 📝 Pull Request Guidelines
-
-### Before Submitting
-
-- [ ] Run tests and ensure they pass
-- [ ] Update documentation if needed
-- [ ] Test on actual devices when possible
-- [ ] Rebase on latest main branch
-
-### Pull Request Content
-
-- Clear title summarizing the change
-- Description of what was changed and why
-- Issue reference (e.g., "Fixes #123")
-- Testing notes and screenshots for UI changes
-
-## 🏷️ Issue Labels
-
-| Type               | Description                |
-|--------------------|----------------------------|
-| `bug`              | Something isn't working    |
-| `enhancement`      | New feature or improvement |
-| `documentation`    | Documentation related      |
-| `help wanted`      | Community help needed      |
-| `good first issue` | Good for newcomers         |
-
-| Priority   | Description         |
-|------------|---------------------|
-| `critical` | Urgent fixes needed |
-| `high`     | Important issues    |
-| `medium`   | Standard priority   |
-| `low`      | Nice to have        |
-
-## 🎯 Project Priorities
-
-### Current Focus Areas
-
-1. **Index V2 implementation** - Modern repository format support
-2. **Performance improvements** - Faster sync and better UX
-3. **Test coverage** - More comprehensive testing
-4. **Code quality** - Refactoring and modernization
-
-### Areas Needing Help
-
-- **Translation updates** - Keep all languages current
-- **Documentation improvements** - Better guides and examples
-- **Bug triage** - Help categorize and prioritize issues
-- **Testing on different devices** - Ensure broad compatibility
-
-## 🔐 Security
-
-**Do not** report security vulnerabilities through public GitHub issues. Instead, report them
-privately via [GitHub Security Advisories](https://github.com/Victor-root/Omnify/security/advisories/new) on this repository.
-
-## 📞 Getting Help
-
-- **GitHub Issues** - Bug reports and feature requests
-- **GitHub Discussions** - General questions
-- **Weblate** - Translation questions
-
-Search existing issues and documentation before asking for help.
-
-## 📚 Resources
-
-- [Android Developer Documentation](https://developer.android.com/docs)
-- [Kotlin Documentation](https://kotlinlang.org/docs/home.html)
-- [F-Droid Documentation](https://f-droid.org/docs/)
-- [Hilt Documentation](https://dagger.dev/hilt/)
-
-## 📜 Code of Conduct
-
-This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected
-to uphold this code.
+Thanks for your interest in contributing to **Omnify**! 🚀
 
 ---
 
-**Thank you for contributing to Omnify!** 🚀
+## 🐛 Before opening an issue
+
+Please check whether your problem is already reported. When reporting a bug, include as many details as possible: the more precise your report, the easier it is to reproduce and fix. 🙏
+
+General details:
+* 📱 Device model, Android version, ROM/manufacturer skin, and whether it's a phone/tablet or Android TV
+* 📦 What's involved: an F-Droid-style repository, or an *external source* (GitHub/GitLab/Codeberg/self-hosted)
+* ⚙️ Installer in use (Settings → Install method): Session, Root, Shizuku, or Legacy
+* 🔁 Exact steps to reproduce, what you expected vs. what actually happened
+* 🖼️ Screenshots/recordings, and Logcat logs if the issue still happens
+
+If it's a sync or repository issue, also mention:
+* 🌐 The repo address (or external source URL) involved, and whether it's official or self-hosted
+* 🔄 Does it happen on a fresh add, or only on re-sync? Any error shown, or a silent failure?
+
+If it's an install/update issue, also mention:
+* 🔐 Signature-conflict prompt involved (a different-signer install)?
+* 📥 Which installer backend (see above), and whether switching installer changes anything
+
+If it's an Android TV issue, also mention:
+* 📺 TV/box model and Android TV/Google TV version
+* 🎮 Does remote/D-pad navigation work as expected, and does the app show in the launcher?
+
+Useful Logcat filters:
+
+```text
+InstallManager
+SessionInstaller
+ShizukuInstaller
+RepoRepository
+SyncWorker
+UpdateAllWorker
+InstallAllWorker
+AppDetailViewModel
+ExternalAppsViewModel
+RemoteApkManifestReader
+RemoteApkLocaleReader
+RemoteApkIconReader
+ApkSigningBlockReader
+```
+
+---
+
+## 🔧 Pull requests
+
+Pull requests are welcome! 🎉 Please keep each one focused on a single, clear change: one bug fix, one feature, one cleanup.
+
+Good pull requests:
+* 🎯 fix one clear problem, and avoid unrelated refactors
+* 📱 keep phone/tablet behavior working · 📺 keep Android TV behavior working
+* 📦 don't break the F-Droid-repo path while fixing an external-source one (or vice versa)
+* 🧪 include tests when practical, and explain what was tested manually
+
+Please avoid mixing unrelated changes into the same pull request. Opening several PRs, though, is very welcome if that's what it takes to keep each one focused: working on three unrelated fixes? Three small PRs are much easier (and faster) to review than one big one, and there's no limit on how many you can open at once.
+
+Examples:
+* ✅ good: a sync bug fix
+* ✅ good: an Android TV layout fix
+* ✅ good: a translation fix
+* ✅ also good: the three above, as three separate PRs from the same person
+* ⚠️ not ideal: a sync fix + a UI redesign + a dependency bump, all in one PR
+
+---
+
+## 🤖 Contributing with AI assistance
+
+Using AI tools (Claude, ChatGPT, Copilot, etc.) to contribute is **totally welcome**: it's not a problem, it's not frowned upon, it's actually encouraged.
+
+That doesn't mean "one prompt, one PR" though: no vibe coding, where you fire off a prompt and open a PR with whatever comes out without understanding or checking it. Stay in the driver's seat: understand the problem, guide the AI, review and iterate on what it produces. It isn't perfect, and code that looks right may not be, so everything needs to be tested in detail before submitting: "it compiles" is not a test.
+
+When you prompt a fix, explicitly ask for a **surgical**, targeted change to the exact problem: no unsolicited refactors or cleanup. A small, clean diff is easier to get with a good prompt, and easier to review.
+
+No issue letting the AI write the PR title and description, as long as it stays **readable by a human**: what problem it solves, what the fix does, without code-level detail (that's for me to see in review). Also mention whether the PR was AI-assisted, for transparency, and if you can, briefly describe your AI workflow (tool used, how you verified it): optional, but it helps calibrate the review.
+
+**🧪 Testing is by far the most important part of a PR, even more so with AI.** Sync and install behavior on Android is finicky (network conditions, repo quirks, OEM skins): a real bug can take a while to show up, so a quick smoke test proves little.
+
+For any sync- or install-related change, actually exercise the path you touched (add/remove a repo, add/remove an external source, install/update/uninstall a real app) rather than trusting that the code "looks right". In the Testing section, include:
+* 📱 Device, Android version, phone/tablet or TV
+* 📦 Repo(s) or source(s) used to test, and what you actually did (not just "it works")
+
+---
+
+## 🙏 Thanks
+
+Every useful bug report, test result, translation, fix or review helps.
+
+Even small contributions matter. 🚀
