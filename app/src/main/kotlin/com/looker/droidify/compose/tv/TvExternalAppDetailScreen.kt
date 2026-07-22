@@ -226,16 +226,21 @@ fun TvExternalAppDetailScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
-                    (app.latestTag ?: app.installedVersionName)?.takeIf { it.isNotBlank() }?.let { TvChip(it) }
+                    // Same version as the version list below: pulled from the latest APK's file name
+                    // (releaseVersionLabel), falling back to the tag — NOT the raw GitHub tag, which can
+                    // differ from the APK's real version. Mirrors the phone screen's hero version.
+                    releaseVersionLabel(app.latestApkName, app.latestTag).takeIf { it.isNotBlank() }
+                        ?.let { TvChip(it) }
                     TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
                     if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
                 }
             }
         }
 
-        Column(
-            verticalArrangement = spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+        // Action buttons with the favourite at the right end.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
             ExternalLifecycleActions(
@@ -247,7 +252,7 @@ fun TvExternalAppDetailScreen(
                 onLaunch = { viewModel.launch(app) },
                 onUninstall = { viewModel.uninstall(app) },
                 onCancel = { viewModel.cancel(app) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.weight(1f),
                 installedVersionName = installedVersion,
                 primaryActionFocusRequester = primaryFocus,
             )
