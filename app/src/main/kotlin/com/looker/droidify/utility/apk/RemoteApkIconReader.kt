@@ -177,7 +177,7 @@ object RemoteApkIconReader {
                     if (pool != null && u32(arsc, pos.toInt() + 8).toInt() == targetPackageId) {
                         val found = resolveInPackage(arsc, pos, pos + chunkSize, targetTypeId, targetEntryId, pool)
                         for (candidate in found) {
-                            if (best == null || candidate.first > best!!.first) best = candidate
+                            if (best == null || candidate.first > best.first) best = candidate
                         }
                     }
                 }

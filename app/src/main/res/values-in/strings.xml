@@ -198,15 +198,7 @@
     <string name="shizuku_not_installed">Shizuku/Sui tidak terpasang</string>
     <string name="proxy_port_error_not_int">Port proksi hanya dapat berupa bilangan bulat</string>
     <string name="repository_not_found">Repositori tidak ditemukan</string>
-    <string name="import_settings_title">Impor favorit dan pengaturan</string>
     <string name="import_export">Pencadangan dan pemulihan</string>
-    <string name="import_settings_DESC">Impor pengaturan dan favorit dari berkas</string>
-    <string name="export_settings_title">Ekspor favorit dan pengaturan</string>
-    <string name="export_repos_DESC">Ekspor semua repositori ke berkas</string>
-    <string name="import_repos_title">Impor repositori</string>
-    <string name="export_settings_DESC">Ekspor pengaturan dan favorit ke berkas</string>
-    <string name="export_repos_title">Ekspor repositori</string>
-    <string name="import_repos_DESC">Impor semua repositori dari berkas</string>
     <string name="cannot_open_link">Tidak bisa membuka tautan</string>
     <string name="has_tethered_network">Tergantung pada instansi layanan jaringan tertentu</string>
     <string name="require_background_access">Nonaktifkan optimasi baterai</string>
@@ -269,7 +261,4 @@
     <string name="custom_button_templates">Templat</string>
     <string name="custom_button_icon">Ikon</string>
     <string name="custom_button_delete_confirmation">Hapus tombol \"%1$s\"?</string>
-    <string name="custom_buttons_export">Ekspor tombol</string>
-    <string name="custom_buttons_import">Impor tombol</string>
-    <string name="custom_buttons_imported">Tombol kustom diimpor</string>
 </resources>

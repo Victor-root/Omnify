@@ -966,6 +966,12 @@ private fun Modifier.collapsingHeader(scrollBehavior: TopAppBarScrollBehavior): 
         }
     }
 
+// Material3's suggested replacements (PrimaryTabRow/SecondaryTabRow) don't just rename this: their
+// `indicator` lambda is scoped to a different receiver (TabIndicatorScope, not this custom indicator's
+// List<TabPosition>) and their default colours belong to a distinct visual variant — swapping would
+// risk a real look change, not a mechanical one, for no functional benefit here (every colour/indicator
+// this row cares about is already explicitly set below).
+@Suppress("DEPRECATION")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppTabRow(

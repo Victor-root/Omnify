@@ -50,14 +50,6 @@
     <string name="downloading_FORMAT">%s பதிவிறக்குதல்…</string>
     <string name="edit_repository">களஞ்சியத்தைத் திருத்தவும்</string>
     <string name="import_export">இறக்குமதி/ஏற்றுமதி</string>
-    <string name="import_settings_title">அமைப்புகளை இறக்குமதி செய்யுங்கள்</string>
-    <string name="import_settings_DESC">அமைப்புகள் மற்றும் பிடித்தவைகளை கோப்பிலிருந்து இறக்குமதி செய்யுங்கள்</string>
-    <string name="export_settings_title">ஏற்றுமதி அமைப்புகள்</string>
-    <string name="export_settings_DESC">தாக்கல் செய்ய அமைப்புகள் மற்றும் பிடித்தவைகளை ஏற்றுமதி செய்யுங்கள்</string>
-    <string name="import_repos_title">களஞ்சியங்களை இறக்குமதி செய்யுங்கள்</string>
-    <string name="import_repos_DESC">கோப்பிலிருந்து அனைத்து களஞ்சியங்களையும் இறக்குமதி செய்யுங்கள்</string>
-    <string name="export_repos_title">களஞ்சிய களஞ்சியங்களை ஏற்றுமதி செய்யுங்கள்</string>
-    <string name="export_repos_DESC">தாக்கல் செய்ய அனைத்து களஞ்சியங்களையும் ஏற்றுமதி செய்யுங்கள்</string>
     <string name="enable_repo">களஞ்சியத்தை இயக்கவும்</string>
     <string name="favourites">பிடித்தவை</string>
     <string name="file_format_error_DESC">தவறான கோப்பு வடிவம்.</string>

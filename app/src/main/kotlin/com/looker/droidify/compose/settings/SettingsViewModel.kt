@@ -392,6 +392,10 @@ class SettingsViewModel @Inject constructor(
     }
 }
 
+// Locale.of(...) (the suggested replacement) needs Java 19 and isn't backported by this project's core
+// library desugaring — calling it would crash below that on this app's minSdk 23 devices, so the
+// deprecated constructors stay.
+@Suppress("DEPRECATION")
 private fun String.toLocale(): Locale = when {
     contains("-r") -> Locale(substring(0, 2), substring(4))
     contains("_") -> Locale(substring(0, 2), substring(3))

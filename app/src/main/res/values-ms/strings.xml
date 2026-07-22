@@ -33,11 +33,6 @@
     <string name="downloading_FORMAT">Sedang memuat turun %s…</string>
     <string name="edit_repository">Ubah repositori</string>
     <string name="import_export">Import/Eksport</string>
-    <string name="export_settings_title">Eksport Aturan</string>
-    <string name="import_repos_title">Import Repositori</string>
-    <string name="import_repos_DESC">Import kesemua repositori dari fail</string>
-    <string name="export_repos_title">Eksport Repositori</string>
-    <string name="export_repos_DESC">Eksport repositori kepada fail</string>
     <string name="enable_repo">Bolehkan repositori</string>
     <string name="favourites">Kesukaan</string>
     <string name="file_format_error_DESC">Format fail salah.</string>
@@ -125,9 +120,6 @@
     <string name="donate">Donasi</string>
     <string name="downloaded_FORMAT">Muat turun %s</string>
     <string name="downloading">Memuat turun</string>
-    <string name="import_settings_title">Import aturan</string>
-    <string name="import_settings_DESC">Import aturan dan kesukaan dari fail</string>
-    <string name="export_settings_DESC">Eksport aturan dan kesukaan kepada fail</string>
     <string name="has_advertising">Ada pengiklanan</string>
     <string name="has_non_free_dependencies">Mempunyai kebergantungan bukan bebas</string>
     <string name="has_non_free_components">Mempunyai komponen tidak bebas</string>

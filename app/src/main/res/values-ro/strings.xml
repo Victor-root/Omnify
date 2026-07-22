@@ -194,7 +194,6 @@
     <string name="auto_update_apps">Instalează actualizările automat</string>
     <string name="installing">Se instalează</string>
     <string name="ignore_signature">Ignoră verificarea semnăturii</string>
-    <string name="export_settings_title">Exportă favoritele și setările</string>
     <string name="insufficient_storage_DESC">Nu există suficient spațiu suficient pentru a instala această aplicație</string>
     <string name="insufficient_storage">Spațiu insuficient</string>
     <string name="installation_failed_DESC">Nu s-a putut instala %s</string>
@@ -202,13 +201,6 @@
     <string name="error_shizuku_not_running_DESC">Serviciul Shizuku/Sui nu rulează</string>
     <string name="error_shizuku_not_granted_DESC">Permisiunea serviciului Shizuku/Sui nu a fost acordată</string>
     <string name="cannot_open_link">Nu se poate deschide link-ul</string>
-    <string name="import_settings_title">Importă favoritele și setările</string>
-    <string name="import_settings_DESC">Importă setările și favoritele dintr-un fișier</string>
-    <string name="export_settings_DESC">Exportă setările și favoritele într-un fișier</string>
-    <string name="import_repos_title">Importă depozitele</string>
-    <string name="import_repos_DESC">Importă depozitele dintr-un fișier</string>
-    <string name="export_repos_title">Exportă depozitele</string>
-    <string name="export_repos_DESC">Exportă toate depozitele într-un fișier</string>
     <string name="has_non_free_components">Conține componente non-libre</string>
     <string name="home_screen_swiping_DESC">Glisează la dreapta sau la stânga pentru a schimba pagina</string>
     <string name="shizuku_not_alive">Shizuku/Sui nu rulează</string>

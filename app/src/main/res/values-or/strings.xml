@@ -201,15 +201,7 @@
     <string name="shizuku_not_installed">Shizuku ସ୍ଥାପିତ ହୋଇନାହିଁ</string>
     <string name="proxy_port_error_not_int">ପ୍ରକ୍ସି ପୋର୍ଟ କେବଳ ଗୋଟିଏ ପୂର୍ଣ୍ଣସଂଖ୍ୟା ହୋଇପାରେ</string>
     <string name="repository_not_found">ନିମ୍ନଲିଖିତ ସଂଗ୍ରହାଳୟ ମିଳିଲା ନାହିଁ</string>
-    <string name="import_settings_title">ସେଟିଂସମୂହ ଇମ୍ପୋର୍ଟ୍ କରନ୍ତୁ</string>
     <string name="import_export">ଇମ୍ପୋର୍ଟ/ଏକ୍ସପୋର୍ଟ</string>
-    <string name="import_settings_DESC">ଫାଇଲରୁ ସେଟିଂସମୂହ ଏବଂ ପସନ୍ଦଗୁଡିକ ଇମ୍ପୋର୍ଟ କରନ୍ତୁ</string>
-    <string name="export_settings_title">ସେଟିଂସମୂହ ଏକ୍ସପୋର୍ଟ କରନ୍ତୁ</string>
-    <string name="export_repos_DESC">ସମସ୍ତ ସଂଗ୍ରହାଳୟ ଫାଇଲ୍ କରିବାକୁ ଏକ୍ସପୋର୍ଟ କରନ୍ତୁ</string>
-    <string name="import_repos_title">ସଂଗ୍ରହାଳୟ ଇମ୍ପୋର୍ଟ କରନ୍ତୁ</string>
-    <string name="export_settings_DESC">ଫାଇଲ୍ ପାଇଁ ସେଟିଂସମୂହ ଏବଂ ପସନ୍ଦଗୁଡିକ ଏକ୍ସପୋର୍ଟ କରନ୍ତୁ</string>
-    <string name="export_repos_title">ସଂଗ୍ରହାଳୟ ଏକ୍ସପୋର୍ଟ କରନ୍ତୁ</string>
-    <string name="import_repos_DESC">ଫାଇଲରୁ ସମସ୍ତ ସଂଗ୍ରହାଳୟ ଇମ୍ପୋର୍ଟ କରନ୍ତୁ</string>
     <string name="has_tethered_network">ଗୋଟିଏ ନିର୍ଦ୍ଦିଷ୍ଟ ନେଟୱର୍କ ସେବାରେ ବାନ୍ଧି ରଖନ୍ତୁ</string>
     <string name="cannot_open_link">ସଂଯୋଗକୁ ଖୋଲାଯାଇପାରିଲା ନାହିଁ</string>
     <string name="ignore_signature">ଦସ୍ତଖତକୁ ଅଗ୍ରାହ୍ୟ କରନ୍ତୁ</string>

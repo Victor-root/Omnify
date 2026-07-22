@@ -190,10 +190,6 @@
     <string name="auto_update_apps">نصب خودکار به‌روزرسانی‌ها</string>
     <string name="installing">در حال نصب</string>
     <string name="waiting_to_start_installation">در انتظار شروع نصب…</string>
-    <string name="export_repos_DESC">استخراج همه مخازن به یک پرونده</string>
-    <string name="import_settings_DESC">وارد کردن تنظیمات و موارد دلخواه از فایل</string>
-    <string name="import_repos_title">واردکردن مخازن</string>
-    <string name="import_repos_DESC">واردکردن مخازن از پرونده</string>
     <string name="repository_not_found">مخزن پیدا نشد</string>
     <string name="has_non_free_components">دارای اجزای غیرآزاد</string>
     <string name="shizuku_not_installed">شیزوکو یا Sui نصب نشده</string>
@@ -202,11 +198,7 @@
     <string name="proxy_port_error_not_int">پورت پراکسی فقط میتواند عدد صحیح باشد</string>
     <string name="has_tethered_network">وابسته به برخی از خدمات شبکه</string>
     <string name="cannot_open_link">نمی‌توان پیوند را باز کرد</string>
-    <string name="export_settings_title">استخراج موارد دلخواه و تنظیمات</string>
-    <string name="export_settings_DESC">استخراج تنظیمات و موارد دلخواه به یک پرونده</string>
-    <string name="export_repos_title">استخراج مخازن</string>
     <string name="import_export">پشتیبان‌گیری و بازگردانی</string>
-    <string name="import_settings_title">واردکردن موارد دلخواه و تنظیمات</string>
     <string name="home_screen_swiping_DESC">به چپ یا راست بکشید تا صفجه جابه‌جا شود</string>
     <string name="socket_error_DESC">سرور در فراهم کردن بسته اطلاعات جدید ناموفق بود</string>
     <string name="connection_error_DESC">اتصال به سرور ناموفق بود</string>

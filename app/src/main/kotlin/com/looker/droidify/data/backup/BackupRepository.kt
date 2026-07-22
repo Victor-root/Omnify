@@ -74,7 +74,7 @@ class BackupRepository @Inject constructor(
     private val repoRepository: RepoRepository,
     private val externalAppRepository: ExternalAppRepository,
     private val customButtonRepository: CustomButtonRepository,
-    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
     private val json = Json {
         ignoreUnknownKeys = true

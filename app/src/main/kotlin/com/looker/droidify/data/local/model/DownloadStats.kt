@@ -44,10 +44,13 @@ class DownloadStatsData(val stats: Map<String, Long>) {
         @OptIn(ExperimentalTime::class)
         fun String.toEpochMillis(): Long {
             val parts = split("-")
-            val year = parts[0].toInt() - 1900
+            val year = parts[0].toInt()
             val month = (parts.getOrNull(1)?.toInt()?.minus(1)) ?: 0
             val date = parts.getOrNull(2)?.toInt() ?: 1
-            return Date(year, month, date, 0, 0, 0).time
+            return Calendar.getInstance().apply {
+                clear()
+                set(year, month, date, 0, 0, 0)
+            }.timeInMillis
         }
     }
 }

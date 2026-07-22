@@ -102,7 +102,6 @@
     <string name="compiled_for_debugging">Kompilasi keur debugging</string>
     <string name="delete">Hapus</string>
     <string name="downloading">Ngadownload</string>
-    <string name="import_repos_DESC">Impor repositori tina file</string>
     <string name="favourites">Karesep</string>
     <string name="connecting">Nyambungkeun…</string>
     <string name="contains_non_free_media">Ayaan media nu teu gratis</string>
@@ -115,14 +114,7 @@
     <string name="edit_repository">Robah</string>
     <string name="downloading_FORMAT">Ngadownload %s…</string>
     <string name="import_export">Cadangan jeung balikeun</string>
-    <string name="import_settings_title">Impor pangaturan jeung karesep</string>
-    <string name="import_settings_DESC">Impor pangaturan jeung karesep tina file</string>
-    <string name="export_settings_title">Ekspor karesep jeung pangaturan</string>
-    <string name="export_settings_DESC">Ekspor pangaturan jeung karesep kana file</string>
-    <string name="export_repos_title">Ekspor repositori</string>
-    <string name="export_repos_DESC">Ekspor repositori kana file</string>
     <string name="force_clean_up">Paksa beresih</string>
-    <string name="import_repos_title">Impor repositori</string>
     <string name="file_format_error_DESC">Format teu valid</string>
     <string name="force_clean_up_DESC">Beresihkeun file teu kapaké</string>
     <string name="has_non_free_dependencies">Depéndensi ti apl bayar nu lain</string>

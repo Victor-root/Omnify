@@ -194,7 +194,6 @@
     <string name="connection_error_DESC">Kan geen verbinding maken met server</string>
     <string name="has_non_free_components">Bevat niet-vrije onderdelen</string>
     <string name="proxy_port_error_not_int">De proxy-poort kan alleen een getal zijn</string>
-    <string name="export_repos_DESC">Bronnen exporteren naar een bestand</string>
     <string name="require_background_access_DESC">Het uitschakelen van batterijoptimalisaties is vereist om de achtergrondsynchronisatie goed te laten werken</string>
     <string name="has_tethered_network">Is afhankelijk van een bepaald exemplaar van een netwerkdienst</string>
     <string name="shizuku_not_alive">Shizuku/Sui is niet actief</string>
@@ -204,13 +203,6 @@
     <string name="home_screen_swiping">Pagina vegen</string>
     <string name="cannot_open_link">Kan link niet openen</string>
     <string name="import_export">Back-up en herstel</string>
-    <string name="import_settings_title">Favorieten en instellingen importeren</string>
-    <string name="import_settings_DESC">Instellingen en favorieten importeren vanuit bestand</string>
-    <string name="export_settings_title">Favorieten en instellingen exporteren</string>
-    <string name="export_settings_DESC">Instellingen en favorieten exporteren naar bestand</string>
-    <string name="import_repos_title">Bronnen importeren</string>
-    <string name="import_repos_DESC">Bronnen importeren vanuit bestand</string>
-    <string name="export_repos_title">Bronnen exporteren</string>
     <string name="require_background_access">Batterijoptimalisaties uitschakelen</string>
     <string name="special_credits">Speciale dank</string>
     <string name="contains_nsfw">Bevat inhoud ongeschikt voor (NSFW-) werk</string>

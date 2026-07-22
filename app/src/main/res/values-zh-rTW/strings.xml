@@ -198,15 +198,7 @@
     <string name="home_screen_swiping_DESC">左右滑動來切換頁面</string>
     <string name="proxy_port_error_not_int">代理端口只能設定為整數</string>
     <string name="repository_not_found">未找到儲存庫</string>
-    <string name="import_settings_title">匯入我的最愛與設定</string>
     <string name="import_export">備份與還原</string>
-    <string name="import_settings_DESC">從檔案中匯入設定和我的最愛</string>
-    <string name="export_settings_title">匯出我的最愛與設定</string>
-    <string name="export_repos_DESC">將軟體庫匯出至檔案</string>
-    <string name="import_repos_title">匯入軟體庫</string>
-    <string name="export_settings_DESC">將設定和我的最愛匯出至檔案</string>
-    <string name="export_repos_title">匯出軟體庫</string>
-    <string name="import_repos_DESC">從檔案中匯入軟體庫</string>
     <string name="cannot_open_link">無法開啟連結</string>
     <string name="has_tethered_network">依賴特定網路服務實例</string>
     <string name="require_background_access_DESC">需要停用電池最佳化才能正確執行背景同步</string>
@@ -270,7 +262,4 @@
     <string name="custom_button_templates">模板</string>
     <string name="custom_button_icon">圖示</string>
     <string name="custom_button_delete_confirmation">刪除按鈕「%1$s」？</string>
-    <string name="custom_buttons_export">匯出按鈕</string>
-    <string name="custom_buttons_import">匯入按鈕</string>
-    <string name="custom_buttons_imported">自訂按鈕已匯入</string>
 </resources>

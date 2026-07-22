@@ -204,14 +204,6 @@
     <string name="has_tethered_network">Egy hálózati szolgáltatás egy bizonyos példányától függ</string>
     <string name="cannot_open_link">A hivatkozás nem nyitható meg</string>
     <string name="import_export">Biztonsági mentés és visszaállítás</string>
-    <string name="import_settings_title">Beállítások és kedvencek importálása</string>
-    <string name="import_settings_DESC">Beállítások és kedvencek importálása fájlból</string>
-    <string name="export_settings_title">Beállítások és kedvencek exportálása</string>
-    <string name="export_settings_DESC">Beállítások és kedvencek exportálása fájlba</string>
-    <string name="import_repos_title">Tárolók importálása</string>
-    <string name="import_repos_DESC">Tárolók importálása fájlból</string>
-    <string name="export_repos_title">Tárolók exportálása</string>
-    <string name="export_repos_DESC">Tárolók exportálása fájlba</string>
     <string name="require_background_access">Akkumulátor-optimalizálás letiltása</string>
     <string name="require_background_access_DESC">Az akkumulátor-optimalizálás kikapcsolása szükséges a háttér-szinkronizálás megfelelő működéséhez</string>
     <string name="ignore_signature_summary">Aláírás figyelmen kívül hagyása az alkalmazás telepítésekor</string>
@@ -272,8 +264,5 @@
     <string name="custom_button_templates">Sablonok</string>
     <string name="custom_button_icon">Ikon</string>
     <string name="custom_button_delete_confirmation">Törli a következő gombot: „%1$s”?</string>
-    <string name="custom_buttons_export">Gombok exportálása</string>
-    <string name="custom_buttons_import">Gombok importálása</string>
-    <string name="custom_buttons_imported">Egyéni gombok importálva</string>
     <string name="copied_to_clipboard">Másolva</string>
 </resources>

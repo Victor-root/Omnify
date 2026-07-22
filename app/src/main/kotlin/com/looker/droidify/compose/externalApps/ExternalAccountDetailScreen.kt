@@ -167,6 +167,10 @@ fun ExternalAccountDetailScreen(
 
 private enum class AccountDetailTab { INFO, APPS }
 
+// Material3's suggested PrimaryTabRow/SecondaryTabRow replacements default to different container/
+// indicator colours than this plain TabRow — since none are overridden here, swapping would risk a
+// real look change rather than a mechanical rename.
+@Suppress("DEPRECATION")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AccountDetailTabRow(

@@ -202,15 +202,7 @@
     <string name="special_credits">Специални благодарности</string>
     <string name="shizuku_not_installed">Shizuku не е инсталиран</string>
     <string name="import_export">Архивиране и възстановяване</string>
-    <string name="import_settings_title">Внасяне на предпочитания и настройки</string>
-    <string name="import_settings_DESC">Внасяне на настройки и любими от файл</string>
-    <string name="export_settings_title">Изнасяне на предпочитания и настройки</string>
-    <string name="export_repos_DESC">Изнасяне на хранилища във файл</string>
-    <string name="import_repos_title">Внасяне на хранилища</string>
-    <string name="export_settings_DESC">Изнасяне на настройки и любими в файл</string>
-    <string name="export_repos_title">Изнасяне на хранилища</string>
     <string name="cannot_open_link">Връзката не може да се отвори</string>
-    <string name="import_repos_DESC">Внасяне на хранилища от файл</string>
     <string name="has_tethered_network">Зависи от определена инстанция на мрежова услуга</string>
     <string name="require_background_access">Деактивиране на оптимизациите на батерията</string>
     <string name="require_background_access_DESC">Деактивирането на оптимизациите на батерията е необходимо, за да може фоновата синхронизация да работи правилно</string>
@@ -273,7 +265,4 @@
     <string name="custom_button_templates">Шаблони</string>
     <string name="custom_button_icon">Икона</string>
     <string name="custom_button_delete_confirmation">Да се изтрие ли бутонът „%1$s“?</string>
-    <string name="custom_buttons_export">Бутони за изнасяне</string>
-    <string name="custom_buttons_import">Бутони за внасяне</string>
-    <string name="custom_buttons_imported">Внасяне на персонализирани бутони</string>
 </resources>

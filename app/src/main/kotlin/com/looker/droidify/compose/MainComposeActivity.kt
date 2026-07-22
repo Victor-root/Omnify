@@ -317,6 +317,35 @@ class MainComposeActivity : ComponentActivity() {
         DynamicColors.applyToActivityIfAvailable(this, options)
     }
 
+    /**
+     * Belt-and-braces: [enableEdgeToEdge]'s own transparency can in principle lose to the theme's
+     * static android:navigationBarColor/statusBarColor (styles.xml) on some OEM skins that re-apply
+     * the themed window background after the activity's window is created. Setting both explicitly,
+     * after enableEdgeToEdge(), wins regardless of the theme's own static value or any OEM
+     * re-application order — confirmed via Logcat to already read back as transparent even before
+     * this call, so it isn't the cause of a real device's navigation bar staying opaque (that turned
+     * out not to be fixable from any of these window-level APIs — see the doc comment on
+     * DroidifyTheme's edge-to-edge Box in Theme.kt).
+     *
+     * The three properties used here have no replacement that covers every Android version this app
+     * supports (minSdk 23): WindowInsetsControllerCompat only manages icon appearance/visibility,
+     * never an explicit bar background colour, so setting the colour itself still has to go through
+     * these deprecated [Window] properties directly.
+     *
+     * Also stops the system tinting the bars: under edge-to-edge it enforces a translucent contrast
+     * scrim on 3-button navigation, which darkened our accent navigation-bar overlay so it no longer
+     * matched the header. We colour the bars ourselves, so opt out and keep the exact accent.
+     */
+    @Suppress("DEPRECATION")
+    private fun applyTransparentSystemBars() {
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        sdkAbove(Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
+    }
+
     /** Routes an incoming deeplink/intent to the matching Compose destination. */
     private fun handleDeeplink(intent: Intent, navController: NavController) {
         try {
@@ -389,15 +418,7 @@ class MainComposeActivity : ComponentActivity() {
         // this call, so it isn't the cause of a real device's navigation bar staying opaque (that
         // turned out not to be fixable from any of these window-level APIs — see the doc comment on
         // DroidifyTheme's edge-to-edge Box in Theme.kt).
-        window.navigationBarColor = android.graphics.Color.TRANSPARENT
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-        // Stop the system tinting the bars: under edge-to-edge it enforces a translucent contrast scrim
-        // on 3-button navigation, which darkened our accent navigation-bar overlay so it no longer
-        // matched the header. We colour the bars ourselves, so opt out and keep the exact accent.
-        sdkAbove(Build.VERSION_CODES.Q) {
-            window.isNavigationBarContrastEnforced = false
-            window.isStatusBarContrastEnforced = false
-        }
+        applyTransparentSystemBars()
         // Off the main thread: this seeds repos and queries the catalog/installed state, and the
         // start-up frame is already busy — doing DB work here would jank the UI (and starve the
         // WorkManager scheduler that has to dispatch the sync).

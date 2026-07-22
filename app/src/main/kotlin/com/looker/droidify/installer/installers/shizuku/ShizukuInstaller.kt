@@ -132,6 +132,9 @@ class ShizukuInstaller(private val context: Context) : Installer {
 
     private data class ShellResult(val resultCode: Int, val out: String)
 
+    // Shizuku's own suggested replacement (a bound AIDL UserService) is a fundamentally different
+    // execution model, not a drop-in call — out of scope for a warning cleanup.
+    @Suppress("DEPRECATION")
     private fun exec(command: String, stdin: InputStream? = null): ShellResult {
         val process = rikka.shizuku.Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
         runningProcess = process

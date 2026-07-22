@@ -190,19 +190,13 @@
     <string name="waiting_to_start_installation">Agardando para iniciar a instalación…</string>
     <string name="auto_update">Actualizar automaticamente as aplicacións</string>
     <string name="auto_update_apps">Instalar actualizacións automaticamente</string>
-    <string name="import_settings_title">Importar favoritos e configuración</string>
     <string name="import_export">Copia de seguridade e restauración</string>
-    <string name="import_settings_DESC">Importar configuración e favoritos desde un ficheiro</string>
     <string name="cannot_open_link">Non se pode abrir a ligazón</string>
     <string name="error_shizuku_service_unavailable">Shizuku ou o servizo Sui non está en execución</string>
     <string name="error_shizuku_not_running_DESC">O servizo de Shizuku ou Sui non se está executando.</string>
     <string name="error_shizuku_not_granted_DESC">O permiso do servizo de Shizuku ou Sui non foi concedido</string>
     <string name="error_shizuku_not_installed_DESC">Shizuku ou Sui non parece estar instalado</string>
-    <string name="export_settings_title">Exportar configuración</string>
-    <string name="import_repos_title">Importar repositorios</string>
-    <string name="export_repos_title">Exportar repositorios</string>
     <string name="error_shizuku_not_granted">Permiso de Shizuku ou Sui non concedido</string>
-    <string name="export_settings_DESC">Exportar configuración e favoritos a un ficheiro</string>
     <string name="home_screen_swiping_DESC">Permite ao usuario escorregar entre páxinas na pantalla de inicio</string>
     <string name="socket_error_DESC">O servidor fallou ao proporcionar un novo paquete.</string>
     <string name="connection_error_DESC">Non se puido conectar ao servidor</string>
@@ -222,7 +216,6 @@
     <string name="always_choose">Elixir sempre</string>
     <string name="select_installer">Seleccionar instalador</string>
     <string name="has_tethered_network">Vinculado a un determinado servizo de rede</string>
-    <string name="export_repos_DESC">Exportar todos os repositorios a un ficheiro</string>
     <string name="insufficient_storage">Espazo insuficiente</string>
     <string name="special_credits">Créditos especiais</string>
     <string name="installation_failed_DESC">Fallo ao instalar %s</string>
@@ -236,6 +229,5 @@
     <string name="has_non_free_components">Ten compoñentes non libres</string>
     <string name="ignore_signature_summary">*Advertencia* Ignorar a verificación de sinatura cando se instala un APK, para usuarios de LSPosed ou usuarios avanzados</string>
     <string name="shizuku_not_installed">Shizuku non está instalado</string>
-    <string name="import_repos_DESC">Importar todos os repositorios desde un ficheiro</string>
     <string name="label_sdk_version">Obxectivo: Android %1$s | Mínimo: Android %2$s</string>
 </resources>

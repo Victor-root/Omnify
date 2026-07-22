@@ -196,14 +196,6 @@
     <string name="has_non_free_components">Ir nesaturošas sastāvdaļas</string>
     <string name="cannot_open_link">Saiti nevar atvērt</string>
     <string name="import_export">Dublēšana un atjaunošana</string>
-    <string name="import_settings_title">Ievietot iecienītākās lietotnes un iestatījumus</string>
-    <string name="import_settings_DESC">Ievietot iestatījumus un iecienītākās lietotnes no datnes</string>
-    <string name="export_settings_title">Izgūt iecienītākās lietotnes un iestatījumus</string>
-    <string name="export_settings_DESC">Izgūt iestatījumus un iecienītākās lietotnes datnē</string>
-    <string name="export_repos_DESC">Izgūt repozitorijus datnē</string>
-    <string name="import_repos_title">Ievietot repozitorijus</string>
-    <string name="import_repos_DESC">Ievietot repozitorijus no datnes</string>
-    <string name="export_repos_title">Izgūt repozitorijus</string>
     <string name="error_shizuku_service_unavailable">Shizuku/Sui pakalpojums nav palaists</string>
     <string name="error_shizuku_not_running_DESC">Shizuku pakalpojums nedarbojas. Lūdzu, pārbaudiet vai tas ir palaists Shizuku lietotnē</string>
     <string name="home_screen_swiping_DESC">Ļauj lietotājam mainīt sadaļas sākuma ekrānā pavelkot ar pirkstu pa kreisi vai labi</string>

@@ -201,15 +201,7 @@
     <string name="home_screen_swiping_DESC">उपयोगकर्ता को होम स्क्रीन में पृष्ठों के बीच स्वाइप करने की अनुमति दें</string>
     <string name="proxy_port_error_not_int">प्रॉक्सी पोर्ट केवल पूर्णांक हो सकता है</string>
     <string name="repository_not_found">निम्नलिखित रिपॉजिटरी नहीं मिली</string>
-    <string name="import_settings_title">आयात सेटिंग्स</string>
     <string name="import_export">आयात निर्यात</string>
-    <string name="import_settings_DESC">फ़ाइल से सेटिंग्स और पसंदीदा आयात करें</string>
-    <string name="export_settings_title">निर्यात सेटिंग्स</string>
-    <string name="export_repos_DESC">फ़ाइल में सभी रिपॉजिटरी निर्यात करें</string>
-    <string name="import_repos_title">रिपॉजिटरी आयात करें</string>
-    <string name="export_settings_DESC">सेटिंग्स और पसंदीदा फ़ाइल में निर्यात करें</string>
-    <string name="export_repos_title">रिपॉजिटरीआं निर्यात करें</string>
-    <string name="import_repos_DESC">फ़ाइल से सभी रिपॉजिटरी आयात करें</string>
     <string name="cannot_open_link">लिंक नहीं खुल सका</string>
     <string name="has_tethered_network">एक निश्चित नेटवर्क सेवा से जुड़ा हुआ</string>
     <string name="require_background_access">पृष्ठभूमि पहुंच की आवश्यकता है</string>
