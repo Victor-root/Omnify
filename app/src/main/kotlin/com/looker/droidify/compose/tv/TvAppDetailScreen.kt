@@ -9,13 +9,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -24,8 +25,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -194,7 +196,7 @@ fun TvAppDetailScreen(
             ) {
                 TvBackButton(onBackClick)
 
-                // Header: icon + name + author + meta chips
+                // Header: icon + name + author + meta chips.
                 Row(horizontalArrangement = spacedBy(24.dp)) {
                     AppMinimalIcon(
                         app = app.minimal(),
@@ -222,10 +224,10 @@ fun TvAppDetailScreen(
                     }
                 }
 
-                // The one big action button (holds startup focus) + favourite, centred together.
-                Column(
-                    verticalArrangement = spacedBy(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                // Action buttons (Install/Update/Launch + Uninstall) with the favourite at the right end.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = spacedBy(16.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     PrimaryActions(
@@ -240,11 +242,9 @@ fun TvAppDetailScreen(
                         onUninstall = viewModel::uninstall,
                         onCancel = viewModel::cancel,
                         primaryActionFocusRequester = primaryFocus,
+                        modifier = Modifier.weight(1f),
                     )
-                    TvFavouriteButton(
-                        isFavourite = isFavourite,
-                        onToggle = viewModel::toggleFavourite,
-                    )
+                    TvFavouriteButton(isFavourite = isFavourite, onToggle = viewModel::toggleFavourite)
                 }
 
                 if (screenshots.isNotEmpty()) {
@@ -328,11 +328,13 @@ internal fun TvChip(text: String) {
     )
 }
 
+/** The favourite toggle button (heart + label), sat at the right end of the action row next to
+ *  Uninstall. Accent heart when on, muted when off. Shared by both TV detail screens. */
 @Composable
 internal fun TvFavouriteButton(isFavourite: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
     OutlinedButton(
         onClick = onToggle,
-        modifier = modifier.height(52.dp).width(260.dp).tvBringIntoViewOnFocus(),
+        modifier = modifier.height(60.dp).tvBringIntoViewOnFocus(),
     ) {
         Icon(
             imageVector = Icons.Filled.Favorite,
@@ -450,7 +452,11 @@ internal fun TvReadmePreview(
         PREVIEW_FALLBACK_HEIGHT
     }
     val scroll = rememberScrollState()
-    Column(verticalArrangement = spacedBy(12.dp), modifier = modifier.fillMaxWidth()) {
+    Column(
+        verticalArrangement = spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.fillMaxWidth(),
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -485,9 +491,9 @@ private const val PREVIEW_MIN_PX = 160
  */
 @Composable
 internal fun TvOpenDescriptionButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    OutlinedButton(
+    Button(
         onClick = onClick,
-        modifier = modifier.height(52.dp).tvBringIntoViewOnFocus(),
+        modifier = modifier.height(52.dp).widthIn(min = 240.dp).tvBringIntoViewOnFocus(),
     ) {
         Text(stringResource(R.string.tv_view_description))
     }
