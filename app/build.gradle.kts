@@ -73,19 +73,15 @@ android {
                 "proguard.pro",
             )
         }
-        create("alpha") {
-            initWith(getByName("debug"))
-            applicationIdSuffix = ".alpha"
-            versionNameSuffix = ".a"
-            isMinifyEnabled = true
-            // Non-debuggable on purpose: ART skips profile-guided AOT for debuggable builds, so the
-            // baseline profile (and representative performance) only kicks in when this is false.
-            // It still inherits the debug signing config, so it installs directly from the IDE.
-            isDebuggable = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard.pro",
-            )
+        // A throwaway build for a specific bug report: identical to release (same optimizations, same
+        // signing when a local keystore is present) so it actually reproduces what a real user would
+        // see, but installs alongside the real app (own applicationId) and is unmistakably labelled as
+        // a test build everywhere its name is shown (see src/canary/res/values/strings.xml) — meant to
+        // be handed to one reporter to confirm a fix, then discarded, never publicly distributed.
+        create("canary") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".canary"
+            versionNameSuffix = ".canary"
         }
         debug {
             applicationIdSuffix = ".debug"

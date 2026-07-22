@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="application_name" translatable="false">Omnify α</string>
+    <string name="application_name" translatable="false">Omnify (Test)</string>
     <string name="cleartext_allowed" translatable="false">false</string>
 </resources>

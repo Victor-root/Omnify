@@ -1,10 +1,10 @@
-name: Build Alpha APK
+name: Build Canary APK
 
 on:
   workflow_dispatch:
 
 concurrency:
-  group: "alpha-build"
+  group: "canary-build"
   cancel-in-progress: true
 
 jobs:
@@ -18,14 +18,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build Alpha APK
-        run: ./gradlew assembleAlpha
+      - name: Build Canary APK
+        run: ./gradlew assembleCanary
 
       - uses: r0adkll/sign-android-release@v1
         name: Signing APK
         id: sign_app
         with:
-          releaseDirectory: app/build/outputs/apk/alpha
+          releaseDirectory: app/build/outputs/apk/canary
           signingKeyBase64: ${{ secrets.KEY_BASE64 }}
           alias: ${{ secrets.KEY_ALIAS }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASS }}
@@ -35,5 +35,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: alpha
+          name: canary
           path: ${{steps.sign_app.outputs.signedReleaseFile}}
