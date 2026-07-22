@@ -2,25 +2,30 @@ package com.looker.droidify.compose.tv
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.looker.droidify.compose.components.InstallVersionDialog
+import com.looker.droidify.compose.externalApps.ReleaseVersionItem
+import com.looker.droidify.external.apkDownloadUrl
+import com.looker.droidify.external.apkFileName
+import com.looker.droidify.external.apkFileSize
+import com.looker.droidify.external.apkUpdatedAt
+import com.looker.droidify.external.compareVersionStrings
+import com.looker.droidify.external.releaseVersionLabel
+import com.looker.droidify.utility.apk.ApkBinaryManifest
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -44,11 +48,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
-import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.ExternalLifecycleActions
 import com.looker.droidify.compose.externalApps.WebViewDialog
+import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
 import kotlinx.coroutines.delay
 
@@ -74,6 +78,7 @@ fun TvExternalAppDetailScreen(
     val readme by viewModel.readme.collectAsStateWithLifecycle()
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
+    val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
 
     BackHandler { onBackClick() }
@@ -116,6 +121,22 @@ fun TvExternalAppDetailScreen(
             javaScriptEnabled = readmeJavaScriptEnabled,
             webUrl = app.webUrl,
             onDismiss = { showDescription = false },
+        )
+    }
+
+    // Tapping a version asks to confirm, then installs that exact release — the same engine
+    // (viewModel.installVersion) and confirmation dialog the phone screen uses.
+    var versionToInstall by remember(app.key) { mutableStateOf<Release?>(null) }
+    versionToInstall?.let { release ->
+        InstallVersionDialog(
+            versionName = release.tag,
+            isDowngrade = false,
+            onInstall = {
+                viewModel.installVersion(app, release)
+                versionToInstall = null
+            },
+            onUninstall = {},
+            onDismiss = { versionToInstall = null },
         )
     }
 
@@ -212,7 +233,11 @@ fun TvExternalAppDetailScreen(
             }
         }
 
-        Column(verticalArrangement = spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(
+            verticalArrangement = spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             ExternalLifecycleActions(
                 app = app,
                 downloadStatus = downloads[appKey],
@@ -245,50 +270,54 @@ fun TvExternalAppDetailScreen(
 
         releaseHistory?.takeIf { it.isNotEmpty() }?.let { releases ->
             TvSectionTitle(stringResource(R.string.versions))
-            TvExternalVersionsList(releases = releases, installedTag = app.installedTag)
+            TvExternalVersionsList(
+                app = app,
+                releases = releases,
+                installedVersion = installedVersion,
+                sdkInfoByApkUrl = sdkInfoByApkUrl,
+                onRequestSdkInfo = viewModel::loadSdkInfo,
+                onVersionClick = { versionToInstall = it },
+            )
         }
     }
 }
 
+/**
+ * The external app's version list — the exact same engine as the phone screen (version label pulled
+ * from the APK's own file name via [releaseVersionLabel], not the raw tag; installed match via
+ * [compareVersionStrings] against the real on-device version; per-APK min/target SDK fetched lazily) and
+ * the exact same [ReleaseVersionItem] rows, so a version reads identically to the phone build. Only the
+ * surrounding TV layout differs.
+ */
 @Composable
-private fun TvExternalVersionsList(releases: List<Release>, installedTag: String?) {
-    Column(verticalArrangement = spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        // Newest first, capped — the whole release history would make an endless page on a remote.
-        releases.take(8).forEach { release ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .tvFocusFill(RoundedCornerShape(16.dp))
-                    .tvBringIntoViewOnFocus()
-                    // A read-only informational row, but still a D-pad focus stop so the remote can
-                    // step through (and scroll) the list.
-                    .focusable()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-            ) {
-                Text(
-                    text = release.tag,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                )
-                if (release.isPrerelease) {
-                    Text(
-                        text = stringResource(R.string.external_prerelease_label),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.width(12.dp))
-                }
-                if (installedTag != null && release.tag == installedTag) {
-                    Text(
-                        text = stringResource(R.string.installed),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
+private fun TvExternalVersionsList(
+    app: ExternalApp,
+    releases: List<Release>,
+    installedVersion: String?,
+    sdkInfoByApkUrl: Map<String, ApkBinaryManifest.UsesSdk?>,
+    onRequestSdkInfo: (String) -> Unit,
+    onVersionClick: (Release) -> Unit,
+) {
+    Column(verticalArrangement = spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+        releases.forEach { release ->
+            val apkName = release.apkFileName(filter = app.apkFilter)
+            val isInstalled = installedVersion != null &&
+                compareVersionStrings(releaseVersionLabel(apkName, release.tag), installedVersion) == 0
+            val apkUrl = release.apkDownloadUrl(filter = app.apkFilter)
+            if (apkUrl != null) {
+                LaunchedEffect(apkUrl) { onRequestSdkInfo(apkUrl) }
             }
+            ReleaseVersionItem(
+                release = release,
+                apkName = apkName,
+                apkSize = release.apkFileSize(filter = app.apkFilter),
+                apkDate = release.apkUpdatedAt(filter = app.apkFilter),
+                sdkInfo = apkUrl?.let { sdkInfoByApkUrl[it] },
+                isSuggested = release.tag == app.latestTag,
+                isInstalled = isInstalled,
+                onClick = { onVersionClick(release) },
+                modifier = Modifier.tvBringIntoViewOnFocus(),
+            )
         }
     }
 }

@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +55,11 @@ import com.looker.droidify.compose.appDetail.AppDetailViewModel
 import com.looker.droidify.compose.appDetail.PrimaryActions
 import com.looker.droidify.compose.appDetail.ScreenshotsRow
 import com.looker.droidify.compose.appList.AppMinimalIcon
+import com.looker.droidify.compose.appDetail.components.PackageItem
+import com.looker.droidify.compose.components.InstallVersionDialog
+import com.looker.droidify.data.model.Package
+import com.looker.droidify.data.model.Repo
+import androidx.compose.foundation.layout.Arrangement
 import com.looker.droidify.compose.externalApps.ReadmeWebView
 import com.looker.droidify.compose.externalApps.WebViewDialog
 import com.looker.droidify.compose.components.TvOverscan
@@ -136,6 +140,41 @@ fun TvAppDetailScreen(
             // Screen height, so the README preview can fill from its top down to the bottom edge.
             var viewportPx by remember { mutableStateOf(0) }
 
+            // Tapping a version confirms, then installs that exact release — the same engine
+            // (viewModel.installVersion) and confirm/downgrade flow the phone screen uses.
+            var versionToInstall by remember(app.metadata.packageName.name) {
+                mutableStateOf<Pair<Package, Repo>?>(null)
+            }
+            // A downgrade the user confirmed: kept while the current app uninstalls, then installed once
+            // it's gone (Android blocks in-place downgrades) — mirrors the phone screen.
+            var pendingDowngradeInstall by remember(app.metadata.packageName.name) {
+                mutableStateOf<Pair<Package, Repo>?>(null)
+            }
+            LaunchedEffect(installedInfo, pendingDowngradeInstall) {
+                val pending = pendingDowngradeInstall ?: return@LaunchedEffect
+                if (installedInfo == null) {
+                    viewModel.installVersion(pending.first, pending.second)
+                    pendingDowngradeInstall = null
+                }
+            }
+            versionToInstall?.let { (pkg, repo) ->
+                InstallVersionDialog(
+                    versionName = pkg.manifest.versionName,
+                    isDowngrade = installedPackage != null &&
+                        pkg.manifest.versionCode < installedPackage.manifest.versionCode,
+                    onInstall = {
+                        viewModel.installVersion(pkg, repo)
+                        versionToInstall = null
+                    },
+                    onUninstall = {
+                        pendingDowngradeInstall = pkg to repo
+                        viewModel.uninstall()
+                        versionToInstall = null
+                    },
+                    onDismiss = { versionToInstall = null },
+                )
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -183,8 +222,12 @@ fun TvAppDetailScreen(
                     }
                 }
 
-                // The one big action button (holds startup focus) + favourite
-                Column(verticalArrangement = spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                // The one big action button (holds startup focus) + favourite, centred together.
+                Column(
+                    verticalArrangement = spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     PrimaryActions(
                         packageName = app.metadata.packageName.name,
                         isInstalled = isInstalled,
@@ -222,7 +265,11 @@ fun TvAppDetailScreen(
 
                 if (packages.isNotEmpty()) {
                     TvSectionTitle(stringResource(R.string.versions))
-                    TvVersionsList(packages)
+                    TvVersionsList(
+                        packages = packages,
+                        suggestedVersionCode = app.metadata.suggestedVersionCode,
+                        onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+                    )
                 }
             }
 
@@ -297,45 +344,73 @@ internal fun TvFavouriteButton(isFavourite: Boolean, onToggle: () -> Unit, modif
     }
 }
 
+/**
+ * The catalogue app's version list — the exact same engine as the phone screen (multi-ABI variants
+ * collapsed to one row per versionName via [selectForDevice]; the device-suggested build highlighted)
+ * and the exact same [PackageItem] rows, so a version reads identically to the phone build. Only the
+ * surrounding TV layout differs.
+ */
 @Composable
-private fun TvVersionsList(packages: List<Pair<com.looker.droidify.data.model.Package, com.looker.droidify.data.model.Repo>>) {
-    Column(verticalArrangement = spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        // Cap to the newest handful — the whole history would make this an endless page on a remote.
-        packages.take(8).forEach { (pkg, repo) ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .tvFocusFill(RoundedCornerShape(16.dp))
-                    .tvBringIntoViewOnFocus()
-                    // A read-only informational row, but still a D-pad focus stop so the remote can
-                    // step through (and scroll) the list.
-                    .focusable()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+private fun TvVersionsList(
+    packages: List<Pair<Package, Repo>>,
+    suggestedVersionCode: Long,
+    onVersionClick: (Package, Repo) -> Unit,
+) {
+    // Multi-ABI apps ship one APK per architecture under the same versionName; collapse to one row per
+    // versionName keeping the build this device can install, newest first — mirrors the phone screen.
+    val shownPackages = remember(packages) {
+        packages
+            .groupBy { it.first.manifest.versionName }
+            .values
+            .mapNotNull { variants -> variants.selectForDevice(Long.MAX_VALUE) }
+            .sortedByDescending { it.first.manifest.versionCode }
+    }
+    val suggestedVersion = remember(shownPackages, suggestedVersionCode) {
+        shownPackages.selectForDevice(suggestedVersionCode)?.first?.manifest?.versionCode
+    }
+    Column(verticalArrangement = spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+        shownPackages.forEach { (pkg, repo) ->
+            val isSuggested = suggestedVersion != null && pkg.manifest.versionCode == suggestedVersion
+            PackageItem(
+                item = pkg,
+                repo = repo,
+                onClick = { onVersionClick(pkg, repo) },
+                onLongClick = {},
+                modifier = Modifier.tvBringIntoViewOnFocus(),
+                highlighted = isSuggested,
             ) {
-                Text(
-                    text = "v${pkg.manifest.versionName}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                )
-                if (pkg.installed) {
-                    Text(
-                        text = stringResource(R.string.installed),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.width(12.dp))
+                // Both chips can apply at once (the installed version is also the suggested one).
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (isSuggested) {
+                        TvVersionChip(
+                            text = stringResource(R.string.suggested),
+                            container = MaterialTheme.colorScheme.tertiaryContainer,
+                            content = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                    }
+                    if (pkg.installed) {
+                        TvVersionChip(
+                            text = stringResource(R.string.installed),
+                            container = MaterialTheme.colorScheme.secondaryContainer,
+                            content = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
                 }
-                Text(
-                    text = repo.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }
+}
+
+@Composable
+private fun TvVersionChip(text: String, container: androidx.compose.ui.graphics.Color, content: androidx.compose.ui.graphics.Color) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        color = content,
+        modifier = Modifier
+            .background(container, shape = androidx.compose.foundation.shape.CircleShape)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+    )
 }
 
 @Composable
