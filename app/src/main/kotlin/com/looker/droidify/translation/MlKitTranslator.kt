@@ -1,13 +1,11 @@
 package com.looker.droidify.translation
 
-import android.content.Context
 import com.google.android.gms.tasks.Task
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.languageid.LanguageIdentification
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslatorOptions
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,9 +19,7 @@ import kotlin.coroutines.resumeWithException
  * device locale isn't a language ML Kit supports.
  */
 @Singleton
-class MlKitTranslator @Inject constructor(
-    @param:ApplicationContext private val context: Context,
-) {
+class MlKitTranslator @Inject constructor() {
     suspend fun translate(text: String, targetLanguage: String): String {
         val target = TranslateLanguage.fromLanguageTag(targetLanguage)
             ?: error("ML Kit does not support the language '$targetLanguage'")

@@ -77,7 +77,6 @@ class InstallManager(
     private val installer: Installer get() = _installer!!
 
     private val lock = Mutex()
-    private val skipSignature = settingsRepository.get { ignoreSignature }
     private val installerPreference = settingsRepository.get { installerType }
     private val deleteApkPreference = settingsRepository.get { deleteApkOnInstall }
     private val notificationManager by lazy { context.notificationManager }

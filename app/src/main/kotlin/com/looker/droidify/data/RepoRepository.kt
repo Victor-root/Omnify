@@ -19,7 +19,6 @@ import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.di.IoDispatcher
 import com.looker.droidify.network.Downloader
-import com.looker.droidify.sync.LocalSyncable
 import com.looker.droidify.sync.SyncState
 import com.looker.droidify.sync.v1.V1Syncable
 import com.looker.droidify.sync.v2.EntrySyncable
@@ -49,8 +48,6 @@ class RepoRepository @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val appDao: AppDao,
 ) {
-
-    private val localSyncable = LocalSyncable(context = context)
 
     private val v2Syncable = EntrySyncable(
         context = context,
