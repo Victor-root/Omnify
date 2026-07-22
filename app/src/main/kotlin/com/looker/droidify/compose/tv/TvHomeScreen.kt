@@ -564,7 +564,7 @@ private fun TvSearchField(query: TextFieldState) {
  * whole card is the single focus target so the remote lands once per app, not once per element.
  */
 @Composable
-private fun TvAppCard(
+internal fun TvAppCard(
     name: String,
     onClick: () -> Unit,
     icon: @Composable () -> Unit,

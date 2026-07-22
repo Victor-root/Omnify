@@ -8,6 +8,7 @@ import androidx.navigation.toRoute
 import com.looker.droidify.compose.externalApps.ExternalAccountDetailScreen
 import com.looker.droidify.compose.externalApps.ExternalAppDetailScreen
 import com.looker.droidify.compose.theme.LocalIsTelevision
+import com.looker.droidify.compose.tv.TvExternalAccountDetailScreen
 import com.looker.droidify.compose.tv.TvExternalAppDetailScreen
 import kotlinx.serialization.Serializable
 
@@ -54,11 +55,21 @@ fun NavGraphBuilder.externalAccountDetail(
 ) {
     composable<ExternalAccountDetail> { backStackEntry ->
         val route = backStackEntry.toRoute<ExternalAccountDetail>()
-        ExternalAccountDetailScreen(
-            accountKey = route.accountKey,
-            viewModel = hiltViewModel(),
-            onBackClick = onBackClick,
-            onAppClick = onAppClick,
-        )
+        // Android TV gets its own lean account screen; the phone screen is untouched.
+        if (LocalIsTelevision.current) {
+            TvExternalAccountDetailScreen(
+                accountKey = route.accountKey,
+                viewModel = hiltViewModel(),
+                onBackClick = onBackClick,
+                onAppClick = onAppClick,
+            )
+        } else {
+            ExternalAccountDetailScreen(
+                accountKey = route.accountKey,
+                viewModel = hiltViewModel(),
+                onBackClick = onBackClick,
+                onAppClick = onAppClick,
+            )
+        }
     }
 }
