@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,15 +37,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
-import androidx.core.text.HtmlCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.AppDetailState
@@ -52,6 +56,8 @@ import com.looker.droidify.compose.appDetail.AppDetailViewModel
 import com.looker.droidify.compose.appDetail.PrimaryActions
 import com.looker.droidify.compose.appDetail.ScreenshotsRow
 import com.looker.droidify.compose.appList.AppMinimalIcon
+import com.looker.droidify.compose.externalApps.ReadmeWebView
+import com.looker.droidify.compose.externalApps.WebViewDialog
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
@@ -123,21 +129,27 @@ fun TvAppDetailScreen(
             val screenshots = remember(app.screenshots) {
                 (app.screenshots?.tv?.takeIf { it.isNotEmpty() } ?: app.screenshots?.phone).orEmpty()
             }
-            val description = remember(app.metadata.description) {
-                HtmlCompat.fromHtml(app.metadata.description.raw, HtmlCompat.FROM_HTML_MODE_COMPACT)
-                    .toString().trim()
-            }
+            // The catalogue description is HTML; shown (rendered) in a full-screen reader on demand — see
+            // TvOpenDescriptionButton — so it looks the same as an external app's README.
+            val descriptionHtml = app.metadata.description.raw
+            var showDescription by remember(app.metadata.packageName.name) { mutableStateOf(false) }
+            // Screen height, so the README preview can fill from its top down to the bottom edge.
+            var viewportPx by remember { mutableStateOf(0) }
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
+                    .onSizeChanged { viewportPx = it.height }
                     // Any key press marks startup focus as settled, so it's never re-stolen (see above).
                     .onPreviewKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown) userInteracted = true
                         false
                     }
-                    .verticalScroll(rememberScrollState())
+                    // overscrollEffect = null: the description preview hosts a hardware-accelerated
+                    // WebView, and Android 12+'s stretch overscroll crashes RenderThread when it redraws
+                    // that WebView at the scroll boundary (same reason as the phone detail screen).
+                    .verticalScroll(rememberScrollState(), overscrollEffect = null)
                     .padding(horizontal = TvOverscan + 16.dp, vertical = TvOverscan),
                 verticalArrangement = spacedBy(24.dp),
             ) {
@@ -186,7 +198,10 @@ fun TvAppDetailScreen(
                         onCancel = viewModel::cancel,
                         primaryActionFocusRequester = primaryFocus,
                     )
-                    TvFavouriteButton(isFavourite = isFavourite, onToggle = viewModel::toggleFavourite)
+                    TvFavouriteButton(
+                        isFavourite = isFavourite,
+                        onToggle = viewModel::toggleFavourite,
+                    )
                 }
 
                 if (screenshots.isNotEmpty()) {
@@ -194,13 +209,14 @@ fun TvAppDetailScreen(
                     ScreenshotsRow(screenshots)
                 }
 
-                if (description.isNotBlank()) {
+                if (descriptionHtml.isNotBlank()) {
                     TvSectionTitle(stringResource(R.string.description))
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.tvBringIntoViewOnFocus(),
+                    TvReadmePreview(
+                        html = descriptionHtml,
+                        baseUrl = "",
+                        javaScriptEnabled = false,
+                        viewportPx = viewportPx,
+                        onOpenFull = { showDescription = true },
                     )
                 }
 
@@ -208,6 +224,19 @@ fun TvAppDetailScreen(
                     TvSectionTitle(stringResource(R.string.versions))
                     TvVersionsList(packages)
                 }
+            }
+
+            if (showDescription) {
+                WebViewDialog(
+                    title = stringResource(R.string.description),
+                    html = descriptionHtml,
+                    unavailable = false,
+                    unavailableMessage = "",
+                    baseUrl = "",
+                    javaScriptEnabled = false,
+                    webUrl = app.links?.webSite ?: app.links?.sourceCode ?: "",
+                    onDismiss = { showDescription = false },
+                )
             }
         }
     }
@@ -253,10 +282,10 @@ internal fun TvChip(text: String) {
 }
 
 @Composable
-internal fun TvFavouriteButton(isFavourite: Boolean, onToggle: () -> Unit) {
+internal fun TvFavouriteButton(isFavourite: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
     OutlinedButton(
         onClick = onToggle,
-        modifier = Modifier.height(52.dp).width(260.dp).tvBringIntoViewOnFocus(),
+        modifier = modifier.height(52.dp).width(260.dp).tvBringIntoViewOnFocus(),
     ) {
         Icon(
             imageVector = Icons.Filled.Favorite,
@@ -280,7 +309,9 @@ private fun TvVersionsList(packages: List<Pair<com.looker.droidify.data.model.Pa
                     .clip(RoundedCornerShape(16.dp))
                     .tvFocusFill(RoundedCornerShape(16.dp))
                     .tvBringIntoViewOnFocus()
-                    .clickable {}
+                    // A read-only informational row, but still a D-pad focus stop so the remote can
+                    // step through (and scroll) the list.
+                    .focusable()
                     .padding(horizontal = 16.dp, vertical = 14.dp),
             ) {
                 Text(
@@ -314,6 +345,77 @@ internal fun TvSectionTitle(text: String) {
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.Bold,
     )
+}
+
+/**
+ * A rendered preview of an app's description / README on a TV detail screen: the real content (in a
+ * [ReadmeWebView], so emojis/images/tables/links all show properly), clipped to run from where it starts
+ * down to the bottom of the screen ([viewportPx] minus its own top), followed by a "View description"
+ * control that opens the full reader. Shared by the catalogue and external screens so both read alike.
+ *
+ * The WebView is drawn at its real height and clipped by the box, switching to a hardware layer once it's
+ * taller than a screen (a software layer would render blank past ~one screenful) — same handling as the
+ * reader dialog and the phone build.
+ */
+@Composable
+internal fun TvReadmePreview(
+    html: String,
+    baseUrl: String,
+    javaScriptEnabled: Boolean,
+    viewportPx: Int,
+    onOpenFull: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    var topY by remember(html) { mutableStateOf(0) }
+    var contentHeightPx by remember(html) { mutableStateOf(0) }
+    val previewHeight = if (viewportPx > 0 && topY in 1 until viewportPx) {
+        with(density) { (viewportPx - topY).coerceAtLeast(PREVIEW_MIN_PX).toDp() }
+    } else {
+        PREVIEW_FALLBACK_HEIGHT
+    }
+    val scroll = rememberScrollState()
+    Column(verticalArrangement = spacedBy(12.dp), modifier = modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { topY = it.positionInParent().y.toInt() }
+                .height(previewHeight)
+                .clipToBounds(),
+        ) {
+            ReadmeWebView(
+                html = html,
+                baseUrl = baseUrl,
+                javaScriptEnabled = javaScriptEnabled,
+                onContentHeight = { contentHeightPx = it },
+                scrollState = scroll,
+                forceSoftwareLayer = viewportPx <= 0 || contentHeightPx <= viewportPx,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(if (contentHeightPx > 0) with(density) { contentHeightPx.toDp() } else 600.dp),
+            )
+        }
+        TvOpenDescriptionButton(onClick = onOpenFull)
+    }
+}
+
+private val PREVIEW_FALLBACK_HEIGHT = 260.dp
+private const val PREVIEW_MIN_PX = 160
+
+/**
+ * The "View description" control on a TV detail screen: opens the app's description / README in a
+ * centred reader ([WebViewDialog]) rendered exactly like the mobile build's, so emojis, images, tables
+ * and links all show properly and the couch UI stays sober. Shared by the catalogue and external detail
+ * screens so both kinds of app open their description the same way.
+ */
+@Composable
+internal fun TvOpenDescriptionButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.height(52.dp).tvBringIntoViewOnFocus(),
+    ) {
+        Text(stringResource(R.string.tv_view_description))
+    }
 }
 
 @Composable

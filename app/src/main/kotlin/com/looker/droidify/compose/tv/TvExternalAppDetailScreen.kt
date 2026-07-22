@@ -2,6 +2,7 @@ package com.looker.droidify.compose.tv
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,10 +34,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
-import androidx.core.text.HtmlCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,15 +48,17 @@ import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.ExternalLifecycleActions
+import com.looker.droidify.compose.externalApps.WebViewDialog
 import com.looker.droidify.external.Release
 import kotlinx.coroutines.delay
 
 /**
  * The Android TV detail screen for a tracked external (GitHub/GitLab/…) app — a lean presentation over
- * the same [ExternalAppsViewModel] the phone screen uses: icon + name + source + version, and the one
- * big Install / Update / Open / Uninstall control (reused verbatim as [ExternalLifecycleActions], so the
- * whole download/install lifecycle matches the phone build). The README, release history and language
- * details the phone screen shows are dropped for a couch-friendly page. Never composed off TV.
+ * the same [ExternalAppsViewModel] the phone screen uses: icon + name + source + version, the one big
+ * Install / Update / Open / Uninstall control (reused verbatim as [ExternalLifecycleActions], so the whole
+ * download/install lifecycle matches the phone build), a favourite toggle, the README (opened in a
+ * full-screen reader, see [TvOpenDescriptionButton]) and the release history — the same content a
+ * catalogue app shows, so the two kinds read alike. Never composed off TV.
  */
 @Composable
 fun TvExternalAppDetailScreen(
@@ -69,6 +72,7 @@ fun TvExternalAppDetailScreen(
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
     val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
     val readme by viewModel.readme.collectAsStateWithLifecycle()
+    val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
 
@@ -101,8 +105,18 @@ fun TvExternalAppDetailScreen(
         viewModel.loadReadme(app)
         viewModel.loadReleaseHistory(app)
     }
-    val description = remember(readme) {
-        readme?.let { HtmlCompat.fromHtml(it, HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim() }.orEmpty()
+    var showDescription by remember(app.key) { mutableStateOf(false) }
+    if (showDescription && readme != null) {
+        WebViewDialog(
+            title = stringResource(R.string.description),
+            html = readme,
+            unavailable = false,
+            unavailableMessage = "",
+            baseUrl = app.readmeWebBaseUrl,
+            javaScriptEnabled = readmeJavaScriptEnabled,
+            webUrl = app.webUrl,
+            onDismiss = { showDescription = false },
+        )
     }
 
     // Signature-conflict prompt (a different-signer install can't update in place), reused from the
@@ -145,6 +159,8 @@ fun TvExternalAppDetailScreen(
 
     val primaryFocus = remember { FocusRequester() }
     var userInteracted by remember { mutableStateOf(false) }
+    // Screen height, so the README preview can fill from its top down to the bottom edge.
+    var viewportPx by remember { mutableStateOf(0) }
     // Land focus on the action button when the screen opens; stop once the user takes over (same intent
     // as the catalogue TV detail screen).
     LaunchedEffect(app.key, installedVersion) {
@@ -159,11 +175,15 @@ fun TvExternalAppDetailScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .onSizeChanged { viewportPx = it.height }
             .onPreviewKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown) userInteracted = true
                 false
             }
-            .verticalScroll(rememberScrollState())
+            // overscrollEffect = null: the README preview hosts a hardware-accelerated WebView, and
+            // Android 12+'s stretch overscroll crashes RenderThread when redrawing it at the scroll
+            // boundary (same reason as the phone detail screen).
+            .verticalScroll(rememberScrollState(), overscrollEffect = null)
             .padding(horizontal = TvOverscan + 16.dp, vertical = TvOverscan),
         verticalArrangement = spacedBy(24.dp),
     ) {
@@ -212,13 +232,14 @@ fun TvExternalAppDetailScreen(
             )
         }
 
-        if (description.isNotBlank()) {
+        readme?.takeIf { it.isNotBlank() }?.let { readmeHtml ->
             TvSectionTitle(stringResource(R.string.description))
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.tvBringIntoViewOnFocus(),
+            TvReadmePreview(
+                html = readmeHtml,
+                baseUrl = app.readmeWebBaseUrl,
+                javaScriptEnabled = readmeJavaScriptEnabled,
+                viewportPx = viewportPx,
+                onOpenFull = { showDescription = true },
             )
         }
 
@@ -241,6 +262,9 @@ private fun TvExternalVersionsList(releases: List<Release>, installedTag: String
                     .clip(RoundedCornerShape(16.dp))
                     .tvFocusFill(RoundedCornerShape(16.dp))
                     .tvBringIntoViewOnFocus()
+                    // A read-only informational row, but still a D-pad focus stop so the remote can
+                    // step through (and scroll) the list.
+                    .focusable()
                     .padding(horizontal = 16.dp, vertical = 14.dp),
             ) {
                 Text(
