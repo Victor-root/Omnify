@@ -36,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
@@ -230,7 +229,6 @@ private fun AccountInfoTab(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        val uriHandler = LocalUriHandler.current
         val link = remember(account.webUrl) {
             buildAnnotatedString {
                 withLink(LinkAnnotation.Url(account.webUrl)) {
