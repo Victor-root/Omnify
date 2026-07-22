@@ -558,6 +558,13 @@ private fun PrimaryActions(
     updateAvailable: Boolean,
     installState: InstallState?,
     downloadStatus: DownloadStatus?,
+    // Whether the install Room/PackageManager confirm is actually the one just pushed. The OS reports
+    // InstallState.Installed the moment the install session succeeds, but [isInstalled]/[updateAvailable]
+    // above only flip once the app's own installed-packages table (updated by a separate system
+    // broadcast) catches up — a real, if usually brief, propagation gap. Without this, that gap showed
+    // as a one-frame flash of the old Install/Update button right before the real Launch button appeared
+    // once the catalogue-side data caught up.
+    installConfirmed: Boolean,
     onInstallOrUpdate: () -> Unit,
     onLaunch: () -> Unit,
     onUninstall: () -> Unit,
@@ -565,7 +572,9 @@ private fun PrimaryActions(
     primaryActionFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
-    val installing = installState == InstallState.Pending || installState == InstallState.Installing
+    val installing = installState == InstallState.Pending ||
+        installState == InstallState.Installing ||
+        (installState == InstallState.Installed && !installConfirmed)
     val isTelevision = LocalIsTelevision.current
     // A phone-width button stretched to fill a tablet's much wider screen looked like an oversized
     // stray bar; capped to a comfortable reading width instead, matching the tablet breakpoint Material
@@ -693,9 +702,16 @@ private fun AppDetail(
     // and the button would wrongly offer "Install" even though a version is plainly marked installed
     // further down in the (correctly cross-repo) version list below. Search across every repo instead.
     val installedPackage = packages.map { it.first }.firstOrNull { it.installed }
-    // Mirrors PrimaryActions' own installing check — whether the version list should show progress on
-    // a row at all (combined with downloadTargetVersionCode to know which one).
-    val installing = installState == InstallState.Pending || installState == InstallState.Installing
+    // Mirrors PrimaryActions' own installing check (including its Installed-but-not-yet-confirmed
+    // extension — see that function's own doc comment) — whether the version list should show progress
+    // on a row at all (combined with downloadTargetVersionCode to know which one).
+    val installing = installState == InstallState.Pending ||
+        installState == InstallState.Installing ||
+        (
+            installState == InstallState.Installed &&
+                downloadTargetVersionCode != null &&
+                installedPackage?.manifest?.versionCode != downloadTargetVersionCode
+            )
     // A version the user tapped in the list, awaiting confirmation to install (null = no dialog).
     var versionToInstall by remember { mutableStateOf<Pair<Package, Repo>?>(null) }
     // A downgrade the user confirmed: kept while the current app uninstalls, then installed automatically
@@ -775,6 +791,7 @@ private fun AppDetail(
             updateAvailable = updateAvailable,
             installState = installState,
             downloadStatus = downloadStatus,
+            downloadTargetVersionCode = downloadTargetVersionCode,
             onInstallOrUpdate = onInstallOrUpdate,
             onLaunch = onLaunch,
             onUninstall = onUninstall,
@@ -1363,6 +1380,7 @@ private fun AppHeaderCard(
     updateAvailable: Boolean,
     installState: InstallState?,
     downloadStatus: DownloadStatus?,
+    downloadTargetVersionCode: Long?,
     onInstallOrUpdate: () -> Unit,
     onLaunch: () -> Unit,
     onUninstall: () -> Unit,
@@ -1462,6 +1480,10 @@ private fun AppHeaderCard(
                 updateAvailable = updateAvailable,
                 installState = installState,
                 downloadStatus = downloadStatus,
+                // True once the version Room/PackageManager confirm as installed actually matches what
+                // was just pushed — see PrimaryActions' own doc comment on why this matters.
+                installConfirmed = downloadTargetVersionCode == null ||
+                    installedPackage?.manifest?.versionCode == downloadTargetVersionCode,
                 onInstallOrUpdate = onInstallOrUpdate,
                 onLaunch = onLaunch,
                 onUninstall = onUninstall,
