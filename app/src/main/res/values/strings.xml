@@ -9,6 +9,8 @@
     <!-- Watermark drawn over the header logo on the canary test build only; kept untranslated since
          it's a build-identification marker, not user-facing app content. -->
     <string name="canary_badge" translatable="false">TEST</string>
+    <!-- Android TV: label on the detail screen's back affordance. -->
+    <string name="tv_back">Back</string>
     <string name="action_failed">Action failed</string>
     <string name="add_repository">Add repository</string>
     <string name="address">Address</string>

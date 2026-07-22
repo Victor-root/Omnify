@@ -827,6 +827,13 @@ class AppDetailViewModel @Inject constructor(
         viewModelScope.launch {
             installManager.uninstall(PackageName(packageName))
         }
+        // Drop the pending download/install target. installManager keeps reporting the last install as
+        // Installed even after the app is gone (a system uninstall isn't reported back through its
+        // state), and PrimaryActions' post-install flash-guard — "OS says Installed but the confirmed
+        // version no longer matches the version we just pushed" — would otherwise latch on the moment the
+        // app disappears and show "installing…" forever. With no target pending, installConfirmed is true
+        // again, so that guard stays inert. No effect on a normal install/update (which sets it afresh).
+        _downloadTargetVersionCode.value = null
     }
 
     /** Cancels an in-progress download or install. */
