@@ -6,6 +6,9 @@
          same regardless of which build variant did the installing. -->
     <string name="installer_self_name" translatable="false">Omnify</string>
     <string name="cleartext_allowed" translatable="false">false</string>
+    <!-- Watermark drawn over the header logo on the canary test build only; kept untranslated since
+         it's a build-identification marker, not user-facing app content. -->
+    <string name="canary_badge" translatable="false">TEST</string>
     <string name="action_failed">Action failed</string>
     <string name="add_repository">Add repository</string>
     <string name="address">Address</string>

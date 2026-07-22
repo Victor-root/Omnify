@@ -1,6 +1,7 @@
 package com.looker.droidify.datastore
 
 import androidx.datastore.core.Serializer
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
@@ -25,9 +26,15 @@ import kotlin.time.Instant
 
 /**
  * Default accent colour: Material Green #4CAF50 — Android's colour, and a good match for the logo.
- * Applied raw (vivid) as the primary/accent; the surface roles are generated from it.
+ * Applied raw (vivid) as the primary/accent; the surface roles are generated from it. The canary
+ * test build uses grey instead, so it's visually distinct from the real app at a glance.
  */
-val DEFAULT_THEME_COLOR: Int = 0xFF4CAF50.toInt()
+val DEFAULT_THEME_COLOR: Int =
+    if (BuildConfig.APPLICATION_ID.endsWith(".canary")) {
+        0xFF9E9E9E.toInt()
+    } else {
+        0xFF4CAF50.toInt()
+    }
 
 @Serializable
 @OptIn(ExperimentalTime::class)

@@ -101,6 +101,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
@@ -123,14 +124,17 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -515,12 +519,30 @@ fun AppListScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.offset(x = (-16).dp),
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_launcher_monochrome),
-                                    contentDescription = null,
-                                    tint = LocalOnAccentBarColor.current,
-                                    modifier = Modifier.size(60.dp),
-                                )
+                                Box {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_launcher_monochrome),
+                                        contentDescription = null,
+                                        tint = LocalOnAccentBarColor.current,
+                                        modifier = Modifier.size(60.dp),
+                                    )
+                                    // The monochrome icon is tinted to a single flat colour, so a coloured
+                                    // ribbon baked into the drawable itself would just vanish into it. This
+                                    // badge is drawn on top, after tinting, so it keeps its own colour.
+                                    if (BuildConfig.APPLICATION_ID.endsWith(".canary")) {
+                                        Text(
+                                            text = stringResource(R.string.canary_badge),
+                                            color = Color.White,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier
+                                                .align(Alignment.Center)
+                                                .rotate(-30f)
+                                                .background(Color(0xFFFF8C00))
+                                                .padding(horizontal = 6.dp, vertical = 1.dp),
+                                        )
+                                    }
+                                }
                                 // The monochrome logo has a wide built-in safe-zone margin, so nudge the
                                 // wordmark left to sit right next to the glyph instead of after the gap.
                                 Text(
