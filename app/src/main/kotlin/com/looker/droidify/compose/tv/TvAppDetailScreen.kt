@@ -116,6 +116,9 @@ fun TvAppDetailScreen(
                 installedPackage?.manifest?.versionCode == downloadTargetVersionCode
 
             val primaryFocus = remember { FocusRequester() }
+            // Hoisted so the startup focus burst below can pin the page back to the top: focusing the
+            // action button nudges the scroll down a hair (bring-into-view), which was clipping the header.
+            val pageScroll = rememberScrollState()
             // Once the user has pressed any key, focus is theirs — stop the startup burst below from
             // re-stealing it. Without this, installedInfo re-emitting (it changes on background catalogue/
             // network activity) re-ran the burst and yanked focus back to the action button every few
@@ -127,7 +130,14 @@ fun TvAppDetailScreen(
             LaunchedEffect(app.metadata.packageName.name, installedInfo) {
                 if (userInteracted) return@LaunchedEffect
                 repeat(20) {
-                    if (runCatching { primaryFocus.requestFocus() }.getOrDefault(false)) return@LaunchedEffect
+                    if (runCatching { primaryFocus.requestFocus() }.getOrDefault(false)) {
+                        // Focusing the action button can bring-into-view scroll the column down a touch,
+                        // clipping the header; the button is above the fold anyway, so snap back to the
+                        // top once (unless the user already grabbed the scroll).
+                        delay(50)
+                        if (!userInteracted) runCatching { pageScroll.scrollTo(0) }
+                        return@LaunchedEffect
+                    }
                     delay(50)
                 }
             }
@@ -190,7 +200,7 @@ fun TvAppDetailScreen(
                     // overscrollEffect = null: the description preview hosts a hardware-accelerated
                     // WebView, and Android 12+'s stretch overscroll crashes RenderThread when it redraws
                     // that WebView at the scroll boundary (same reason as the phone detail screen).
-                    .verticalScroll(rememberScrollState(), overscrollEffect = null)
+                    .verticalScroll(pageScroll, overscrollEffect = null)
                     .padding(horizontal = TvOverscan + 16.dp, vertical = TvOverscan),
                 verticalArrangement = spacedBy(24.dp),
             ) {
