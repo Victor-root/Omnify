@@ -377,8 +377,8 @@ private fun TvExplore(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(top = TvOverscan, bottom = TvOverscan),
-        verticalArrangement = spacedBy(24.dp),
+            .padding(top = TvOverscan + 12.dp, bottom = TvOverscan),
+        verticalArrangement = spacedBy(28.dp),
     ) {
         if (tvApps.isNotEmpty()) {
             TvCarousel(stringResource(R.string.discover_tv_apps), tvApps, installedPackages, onAppClick)
@@ -421,7 +421,8 @@ private fun TvCarousel(
         )
         LazyRow(
             state = rowState,
-            contentPadding = PaddingValues(horizontal = TvOverscan + 8.dp),
+            // A little vertical padding so a focused card's scale-up isn't clipped at the row edges.
+            contentPadding = PaddingValues(horizontal = TvOverscan + 8.dp, vertical = 6.dp),
             horizontalArrangement = spacedBy(18.dp),
         ) {
             items(apps, key = { it.appId }, contentType = { "tv-app" }) { app ->
@@ -455,7 +456,7 @@ private fun TvAppGrid(
     onAppClick: (String) -> Unit,
     header: (@Composable () -> Unit)? = null,
 ) {
-    Column(modifier = Modifier.fillMaxSize().padding(top = TvOverscan)) {
+    Column(modifier = Modifier.fillMaxSize().padding(top = TvOverscan + 12.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -471,7 +472,7 @@ private fun TvAppGrid(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(CardWidth + 18.dp),
-                contentPadding = PaddingValues(start = TvOverscan + 8.dp, end = TvOverscan, bottom = TvOverscan),
+                contentPadding = PaddingValues(start = TvOverscan + 8.dp, end = TvOverscan, top = 24.dp, bottom = TvOverscan),
                 horizontalArrangement = spacedBy(18.dp),
                 verticalArrangement = spacedBy(18.dp),
             ) {
@@ -525,7 +526,7 @@ private fun TvExternalGrid(
     installedKeys: Set<String>,
     onAppClick: (String) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxSize().padding(top = TvOverscan)) {
+    Column(modifier = Modifier.fillMaxSize().padding(top = TvOverscan + 12.dp)) {
         Text(
             text = stringResource(R.string.tab_external),
             style = MaterialTheme.typography.titleLarge,
@@ -537,7 +538,7 @@ private fun TvExternalGrid(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(CardWidth + 18.dp),
-                contentPadding = PaddingValues(start = TvOverscan + 8.dp, end = TvOverscan, bottom = TvOverscan),
+                contentPadding = PaddingValues(start = TvOverscan + 8.dp, end = TvOverscan, top = 24.dp, bottom = TvOverscan),
                 horizontalArrangement = spacedBy(18.dp),
                 verticalArrangement = spacedBy(18.dp),
             ) {
@@ -573,7 +574,7 @@ private fun TvSearch(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(CardWidth + 18.dp),
-                contentPadding = PaddingValues(start = TvOverscan + 8.dp, end = TvOverscan, bottom = TvOverscan),
+                contentPadding = PaddingValues(start = TvOverscan + 8.dp, end = TvOverscan, top = 24.dp, bottom = TvOverscan),
                 horizontalArrangement = spacedBy(18.dp),
                 verticalArrangement = spacedBy(18.dp),
             ) {
