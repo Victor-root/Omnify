@@ -37,8 +37,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.datastore.model.CustomButtonIcon
 
@@ -58,12 +60,34 @@ fun CustomButtonsSettingItem(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
+        // On TV the only focusable element used to be the small "+" at the far right, which the D-pad's
+        // downward search skipped over (it's not aligned under the full-width rows above), so this whole
+        // setting was unreachable. Give the label area its own full-width focus/click target — opening the
+        // same add editor as the "+" — so the row is reachable and the highlight matches the other rows.
+        // The phone layout keeps the plain, non-focusable label.
+        val isTv = LocalIsTelevision.current
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        if (isTv) {
+                            Modifier
+                                .tvFocusFill(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    editingButton = null
+                                    showEditor = true
+                                }
+                                .padding(8.dp)
+                        } else {
+                            Modifier
+                        },
+                    ),
+            ) {
                 Text(
                     text = stringResource(R.string.custom_buttons),
                     style = MaterialTheme.typography.bodyLarge,

@@ -37,6 +37,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -122,6 +125,28 @@ fun TvHomeScreen(
     // appsState — so here it only additionally gates Explore (to the TV carousel) and the External grid.
     val tvOnly by viewModel.tvOnly.collectAsStateWithLifecycle()
 
+    // Cold-start loader. On a fresh install the catalogue is empty and a first sync runs in the
+    // background; without this the home just sat black (empty carousels), looking crashed. [catalogReady]
+    // latches once the first sync has finished with apps present — on later launches the catalogue is
+    // already populated so it latches immediately and the loader never shows. [firstSyncFromEmpty] tells a
+    // genuine cold start (empty when the sync began) apart from a routine background sync on a later
+    // launch, which must show the populated catalogue rather than the loader. Mirrors the phone screen.
+    val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+    var catalogReady by rememberSaveable { mutableStateOf(false) }
+    var firstSyncFromEmpty by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(isSyncing, newApps.isEmpty()) {
+        if (catalogReady) return@LaunchedEffect
+        val catalogEmpty = newApps.isEmpty()
+        if (isSyncing && catalogEmpty) firstSyncFromEmpty = true
+        if (firstSyncFromEmpty) {
+            if (!isSyncing && !catalogEmpty) catalogReady = true
+        } else if (!catalogEmpty) {
+            catalogReady = true
+        }
+    }
+    // The External tab loads its own data (not the F-Droid catalogue), so it's never behind this loader.
+    val catalogLoading = !catalogReady && newApps.isEmpty()
+
     LaunchedEffect(Unit) {
         externalViewModel.refresh()
         externalViewModel.refreshInstalled()
@@ -132,10 +157,17 @@ fun TvHomeScreen(
     var section by remember { mutableStateOf(TvSection.EXPLORE) }
     val contentFocus = remember { FocusRequester() }
 
+    val railFocus = remember { FocusRequester() }
     // Entering a section hands focus to its content (the rail keeps the section highlighted), so the
-    // remote lands on a card instead of nowhere.
-    LaunchedEffect(section) {
-        runCatching { contentFocus.requestFocus() }
+    // remote lands on a card instead of nowhere. During the cold-start loader the content has nothing
+    // focusable, so focus is parked on the rail instead — Android TV must always have a focused element
+    // or the first remote press ANRs the app.
+    LaunchedEffect(section, catalogLoading) {
+        if (catalogLoading && section != TvSection.EXTERNAL) {
+            runCatching { railFocus.requestFocus() }
+        } else {
+            runCatching { contentFocus.requestFocus() }
+        }
     }
 
     // Back handling on the TV home. Whenever focus sits in the content area (a card, a grid, the search
@@ -144,7 +176,6 @@ fun TvHomeScreen(
     // double-press-to-exit flow: the first press toasts a hint, a second within the window closes the app.
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val railFocus = remember { FocusRequester() }
     var railFocused by remember { mutableStateOf(false) }
     var armedToExit by remember { mutableStateOf(false) }
     val exitHint = stringResource(R.string.tv_press_back_again)
@@ -187,17 +218,28 @@ fun TvHomeScreen(
                 .focusRequester(contentFocus)
                 .focusGroup(),
         ) {
-            when (section) {
+            when {
+                // Cold start: show a loader instead of empty carousels while the first sync runs.
+                catalogLoading && section != TvSection.EXTERNAL -> TvLoading()
+
+                // TV-only mode: there are only a handful of made-for-TV apps, so lay them all out in a
+                // wrapping grid (everything on screen at once) rather than a single horizontal carousel.
+                // The normal (all-apps) Explore below is untouched.
+                section == TvSection.EXPLORE && tvOnly -> TvAppGrid(
+                    title = stringResource(R.string.discover_tv_apps),
+                    apps = tvApps,
+                    installedPackages = installedPackages,
+                    onAppClick = onAppClick,
+                )
+
+                else -> when (section) {
                 TvSection.EXPLORE -> TvExplore(
-                    // With the TV-only filter on, Explore collapses to just the "made for TV" carousel;
-                    // the generic discovery rows (new / recently updated / most downloaded) are full of
-                    // phone apps, so they'd defeat the filter.
-                    newApps = if (tvOnly) emptyList() else newApps,
-                    recentlyUpdatedApps = if (tvOnly) emptyList() else recentlyUpdatedApps,
-                    mostDownloadedApps = if (tvOnly) emptyList() else mostDownloadedApps,
+                    newApps = newApps,
+                    recentlyUpdatedApps = recentlyUpdatedApps,
+                    mostDownloadedApps = mostDownloadedApps,
                     tvApps = tvApps,
-                    shizukuApps = if (tvOnly) emptyList() else shizukuApps,
-                    rootApps = if (tvOnly) emptyList() else rootApps,
+                    shizukuApps = shizukuApps,
+                    rootApps = rootApps,
                     installedPackages = installedPackages,
                     onAppClick = onAppClick,
                 )
@@ -230,6 +272,7 @@ fun TvHomeScreen(
                     installedPackages = installedPackages,
                     onAppClick = onAppClick,
                 )
+                }
             }
         }
     }
@@ -722,6 +765,33 @@ internal fun TvAppCard(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+/** Cold-start loader shown on the home while the very first catalogue sync runs (fresh install), so the
+ *  screen never just sits black as if the app had crashed. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun TvLoading() {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = TvOverscan),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        CircularWavyProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(24.dp))
+        Text(
+            text = stringResource(R.string.fetching_repositories),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.tv_first_sync_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
     }
 }
 

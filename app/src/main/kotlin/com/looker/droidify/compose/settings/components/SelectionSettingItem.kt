@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.theme.LocalIsTelevision
 
 @Composable
 fun <T> SelectionSettingItem(
@@ -43,14 +44,18 @@ fun <T> SelectionSettingItem(
 ) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
 
+    // TV gets a roomier focus highlight (bigger inset, larger corner radius) so it doesn't hug the text;
+    // the phone metrics are left exactly as they were.
+    val isTv = LocalIsTelevision.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
+            .then(if (isTv) Modifier.padding(horizontal = 8.dp, vertical = 2.dp) else Modifier)
             // TV only: a soft accent fill behind the focused row (no-op on touch).
-            .tvFocusFill(RoundedCornerShape(12.dp))
+            .tvFocusFill(RoundedCornerShape(if (isTv) 18.dp else 12.dp))
             .clickable(enabled = enabled) { showDialog = true }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = if (isTv) 16.dp else 12.dp),
     ) {
         SettingLeadingIcon(icon, enabled)
         Column(modifier = Modifier.weight(1f)) {
