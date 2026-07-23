@@ -68,6 +68,7 @@ import com.looker.droidify.compose.externalApps.WebViewDialog
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.selectForDevice
 import kotlinx.coroutines.delay
@@ -240,7 +241,8 @@ fun TvAppDetailScreen(
                 // a peer next to the primary action instead of being flung to the far screen edge.
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = spacedBy(16.dp, Alignment.CenterHorizontally),
+                    // Wider gap so the focus scale-up of either button never overlaps its neighbour.
+                    horizontalArrangement = spacedBy(28.dp, Alignment.CenterHorizontally),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     PrimaryActions(
@@ -352,7 +354,8 @@ internal fun TvFavouriteButton(isFavourite: Boolean, onToggle: () -> Unit, modif
     // favourite.
     FilledTonalButton(
         onClick = onToggle,
-        modifier = modifier.height(60.dp).widthIn(min = 200.dp).tvBringIntoViewOnFocus(),
+        // Scales on focus like the primary action, so it's obvious when the remote is on it.
+        modifier = modifier.height(60.dp).widthIn(min = 200.dp).tvFocusScale(1.10f).tvBringIntoViewOnFocus(),
     ) {
         Icon(
             imageVector = Icons.Filled.Favorite,

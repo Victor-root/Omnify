@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -237,10 +239,11 @@ fun TvExternalAppDetailScreen(
             }
         }
 
-        // Action buttons with the favourite at the right end.
+        // Action buttons with the favourite alongside, sized to content and centred as one group (same
+        // treatment as the catalogue detail screen) so the favourite reads as a peer, not an outlier.
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = spacedBy(16.dp),
+            horizontalArrangement = spacedBy(28.dp, Alignment.CenterHorizontally),
             modifier = Modifier.fillMaxWidth(),
         ) {
             ExternalLifecycleActions(
@@ -252,7 +255,7 @@ fun TvExternalAppDetailScreen(
                 onLaunch = { viewModel.launch(app) },
                 onUninstall = { viewModel.uninstall(app) },
                 onCancel = { viewModel.cancel(app) },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.width(IntrinsicSize.Min),
                 installedVersionName = installedVersion,
                 primaryActionFocusRequester = primaryFocus,
             )
