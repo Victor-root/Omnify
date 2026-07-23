@@ -142,6 +142,29 @@ object ApkBinaryManifest {
     }.getOrNull()
 
     /**
+     * The app's package id — the `<manifest package="…">` attribute — read straight from the compiled
+     * manifest, or null when the bytes can't be parsed or the attribute is missing. This is the
+     * authoritative package id an APK actually installs under, so it's the source of truth when a source's
+     * `build.gradle` can't be parsed for it (a Flutter/other non-standard build, an id assembled from
+     * variables, …). The `package` attribute is a plain string on the root element (no `android:`
+     * namespace), so it always surfaces via [StartElement.attributes]. Never throws.
+     */
+    fun packageName(manifest: ByteArray): String? = runCatching {
+        var pkg: String? = null
+        val parsed = walkElements(
+            manifest,
+            onStart = { element ->
+                if (pkg == null && element.name == "manifest") {
+                    pkg = element.attributes["package"]
+                }
+            },
+            onEnd = {},
+        )
+        if (!parsed) return@runCatching null
+        pkg?.takeIf { it.isNotBlank() }
+    }.getOrNull()
+
+    /**
      * The `<application android:icon="…">` attribute's resource id (e.g. `0x7f0b0000`), for resolving
      * the app's real launcher icon out of `resources.arsc` when a catalogue's own repo serves none
      * (see [RemoteApkIconReader]) — or null when the bytes can't be parsed, or the element/attribute is

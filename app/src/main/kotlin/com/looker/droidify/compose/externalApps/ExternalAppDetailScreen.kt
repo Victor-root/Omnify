@@ -167,6 +167,11 @@ fun ExternalAppDetailScreen(
 
     val app = apps.firstOrNull { it.key == appKey }
 
+    // Make sure the app knows the package id it installs under, so a copy already on the device (installed
+    // from any channel) is recognised as installed instead of showing "Install". Keyed on the resolved app
+    // (not the raw key) so it runs once the app record has actually loaded. No-op once the id is known.
+    LaunchedEffect(app?.key) { app?.let { viewModel.ensurePackageId(it.key) } }
+
     // Google-services detection needs the latest release's own compiled manifest — fetched lazily, once
     // per app, same pattern as the SDK-info check (see ExternalAppsViewModel.loadGoogleServicesInfo).
     LaunchedEffect(app?.key, app?.latestApkUrl) {

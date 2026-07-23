@@ -914,10 +914,10 @@ class ExternalAppsViewModel @Inject constructor(
                             return@withBusy
                         }
                     }
-                    // Resolve the package id from the repo's build.gradle (Obtainium-style) so an app
-                    // that's already installed is matched and shows its real on-device name + icon right
+                    // Resolve the package id (repo build.gradle, else the release APK's own manifest) so an
+                    // app that's already installed is matched and shows its real on-device name + icon right
                     // away, before the user installs it through us.
-                    val packageId = externalApi.fetchPackageId(app)
+                    val packageId = resolvePackageId(app, release.apkDownloadUrl(filter = app.apkFilter))
                     // Pull the app's real launcher icon AND its real name from the repo (Obtainium-style),
                     // so the card shows both before anything is installed.
                     val meta = externalApi.fetchRepoMetadata(app)
@@ -1108,7 +1108,8 @@ class ExternalAppsViewModel @Inject constructor(
             )
             if (candidate.key in skipKeys) continue
             val release = externalApi.latestReleaseFor(candidate) ?: continue
-            val packageId = externalApi.fetchPackageId(candidate)
+            val packageId =
+                resolvePackageId(candidate, release.apkDownloadUrl(filter = candidate.apkFilter))
             val meta = externalApi.fetchRepoMetadata(candidate)
             val resolvedLabel = packageId?.let { installedLabel(it) } ?: meta?.appName ?: candidate.repo
             result += candidate.copy(
@@ -1266,10 +1267,11 @@ class ExternalAppsViewModel @Inject constructor(
                             "storedSize=${app.latestApkSize} -> $apkSize",
                     )
                 }
-                // Backfill the package id (from build.gradle) for sources added before this existed, so
-                // an installed app starts showing its real name + icon; the existing label reconcile
-                // then fills in the on-device name. Never overwrites an id already learned from install.
-                val packageId = app.packageName ?: externalApi.fetchPackageId(app)
+                // Backfill the package id (source build.gradle, else the release APK's own manifest) for
+                // sources added before this existed, so an installed app starts showing its real name +
+                // icon and is matched as installed even when it arrived via another channel; the existing
+                // label reconcile then fills in the on-device name. Never overwrites an id already learned.
+                val packageId = resolvePackageId(app, apkUrl)
                 // One-time backfill of the repo icon + real app name + TV support for sources added
                 // before these existed. Gated by the *Checked flags so a repo is scanned at most once
                 // (spares the API rate limit), and never overrides a user-picked icon or name.
@@ -1431,6 +1433,62 @@ class ExternalAppsViewModel @Inject constructor(
                 }
             }
             updated.forEach { repository.upsertApp(it) }
+        }
+    }
+
+    // Apps whose package id we've already tried to resolve this session, so [ensurePackageId] doesn't
+    // re-hit the network for the same app every time its detail screen opens.
+    private val packageIdResolved = mutableSetOf<String>()
+
+    /**
+     * Makes sure [key]'s app knows the package id it installs under, so an app already on the device — no
+     * matter which channel put it there — is matched as installed. Called from the detail screen on open,
+     * directly (not via the throttled [refresh]), so it always runs the first time a source is viewed.
+     *
+     * Runs at most once per app per session. It runs when the stored id is missing OR when the stored id
+     * isn't actually installed — the latter matters because an earlier build.gradle guess can persist a
+     * wrong-but-non-null id (a `namespace`/test id, or nothing usable for a monorepo/Flutter layout), and
+     * that wrong id would otherwise short-circuit every re-resolution forever. It reads the release APK's
+     * own `<manifest package>` (the authoritative id the app really installs under) and adopts it only when
+     * that id is the one actually on the device, so a correct id for an app that simply isn't installed
+     * yet is never overwritten.
+     */
+    fun ensurePackageId(key: String) {
+        val app = apps.value.firstOrNull { it.key == key } ?: return
+        val stored = app.packageName
+        // Already correct (stored id is on the device), or already attempted this session — nothing to do.
+        if (stored != null && isInstalled(stored)) return
+        if (!packageIdResolved.add(key)) return
+        viewModelScope.launch {
+            val apkUrl = app.latestApkUrl
+                ?: (if (app.enabled) externalApi.latestReleaseFor(app) else null)
+                    ?.apkDownloadUrl(filter = app.apkFilter)
+            val apkId = apkUrl?.let { url ->
+                runCatching {
+                    RemoteApkManifestReader.fetchManifestBytes(downloader, url)
+                        ?.let(ApkBinaryManifest::packageName)
+                }.getOrNull()
+            }
+            if (apkId == null) {
+                // Couldn't read the APK (transient network error, no release yet): let a later open retry.
+                packageIdResolved.remove(key)
+                return@launch
+            }
+            // Adopt the APK's id when it's the installed one (fixes a wrong/missing stored id); also fill a
+            // null stored id with it so a not-yet-installed app still gets its real id. Never overwrite an
+            // existing non-null stored id with a different not-installed value.
+            val resolved = when {
+                isInstalled(apkId) -> apkId
+                stored == null -> apkId
+                else -> return@launch
+            }
+            if (resolved == stored) return@launch
+            // Re-read the current record: the user may have installed this app while we were resolving,
+            // which fills packageName itself — don't clobber that with a copy of the stale snapshot.
+            val current = apps.value.firstOrNull { it.key == key } ?: return@launch
+            if (current.packageName != resolved) {
+                repository.upsertApp(current.copy(packageName = resolved))
+            }
         }
     }
 
@@ -1625,6 +1683,38 @@ class ExternalAppsViewModel @Inject constructor(
         return runCatching { appInfo.loadLabel(pm).toString() }
             .getOrNull()
             ?.takeIf { it.isNotBlank() }
+    }
+
+    /**
+     * The package id [app] installs under. Already-known [ExternalApp.packageName] wins outright. Otherwise
+     * two independent sources are consulted — the source's `build.gradle` (cheap, a raw-file read) and the
+     * latest release APK's own `<manifest package>` (a range download, but the authoritative id the app
+     * really installs under) — and the winner is whichever one is actually installed on the device, so an
+     * app already present (from any channel) is matched even when `build.gradle` yields a wrong-but-plausible
+     * id (a `namespace`/test id) or nothing at all (a monorepo/Flutter layout the fixed paths don't cover).
+     * When neither candidate is installed, the APK's real id is preferred over the gradle guess. The APK read
+     * is skipped only when the gradle id already matches an installed package. Null when nothing yields an
+     * id. Never throws.
+     */
+    private suspend fun resolvePackageId(
+        app: ExternalApp,
+        apkUrl: String? = app.latestApkUrl,
+    ): String? {
+        app.packageName?.let { return it }
+        val gradleId = externalApi.fetchPackageId(app)
+        // Fast path: the source-tree id is already the installed one — no need to touch the APK.
+        if (gradleId != null && isInstalled(gradleId)) return gradleId
+        val apkId = apkUrl?.let { url ->
+            runCatching {
+                RemoteApkManifestReader.fetchManifestBytes(downloader, url)
+                    ?.let(ApkBinaryManifest::packageName)
+            }.getOrNull()
+        }
+        // Prefer whichever candidate is actually installed; else the APK's authoritative id; else the gradle
+        // guess as a last resort (it may be the right id for an app that simply isn't installed yet).
+        return listOfNotNull(apkId, gradleId).firstOrNull { isInstalled(it) }
+            ?: apkId
+            ?: gradleId
     }
 
     private fun isInstalled(packageName: String): Boolean = try {

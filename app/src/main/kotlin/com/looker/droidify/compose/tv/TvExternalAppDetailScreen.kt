@@ -105,6 +105,11 @@ fun TvExternalAppDetailScreen(
     val installedVersion = installedVersions[appKey]
     val isInstalled = installedVersion != null
 
+    // Make sure the app knows the package id it installs under, so a copy already on the device (installed
+    // from any channel) is recognised as installed instead of showing "Install". Keyed on the resolved app
+    // (not the raw key) so it runs once the app record has actually loaded. No-op once the id is known.
+    LaunchedEffect(app.key) { viewModel.ensurePackageId(app.key) }
+
     // Same content the phone screen loads, so an external app's page is as rich as a catalogue one
     // (Omnify deliberately blurs the line between the two).
     LaunchedEffect(app.key) {
