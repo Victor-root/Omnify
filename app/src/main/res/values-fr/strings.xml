@@ -443,7 +443,7 @@
     <string name="external_icon_searching">Recherche d\'icônes dans le dépôt…</string>
     <string name="external_mute_updates">Ne pas afficher les mises à jour de ce dépôt</string>
     <string name="external_save">Enregistrer</string>
-    <string name="external_empty_hint">Ajoutez un projet (ex. github.com/auteur/depot) pour installer et mettre à jour ses APK de release directement, comme Obtainium.</string>
+    <string name="external_empty_hint">Ajoutez un projet (ex. github.com/auteur/depot) pour installer et mettre à jour ses APK de release directement.</string>
     <string name="external_empty_tab">Aucune app externe pour l\'instant.\nAjoutez des sources depuis l\'écran Dépôts.</string>
     <string name="external_invalid_url">URL de projet invalide (GitHub, GitLab ou Codeberg)</string>
     <string name="external_unsupported_host">Hébergeur non pris en charge. Utilisez GitHub, GitLab, Codeberg ou une instance Gitea/Forgejo auto-hébergée.</string>
