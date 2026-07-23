@@ -322,6 +322,7 @@ fun AppListScreen(
     // external detail screen, where the install lifecycle lives — exactly like the other tabs.
     val externalViewModel: ExternalAppsViewModel = hiltViewModel()
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
+    val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
     val externalInstalledVersions by externalViewModel.installedVersions.collectAsStateWithLifecycle()
     // External-repo updates surface in the Updates tab too (no difference from F-Droid repos), so we
@@ -728,7 +729,7 @@ fun AppListScreen(
                         )
                     }
                 }
-                if (recentlyUpdatedApps.isNotEmpty()) {
+                if (recentlyUpdatedApps.isNotEmpty() || recentlyUpdatedExternalApps.isNotEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-updated", contentType = "carousel") {
                         DiscoverCarousel(
                             title = stringResource(R.string.discover_recently_updated),
@@ -737,6 +738,11 @@ fun AppListScreen(
                             onAppClick = openApp,
                             onSeeAll = { viewModel.openSection(SECTION_RECENTLY_UPDATED) },
                             modifier = Modifier.padding(bottom = 8.dp),
+                            // External sources' recently-released apps join the row after the catalogue
+                            // ones — Omnify makes no distinction between catalogue and external apps.
+                            externalApps = recentlyUpdatedExternalApps,
+                            externalInstalledKeys = externalInstalledKeys,
+                            onExternalAppClick = openExternalApp,
                             restoreFocusId = restoreFocusId,
                             restoreRequester = restoreRequester,
                         )

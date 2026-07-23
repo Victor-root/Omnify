@@ -33,6 +33,7 @@ import com.looker.droidify.external.ReleaseLookup
 import com.looker.droidify.external.RepoRef
 import com.looker.droidify.external.apkDownloadUrl
 import com.looker.droidify.external.apkFileName
+import com.looker.droidify.external.apkUpdatedAtMillis
 import com.looker.droidify.external.apkFileSize
 import com.looker.droidify.external.apkVersionToken
 import com.looker.droidify.external.SourceProvider
@@ -96,6 +97,22 @@ class ExternalAppsViewModel @Inject constructor(
 ) : ViewModel() {
 
     val apps: StateFlow<List<ExternalApp>> = repository.apps.asStateFlow(emptyList())
+
+    /** Enabled external apps whose latest release is recent (last [RECENT_WINDOW_DAYS] days), newest
+     *  first — so they can join the catalogue's "recently updated" discovery row (same on phone and TV).
+     *  Apps added before release dates were captured (null [ExternalApp.latestReleaseAt]) simply don't
+     *  appear until a refresh backfills the date. */
+    val recentlyUpdatedApps: StateFlow<List<ExternalApp>> = apps
+        .map { list ->
+            val cutoff = System.currentTimeMillis() - RECENT_WINDOW_DAYS * 24L * 60 * 60 * 1000
+            list.asSequence()
+                .filter { it.enabled && (it.latestReleaseAt ?: 0L) >= cutoff }
+                .sortedByDescending { it.latestReleaseAt }
+                .take(RECENT_MAX)
+                .toList()
+        }
+        .distinctUntilChanged()
+        .asStateFlow(emptyList())
 
     /** Whether the user picked a translation engine. The Translate button is hidden when off. */
     val translationEnabled: StateFlow<Boolean> = settingsRepository.data
@@ -932,6 +949,7 @@ class ExternalAppsViewModel @Inject constructor(
                             latestApkName = release.apkFileName(filter = app.apkFilter),
                             latestApkSize = addApkSize,
                             latestApkUrl = release.apkDownloadUrl(filter = app.apkFilter),
+                            latestReleaseAt = release.apkUpdatedAtMillis(filter = app.apkFilter),
                         ),
                     )
                     snack(context.getString(R.string.external_added, app.repo))
@@ -1105,6 +1123,7 @@ class ExternalAppsViewModel @Inject constructor(
                 latestApkName = release.apkFileName(filter = candidate.apkFilter),
                 latestApkSize = release.apkFileSize(filter = candidate.apkFilter),
                 latestApkUrl = release.apkDownloadUrl(filter = candidate.apkFilter),
+                latestReleaseAt = release.apkUpdatedAtMillis(filter = candidate.apkFilter),
             )
         }
         return result
@@ -1239,6 +1258,7 @@ class ExternalAppsViewModel @Inject constructor(
                 val apkName = release?.apkFileName(filter = app.apkFilter) ?: app.latestApkName
                 val apkSize = release?.apkFileSize(filter = app.apkFilter) ?: app.latestApkSize
                 val apkUrl = release?.apkDownloadUrl(filter = app.apkFilter) ?: app.latestApkUrl
+                val releaseAt = release?.apkUpdatedAtMillis(filter = app.apkFilter) ?: app.latestReleaseAt
                 if (release != null) {
                     Log.d(
                         TAG,
@@ -1302,6 +1322,7 @@ class ExternalAppsViewModel @Inject constructor(
                             latestApkName = apkName,
                             latestApkSize = apkSize,
                             latestApkUrl = apkUrl,
+                            latestReleaseAt = releaseAt,
                             repoIconUrl = repoIcon,
                             iconChecked = current.iconChecked || (needsIcon && scanned),
                             supportsTelevision = supportsTv,
@@ -1382,6 +1403,7 @@ class ExternalAppsViewModel @Inject constructor(
                     latestApkName = release?.apkFileName(filter = updated.apkFilter),
                     latestApkSize = release?.apkFileSize(filter = updated.apkFilter),
                     latestApkUrl = release?.apkDownloadUrl(filter = updated.apkFilter),
+                    latestReleaseAt = release?.apkUpdatedAtMillis(filter = updated.apkFilter),
                 )
             }
             repository.upsertApp(updated)
@@ -1660,6 +1682,10 @@ private val UNSAFE_FILE_CHARS = Regex("[^A-Za-z0-9._-]")
 
 /** Max characters per translation request (keeps the Google endpoint's URL within limits). */
 private const val TAG = "ExternalAppsViewModel"
+
+/** "Recently updated" window and cap for external apps joining the discovery row. */
+private const val RECENT_WINDOW_DAYS = 30
+private const val RECENT_MAX = 20
 
 private const val MAX_TRANSLATE_CHUNK = 1500
 

@@ -55,6 +55,11 @@ data class ExternalApp(
      *  without an index to compare against ahead of time. Null for sources added before this existed,
      *  which simply skip that check until their next refresh backfills it. */
     val latestApkUrl: String? = null,
+    /** Epoch millis of the latest release's APK publication date (from the release asset's `updated_at`),
+     *  captured alongside the other latest-* fields so the app can be ranked in the "recently updated"
+     *  discovery row next to catalogue apps. Null for sources added before this existed (backfilled on
+     *  their next refresh) or when the date couldn't be parsed. */
+    val latestReleaseAt: Long? = null,
     /** Whether to consider pre-releases when picking the latest release. */
     val includePrereleases: Boolean = false,
     /** Optional regex matched against APK file names to choose which APK to install when a release

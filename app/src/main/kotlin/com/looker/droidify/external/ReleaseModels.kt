@@ -310,6 +310,16 @@ fun Release.apkUpdatedAt(
 ): String? =
     selectApkAsset(assets, deviceAbis, filter, releaseTag = tag)?.updatedAt
 
+/** [apkUpdatedAt] parsed to epoch millis, for sorting (e.g. the "recently updated" discovery row). Null
+ *  when there's no date or it can't be parsed. */
+fun Release.apkUpdatedAtMillis(
+    deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
+    filter: String? = null,
+): Long? =
+    apkUpdatedAt(deviceAbis, filter)?.let { iso ->
+        runCatching { java.time.Instant.parse(iso).toEpochMilli() }.getOrNull()
+    }
+
 /** The direct download URL of the APK this release would install — used to read its signing
  *  certificate via a cheap HTTP range request ([com.looker.droidify.utility.apk.ApkSigningBlockReader])
  *  instead of downloading the whole file. Null when the release ships no APK. */
