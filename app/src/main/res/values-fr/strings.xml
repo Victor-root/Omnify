@@ -3,6 +3,7 @@
     <string name="address">Adresse</string>
     <string name="tv_back">Retour</string>
     <string name="tv_view_description">Voir plus</string>
+    <string name="tv_press_back_again">Appuyez à nouveau sur Retour pour quitter</string>
     <string name="action_failed">L’action a échoué</string>
     <string name="already_exists">Existe déjà</string>
     <string name="anti_features">Anti-fonctionnalités</string>

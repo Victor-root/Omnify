@@ -13,6 +13,8 @@
     <string name="tv_back">Back</string>
     <!-- Android TV: opens the app description / README in a full-screen reader. -->
     <string name="tv_view_description">See more</string>
+    <!-- Android TV: shown after the first Back press at the home screen; a second press exits. -->
+    <string name="tv_press_back_again">Press Back again to exit</string>
     <string name="action_failed">Action failed</string>
     <string name="add_repository">Add repository</string>
     <string name="address">Address</string>

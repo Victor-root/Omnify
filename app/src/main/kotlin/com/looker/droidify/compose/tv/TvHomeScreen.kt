@@ -1,5 +1,8 @@
 package com.looker.droidify.compose.tv
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +54,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,6 +74,8 @@ import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.external.ExternalApp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 
 /** Which content the couch/remote home is showing. Driven entirely by the left rail; unlike the phone
@@ -126,10 +133,39 @@ fun TvHomeScreen(
         runCatching { contentFocus.requestFocus() }
     }
 
+    // Back handling on the TV home. Whenever focus sits in the content area (a card, a grid, the search
+    // field), Back returns it to the sidebar rail instead of leaving the app — so the remote never falls
+    // out of the app in one press. Only once focus is already on the rail does Back start the
+    // double-press-to-exit flow: the first press toasts a hint, a second within the window closes the app.
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val railFocus = remember { FocusRequester() }
+    var railFocused by remember { mutableStateOf(false) }
+    var armedToExit by remember { mutableStateOf(false) }
+    val exitHint = stringResource(R.string.tv_press_back_again)
+    BackHandler {
+        if (!railFocused) {
+            armedToExit = false
+            runCatching { railFocus.requestFocus() }
+        } else if (armedToExit) {
+            (context as? Activity)?.finish()
+        } else {
+            armedToExit = true
+            Toast.makeText(context, exitHint, Toast.LENGTH_SHORT).show()
+            scope.launch {
+                delay(2500)
+                armedToExit = false
+            }
+        }
+    }
+
     Row(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TvNavRail(
             section = section,
             updatesCount = updatesCount,
+            modifier = Modifier
+                .focusRequester(railFocus)
+                .onFocusChanged { railFocused = it.hasFocus },
             onSelect = { section = it },
             onSearch = {
                 viewModel.selectTab(AppTab.AVAILABLE)
@@ -198,6 +234,7 @@ private val RailWidth = 180.dp
 private fun TvNavRail(
     section: TvSection,
     updatesCount: Int,
+    modifier: Modifier = Modifier,
     onSelect: (TvSection) -> Unit,
     onSearch: () -> Unit,
     onRepos: () -> Unit,
@@ -208,6 +245,7 @@ private fun TvNavRail(
             .fillMaxHeight()
             .width(RailWidth)
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .then(modifier)
             .focusGroup()
             .padding(horizontal = 12.dp, vertical = TvOverscan),
         horizontalAlignment = Alignment.CenterHorizontally,
