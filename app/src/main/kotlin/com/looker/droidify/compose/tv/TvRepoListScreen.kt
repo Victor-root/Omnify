@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Tv
@@ -27,11 +26,11 @@ import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -163,10 +162,11 @@ fun TvRepoListScreen(
         }
     }
 
-    LazyColumn(
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        TvAccentBackground()
+        LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
             .focusRequester(contentFocus)
             .focusGroup(),
         contentPadding = PaddingValues(
@@ -304,6 +304,7 @@ fun TvRepoListScreen(
                 )
             }
         }
+    }
     }
 
     if (showAddChooser) {
@@ -472,13 +473,12 @@ private fun TvManagementRow(
             }
             Spacer(Modifier.size(8.dp))
             overflow?.invoke()
-            FilledIconToggleButton(
+            // A real Switch (accent-coloured when on) like the settings rows, not a check toggle.
+            Switch(
                 checked = enabled,
                 onCheckedChange = { onToggle() },
                 modifier = Modifier.tvFocusScale(),
-            ) {
-                Icon(imageVector = Icons.Default.Check, contentDescription = null)
-            }
+            )
         }
         progress?.invoke()
     }

@@ -48,10 +48,18 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
  * the user isn't looking closely at from the couch — not worth the extra always-on compositing.
  */
 @Composable
-fun FloatingAppCardsBackground(modifier: Modifier = Modifier) {
-    if (LocalIsTelevision.current) return
+fun FloatingAppCardsBackground(
+    modifier: Modifier = Modifier,
+    // Off on TV by default (most TV screens paint their own solid surface); the TV screens opt in so
+    // their content area gets the same accent aurora wash as the phone build.
+    enableOnTelevision: Boolean = false,
+    // Multiplies the wash opacity. TV sits ~1.7× the phone value so it reads clearly on the big screen
+    // (its content is sparser and further away). Phone callers keep 1×.
+    intensity: Float = 1f,
+) {
+    if (LocalIsTelevision.current && !enableOnTelevision) return
     val dark = isSystemInDarkTheme()
-    val alpha = if (dark) DarkAlpha else LightAlpha
+    val alpha = (if (dark) DarkAlpha else LightAlpha) * intensity
     // The user's own chosen accent (MaterialTheme.colorScheme.primary is that raw accent, not a
     // muted derived tone — see DroidifyTheme.withVividAccent) as the seed for the whole palette,
     // instead of a fixed rainbow unrelated to their theme.

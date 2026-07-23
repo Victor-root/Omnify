@@ -21,6 +21,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -53,6 +54,10 @@ import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import com.looker.droidify.compose.theme.tvTopAppBarColors
+import com.looker.droidify.compose.tv.TvAccentBackground
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,11 +94,14 @@ fun RepoEditScreen(
         repoId?.let { viewModel.loadRepo(it) }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
+    if (isTelevision) TvAccentBackground()
     Scaffold(
+        containerColor = if (isTelevision) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                colors = accentTopAppBarColors(),
-                expandedHeight = AccentBarHeight,
+                colors = if (isTelevision) tvTopAppBarColors() else accentTopAppBarColors(),
+                expandedHeight = if (isTelevision) TopAppBarDefaults.TopAppBarExpandedHeight else AccentBarHeight,
                 modifier = Modifier.tvDpadDownTo(contentFocusRequester),
                 title = {
                     Text(
@@ -104,6 +112,7 @@ fun RepoEditScreen(
                                 R.string.add_repository
                             },
                         ),
+                        fontWeight = if (isTelevision) FontWeight.Bold else null,
                     )
                 },
                 navigationIcon = { BackButton(onBackClick) },
@@ -127,7 +136,9 @@ fun RepoEditScreen(
             // Its own, edge-to-edge-aware padding (see forFloatingBackground's doc comment) — not the
             // real content's paddingValues below, so the wash reaches a transparent navigation bar
             // instead of stopping short of it.
-            FloatingAppCardsBackground(Modifier.padding(paddingValues.forFloatingBackground()))
+            if (!isTelevision) FloatingAppCardsBackground(
+                Modifier.padding(paddingValues.forFloatingBackground()),
+            )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -245,5 +256,6 @@ fun RepoEditScreen(
                 }
             }
         }
+    }
     }
 }
