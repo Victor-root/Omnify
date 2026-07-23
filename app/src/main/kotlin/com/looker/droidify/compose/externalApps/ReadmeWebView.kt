@@ -53,10 +53,6 @@ private class NonScrollingWebView(context: Context) : WebView(context) {
 /** Roughly one text line per wheel notch — mirrors the platform's own View.scrollBy sizing. */
 private const val WheelScrollFactorPx = 60f
 
-/** How opaque the README page's own background is over the aurora wash behind it — low enough that
- *  the wash reads at roughly the same strength it does everywhere else in the app (not diluted away
- *  to nothing by a near-opaque overlay), high enough that body text stays legible against it. */
-private const val ReadmeBackgroundAlpha = 0.55f
 
 /**
  * Renders a project README (GitHub-rendered HTML) in a WebView, so it looks like it does on the web:
@@ -91,15 +87,18 @@ fun ReadmeWebView(
     // see onRenderProcessGone below) so the caller can show a fallback instead of a permanently blank gap.
     // Never called under normal operation.
     onRendererGone: () -> Unit = {},
-    // True when there's a FloatingAppCardsBackground aurora wash actually drawn behind this WebView for
-    // a translucent page background to blend with — the external-source detail screen has one, so its
-    // caller opts in; ChangelogDialog opens its own separate Android Window with no such wash behind it
-    // (just its own opaque Surface/scrim), where translucency would show through to that instead and
-    // look like a rendering glitch rather than the intended aurora blend. False (opaque, the original
-    // behaviour) by default for exactly that reason.
+    // True when this WebView sits directly on the app's own background + accent wash (the TV detail/reader
+    // screens), so the README page must be fully TRANSPARENT and let the wash behind it show through — a
+    // flat opaque colour instead reads as a hard rectangular patch that doesn't line up with the aurora
+    // glow around it. Both the WebView view background and the CSS body background go fully transparent;
+    // only code blocks/tables/quotes keep their own solid surface fill for legibility. False (the raised
+    // surface colour, opaque) by default for ChangelogDialog, which sits on its own opaque dialog surface.
     translucentBackground: Boolean = false,
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    // The README page's own background: fully transparent when it sits on the app (so the accent wash
+    // shows straight through), otherwise the opaque raised surface colour.
+    val pageBackground = if (translucentBackground) Color.Transparent else colorScheme.surface
     val uriHandler = LocalUriHandler.current
     val isTelevision = LocalIsTelevision.current
     val coroutineScope = rememberCoroutineScope()
@@ -109,20 +108,13 @@ fun ReadmeWebView(
     // ("val cannot be reassigned"), so the receiver-side assignment needs `this.javaScriptEnabled =`
     // explicitly, and reading the parameter's value here under its own name keeps both sides unambiguous.
     val allowJavaScript = javaScriptEnabled
-    val document = remember(html, colorScheme, translucentBackground) {
+    val document = remember(html, colorScheme, pageBackground) {
         wrapReadmeHtml(
             body = html,
-            // Translucent, not the flat opaque surface colour, when translucentBackground is set: the
-            // WebView's own background is already set to transparent below specifically so the aurora
-            // wash behind it shows through here the same as everywhere else in the app — a fully opaque
-            // body painted a flat white/near-black over it instead, even with that transparency in
-            // place. Code blocks/tables/quotes below keep their own solid background for contrast; only
-            // the page itself is tinted rather than opaque.
-            background = if (translucentBackground) {
-                colorScheme.surface.copy(alpha = ReadmeBackgroundAlpha)
-            } else {
-                colorScheme.surface
-            },
+            // The app background (not the raised surface) when translucentBackground is set, so the page
+            // reads as part of the screen rather than a card floating on it. Code blocks/tables/quotes
+            // below keep their own solid surface colour for contrast; only the page itself blends in.
+            background = pageBackground,
             text = colorScheme.onSurface,
             link = colorScheme.primary,
             codeBackground = colorScheme.surfaceVariant,

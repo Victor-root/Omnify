@@ -64,7 +64,6 @@ import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import androidx.compose.foundation.layout.Arrangement
 import com.looker.droidify.compose.externalApps.ReadmeWebView
-import com.looker.droidify.compose.externalApps.WebViewDialog
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
@@ -190,6 +189,9 @@ fun TvAppDetailScreen(
             }
 
             Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            // The full description reader replaces the whole page (not an overlay) so the detail's cards
+            // below can't steal D-pad focus from behind it.
+            if (!showDescription) {
             TvAccentBackground()
             Column(
                 modifier = Modifier
@@ -291,9 +293,11 @@ fun TvAppDetailScreen(
                 }
             }
             }
+            }
 
             if (showDescription) {
-                WebViewDialog(
+                // Rendered as a full-screen sibling; the content above isn't composed while it's open.
+                TvReadmeScreen(
                     title = stringResource(R.string.description),
                     html = descriptionHtml,
                     unavailable = false,
@@ -301,7 +305,7 @@ fun TvAppDetailScreen(
                     baseUrl = "",
                     javaScriptEnabled = false,
                     webUrl = app.links?.webSite ?: app.links?.sourceCode ?: "",
-                    onDismiss = { showDescription = false },
+                    onBack = { showDescription = false },
                 )
             }
         }
@@ -309,11 +313,11 @@ fun TvAppDetailScreen(
 }
 
 @Composable
-internal fun TvBackButton(onBackClick: () -> Unit) {
+internal fun TvBackButton(onBackClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = spacedBy(8.dp),
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(50))
             .tvFocusFill(RoundedCornerShape(50))
             .tvBringIntoViewOnFocus()
@@ -519,6 +523,8 @@ internal fun TvReadmePreview(
                 javaScriptEnabled = javaScriptEnabled,
                 onContentHeight = { contentHeightPx = it },
                 scrollState = scroll,
+                // Translucent so the screen's accent wash shows through instead of a hard white block.
+                translucentBackground = true,
                 forceSoftwareLayer = viewportPx <= 0 || contentHeightPx <= viewportPx,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -533,10 +539,10 @@ private val PREVIEW_FALLBACK_HEIGHT = 260.dp
 private const val PREVIEW_MIN_PX = 160
 
 /**
- * The "View description" control on a TV detail screen: opens the app's description / README in a
- * centred reader ([WebViewDialog]) rendered exactly like the mobile build's, so emojis, images, tables
- * and links all show properly and the couch UI stays sober. Shared by the catalogue and external detail
- * screens so both kinds of app open their description the same way.
+ * The "View description" control on a TV detail screen: opens the app's description / README as a
+ * full TV page ([TvReadmeScreen]), so emojis, images, tables and links all show properly and the couch
+ * UI stays sober. Shared by the catalogue and external detail screens so both kinds of app open their
+ * description the same way.
  */
 @Composable
 internal fun TvOpenDescriptionButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
