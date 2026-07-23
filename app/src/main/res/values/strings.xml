@@ -19,7 +19,7 @@
     <string name="tv_filter_tv_only">TV apps</string>
     <string name="tv_filter_all">All apps</string>
     <!-- Android TV cold-start loader subtitle: reassures that the first sync is expected to be slow. -->
-    <string name="tv_first_sync_hint">The first sync downloads the full catalogue, so it can take a while — this is normal on first launch and only happens once.</string>
+    <string name="tv_first_sync_hint">The first sync downloads the full catalogue, so it can take a while. This is normal on first launch and only happens once.</string>
     <string name="action_failed">Action failed</string>
     <string name="add_repository">Add repository</string>
     <string name="address">Address</string>

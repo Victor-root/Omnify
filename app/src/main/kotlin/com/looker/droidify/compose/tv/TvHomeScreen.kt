@@ -284,6 +284,14 @@ fun TvHomeScreen(
 
 private val RailWidth = 180.dp
 
+// The rail always uses the dark theme's own NEUTRAL colours (its exact md_theme_d_* values) so light
+// mode shows the same dark sidebar as dark mode. Only the neutrals are fixed — the accent (selection /
+// focus / badge) still comes from MaterialTheme so a custom accent colour keeps working.
+private val RailNeutralBg = androidx.compose.ui.graphics.Color(0xFF191D17)      // md_theme_d_surfaceContainerLow
+private val RailNeutralContent = androidx.compose.ui.graphics.Color(0xFFC3C8BC) // md_theme_d_onSurfaceVariant
+private val RailNeutralStrong = androidx.compose.ui.graphics.Color(0xFFE1E4DA)  // md_theme_d_onSurface
+
+
 @Composable
 private fun TvNavRail(
     section: TvSection,
@@ -300,7 +308,7 @@ private fun TvNavRail(
         modifier = Modifier
             .fillMaxHeight()
             .width(RailWidth)
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .background(RailNeutralBg)
             .then(modifier)
             .focusGroup()
             .padding(horizontal = 12.dp, vertical = TvOverscan),
@@ -325,7 +333,7 @@ private fun TvNavRail(
                 text = stringResource(R.string.application_name),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = RailNeutralStrong,
             )
         }
         // A single, consistent Tabler icon set (tabler.io) for the whole rail.
@@ -371,7 +379,8 @@ private fun TvRailButton(
     preserveIconColor: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    // Accent (selected) follows the theme; the resting colour is the fixed dark-palette neutral.
+    val tint = if (selected) MaterialTheme.colorScheme.primary else RailNeutralContent
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -778,7 +787,12 @@ private fun TvLoading() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        CircularWavyProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        CircularWavyProgressIndicator(
+            color = MaterialTheme.colorScheme.primary,
+            // Track (the not-yet-filled arc) follows the same accent hue, just faded, instead of the
+            // default green so it matches the filled part whatever the accent colour is.
+            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+        )
         Spacer(Modifier.height(24.dp))
         Text(
             text = stringResource(R.string.fetching_repositories),

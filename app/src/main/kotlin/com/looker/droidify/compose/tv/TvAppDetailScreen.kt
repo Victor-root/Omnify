@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
@@ -26,7 +27,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -67,6 +68,7 @@ import com.looker.droidify.compose.externalApps.WebViewDialog
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.selectForDevice
 import kotlinx.coroutines.delay
@@ -234,10 +236,13 @@ fun TvAppDetailScreen(
                     }
                 }
 
-                // Action buttons (Install/Update/Launch + Uninstall) with the favourite at the right end.
+                // Action buttons (Install/Update/Launch + Uninstall) with the favourite alongside them,
+                // the whole set sized to its content and centred as one group — so the favourite reads as
+                // a peer next to the primary action instead of being flung to the far screen edge.
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = spacedBy(16.dp),
+                    // Wider gap so the focus scale-up of either button never overlaps its neighbour.
+                    horizontalArrangement = spacedBy(28.dp, Alignment.CenterHorizontally),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     PrimaryActions(
@@ -252,7 +257,9 @@ fun TvAppDetailScreen(
                         onUninstall = viewModel::uninstall,
                         onCancel = viewModel::cancel,
                         primaryActionFocusRequester = primaryFocus,
-                        modifier = Modifier.weight(1f),
+                        // Sized to its content (not stretched full-width) so the favourite sits right next
+                        // to it; the group is then centred by the row's arrangement above.
+                        modifier = Modifier.width(IntrinsicSize.Min),
                     )
                     TvFavouriteButton(isFavourite = isFavourite, onToggle = viewModel::toggleFavourite)
                 }
@@ -342,9 +349,13 @@ internal fun TvChip(text: String) {
  *  Uninstall. Accent heart when on, muted when off. Shared by both TV detail screens. */
 @Composable
 internal fun TvFavouriteButton(isFavourite: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
-    OutlinedButton(
+    // A solid tonal button (not a hairline outline) so it reads as a real peer next to the filled primary
+    // action instead of a lonely ghost button. The heart fills with the accent when the app is a
+    // favourite.
+    FilledTonalButton(
         onClick = onToggle,
-        modifier = modifier.height(60.dp).tvBringIntoViewOnFocus(),
+        // Scales on focus like the primary action, so it's obvious when the remote is on it.
+        modifier = modifier.height(60.dp).widthIn(min = 200.dp).tvFocusScale(1.10f).tvBringIntoViewOnFocus(),
     ) {
         Icon(
             imageVector = Icons.Filled.Favorite,
