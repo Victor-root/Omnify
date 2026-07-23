@@ -15,6 +15,9 @@
     <string name="tv_view_description">See more</string>
     <!-- Android TV: shown after the first Back press at the home screen; a second press exits. -->
     <string name="tv_press_back_again">Press Back again to exit</string>
+    <!-- Android TV home rail: the app-filter toggle labels (current state), TV-made apps vs everything. -->
+    <string name="tv_filter_tv_only">TV apps</string>
+    <string name="tv_filter_all">All apps</string>
     <string name="action_failed">Action failed</string>
     <string name="add_repository">Add repository</string>
     <string name="address">Address</string>

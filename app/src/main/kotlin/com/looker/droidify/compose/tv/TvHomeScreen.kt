@@ -117,6 +117,10 @@ fun TvHomeScreen(
 
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
+    // The TV-only filter (shared engine with the phone: viewModel.tvOnly / toggleTvOnly). It already
+    // narrows the catalogue lists — Installed / Updates / Search all derive from the same filtered
+    // appsState — so here it only additionally gates Explore (to the TV carousel) and the External grid.
+    val tvOnly by viewModel.tvOnly.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         externalViewModel.refresh()
@@ -164,6 +168,8 @@ fun TvHomeScreen(
         TvNavRail(
             section = section,
             updatesCount = updatesCount,
+            tvOnly = tvOnly,
+            onToggleTvOnly = viewModel::toggleTvOnly,
             modifier = Modifier
                 .focusRequester(railFocus)
                 .onFocusChanged { railFocused = it.hasFocus },
@@ -183,12 +189,15 @@ fun TvHomeScreen(
         ) {
             when (section) {
                 TvSection.EXPLORE -> TvExplore(
-                    newApps = newApps,
-                    recentlyUpdatedApps = recentlyUpdatedApps,
-                    mostDownloadedApps = mostDownloadedApps,
+                    // With the TV-only filter on, Explore collapses to just the "made for TV" carousel;
+                    // the generic discovery rows (new / recently updated / most downloaded) are full of
+                    // phone apps, so they'd defeat the filter.
+                    newApps = if (tvOnly) emptyList() else newApps,
+                    recentlyUpdatedApps = if (tvOnly) emptyList() else recentlyUpdatedApps,
+                    mostDownloadedApps = if (tvOnly) emptyList() else mostDownloadedApps,
                     tvApps = tvApps,
-                    shizukuApps = shizukuApps,
-                    rootApps = rootApps,
+                    shizukuApps = if (tvOnly) emptyList() else shizukuApps,
+                    rootApps = if (tvOnly) emptyList() else rootApps,
                     installedPackages = installedPackages,
                     onAppClick = onAppClick,
                 )
@@ -209,7 +218,8 @@ fun TvHomeScreen(
                 )
 
                 TvSection.EXTERNAL -> TvExternalGrid(
-                    apps = externalApps,
+                    // Same filter as the phone's External grid: narrow to TV-capable sources when on.
+                    apps = if (tvOnly) externalApps.filter { it.supportsTelevision } else externalApps,
                     installedKeys = externalInstalledKeys,
                     onAppClick = onExternalAppClick,
                 )
@@ -235,6 +245,8 @@ private val RailWidth = 180.dp
 private fun TvNavRail(
     section: TvSection,
     updatesCount: Int,
+    tvOnly: Boolean,
+    onToggleTvOnly: () -> Unit,
     modifier: Modifier = Modifier,
     onSelect: (TvSection) -> Unit,
     onSearch: () -> Unit,
@@ -292,6 +304,13 @@ private fun TvNavRail(
             preserveIconColor = true,
         ) { onSelect(TvSection.EXTERNAL) }
         Spacer(Modifier.weight(1f))
+        // The app-scope filter: flips every list between TV-made apps and the whole catalogue. Its label
+        // reflects the current scope; the accent (selected) style shows when the TV-only filter is active.
+        TvRailButton(
+            icon = painterResource(R.drawable.ic_tv_device),
+            label = stringResource(if (tvOnly) R.string.tv_filter_tv_only else R.string.tv_filter_all),
+            selected = tvOnly,
+        ) { onToggleTvOnly() }
         // Repositories uses the same box glyph as the phone's Repositories entry.
         TvRailButton(painterResource(R.drawable.ic_tabler_box), stringResource(R.string.repositories), false) { onRepos() }
         TvRailButton(painterResource(R.drawable.ic_tv_settings), stringResource(R.string.settings), false) { onSettings() }
