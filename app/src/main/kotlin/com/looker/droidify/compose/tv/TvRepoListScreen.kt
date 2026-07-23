@@ -69,6 +69,7 @@ import com.looker.droidify.compose.repoList.RepoIcon
 import com.looker.droidify.compose.repoList.RepoListViewModel
 import com.looker.droidify.compose.repoList.defaultRepoIcon
 import com.looker.droidify.compose.repoList.defaultRepoIconRes
+import com.looker.droidify.compose.settings.components.SettingHeader
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
@@ -205,7 +206,7 @@ fun TvRepoListScreen(
         }
 
         // External sources / accounts the user added themselves.
-        item(key = "external-header") { TvSectionTitle(stringResource(R.string.repo_section_external)) }
+        item(key = "external-header") { SettingHeader(stringResource(R.string.repo_section_external)) }
         if (regularAccounts.isEmpty() && regularExternalApps.isEmpty()) {
             item(key = "external-empty") {
                 Text(
@@ -238,7 +239,7 @@ fun TvRepoListScreen(
         }
 
         // F-Droid repositories.
-        item(key = "repos-header") { TvSectionTitle(stringResource(R.string.repo_section_fdroid)) }
+        item(key = "repos-header") { SettingHeader(stringResource(R.string.repo_section_fdroid)) }
         items(sortedRepos, key = { "repo-${it.id}" }) { repo ->
             TvRepoRow(
                 repo = repo,
@@ -250,7 +251,7 @@ fun TvRepoListScreen(
 
         // Omnify's own curated picks (the repo, the Victor-root account, and the Made-for-TV pack).
         item(key = "omnify-picks-header") {
-            TvSectionTitle(stringResource(R.string.repo_section_omnify_picks))
+            SettingHeader(stringResource(R.string.repo_section_omnify_picks))
         }
         items(curatedExternalApps, key = { "cur-ext-${it.key}" }) { app ->
             TvSourceRow(
@@ -426,8 +427,12 @@ private fun TvAddSourceButton(onClick: () -> Unit) {
     }
 }
 
-/** Shared shell for a management row: a rounded surface that fills on focus, a big icon, the title /
- *  subtitle stack, then the trailing controls (overflow menu + enable toggle) as focusable siblings. */
+/**
+ * Shared shell for a management row. On TV the whole row (icon, text AND the switch) is a single focus
+ * target: clicking anywhere flips the enable switch — the simplest interaction on a remote. The switch is
+ * display-only, and the secondary actions (open/details, edit, remove, rescan) live in the overflow menu
+ * beside it, which is the only other focus target.
+ */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun TvManagementRow(
@@ -437,14 +442,14 @@ private fun TvManagementRow(
     icon: @Composable () -> Unit,
     title: String,
     subtitle: @Composable () -> Unit,
-    overflow: (@Composable () -> Unit)? = null,
+    extraMenuItems: (@Composable (dismiss: () -> Unit) -> Unit)? = null,
     progress: (@Composable () -> Unit)? = null,
 ) {
     val contentAlpha = if (enabled) 1f else 0.4f
     Column(
-        // A focusGroup (never itself focused) so the open target, the overflow menu and the toggle are
-        // true siblings the remote moves between — a focusable parent containing focusable children
-        // breaks D-pad descent (see the phone screen's RepoItem for the same reasoning).
+        // A focusGroup (never itself focused) so the row-toggle target and the overflow menu are true
+        // siblings the remote moves between — a focusable parent containing focusable children breaks
+        // D-pad descent (see the phone screen's RepoItem for the same reasoning).
         modifier = Modifier.fillMaxWidth().focusGroup(),
     ) {
         Row(
@@ -456,7 +461,7 @@ private fun TvManagementRow(
                 modifier = Modifier
                     .weight(1f)
                     .tvFocusFill(RoundedCornerShape(16.dp))
-                    .clickable(onClick = onOpen)
+                    .clickable(onClick = onToggle)
                     .padding(horizontal = 12.dp, vertical = 12.dp),
             ) {
                 Box(modifier = Modifier.size(56.dp).alpha(contentAlpha)) { icon() }
@@ -470,15 +475,29 @@ private fun TvManagementRow(
                     )
                     subtitle()
                 }
+                Spacer(Modifier.size(12.dp))
+                // Display-only (onCheckedChange = null) — it isn't a second focus target; the row toggles
+                // it. Accent-coloured when on, like the settings rows.
+                Switch(checked = enabled, onCheckedChange = null)
             }
             Spacer(Modifier.size(8.dp))
-            overflow?.invoke()
-            // A real Switch (accent-coloured when on) like the settings rows, not a check toggle.
-            Switch(
-                checked = enabled,
-                onCheckedChange = { onToggle() },
-                modifier = Modifier.tvFocusScale(),
-            )
+            if (extraMenuItems == null) {
+                // Only "details" would be in the menu, so skip the kebab and offer a direct info button.
+                IconButton(onClick = onOpen, modifier = Modifier.tvFocusScale()) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_tv_info),
+                        contentDescription = stringResource(R.string.details),
+                    )
+                }
+            } else {
+                TvOverflowMenu { dismiss ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.details)) },
+                        onClick = { dismiss(); onOpen() },
+                    )
+                    extraMenuItems.invoke(dismiss)
+                }
+            }
         }
         progress?.invoke()
     }
@@ -582,25 +601,23 @@ private fun TvSourceRow(
                 overflow = TextOverflow.Ellipsis,
             )
         },
-        overflow = if (onEdit != null || onRemove != null) {
-            {
-                TvOverflowMenu { dismiss ->
-                    if (onEdit != null) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.external_edit_source)) },
-                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                            onClick = { dismiss(); onEdit() },
-                        )
-                    }
-                    if (onRemove != null) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.external_remove)) },
-                            leadingIcon = {
-                                Icon(painterResource(R.drawable.ic_tabler_trash), contentDescription = null)
-                            },
-                            onClick = { dismiss(); onRemove() },
-                        )
-                    }
+        extraMenuItems = if (onEdit != null || onRemove != null) {
+            { dismiss ->
+                if (onEdit != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.external_edit_source)) },
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                        onClick = { dismiss(); onEdit() },
+                    )
+                }
+                if (onRemove != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.external_remove)) },
+                        leadingIcon = {
+                            Icon(painterResource(R.drawable.ic_tabler_trash), contentDescription = null)
+                        },
+                        onClick = { dismiss(); onRemove() },
+                    )
                 }
             }
         } else {
@@ -659,23 +676,21 @@ private fun TvAccountRow(
                 )
             }
         },
-        overflow = {
-            TvOverflowMenu { dismiss ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.external_account_rescan)) },
-                    leadingIcon = {
-                        Icon(painterResource(R.drawable.ic_tabler_refresh), contentDescription = null)
-                    },
-                    onClick = { dismiss(); onRescan() },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.external_remove)) },
-                    leadingIcon = {
-                        Icon(painterResource(R.drawable.ic_tabler_trash), contentDescription = null)
-                    },
-                    onClick = { dismiss(); onRemove() },
-                )
-            }
+        extraMenuItems = { dismiss ->
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.external_account_rescan)) },
+                leadingIcon = {
+                    Icon(painterResource(R.drawable.ic_tabler_refresh), contentDescription = null)
+                },
+                onClick = { dismiss(); onRescan() },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.external_remove)) },
+                leadingIcon = {
+                    Icon(painterResource(R.drawable.ic_tabler_trash), contentDescription = null)
+                },
+                onClick = { dismiss(); onRemove() },
+            )
         },
     )
 }

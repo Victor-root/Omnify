@@ -256,34 +256,38 @@ fun SettingsScreen(
                 )
             }
 
-            item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.home_screen_swiping),
-                    description = stringResource(R.string.home_screen_swiping_DESC),
-                    icon = painterResource(R.drawable.ic_tabler_arrows_horizontal),
-                    checked = settings.homeScreenSwiping,
-                    onCheckedChange = viewModel::setHomeScreenSwiping,
-                )
-            }
+            // Page-swiping, edge-to-edge and the two-pane detail view are phone/tablet concerns — none
+            // apply to a D-pad TV, so they're hidden there.
+            if (!isTelevision) {
+                item {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.home_screen_swiping),
+                        description = stringResource(R.string.home_screen_swiping_DESC),
+                        icon = painterResource(R.drawable.ic_tabler_arrows_horizontal),
+                        checked = settings.homeScreenSwiping,
+                        onCheckedChange = viewModel::setHomeScreenSwiping,
+                    )
+                }
 
-            item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.edge_to_edge),
-                    description = stringResource(R.string.edge_to_edge_summary),
-                    icon = painterResource(R.drawable.ic_tabler_maximize),
-                    checked = settings.edgeToEdge,
-                    onCheckedChange = viewModel::setEdgeToEdge,
-                )
-            }
+                item {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.edge_to_edge),
+                        description = stringResource(R.string.edge_to_edge_summary),
+                        icon = painterResource(R.drawable.ic_tabler_maximize),
+                        checked = settings.edgeToEdge,
+                        onCheckedChange = viewModel::setEdgeToEdge,
+                    )
+                }
 
-            item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.split_view_title),
-                    description = stringResource(R.string.split_view_DESC),
-                    icon = rememberVectorPainter(Icons.Filled.ViewColumn),
-                    checked = settings.splitViewEnabled,
-                    onCheckedChange = viewModel::setSplitViewEnabled,
-                )
+                item {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.split_view_title),
+                        description = stringResource(R.string.split_view_DESC),
+                        icon = rememberVectorPainter(Icons.Filled.ViewColumn),
+                        checked = settings.splitViewEnabled,
+                        onCheckedChange = viewModel::setSplitViewEnabled,
+                    )
+                }
             }
 
             item {
