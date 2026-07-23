@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -75,7 +77,6 @@ import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.TvOverscan
-import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.repoDetail.components.LastUpdatedCard
@@ -507,21 +508,12 @@ private fun RepoAppsTab(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun InstallAllButton(
+internal fun InstallAllButton(
     count: Int,
     isInstalling: Boolean,
     onClick: () -> Unit,
 ) {
-    FilledTonalButton(
-        onClick = onClick,
-        enabled = !isInstalling,
-        modifier = Modifier
-            .fillMaxWidth()
-            // TV only: an accent outline around the focused button (no-op on touch); a full-width row
-            // can't scale without overflowing the screen.
-            .tvFocusOutline(MaterialTheme.shapes.large)
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-    ) {
+    val content: @Composable RowScope.() -> Unit = {
         if (isInstalling) {
             CircularWavyProgressIndicator(modifier = Modifier.size(20.dp))
         } else {
@@ -536,10 +528,29 @@ private fun InstallAllButton(
             },
         )
     }
+    if (LocalIsTelevision.current) {
+        // TV: content-sized and centred, and it lifts/scales on focus (no accent outline) — the same
+        // treatment as the app-detail action buttons.
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            FilledTonalButton(
+                onClick = onClick,
+                enabled = !isInstalling,
+                modifier = Modifier.height(60.dp).widthIn(min = 340.dp).tvFocusScale(1.10f),
+                content = content,
+            )
+        }
+    } else {
+        FilledTonalButton(
+            onClick = onClick,
+            enabled = !isInstalling,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+            content = content,
+        )
+    }
 }
 
 @Composable
-private fun FingerprintCard(
+internal fun FingerprintCard(
     title: String,
     content: AnnotatedString,
 ) {
@@ -574,7 +585,7 @@ private fun FingerprintCard(
 }
 
 @Composable
-private fun DeleteRepositoryDialog(
+internal fun DeleteRepositoryDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -612,7 +623,7 @@ private fun DeleteRepositoryDialog(
 }
 
 @Composable
-private fun formatFingerprint(repo: Repo): AnnotatedString {
+internal fun formatFingerprint(repo: Repo): AnnotatedString {
     return repo.fingerprint?.let { fingerprint ->
         buildAnnotatedString {
             withStyle(SpanStyle(fontFamily = FontFamily.Monospace)) {
