@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -45,6 +46,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import com.looker.droidify.compose.tv.TvAccentBackground
+import com.looker.droidify.compose.tv.TvAccentHeader
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -171,19 +175,37 @@ fun SettingsScreen(
     // TV / D-pad: drop focus from the header into the settings list (the top bar won't on its own).
     val contentFocusRequester = remember { FocusRequester() }
 
-    Scaffold(
+    // On TV the accent wash spans the whole screen (behind the header too, so there's no seam), so the
+    // Scaffold is transparent and the wash is drawn behind it. On phone the Scaffold keeps its own
+    // background and draws the wash inside the content as before.
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (isTelevision) TvAccentBackground()
+        Scaffold(
+        containerColor = if (isTelevision) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                colors = accentTopAppBarColors(),
-                expandedHeight = AccentBarHeight,
-                modifier = Modifier.tvDpadDownTo(contentFocusRequester),
-                title = { Text(text = stringResource(R.string.settings)) },
-                navigationIcon = { BackButton(onBackClick) },
-            )
+            if (isTelevision) {
+                // Match the other TV screens (a back affordance + a large accent title) instead of the
+                // phone's solid accent bar.
+                TvAccentHeader(
+                    title = stringResource(R.string.settings),
+                    onBackClick = onBackClick,
+                    modifier = Modifier.tvDpadDownTo(contentFocusRequester),
+                )
+            } else {
+                TopAppBar(
+                    colors = accentTopAppBarColors(),
+                    expandedHeight = AccentBarHeight,
+                    modifier = Modifier.tvDpadDownTo(contentFocusRequester),
+                    title = { Text(text = stringResource(R.string.settings)) },
+                    navigationIcon = { BackButton(onBackClick) },
+                )
+            }
         },
         snackbarHost = { SnackbarHost(viewModel.snackbarHostState) },
     ) { contentPadding ->
-        FloatingAppCardsBackground(Modifier.padding(contentPadding.forFloatingBackground()))
+        if (!isTelevision) FloatingAppCardsBackground(
+            Modifier.padding(contentPadding.forFloatingBackground()),
+        )
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -599,6 +621,7 @@ fun SettingsScreen(
 
             item { VersionFooter() }
         }
+    }
     }
 
     if (showColorPicker) {

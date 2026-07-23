@@ -194,10 +194,11 @@ fun TvExternalAppDetailScreen(
         }
     }
 
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    TvAccentBackground()
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
             .onSizeChanged { viewportPx = it.height }
             .onPreviewKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown) userInteracted = true
@@ -287,6 +288,7 @@ fun TvExternalAppDetailScreen(
                 onVersionClick = { versionToInstall = it },
             )
         }
+    }
     }
 }
 

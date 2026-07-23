@@ -66,11 +66,12 @@ fun TvExternalAccountDetailScreen(
     val contentFocus = remember { FocusRequester() }
     LaunchedEffect(accountApps.isEmpty()) { runCatching { contentFocus.requestFocus() } }
 
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    TvAccentBackground()
     LazyVerticalGrid(
         columns = GridCells.Adaptive(150.dp),
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
             .focusRequester(contentFocus)
             .focusGroup(),
         contentPadding = PaddingValues(TvOverscan + 16.dp),
@@ -111,5 +112,6 @@ fun TvExternalAccountDetailScreen(
                 }
             }
         }
+    }
     }
 }

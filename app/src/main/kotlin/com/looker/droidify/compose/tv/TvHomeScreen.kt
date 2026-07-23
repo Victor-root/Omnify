@@ -218,6 +218,8 @@ fun TvHomeScreen(
                 .focusRequester(contentFocus)
                 .focusGroup(),
         ) {
+            // The TV accent wash behind the content (light & dark).
+            TvAccentBackground()
             when {
                 // Cold start: show a loader instead of empty carousels while the first sync runs.
                 catalogLoading && section != TvSection.EXTERNAL -> TvLoading()

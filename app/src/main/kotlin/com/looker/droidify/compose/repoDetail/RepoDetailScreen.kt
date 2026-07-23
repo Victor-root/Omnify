@@ -87,6 +87,11 @@ import com.looker.droidify.compose.settings.components.SwitchSettingItem
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import com.looker.droidify.compose.theme.tvTopAppBarColors
+import com.looker.droidify.compose.tv.TvAccentBackground
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.text.font.FontWeight
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.utility.text.toAnnotatedString
@@ -145,14 +150,22 @@ fun RepoDetailScreen(
         }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
+    if (isTelevision) TvAccentBackground()
     Scaffold(
+        containerColor = if (isTelevision) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             Column {
                 TopAppBar(
-                    colors = accentTopAppBarColors(),
-                    expandedHeight = AccentBarHeight,
+                    colors = if (isTelevision) tvTopAppBarColors() else accentTopAppBarColors(),
+                    expandedHeight = if (isTelevision) TopAppBarDefaults.TopAppBarExpandedHeight else AccentBarHeight,
                     modifier = Modifier.tvDpadDownTo(if (repo != null) tabsFocusRequester else contentFocusRequester),
-                    title = { Text(stringResource(R.string.repository)) },
+                    title = {
+                        Text(
+                            stringResource(R.string.repository),
+                            fontWeight = if (isTelevision) FontWeight.Bold else null,
+                        )
+                    },
                     navigationIcon = { BackButton(onBackClick) },
                     actions = {
                         IconButton(
@@ -193,7 +206,9 @@ fun RepoDetailScreen(
             }
         },
     ) { paddingValues ->
-        FloatingAppCardsBackground(Modifier.padding(paddingValues.forFloatingBackground()))
+        if (!isTelevision) FloatingAppCardsBackground(
+            Modifier.padding(paddingValues.forFloatingBackground()),
+        )
         val currentRepo = repo
         when {
             currentRepo == null -> {
@@ -250,6 +265,7 @@ fun RepoDetailScreen(
                 }
             }
         }
+    }
     }
 }
 

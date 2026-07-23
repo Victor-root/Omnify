@@ -189,10 +189,11 @@ fun TvAppDetailScreen(
                 )
             }
 
+            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            TvAccentBackground()
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
                     .onSizeChanged { viewportPx = it.height }
                     // Any key press marks startup focus as settled, so it's never re-stolen (see above).
                     .onPreviewKeyEvent { event ->
@@ -289,6 +290,7 @@ fun TvAppDetailScreen(
                     )
                 }
             }
+            }
 
             if (showDescription) {
                 WebViewDialog(
@@ -320,6 +322,32 @@ internal fun TvBackButton(onBackClick: () -> Unit) {
     ) {
         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
         Text(stringResource(R.string.tv_back), style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+/**
+ * A TV screen header: a back affordance above a large title tinted with the theme accent. Used in place
+ * of the phone's solid accent app-bar on the TV settings / repo-detail / repo-edit screens so they match
+ * the rest of the TV UI while still nodding to the accent colour. Pass a [Modifier] carrying
+ * `tvDpadDownTo(...)` so "down" drops from the header into the list below.
+ */
+@Composable
+internal fun TvAccentHeader(title: String, onBackClick: () -> Unit, modifier: Modifier = Modifier) {
+    // Transparent (no solid fill) so the screen's accent background flows continuously behind it — a
+    // solid header band left a hard seam where it met the wash.
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = TvOverscan + 8.dp, end = TvOverscan, top = TvOverscan, bottom = 8.dp),
+    ) {
+        TvBackButton(onBackClick)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 

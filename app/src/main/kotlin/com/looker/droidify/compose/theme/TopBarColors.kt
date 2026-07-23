@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.theme
 
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -53,4 +54,19 @@ fun accentTopAppBarColors(): TopAppBarColors = TopAppBarDefaults.topAppBarColors
     navigationIconContentColor = LocalOnAccentBarColor.current,
     titleContentColor = LocalOnAccentBarColor.current,
     actionIconContentColor = LocalOnAccentBarColor.current,
+)
+
+/**
+ * Android TV variant of [accentTopAppBarColors]: no solid accent bar (which looked out of place next to
+ * the rest of the TV UI), just a transparent header with a plain title, matching the other TV screens
+ * while keeping the back arrow and any header actions.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun tvTopAppBarColors(): TopAppBarColors = TopAppBarDefaults.topAppBarColors(
+    containerColor = Color.Transparent,
+    scrolledContainerColor = Color.Transparent,
+    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+    titleContentColor = MaterialTheme.colorScheme.onSurface,
+    actionIconContentColor = MaterialTheme.colorScheme.onSurface,
 )
