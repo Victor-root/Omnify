@@ -48,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,6 +72,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appList.AppListViewModel
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appList.AppTab
+import com.looker.droidify.compose.appList.restoreFocusTarget
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
@@ -155,20 +157,39 @@ fun TvHomeScreen(
 
     val installedPackages = remember(installedVersionNames) { installedVersionNames.keys }
 
-    var section by remember { mutableStateOf(TvSection.EXPLORE) }
+    // rememberSaveable (not remember) so the section survives leaving the composition — navigating into
+    // a detail screen and back would otherwise reset the home to Explore instead of the tab you left.
+    var section by rememberSaveable(
+        stateSaver = Saver(save = { it.name }, restore = { TvSection.valueOf(it) }),
+    ) { mutableStateOf(TvSection.EXPLORE) }
     val contentFocus = remember { FocusRequester() }
+
+    // Focus restoration: the id ("app:pkg" / "ext:key") of the card the user last opened, saved so that
+    // returning from its detail screen lands the remote back on that exact card instead of the first one.
+    // Cleared when switching tabs (a card from another section shouldn't be restored).
+    var restoreFocusId by rememberSaveable { mutableStateOf<String?>(null) }
+    val restoreRequester = remember { FocusRequester() }
+    val openApp: (String) -> Unit = { pkg -> restoreFocusId = "app:$pkg"; onAppClick(pkg) }
+    val openExternal: (String) -> Unit = { key -> restoreFocusId = "ext:$key"; onExternalAppClick(key) }
 
     val railFocus = remember { FocusRequester() }
     // Entering a section hands focus to its content (the rail keeps the section highlighted), so the
     // remote lands on a card instead of nowhere. During the cold-start loader the content has nothing
     // focusable, so focus is parked on the rail instead — Android TV must always have a focused element
-    // or the first remote press ANRs the app.
+    // or the first remote press ANRs the app. On return from a detail screen we first try to restore the
+    // exact card that was opened (restoreRequester is attached to it), falling back to the section content.
     LaunchedEffect(section, catalogLoading) {
         if (catalogLoading && section != TvSection.EXTERNAL) {
             runCatching { railFocus.requestFocus() }
-        } else {
-            runCatching { contentFocus.requestFocus() }
+            return@LaunchedEffect
         }
+        if (restoreFocusId != null) {
+            repeat(10) {
+                if (runCatching { restoreRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                delay(50)
+            }
+        }
+        runCatching { contentFocus.requestFocus() }
     }
 
     // Back handling on the TV home. Whenever focus sits in the content area (a card, a grid, the search
@@ -205,8 +226,9 @@ fun TvHomeScreen(
             modifier = Modifier
                 .focusRequester(railFocus)
                 .onFocusChanged { railFocused = it.hasFocus },
-            onSelect = { section = it },
+            onSelect = { restoreFocusId = null; section = it },
             onSearch = {
+                restoreFocusId = null
                 viewModel.selectTab(AppTab.AVAILABLE)
                 section = TvSection.SEARCH
             },
@@ -232,7 +254,9 @@ fun TvHomeScreen(
                     title = stringResource(R.string.discover_tv_apps),
                     apps = tvApps,
                     installedPackages = installedPackages,
-                    onAppClick = onAppClick,
+                    onAppClick = openApp,
+                    restoreFocusId = restoreFocusId,
+                    restoreRequester = restoreRequester,
                 )
 
                 else -> when (section) {
@@ -246,15 +270,19 @@ fun TvHomeScreen(
                     recentlyUpdatedExternalApps = recentlyUpdatedExternalApps,
                     externalInstalledKeys = externalInstalledKeys,
                     installedPackages = installedPackages,
-                    onAppClick = onAppClick,
-                    onExternalAppClick = onExternalAppClick,
+                    onAppClick = openApp,
+                    onExternalAppClick = openExternal,
+                    restoreFocusId = restoreFocusId,
+                    restoreRequester = restoreRequester,
                 )
 
                 TvSection.INSTALLED -> TvAppGrid(
                     title = stringResource(R.string.installed),
                     apps = installedApps,
                     installedPackages = installedPackages,
-                    onAppClick = onAppClick,
+                    onAppClick = openApp,
+                    restoreFocusId = restoreFocusId,
+                    restoreRequester = restoreRequester,
                 )
 
                 TvSection.UPDATES -> TvUpdates(
@@ -262,21 +290,27 @@ fun TvHomeScreen(
                     installedPackages = installedPackages,
                     isUpdatingAll = isUpdatingAll,
                     onUpdateAll = viewModel::updateAll,
-                    onAppClick = onAppClick,
+                    onAppClick = openApp,
+                    restoreFocusId = restoreFocusId,
+                    restoreRequester = restoreRequester,
                 )
 
                 TvSection.EXTERNAL -> TvExternalGrid(
                     // Same filter as the phone's External grid: narrow to TV-capable sources when on.
                     apps = if (tvOnly) externalApps.filter { it.supportsTelevision } else externalApps,
                     installedKeys = externalInstalledKeys,
-                    onAppClick = onExternalAppClick,
+                    onAppClick = openExternal,
+                    restoreFocusId = restoreFocusId,
+                    restoreRequester = restoreRequester,
                 )
 
                 TvSection.SEARCH -> TvSearch(
                     query = viewModel.searchQuery,
                     results = displayedApps,
                     installedPackages = installedPackages,
-                    onAppClick = onAppClick,
+                    onAppClick = openApp,
+                    restoreFocusId = restoreFocusId,
+                    restoreRequester = restoreRequester,
                 )
                 }
             }
@@ -453,6 +487,8 @@ private fun TvExplore(
     installedPackages: Set<String>,
     onAppClick: (String) -> Unit,
     onExternalAppClick: (String) -> Unit,
+    restoreFocusId: String?,
+    restoreRequester: FocusRequester,
 ) {
     Column(
         modifier = Modifier
@@ -462,10 +498,10 @@ private fun TvExplore(
         verticalArrangement = spacedBy(28.dp),
     ) {
         if (tvApps.isNotEmpty()) {
-            TvCarousel(stringResource(R.string.discover_tv_apps), tvApps, installedPackages, onAppClick)
+            TvCarousel(stringResource(R.string.discover_tv_apps), tvApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
         }
         if (newApps.isNotEmpty()) {
-            TvCarousel(stringResource(R.string.discover_new_apps), newApps, installedPackages, onAppClick)
+            TvCarousel(stringResource(R.string.discover_new_apps), newApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
         }
         if (recentlyUpdatedApps.isNotEmpty() || recentlyUpdatedExternalApps.isNotEmpty()) {
             TvCarousel(
@@ -476,16 +512,18 @@ private fun TvExplore(
                 externalApps = recentlyUpdatedExternalApps,
                 externalInstalledKeys = externalInstalledKeys,
                 onExternalAppClick = onExternalAppClick,
+                restoreFocusId = restoreFocusId,
+                restoreRequester = restoreRequester,
             )
         }
         if (mostDownloadedApps.isNotEmpty()) {
-            TvCarousel(stringResource(R.string.discover_most_downloaded), mostDownloadedApps, installedPackages, onAppClick)
+            TvCarousel(stringResource(R.string.discover_most_downloaded), mostDownloadedApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
         }
         if (shizukuApps.isNotEmpty()) {
-            TvCarousel(stringResource(R.string.discover_shizuku), shizukuApps, installedPackages, onAppClick)
+            TvCarousel(stringResource(R.string.discover_shizuku), shizukuApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
         }
         if (rootApps.isNotEmpty()) {
-            TvCarousel(stringResource(R.string.discover_root), rootApps, installedPackages, onAppClick)
+            TvCarousel(stringResource(R.string.discover_root), rootApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
         }
     }
 }
@@ -501,6 +539,8 @@ private fun TvCarousel(
     externalApps: List<ExternalApp> = emptyList(),
     externalInstalledKeys: Set<String> = emptySet(),
     onExternalAppClick: (String) -> Unit = {},
+    restoreFocusId: String? = null,
+    restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
     val rowState = rememberLazyListState()
     val firstKey = apps.firstOrNull()?.appId ?: externalApps.firstOrNull()?.key
@@ -523,6 +563,7 @@ private fun TvCarousel(
                 TvAppCard(
                     name = app.name,
                     onClick = { onAppClick(app.packageName.name) },
+                    modifier = Modifier.restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
                 ) {
                     AppMinimalIcon(
                         app = app,
@@ -535,6 +576,7 @@ private fun TvCarousel(
                 TvAppCard(
                     name = app.label,
                     onClick = { onExternalAppClick(app.key) },
+                    modifier = Modifier.restoreFocusTarget(restoreFocusId == "ext:${app.key}", restoreRequester),
                 ) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                         ExternalAppIcon(app = app, isInstalled = app.key in externalInstalledKeys, size = TileSize - 20.dp)
@@ -559,6 +601,8 @@ private fun TvAppGrid(
     installedPackages: Set<String>,
     onAppClick: (String) -> Unit,
     header: (@Composable () -> Unit)? = null,
+    restoreFocusId: String? = null,
+    restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(top = TvOverscan + 12.dp)) {
         Row(
@@ -584,6 +628,7 @@ private fun TvAppGrid(
                     TvAppCard(
                         name = app.name,
                         onClick = { onAppClick(app.packageName.name) },
+                        modifier = Modifier.restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
                     ) {
                         AppMinimalIcon(
                             app = app,
@@ -604,12 +649,16 @@ private fun TvUpdates(
     isUpdatingAll: Boolean,
     onUpdateAll: () -> Unit,
     onAppClick: (String) -> Unit,
+    restoreFocusId: String? = null,
+    restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
     TvAppGrid(
         title = stringResource(R.string.updates),
         apps = apps,
         installedPackages = installedPackages,
         onAppClick = onAppClick,
+        restoreFocusId = restoreFocusId,
+        restoreRequester = restoreRequester,
         header = {
             if (apps.isNotEmpty()) {
                 Button(
@@ -629,6 +678,8 @@ private fun TvExternalGrid(
     apps: List<ExternalApp>,
     installedKeys: Set<String>,
     onAppClick: (String) -> Unit,
+    restoreFocusId: String? = null,
+    restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(top = TvOverscan + 12.dp)) {
         Text(
@@ -650,6 +701,7 @@ private fun TvExternalGrid(
                     TvAppCard(
                         name = app.label,
                         onClick = { onAppClick(app.key) },
+                        modifier = Modifier.restoreFocusTarget(restoreFocusId == "ext:${app.key}", restoreRequester),
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                             ExternalAppIcon(app = app, isInstalled = app.key in installedKeys, size = TileSize - 20.dp)
@@ -667,6 +719,8 @@ private fun TvSearch(
     results: List<AppMinimal>,
     installedPackages: Set<String>,
     onAppClick: (String) -> Unit,
+    restoreFocusId: String? = null,
+    restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(top = TvOverscan)) {
         TvSearchField(query)
@@ -686,6 +740,7 @@ private fun TvSearch(
                     TvAppCard(
                         name = app.name,
                         onClick = { onAppClick(app.packageName.name) },
+                        modifier = Modifier.restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
                     ) {
                         AppMinimalIcon(
                             app = app,
@@ -750,6 +805,7 @@ private fun TvSearchField(query: TextFieldState) {
 internal fun TvAppCard(
     name: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     icon: @Composable () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -766,7 +822,7 @@ internal fun TvAppCard(
     // handle both axes natively from these stable bounds.
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        modifier = modifier
             .width(CardWidth)
             .onFocusChanged { focused = it.isFocused }
             .zIndex(if (focused) 1f else 0f)
