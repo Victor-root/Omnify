@@ -119,6 +119,7 @@ fun TvHomeScreen(
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
 
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
+    val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
     // The TV-only filter (shared engine with the phone: viewModel.tvOnly / toggleTvOnly). It already
     // narrows the catalogue lists — Installed / Updates / Search all derive from the same filtered
@@ -242,8 +243,11 @@ fun TvHomeScreen(
                     tvApps = tvApps,
                     shizukuApps = shizukuApps,
                     rootApps = rootApps,
+                    recentlyUpdatedExternalApps = recentlyUpdatedExternalApps,
+                    externalInstalledKeys = externalInstalledKeys,
                     installedPackages = installedPackages,
                     onAppClick = onAppClick,
+                    onExternalAppClick = onExternalAppClick,
                 )
 
                 TvSection.INSTALLED -> TvAppGrid(
@@ -444,8 +448,11 @@ private fun TvExplore(
     tvApps: List<AppMinimal>,
     shizukuApps: List<AppMinimal>,
     rootApps: List<AppMinimal>,
+    recentlyUpdatedExternalApps: List<ExternalApp>,
+    externalInstalledKeys: Set<String>,
     installedPackages: Set<String>,
     onAppClick: (String) -> Unit,
+    onExternalAppClick: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -460,8 +467,16 @@ private fun TvExplore(
         if (newApps.isNotEmpty()) {
             TvCarousel(stringResource(R.string.discover_new_apps), newApps, installedPackages, onAppClick)
         }
-        if (recentlyUpdatedApps.isNotEmpty()) {
-            TvCarousel(stringResource(R.string.discover_recently_updated), recentlyUpdatedApps, installedPackages, onAppClick)
+        if (recentlyUpdatedApps.isNotEmpty() || recentlyUpdatedExternalApps.isNotEmpty()) {
+            TvCarousel(
+                title = stringResource(R.string.discover_recently_updated),
+                apps = recentlyUpdatedApps,
+                installedPackages = installedPackages,
+                onAppClick = onAppClick,
+                externalApps = recentlyUpdatedExternalApps,
+                externalInstalledKeys = externalInstalledKeys,
+                onExternalAppClick = onExternalAppClick,
+            )
         }
         if (mostDownloadedApps.isNotEmpty()) {
             TvCarousel(stringResource(R.string.discover_most_downloaded), mostDownloadedApps, installedPackages, onAppClick)
@@ -481,9 +496,14 @@ private fun TvCarousel(
     apps: List<AppMinimal>,
     installedPackages: Set<String>,
     onAppClick: (String) -> Unit,
+    // Optional external (GitHub/GitLab) apps appended after the catalogue ones in the same row — used by
+    // the "recently updated" carousel so recently-released external apps show alongside the F-Droid ones.
+    externalApps: List<ExternalApp> = emptyList(),
+    externalInstalledKeys: Set<String> = emptySet(),
+    onExternalAppClick: (String) -> Unit = {},
 ) {
     val rowState = rememberLazyListState()
-    val firstKey = apps.firstOrNull()?.appId
+    val firstKey = apps.firstOrNull()?.appId ?: externalApps.firstOrNull()?.key
     LaunchedEffect(firstKey) { rowState.scrollToItem(0) }
     Column(verticalArrangement = spacedBy(10.dp)) {
         Text(
@@ -509,6 +529,16 @@ private fun TvCarousel(
                         isInstalled = app.packageName.name in installedPackages,
                         modifier = Modifier.fillMaxSize(),
                     )
+                }
+            }
+            items(externalApps, key = { "ext-${it.key}" }, contentType = { "tv-ext" }) { app ->
+                TvAppCard(
+                    name = app.label,
+                    onClick = { onExternalAppClick(app.key) },
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        ExternalAppIcon(app = app, isInstalled = app.key in externalInstalledKeys, size = TileSize - 20.dp)
+                    }
                 }
             }
         }
