@@ -53,7 +53,6 @@ import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.ExternalLifecycleActions
-import com.looker.droidify.compose.externalApps.WebViewDialog
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
 import kotlinx.coroutines.delay
@@ -114,7 +113,7 @@ fun TvExternalAppDetailScreen(
     }
     var showDescription by remember(app.key) { mutableStateOf(false) }
     if (showDescription && readme != null) {
-        WebViewDialog(
+        TvReadmeScreen(
             title = stringResource(R.string.description),
             html = readme,
             unavailable = false,
@@ -122,8 +121,9 @@ fun TvExternalAppDetailScreen(
             baseUrl = app.readmeWebBaseUrl,
             javaScriptEnabled = readmeJavaScriptEnabled,
             webUrl = app.webUrl,
-            onDismiss = { showDescription = false },
+            onBack = { showDescription = false },
         )
+        return
     }
 
     // Tapping a version asks to confirm, then installs that exact release — the same engine
