@@ -31,13 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,7 +49,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -197,7 +192,7 @@ fun TvHomeScreen(
 // Navigation rail
 // ---------------------------------------------------------------------------------------------------
 
-private val RailWidth = 84.dp
+private val RailWidth = 180.dp
 
 @Composable
 private fun TvNavRail(
@@ -214,51 +209,87 @@ private fun TvNavRail(
             .width(RailWidth)
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .focusGroup()
-            .padding(vertical = TvOverscan),
+            .padding(horizontal = 12.dp, vertical = TvOverscan),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = spacedBy(4.dp),
     ) {
-        Icon(
-            painter = androidx.compose.ui.res.painterResource(R.drawable.ic_launcher_monochrome),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(40.dp).padding(bottom = 8.dp),
-        )
-        TvRailButton(Icons.Filled.Search, stringResource(R.string.search), false) { onSearch() }
-        TvRailButton(Icons.Filled.Home, stringResource(R.string.available), section == TvSection.EXPLORE) { onSelect(TvSection.EXPLORE) }
-        TvRailButton(Icons.Filled.Check, stringResource(R.string.installed), section == TvSection.INSTALLED) { onSelect(TvSection.INSTALLED) }
+        // The Omnify brand mark + wordmark anchor the rail. The launcher art keeps its own colours, so
+        // it's an untinted Image, not a tinted Icon. The launcher PNG carries a chunk of transparent
+        // safe-zone padding at the bottom, so the wordmark is pulled up (negative spacing) to sit snug
+        // under the visible mark instead of a frame-height away.
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = spacedBy((-42).dp),
+            modifier = Modifier.padding(bottom = 10.dp),
+        ) {
+            androidx.compose.foundation.Image(
+                painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = null,
+                modifier = Modifier.size(156.dp),
+            )
+            Text(
+                text = stringResource(R.string.application_name),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        // A single, consistent Tabler icon set (tabler.io) for the whole rail.
+        TvRailButton(painterResource(R.drawable.ic_tv_search), stringResource(R.string.search), false) { onSearch() }
+        TvRailButton(painterResource(R.drawable.ic_tv_explore), stringResource(R.string.available), section == TvSection.EXPLORE) { onSelect(TvSection.EXPLORE) }
+        TvRailButton(painterResource(R.drawable.ic_tv_installed), stringResource(R.string.installed), section == TvSection.INSTALLED) { onSelect(TvSection.INSTALLED) }
         TvRailButton(
-            icon = Icons.Filled.Refresh,
+            icon = painterResource(R.drawable.ic_tv_updates),
             label = stringResource(R.string.updates),
             selected = section == TvSection.UPDATES,
             badge = updatesCount.takeIf { it > 0 },
         ) { onSelect(TvSection.UPDATES) }
-        TvRailButton(Icons.Filled.List, stringResource(R.string.tab_external), section == TvSection.EXTERNAL) { onSelect(TvSection.EXTERNAL) }
+        // External sources are GitHub/GitLab repos: the orange Git mark from the Omnify logo (rendered
+        // untinted so it keeps its fixed brand orange) — a small visual rhyme with the app's own icon.
+        TvRailButton(
+            painterResource(R.drawable.ic_tv_external_git),
+            stringResource(R.string.tab_external),
+            selected = section == TvSection.EXTERNAL,
+            preserveIconColor = true,
+        ) { onSelect(TvSection.EXTERNAL) }
         Spacer(Modifier.weight(1f))
-        TvRailButton(Icons.Filled.Menu, stringResource(R.string.repositories), false) { onRepos() }
-        TvRailButton(Icons.Filled.Settings, stringResource(R.string.settings), false) { onSettings() }
+        // Repositories uses the same box glyph as the phone's Repositories entry.
+        TvRailButton(painterResource(R.drawable.ic_tabler_box), stringResource(R.string.repositories), false) { onRepos() }
+        TvRailButton(painterResource(R.drawable.ic_tv_settings), stringResource(R.string.settings), false) { onSettings() }
     }
 }
 
 @Composable
 private fun TvRailButton(
-    icon: ImageVector,
+    icon: Painter,
     label: String,
     selected: Boolean,
     badge: Int? = null,
+    // When true the glyph keeps its own colours (used for the orange Git brand mark) instead of being
+    // tinted by the focus/selected state like every other rail icon.
+    preserveIconColor: Boolean = false,
     onClick: () -> Unit,
 ) {
     val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(52.dp)
-                .tvFocusFill(RoundedCornerShape(16.dp))
-                .tvBringIntoViewOnFocus()
-                .clickable(onClick = onClick),
-        ) {
-            Icon(imageVector = icon, contentDescription = label, tint = tint, modifier = Modifier.size(24.dp))
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .tvFocusFill(RoundedCornerShape(16.dp))
+            .tvBringIntoViewOnFocus()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (preserveIconColor) {
+                androidx.compose.foundation.Image(
+                    painter = icon,
+                    contentDescription = label,
+                    modifier = Modifier.size(26.dp),
+                )
+            } else {
+                Icon(painter = icon, contentDescription = label, tint = tint, modifier = Modifier.size(26.dp))
+            }
             if (badge != null) {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -277,6 +308,15 @@ private fun TvRailButton(
                 }
             }
         }
+        Spacer(Modifier.width(14.dp))
+        Text(
+            text = label,
+            color = tint,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
