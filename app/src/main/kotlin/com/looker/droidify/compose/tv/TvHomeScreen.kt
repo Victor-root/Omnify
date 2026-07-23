@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
@@ -650,39 +651,58 @@ internal fun TvAppCard(
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.12f else 1f, label = "tvCardScale")
+    // The focus cue is a soft accent panel behind the whole card (icon + label) plus the lift/scale —
+    // no outline ring, no grey Material state layer. The panel colour is the theme accent, faded in.
+    val fillAlpha by animateFloatAsState(if (focused) 0.45f else 0f, label = "tvCardFill")
     val shape = MaterialTheme.shapes.large
+    val accent = MaterialTheme.colorScheme.primary
+    // The OUTER node is the focus/layout target: fixed CardWidth, never scaled. The framework's built-in
+    // "bring the focused child into view" measures THIS node, so its rect is stable — the scale below is
+    // a draw-only transform on an inner wrapper and can't feed the scroll a moving target (that was the
+    // up/down jitter on the lower carousels). No explicit bring-into-view: the LazyRow + verticalScroll
+    // handle both axes natively from these stable bounds.
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = spacedBy(8.dp),
         modifier = Modifier
             .width(CardWidth)
             .onFocusChanged { focused = it.isFocused }
-            .graphicsLayer { scaleX = scale; scaleY = scale }
             .zIndex(if (focused) 1f else 0f)
-            .tvBringIntoViewOnFocus()
-            .clip(shape)
-            .clickable(onClick = onClick),
+            // No default indication: the accent panel below replaces Material's grey focus/hover layer.
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
     ) {
-        Box(
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = spacedBy(8.dp),
             modifier = Modifier
-                .size(TileSize)
-                .clip(shape)
-                .border(
-                    width = if (focused) 3.dp else 0.dp,
-                    color = if (focused) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent,
-                    shape = shape,
-                ),
+                // Draw-only scale on the inner wrapper — visual lift with no effect on layout or on the
+                // outer node's bounds that the scroll uses.
+                .graphicsLayer { scaleX = scale; scaleY = scale }
+                // A rounded accent panel drawn behind everything (not clipped, so the label's corners are
+                // never shaved — that was clipping the first letter of long names). The 8dp padding frames
+                // the icon and label inside it while keeping the card's footprint at CardWidth.
+                .background(accent.copy(alpha = fillAlpha), shape)
+                .padding(8.dp),
         ) {
-            icon()
+            Box(
+                modifier = Modifier
+                    .size(TileSize)
+                    .clip(shape),
+            ) {
+                icon()
+            }
+            Text(
+                text = name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (focused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
-        Text(
-            text = name,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (focused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 
