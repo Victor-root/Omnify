@@ -25,6 +25,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
@@ -486,7 +488,12 @@ internal fun TvSectionTitle(text: String) {
  * The WebView is drawn at its real height and clipped by the box, switching to a hardware layer once it's
  * taller than a screen (a software layer would render blank past ~one screenful) — same handling as the
  * reader dialog and the phone build.
+ *
+ * A big README (heavy markdown, network images) can take a visible moment to lay out; until the WebView
+ * reports its first real content height, a spinner sits over the otherwise-blank area instead of leaving
+ * the couch user staring at empty space wondering if it's stuck.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun TvReadmePreview(
     html: String,
@@ -511,6 +518,7 @@ internal fun TvReadmePreview(
         modifier = modifier.fillMaxWidth(),
     ) {
         Box(
+            contentAlignment = Alignment.Center,
             modifier = Modifier
                 .fillMaxWidth()
                 .onGloballyPositioned { topY = it.positionInParent().y.toInt() }
@@ -530,6 +538,9 @@ internal fun TvReadmePreview(
                     .fillMaxWidth()
                     .height(if (contentHeightPx > 0) with(density) { contentHeightPx.toDp() } else 600.dp),
             )
+            if (contentHeightPx <= 0) {
+                CircularWavyProgressIndicator(modifier = Modifier.size(32.dp))
+            }
         }
         TvOpenDescriptionButton(onClick = onOpenFull)
     }

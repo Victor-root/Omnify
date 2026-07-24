@@ -103,6 +103,7 @@ fun TvReadmeScreen(
                     var heightPx by remember { mutableStateOf(0) }
                     var viewportPx by remember { mutableStateOf(0) }
                     Box(
+                        contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = TvOverscan + 8.dp)
@@ -130,6 +131,12 @@ fun TvReadmeScreen(
                                 .fillMaxWidth()
                                 .height(if (heightPx > 0) with(density) { heightPx.toDp() } else 600.dp),
                         )
+                        // The HTML string is in hand, but a big README still takes a moment to lay out in
+                        // the WebView itself (network images, heavy markdown): keep the spinner up until it
+                        // reports its first real content height, instead of a blank page in between.
+                        if (heightPx <= 0) {
+                            CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
+                        }
                     }
                 }
 
