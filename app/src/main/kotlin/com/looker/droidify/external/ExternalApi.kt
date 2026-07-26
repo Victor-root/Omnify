@@ -331,12 +331,7 @@ class ExternalApi @Inject constructor(
             if (SystemClock.elapsedRealtime() - fetchedAt < TREE_CACHE_TTL_MS) return paths
         }
         val paths = when (app.provider) {
-            SourceProvider.GITHUB -> {
-                val url =
-                    "https://api.github.com/repos/${app.owner}/${app.repo}/git/trees/HEAD?recursive=1"
-                val text = runCatching { getText(url, github = true) }.getOrNull() ?: return emptyList()
-                runCatching { parseTreePaths(text, "${app.owner}/${app.repo}") }.getOrNull() ?: emptyList()
-            }
+            SourceProvider.GITHUB -> fetchGithubTreePaths(app)
 
             SourceProvider.CODEBERG -> {
                 val url = "https://${app.effectiveHost}/api/v1/repos/${app.owner}/${app.repo}" +
@@ -371,6 +366,71 @@ class ExternalApi @Inject constructor(
         }
         if (paths.size >= GITLAB_TREE_MAX_PAGES * 100) {
             Log.d(TAG, "${app.owner}/${app.repo}: GitLab tree listing hit the page cap, likely incomplete")
+        }
+        return paths
+    }
+
+    /**
+     * GitHub's own tree listing: a single recursive request, the cheapest path and enough for the vast
+     * majority of repos. GitHub caps that single request (100,000 entries / ~7MB) and marks a response
+     * that hit the cap `truncated: true` with no further pagination for that *same* request — unlike
+     * GitLab/Codeberg above, whose APIs page or accept a much larger per_page. A repo big enough to hit
+     * that cap (confirmed real: localsend/localsend, a monorepo bundling five native clients plus
+     * fastlane store-listing metadata for dozens of locales) would otherwise silently lose whole
+     * directories from every feature built on this listing — icons, the app name, TV detection, and
+     * especially the language cross-check, whose entire point is finding a translations folder that a
+     * truncated response can drop outright. Falls back to [walkGithubTree] only when that happens, so
+     * the common case still costs a single request.
+     */
+    private suspend fun fetchGithubTreePaths(app: ExternalApp): List<String> {
+        val url = "https://api.github.com/repos/${app.owner}/${app.repo}/git/trees/HEAD?recursive=1"
+        val text = runCatching { getText(url, github = true) }.getOrNull() ?: return emptyList()
+        val response = runCatching { json.decodeFromString(TreeResponse.serializer(), text) }
+            .getOrNull() ?: return emptyList()
+        if (!response.truncated) return response.tree.filter { it.type == "blob" }.map { it.path }
+        Log.d(TAG, "${app.owner}/${app.repo}: tree listing truncated by GitHub, walking directories instead")
+        return walkGithubTree(app)
+    }
+
+    /**
+     * Breadth-first, one-directory-at-a-time fallback for a GitHub repo whose single recursive tree
+     * request came back truncated (see [fetchGithubTreePaths]): GitHub's non-recursive `git/trees/{sha}`
+     * lists just one directory's own direct children and isn't subject to the same single-request cap,
+     * so walking it level by level still reaches everything a huge repo's flat listing couldn't fit in
+     * one response. Each entry's own `path` is only its bare name at that level (not the full path),
+     * rebuilt here by prefixing the parent directory walked so far. Breadth-first on purpose: it resolves
+     * the shallow directories a translations folder actually lives in (assets/, res/, lib/, a couple of
+     * levels deep) before a large but irrelevant subtree can exhaust the call budget — confirmed real for
+     * localsend/localsend, whose fastlane store-listing metadata alone fans out into 50+ per-locale
+     * directories. Capped at [GITHUB_TREE_WALK_MAX_CALLS] requests (counting failed attempts too, since
+     * those still spend real quota) so one pathological repo can't burn through the whole rate-limit
+     * budget; logs when the cap is hit rather than silently returning a still-incomplete listing
+     * unremarked.
+     */
+    private suspend fun walkGithubTree(app: ExternalApp): List<String> {
+        val paths = mutableListOf<String>()
+        val queue = ArrayDeque<Pair<String, String>>()
+        queue.addLast("" to "HEAD")
+        var calls = 0
+        while (queue.isNotEmpty() && calls < GITHUB_TREE_WALK_MAX_CALLS) {
+            val (parentPath, sha) = queue.removeFirst()
+            calls++
+            val url = "https://api.github.com/repos/${app.owner}/${app.repo}/git/trees/$sha"
+            val text = runCatching { getText(url, github = true) }.getOrNull() ?: continue
+            val entries = runCatching { json.decodeFromString(TreeResponse.serializer(), text) }
+                .getOrNull()?.tree ?: continue
+            for (entry in entries) {
+                val fullPath = if (parentPath.isEmpty()) entry.path else "$parentPath/${entry.path}"
+                when (entry.type) {
+                    "blob" -> paths += fullPath
+                    "tree" -> queue.addLast(fullPath to entry.sha)
+                    // A "commit" entry is a git submodule: neither a real file nor a directory to
+                    // descend into, so it's left out of both the path list and the walk queue.
+                }
+            }
+        }
+        if (queue.isNotEmpty()) {
+            Log.d(TAG, "${app.owner}/${app.repo}: GitHub tree walk hit the call cap, likely incomplete")
         }
         return paths
     }
@@ -825,7 +885,7 @@ class ExternalApi @Inject constructor(
     )
 
     @Serializable
-    private data class TreeEntry(val path: String = "", val type: String = "")
+    private data class TreeEntry(val path: String = "", val type: String = "", val sha: String = "")
 
     /** Minimal repo shape from the GitHub/Gitea "list account repos" endpoints. */
     @Serializable
@@ -1104,6 +1164,11 @@ private val RUST_RESERVED_FILE_NAMES = setOf("mod", "lib", "main")
 
 /** How many 100-item pages of GitLab's tree API to walk while looking for the manifest / icons. */
 private const val GITLAB_TREE_MAX_PAGES = 50
+
+/** How many directory-level requests [ExternalApi.walkGithubTree] issues at most, walking a GitHub repo
+ *  whose single recursive tree request came back truncated — same order of magnitude as
+ *  [GITLAB_TREE_MAX_PAGES]'s own worst-case request count. */
+private const val GITHUB_TREE_WALK_MAX_CALLS = 50
 
 /** Largest README image inlined as a data URI; bigger ones are left as-is to avoid bloating the HTML. */
 private const val MAX_INLINE_IMAGE_BYTES = 1_000_000
