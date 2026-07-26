@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -37,7 +36,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -46,6 +44,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -728,13 +727,11 @@ private fun RepoItem(
                 }
             }
             Spacer(modifier = Modifier.size(8.dp))
-            FilledIconToggleButton(
+            Switch(
                 checked = repo.enabled,
                 onCheckedChange = { onToggle() },
                 modifier = Modifier.tvFocusScale(),
-            ) {
-                Icon(imageVector = Icons.Default.Check, contentDescription = null)
-            }
+            )
         }
         // This repo's own sync progress — shown right on its row instead of only the screen-wide
         // banner, so enabling several repos in quick succession shows each one's own status.
@@ -842,13 +839,11 @@ private fun ExternalSourceItem(
                 }
             }
         }
-        FilledIconToggleButton(
+        Switch(
             checked = app.enabled,
             onCheckedChange = { onToggle() },
             modifier = Modifier.tvFocusScale(),
-        ) {
-            Icon(imageVector = Icons.Default.Check, contentDescription = null)
-        }
+        )
     }
 }
 
@@ -976,13 +971,11 @@ private fun ExternalAccountItem(
                 onClick = { dismiss(); onRemove() },
             )
         }
-        FilledIconToggleButton(
+        Switch(
             checked = account.enabled,
             onCheckedChange = { onToggle() },
             modifier = Modifier.tvFocusScale(),
-        ) {
-            Icon(imageVector = Icons.Default.Check, contentDescription = null)
-        }
+        )
     }
 }
 
