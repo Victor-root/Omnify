@@ -69,7 +69,7 @@ fun ThemeColorPickerDialog(
                     .verticalScroll(rememberScrollState()),
             ) {
                 Text(
-                    text = stringResource(R.string.theme),
+                    text = stringResource(R.string.theme_color),
                     style = MaterialTheme.typography.headlineSmall,
                 )
                 Spacer(Modifier.height(20.dp))
