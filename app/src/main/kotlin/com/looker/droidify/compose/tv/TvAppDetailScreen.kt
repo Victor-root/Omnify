@@ -1,9 +1,13 @@
 package com.looker.droidify.compose.tv
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +37,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -81,6 +87,7 @@ import kotlinx.coroutines.delay
  * The heavy install lifecycle is reused verbatim ([PrimaryActions]), so behaviour matches the phone
  * build exactly; only the layout is TV-specific. Never composed off TV.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TvAppDetailScreen(
     onBackClick: () -> Unit,
@@ -190,11 +197,37 @@ fun TvAppDetailScreen(
                 )
             }
 
+            // The header (back button, icon/name/chips, action buttons + favourite) is guaranteed to
+            // already fit in the initial viewport, so navigating the D-pad within it should never scroll
+            // the page — only leaving it, into the screenshots/description/versions below, should.
+            // Compose's own "scroll the newly focused element into view" reflex doesn't respect that (it
+            // still nudges the scroll position for an element that's already fully visible, most visibly
+            // as a shaky micro up/down scroll while tabbing between the action buttons), so it's suppressed
+            // outright while focus is inside the header and the page is still at the top — the same fix
+            // already shipped for the phone hero card (see AppDetailScreen), never ported to this separate
+            // TV screen when it was split out.
+            var headerHasFocus by remember { mutableStateOf(true) }
+            val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
+            val bringIntoViewSpec = remember(defaultBringIntoViewSpec) {
+                object : BringIntoViewSpec {
+                    override fun calculateScrollDistance(
+                        offset: Float,
+                        size: Float,
+                        containerSize: Float,
+                    ): Float = if (headerHasFocus && pageScroll.value == 0) {
+                        0f
+                    } else {
+                        defaultBringIntoViewSpec.calculateScrollDistance(offset, size, containerSize)
+                    }
+                }
+            }
+
             Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             // The full description reader replaces the whole page (not an overlay) so the detail's cards
             // below can't steal D-pad focus from behind it.
             if (!showDescription) {
             TvAccentBackground()
+            CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -211,62 +244,68 @@ fun TvAppDetailScreen(
                     .padding(horizontal = TvOverscan + 16.dp, vertical = TvOverscan),
                 verticalArrangement = spacedBy(24.dp),
             ) {
-                TvBackButton(onBackClick)
+                Column(
+                    modifier = Modifier.focusGroup().onFocusChanged { headerHasFocus = it.hasFocus },
+                    verticalArrangement = spacedBy(24.dp),
+                ) {
+                    TvBackButton(onBackClick)
 
-                // Header: icon + name + author + meta chips.
-                Row(horizontalArrangement = spacedBy(24.dp)) {
-                    AppMinimalIcon(
-                        app = app.minimal(),
-                        isInstalled = isInstalled,
-                        modifier = Modifier.size(120.dp).clip(RoundedCornerShape(24.dp)),
-                    )
-                    Column(verticalArrangement = spacedBy(8.dp)) {
-                        Text(
-                            text = app.metadata.name,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
+                    // Header: icon + name + author + meta chips.
+                    Row(horizontalArrangement = spacedBy(24.dp)) {
+                        AppMinimalIcon(
+                            app = app.minimal(),
+                            isInstalled = isInstalled,
+                            modifier = Modifier.size(120.dp).clip(RoundedCornerShape(24.dp)),
                         )
-                        app.author?.name?.takeIf { it.isNotBlank() }?.let {
+                        Column(verticalArrangement = spacedBy(8.dp)) {
                             Text(
-                                text = stringResource(R.string.by_author_FORMAT, it),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = app.metadata.name,
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            app.author?.name?.takeIf { it.isNotBlank() }?.let {
+                                Text(
+                                    text = stringResource(R.string.by_author_FORMAT, it),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            TvMetaChips(
+                                category = app.categories.firstOrNull(),
+                                version = app.metadata.suggestedVersionName.takeIf { it.isNotBlank() },
+                                license = app.metadata.license.takeIf { it.isNotBlank() },
                             )
                         }
-                        TvMetaChips(
-                            category = app.categories.firstOrNull(),
-                            version = app.metadata.suggestedVersionName.takeIf { it.isNotBlank() },
-                            license = app.metadata.license.takeIf { it.isNotBlank() },
-                        )
                     }
-                }
 
-                // Action buttons (Install/Update/Launch + Uninstall) with the favourite alongside them,
-                // the whole set sized to its content and centred as one group — so the favourite reads as
-                // a peer next to the primary action instead of being flung to the far screen edge.
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    // Wider gap so the focus scale-up of either button never overlaps its neighbour.
-                    horizontalArrangement = spacedBy(28.dp, Alignment.CenterHorizontally),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    PrimaryActions(
-                        packageName = app.metadata.packageName.name,
-                        isInstalled = isInstalled,
-                        updateAvailable = updateAvailable,
-                        installState = installState,
-                        downloadStatus = downloadStatus,
-                        installConfirmed = installConfirmed,
-                        onInstallOrUpdate = viewModel::installOrUpdate,
-                        onLaunch = viewModel::launch,
-                        onUninstall = viewModel::uninstall,
-                        onCancel = viewModel::cancel,
-                        primaryActionFocusRequester = primaryFocus,
-                        // Sized to its content (not stretched full-width) so the favourite sits right next
-                        // to it; the group is then centred by the row's arrangement above.
-                        modifier = Modifier.width(IntrinsicSize.Min),
-                    )
-                    TvFavouriteButton(isFavourite = isFavourite, onToggle = viewModel::toggleFavourite)
+                    // Action buttons (Install/Update/Launch + Uninstall) with the favourite alongside
+                    // them, the whole set sized to its content and centred as one group — so the
+                    // favourite reads as a peer next to the primary action instead of being flung to the
+                    // far screen edge.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        // Wider gap so the focus scale-up of either button never overlaps its neighbour.
+                        horizontalArrangement = spacedBy(28.dp, Alignment.CenterHorizontally),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        PrimaryActions(
+                            packageName = app.metadata.packageName.name,
+                            isInstalled = isInstalled,
+                            updateAvailable = updateAvailable,
+                            installState = installState,
+                            downloadStatus = downloadStatus,
+                            installConfirmed = installConfirmed,
+                            onInstallOrUpdate = viewModel::installOrUpdate,
+                            onLaunch = viewModel::launch,
+                            onUninstall = viewModel::uninstall,
+                            onCancel = viewModel::cancel,
+                            primaryActionFocusRequester = primaryFocus,
+                            // Sized to its content (not stretched full-width) so the favourite sits right
+                            // next to it; the group is then centred by the row's arrangement above.
+                            modifier = Modifier.width(IntrinsicSize.Min),
+                        )
+                        TvFavouriteButton(isFavourite = isFavourite, onToggle = viewModel::toggleFavourite)
+                    }
                 }
 
                 if (screenshots.isNotEmpty()) {
@@ -293,6 +332,7 @@ fun TvAppDetailScreen(
                         onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
                     )
                 }
+            }
             }
             }
             }

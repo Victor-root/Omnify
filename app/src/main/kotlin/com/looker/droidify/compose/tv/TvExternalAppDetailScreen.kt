@@ -1,7 +1,11 @@
 package com.looker.droidify.compose.tv
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +33,7 @@ import com.looker.droidify.external.compareVersionStrings
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -65,6 +71,7 @@ import kotlinx.coroutines.delay
  * full-screen reader, see [TvOpenDescriptionButton]) and the release history — the same content a
  * catalogue app shows, so the two kinds read alike. Never composed off TV.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TvExternalAppDetailScreen(
     appKey: String,
@@ -199,8 +206,34 @@ fun TvExternalAppDetailScreen(
         }
     }
 
+    // The header (back button, icon/name/chips, action buttons + favourite) is guaranteed to already fit
+    // in the initial viewport, so navigating the D-pad within it should never scroll the page — only
+    // leaving it, into the description/versions below, should. Compose's own "scroll the newly focused
+    // element into view" reflex doesn't respect that (it still nudges the scroll position for an element
+    // that's already fully visible, most visibly as a shaky micro up/down scroll while tabbing between the
+    // action buttons), so it's suppressed outright while focus is inside the header and the page is still
+    // at the top — the same fix already shipped for the phone hero card (see AppDetailScreen), never
+    // ported to this separate TV screen when it was split out.
+    val pageScroll = rememberScrollState()
+    var headerHasFocus by remember { mutableStateOf(true) }
+    val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
+    val bringIntoViewSpec = remember(defaultBringIntoViewSpec) {
+        object : BringIntoViewSpec {
+            override fun calculateScrollDistance(
+                offset: Float,
+                size: Float,
+                containerSize: Float,
+            ): Float = if (headerHasFocus && pageScroll.value == 0) {
+                0f
+            } else {
+                defaultBringIntoViewSpec.calculateScrollDistance(offset, size, containerSize)
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
     TvAccentBackground()
+    CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -212,63 +245,69 @@ fun TvExternalAppDetailScreen(
             // overscrollEffect = null: the README preview hosts a hardware-accelerated WebView, and
             // Android 12+'s stretch overscroll crashes RenderThread when redrawing it at the scroll
             // boundary (same reason as the phone detail screen).
-            .verticalScroll(rememberScrollState(), overscrollEffect = null)
+            .verticalScroll(pageScroll, overscrollEffect = null)
             .padding(horizontal = TvOverscan + 16.dp, vertical = TvOverscan),
         verticalArrangement = spacedBy(24.dp),
     ) {
-        TvBackButton(onBackClick)
+        Column(
+            modifier = Modifier.focusGroup().onFocusChanged { headerHasFocus = it.hasFocus },
+            verticalArrangement = spacedBy(24.dp),
+        ) {
+            TvBackButton(onBackClick)
 
-        Row(horizontalArrangement = spacedBy(24.dp)) {
-            Box(modifier = Modifier.padding(top = 4.dp)) {
-                ExternalAppIcon(app = app, isInstalled = isInstalled, size = 112.dp)
-            }
-            Column(verticalArrangement = spacedBy(8.dp)) {
-                Text(
-                    text = app.label,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = "${app.owner}/${app.repo}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
-                    // Same version as the version list below: pulled from the latest APK's file name
-                    // (releaseVersionLabel), falling back to the tag — NOT the raw GitHub tag, which can
-                    // differ from the APK's real version. Mirrors the phone screen's hero version.
-                    releaseVersionLabel(app.latestApkName, app.latestTag).takeIf { it.isNotBlank() }
-                        ?.let { TvChip(it) }
-                    TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
-                    if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
+            Row(horizontalArrangement = spacedBy(24.dp)) {
+                Box(modifier = Modifier.padding(top = 4.dp)) {
+                    ExternalAppIcon(app = app, isInstalled = isInstalled, size = 112.dp)
+                }
+                Column(verticalArrangement = spacedBy(8.dp)) {
+                    Text(
+                        text = app.label,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "${app.owner}/${app.repo}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
+                        // Same version as the version list below: pulled from the latest APK's file name
+                        // (releaseVersionLabel), falling back to the tag — NOT the raw GitHub tag, which
+                        // can differ from the APK's real version. Mirrors the phone screen's hero version.
+                        releaseVersionLabel(app.latestApkName, app.latestTag).takeIf { it.isNotBlank() }
+                            ?.let { TvChip(it) }
+                        TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
+                        if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
+                    }
                 }
             }
-        }
 
-        // Action buttons with the favourite alongside, sized to content and centred as one group (same
-        // treatment as the catalogue detail screen) so the favourite reads as a peer, not an outlier.
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = spacedBy(28.dp, Alignment.CenterHorizontally),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            ExternalLifecycleActions(
-                app = app,
-                downloadStatus = downloads[appKey],
-                installState = installStates[appKey],
-                isInstalled = isInstalled,
-                onInstallOrUpdate = { viewModel.installOrUpdate(app) },
-                onLaunch = { viewModel.launch(app) },
-                onUninstall = { viewModel.uninstall(app) },
-                onCancel = { viewModel.cancel(app) },
-                modifier = Modifier.width(IntrinsicSize.Min),
-                installedVersionName = installedVersion,
-                primaryActionFocusRequester = primaryFocus,
-            )
-            TvFavouriteButton(
-                isFavourite = app.key in favourites,
-                onToggle = { viewModel.toggleFavourite(app) },
-            )
+            // Action buttons with the favourite alongside, sized to content and centred as one group
+            // (same treatment as the catalogue detail screen) so the favourite reads as a peer, not an
+            // outlier.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = spacedBy(28.dp, Alignment.CenterHorizontally),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                ExternalLifecycleActions(
+                    app = app,
+                    downloadStatus = downloads[appKey],
+                    installState = installStates[appKey],
+                    isInstalled = isInstalled,
+                    onInstallOrUpdate = { viewModel.installOrUpdate(app) },
+                    onLaunch = { viewModel.launch(app) },
+                    onUninstall = { viewModel.uninstall(app) },
+                    onCancel = { viewModel.cancel(app) },
+                    modifier = Modifier.width(IntrinsicSize.Min),
+                    installedVersionName = installedVersion,
+                    primaryActionFocusRequester = primaryFocus,
+                )
+                TvFavouriteButton(
+                    isFavourite = app.key in favourites,
+                    onToggle = { viewModel.toggleFavourite(app) },
+                )
+            }
         }
 
         readme?.takeIf { it.isNotBlank() }?.let { readmeHtml ->
@@ -293,6 +332,7 @@ fun TvExternalAppDetailScreen(
                 onVersionClick = { versionToInstall = it },
             )
         }
+    }
     }
     }
 }
