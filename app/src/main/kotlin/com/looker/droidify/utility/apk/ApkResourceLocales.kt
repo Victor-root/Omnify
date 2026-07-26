@@ -357,14 +357,14 @@ object ApkResourceLocales {
     /** A dependency's own pre-translated resource-key names — AndroidX AppCompat, Material Components
      *  2/3, Compose Material3 (including its date/time pickers and bottom sheets), Preference, Media3,
      *  Biometric, MediaRouter, Google Play Services, androidx.browser, Leanback (the Android-TV UI
-     *  library), and a handful of others — seen shipping into an app's `resources.arsc` regardless of
-     *  whether the app itself translates anything, confirmed against real string *values* (not just
-     *  names) across two 30+-app audit rounds: every one of these resolved to generic framework text
-     *  (button labels, a11y descriptions, date/time-picker strings, media transport controls,
-     *  biometric-prompt copy, …), never anything referencing an app's own actual feature vocabulary.
-     *  Necessarily incomplete — new dependency versions, or dependencies neither audit round happened to
-     *  sample, can add more — see [MIN_ENTRY_FRACTION]'s doc comment for how the threshold stays safe
-     *  against a name this list doesn't yet know about. */
+     *  library), Flutter's `saf_stream` (Storage Access Framework plugin), and a handful of others — seen
+     *  shipping into an app's `resources.arsc` regardless of whether the app itself translates anything,
+     *  confirmed against real string *values* (not just names) across two 30+-app audit rounds: every
+     *  one of these resolved to generic framework text (button labels, a11y descriptions, date/time-
+     *  picker strings, media transport controls, biometric-prompt copy, …), never anything referencing
+     *  an app's own actual feature vocabulary. Necessarily incomplete — new dependency versions, or
+     *  dependencies neither audit round happened to sample, can add more — see [MIN_ENTRY_FRACTION]'s
+     *  doc comment for how the threshold stays safe against a name this list doesn't yet know about. */
     private val BOILERPLATE_KEY_PREFIXES = listOf(
         "abc_", "mtrl_", "m3_", "m3c_", "mc2_", "material_", "bottomsheet_", "character_counter_",
         "call_notification_", "searchview_", "side_sheet_", "nav_app_bar_", "path_password_",
@@ -390,7 +390,9 @@ object ApkResourceLocales {
      *  vocabulary specifically (session/notification error strings), not a general "error_message_"
      *  prefix, for exactly that reason; the same applies to the `androidx.biometric`,
      *  `androidx.mediarouter`, and Play-Services entries below (each a small, complete, verified set
-     *  from that one dependency, not a prefix guess). */
+     *  from that one dependency, not a prefix guess). Same reasoning for the `ss_` set: short enough
+     *  that a real app could plausibly own a same-prefixed string of its own, so listed by exact name
+     *  instead of as a [BOILERPLATE_KEY_PREFIXES] entry. */
     private val BOILERPLATE_KEY_EXACT = setOf(
         "status_bar_notification_info_overflow", "preference_copied", "androidx_startup",
         "summary_collapsed_preference_list", "switch_role", "expand_button_title",
@@ -422,6 +424,19 @@ object ApkResourceLocales {
         "common_open_on_phone", "nav_rail_collapsed_a11y_label", "nav_rail_expanded_a11y_label",
         "mr_dialog_default_group_name", "mr_user_route_category_name",
         "ic_media_route_learn_more_accessibility",
+        // saf_stream (a Flutter Storage Access Framework plugin): its complete set of 11 bundled
+        // strings, translated only into English and Indonesian — confirmed real on localsend/localsend
+        // (a saf_stream dependency, per its pubspec.yaml), whose resources.arsc otherwise carries no
+        // app-owned locale content at all (Flutter's own UI strings are compiled into the native Dart
+        // snapshot, invisible here), so these two locales alone cleared the completion threshold and
+        // were reported as the app's real supported languages instead of a dependency's own boilerplate.
+        "ss_missing_saf_activity_handler", "ss_please_grant_storage_permission",
+        "ss_please_select_base_path", "ss_please_select_base_path_with_storage_type_primary",
+        "ss_please_select_base_path_with_storage_type_sd_card",
+        "ss_please_select_root_storage_primary", "ss_please_select_root_storage_sdcard",
+        "ss_selecting_root_path_success_with_open_folder_picker",
+        "ss_selecting_root_path_success_without_open_folder_picker",
+        "ss_storage_access_denied_confirm", "ss_storage_permission_permanently_disabled",
     )
 
     private fun isBoilerplateKeyName(name: String): Boolean =
