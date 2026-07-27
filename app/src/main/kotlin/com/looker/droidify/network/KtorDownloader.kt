@@ -55,7 +55,6 @@ internal class KtorDownloader(
     ): NetworkResponse = withContext(dispatcher) {
         var output: FileOutputStream? = null
         try {
-            output = FileOutputStream(target, true)
             val fileSize = target.length()
             val request = request(
                 url = url,
@@ -70,8 +69,15 @@ internal class KtorDownloader(
                 if (networkResponse !is NetworkResponse.Success) {
                     return@execute networkResponse
                 }
-                response.bodyAsChannel().copyTo(output)
-                output.flush()
+                // A Range request that's actually honoured comes back 206 Partial Content; a plain
+                // 200 means the host ignored our Range header and is sending the whole file from
+                // byte 0 instead of just the missing tail, so start the file over instead of
+                // appending that after the stale bytes already on disk from a previous attempt.
+                val appending = fileSize > 0 && response.status == HttpStatusCode.PartialContent
+                val stream = FileOutputStream(target, appending)
+                output = stream
+                response.bodyAsChannel().copyTo(stream)
+                stream.flush()
                 networkResponse
             }
         } catch (e: SocketTimeoutException) {

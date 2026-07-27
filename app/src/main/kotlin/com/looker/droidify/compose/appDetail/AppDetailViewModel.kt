@@ -59,6 +59,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.StateFlow
@@ -914,26 +915,49 @@ class AppDetailViewModel @Inject constructor(
                 var windowStartBytes = 0L
                 var speed = 0L
                 var lastEmit = 0L
-                val response = downloader.downloadToFile(
-                    url = url,
-                    target = partialFile,
-                    headers = {
-                        repo.authentication?.let { authentication(it.username, it.password) }
-                    },
-                ) { read, total ->
-                    val now = SystemClock.elapsedRealtime()
-                    val windowMs = now - windowStart
-                    if (windowMs >= SPEED_WINDOW_MS) {
-                        speed = (read.value - windowStartBytes) * 1000L / windowMs
-                        windowStart = now
-                        windowStartBytes = read.value
+                lateinit var response: NetworkResponse
+                // A repo's own APK path (unlike an external source's one-shot presigned release
+                // asset URL — see ExternalAppsViewModel's own download, which deliberately doesn't
+                // do this) is a stable, static file: retrying the exact same URL against the exact
+                // same partialFile is safe, and downloader.downloadToFile() already resumes by Range
+                // from the file's current size instead of restarting. A transient stall (confirmed
+                // real: a socket timeout downloading a large APK over a flaky connection) doesn't
+                // need to throw away however much was already downloaded and start over — it only
+                // did because this loop didn't exist and every failure fell straight through to the
+                // delete-and-give-up path below.
+                var attempt = 0
+                while (true) {
+                    response = downloader.downloadToFile(
+                        url = url,
+                        target = partialFile,
+                        headers = {
+                            repo.authentication?.let { authentication(it.username, it.password) }
+                        },
+                    ) { read, total ->
+                        val now = SystemClock.elapsedRealtime()
+                        val windowMs = now - windowStart
+                        if (windowMs >= SPEED_WINDOW_MS) {
+                            speed = (read.value - windowStartBytes) * 1000L / windowMs
+                            windowStart = now
+                            windowStartBytes = read.value
+                        }
+                        val complete = total != null && read.value >= total.value
+                        if (now - lastEmit >= EMIT_INTERVAL_MS || complete) {
+                            lastEmit = now
+                            _downloadStatus.value =
+                                DownloadStatus(read.value, total?.value ?: -1L, speed)
+                        }
                     }
-                    val complete = total != null && read.value >= total.value
-                    if (now - lastEmit >= EMIT_INTERVAL_MS || complete) {
-                        lastEmit = now
-                        _downloadStatus.value =
-                            DownloadStatus(read.value, total?.value ?: -1L, speed)
-                    }
+                    if (response is NetworkResponse.Success) break
+                    // Only a transient, connection-level failure is worth retrying — an HTTP error
+                    // (e.g. 404/403) or an unrecognised exception will just fail the exact same way
+                    // again, and retrying it would only delay telling the user.
+                    val retryable = response is NetworkResponse.Error.SocketTimeout ||
+                        response is NetworkResponse.Error.ConnectionTimeout ||
+                        response is NetworkResponse.Error.IO
+                    attempt++
+                    if (!retryable || attempt >= MAX_DOWNLOAD_ATTEMPTS) break
+                    delay(DOWNLOAD_RETRY_DELAY_MS)
                 }
                 if (response !is NetworkResponse.Success) {
                     partialFile.delete()
@@ -1056,6 +1080,15 @@ data class SignatureConflict(
 )
 
 private const val TAG = "AppDetailViewModel"
+
+/** Total attempts (the first one plus retries) for a catalogue APK download that keeps failing with a
+ *  transient, connection-level error — see [AppDetailViewModel.downloadAndInstall]. */
+private const val MAX_DOWNLOAD_ATTEMPTS = 3
+
+/** Delay before retrying a failed download — long enough for a brief network hiccup (a Wi-Fi handoff,
+ *  a momentary CDN stall) to clear, short enough not to make the user wait on a genuinely dead
+ *  connection before the final failure shows. */
+private const val DOWNLOAD_RETRY_DELAY_MS = 2_000L
 
 /** How often the download speed is recomputed (sliding window length). */
 private const val SPEED_WINDOW_MS = 500L
