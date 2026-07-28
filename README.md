@@ -157,6 +157,13 @@ already there, never wipes it.
 > Requires Android 6.0 (API 23) or newer. Ships in English and full (formal)
 > French, with the other languages inherited from upstream.
 
+**Verify:** every release is signed with the same certificate. Compare its
+SHA-256 fingerprint (e.g. via `apksigner verify --print-certs`) against:
+
+```
+F2:2B:D7:B4:63:D8:D8:9C:A1:AC:3B:6C:41:DB:0B:25:AA:C7:7B:86:24:C9:70:E4:52:81:2D:32:19:42:A9:71
+```
+
 ---
 
 ## 🙏 Built on the shoulders of giants
