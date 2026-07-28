@@ -9,7 +9,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
+import com.looker.droidify.compose.components.tvFocusOutline
 
 @Composable
 fun WarningBanner(
@@ -22,6 +24,9 @@ fun WarningBanner(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.errorContainer)
+            // TV only: an accent outline around the focused banner (no-op on touch); a full-width block
+            // can't scale without overflowing the screen.
+            .tvFocusOutline(RectangleShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {

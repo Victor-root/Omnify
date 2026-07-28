@@ -123,6 +123,7 @@ private const val DROID_IFY_AUTHOR = "LooKeR"
 private const val AUTHOR_NAME = "Victor-root"
 private const val AUTHOR_REPO_URL = "https://github.com/Victor-root/Omnify"
 private const val AUTHOR_GITHUB_URL = "https://github.com/Victor-root"
+private const val GITHUB_TOKENS_URL = "https://github.com/settings/tokens"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,6 +136,7 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val customButtons by viewModel.customButtons.collectAsStateWithLifecycle()
     val isBackgroundAllowed by viewModel.isBackgroundAllowed.collectAsStateWithLifecycle()
+    val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
 
     // Re-check on every resume — in particular when returning from the system battery-optimisation
     // dialog — so the warning banner clears as soon as the user grants access, not only after a
@@ -465,15 +467,30 @@ fun SettingsScreen(
                 SettingHeader(title = stringResource(R.string.external_sources_title))
             }
 
+            // A token GitHub is actively rejecting silently stops every GitHub-backed source from
+            // refreshing otherwise (no other error surfaces from a background refresh), so it's called
+            // out right here, next to the field that fixes it, not just on the External tab where the
+            // symptom shows up.
+            if (githubTokenInvalid) {
+                item {
+                    WarningBanner(
+                        title = stringResource(R.string.external_token_invalid_title),
+                        description = stringResource(R.string.external_token_invalid_DESC),
+                        onClick = { context.openLink(GITHUB_TOKENS_URL) },
+                    )
+                }
+            }
+
             item {
                 TextInputSettingItem(
                     title = stringResource(R.string.github_token),
                     value = settings.githubToken,
-                    valueDisplay = if (settings.githubToken.isBlank()) {
-                        stringResource(R.string.github_token_unset)
-                    } else {
-                        stringResource(R.string.github_token_set)
+                    valueDisplay = when {
+                        settings.githubToken.isBlank() -> stringResource(R.string.github_token_unset)
+                        githubTokenInvalid -> stringResource(R.string.github_token_invalid)
+                        else -> stringResource(R.string.github_token_set)
                     },
+                    valueDisplayIsError = githubTokenInvalid && settings.githubToken.isNotBlank(),
                     icon = painterResource(R.drawable.ic_github),
                     dialogTitle = stringResource(R.string.github_token),
                     helpText = stringResource(R.string.github_token_help),

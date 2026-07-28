@@ -138,6 +138,7 @@ import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
+import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
@@ -325,6 +326,7 @@ fun AppListScreen(
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
     val externalInstalledVersions by externalViewModel.installedVersions.collectAsStateWithLifecycle()
+    val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     // External-repo updates surface in the Updates tab too (no difference from F-Droid repos), so we
     // refresh release tags on screen entry — not only when the External tab is open.
     LaunchedEffect(Unit) {
@@ -666,6 +668,19 @@ fun AppListScreen(
             // Installed package names, used to badge every tile that's already installed.
             val installedPackages = installedVersionNames.keys
             if (selectedTab == AppTab.EXTERNAL) {
+                // A token GitHub is actively rejecting silently stops every GitHub-backed source from
+                // refreshing (see ExternalAppsViewModel.refresh), with nothing else on this tab
+                // otherwise showing anything is wrong — shown regardless of whether the list itself is
+                // empty, since it's about the token, not about what's currently tracked.
+                if (githubTokenInvalid) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "external-token-invalid") {
+                        WarningBanner(
+                            title = stringResource(R.string.external_token_invalid_title),
+                            description = stringResource(R.string.external_token_invalid_DESC),
+                            onClick = onNavigateToSettings,
+                        )
+                    }
+                }
                 if (gridExternalApps.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "external-empty") {
                         ExternalTabEmpty()

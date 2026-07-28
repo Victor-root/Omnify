@@ -326,6 +326,7 @@
     <string name="github_token">Jeton GitHub</string>
     <string name="github_token_set">Configuré</string>
     <string name="github_token_unset">Non configuré · 60 requêtes/heure</string>
+    <string name="github_token_invalid">Rejeté par GitHub</string>
     <string name="help">Aide</string>
     <string name="github_token_help">Pour augmenter la limite, créez un jeton sur github.com :\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic), donnez-lui un nom\n3. Ne cochez AUCUNE case. Sans aucune permission cochée, le jeton n\'autorise STRICTEMENT RIEN sur votre compte ; il sert uniquement à vous identifier pour passer à 5000 requêtes/heure\n4. Generate token, copiez-le et collez-le ci-dessus</string>
     <string name="readme_javascript_title">JavaScript dans les README</string>
@@ -424,6 +425,9 @@
     <string name="external_add">Ajouter</string>
     <string name="external_adding">Ajout du dépôt en cours…</string>
     <string name="external_rate_limited">Limite horaire GitHub atteinte. Si vous avez un compte GitHub, ajoutez un jeton dans Paramètres › Sources externes pour passer à 5000/heure.</string>
+    <string name="external_token_rejected">Votre jeton GitHub a été rejeté (invalide, expiré ou révoqué). Mettez-le à jour dans Paramètres › Sources externes.</string>
+    <string name="external_token_invalid_title">Jeton GitHub rejeté</string>
+    <string name="external_token_invalid_DESC">Votre jeton semble invalide, expiré ou révoqué. Les sources GitHub ne se mettront pas à jour tant que vous ne l\'aurez pas corrigé ou retiré dans les Paramètres.</string>
     <string name="external_readme_unavailable">Impossible de charger le README.</string>
     <string name="external_github_limit_hint">Astuce : sans jeton GitHub, vous êtes limité à 60 requêtes par heure. Ajoutez-en un gratuitement dans Paramètres › Sources externes pour passer à 5000.</string>
     <string name="external_github_limit_hint_remaining">Astuce : sans jeton GitHub, il vous reste %1$d requêtes sur 60 cette heure. Ajoutez-en un gratuitement dans Paramètres › Sources externes pour passer à 5000.</string>

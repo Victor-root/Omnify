@@ -131,6 +131,13 @@ class ExternalAppsViewModel @Inject constructor(
      *  concrete ("N requests left") instead of only ever repeating the generic "60/hour" figure. */
     val githubRateLimitRemaining: StateFlow<Int?> = externalApi.rateLimitRemaining
 
+    /** True while the configured GitHub token is being rejected outright (see
+     *  [com.looker.droidify.external.ExternalApi.githubTokenInvalid]) — every GitHub-backed source or
+     *  account then silently stops refreshing otherwise, with no other visible sign anything is wrong.
+     *  Drives a persistent banner on the External tab and in Settings, since the background refresh this
+     *  most commonly surfaces during (see [refresh]) has no other error-reporting path of its own. */
+    val githubTokenInvalid: StateFlow<Boolean> = externalApi.githubTokenInvalid
+
     /** Whether the README WebView on the external detail screen may run embedded JavaScript. On by
      *  default; the Settings › External sources toggle lets a user turn it off. */
     val readmeJavaScriptEnabled: StateFlow<Boolean> = settingsRepository.data
@@ -735,6 +742,18 @@ class ExternalAppsViewModel @Inject constructor(
         return InstalledApkLocaleReader.fetchLocales(context.packageManager, packageName).orEmpty()
     }
 
+    /** Most specific available explanation for a failed GitHub-backed call, in priority order: the
+     *  configured token being outright rejected ([ExternalApi.githubTokenInvalid]) is more actionable
+     *  than a generic rate limit ([ExternalApi.shouldSuggestGithubToken]), which in turn beats
+     *  [fallback] — a failure this feature couldn't otherwise tell apart from the repo genuinely having
+     *  nothing to offer. The second value is true for either GitHub-specific case, worth a longer
+     *  snackbar than [fallback] gets. */
+    private suspend fun githubFailureMessage(fallback: String): Pair<String, Boolean> = when {
+        externalApi.githubTokenInvalid.value -> context.getString(R.string.external_token_rejected) to true
+        externalApi.shouldSuggestGithubToken() -> context.getString(R.string.external_rate_limited) to true
+        else -> fallback to false
+    }
+
     fun loadReadme(app: ExternalApp) {
         // A different app's README is about to load, so drop any translation left on the previous one.
         _readmeTranslation.value = DescriptionTranslation.Original
@@ -757,6 +776,10 @@ class ExternalAppsViewModel @Inject constructor(
             } else if (cached == null) {
                 // Nothing to show at all: without this, the screen would spin forever with no hint that
                 // the fetch already failed — this is what a rate-limited anonymous GitHub call looks like.
+                // Deliberately not githubFailureMessage's token-rejected case: that's already covered by
+                // the persistent banner on the External tab and in Settings, and repeating the same full
+                // "update your token" sentence inside a single app's README area (as if it were specific
+                // to that one app) read as a confusing duplicate rather than a helpful explanation.
                 _readmeError.value = if (externalApi.shouldSuggestGithubToken()) {
                     context.getString(R.string.external_rate_limited)
                 } else {
@@ -941,12 +964,9 @@ class ExternalAppsViewModel @Inject constructor(
                     val release = when (val lookup = externalApi.latestReleaseLookup(app)) {
                         is ReleaseLookup.Found -> lookup.release
                         ReleaseLookup.FetchFailed -> {
-                            val suggestToken = externalApi.shouldSuggestGithubToken()
-                            _addError.value = if (suggestToken) {
-                                context.getString(R.string.external_rate_limited)
-                            } else {
-                                context.getString(R.string.external_no_release, app.path)
-                            }
+                            _addError.value = githubFailureMessage(
+                                context.getString(R.string.external_no_release, app.path),
+                            ).first
                             return@withBusy
                         }
                         ReleaseLookup.OnlyPrereleasesExcluded -> {
@@ -1063,15 +1083,10 @@ class ExternalAppsViewModel @Inject constructor(
                     }
                 }
                 if (provider == null) {
-                    val suggestToken = externalApi.shouldSuggestGithubToken()
-                    snack(
-                        message = if (suggestToken) {
-                            context.getString(R.string.external_rate_limited)
-                        } else {
-                            context.getString(R.string.external_account_no_repos, ref.owner)
-                        },
-                        long = suggestToken,
+                    val (message, urgent) = githubFailureMessage(
+                        context.getString(R.string.external_account_no_repos, ref.owner),
                     )
+                    snack(message = message, long = urgent)
                     return@launch
                 }
                 val account = ExternalAccount(
@@ -1100,17 +1115,13 @@ class ExternalAppsViewModel @Inject constructor(
                 )
                 if (discovered.isEmpty()) {
                     // Distinguish "really nothing to install" from "the API rate limit cut the per-repo
-                    // release checks short" (which would also yield nothing), so the user knows to add a
-                    // token rather than think their account has no apps.
-                    val suggestToken = externalApi.shouldSuggestGithubToken()
-                    snack(
-                        message = if (suggestToken) {
-                            context.getString(R.string.external_rate_limited)
-                        } else {
-                            context.getString(R.string.external_account_no_apps, ref.owner)
-                        },
-                        long = true,
+                    // release checks short" or "the token itself was rejected" (either would also yield
+                    // nothing), so the user knows what to actually do instead of thinking their account
+                    // has no apps.
+                    val (message, _) = githubFailureMessage(
+                        context.getString(R.string.external_account_no_apps, ref.owner),
                     )
+                    snack(message = message, long = true)
                     return@launch
                 }
                 repository.upsertApps(discovered)
@@ -1555,15 +1566,10 @@ class ExternalAppsViewModel @Inject constructor(
             val release = releaseOverride ?: when (val lookup = externalApi.latestReleaseLookup(app)) {
                 is ReleaseLookup.Found -> lookup.release
                 ReleaseLookup.FetchFailed -> {
-                    val suggestToken = externalApi.shouldSuggestGithubToken()
-                    snack(
-                        message = if (suggestToken) {
-                            context.getString(R.string.external_rate_limited)
-                        } else {
-                            context.getString(R.string.external_unreachable, app.sourceLabel)
-                        },
-                        long = suggestToken,
+                    val (message, urgent) = githubFailureMessage(
+                        context.getString(R.string.external_unreachable, app.sourceLabel),
                     )
+                    snack(message = message, long = urgent)
                     return
                 }
                 ReleaseLookup.OnlyPrereleasesExcluded -> {

@@ -126,6 +126,7 @@
     <string name="github_token">GitHub token</string>
     <string name="github_token_set">Configured</string>
     <string name="github_token_unset">Not set · 60 requests/hour</string>
+    <string name="github_token_invalid">Rejected by GitHub</string>
     <string name="help">Help</string>
     <string name="github_token_help">To raise the limit, create a token on github.com:\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic), give it a name\n3. Tick NO boxes. With no scope selected, the token grants strictly nothing on your account; it only identifies you so the limit rises to 5000 requests/hour\n4. Generate token, copy it, and paste it above</string>
     <string name="readme_javascript_title">JavaScript in READMEs</string>
@@ -442,6 +443,9 @@
     <string name="external_add">Add</string>
     <string name="external_adding">Adding the repository…</string>
     <string name="external_rate_limited">GitHub hourly limit reached. If you have a GitHub account, add a token in Settings › External sources to raise it to 5000/hour.</string>
+    <string name="external_token_rejected">Your GitHub token was rejected (invalid, expired, or revoked). Update it in Settings › External sources.</string>
+    <string name="external_token_invalid_title">GitHub token rejected</string>
+    <string name="external_token_invalid_DESC">Your token seems invalid, expired, or revoked. GitHub sources won\'t update until you fix or remove it in Settings.</string>
     <string name="external_readme_unavailable">Couldn\'t load the README.</string>
     <string name="external_github_limit_hint">Tip: without a GitHub token you\'re limited to 60 requests/hour. Add one for free in Settings › External sources to raise it to 5000.</string>
     <string name="external_github_limit_hint_remaining">Tip: without a GitHub token, %1$d of 60 requests remain this hour. Add one for free in Settings › External sources to raise it to 5000.</string>

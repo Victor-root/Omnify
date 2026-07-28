@@ -25,6 +25,7 @@ import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.datastore.model.TranslationEngine
+import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.installer.installers.initSui
 import com.looker.droidify.installer.installers.isMagiskGranted
 import com.looker.droidify.installer.installers.isShizukuAlive
@@ -56,12 +57,18 @@ class SettingsViewModel @Inject constructor(
     private val backupRepository: BackupRepository,
     private val customButtonRepository: CustomButtonRepository,
     private val handler: StringHandler,
+    private val externalApi: ExternalApi,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     val snackbarHostState = SnackbarHostState()
 
     val settings = settingsRepository.data.asStateFlow(Settings())
+
+    /** True while the configured GitHub token is being rejected outright — see
+     *  [com.looker.droidify.external.ExternalApi.githubTokenInvalid]. Drives the warning shown right
+     *  next to the token field below, where the user would actually fix it. */
+    val githubTokenInvalid: StateFlow<Boolean> = externalApi.githubTokenInvalid
 
     val customButtons: StateFlow<List<CustomButton>> = customButtonRepository.buttons
         .asStateFlow(emptyList())

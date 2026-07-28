@@ -78,6 +78,7 @@ import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
+import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.external.ExternalApp
 import kotlinx.coroutines.delay
@@ -123,6 +124,7 @@ fun TvHomeScreen(
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
+    val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     // The TV-only filter (shared engine with the phone: viewModel.tvOnly / toggleTvOnly). It already
     // narrows the catalogue lists — Installed / Updates / Search all derive from the same filtered
     // appsState — so here it only additionally gates Explore (to the TV carousel) and the External grid.
@@ -300,6 +302,8 @@ fun TvHomeScreen(
                     apps = if (tvOnly) externalApps.filter { it.supportsTelevision } else externalApps,
                     installedKeys = externalInstalledKeys,
                     onAppClick = openExternal,
+                    githubTokenInvalid = githubTokenInvalid,
+                    onFixToken = onNavigateToSettings,
                     restoreFocusId = restoreFocusId,
                     restoreRequester = restoreRequester,
                 )
@@ -678,6 +682,8 @@ private fun TvExternalGrid(
     apps: List<ExternalApp>,
     installedKeys: Set<String>,
     onAppClick: (String) -> Unit,
+    githubTokenInvalid: Boolean = false,
+    onFixToken: () -> Unit = {},
     restoreFocusId: String? = null,
     restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
@@ -688,6 +694,17 @@ private fun TvExternalGrid(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(start = TvOverscan + 8.dp, bottom = 12.dp),
         )
+        // A token GitHub is actively rejecting silently stops every GitHub-backed source from
+        // refreshing (see ExternalAppsViewModel.refresh), with nothing else on this screen otherwise
+        // showing anything is wrong — shown regardless of whether the grid itself is empty.
+        if (githubTokenInvalid) {
+            WarningBanner(
+                title = stringResource(R.string.external_token_invalid_title),
+                description = stringResource(R.string.external_token_invalid_DESC),
+                onClick = onFixToken,
+                modifier = Modifier.padding(horizontal = TvOverscan + 8.dp, vertical = 8.dp),
+            )
+        }
         if (apps.isEmpty()) {
             TvEmpty(stringResource(R.string.no_applications_available))
         } else {

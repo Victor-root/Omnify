@@ -42,6 +42,9 @@ fun TextInputSettingItem(
     // What to show as the subtitle. Defaults to the value itself; pass a masked/status string for
     // secrets (e.g. a token) so the raw value isn't displayed in the settings list.
     valueDisplay: String? = null,
+    // Colors valueDisplay as an error (e.g. a token GitHub is actively rejecting) instead of the
+    // ordinary subtitle tone, so a problem the user must act on doesn't read as routine status text.
+    valueDisplayIsError: Boolean = false,
     // Optional help text shown behind a "Help" toggle inside the edit dialog (e.g. how to create a
     // token). Null hides the help button entirely.
     helpText: String? = null,
@@ -71,10 +74,10 @@ fun TextInputSettingItem(
             Text(
                 text = valueDisplay ?: value.ifEmpty { stringResource(R.string.unspecified) },
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (enabled) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                color = when {
+                    !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                    valueDisplayIsError -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
         }

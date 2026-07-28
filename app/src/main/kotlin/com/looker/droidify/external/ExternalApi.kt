@@ -55,6 +55,26 @@ class ExternalApi @Inject constructor(
      *  low, instead of only after it's already exhausted. */
     val rateLimitRemaining: StateFlow<Int?> = _rateLimitRemaining.asStateFlow()
 
+    /** Consecutive api.github.com calls rejected with HTTP 401 Bad credentials, across every source.
+     *  Only a run of these — not a single one — latches [githubTokenInvalid], so one fluke rejection
+     *  can't raise a false alarm: a network failure never reaches this check at all (getText's caller
+     *  catches and returns before a status code even exists), and any other outcome (a genuine success,
+     *  a 404, a rate limit) leaves the streak untouched rather than resetting it, so an unrelated blip
+     *  in between two real 401s can't hide them either. A token that's actually expired or revoked fails
+     *  every call the same way, so the real case still confirms itself within moments. */
+    private var unauthorizedStreak = 0
+
+    private val _githubTokenInvalid = MutableStateFlow(false)
+
+    /** True once [unauthorizedStreak] confirms the configured GitHub token is being rejected outright —
+     *  the moment to tell the user to replace it in Settings (expired, revoked, or simply mistyped).
+     *  Distinct from [rateLimited]: GitHub answers 401 only when a token was actually sent and rejected,
+     *  never for an anonymous request (that's rate-limited instead, at worst), so this can't be confused
+     *  with "no token configured," and it can only ever be set from a real response GitHub sent back —
+     *  never from a connection failure. Cleared by the next call that succeeds with the current token, so
+     *  the signal always reflects its current validity rather than staying latched after it's fixed. */
+    val githubTokenInvalid: StateFlow<Boolean> = _githubTokenInvalid.asStateFlow()
+
     /** The user's optional GitHub token, or null when unset. Sent only to api.github.com requests to
      *  lift the anonymous 60-requests/hour rate limit to 5000. */
     private suspend fun githubAuthToken(): String? =
@@ -870,6 +890,20 @@ class ExternalApi @Inject constructor(
             remaining?.let { _rateLimitRemaining.value = it }
             val status = response.status.value
             rateLimited = (status == 403 || status == 429) && remaining == 0
+            when {
+                // githubAuthToken() != null is defensive, not load-bearing: GitHub only ever answers 401
+                // when credentials were actually sent and rejected, never for a plain anonymous request.
+                status == 401 && githubAuthToken() != null -> {
+                    unauthorizedStreak++
+                    if (unauthorizedStreak >= TOKEN_INVALID_STREAK) _githubTokenInvalid.value = true
+                }
+                response.status.isSuccess() -> {
+                    unauthorizedStreak = 0
+                    _githubTokenInvalid.value = false
+                }
+                // Any other outcome (404, 500, the 403/429 rate limit above, …) says nothing about
+                // whether the token itself is valid, so it neither builds the streak nor clears it.
+            }
         }
         if (!response.status.isSuccess()) {
             Log.w(TAG, "GET $url -> HTTP ${response.status.value}")
@@ -910,6 +944,10 @@ class ExternalApi @Inject constructor(
 
         /** Page cap when listing an account's repos, so a huge account can't spin forever. */
         const val ACCOUNT_REPOS_MAX_PAGES = 5
+
+        /** Consecutive HTTP 401s required before [githubTokenInvalid] latches true — see
+         *  [unauthorizedStreak]'s own doc comment. */
+        const val TOKEN_INVALID_STREAK = 2
 
         /** Where an Android app's `applicationId` usually lives, most likely first. */
         val BUILD_GRADLE_PATHS = listOf(
