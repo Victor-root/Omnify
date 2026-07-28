@@ -99,6 +99,7 @@ import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvDpadKeyLog
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.components.tvReadable
+import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
@@ -128,6 +129,7 @@ fun ExternalAppDetailScreen(
     appKey: String,
     viewModel: ExternalAppsViewModel,
     onBackClick: () -> Unit,
+    onNavigateToSettings: () -> Unit,
 ) {
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
@@ -153,6 +155,7 @@ fun ExternalAppDetailScreen(
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val splitViewSettingEnabled by viewModel.splitViewEnabled.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
+    val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -630,6 +633,16 @@ fun ExternalAppDetailScreen(
                         // its neighbour doesn't reads as a glitch, so both go without.
                         .verticalScroll(leftPaneScrollState, overscrollEffect = null),
                 ) {
+                    // A token GitHub is actively rejecting silently stops this very source from
+                    // refreshing (see ExternalAppsViewModel.refresh), with nothing else on this page
+                    // otherwise showing anything is wrong.
+                    if (githubTokenInvalid) {
+                        WarningBanner(
+                            title = stringResource(R.string.external_token_invalid_title),
+                            description = stringResource(R.string.external_token_invalid_DESC),
+                            onClick = onNavigateToSettings,
+                        )
+                    }
                     headerCard()
                     ExternalLinksSection(
                         issueTrackerLink = issueTrackerLink,
@@ -774,6 +787,16 @@ fun ExternalAppDetailScreen(
                         // Losing the stretch visual on this one screen is the documented tradeoff.
                         .verticalScroll(scrollState, overscrollEffect = null),
                 ) {
+                    // A token GitHub is actively rejecting silently stops this very source from
+                    // refreshing (see ExternalAppsViewModel.refresh), with nothing else on this page
+                    // otherwise showing anything is wrong.
+                    if (githubTokenInvalid) {
+                        WarningBanner(
+                            title = stringResource(R.string.external_token_invalid_title),
+                            description = stringResource(R.string.external_token_invalid_DESC),
+                            onClick = onNavigateToSettings,
+                        )
+                    }
                     Column(
                         modifier = if (isTelevision) {
                             Modifier.focusGroup().onFocusChanged {

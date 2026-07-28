@@ -651,7 +651,10 @@ class MainComposeActivity : ComponentActivity() {
                             },
                         )
 
-                        externalAppDetail(onBackClick = { navController.popBackStack() })
+                        externalAppDetail(
+                            onBackClick = { navController.popBackStack() },
+                            onNavigateToSettings = { navController.navigateToSettings() },
+                        )
 
                         externalAccountDetail(
                             onBackClick = { navController.popBackStack() },

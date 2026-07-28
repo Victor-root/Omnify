@@ -59,6 +59,7 @@ import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.ExternalLifecycleActions
+import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
 import kotlinx.coroutines.delay
@@ -77,6 +78,7 @@ fun TvExternalAppDetailScreen(
     appKey: String,
     viewModel: ExternalAppsViewModel,
     onBackClick: () -> Unit,
+    onNavigateToSettings: () -> Unit,
 ) {
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
@@ -88,6 +90,7 @@ fun TvExternalAppDetailScreen(
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
+    val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
 
     BackHandler { onBackClick() }
 
@@ -249,6 +252,17 @@ fun TvExternalAppDetailScreen(
             .padding(horizontal = TvOverscan + 16.dp, vertical = TvOverscan),
         verticalArrangement = spacedBy(24.dp),
     ) {
+        // A token GitHub is actively rejecting silently stops this very source from refreshing (see
+        // ExternalAppsViewModel.refresh), with nothing else on this page otherwise showing anything is
+        // wrong. Kept outside the focus-group Column below: it's a separate D-pad stop, not part of the
+        // header block the BringIntoViewSpec above suppresses scroll for.
+        if (githubTokenInvalid) {
+            WarningBanner(
+                title = stringResource(R.string.external_token_invalid_title),
+                description = stringResource(R.string.external_token_invalid_DESC),
+                onClick = onNavigateToSettings,
+            )
+        }
         Column(
             modifier = Modifier.focusGroup().onFocusChanged { headerHasFocus = it.hasFocus },
             verticalArrangement = spacedBy(24.dp),

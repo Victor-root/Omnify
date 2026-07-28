@@ -20,7 +20,10 @@ fun NavController.navigateToExternalAppDetail(appKey: String) {
     this.navigate(ExternalAppDetail(appKey))
 }
 
-fun NavGraphBuilder.externalAppDetail(onBackClick: () -> Unit) {
+fun NavGraphBuilder.externalAppDetail(
+    onBackClick: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+) {
     composable<ExternalAppDetail> { backStackEntry ->
         val route = backStackEntry.toRoute<ExternalAppDetail>()
         // Android TV gets its own lean detail screen; the phone screen is untouched.
@@ -29,12 +32,14 @@ fun NavGraphBuilder.externalAppDetail(onBackClick: () -> Unit) {
                 appKey = route.appKey,
                 viewModel = hiltViewModel(),
                 onBackClick = onBackClick,
+                onNavigateToSettings = onNavigateToSettings,
             )
         } else {
             ExternalAppDetailScreen(
                 appKey = route.appKey,
                 viewModel = hiltViewModel(),
                 onBackClick = onBackClick,
+                onNavigateToSettings = onNavigateToSettings,
             )
         }
     }
