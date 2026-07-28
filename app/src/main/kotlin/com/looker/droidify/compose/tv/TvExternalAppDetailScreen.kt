@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.tv
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -47,6 +48,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
@@ -54,14 +56,22 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.FingerprintCard
 import com.looker.droidify.compose.components.TvOverscan
+import com.looker.droidify.compose.components.fingerprintContent
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.ExternalLifecycleActions
 import com.looker.droidify.compose.settings.components.WarningBanner
+import com.looker.droidify.data.model.Fingerprint
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
+import com.looker.droidify.utility.common.SdkCheck
+import com.looker.droidify.utility.common.extension.calculateHash
+import com.looker.droidify.utility.common.extension.copyToClipboard
+import com.looker.droidify.utility.common.extension.getPackageInfoCompat
+import com.looker.droidify.utility.common.extension.singleSignature
 import kotlinx.coroutines.delay
 
 /**
@@ -112,8 +122,26 @@ fun TvExternalAppDetailScreen(
         return
     }
 
+    val context = LocalContext.current
     val installedVersion = installedVersions[appKey]
     val isInstalled = installedVersion != null
+    // The installed APK's actual signing certificate (not anything the source repo itself could claim:
+    // this reads the real, on-device signature), so it can be shown and compared against e.g. a build
+    // the user just compiled themselves. Null when not installed, the package id isn't known yet, or on
+    // the rare PackageManager read failure.
+    val installedCertificateFingerprint = remember(isInstalled, app.packageName) {
+        val packageName = app.packageName
+        if (!isInstalled || packageName == null) {
+            null
+        } else {
+            context.packageManager.getPackageInfoCompat(packageName)
+                ?.singleSignature
+                ?.calculateHash()
+                ?.uppercase()
+                ?.let(::Fingerprint)
+                ?.takeIf { it.isValid }
+        }
+    }
 
     // Make sure the app knows the package id it installs under, so a copy already on the device (installed
     // from any channel) is recognised as installed instead of showing "Install". Keyed on the resolved app
@@ -322,6 +350,28 @@ fun TvExternalAppDetailScreen(
                     onToggle = { viewModel.toggleFavourite(app) },
                 )
             }
+        }
+
+        // Only for an installed app: this reads the actual on-device signature, not anything the
+        // source repo itself could claim. Select to copy it somewhere to compare, e.g. against a build
+        // you just compiled yourself.
+        installedCertificateFingerprint?.let { fingerprint ->
+            FingerprintCard(
+                title = stringResource(R.string.installed_certificate_title),
+                content = fingerprintContent(fingerprint),
+                onClick = {
+                    context.copyToClipboard(fingerprint.value)
+                    // Android 13+ already shows its own system toast for every clipboard write; ours
+                    // would just be a redundant second one on top of it.
+                    if (!SdkCheck.isTiramisu) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.copied_to_clipboard),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                },
+            )
         }
 
         readme?.takeIf { it.isNotBlank() }?.let { readmeHtml ->

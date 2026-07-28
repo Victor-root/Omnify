@@ -72,6 +72,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appList.CatalogAppTile
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.errorButtonColors
+import com.looker.droidify.compose.components.FingerprintCard
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.premiumCardBorder
@@ -546,41 +547,6 @@ internal fun InstallAllButton(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
             content = content,
         )
-    }
-}
-
-@Composable
-internal fun FingerprintCard(
-    title: String,
-    content: AnnotatedString,
-) {
-    val shape = MaterialTheme.shapes.large
-    // See the doc comment on premiumCardBorder's HeroCard usage: the border must live on this
-    // outer Box, not inside Surface's own modifier, or its own background paints over it.
-    Box(modifier = Modifier.fillMaxWidth().then(premiumCardBorder(shape))) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = shape,
-            color = MaterialTheme.colorScheme.surface,
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.secondary,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = content,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
     }
 }
 

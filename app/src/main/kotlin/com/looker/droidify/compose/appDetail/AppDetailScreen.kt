@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
@@ -112,6 +113,8 @@ import com.looker.droidify.compose.components.CountBadge
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.ExpandableText
+import com.looker.droidify.compose.components.FingerprintCard
+import com.looker.droidify.compose.components.fingerprintContent
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
@@ -141,6 +144,7 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.FilePath
+import com.looker.droidify.data.model.Fingerprint
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Permission
 import com.looker.droidify.data.model.Repo
@@ -148,7 +152,12 @@ import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.RootDetection
+import com.looker.droidify.utility.common.SdkCheck
+import com.looker.droidify.utility.common.extension.calculateHash
+import com.looker.droidify.utility.common.extension.copyToClipboard
+import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.openAppInfo
+import com.looker.droidify.utility.common.extension.singleSignature
 import com.looker.droidify.utility.common.shareUrl
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -758,6 +767,7 @@ private fun AppDetail(
     val updateAvailable = installedPackage != null && installablePackage != null &&
         installedPackage.manifest.versionCode < installablePackage.manifest.versionCode
     val isTelevision = LocalIsTelevision.current
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     // Where the versions section actually lands once composed (in the scrolling Column's own
     // coordinate space), so the hero card's "see all versions" link can jump straight to it.
@@ -776,6 +786,22 @@ private fun AppDetail(
     // The visible height of whichever column the description sits in, so the description can collapse
     // to fill exactly the space left below it down to the bottom of the screen (see AppDetailBody).
     var viewportPx by remember { mutableStateOf(0) }
+    // The installed APK's actual signing certificate: not the catalogue entry's own claim (just
+    // whatever the index says), but the real, on-device signature, so it can be shown and compared
+    // against e.g. a build the user just compiled themselves. Null when not installed, or on the rare
+    // PackageManager read failure. Recomputed whenever install state changes.
+    val installedCertificateFingerprint = remember(installedPackage, app.metadata.packageName.name) {
+        if (installedPackage == null) {
+            null
+        } else {
+            context.packageManager.getPackageInfoCompat(app.metadata.packageName.name)
+                ?.singleSignature
+                ?.calculateHash()
+                ?.uppercase()
+                ?.let(::Fingerprint)
+                ?.takeIf { it.isValid }
+        }
+    }
     // The hero card content is identical in both layouts below (nothing moved out of it) — kept as one
     // lambda so the single-column and split-view branches can never drift apart on it.
     val headerCard: @Composable () -> Unit = {
@@ -821,6 +847,25 @@ private fun AppDetail(
             },
             modifier = Modifier.padding(horizontal = 16.dp),
         )
+        // Only for an installed app: this reads the actual on-device signature, not anything the
+        // (unsigned-until-you-build-it) catalogue entry itself could claim. Tap to copy it somewhere to
+        // compare, e.g. against a build you just compiled yourself.
+        installedCertificateFingerprint?.let { fingerprint ->
+            Spacer(Modifier.height(8.dp))
+            FingerprintCard(
+                title = stringResource(R.string.installed_certificate_title),
+                content = fingerprintContent(fingerprint),
+                modifier = Modifier.padding(horizontal = 16.dp),
+                onClick = {
+                    context.copyToClipboard(fingerprint.value)
+                    // Android 13+ already shows its own system toast for every clipboard write; ours
+                    // would just be a redundant second one on top of it.
+                    if (!SdkCheck.isTiramisu) {
+                        Toast.makeText(context, context.getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show()
+                    }
+                },
+            )
+        }
     }
     // Shared with AppDetailBody's own copy of this lookup: cheap, and lets the left pane below render
     // permissions without threading a second parameter through just for this.

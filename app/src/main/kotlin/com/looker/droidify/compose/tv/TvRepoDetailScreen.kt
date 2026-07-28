@@ -49,12 +49,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.appList.CatalogAppTile
+import com.looker.droidify.compose.components.FingerprintCard
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.repoDetail.DeleteRepositoryDialog
-import com.looker.droidify.compose.repoDetail.FingerprintCard
 import com.looker.droidify.compose.repoDetail.InstallAllButton
 import com.looker.droidify.compose.repoDetail.RepoDetailViewModel
 import com.looker.droidify.compose.repoDetail.components.LastUpdatedCard
