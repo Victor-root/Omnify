@@ -9,6 +9,7 @@ import com.looker.droidify.datastore.Settings
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.di.IoDispatcher
+import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalAppRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
@@ -74,6 +75,7 @@ class BackupRepository @Inject constructor(
     private val repoRepository: RepoRepository,
     private val externalAppRepository: ExternalAppRepository,
     private val customButtonRepository: CustomButtonRepository,
+    private val externalApi: ExternalApi,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
     private val json = Json {
@@ -201,6 +203,14 @@ class BackupRepository @Inject constructor(
                 enabledRepoIds = current.enabledRepoIds,
             ),
         )
+        // A restored GitHub token (however stale, expired, or unchanged from before) has never
+        // actually been checked against GitHub through this path: applySettings above writes it
+        // straight to DataStore, bypassing SettingsViewModel.setGithubToken, the only other place
+        // that calls this. Without it, the Settings screen would keep showing whatever verification
+        // state happened to be sitting in memory before the restore (most likely "never checked yet",
+        // which reads as verified) until some unrelated background call organically noticed a
+        // failure, possibly much later.
+        externalApi.verifyGithubToken()
     }
 
     private suspend fun restoreFavourites(packageNames: Set<String>) {

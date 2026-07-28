@@ -87,17 +87,20 @@ class ExternalApi @Inject constructor(
     /**
      * Checks the currently configured GitHub token right now, instead of leaving [githubTokenInvalid]
      * to whatever it was until some unrelated call happens to touch api.github.com next (a background
-     * refresh that may not run for a while). Meant to be called right after the user saves a new token,
-     * so the warning banner reacts immediately: clears the moment it's confirmed good, or — since a
-     * single call can't yet distinguish "genuinely still bad" from "hasn't reached the streak threshold"
-     * (see [unauthorizedStreak]) — fires exactly [TOKEN_INVALID_STREAK] requests so a still-bad token is
-     * just as conclusively confirmed within this one call as a fixed one is. Hits GitHub's own rate-limit
-     * endpoint: real credentials validation with no side effect, and (unlike almost every other GitHub
-     * REST call) it doesn't itself count against the very quota it reports.
+     * refresh that may not run for a while, or a stale value inherited from before the token changed).
+     * Meant to be called right after the user saves a new token, or one is restored from a backup, so
+     * the warning banner and the verified checkmark react immediately: cleared the moment it's
+     * confirmed good, or, since a single call can't yet distinguish "genuinely still bad" from "hasn't
+     * reached the streak threshold" (see [unauthorizedStreak]), fires exactly [TOKEN_INVALID_STREAK]
+     * requests so a still-bad token is just as conclusively confirmed within this one call as a fixed
+     * one is. Hits GitHub's own rate-limit endpoint: real credentials validation with no side effect,
+     * and (unlike almost every other GitHub REST call) it doesn't itself count against the very quota
+     * it reports. Never throws, so a caller with no network right now (e.g. mid-restore, where the
+     * rest of a backup must still apply regardless) is never blocked or failed by this.
      */
     suspend fun verifyGithubToken() = withContext(Dispatchers.IO) {
         repeat(TOKEN_INVALID_STREAK) {
-            getText(GITHUB_RATE_LIMIT_URL, github = true)
+            runCatching { getText(GITHUB_RATE_LIMIT_URL, github = true) }
         }
     }
 
