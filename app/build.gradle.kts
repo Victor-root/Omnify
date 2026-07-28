@@ -83,6 +83,17 @@ android {
             applicationIdSuffix = ".canary"
             versionNameSuffix = ".canary"
         }
+        // Public pre-release channel: identical to release (same optimizations, same signing when a
+        // local keystore is present) so it behaves exactly like the real thing, installs alongside the
+        // stable app (own applicationId) so trying it never risks the working install, and is labelled
+        // "Omnify Beta" everywhere the app name is shown (see src/beta/res/values/strings.xml) — the
+        // only difference from release on purpose, so this build is otherwise trustworthy to distribute
+        // and gather feedback on.
+        create("beta") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".beta"
+            versionNameSuffix = ".beta"
+        }
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = ".d"
