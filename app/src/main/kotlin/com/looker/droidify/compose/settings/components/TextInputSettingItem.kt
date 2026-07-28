@@ -12,8 +12,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -28,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -49,6 +54,12 @@ fun TextInputSettingItem(
     // Colors valueDisplay as an error (e.g. a token GitHub is actively rejecting) instead of the
     // ordinary subtitle tone, so a problem the user must act on doesn't read as routine status text.
     valueDisplayIsError: Boolean = false,
+    // Shows valueDisplay with a green checkmark instead of the ordinary subtitle tone — a positive
+    // confirmation (e.g. a token GitHub just actually accepted, not just "a value is set") is worth
+    // more than routine status text too. A fixed colour, independent of the user's own chosen accent
+    // (which could be anything, including red), same reasoning as valueDisplayIsError's fixed error
+    // tone: the colour itself has to keep meaning "verified" regardless of theme.
+    valueDisplayIsVerified: Boolean = false,
     // Optional help text shown behind a "Help" toggle inside the edit dialog (e.g. how to create a
     // token). Null hides the help button entirely.
     helpText: String? = null,
@@ -88,15 +99,29 @@ fun TextInputSettingItem(
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 },
             )
-            Text(
-                text = valueDisplay ?: value.ifEmpty { stringResource(R.string.unspecified) },
-                style = MaterialTheme.typography.bodyMedium,
-                color = when {
-                    !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                    valueDisplayIsError -> MaterialTheme.colorScheme.error
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
+            val valueDisplayColor = when {
+                !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                valueDisplayIsError -> MaterialTheme.colorScheme.error
+                valueDisplayIsVerified -> VerifiedGreen
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (valueDisplayIsVerified && enabled) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = valueDisplayColor,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .padding(end = 4.dp),
+                    )
+                }
+                Text(
+                    text = valueDisplay ?: value.ifEmpty { stringResource(R.string.unspecified) },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = valueDisplayColor,
+                )
+            }
         }
     }
 
@@ -176,3 +201,6 @@ private fun TextInputDialog(
         },
     )
 }
+
+/** Fixed, theme-independent green — see [TextInputSettingItem]'s valueDisplayIsVerified doc comment. */
+private val VerifiedGreen = Color(0xFF4CAF50)

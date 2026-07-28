@@ -522,9 +522,10 @@ fun SettingsScreen(
                     valueDisplay = when {
                         settings.githubToken.isBlank() -> stringResource(R.string.github_token_unset)
                         githubTokenInvalid -> stringResource(R.string.github_token_invalid)
-                        else -> stringResource(R.string.github_token_set)
+                        else -> stringResource(R.string.github_token_verified)
                     },
                     valueDisplayIsError = githubTokenInvalid && settings.githubToken.isNotBlank(),
+                    valueDisplayIsVerified = !githubTokenInvalid && settings.githubToken.isNotBlank(),
                     icon = painterResource(R.drawable.ic_github),
                     dialogTitle = stringResource(R.string.github_token),
                     helpText = stringResource(R.string.github_token_help),

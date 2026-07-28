@@ -325,6 +325,7 @@
     <string name="external_sources_title">Sources externes</string>
     <string name="github_token">Jeton GitHub</string>
     <string name="github_token_set">Configuré</string>
+    <string name="github_token_verified">Vérifié</string>
     <string name="github_token_unset">Non configuré · 60 requêtes/heure</string>
     <string name="github_token_invalid">Rejeté par GitHub</string>
     <string name="help">Aide</string>

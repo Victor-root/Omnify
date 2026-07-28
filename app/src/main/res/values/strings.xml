@@ -125,6 +125,7 @@
     <string name="external_sources_title">External sources</string>
     <string name="github_token">GitHub token</string>
     <string name="github_token_set">Configured</string>
+    <string name="github_token_verified">Verified</string>
     <string name="github_token_unset">Not set · 60 requests/hour</string>
     <string name="github_token_invalid">Rejected by GitHub</string>
     <string name="help">Help</string>
