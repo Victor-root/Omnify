@@ -166,6 +166,7 @@ fun AppListScreen(
     onExternalAppClick: (String) -> Unit,
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onFixGithubToken: () -> Unit,
 ) {
     val apps by viewModel.displayedApps.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
@@ -677,7 +678,7 @@ fun AppListScreen(
                         WarningBanner(
                             title = stringResource(R.string.external_token_invalid_title),
                             description = stringResource(R.string.external_token_invalid_DESC),
-                            onClick = onNavigateToSettings,
+                            onClick = onFixGithubToken,
                         )
                     }
                 }

@@ -1,5 +1,9 @@
 package com.looker.droidify.compose.settings.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -48,13 +52,26 @@ fun TextInputSettingItem(
     // Optional help text shown behind a "Help" toggle inside the edit dialog (e.g. how to create a
     // token). Null hides the help button entirely.
     helpText: String? = null,
+    // Pulses the row's background a couple of times right after this becomes true — the landing point
+    // after scrolling here from a warning banner elsewhere, on a settings list long enough that where
+    // the row ends up isn't otherwise obvious at a glance.
+    highlighted: Boolean = false,
 ) {
     var showDialog by remember { mutableStateOf(false) }
+    val highlightAlpha = remember { Animatable(0f) }
+    LaunchedEffect(highlighted) {
+        if (!highlighted) return@LaunchedEffect
+        repeat(2) {
+            highlightAlpha.animateTo(1f, animationSpec = tween(450, easing = FastOutSlowInEasing))
+            highlightAlpha.animateTo(0f, animationSpec = tween(450, easing = FastOutSlowInEasing))
+        }
+    }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = highlightAlpha.value * 0.24f))
             // TV only: a soft accent fill behind the focused row (no-op on touch).
             .tvFocusFill(RoundedCornerShape(12.dp))
             .clickable(enabled = enabled) { showDialog = true }

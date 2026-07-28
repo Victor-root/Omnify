@@ -637,6 +637,9 @@ class MainComposeActivity : ComponentActivity() {
                             },
                             onNavigateToRepos = { navController.navigateToRepoList() },
                             onNavigateToSettings = { navController.navigateToSettings() },
+                            onFixGithubToken = {
+                                navController.navigateToSettings(highlightGithubToken = true)
+                            },
                         )
 
                         repoList(
@@ -653,7 +656,9 @@ class MainComposeActivity : ComponentActivity() {
 
                         externalAppDetail(
                             onBackClick = { navController.popBackStack() },
-                            onNavigateToSettings = { navController.navigateToSettings() },
+                            onFixGithubToken = {
+                                navController.navigateToSettings(highlightGithubToken = true)
+                            },
                         )
 
                         externalAccountDetail(

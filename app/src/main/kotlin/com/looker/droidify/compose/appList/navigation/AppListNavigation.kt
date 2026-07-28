@@ -29,6 +29,7 @@ fun NavGraphBuilder.appList(
     onExternalAppClick: (String) -> Unit = { _ -> },
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onFixGithubToken: () -> Unit,
 ) {
     composable<AppList> {
         val viewModel: AppListViewModel = hiltViewModel()
@@ -41,6 +42,7 @@ fun NavGraphBuilder.appList(
                 onExternalAppClick = onExternalAppClick,
                 onNavigateToRepos = onNavigateToRepos,
                 onNavigateToSettings = onNavigateToSettings,
+                onFixGithubToken = onFixGithubToken,
             )
         } else {
             AppListScreen(
@@ -49,6 +51,7 @@ fun NavGraphBuilder.appList(
                 viewModel = viewModel,
                 onNavigateToRepos = onNavigateToRepos,
                 onNavigateToSettings = onNavigateToSettings,
+                onFixGithubToken = onFixGithubToken,
             )
         }
     }

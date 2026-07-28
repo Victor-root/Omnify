@@ -129,7 +129,7 @@ fun ExternalAppDetailScreen(
     appKey: String,
     viewModel: ExternalAppsViewModel,
     onBackClick: () -> Unit,
-    onNavigateToSettings: () -> Unit,
+    onFixGithubToken: () -> Unit,
 ) {
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
@@ -640,7 +640,7 @@ fun ExternalAppDetailScreen(
                         WarningBanner(
                             title = stringResource(R.string.external_token_invalid_title),
                             description = stringResource(R.string.external_token_invalid_DESC),
-                            onClick = onNavigateToSettings,
+                            onClick = onFixGithubToken,
                         )
                     }
                     headerCard()
@@ -794,7 +794,7 @@ fun ExternalAppDetailScreen(
                         WarningBanner(
                             title = stringResource(R.string.external_token_invalid_title),
                             description = stringResource(R.string.external_token_invalid_DESC),
-                            onClick = onNavigateToSettings,
+                            onClick = onFixGithubToken,
                         )
                     }
                     Column(

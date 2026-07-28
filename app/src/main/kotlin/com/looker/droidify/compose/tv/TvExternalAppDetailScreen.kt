@@ -78,7 +78,7 @@ fun TvExternalAppDetailScreen(
     appKey: String,
     viewModel: ExternalAppsViewModel,
     onBackClick: () -> Unit,
-    onNavigateToSettings: () -> Unit,
+    onFixGithubToken: () -> Unit,
 ) {
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
@@ -260,7 +260,7 @@ fun TvExternalAppDetailScreen(
             WarningBanner(
                 title = stringResource(R.string.external_token_invalid_title),
                 description = stringResource(R.string.external_token_invalid_DESC),
-                onClick = onNavigateToSettings,
+                onClick = onFixGithubToken,
             )
         }
         Column(

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ViewColumn
@@ -29,6 +30,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -125,11 +127,17 @@ private const val AUTHOR_REPO_URL = "https://github.com/Victor-root/Omnify"
 private const val AUTHOR_GITHUB_URL = "https://github.com/Victor-root"
 private const val GITHUB_TOKENS_URL = "https://github.com/settings/tokens"
 
+/** Stable key on the GitHub token row's own `item {}`, so [SettingsScreen] can find its live index (via
+ *  [androidx.compose.foundation.lazy.LazyListState.layoutInfo]) to scroll to it — see
+ *  highlightGithubToken's own doc comment on [com.looker.droidify.compose.settings.navigation.Settings]. */
+private const val GITHUB_TOKEN_ITEM_KEY = "github_token"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBackClick: () -> Unit,
+    highlightGithubToken: Boolean = false,
 ) {
     val context = LocalContext.current
     val isTelevision = LocalIsTelevision.current
@@ -137,6 +145,31 @@ fun SettingsScreen(
     val customButtons by viewModel.customButtons.collectAsStateWithLifecycle()
     val isBackgroundAllowed by viewModel.isBackgroundAllowed.collectAsStateWithLifecycle()
     val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
+
+    val settingsListState = rememberLazyListState()
+    // True once the row's been scrolled to and it's time to pulse it — see GITHUB_TOKEN_ITEM_KEY.
+    var pulseGithubToken by remember { mutableStateOf(false) }
+    // The GitHub token row's position isn't fixed: several items above it (the battery banner, the
+    // page-swiping/edge-to-edge group, the proxy fields, this very screen's own token-rejected banner…)
+    // come and go depending on settings and device state, so its index can't be hardcoded. Instead, walk
+    // forward by whatever's already visible until the keyed row itself shows up, then land on it exactly.
+    LaunchedEffect(highlightGithubToken) {
+        if (!highlightGithubToken) return@LaunchedEffect
+        var attempts = 0
+        while (attempts < 30) {
+            val info = settingsListState.layoutInfo
+            val target = info.visibleItemsInfo.firstOrNull { it.key == GITHUB_TOKEN_ITEM_KEY }
+            if (target != null) {
+                settingsListState.animateScrollToItem(target.index)
+                pulseGithubToken = true
+                return@LaunchedEffect
+            }
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index
+            if (lastVisible == null || lastVisible >= info.totalItemsCount - 1) return@LaunchedEffect
+            settingsListState.scrollToItem((lastVisible + 1).coerceAtMost(info.totalItemsCount - 1))
+            attempts++
+        }
+    }
 
     // Re-check on every resume — in particular when returning from the system battery-optimisation
     // dialog — so the warning banner clears as soon as the user grants access, not only after a
@@ -209,6 +242,7 @@ fun SettingsScreen(
             Modifier.padding(contentPadding.forFloatingBackground()),
         )
         LazyColumn(
+            state = settingsListState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(contentPadding)
@@ -481,7 +515,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            item(key = GITHUB_TOKEN_ITEM_KEY) {
                 TextInputSettingItem(
                     title = stringResource(R.string.github_token),
                     value = settings.githubToken,
@@ -495,6 +529,7 @@ fun SettingsScreen(
                     dialogTitle = stringResource(R.string.github_token),
                     helpText = stringResource(R.string.github_token_help),
                     onValueChange = viewModel::setGithubToken,
+                    highlighted = pulseGithubToken,
                 )
             }
 

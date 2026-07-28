@@ -5,15 +5,19 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.navOptions
+import androidx.navigation.toRoute
 import com.looker.droidify.compose.settings.SettingsScreen
 import kotlinx.serialization.Serializable
 
+/** [highlightGithubToken] is true when navigating here specifically to fix a rejected GitHub token (a
+ *  warning banner elsewhere was tapped) — the screen scrolls straight to that field and pulses it,
+ *  instead of leaving the user to find it themselves in a long settings list. */
 @Serializable
-object Settings
+data class Settings(val highlightGithubToken: Boolean = false)
 
-fun NavController.navigateToSettings() {
+fun NavController.navigateToSettings(highlightGithubToken: Boolean = false) {
     navigate(
-        Settings,
+        Settings(highlightGithubToken),
         navOptions {
             launchSingleTop = true
             restoreState = true
@@ -24,10 +28,12 @@ fun NavController.navigateToSettings() {
 fun NavGraphBuilder.settings(
     onBackClick: () -> Unit,
 ) {
-    composable<Settings> {
+    composable<Settings> { backStackEntry ->
+        val route = backStackEntry.toRoute<Settings>()
         SettingsScreen(
             viewModel = hiltViewModel(),
             onBackClick = onBackClick,
+            highlightGithubToken = route.highlightGithubToken,
         )
     }
 }

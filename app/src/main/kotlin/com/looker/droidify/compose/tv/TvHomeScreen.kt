@@ -105,6 +105,7 @@ fun TvHomeScreen(
     onExternalAppClick: (String) -> Unit,
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onFixGithubToken: () -> Unit,
 ) {
     val externalViewModel: ExternalAppsViewModel = hiltViewModel()
 
@@ -303,7 +304,7 @@ fun TvHomeScreen(
                     installedKeys = externalInstalledKeys,
                     onAppClick = openExternal,
                     githubTokenInvalid = githubTokenInvalid,
-                    onFixToken = onNavigateToSettings,
+                    onFixToken = onFixGithubToken,
                     restoreFocusId = restoreFocusId,
                     restoreRequester = restoreRequester,
                 )
