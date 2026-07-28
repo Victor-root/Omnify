@@ -364,6 +364,12 @@
     <string name="validation_index_error_DESC">Index couldn\'t be validated</string>
     <string name="version">Version</string>
     <string name="version_FORMAT">Version %s</string>
+    <plurals name="easter_egg_taps_remaining">
+        <item quantity="one">%d more tap for a surprise…</item>
+        <item quantity="other">%d more taps for a surprise…</item>
+    </plurals>
+    <string name="easter_egg_title">You found the secret!</string>
+    <string name="easter_egg_subtitle">7 taps well spent.</string>
     <string name="versions">Versions</string>
     <string name="view_all_versions">See all versions</string>
     <string name="show_more_versions_FORMAT">Show more (%1$d)</string>

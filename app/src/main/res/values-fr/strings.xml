@@ -127,6 +127,13 @@
     <string name="application">Application</string>
     <string name="version">Version</string>
     <string name="version_FORMAT">Version %s</string>
+    <plurals name="easter_egg_taps_remaining">
+        <item quantity="one">Encore %d tape avant la surprise…</item>
+        <item quantity="many">Encore %d tapes avant la surprise…</item>
+        <item quantity="other">Encore %d tapes avant la surprise…</item>
+    </plurals>
+    <string name="easter_egg_title">Vous avez trouvé le secret !</string>
+    <string name="easter_egg_subtitle">7 tapes bien employées.</string>
     <string name="versions">Versions</string>
     <string name="view_all_versions">Voir toutes les versions</string>
     <string name="show_more_versions_FORMAT">Voir plus (%1$d)</string>

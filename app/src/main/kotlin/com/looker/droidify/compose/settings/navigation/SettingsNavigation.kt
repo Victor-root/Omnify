@@ -27,12 +27,14 @@ fun NavController.navigateToSettings(highlightGithubToken: Boolean = false) {
 
 fun NavGraphBuilder.settings(
     onBackClick: () -> Unit,
+    onOpenEasterEgg: () -> Unit,
 ) {
     composable<Settings> { backStackEntry ->
         val route = backStackEntry.toRoute<Settings>()
         SettingsScreen(
             viewModel = hiltViewModel(),
             onBackClick = onBackClick,
+            onOpenEasterEgg = onOpenEasterEgg,
             highlightGithubToken = route.highlightGithubToken,
         )
     }

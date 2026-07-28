@@ -3,7 +3,9 @@ package com.looker.droidify.compose.settings
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.SystemClock
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -60,6 +62,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
+import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.cleanUpIntervals
@@ -132,11 +135,22 @@ private const val GITHUB_TOKENS_URL = "https://github.com/settings/tokens"
  *  highlightGithubToken's own doc comment on [com.looker.droidify.compose.settings.navigation.Settings]. */
 private const val GITHUB_TOKEN_ITEM_KEY = "github_token"
 
+/** Taps on [VersionFooter] required to reach the hidden easter egg, mirroring Android's own
+ *  well-known "tap the build number" secret. */
+private const val EASTER_EGG_REQUIRED_TAPS = 7
+
+/** A gap longer than this between two taps on [VersionFooter] restarts the count at 1 instead of
+ *  incrementing, so idly scrolling past the row over a long session can't ever add up to the full
+ *  count by accident. Long enough that a curious user reading each countdown toast (~2s) before
+ *  tapping again is never reset mid-attempt. */
+private const val EASTER_EGG_TAP_TIMEOUT_MS = 1500L
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBackClick: () -> Unit,
+    onOpenEasterEgg: () -> Unit,
     highlightGithubToken: Boolean = false,
 ) {
     val context = LocalContext.current
@@ -676,7 +690,7 @@ fun SettingsScreen(
                 )
             }
 
-            item { VersionFooter() }
+            item { VersionFooter(onEasterEgg = onOpenEasterEgg) }
         }
     }
     }
@@ -727,13 +741,52 @@ fun SettingsScreen(
 
 /** The app version at the very bottom of the settings, as a normal settings row (icon + title +
  *  subtitle) so it matches the rest. The subtitle carries the version and the build type
- *  (debug/release/alpha) so it's clear which build is installed. */
+ *  (debug/release/alpha) so it's clear which build is installed.
+ *
+ *  Also the hidden trigger for [onEasterEgg]: tapping this row [EASTER_EGG_REQUIRED_TAPS] times in a
+ *  row (see [EASTER_EGG_TAP_TIMEOUT_MS]) opens it, mirroring Android's own "tap the build number"
+ *  secret. The row otherwise looks and behaves like a normal settings row (same ripple, no highlight
+ *  of any kind) until the countdown toast starts, on purpose. */
 @Composable
-private fun VersionFooter() {
+private fun VersionFooter(onEasterEgg: () -> Unit) {
+    val context = LocalContext.current
+    var tapCount by remember { mutableStateOf(0) }
+    var lastTapAt by remember { mutableStateOf(0L) }
+    var activeToast by remember { mutableStateOf<Toast?>(null) }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            // TV: soft accent fill when focused, and scroll this row into view on D-pad focus (it can
+            // sit at the very bottom of a long list). Both no-op on touch.
+            .tvFocusFill(RoundedCornerShape(12.dp))
+            .tvBringIntoViewOnFocus()
+            .clickable {
+                val now = SystemClock.elapsedRealtime()
+                tapCount = if (now - lastTapAt > EASTER_EGG_TAP_TIMEOUT_MS) 1 else tapCount + 1
+                lastTapAt = now
+                when {
+                    tapCount >= EASTER_EGG_REQUIRED_TAPS -> {
+                        tapCount = 0
+                        activeToast?.cancel()
+                        onEasterEgg()
+                    }
+                    tapCount >= EASTER_EGG_REQUIRED_TAPS - 4 -> {
+                        val remaining = EASTER_EGG_REQUIRED_TAPS - tapCount
+                        activeToast?.cancel()
+                        activeToast = Toast.makeText(
+                            context,
+                            context.resources.getQuantityString(
+                                R.plurals.easter_egg_taps_remaining,
+                                remaining,
+                                remaining,
+                            ),
+                            Toast.LENGTH_SHORT,
+                        ).also { it.show() }
+                    }
+                }
+            }
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         // The app's own launcher icon (its colour foreground layer), shown as an Image so the footer

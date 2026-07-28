@@ -35,6 +35,8 @@ import com.looker.droidify.compose.appList.navigation.AppList
 import com.looker.droidify.compose.appList.navigation.appList
 import com.looker.droidify.compose.appList.navigation.navigateToAppList
 import com.looker.droidify.compose.components.UnknownSourcesDialog
+import com.looker.droidify.compose.easterEgg.navigation.easterEgg
+import com.looker.droidify.compose.easterEgg.navigation.navigateToEasterEgg
 import com.looker.droidify.compose.repoDetail.navigation.navigateToRepoDetail
 import com.looker.droidify.compose.repoDetail.navigation.repoDetail
 import com.looker.droidify.compose.repoEdit.navigation.navigateToRepoEdit
@@ -684,7 +686,12 @@ class MainComposeActivity : ComponentActivity() {
 
                         repoEdit(onBackClick = { navController.popBackStack() })
 
-                        settings(onBackClick = { navController.popBackStack() })
+                        settings(
+                            onBackClick = { navController.popBackStack() },
+                            onOpenEasterEgg = { navController.navigateToEasterEgg() },
+                        )
+
+                        easterEgg(onBackClick = { navController.popBackStack() })
                     }
                 }
                 // First-run: offer to allow installing apps up front, so the permission isn't hit
