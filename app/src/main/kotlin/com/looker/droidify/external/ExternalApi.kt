@@ -84,6 +84,23 @@ class ExternalApi @Inject constructor(
      *  to nudge the user that adding a token would lift the limit. */
     suspend fun shouldSuggestGithubToken(): Boolean = rateLimited && githubAuthToken() == null
 
+    /**
+     * Checks the currently configured GitHub token right now, instead of leaving [githubTokenInvalid]
+     * to whatever it was until some unrelated call happens to touch api.github.com next (a background
+     * refresh that may not run for a while). Meant to be called right after the user saves a new token,
+     * so the warning banner reacts immediately: clears the moment it's confirmed good, or — since a
+     * single call can't yet distinguish "genuinely still bad" from "hasn't reached the streak threshold"
+     * (see [unauthorizedStreak]) — fires exactly [TOKEN_INVALID_STREAK] requests so a still-bad token is
+     * just as conclusively confirmed within this one call as a fixed one is. Hits GitHub's own rate-limit
+     * endpoint: real credentials validation with no side effect, and (unlike almost every other GitHub
+     * REST call) it doesn't itself count against the very quota it reports.
+     */
+    suspend fun verifyGithubToken() = withContext(Dispatchers.IO) {
+        repeat(TOKEN_INVALID_STREAK) {
+            getText(GITHUB_RATE_LIMIT_URL, github = true)
+        }
+    }
+
     suspend fun latestReleaseFor(app: ExternalApp): Release? =
         latestRelease(
             app.provider,
@@ -948,6 +965,11 @@ class ExternalApi @Inject constructor(
         /** Consecutive HTTP 401s required before [githubTokenInvalid] latches true — see
          *  [unauthorizedStreak]'s own doc comment. */
         const val TOKEN_INVALID_STREAK = 2
+
+        /** GitHub's own quota-status endpoint — reading it never itself counts against the quota it
+         *  reports, unlike essentially every other REST call, which makes it the cheapest real way to
+         *  validate a token (see [verifyGithubToken]). */
+        const val GITHUB_RATE_LIMIT_URL = "https://api.github.com/rate_limit"
 
         /** Where an Android app's `applicationId` usually lives, most likely first. */
         val BUILD_GRADLE_PATHS = listOf(

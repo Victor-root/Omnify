@@ -286,6 +286,10 @@ class SettingsViewModel @Inject constructor(
     fun setGithubToken(token: String) {
         viewModelScope.launch {
             settingsRepository.setGithubToken(token.trim())
+            // Check the new value right away instead of leaving githubTokenInvalid to whatever it was
+            // until some unrelated call happens to touch api.github.com next — so the warning banner
+            // reacts immediately, confirming either that it's fixed or that the new value is still bad.
+            externalApi.verifyGithubToken()
         }
     }
 
