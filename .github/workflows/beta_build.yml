@@ -1,0 +1,39 @@
+name: Build Beta APK
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: "beta-build"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Beta APK
+        run: ./gradlew assembleBeta
+
+      - uses: r0adkll/sign-android-release@v1
+        name: Signing APK
+        id: sign_app
+        with:
+          releaseDirectory: app/build/outputs/apk/beta
+          signingKeyBase64: ${{ secrets.KEY_BASE64 }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASS }}
+          keyPassword: ${{ secrets.KEYSTORE_PASS }}
+        env:
+          BUILD_TOOLS_VERSION: "36.0.0"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: beta
+          path: ${{steps.sign_app.outputs.signedReleaseFile}}
