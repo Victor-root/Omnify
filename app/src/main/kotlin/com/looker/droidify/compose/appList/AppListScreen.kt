@@ -581,6 +581,18 @@ fun AppListScreen(
                     if (isSyncing && !catalogLoading) {
                         SyncBanner()
                     }
+                    // Glued directly under the tabs (not inside the grid below, whose own content
+                    // padding leaves a small gap meant for tile breathing room, wrong for a banner that
+                    // should read as part of the header). A token GitHub is actively rejecting silently
+                    // stops every GitHub-backed source from refreshing (see ExternalAppsViewModel.refresh),
+                    // with nothing else on this tab otherwise showing anything is wrong.
+                    if (selectedTab == AppTab.EXTERNAL && githubTokenInvalid) {
+                        WarningBanner(
+                            title = stringResource(R.string.external_token_invalid_title),
+                            description = stringResource(R.string.external_token_invalid_DESC),
+                            onClick = onFixGithubToken,
+                        )
+                    }
                 }
             }
         },
@@ -669,19 +681,6 @@ fun AppListScreen(
             // Installed package names, used to badge every tile that's already installed.
             val installedPackages = installedVersionNames.keys
             if (selectedTab == AppTab.EXTERNAL) {
-                // A token GitHub is actively rejecting silently stops every GitHub-backed source from
-                // refreshing (see ExternalAppsViewModel.refresh), with nothing else on this tab
-                // otherwise showing anything is wrong — shown regardless of whether the list itself is
-                // empty, since it's about the token, not about what's currently tracked.
-                if (githubTokenInvalid) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "external-token-invalid") {
-                        WarningBanner(
-                            title = stringResource(R.string.external_token_invalid_title),
-                            description = stringResource(R.string.external_token_invalid_DESC),
-                            onClick = onFixGithubToken,
-                        )
-                    }
-                }
                 if (gridExternalApps.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "external-empty") {
                         ExternalTabEmpty()
