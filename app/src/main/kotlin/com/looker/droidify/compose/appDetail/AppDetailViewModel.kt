@@ -271,6 +271,11 @@ class AppDetailViewModel @Inject constructor(
     val splitViewEnabled: StateFlow<Boolean> = settingsRepository.get { splitViewEnabled }
         .asStateFlow(true)
 
+    /** Whether this page's accent colour should follow the app's own icon instead of the app-wide theme
+     *  colour (the Settings toggle). */
+    val accentMatchesAppIcon: StateFlow<Boolean> = settingsRepository.get { accentMatchesAppIcon }
+        .asStateFlow(false)
+
     /** Adds or removes this app from the user's favourites. */
     fun toggleFavourite() {
         viewModelScope.launch { appRepository.addToFavourite(PackageName(packageName)) }

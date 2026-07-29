@@ -439,6 +439,8 @@
     <string name="theme_color_DESC">Choose the accent color of the app</string>
     <string name="theme_color_default">Default</string>
     <string name="theme_color_wallpaper">Wallpaper</string>
+    <string name="accent_matches_app_icon_title">Match accent to app icon</string>
+    <string name="accent_matches_app_icon_DESC">On an app\'s page, use a color from that app\'s own icon as the accent instead of your chosen theme color.</string>
     <string name="edge_to_edge">Edge-to-edge</string>
     <string name="edge_to_edge_summary">Draw the app behind the status and navigation bars. When off, the bars stay solid with the accent color.</string>
     <string name="split_view_title">Two-pane app detail</string>

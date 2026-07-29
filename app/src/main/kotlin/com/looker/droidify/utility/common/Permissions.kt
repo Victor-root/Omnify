@@ -2,9 +2,11 @@ package com.looker.droidify.utility.common
 
 import android.Manifest
 import android.app.Activity
+import android.app.WallpaperColors
 import android.app.WallpaperManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
@@ -29,6 +31,16 @@ fun Context.wallpaperAccentColor(): Int? {
             ?.primaryColor
             ?.toArgb()
     }.getOrNull()
+}
+
+/**
+ * This bitmap's dominant colour (ARGB), via the same system colour-quantization
+ * [wallpaperAccentColor] reads off the live wallpaper, run here against an app icon instead. API 31+
+ * only (the [WallpaperColors.fromBitmap] factory).
+ */
+fun Bitmap.dominantAccentColor(): Int? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
+    return runCatching { WallpaperColors.fromBitmap(this).primaryColor?.toArgb() }.getOrNull()
 }
 
 /** Whether the app may install APKs from "unknown sources". Always true below Android 8, where it

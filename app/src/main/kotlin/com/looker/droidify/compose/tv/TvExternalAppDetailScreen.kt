@@ -62,8 +62,10 @@ import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.ExternalLifecycleActions
 import com.looker.droidify.compose.settings.components.WarningBanner
+import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
+import com.looker.droidify.utility.common.dominantAccentColor
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
@@ -97,6 +99,7 @@ fun TvExternalAppDetailScreen(
     val expectedSignersByApkUrl by viewModel.expectedSignersByApkUrl.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
     val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
+    val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
 
     BackHandler { onBackClick() }
 
@@ -135,6 +138,9 @@ fun TvExternalAppDetailScreen(
                 ?.calculateHash()
         }
     }
+    // Set once the hero icon actually loads (see the ExternalAppIcon call below); reset per screen
+    // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
+    var iconAccentColor by remember { mutableStateOf<Int?>(null) }
 
     // Make sure the app knows the package id it installs under, so a copy already on the device (installed
     // from any channel) is recognised as installed instead of showing "Install". Keyed on the resolved app
@@ -156,16 +162,18 @@ fun TvExternalAppDetailScreen(
     }
     var showDescription by remember(app.key) { mutableStateOf(false) }
     if (showDescription && readme != null) {
-        TvReadmeScreen(
-            title = stringResource(R.string.description),
-            html = readme,
-            unavailable = false,
-            unavailableMessage = "",
-            baseUrl = app.readmeWebBaseUrl,
-            javaScriptEnabled = readmeJavaScriptEnabled,
-            webUrl = app.webUrl,
-            onBack = { showDescription = false },
-        )
+        ScopedAccentColor(if (accentMatchesAppIcon) iconAccentColor else null) {
+            TvReadmeScreen(
+                title = stringResource(R.string.description),
+                html = readme,
+                unavailable = false,
+                unavailableMessage = "",
+                baseUrl = app.readmeWebBaseUrl,
+                javaScriptEnabled = readmeJavaScriptEnabled,
+                webUrl = app.webUrl,
+                onBack = { showDescription = false },
+            )
+        }
         return
     }
 
@@ -262,6 +270,10 @@ fun TvExternalAppDetailScreen(
         }
     }
 
+    // Scoped to just this screen: when the setting is on and a colour has been sampled from the app's own
+    // icon, it overrides the accent for every MaterialTheme.colorScheme.primary use inside (e.g. the
+    // favourite heart, the primary action button), without touching the app-wide theme.
+    ScopedAccentColor(if (accentMatchesAppIcon) iconAccentColor else null) {
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
     TvAccentBackground()
     CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
@@ -299,7 +311,16 @@ fun TvExternalAppDetailScreen(
 
             Row(horizontalArrangement = spacedBy(24.dp)) {
                 Box(modifier = Modifier.padding(top = 4.dp)) {
-                    ExternalAppIcon(app = app, isInstalled = isInstalled, size = 112.dp)
+                    ExternalAppIcon(
+                        app = app,
+                        isInstalled = isInstalled,
+                        size = 112.dp,
+                        onIconBitmap = if (accentMatchesAppIcon) {
+                            { bitmap -> iconAccentColor = bitmap.dominantAccentColor() }
+                        } else {
+                            null
+                        },
+                    )
                 }
                 Column(verticalArrangement = spacedBy(8.dp)) {
                     Text(
@@ -381,6 +402,7 @@ fun TvExternalAppDetailScreen(
                 onVersionClick = { versionToInstall = it },
             )
         }
+    }
     }
     }
     }

@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.appList
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -17,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -24,6 +27,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.toBitmap
 import com.looker.droidify.compose.components.AppTile
 import com.looker.droidify.compose.components.TileIconSize
 import com.looker.droidify.compose.components.TvTileIconSize
@@ -45,7 +50,12 @@ private const val LauncherIconPx = 256
  * Shared by every app tile so the icon looks the same everywhere.
  */
 @Composable
-fun AppMinimalIcon(app: AppMinimal, isInstalled: Boolean, modifier: Modifier = Modifier) {
+fun AppMinimalIcon(
+    app: AppMinimal,
+    isInstalled: Boolean,
+    modifier: Modifier = Modifier,
+    onIconBitmap: ((Bitmap) -> Unit)? = null,
+) {
     val isTelevision = LocalIsTelevision.current
     var repoIcon by remember(app.appId) { mutableStateOf(app.icon?.path) }
     var repoFailed by remember(app.appId) { mutableStateOf(false) }
@@ -73,6 +83,11 @@ fun AppMinimalIcon(app: AppMinimal, isInstalled: Boolean, modifier: Modifier = M
                     val fallback = app.fallbackIcon?.path
                     if (fallback != null && fallback != repoIcon) repoIcon = fallback else repoFailed = true
                 },
+                onSuccess = onIconBitmap?.let { callback ->
+                    { state: AsyncImagePainter.State.Success ->
+                        callback(state.result.image.toBitmap(LauncherIconPx, LauncherIconPx))
+                    }
+                },
                 contentDescription = null,
                 // Fit, not Crop: app icons aren't all square, and cropping sliced the top/bottom off the
                 // round ones. Fit shows the whole icon; for a square icon it fills the box just the same.
@@ -88,6 +103,7 @@ fun AppMinimalIcon(app: AppMinimal, isInstalled: Boolean, modifier: Modifier = M
                 imageModifier = imageModifier,
                 shape = shape,
                 isTelevision = isTelevision,
+                onIconBitmap = onIconBitmap,
             )
 
             else -> DefaultAppIcon(shape = shape, isTelevision = isTelevision)
@@ -103,6 +119,7 @@ private fun InstalledLauncherIcon(
     imageModifier: Modifier,
     shape: androidx.compose.ui.graphics.Shape,
     isTelevision: Boolean,
+    onIconBitmap: ((Bitmap) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val launcher by produceState<ImageBitmap?>(null, packageName) {
@@ -120,6 +137,7 @@ private fun InstalledLauncherIcon(
     }
     val bitmap = launcher
     if (bitmap != null) {
+        LaunchedEffect(bitmap) { onIconBitmap?.invoke(bitmap.asAndroidBitmap()) }
         Image(
             bitmap = bitmap,
             contentDescription = null,

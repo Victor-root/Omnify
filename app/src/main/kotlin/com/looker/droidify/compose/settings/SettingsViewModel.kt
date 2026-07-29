@@ -329,6 +329,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setAccentMatchesAppIcon(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAccentMatchesAppIcon(enabled)
+        }
+    }
+
     /** Writes a new backup zip containing exactly [categories] to [uri] (an already-created document from
      *  a `CreateDocument` picker). */
     fun backup(uri: Uri, categories: Set<BackupCategory>) {

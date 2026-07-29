@@ -92,6 +92,10 @@ data class Settings(
      *  the (localized, so unstable across a language change) header title. Sections start expanded;
      *  collapsing one is remembered across app restarts, same as any other setting. */
     val collapsedRepoSections: Set<String> = emptySet(),
+    /** On an app's detail page (catalogue or external), derive the accent color from that app's own icon
+     *  instead of [themeColor], reverting everywhere else. Needs API 31+ (WallpaperColors.fromBitmap);
+     *  harmless to leave on below that, it simply has no effect. */
+    val accentMatchesAppIcon: Boolean = false,
 )
 
 @OptIn(ExperimentalSerializationApi::class)

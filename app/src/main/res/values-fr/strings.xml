@@ -422,6 +422,8 @@
     <string name="theme_color_DESC">Choisir la couleur d\'accentuation de l\'app</string>
     <string name="theme_color_default">Par défaut</string>
     <string name="theme_color_wallpaper">Fond d\'écran</string>
+    <string name="accent_matches_app_icon_title">Accorder l\'accent à l\'icône de l\'app</string>
+    <string name="accent_matches_app_icon_DESC">Sur la page d\'une app, utiliser une couleur de son icône comme accent à la place de la couleur de thème choisie.</string>
     <string name="edge_to_edge">Bord à bord</string>
     <string name="edge_to_edge_summary">Afficher l\'app derrière la barre d\'état et la barre de navigation. Désactivé, les barres restent pleines avec la couleur d\'accentuation.</string>
     <string name="split_view_title">Détail de l\'app sur deux volets</string>

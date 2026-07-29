@@ -103,6 +103,7 @@ import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
+import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
@@ -116,6 +117,7 @@ import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.common.RootDetection
+import com.looker.droidify.utility.common.dominantAccentColor
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.openAppInfo
@@ -161,6 +163,10 @@ fun ExternalAppDetailScreen(
     val splitViewSettingEnabled by viewModel.splitViewEnabled.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
     val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
+    val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
+    // Set once the hero icon actually loads (see the ExternalAppIcon call below); reset per screen
+    // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
+    var iconAccentColor by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -350,6 +356,10 @@ fun ExternalAppDetailScreen(
         }
     }
 
+    // Scoped to just this screen: when the setting is on and a colour has been sampled from the app's own
+    // icon (see the ExternalAppIcon call below), it overrides the accent for the top bar and every
+    // MaterialTheme.colorScheme.primary use inside, without touching the app-wide theme.
+    ScopedAccentColor(if (accentMatchesAppIcon) iconAccentColor else null) {
     Scaffold(
         // TV only: the remote's alternate "menu" key (e.g. the Nvidia Shield's, which opens Android TV's
         // own quick settings from the home screen) opens this app's Android "App info" management page —
@@ -587,7 +597,16 @@ fun ExternalAppDetailScreen(
             HeroCard(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
                 icon = {
-                    ExternalAppIcon(app = app, isInstalled = isInstalled, size = 88.dp)
+                    ExternalAppIcon(
+                        app = app,
+                        isInstalled = isInstalled,
+                        size = 88.dp,
+                        onIconBitmap = if (accentMatchesAppIcon) {
+                            { bitmap -> iconAccentColor = bitmap.dominantAccentColor() }
+                        } else {
+                            null
+                        },
+                    )
                 },
                 name = app.label,
                 subtitle = stringResource(R.string.by_author_FORMAT, app.owner),
@@ -886,6 +905,7 @@ fun ExternalAppDetailScreen(
                 }
             }
         }
+    }
     }
 }
 

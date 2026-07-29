@@ -209,6 +209,27 @@ private fun ColorScheme.withVividAccent(argb: Int): ColorScheme {
     )
 }
 
+/**
+ * Overrides just the accent (primary/onPrimary/inversePrimary, and the top bar colour that follows
+ * them) within [content], leaving every other role from the enclosing [DroidifyTheme] untouched, for
+ * matching a single app's detail page to that app's own icon colour without affecting the rest of the
+ * app. A no-op when [accentColor] is null (the feature is off, or no colour has been extracted yet).
+ */
+@Composable
+fun ScopedAccentColor(accentColor: Int?, content: @Composable () -> Unit) {
+    if (accentColor == null) {
+        content()
+        return
+    }
+    val scopedColorScheme = MaterialTheme.colorScheme.withVividAccent(accentColor)
+    CompositionLocalProvider(
+        LocalAccentBarColor provides scopedColorScheme.primary,
+        LocalOnAccentBarColor provides scopedColorScheme.onPrimary,
+    ) {
+        MaterialTheme(colorScheme = scopedColorScheme, content = content)
+    }
+}
+
 @Composable
 fun DroidifyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

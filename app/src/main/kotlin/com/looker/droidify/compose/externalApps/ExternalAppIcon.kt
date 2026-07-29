@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.externalApps
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -18,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -25,6 +28,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.core.graphics.drawable.toBitmap
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.toBitmap
 import com.looker.droidify.R
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
@@ -51,6 +56,7 @@ fun ExternalAppIcon(
     isInstalled: Boolean,
     size: Dp,
     modifier: Modifier = Modifier,
+    onIconBitmap: ((Bitmap) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val packageName = app.packageName
@@ -109,23 +115,34 @@ fun ExternalAppIcon(
         // Local copy so the null-check smart-casts (launcherIcon is a produceState delegate).
         val launcher = launcherIcon
         when {
-            launcher != null -> Image(
-                bitmap = launcher,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = imageModifier,
-            )
+            launcher != null -> {
+                LaunchedEffect(launcher) { onIconBitmap?.invoke(launcher.asAndroidBitmap()) }
+                Image(
+                    bitmap = launcher,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = imageModifier,
+                )
+            }
 
-            extractedIcon != null -> Image(
-                bitmap = extractedIcon,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = imageModifier,
-            )
+            extractedIcon != null -> {
+                LaunchedEffect(extractedIcon) { onIconBitmap?.invoke(extractedIcon.asAndroidBitmap()) }
+                Image(
+                    bitmap = extractedIcon,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = imageModifier,
+                )
+            }
 
             app.repoIconUrl != null && !repoIconFailed -> AsyncImage(
                 model = app.repoIconUrl,
                 onError = { repoIconFailed = true },
+                onSuccess = onIconBitmap?.let { callback ->
+                    { state: AsyncImagePainter.State.Success ->
+                        callback(state.result.image.toBitmap(LauncherIconPx, LauncherIconPx))
+                    }
+                },
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = imageModifier,
@@ -134,6 +151,11 @@ fun ExternalAppIcon(
             app.iconUrl != null && !avatarFailed -> AsyncImage(
                 model = app.iconUrl,
                 onError = { avatarFailed = true },
+                onSuccess = onIconBitmap?.let { callback ->
+                    { state: AsyncImagePainter.State.Success ->
+                        callback(state.result.image.toBitmap(LauncherIconPx, LauncherIconPx))
+                    }
+                },
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = imageModifier,

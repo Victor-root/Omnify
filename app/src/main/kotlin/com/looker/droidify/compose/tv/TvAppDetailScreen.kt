@@ -78,8 +78,10 @@ import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.selectForDevice
+import com.looker.droidify.utility.common.dominantAccentColor
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
@@ -104,6 +106,10 @@ fun TvAppDetailScreen(
     val downloadTargetVersionCode by viewModel.downloadTargetVersionCode.collectAsStateWithLifecycle()
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
+    val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
+    // Set once the hero icon actually loads (see the AppMinimalIcon call below); reset per screen
+    // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
+    var iconAccentColor by remember { mutableStateOf<Int?>(null) }
 
     BackHandler { onBackClick() }
 
@@ -246,6 +252,11 @@ fun TvAppDetailScreen(
                 }
             }
 
+            // Scoped to just this screen: when the setting is on and a colour has been sampled from the
+            // app's own icon, it overrides the accent for every MaterialTheme.colorScheme.primary use
+            // inside (e.g. the favourite heart, the primary action button), without touching the app-wide
+            // theme.
+            ScopedAccentColor(if (accentMatchesAppIcon) iconAccentColor else null) {
             Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             // The full description reader replaces the whole page (not an overlay) so the detail's cards
             // below can't steal D-pad focus from behind it.
@@ -280,6 +291,11 @@ fun TvAppDetailScreen(
                             app = app.minimal(),
                             isInstalled = isInstalled,
                             modifier = Modifier.size(120.dp).clip(RoundedCornerShape(24.dp)),
+                            onIconBitmap = if (accentMatchesAppIcon) {
+                                { bitmap -> iconAccentColor = bitmap.dominantAccentColor() }
+                            } else {
+                                null
+                            },
                         )
                         Column(verticalArrangement = spacedBy(8.dp)) {
                             Text(
@@ -380,6 +396,7 @@ fun TvAppDetailScreen(
                     webUrl = app.links?.webSite ?: app.links?.sourceCode ?: "",
                     onBack = { showDescription = false },
                 )
+            }
             }
         }
     }

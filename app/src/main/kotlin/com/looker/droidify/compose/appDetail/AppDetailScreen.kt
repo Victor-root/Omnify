@@ -3,6 +3,7 @@ package com.looker.droidify.compose.appDetail
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -103,6 +104,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
+import coil3.toBitmap
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
 import com.looker.droidify.compose.appDetail.components.PackageItem
@@ -149,6 +151,7 @@ import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.RootDetection
+import com.looker.droidify.utility.common.dominantAccentColor
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.openAppInfo
@@ -157,6 +160,7 @@ import com.looker.droidify.utility.common.shareUrl
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import com.looker.droidify.compose.theme.ScopedAccentColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
@@ -168,6 +172,10 @@ import java.io.File
  * keeps the releases users actually care about.
  */
 private const val MAX_VERSIONS_SHOWN = 50
+
+/** Pixel size the hero icon is sampled at for the "match accent to app icon" setting, independent of
+ *  its 88.dp display size. */
+private const val ICON_ACCENT_SAMPLE_PX = 256
 
 /** Versions shown before the "show more" toggle, so an app with a long history doesn't turn the whole
  *  page into an endless scroll by default. */
@@ -192,6 +200,10 @@ fun AppDetailScreen(
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val splitViewSettingEnabled by viewModel.splitViewEnabled.collectAsStateWithLifecycle()
+    val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
+    // Set once the hero icon actually loads (see AppHeaderCard's onIconBitmap); reset per screen instance,
+    // i.e. per app, since a different app's detail page is a fresh composition of this whole screen.
+    var iconAccentColor by remember { mutableStateOf<Int?>(null) }
     val successState = state as? AppDetailState.Success
     // The what's-new shown is the device-suitable release's text (falling back to the first package).
     // Translate the same text so the toggle covers the whole description area, not just summary + body.
@@ -326,6 +338,10 @@ fun AppDetailScreen(
         }
     }
 
+    // Scoped to just this screen: when the setting is on and a colour has been sampled from the app's own
+    // icon (see AppHeaderCard's onIconBitmap below), it overrides the accent for the top bar and every
+    // MaterialTheme.colorScheme.primary use inside, without touching the app-wide theme.
+    ScopedAccentColor(if (accentMatchesAppIcon) iconAccentColor else null) {
     Scaffold(
         // TV only: the remote's alternate "menu" key (e.g. the Nvidia Shield's, which opens Android TV's
         // own quick settings from the home screen) opens this app's Android "App info" management page —
@@ -528,9 +544,15 @@ fun AppDetailScreen(
                     scrollState = scrollState,
                     useSplitView = useSplitView,
                     modifier = Modifier.padding(padding),
+                    onIconBitmap = if (accentMatchesAppIcon) {
+                        { bitmap -> iconAccentColor = bitmap.dominantAccentColor() }
+                    } else {
+                        null
+                    },
                 )
             }
         }
+    }
     }
 }
 
@@ -700,6 +722,7 @@ private fun AppDetail(
     scrollState: ScrollState,
     useSplitView: Boolean,
     modifier: Modifier = Modifier,
+    onIconBitmap: ((Bitmap) -> Unit)? = null,
 ) {
     // Not app.packages: that's only the single repo apps.first() picked as "the" app (see the ViewModel's
     // state builder), so when the installed version is offered by a *different* repo than that one (e.g.
@@ -842,6 +865,7 @@ private fun AppDetail(
                 null
             },
             modifier = Modifier.padding(horizontal = 16.dp),
+            onIconBitmap = onIconBitmap,
         )
     }
     // Shared with AppDetailBody's own copy of this lookup: cheap, and lets the left pane below render
@@ -1433,6 +1457,7 @@ private fun AppHeaderCard(
     primaryActionFocusRequester: FocusRequester,
     onViewVersionsClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    onIconBitmap: ((Bitmap) -> Unit)? = null,
 ) {
     // Reuse the list tile's icon logic so the header falls back the same way: repo icon, then the
     // repo's generic icon.png, then the installed app's own launcher icon, then a placeholder. Repos
@@ -1479,6 +1504,11 @@ private fun AppHeaderCard(
                 // AppMinimalIcon's repo/launcher/placeholder chain, none of which would find anything.
                 AsyncImage(
                     model = remoteIcon,
+                    onSuccess = onIconBitmap?.let { callback ->
+                        { state: AsyncImagePainter.State.Success ->
+                            callback(state.result.image.toBitmap(ICON_ACCENT_SAMPLE_PX, ICON_ACCENT_SAMPLE_PX))
+                        }
+                    },
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
@@ -1492,6 +1522,7 @@ private fun AppHeaderCard(
                     modifier = Modifier
                         .size(88.dp)
                         .clip(RoundedCornerShape(20.dp)),
+                    onIconBitmap = onIconBitmap,
                 )
             } else {
                 Image(

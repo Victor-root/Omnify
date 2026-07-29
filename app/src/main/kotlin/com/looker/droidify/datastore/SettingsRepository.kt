@@ -103,6 +103,8 @@ interface SettingsRepository {
     suspend fun setReadmeJavaScriptEnabled(enable: Boolean)
 
     suspend fun setSplitViewEnabled(enable: Boolean)
+
+    suspend fun setAccentMatchesAppIcon(enable: Boolean)
 }
 
 inline fun <T> SettingsRepository.get(crossinline block: suspend Settings.() -> T): Flow<T> {

@@ -306,6 +306,19 @@ fun SettingsScreen(
                 )
             }
 
+            // Needs WallpaperColors.fromBitmap (API 31+), same gate as the wallpaper accent option below.
+            if (SdkCheck.isSnowCake) {
+                item {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.accent_matches_app_icon_title),
+                        description = stringResource(R.string.accent_matches_app_icon_DESC),
+                        icon = painterResource(R.drawable.ic_tabler_palette),
+                        checked = settings.accentMatchesAppIcon,
+                        onCheckedChange = viewModel::setAccentMatchesAppIcon,
+                    )
+                }
+            }
+
             // Page-swiping, edge-to-edge and the two-pane detail view are phone/tablet concerns — none
             // apply to a D-pad TV, so they're hidden there.
             if (!isTelevision) {

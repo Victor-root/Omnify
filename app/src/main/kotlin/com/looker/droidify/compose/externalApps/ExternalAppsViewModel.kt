@@ -150,6 +150,12 @@ class ExternalAppsViewModel @Inject constructor(
         .map { it.splitViewEnabled }
         .asStateFlow(true)
 
+    /** Whether this page's accent colour should follow the app's own icon instead of the app-wide theme
+     *  colour (the Settings toggle). */
+    val accentMatchesAppIcon: StateFlow<Boolean> = settingsRepository.data
+        .map { it.accentMatchesAppIcon }
+        .asStateFlow(false)
+
     /** Tracked whole-account sources (each expands to several entries in [apps]). */
     val accounts: StateFlow<List<ExternalAccount>> = repository.accounts.asStateFlow(emptyList())
 
