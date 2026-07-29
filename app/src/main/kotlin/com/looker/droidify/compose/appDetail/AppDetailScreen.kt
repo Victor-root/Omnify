@@ -108,7 +108,7 @@ import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
 import com.looker.droidify.compose.appDetail.components.PackageItem
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.components.BackButton
-import com.looker.droidify.compose.components.CopyableFingerprintCard
+import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.CountBadge
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
@@ -142,7 +142,6 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.FilePath
-import com.looker.droidify.data.model.Fingerprint
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Permission
 import com.looker.droidify.data.model.Repo
@@ -782,31 +781,23 @@ private fun AppDetail(
     // The visible height of whichever column the description sits in, so the description can collapse
     // to fill exactly the space left below it down to the bottom of the screen (see AppDetailBody).
     var viewportPx by remember { mutableStateOf(0) }
-    // The installed APK's actual signing certificate: not the catalogue entry's own claim (just
-    // whatever the index says), but the real, on-device signature, so it can be shown and compared
-    // against e.g. a build the user just compiled themselves. Null when not installed, or on the rare
-    // PackageManager read failure. Recomputed whenever install state changes.
-    val installedCertificateFingerprint = remember(installedPackage, app.metadata.packageName.name) {
+    // The installed APK's actual signing certificate (lowercase hex): not the catalogue entry's own
+    // claim (just whatever the index says), but the real, on-device signature, so it can be shown,
+    // compared, and copied, e.g. against a build the user just compiled themselves. Null when not
+    // installed, or on the rare PackageManager read failure. Recomputed whenever install state changes.
+    val installedSignerRaw = remember(installedPackage, app.metadata.packageName.name) {
         if (installedPackage == null) {
             null
         } else {
             context.packageManager.getPackageInfoCompat(app.metadata.packageName.name)
                 ?.singleSignature
                 ?.calculateHash()
-                ?.uppercase()
-                ?.let(::Fingerprint)
-                ?.takeIf { it.isValid }
         }
     }
-    // The certificate the repository index declares for the version we'd actually install/update to,
+    // The certificate(s) the repository index declares for the version we'd actually install/update to,
     // known the moment the catalogue is synced, whether or not the app is installed yet, unlike
-    // [installedCertificateFingerprint]. Lets a never-installed app still be checked before installing.
-    val expectedCertificateFingerprint = remember(installablePackage) {
-        installablePackage?.manifest?.signer?.firstOrNull()
-            ?.uppercase()
-            ?.let(::Fingerprint)
-            ?.takeIf { it.isValid }
-    }
+    // [installedSignerRaw]. Lets a never-installed app still be checked before installing.
+    val expectedSigners = installablePackage?.manifest?.signer
     // The hero card content is identical in both layouts below (nothing moved out of it) — kept as one
     // lambda so the single-column and split-view branches can never drift apart on it.
     val headerCard: @Composable () -> Unit = {
@@ -852,25 +843,6 @@ private fun AppDetail(
             },
             modifier = Modifier.padding(horizontal = 16.dp),
         )
-        // Only for an installed app: this reads the actual on-device signature, not anything the
-        // (unsigned-until-you-build-it) catalogue entry itself could claim. Tap to copy it somewhere to
-        // compare, e.g. against a build you just compiled yourself.
-        installedCertificateFingerprint?.let { fingerprint ->
-            Spacer(Modifier.height(8.dp))
-            CopyableFingerprintCard(
-                title = stringResource(R.string.installed_certificate_title),
-                fingerprint = fingerprint,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-        }
-        expectedCertificateFingerprint?.let { fingerprint ->
-            Spacer(Modifier.height(8.dp))
-            CopyableFingerprintCard(
-                title = stringResource(R.string.expected_certificate_title),
-                fingerprint = fingerprint,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-        }
     }
     // Shared with AppDetailBody's own copy of this lookup: cheap, and lets the left pane below render
     // permissions without threading a second parameter through just for this.
@@ -900,6 +872,13 @@ private fun AppDetail(
                 if (supportedLanguages.codes.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     SupportedLanguagesSection(languages = supportedLanguages)
+                }
+                if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    CertificateSection(
+                        installedSigner = installedSignerRaw,
+                        expectedSigners = expectedSigners,
+                    )
                 }
                 if (packages.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -948,6 +927,8 @@ private fun AppDetail(
                     installing = installing,
                     downloadTargetVersionCode = downloadTargetVersionCode,
                     onCancel = onCancel,
+                    installedSignerRaw = installedSignerRaw,
+                    expectedSigners = expectedSigners,
                 )
             }
         }
@@ -1039,6 +1020,8 @@ private fun AppDetail(
                     downloadTargetVersionCode = downloadTargetVersionCode,
                     onCancel = onCancel,
                     lastVersionFocusRequester = lastVersionFocusRequester,
+                    installedSignerRaw = installedSignerRaw,
+                    expectedSigners = expectedSigners,
                 )
             }
         }
@@ -1048,7 +1031,7 @@ private fun AppDetail(
 /**
  * Everything on the detail screen after the hero card: the Google-services notice, custom buttons,
  * screenshots, categories, summary/description, what's-new, links, anti-features, permissions,
- * supported languages, and the version list. Extracted so the single-column and tablet-landscape
+ * supported languages, certificates, and the version list. Extracted so the single-column and tablet-landscape
  * two-pane layouts in [AppDetail] call the exact same content instead of two copies that could drift
  * apart. Deliberately emits its composables directly with no wrapping Column of its own, so they land
  * as direct children of whichever scrolling Column calls it — keeping the version list's scroll anchor
@@ -1080,6 +1063,8 @@ private fun AppDetailBody(
     installing: Boolean,
     downloadTargetVersionCode: Long?,
     onCancel: () -> Unit,
+    installedSignerRaw: String?,
+    expectedSigners: Set<String>?,
     // TV only: focus target for the hero card's "see all versions" link, attached to the last visible
     // version row (see VersionsSection). Null in split view, where the versions list lives in the left
     // pane's own direct VersionsSection call instead of through this body.
@@ -1233,6 +1218,14 @@ private fun AppDetailBody(
     if (showSidebarSections && supportedLanguages.codes.isNotEmpty()) {
         Spacer(modifier = Modifier.height(8.dp))
         SupportedLanguagesSection(languages = supportedLanguages)
+    }
+
+    if (showSidebarSections && (installedSignerRaw != null || !expectedSigners.isNullOrEmpty())) {
+        Spacer(modifier = Modifier.height(8.dp))
+        CertificateSection(
+            installedSigner = installedSignerRaw,
+            expectedSigners = expectedSigners,
+        )
     }
 
     if (showSidebarSections) {

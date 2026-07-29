@@ -69,12 +69,11 @@ import com.looker.droidify.compose.appDetail.ScreenshotsRow
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appDetail.components.PackageItem
 import com.looker.droidify.compose.components.InstallVersionDialog
-import com.looker.droidify.data.model.Fingerprint
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import androidx.compose.foundation.layout.Arrangement
 import com.looker.droidify.compose.externalApps.ReadmeWebView
-import com.looker.droidify.compose.components.CopyableFingerprintCard
+import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
@@ -121,35 +120,28 @@ fun TvAppDetailScreen(
 
             val installedPackage = remember(packages) { packages.map { it.first }.firstOrNull { it.installed } }
             val isInstalled = installedPackage != null
-            // The installed APK's actual signing certificate: not the catalogue entry's own claim (just
-            // whatever the index says), but the real, on-device signature, so it can be shown and
-            // compared against e.g. a build the user just compiled themselves. Null when not installed,
-            // or on the rare PackageManager read failure. Recomputed whenever install state changes.
-            val installedCertificateFingerprint = remember(installedPackage, app.metadata.packageName.name) {
+            // The installed APK's actual signing certificate (lowercase hex): not the catalogue entry's
+            // own claim (just whatever the index says), but the real, on-device signature, so it can be
+            // shown, compared, and copied, e.g. against a build the user just compiled themselves. Null
+            // when not installed, or on the rare PackageManager read failure. Recomputed whenever install
+            // state changes.
+            val installedSignerRaw = remember(installedPackage, app.metadata.packageName.name) {
                 if (installedPackage == null) {
                     null
                 } else {
                     context.packageManager.getPackageInfoCompat(app.metadata.packageName.name)
                         ?.singleSignature
                         ?.calculateHash()
-                        ?.uppercase()
-                        ?.let(::Fingerprint)
-                        ?.takeIf { it.isValid }
                 }
             }
             val installable = remember(packages, app.metadata.suggestedVersionCode) {
                 packages.selectForDevice(app.metadata.suggestedVersionCode)
             }
             val installablePackage = installable?.first
-            // The certificate the repository index declares for the version we'd actually install/update
-            // to, known the moment the catalogue is synced, whether or not the app is installed yet,
-            // unlike [installedCertificateFingerprint].
-            val expectedCertificateFingerprint = remember(installablePackage) {
-                installablePackage?.manifest?.signer?.firstOrNull()
-                    ?.uppercase()
-                    ?.let(::Fingerprint)
-                    ?.takeIf { it.isValid }
-            }
+            // The certificate(s) the repository index declares for the version we'd actually install/
+            // update to, known the moment the catalogue is synced, whether or not the app is installed
+            // yet, unlike [installedSignerRaw].
+            val expectedSigners = installablePackage?.manifest?.signer
             val updateAvailable = installedPackage != null && installablePackage != null &&
                 installedPackage.manifest.versionCode < installablePackage.manifest.versionCode
             // Mirrors the phone screen: the OS reports Installed before the app's own installed-packages
@@ -340,19 +332,10 @@ fun TvAppDetailScreen(
                     }
                 }
 
-                // Only for an installed app: this reads the actual on-device signature, not anything
-                // the (unsigned-until-you-build-it) catalogue entry itself could claim. Select to copy it
-                // somewhere to compare, e.g. against a build you just compiled yourself.
-                installedCertificateFingerprint?.let { fingerprint ->
-                    CopyableFingerprintCard(
-                        title = stringResource(R.string.installed_certificate_title),
-                        fingerprint = fingerprint,
-                    )
-                }
-                expectedCertificateFingerprint?.let { fingerprint ->
-                    CopyableFingerprintCard(
-                        title = stringResource(R.string.expected_certificate_title),
-                        fingerprint = fingerprint,
+                if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
+                    CertificateSection(
+                        installedSigner = installedSignerRaw,
+                        expectedSigners = expectedSigners,
                     )
                 }
 

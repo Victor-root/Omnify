@@ -79,7 +79,7 @@ import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.appDetail.GoogleServiceDependency
 import com.looker.droidify.compose.appDetail.GoogleServicesCard
-import com.looker.droidify.compose.components.CopyableFingerprintCard
+import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
@@ -113,7 +113,6 @@ import com.looker.droidify.external.apkFileSize
 import com.looker.droidify.external.apkUpdatedAt
 import com.looker.droidify.external.compareVersionStrings
 import com.looker.droidify.external.releaseVersionLabel
-import com.looker.droidify.data.model.Fingerprint
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.common.RootDetection
@@ -152,7 +151,7 @@ fun ExternalAppDetailScreen(
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     val googleServicesByApkUrl by viewModel.googleServicesByApkUrl.collectAsStateWithLifecycle()
-    val expectedCertificateByApkUrl by viewModel.expectedCertificateByApkUrl.collectAsStateWithLifecycle()
+    val expectedSignersByApkUrl by viewModel.expectedSignersByApkUrl.collectAsStateWithLifecycle()
     val issueTrackerLink by viewModel.issueTrackerLink.collectAsStateWithLifecycle()
     val changelogLink by viewModel.changelogLink.collectAsStateWithLifecycle()
     val changelogHtml by viewModel.changelogHtml.collectAsStateWithLifecycle()
@@ -193,9 +192,9 @@ fun ExternalAppDetailScreen(
     // is ever installed (there's no F-Droid-style index declaring it ahead of time here), same lazy,
     // once-per-APK pattern as the Google-services check above.
     LaunchedEffect(app?.latestApkUrl) {
-        app?.latestApkUrl?.let(viewModel::loadExpectedCertificateFingerprint)
+        app?.latestApkUrl?.let(viewModel::loadExpectedSigners)
     }
-    val expectedCertificateFingerprint = app?.latestApkUrl?.let { expectedCertificateByApkUrl[it] }
+    val expectedSigners = app?.latestApkUrl?.let { expectedSignersByApkUrl[it] }
 
     signatureConflict?.let { conflict ->
         val conflictAppName = app?.label ?: appKey
@@ -252,11 +251,11 @@ fun ExternalAppDetailScreen(
     val isInstalled = installedVersion != null
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
-    // The installed APK's actual signing certificate (not anything the source repo itself could claim:
-    // this reads the real, on-device signature), so it can be shown and compared against e.g. a build
-    // the user just compiled themselves. Null when not installed, the package id isn't known yet, or on
-    // the rare PackageManager read failure.
-    val installedCertificateFingerprint = remember(isInstalled, app?.packageName) {
+    // The installed APK's actual signing certificate (lowercase hex; not anything the source repo itself
+    // could claim, this reads the real, on-device signature), so it can be shown, compared, and copied,
+    // e.g. against a build the user just compiled themselves. Null when not installed, the package id
+    // isn't known yet, or on the rare PackageManager read failure.
+    val installedSignerRaw = remember(isInstalled, app?.packageName) {
         val packageName = app?.packageName
         if (!isInstalled || packageName == null) {
             null
@@ -264,9 +263,6 @@ fun ExternalAppDetailScreen(
             context.packageManager.getPackageInfoCompat(packageName)
                 ?.singleSignature
                 ?.calculateHash()
-                ?.uppercase()
-                ?.let(::Fingerprint)
-                ?.takeIf { it.isValid }
         }
     }
     // Hoisted above the Scaffold (not inside its content lambda) so both the content column and the
@@ -675,22 +671,6 @@ fun ExternalAppDetailScreen(
                         )
                     }
                     headerCard()
-                    installedCertificateFingerprint?.let { fingerprint ->
-                        Spacer(Modifier.height(8.dp))
-                        CopyableFingerprintCard(
-                            title = stringResource(R.string.installed_certificate_title),
-                            fingerprint = fingerprint,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
-                    }
-                    expectedCertificateFingerprint?.let { fingerprint ->
-                        Spacer(Modifier.height(8.dp))
-                        CopyableFingerprintCard(
-                            title = stringResource(R.string.expected_certificate_title),
-                            fingerprint = fingerprint,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
-                    }
                     ExternalLinksSection(
                         issueTrackerLink = issueTrackerLink,
                         changelogLink = changelogLink,
@@ -709,6 +689,13 @@ fun ExternalAppDetailScreen(
                     supportedLanguages?.let { languages ->
                         Spacer(Modifier.height(8.dp))
                         SupportedLanguagesSection(languages = languages)
+                    }
+                    if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        CertificateSection(
+                            installedSigner = installedSignerRaw,
+                            expectedSigners = expectedSigners,
+                        )
                     }
                     // ExternalVersionsSection already opens with its own SectionSeparator (matching the
                     // catalogue's own spacing) — no second one needed here.
@@ -766,6 +753,8 @@ fun ExternalAppDetailScreen(
                         sdkInfoByApkUrl = sdkInfoByApkUrl,
                         onRequestSdkInfo = viewModel::loadSdkInfo,
                         googleServicesDependencies = googleServicesDependencies,
+                        installedSignerRaw = installedSignerRaw,
+                        expectedSigners = expectedSigners,
                     )
                 }
             }
@@ -863,22 +852,6 @@ fun ExternalAppDetailScreen(
                     ) {
                         headerCard()
                     }
-                    installedCertificateFingerprint?.let { fingerprint ->
-                        Spacer(Modifier.height(8.dp))
-                        CopyableFingerprintCard(
-                            title = stringResource(R.string.installed_certificate_title),
-                            fingerprint = fingerprint,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
-                    }
-                    expectedCertificateFingerprint?.let { fingerprint ->
-                        Spacer(Modifier.height(8.dp))
-                        CopyableFingerprintCard(
-                            title = stringResource(R.string.expected_certificate_title),
-                            fingerprint = fingerprint,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
-                    }
                     ExternalAppDetailBody(
                         app = app,
                         isInstalled = isInstalled,
@@ -907,6 +880,8 @@ fun ExternalAppDetailScreen(
                         sdkInfoByApkUrl = sdkInfoByApkUrl,
                         onRequestSdkInfo = viewModel::loadSdkInfo,
                         googleServicesDependencies = googleServicesDependencies,
+                        installedSignerRaw = installedSignerRaw,
+                        expectedSigners = expectedSigners,
                     )
                 }
             }
@@ -916,11 +891,11 @@ fun ExternalAppDetailScreen(
 
 /**
  * Everything on the external-app detail screen after the hero card: the pre-install notice, README,
- * links, supported languages, and the version list. Extracted so the single-column and tablet-landscape
- * two-pane layouts in [ExternalAppDetailScreen] call the exact same content instead of two copies that
- * could drift apart. Deliberately emits its composables directly with no wrapping Column of its own, so
- * they land as direct children of whichever scrolling Column calls it — keeping the version list's
- * scroll anchor (see [onAnchorPositioned]) correct in both layouts.
+ * links, supported languages, certificates, and the version list. Extracted so the single-column and
+ * tablet-landscape two-pane layouts in [ExternalAppDetailScreen] call the exact same content instead of
+ * two copies that could drift apart. Deliberately emits its composables directly with no wrapping Column
+ * of its own, so they land as direct children of whichever scrolling Column calls it, keeping the
+ * version list's scroll anchor (see [onAnchorPositioned]) correct in both layouts.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -963,6 +938,8 @@ private fun ExternalAppDetailBody(
     // Lazily-fetched Google-services dependencies for the app's latest release (see
     // ExternalAppsViewModel.loadGoogleServicesInfo) — empty while unresolved or when none are detected.
     googleServicesDependencies: List<GoogleServiceDependency>,
+    installedSignerRaw: String?,
+    expectedSigners: Set<String>?,
 ) {
     val density = LocalDensity.current
     val uriHandler = LocalUriHandler.current
@@ -1142,6 +1119,14 @@ private fun ExternalAppDetailBody(
             Spacer(Modifier.height(8.dp))
             SupportedLanguagesSection(languages = languages)
         }
+    }
+
+    if (showSidebarSections && (installedSignerRaw != null || !expectedSigners.isNullOrEmpty())) {
+        Spacer(Modifier.height(8.dp))
+        CertificateSection(
+            installedSigner = installedSignerRaw,
+            expectedSigners = expectedSigners,
+        )
     }
 
     if (showSidebarSections) {

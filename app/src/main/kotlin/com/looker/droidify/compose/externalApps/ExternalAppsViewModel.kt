@@ -21,7 +21,6 @@ import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledRepository
-import com.looker.droidify.data.model.Fingerprint
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.external.ExternalAccount
@@ -534,22 +533,25 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    /** The detail screen's "expected certificate" card: the release APK's own signing certificate, read
+    /** The detail screen's "expected certificate" card: the release APK's own declared signer(s), read
      *  via [ApkSigningBlockReader] straight from [apkUrl], the only source available for an app that
      *  isn't installed yet (there's no F-Droid-style index declaring it ahead of time here), keyed by APK
      *  download URL and populated lazily like [sdkInfoByApkUrl]. Shares [signerHashCache]'s reads (same
      *  reader, same URL identity) with [trackSignatureMismatches], so an app already checked there (any
      *  installed source) costs nothing extra here, and this doesn't cost [trackSignatureMismatches]
      *  anything either the other way around. A key present with a null value means the block couldn't be
-     *  read (see the reader's own doc comment); a key absent means it hasn't been requested yet. */
-    private val _expectedCertificateByApkUrl = MutableStateFlow<Map<String, Fingerprint?>>(emptyMap())
-    val expectedCertificateByApkUrl: StateFlow<Map<String, Fingerprint?>> = _expectedCertificateByApkUrl
+     *  read (see the reader's own doc comment); a key absent means it hasn't been requested yet. Kept as
+     *  the raw signer set (not narrowed to a single displayed fingerprint) so the detail screen's
+     *  [com.looker.droidify.compose.components.CertificateSection] can run the real
+     *  [com.looker.droidify.data.signerMismatch] check against every declared signer, not just the first. */
+    private val _expectedSignersByApkUrl = MutableStateFlow<Map<String, Set<String>?>>(emptyMap())
+    val expectedSignersByApkUrl: StateFlow<Map<String, Set<String>?>> = _expectedSignersByApkUrl
 
     private val expectedCertificateRequested = mutableSetOf<String>()
 
-    /** Fetches and caches [apkUrl]'s expected certificate fingerprint; a no-op if already requested (or
-     *  done). Called once per app's latest APK, from the detail screen. */
-    fun loadExpectedCertificateFingerprint(apkUrl: String) {
+    /** Fetches and caches [apkUrl]'s expected signer(s); a no-op if already requested (or done). Called
+     *  once per app's latest APK, from the detail screen. */
+    fun loadExpectedSigners(apkUrl: String) {
         if (!expectedCertificateRequested.add(apkUrl)) return
         viewModelScope.launch {
             val hashes = if (signerHashCache.containsKey(apkUrl)) {
@@ -557,8 +559,7 @@ class ExternalAppsViewModel @Inject constructor(
             } else {
                 ApkSigningBlockReader.fetchSignerHashes(downloader, apkUrl).also { signerHashCache[apkUrl] = it }
             }
-            val fingerprint = hashes?.firstOrNull()?.uppercase()?.let(::Fingerprint)?.takeIf { it.isValid }
-            _expectedCertificateByApkUrl.update { it + (apkUrl to fingerprint) }
+            _expectedSignersByApkUrl.update { it + (apkUrl to hashes) }
         }
     }
 

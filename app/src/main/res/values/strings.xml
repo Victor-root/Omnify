@@ -516,7 +516,10 @@
     <string name="uninstall_failed">Couldn\'t uninstall %1$s</string>
     <string name="installer_unknown">Unknown source</string>
     <string name="installed_version_source">Installed: %1$s · from %2$s</string>
+    <string name="certificate_section_title">Signing certificate</string>
     <string name="installed_certificate_title">Installed certificate</string>
     <string name="expected_certificate_title">Expected certificate</string>
+    <string name="certificate_match_confirmed">Matches: the installed app was signed with this certificate.</string>
+    <string name="certificate_mismatch_warning">Doesn\'t match: the installed app was signed with a different certificate.</string>
     <string name="installed_signature_mismatch">The installed copy (%1$s, from %2$s) wasn\'t signed by this source. Android can\'t update it directly in that case: you\'ll need to uninstall it first, then install this one.</string>
 </resources>

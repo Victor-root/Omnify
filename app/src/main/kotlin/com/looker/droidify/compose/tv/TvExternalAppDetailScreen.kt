@@ -55,14 +55,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
-import com.looker.droidify.compose.components.CopyableFingerprintCard
+import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.ExternalLifecycleActions
 import com.looker.droidify.compose.settings.components.WarningBanner
-import com.looker.droidify.data.model.Fingerprint
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
 import com.looker.droidify.utility.common.extension.calculateHash
@@ -95,7 +94,7 @@ fun TvExternalAppDetailScreen(
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
-    val expectedCertificateByApkUrl by viewModel.expectedCertificateByApkUrl.collectAsStateWithLifecycle()
+    val expectedSignersByApkUrl by viewModel.expectedSignersByApkUrl.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
     val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
 
@@ -122,11 +121,11 @@ fun TvExternalAppDetailScreen(
     val context = LocalContext.current
     val installedVersion = installedVersions[appKey]
     val isInstalled = installedVersion != null
-    // The installed APK's actual signing certificate (not anything the source repo itself could claim:
-    // this reads the real, on-device signature), so it can be shown and compared against e.g. a build
-    // the user just compiled themselves. Null when not installed, the package id isn't known yet, or on
-    // the rare PackageManager read failure.
-    val installedCertificateFingerprint = remember(isInstalled, app.packageName) {
+    // The installed APK's actual signing certificate (lowercase hex; not anything the source repo itself
+    // could claim, this reads the real, on-device signature), so it can be shown, compared, and copied,
+    // e.g. against a build the user just compiled themselves. Null when not installed, the package id
+    // isn't known yet, or on the rare PackageManager read failure.
+    val installedSignerRaw = remember(isInstalled, app.packageName) {
         val packageName = app.packageName
         if (!isInstalled || packageName == null) {
             null
@@ -134,9 +133,6 @@ fun TvExternalAppDetailScreen(
             context.packageManager.getPackageInfoCompat(packageName)
                 ?.singleSignature
                 ?.calculateHash()
-                ?.uppercase()
-                ?.let(::Fingerprint)
-                ?.takeIf { it.isValid }
         }
     }
 
@@ -148,9 +144,9 @@ fun TvExternalAppDetailScreen(
     // Expected certificate: read from the release APK itself, the only source available before the app
     // is ever installed (there's no F-Droid-style index declaring it ahead of time here).
     LaunchedEffect(app.latestApkUrl) {
-        app.latestApkUrl?.let(viewModel::loadExpectedCertificateFingerprint)
+        app.latestApkUrl?.let(viewModel::loadExpectedSigners)
     }
-    val expectedCertificateFingerprint = app.latestApkUrl?.let { expectedCertificateByApkUrl[it] }
+    val expectedSigners = app.latestApkUrl?.let { expectedSignersByApkUrl[it] }
 
     // Same content the phone screen loads, so an external app's page is as rich as a catalogue one
     // (Omnify deliberately blurs the line between the two).
@@ -356,19 +352,10 @@ fun TvExternalAppDetailScreen(
             }
         }
 
-        // Only for an installed app: this reads the actual on-device signature, not anything the
-        // source repo itself could claim. Select to copy it somewhere to compare, e.g. against a build
-        // you just compiled yourself.
-        installedCertificateFingerprint?.let { fingerprint ->
-            CopyableFingerprintCard(
-                title = stringResource(R.string.installed_certificate_title),
-                fingerprint = fingerprint,
-            )
-        }
-        expectedCertificateFingerprint?.let { fingerprint ->
-            CopyableFingerprintCard(
-                title = stringResource(R.string.expected_certificate_title),
-                fingerprint = fingerprint,
+        if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
+            CertificateSection(
+                installedSigner = installedSignerRaw,
+                expectedSigners = expectedSigners,
             )
         }
 

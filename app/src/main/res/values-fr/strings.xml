@@ -499,7 +499,10 @@
     <string name="uninstall_failed">Impossible de désinstaller %1$s</string>
     <string name="installer_unknown">Source inconnue</string>
     <string name="installed_version_source">Installé : %1$s · via %2$s</string>
+    <string name="certificate_section_title">Certificat de signature</string>
     <string name="installed_certificate_title">Certificat installé</string>
     <string name="expected_certificate_title">Certificat attendu</string>
+    <string name="certificate_match_confirmed">Correspond : l\'application installée a été signée avec ce certificat.</string>
+    <string name="certificate_mismatch_warning">Ne correspond pas : l\'application installée a été signée avec un certificat différent.</string>
     <string name="installed_signature_mismatch">La version installée (%1$s, depuis %2$s) n\'a pas été signée par cette source. Android ne permet pas de la mettre à jour directement dans ce cas : il faudra désinstaller l\'application avant d\'installer celle-ci.</string>
 </resources>
