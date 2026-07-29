@@ -1,6 +1,5 @@
 package com.looker.droidify.compose.tv
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -56,9 +55,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
-import com.looker.droidify.compose.components.FingerprintCard
+import com.looker.droidify.compose.components.CopyableFingerprintCard
 import com.looker.droidify.compose.components.TvOverscan
-import com.looker.droidify.compose.components.fingerprintContent
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -67,9 +65,7 @@ import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.Fingerprint
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
-import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.extension.calculateHash
-import com.looker.droidify.utility.common.extension.copyToClipboard
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
 import kotlinx.coroutines.delay
@@ -99,6 +95,7 @@ fun TvExternalAppDetailScreen(
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
+    val expectedCertificateByApkUrl by viewModel.expectedCertificateByApkUrl.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
     val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
 
@@ -147,6 +144,13 @@ fun TvExternalAppDetailScreen(
     // from any channel) is recognised as installed instead of showing "Install". Keyed on the resolved app
     // (not the raw key) so it runs once the app record has actually loaded. No-op once the id is known.
     LaunchedEffect(app.key) { viewModel.ensurePackageId(app.key) }
+
+    // Expected certificate: read from the release APK itself, the only source available before the app
+    // is ever installed (there's no F-Droid-style index declaring it ahead of time here).
+    LaunchedEffect(app.latestApkUrl) {
+        app.latestApkUrl?.let(viewModel::loadExpectedCertificateFingerprint)
+    }
+    val expectedCertificateFingerprint = app.latestApkUrl?.let { expectedCertificateByApkUrl[it] }
 
     // Same content the phone screen loads, so an external app's page is as rich as a catalogue one
     // (Omnify deliberately blurs the line between the two).
@@ -356,21 +360,15 @@ fun TvExternalAppDetailScreen(
         // source repo itself could claim. Select to copy it somewhere to compare, e.g. against a build
         // you just compiled yourself.
         installedCertificateFingerprint?.let { fingerprint ->
-            FingerprintCard(
+            CopyableFingerprintCard(
                 title = stringResource(R.string.installed_certificate_title),
-                content = fingerprintContent(fingerprint),
-                onClick = {
-                    context.copyToClipboard(fingerprint.value)
-                    // Android 13+ already shows its own system toast for every clipboard write; ours
-                    // would just be a redundant second one on top of it.
-                    if (!SdkCheck.isTiramisu) {
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.copied_to_clipboard),
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    }
-                },
+                fingerprint = fingerprint,
+            )
+        }
+        expectedCertificateFingerprint?.let { fingerprint ->
+            CopyableFingerprintCard(
+                title = stringResource(R.string.expected_certificate_title),
+                fingerprint = fingerprint,
             )
         }
 

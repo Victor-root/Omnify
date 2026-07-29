@@ -3,7 +3,6 @@ package com.looker.droidify.compose.externalApps
 import android.content.Intent
 import android.content.res.Configuration
 import android.util.Log
-import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.focusGroup
@@ -80,9 +79,8 @@ import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.appDetail.GoogleServiceDependency
 import com.looker.droidify.compose.appDetail.GoogleServicesCard
+import com.looker.droidify.compose.components.CopyableFingerprintCard
 import com.looker.droidify.compose.components.DescriptionTranslation
-import com.looker.droidify.compose.components.FingerprintCard
-import com.looker.droidify.compose.components.fingerprintContent
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
@@ -119,9 +117,7 @@ import com.looker.droidify.data.model.Fingerprint
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.common.RootDetection
-import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.extension.calculateHash
-import com.looker.droidify.utility.common.extension.copyToClipboard
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.singleSignature
@@ -156,6 +152,7 @@ fun ExternalAppDetailScreen(
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     val googleServicesByApkUrl by viewModel.googleServicesByApkUrl.collectAsStateWithLifecycle()
+    val expectedCertificateByApkUrl by viewModel.expectedCertificateByApkUrl.collectAsStateWithLifecycle()
     val issueTrackerLink by viewModel.issueTrackerLink.collectAsStateWithLifecycle()
     val changelogLink by viewModel.changelogLink.collectAsStateWithLifecycle()
     val changelogHtml by viewModel.changelogHtml.collectAsStateWithLifecycle()
@@ -191,6 +188,14 @@ fun ExternalAppDetailScreen(
         if (app != null && latestApkUrl != null) viewModel.loadGoogleServicesInfo(app, latestApkUrl)
     }
     val googleServicesDependencies = app?.latestApkUrl?.let { googleServicesByApkUrl[it] }.orEmpty()
+
+    // Expected certificate: read from the release APK itself, the only source available before the app
+    // is ever installed (there's no F-Droid-style index declaring it ahead of time here), same lazy,
+    // once-per-APK pattern as the Google-services check above.
+    LaunchedEffect(app?.latestApkUrl) {
+        app?.latestApkUrl?.let(viewModel::loadExpectedCertificateFingerprint)
+    }
+    val expectedCertificateFingerprint = app?.latestApkUrl?.let { expectedCertificateByApkUrl[it] }
 
     signatureConflict?.let { conflict ->
         val conflictAppName = app?.label ?: appKey
@@ -672,22 +677,18 @@ fun ExternalAppDetailScreen(
                     headerCard()
                     installedCertificateFingerprint?.let { fingerprint ->
                         Spacer(Modifier.height(8.dp))
-                        FingerprintCard(
+                        CopyableFingerprintCard(
                             title = stringResource(R.string.installed_certificate_title),
-                            content = fingerprintContent(fingerprint),
+                            fingerprint = fingerprint,
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            onClick = {
-                                context.copyToClipboard(fingerprint.value)
-                                // Android 13+ already shows its own system toast for every clipboard
-                                // write; ours would just be a redundant second one on top of it.
-                                if (!SdkCheck.isTiramisu) {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.copied_to_clipboard),
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
-                                }
-                            },
+                        )
+                    }
+                    expectedCertificateFingerprint?.let { fingerprint ->
+                        Spacer(Modifier.height(8.dp))
+                        CopyableFingerprintCard(
+                            title = stringResource(R.string.expected_certificate_title),
+                            fingerprint = fingerprint,
+                            modifier = Modifier.padding(horizontal = 16.dp),
                         )
                     }
                     ExternalLinksSection(
@@ -864,22 +865,18 @@ fun ExternalAppDetailScreen(
                     }
                     installedCertificateFingerprint?.let { fingerprint ->
                         Spacer(Modifier.height(8.dp))
-                        FingerprintCard(
+                        CopyableFingerprintCard(
                             title = stringResource(R.string.installed_certificate_title),
-                            content = fingerprintContent(fingerprint),
+                            fingerprint = fingerprint,
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            onClick = {
-                                context.copyToClipboard(fingerprint.value)
-                                // Android 13+ already shows its own system toast for every clipboard
-                                // write; ours would just be a redundant second one on top of it.
-                                if (!SdkCheck.isTiramisu) {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.copied_to_clipboard),
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
-                                }
-                            },
+                        )
+                    }
+                    expectedCertificateFingerprint?.let { fingerprint ->
+                        Spacer(Modifier.height(8.dp))
+                        CopyableFingerprintCard(
+                            title = stringResource(R.string.expected_certificate_title),
+                            fingerprint = fingerprint,
+                            modifier = Modifier.padding(horizontal = 16.dp),
                         )
                     }
                     ExternalAppDetailBody(

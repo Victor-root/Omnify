@@ -1,6 +1,5 @@
 package com.looker.droidify.compose.tv
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -75,17 +74,14 @@ import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import androidx.compose.foundation.layout.Arrangement
 import com.looker.droidify.compose.externalApps.ReadmeWebView
-import com.looker.droidify.compose.components.FingerprintCard
-import com.looker.droidify.compose.components.fingerprintContent
+import com.looker.droidify.compose.components.CopyableFingerprintCard
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.selectForDevice
-import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.extension.calculateHash
-import com.looker.droidify.utility.common.extension.copyToClipboard
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
 import kotlinx.coroutines.delay
@@ -145,6 +141,15 @@ fun TvAppDetailScreen(
                 packages.selectForDevice(app.metadata.suggestedVersionCode)
             }
             val installablePackage = installable?.first
+            // The certificate the repository index declares for the version we'd actually install/update
+            // to, known the moment the catalogue is synced, whether or not the app is installed yet,
+            // unlike [installedCertificateFingerprint].
+            val expectedCertificateFingerprint = remember(installablePackage) {
+                installablePackage?.manifest?.signer?.firstOrNull()
+                    ?.uppercase()
+                    ?.let(::Fingerprint)
+                    ?.takeIf { it.isValid }
+            }
             val updateAvailable = installedPackage != null && installablePackage != null &&
                 installedPackage.manifest.versionCode < installablePackage.manifest.versionCode
             // Mirrors the phone screen: the OS reports Installed before the app's own installed-packages
@@ -339,21 +344,15 @@ fun TvAppDetailScreen(
                 // the (unsigned-until-you-build-it) catalogue entry itself could claim. Select to copy it
                 // somewhere to compare, e.g. against a build you just compiled yourself.
                 installedCertificateFingerprint?.let { fingerprint ->
-                    FingerprintCard(
+                    CopyableFingerprintCard(
                         title = stringResource(R.string.installed_certificate_title),
-                        content = fingerprintContent(fingerprint),
-                        onClick = {
-                            context.copyToClipboard(fingerprint.value)
-                            // Android 13+ already shows its own system toast for every clipboard write;
-                            // ours would just be a redundant second one on top of it.
-                            if (!SdkCheck.isTiramisu) {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.copied_to_clipboard),
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                            }
-                        },
+                        fingerprint = fingerprint,
+                    )
+                }
+                expectedCertificateFingerprint?.let { fingerprint ->
+                    CopyableFingerprintCard(
+                        title = stringResource(R.string.expected_certificate_title),
+                        fingerprint = fingerprint,
                     )
                 }
 

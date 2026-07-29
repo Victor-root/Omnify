@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.util.Log
-import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
@@ -109,12 +108,11 @@ import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
 import com.looker.droidify.compose.appDetail.components.PackageItem
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.CopyableFingerprintCard
 import com.looker.droidify.compose.components.CountBadge
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.ExpandableText
-import com.looker.droidify.compose.components.FingerprintCard
-import com.looker.droidify.compose.components.fingerprintContent
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
@@ -152,9 +150,7 @@ import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.RootDetection
-import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.extension.calculateHash
-import com.looker.droidify.utility.common.extension.copyToClipboard
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.singleSignature
@@ -802,6 +798,15 @@ private fun AppDetail(
                 ?.takeIf { it.isValid }
         }
     }
+    // The certificate the repository index declares for the version we'd actually install/update to,
+    // known the moment the catalogue is synced, whether or not the app is installed yet, unlike
+    // [installedCertificateFingerprint]. Lets a never-installed app still be checked before installing.
+    val expectedCertificateFingerprint = remember(installablePackage) {
+        installablePackage?.manifest?.signer?.firstOrNull()
+            ?.uppercase()
+            ?.let(::Fingerprint)
+            ?.takeIf { it.isValid }
+    }
     // The hero card content is identical in both layouts below (nothing moved out of it) — kept as one
     // lambda so the single-column and split-view branches can never drift apart on it.
     val headerCard: @Composable () -> Unit = {
@@ -852,18 +857,18 @@ private fun AppDetail(
         // compare, e.g. against a build you just compiled yourself.
         installedCertificateFingerprint?.let { fingerprint ->
             Spacer(Modifier.height(8.dp))
-            FingerprintCard(
+            CopyableFingerprintCard(
                 title = stringResource(R.string.installed_certificate_title),
-                content = fingerprintContent(fingerprint),
+                fingerprint = fingerprint,
                 modifier = Modifier.padding(horizontal = 16.dp),
-                onClick = {
-                    context.copyToClipboard(fingerprint.value)
-                    // Android 13+ already shows its own system toast for every clipboard write; ours
-                    // would just be a redundant second one on top of it.
-                    if (!SdkCheck.isTiramisu) {
-                        Toast.makeText(context, context.getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show()
-                    }
-                },
+            )
+        }
+        expectedCertificateFingerprint?.let { fingerprint ->
+            Spacer(Modifier.height(8.dp))
+            CopyableFingerprintCard(
+                title = stringResource(R.string.expected_certificate_title),
+                fingerprint = fingerprint,
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
     }

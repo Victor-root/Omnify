@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.components
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,14 +13,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.looker.droidify.R
 import com.looker.droidify.data.model.Fingerprint
 import com.looker.droidify.data.model.formattedString
+import com.looker.droidify.utility.common.SdkCheck
+import com.looker.droidify.utility.common.extension.copyToClipboard
 
 /**
  * A bordered card presenting one hex fingerprint (a repo's own signing fingerprint, an installed app's
@@ -81,4 +86,28 @@ fun fingerprintContent(fingerprint: Fingerprint): AnnotatedString = buildAnnotat
     withStyle(SpanStyle(fontFamily = FontFamily.Monospace)) {
         append(fingerprint.formattedString())
     }
+}
+
+/** A [FingerprintCard] for [fingerprint] that copies it to the clipboard on tap, the shared behaviour
+ *  every app-certificate card in the app uses (installed and expected alike), so it's written once here
+ *  instead of once per call site. Android 13+ already shows its own system toast for a clipboard write,
+ *  so this one is suppressed there to avoid a redundant second toast. */
+@Composable
+fun CopyableFingerprintCard(
+    title: String,
+    fingerprint: Fingerprint,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    FingerprintCard(
+        title = title,
+        content = fingerprintContent(fingerprint),
+        modifier = modifier,
+        onClick = {
+            context.copyToClipboard(fingerprint.value)
+            if (!SdkCheck.isTiramisu) {
+                Toast.makeText(context, context.getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show()
+            }
+        },
+    )
 }
