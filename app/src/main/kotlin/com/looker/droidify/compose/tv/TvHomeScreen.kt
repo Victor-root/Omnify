@@ -78,6 +78,7 @@ import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
+import com.looker.droidify.compose.settings.components.InfoBanner
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.external.ExternalApp
@@ -126,6 +127,8 @@ fun TvHomeScreen(
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
     val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
+    val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
+    val githubRateLimitRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
     // The TV-only filter (shared engine with the phone: viewModel.tvOnly / toggleTvOnly). It already
     // narrows the catalogue lists — Installed / Updates / Search all derive from the same filtered
     // appsState — so here it only additionally gates Explore (to the TV carousel) and the External grid.
@@ -304,6 +307,8 @@ fun TvHomeScreen(
                     installedKeys = externalInstalledKeys,
                     onAppClick = openExternal,
                     githubTokenInvalid = githubTokenInvalid,
+                    hasGithubToken = hasGithubToken,
+                    githubRateLimitRemaining = githubRateLimitRemaining,
                     onFixToken = onFixGithubToken,
                     restoreFocusId = restoreFocusId,
                     restoreRequester = restoreRequester,
@@ -684,6 +689,8 @@ private fun TvExternalGrid(
     installedKeys: Set<String>,
     onAppClick: (String) -> Unit,
     githubTokenInvalid: Boolean = false,
+    hasGithubToken: Boolean = true,
+    githubRateLimitRemaining: Int? = null,
     onFixToken: () -> Unit = {},
     restoreFocusId: String? = null,
     restoreRequester: FocusRequester = remember { FocusRequester() },
@@ -697,11 +704,24 @@ private fun TvExternalGrid(
         )
         // A token GitHub is actively rejecting silently stops every GitHub-backed source from
         // refreshing (see ExternalAppsViewModel.refresh), with nothing else on this screen otherwise
-        // showing anything is wrong — shown regardless of whether the grid itself is empty.
-        if (githubTokenInvalid) {
-            WarningBanner(
+        // showing anything is wrong, shown regardless of whether the grid itself is empty. Priority
+        // over the no-token hint below: a rejected token is the more actionable problem, and the two
+        // states can't both be true anyway (rejection requires a token to be set).
+        when {
+            githubTokenInvalid -> WarningBanner(
                 title = stringResource(R.string.external_token_invalid_title),
                 description = stringResource(R.string.external_token_invalid_DESC),
+                onClick = onFixToken,
+                modifier = Modifier.padding(horizontal = TvOverscan + 8.dp, vertical = 8.dp),
+            )
+            // No token configured: a routine heads-up, not a problem. Explains why a source might
+            // silently be missing its latest release (the anonymous 60-requests/hour limit), which
+            // otherwise looks identical to the source genuinely having nothing new.
+            !hasGithubToken -> InfoBanner(
+                title = stringResource(R.string.external_no_token_title),
+                description = githubRateLimitRemaining?.let { remaining ->
+                    stringResource(R.string.external_no_token_description_remaining, remaining)
+                } ?: stringResource(R.string.external_no_token_description),
                 onClick = onFixToken,
                 modifier = Modifier.padding(horizontal = TvOverscan + 8.dp, vertical = 8.dp),
             )

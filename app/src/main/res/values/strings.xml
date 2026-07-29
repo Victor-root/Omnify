@@ -453,6 +453,9 @@
     <string name="external_token_rejected">Your GitHub token was rejected (invalid, expired, or revoked). Update it in Settings › External sources.</string>
     <string name="external_token_invalid_title">GitHub token rejected</string>
     <string name="external_token_invalid_DESC">Your token seems invalid, expired, or revoked. GitHub sources won\'t update until you fix or remove it in Settings.</string>
+    <string name="external_no_token_title">No GitHub token</string>
+    <string name="external_no_token_description">You\'re limited to 60 requests/hour. If a source doesn\'t show its latest release, the limit was likely reached. Add a free token in Settings › External sources to raise it to 5000.</string>
+    <string name="external_no_token_description_remaining">%1$d of 60 requests remain this hour. If a source doesn\'t show its latest release, the limit was likely reached. Add a free token in Settings › External sources to raise it to 5000.</string>
     <string name="external_readme_unavailable">Couldn\'t load the README.</string>
     <string name="external_github_limit_hint">Tip: without a GitHub token you\'re limited to 60 requests/hour. Add one for free in Settings › External sources to raise it to 5000.</string>
     <string name="external_github_limit_hint_remaining">Tip: without a GitHub token, %1$d of 60 requests remain this hour. Add one for free in Settings › External sources to raise it to 5000.</string>

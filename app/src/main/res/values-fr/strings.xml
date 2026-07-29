@@ -436,6 +436,9 @@
     <string name="external_token_rejected">Votre jeton GitHub a été rejeté (invalide, expiré ou révoqué). Mettez-le à jour dans Paramètres › Sources externes.</string>
     <string name="external_token_invalid_title">Jeton GitHub rejeté</string>
     <string name="external_token_invalid_DESC">Votre jeton semble invalide, expiré ou révoqué. Les sources GitHub ne se mettront pas à jour tant que vous ne l\'aurez pas corrigé ou retiré dans les Paramètres.</string>
+    <string name="external_no_token_title">Aucun jeton GitHub</string>
+    <string name="external_no_token_description">Vous êtes limité à 60 requêtes par heure. Si une source n\'affiche pas sa dernière version, la limite a probablement été atteinte. Ajoutez un jeton gratuit dans Paramètres › Sources externes pour passer à 5000.</string>
+    <string name="external_no_token_description_remaining">Il vous reste %1$d requêtes sur 60 cette heure. Si une source n\'affiche pas sa dernière version, la limite a probablement été atteinte. Ajoutez un jeton gratuit dans Paramètres › Sources externes pour passer à 5000.</string>
     <string name="external_readme_unavailable">Impossible de charger le README.</string>
     <string name="external_github_limit_hint">Astuce : sans jeton GitHub, vous êtes limité à 60 requêtes par heure. Ajoutez-en un gratuitement dans Paramètres › Sources externes pour passer à 5000.</string>
     <string name="external_github_limit_hint_remaining">Astuce : sans jeton GitHub, il vous reste %1$d requêtes sur 60 cette heure. Ajoutez-en un gratuitement dans Paramètres › Sources externes pour passer à 5000.</string>

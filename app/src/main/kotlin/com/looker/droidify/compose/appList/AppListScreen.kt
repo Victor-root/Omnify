@@ -138,6 +138,7 @@ import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
+import com.looker.droidify.compose.settings.components.InfoBanner
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
@@ -328,6 +329,8 @@ fun AppListScreen(
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
     val externalInstalledVersions by externalViewModel.installedVersions.collectAsStateWithLifecycle()
     val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
+    val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
+    val githubRateLimitRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
     // External-repo updates surface in the Updates tab too (no difference from F-Droid repos), so we
     // refresh release tags on screen entry — not only when the External tab is open.
     LaunchedEffect(Unit) {
@@ -585,13 +588,28 @@ fun AppListScreen(
                     // padding leaves a small gap meant for tile breathing room, wrong for a banner that
                     // should read as part of the header). A token GitHub is actively rejecting silently
                     // stops every GitHub-backed source from refreshing (see ExternalAppsViewModel.refresh),
-                    // with nothing else on this tab otherwise showing anything is wrong.
-                    if (selectedTab == AppTab.EXTERNAL && githubTokenInvalid) {
-                        WarningBanner(
-                            title = stringResource(R.string.external_token_invalid_title),
-                            description = stringResource(R.string.external_token_invalid_DESC),
-                            onClick = onFixGithubToken,
-                        )
+                    // with nothing else on this tab otherwise showing anything is wrong. Priority over the
+                    // no-token hint below: a rejected token is the more actionable problem, and the two
+                    // states can't both be true anyway (rejection requires a token to be set).
+                    if (selectedTab == AppTab.EXTERNAL) {
+                        when {
+                            githubTokenInvalid -> WarningBanner(
+                                title = stringResource(R.string.external_token_invalid_title),
+                                description = stringResource(R.string.external_token_invalid_DESC),
+                                onClick = onFixGithubToken,
+                            )
+                            // No token configured: a routine heads-up, not a problem. Explains why a
+                            // source might silently be missing its latest release (the anonymous
+                            // 60-requests/hour limit), which otherwise looks identical to the source
+                            // genuinely having nothing new.
+                            !hasGithubToken -> InfoBanner(
+                                title = stringResource(R.string.external_no_token_title),
+                                description = githubRateLimitRemaining?.let { remaining ->
+                                    stringResource(R.string.external_no_token_description_remaining, remaining)
+                                } ?: stringResource(R.string.external_no_token_description),
+                                onClick = onFixGithubToken,
+                            )
+                        }
                     }
                 }
             }
