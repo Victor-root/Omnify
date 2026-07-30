@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.appList
 
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import com.looker.droidify.compose.components.AppTile
 import com.looker.droidify.compose.components.TileIconSize
 import com.looker.droidify.compose.components.TvTileIconSize
@@ -40,6 +43,8 @@ import kotlinx.coroutines.withContext
 /** Square pixel size the system fallback icon is rendered at (generous so it stays crisp at any tile
  *  size, including the focus zoom). */
 private const val LauncherIconPx = 256
+
+private const val TAG = "CatalogTile"
 
 /**
  * A catalogue app's icon, in priority order:
@@ -60,6 +65,18 @@ fun AppMinimalIcon(
     var repoIcon by remember(app.appId) { mutableStateOf(app.icon?.path) }
     var repoFailed by remember(app.appId) { mutableStateOf(false) }
     val shape = MaterialTheme.shapes.large
+    // Hardware bitmaps (Coil's own default) can't be redrawn into the safe bitmap onIconBitmap needs
+    // for colour extraction, not even into another software config: some devices (seen on a Pixel 8
+    // emulator) refuse to draw a hardware source at all outside GPU-accelerated on-screen rendering,
+    // throwing "Software rendering doesn't support hardware bitmaps" instead of just being slow.
+    // Requesting a non-hardware decode up front avoids that outright, only paid when a caller actually
+    // wants the bitmap back, so ordinary tiles (no onIconBitmap) keep the faster hardware path.
+    val context = LocalContext.current
+    val repoIconModel = remember(repoIcon, onIconBitmap != null) {
+        repoIcon?.let { path ->
+            ImageRequest.Builder(context).data(path).allowHardware(onIconBitmap == null).build()
+        }
+    }
     // On TV every icon sits on the same rounded card: a full-bleed icon covers it, while a padded or
     // round icon sits centred on it instead of floating at an odd size — so the whole grid reads as
     // uniform. Mobile keeps the icon clipped on its own (no card), which already looks right there.
@@ -77,7 +94,7 @@ fun AppMinimalIcon(
             .then(if (isTelevision) Modifier else Modifier.clip(shape))
         when {
             repoIcon != null && !repoFailed -> AsyncImage(
-                model = repoIcon,
+                model = repoIconModel,
                 // Try the repo's generic /icon.png once, then give up so the installed icon / default shows.
                 onError = {
                     val fallback = app.fallbackIcon?.path
@@ -125,14 +142,16 @@ private fun InstalledLauncherIcon(
     val launcher by produceState<ImageBitmap?>(null, packageName) {
         value = withContext(Dispatchers.IO) {
             runCatching {
-                // Render into an explicit square bitmap. toBitmap() with no size uses the drawable's
-                // intrinsic size, which for adaptive icons renders inconsistently across Android versions
-                // (fine on newer phones, cropped/squished on older TV builds) — a square output normalises
-                // it everywhere.
+                // Explicit size: toBitmap() with none uses the drawable's intrinsic size, which for
+                // adaptive icons renders inconsistently across Android versions (fine on newer phones,
+                // cropped/squished on older TV builds), a square output normalises it everywhere.
+                // Explicit ARGB_8888 config: toBitmap()'s default (null) returns a BitmapDrawable's own
+                // bitmap unconverted whenever the requested size matches its intrinsic size, hardware
+                // config included, which then crashes reading pixels back out for colour extraction.
                 context.packageManager.getApplicationIcon(packageName)
-                    .toBitmap(width = LauncherIconPx, height = LauncherIconPx)
+                    .toBitmap(width = LauncherIconPx, height = LauncherIconPx, config = Bitmap.Config.ARGB_8888)
                     .asImageBitmap()
-            }.getOrNull()
+            }.onFailure { Log.e(TAG, "Unable to read $packageName's launcher icon", it) }.getOrNull()
         }
     }
     val bitmap = launcher

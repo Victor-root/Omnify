@@ -601,11 +601,7 @@ fun ExternalAppDetailScreen(
                         app = app,
                         isInstalled = isInstalled,
                         size = 88.dp,
-                        onIconBitmap = if (accentMatchesAppIcon) {
-                            { bitmap -> iconAccentColor = bitmap.dominantAccentColor() }
-                        } else {
-                            null
-                        },
+                        onIconBitmap = { bitmap -> iconAccentColor = bitmap.dominantAccentColor() },
                     )
                 },
                 name = app.label,

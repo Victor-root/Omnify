@@ -9,10 +9,13 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import com.looker.droidify.utility.common.extension.intent
 import com.looker.droidify.utility.common.extension.powerManager
+
+private const val TAG = "Permissions"
 
 fun Context.isIgnoreBatteryEnabled() =
     powerManager?.isIgnoringBatteryOptimizations(packageName) == true
@@ -39,8 +42,15 @@ fun Context.wallpaperAccentColor(): Int? {
  * only (the [WallpaperColors.fromBitmap] factory).
  */
 fun Bitmap.dominantAccentColor(): Int? {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
-    return runCatching { WallpaperColors.fromBitmap(this).primaryColor.toArgb() }.getOrNull()
+    Log.d(TAG, "dominantAccentColor: called, SDK=${Build.VERSION.SDK_INT}, ${width}x$height, config=$config")
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        Log.d(TAG, "dominantAccentColor: skipped, SDK below S")
+        return null
+    }
+    return runCatching { WallpaperColors.fromBitmap(this).primaryColor.toArgb() }
+        .onSuccess { Log.d(TAG, "dominantAccentColor: extracted ${Integer.toHexString(it)}") }
+        .onFailure { Log.e(TAG, "Unable to extract a dominant colour from this bitmap", it) }
+        .getOrNull()
 }
 
 /** Whether the app may install APKs from "unknown sources". Always true below Android 8, where it

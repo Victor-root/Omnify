@@ -301,11 +301,7 @@ fun TvAppDetailScreen(
                             app = app.minimal(),
                             isInstalled = isInstalled,
                             modifier = Modifier.size(120.dp).clip(RoundedCornerShape(24.dp)),
-                            onIconBitmap = if (accentMatchesAppIcon) {
-                                { bitmap -> iconAccentColor = bitmap.dominantAccentColor() }
-                            } else {
-                                null
-                            },
+                            onIconBitmap = { bitmap -> iconAccentColor = bitmap.dominantAccentColor() },
                         )
                         Column(verticalArrangement = spacedBy(8.dp)) {
                             Text(

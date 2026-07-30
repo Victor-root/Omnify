@@ -315,11 +315,7 @@ fun TvExternalAppDetailScreen(
                         app = app,
                         isInstalled = isInstalled,
                         size = 112.dp,
-                        onIconBitmap = if (accentMatchesAppIcon) {
-                            { bitmap -> iconAccentColor = bitmap.dominantAccentColor() }
-                        } else {
-                            null
-                        },
+                        onIconBitmap = { bitmap -> iconAccentColor = bitmap.dominantAccentColor() },
                     )
                 }
                 Column(verticalArrangement = spacedBy(8.dp)) {

@@ -104,6 +104,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
 import com.looker.droidify.compose.appDetail.components.PackageItem
@@ -544,11 +546,7 @@ fun AppDetailScreen(
                     scrollState = scrollState,
                     useSplitView = useSplitView,
                     modifier = Modifier.padding(padding),
-                    onIconBitmap = if (accentMatchesAppIcon) {
-                        { bitmap -> iconAccentColor = bitmap.dominantAccentColor() }
-                    } else {
-                        null
-                    },
+                    onIconBitmap = { bitmap -> iconAccentColor = bitmap.dominantAccentColor() },
                 )
             }
         }
@@ -1476,6 +1474,17 @@ private fun AppHeaderCard(
     val version = app?.metadata?.suggestedVersionName?.nonBlank()
     val size = installablePackage?.apk?.size?.toString()
     val heroContext = LocalContext.current
+    // Hardware bitmaps (Coil's own default) can't be redrawn into the safe bitmap onIconBitmap needs
+    // for colour extraction, not even into another software config: some devices (seen on a Pixel 8
+    // emulator) refuse to draw a hardware source at all outside GPU-accelerated on-screen rendering,
+    // throwing "Software rendering doesn't support hardware bitmaps" instead of just being slow.
+    // Requesting a non-hardware decode up front avoids that outright, only paid when a caller actually
+    // wants the bitmap back.
+    val remoteIconModel = remember(remoteIcon, onIconBitmap != null) {
+        remoteIcon?.let { file ->
+            ImageRequest.Builder(heroContext).data(file).allowHardware(onIconBitmap == null).build()
+        }
+    }
     val author = app?.author?.name?.nonBlank()
     val uriHandler = LocalUriHandler.current
     val sourceCodeUrl = app?.links?.sourceCode?.nonBlank()
@@ -1504,7 +1513,7 @@ private fun AppHeaderCard(
                 // straight out of its release APK, so it's rendered directly rather than routed through
                 // AppMinimalIcon's repo/launcher/placeholder chain, none of which would find anything.
                 AsyncImage(
-                    model = remoteIcon,
+                    model = remoteIconModel,
                     onSuccess = onIconBitmap?.let { callback ->
                         { state: AsyncImagePainter.State.Success ->
                             state.toSafeBitmap(ICON_ACCENT_SAMPLE_PX)?.let(callback)

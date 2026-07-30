@@ -2,6 +2,7 @@ package com.looker.droidify.compose.externalApps
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -29,6 +30,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.core.graphics.drawable.toBitmap
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import com.looker.droidify.R
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
@@ -38,6 +41,8 @@ import kotlinx.coroutines.withContext
 
 /** Square pixel size the system fallback icon is rendered at (generous so it stays crisp at any size). */
 private const val LauncherIconPx = 256
+
+private const val TAG = "ExternalAppIcon"
 
 /**
  * Icon for an external app, in priority order:
@@ -60,6 +65,22 @@ fun ExternalAppIcon(
 ) {
     val context = LocalContext.current
     val packageName = app.packageName
+    // Hardware bitmaps (Coil's own default) can't be redrawn into the safe bitmap onIconBitmap needs
+    // for colour extraction, not even into another software config: some devices (seen on a Pixel 8
+    // emulator) refuse to draw a hardware source at all outside GPU-accelerated on-screen rendering,
+    // throwing "Software rendering doesn't support hardware bitmaps" instead of just being slow.
+    // Requesting a non-hardware decode up front avoids that outright, only paid when a caller actually
+    // wants the bitmap back, so ordinary tiles (no onIconBitmap) keep the faster hardware path.
+    val repoIconModel = remember(app.repoIconUrl, onIconBitmap != null) {
+        app.repoIconUrl?.let { url ->
+            ImageRequest.Builder(context).data(url).allowHardware(onIconBitmap == null).build()
+        }
+    }
+    val avatarModel = remember(app.iconUrl, onIconBitmap != null) {
+        app.iconUrl?.let { url ->
+            ImageRequest.Builder(context).data(url).allowHardware(onIconBitmap == null).build()
+        }
+    }
     // Loaded off the main thread (produceState + IO): reading the launcher icon inline for every tile
     // made lists of installed apps (Installed/Updates tabs) slow to open. It resolves a frame later; the
     // extracted/repo icon or a placeholder shows meanwhile.
@@ -67,13 +88,17 @@ fun ExternalAppIcon(
         value = if (isInstalled && packageName != null) {
             withContext(Dispatchers.IO) {
                 runCatching {
-                    // Explicit square output: toBitmap() with no size uses the drawable's intrinsic size,
-                    // which renders adaptive icons inconsistently across Android versions (fine on newer
-                    // phones, cropped/squished on older TV builds). A square normalises it everywhere.
+                    // Explicit size: toBitmap() with none uses the drawable's intrinsic size, which
+                    // renders adaptive icons inconsistently across Android versions (fine on newer
+                    // phones, cropped/squished on older TV builds), a square output normalises it
+                    // everywhere. Explicit ARGB_8888 config: toBitmap()'s default (null) returns a
+                    // BitmapDrawable's own bitmap unconverted whenever the requested size matches its
+                    // intrinsic size, hardware config included, which then crashes reading pixels back
+                    // out for colour extraction.
                     context.packageManager.getApplicationIcon(packageName)
-                        .toBitmap(width = LauncherIconPx, height = LauncherIconPx)
+                        .toBitmap(width = LauncherIconPx, height = LauncherIconPx, config = Bitmap.Config.ARGB_8888)
                         .asImageBitmap()
-                }.getOrNull()
+                }.onFailure { Log.e(TAG, "Unable to read $packageName's launcher icon", it) }.getOrNull()
             }
         } else {
             null
@@ -136,7 +161,7 @@ fun ExternalAppIcon(
             }
 
             app.repoIconUrl != null && !repoIconFailed -> AsyncImage(
-                model = app.repoIconUrl,
+                model = repoIconModel,
                 onError = { repoIconFailed = true },
                 onSuccess = onIconBitmap?.let { callback ->
                     { state: AsyncImagePainter.State.Success ->
@@ -149,7 +174,7 @@ fun ExternalAppIcon(
             )
 
             app.iconUrl != null && !avatarFailed -> AsyncImage(
-                model = app.iconUrl,
+                model = avatarModel,
                 onError = { avatarFailed = true },
                 onSuccess = onIconBitmap?.let { callback ->
                     { state: AsyncImagePainter.State.Success ->
