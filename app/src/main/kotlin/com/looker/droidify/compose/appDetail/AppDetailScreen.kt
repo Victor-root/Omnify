@@ -757,9 +757,12 @@ private fun AppDetail(
         InstallVersionDialog(
             versionName = pkg.manifest.versionName,
             // A downgrade (older than what's installed) can't be applied in place — Android blocks it,
-            // so the app must be uninstalled first.
-            isDowngrade = installedPackage != null &&
-                pkg.manifest.versionCode < installedPackage.manifest.versionCode,
+            // so the app must be uninstalled first. Compared against installedInfo (the real installed
+            // versionCode), not installedPackage, so this still warns correctly when the installed build
+            // isn't one this catalogue entry's own version history lists (installed from a different
+            // channel that's ahead of the tracked repo, say).
+            isDowngrade = installedInfo != null &&
+                pkg.manifest.versionCode < installedInfo.versionCode,
             onInstall = {
                 onInstallVersion(pkg, repo)
                 versionToInstall = null
@@ -782,8 +785,12 @@ private fun AppDetail(
     }
     val installablePackage = installable?.first
     val installableRepo = installable?.second
-    val updateAvailable = installedPackage != null && installablePackage != null &&
-        installedPackage.manifest.versionCode < installablePackage.manifest.versionCode
+    // Compared against installedInfo (the real installed versionCode), not installedPackage: an app
+    // installed from a different channel that's ahead of this repo, Google Play shipping a build newer
+    // than the repo's own top release, say, has no matching entry in [packages] at all, which used to
+    // make this (and isInstalled below) wrongly report "not installed".
+    val updateAvailable = installedInfo != null && installablePackage != null &&
+        installedInfo.versionCode < installablePackage.manifest.versionCode
     val isTelevision = LocalIsTelevision.current
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -808,8 +815,8 @@ private fun AppDetail(
     // claim (just whatever the index says), but the real, on-device signature, so it can be shown,
     // compared, and copied, e.g. against a build the user just compiled themselves. Null when not
     // installed, or on the rare PackageManager read failure. Recomputed whenever install state changes.
-    val installedSignerRaw = remember(installedPackage, app.metadata.packageName.name) {
-        if (installedPackage == null) {
+    val installedSignerRaw = remember(installedInfo, app.metadata.packageName.name) {
+        if (installedInfo == null) {
             null
         } else {
             context.packageManager.getPackageInfoCompat(app.metadata.packageName.name)
@@ -830,7 +837,9 @@ private fun AppDetail(
             installedPackage = installedPackage,
             installablePackage = installablePackage,
             installedInfo = installedInfo,
-            isInstalled = installedPackage != null,
+            // installedInfo (real PackageManager state), not installedPackage: see updateAvailable's own
+            // comment above for why the catalogue-relative match under-reports "installed".
+            isInstalled = installedInfo != null,
             remoteIcon = remoteIcon,
             isFavorite = isFavourite,
             onToggleFavorite = onToggleFavourite,
@@ -1463,14 +1472,6 @@ private fun AppHeaderCard(
     // repo's generic icon.png, then the installed app's own launcher icon, then a placeholder. Repos
     // like TwinHelix ship no icon in their index, so without the launcher-icon fallback the header
     // showed a blank placeholder even though the list (which has this fallback) showed the real logo.
-    // Deliberately keyed on [installedInfo] (a real, version/signer-agnostic PackageManager query) and
-    // NOT on [isInstalled] (which requires this exact catalogue release's versionCode to be the one on
-    // device, for the Install/Update/Launch button's own logic): an app installed from a different
-    // source at a version this repo doesn't even list — PPSSPP from Google Play while the repo tops out
-    // at an older release, say — genuinely has a launcher icon to fall back to, and withholding it here
-    // just because it isn't literally this catalogue release left a blank placeholder for an app that
-    // very much has an icon.
-    val hasLauncherIconFallback = installedInfo != null
     val minimal = app?.minimal()
     val version = app?.metadata?.suggestedVersionName?.nonBlank()
     val size = installablePackage?.apk?.size?.toString()
@@ -1518,7 +1519,7 @@ private fun AppHeaderCard(
             } else if (minimal != null) {
                 AppMinimalIcon(
                     app = minimal,
-                    isInstalled = hasLauncherIconFallback,
+                    isInstalled = isInstalled,
                     modifier = Modifier
                         .size(88.dp)
                         .clip(RoundedCornerShape(20.dp)),

@@ -125,14 +125,24 @@ fun TvAppDetailScreen(
             val context = LocalContext.current
 
             val installedPackage = remember(packages) { packages.map { it.first }.firstOrNull { it.installed } }
-            val isInstalled = installedPackage != null
+            // installedInfo (real PackageManager state), not installedPackage (an exact catalogue
+            // versionCode match): an app installed from a different channel that's ahead of this repo,
+            // Google Play shipping a build newer than the repo's own top release, say, has no matching
+            // entry in [packages] at all, which used to make isInstalled/updateAvailable below wrongly
+            // report "not installed" (mirrors the same fix on the phone screen's AppDetail).
+            val isInstalled = installedInfo != null
+            // A plain local val (not the installedInfo delegate above) so it smart-casts below: reading
+            // installedInfo?.versionCode again after an installedInfo != null check doesn't narrow the
+            // delegated property itself, since a `by ... collectAsStateWithLifecycle()` getter isn't
+            // guaranteed to keep returning the same instance the way a real local val does.
+            val installedVersionCode = installedInfo?.versionCode
             // The installed APK's actual signing certificate (lowercase hex): not the catalogue entry's
             // own claim (just whatever the index says), but the real, on-device signature, so it can be
             // shown, compared, and copied, e.g. against a build the user just compiled themselves. Null
             // when not installed, or on the rare PackageManager read failure. Recomputed whenever install
             // state changes.
-            val installedSignerRaw = remember(installedPackage, app.metadata.packageName.name) {
-                if (installedPackage == null) {
+            val installedSignerRaw = remember(installedInfo, app.metadata.packageName.name) {
+                if (installedInfo == null) {
                     null
                 } else {
                     context.packageManager.getPackageInfoCompat(app.metadata.packageName.name)
@@ -148,8 +158,8 @@ fun TvAppDetailScreen(
             // update to, known the moment the catalogue is synced, whether or not the app is installed
             // yet, unlike [installedSignerRaw].
             val expectedSigners = installablePackage?.manifest?.signer
-            val updateAvailable = installedPackage != null && installablePackage != null &&
-                installedPackage.manifest.versionCode < installablePackage.manifest.versionCode
+            val updateAvailable = installedVersionCode != null && installablePackage != null &&
+                installedVersionCode < installablePackage.manifest.versionCode
             // Mirrors the phone screen: the OS reports Installed before the app's own installed-packages
             // table catches up, so hold the "installing" look until the confirmed version matches.
             val installConfirmed = downloadTargetVersionCode == null ||
@@ -212,8 +222,8 @@ fun TvAppDetailScreen(
             versionToInstall?.let { (pkg, repo) ->
                 InstallVersionDialog(
                     versionName = pkg.manifest.versionName,
-                    isDowngrade = installedPackage != null &&
-                        pkg.manifest.versionCode < installedPackage.manifest.versionCode,
+                    isDowngrade = installedVersionCode != null &&
+                        pkg.manifest.versionCode < installedVersionCode,
                     onInstall = {
                         viewModel.installVersion(pkg, repo)
                         versionToInstall = null

@@ -52,6 +52,7 @@ import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
 import com.looker.droidify.utility.common.extension.installerSourceLabel
 import com.looker.droidify.utility.common.extension.singleSignature
+import com.looker.droidify.utility.common.extension.versionCodeCompat
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -1031,6 +1032,7 @@ class AppDetailViewModel @Inject constructor(
         }.getOrNull() ?: return null
         return InstalledInfo(
             version = info.versionName.orEmpty(),
+            versionCode = info.versionCodeCompat,
             source = context.installerSourceLabel(packageName),
             signatureMismatch = isSignatureMismatch(currentState),
         )
@@ -1060,11 +1062,16 @@ class AppDetailViewModel @Inject constructor(
     }
 }
 
-/** The version of this app currently installed on the device, and where it was installed from.
- *  [signatureMismatch] true means this isn't actually a build of the catalogue entry showing it — see
- *  [AppDetailViewModel.isSignatureMismatch]. */
+/** The version of this app currently installed on the device, and where it was installed from. Read
+ *  straight from the PackageManager, so it's correct even when [version]/[versionCode] belong to a
+ *  release this catalogue entry's own version history doesn't list (installed from a different
+ *  channel that's ahead of, or otherwise not covered by, the tracked repo), unlike matching against
+ *  a specific catalogue [com.looker.droidify.data.model.Package] by exact versionCode, which misses
+ *  that case entirely. [signatureMismatch] true means this isn't actually a build of the catalogue
+ *  entry showing it, see [AppDetailViewModel.isSignatureMismatch]. */
 data class InstalledInfo(
     val version: String,
+    val versionCode: Long,
     val source: String,
     val signatureMismatch: Boolean = false,
 )
