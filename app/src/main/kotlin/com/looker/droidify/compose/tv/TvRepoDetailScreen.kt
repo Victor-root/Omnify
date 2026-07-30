@@ -242,7 +242,7 @@ private fun TvRepoHeader(
 
         if (repo.versionInfo != null) {
             Spacer(Modifier.height(14.dp))
-            LastUpdatedCard(repo.versionInfo?.timestamp)
+            LastUpdatedCard(repo.versionInfo.timestamp)
         }
 
         Spacer(Modifier.height(14.dp))

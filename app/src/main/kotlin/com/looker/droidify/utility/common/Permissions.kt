@@ -40,7 +40,7 @@ fun Context.wallpaperAccentColor(): Int? {
  */
 fun Bitmap.dominantAccentColor(): Int? {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
-    return runCatching { WallpaperColors.fromBitmap(this).primaryColor?.toArgb() }.getOrNull()
+    return runCatching { WallpaperColors.fromBitmap(this).primaryColor.toArgb() }.getOrNull()
 }
 
 /** Whether the app may install APKs from "unknown sources". Always true below Android 8, where it
