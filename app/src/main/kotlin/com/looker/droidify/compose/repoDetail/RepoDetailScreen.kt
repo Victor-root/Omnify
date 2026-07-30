@@ -40,7 +40,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -70,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.looker.droidify.R
 import com.looker.droidify.compose.appList.CatalogAppTile
+import com.looker.droidify.compose.components.AccentTabRow
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.errorButtonColors
 import com.looker.droidify.compose.components.FingerprintCard
@@ -88,6 +88,7 @@ import com.looker.droidify.compose.repoList.defaultRepoIconRes
 import com.looker.droidify.compose.settings.components.SwitchSettingItem
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
+import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.compose.theme.tvTopAppBarColors
 import com.looker.droidify.compose.tv.TvAccentBackground
@@ -273,11 +274,6 @@ fun RepoDetailScreen(
 
 private enum class RepoDetailTab { INFO, APPS }
 
-// Material3's suggested PrimaryTabRow/SecondaryTabRow replacements default to different container/
-// indicator colours than this plain TabRow — since none are overridden here, swapping would risk a
-// real look change rather than a mechanical rename.
-@Suppress("DEPRECATION")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RepoDetailTabRow(
     selectedTab: RepoDetailTab,
@@ -285,16 +281,21 @@ private fun RepoDetailTabRow(
     onSelectTab: (RepoDetailTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    TabRow(selectedTabIndex = selectedTab.ordinal, modifier = modifier) {
+    AccentTabRow(selectedTabIndex = selectedTab.ordinal, modifier = modifier) {
         Tab(
             selected = selectedTab == RepoDetailTab.INFO,
             onClick = { onSelectTab(RepoDetailTab.INFO) },
-            text = { Text(stringResource(R.string.repo_tab_info)) },
             modifier = Modifier.tvFocusScale(),
+            selectedContentColor = LocalOnAccentBarColor.current,
+            unselectedContentColor = LocalOnAccentBarColor.current.copy(alpha = 0.7f),
+            text = { Text(stringResource(R.string.repo_tab_info)) },
         )
         Tab(
             selected = selectedTab == RepoDetailTab.APPS,
             onClick = { onSelectTab(RepoDetailTab.APPS) },
+            modifier = Modifier.tvFocusScale(),
+            selectedContentColor = LocalOnAccentBarColor.current,
+            unselectedContentColor = LocalOnAccentBarColor.current.copy(alpha = 0.7f),
             text = {
                 val label = if (appCount > 0) {
                     "${stringResource(R.string.repo_tab_apps)} ($appCount)"
@@ -303,7 +304,6 @@ private fun RepoDetailTabRow(
                 }
                 Text(label)
             },
-            modifier = Modifier.tvFocusScale(),
         )
     }
 }

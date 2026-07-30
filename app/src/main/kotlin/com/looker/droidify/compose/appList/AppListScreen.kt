@@ -40,7 +40,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
@@ -84,7 +83,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -100,7 +98,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -141,6 +138,7 @@ import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.settings.components.InfoBanner
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
+import com.looker.droidify.compose.components.AccentTabRow
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.ScrollToTopFab
@@ -149,7 +147,6 @@ import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.AccentBarHeight
-import com.looker.droidify.compose.theme.LocalAccentBarColor
 import com.looker.droidify.compose.theme.LocalEdgeToEdge
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
@@ -1027,13 +1024,6 @@ private fun Modifier.collapsingHeader(scrollBehavior: TopAppBarScrollBehavior): 
         }
     }
 
-// Material3's suggested replacements (PrimaryTabRow/SecondaryTabRow) don't just rename this: their
-// `indicator` lambda is scoped to a different receiver (TabIndicatorScope, not this custom indicator's
-// List<TabPosition>) and their default colours belong to a distinct visual variant — swapping would
-// risk a real look change, not a mechanical one, for no functional benefit here (every colour/indicator
-// this row cares about is already explicitly set below).
-@Suppress("DEPRECATION")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppTabRow(
     selectedTab: AppTab,
@@ -1041,33 +1031,7 @@ private fun AppTabRow(
     onSelectTab: (AppTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    TabRow(
-        modifier = modifier,
-        selectedTabIndex = selectedTab.ordinal,
-        containerColor = LocalAccentBarColor.current,
-        contentColor = LocalOnAccentBarColor.current,
-        // Mark the active tab with a short, thick, rounded white pill centred under its title (not a
-        // full-width bar, not a text underline). Material3's Modifier.tabIndicatorOffset is absent in
-        // this version, so place the pill by hand from the tab's left/width. Unselected tabs are dimmed.
-        indicator = { tabPositions ->
-            val index = selectedTab.ordinal
-            if (index < tabPositions.size) {
-                val pos = tabPositions[index]
-                val pillWidth = 28.dp
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .wrapContentSize(Alignment.BottomStart)
-                        .offset(x = pos.left + (pos.width - pillWidth) / 2, y = (-8).dp)
-                        .width(pillWidth)
-                        .height(5.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(LocalOnAccentBarColor.current),
-                )
-            }
-        },
-        divider = {},
-    ) {
+    AccentTabRow(selectedTabIndex = selectedTab.ordinal, modifier = modifier) {
         AppTab.entries.forEach { tab ->
             val selected = tab == selectedTab
             Tab(
