@@ -104,7 +104,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
-import coil3.toBitmap
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
 import com.looker.droidify.compose.appDetail.components.PackageItem
@@ -156,6 +155,7 @@ import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.singleSignature
+import com.looker.droidify.utility.common.extension.toSafeBitmap
 import com.looker.droidify.utility.common.shareUrl
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -1507,7 +1507,7 @@ private fun AppHeaderCard(
                     model = remoteIcon,
                     onSuccess = onIconBitmap?.let { callback ->
                         { state: AsyncImagePainter.State.Success ->
-                            callback(state.result.image.toBitmap(ICON_ACCENT_SAMPLE_PX, ICON_ACCENT_SAMPLE_PX))
+                            state.toSafeBitmap(ICON_ACCENT_SAMPLE_PX)?.let(callback)
                         }
                     },
                     contentDescription = null,

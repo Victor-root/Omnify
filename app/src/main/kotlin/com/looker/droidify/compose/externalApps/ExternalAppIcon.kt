@@ -29,10 +29,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.core.graphics.drawable.toBitmap
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
-import coil3.toBitmap
 import com.looker.droidify.R
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.utility.common.extension.toSafeBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -140,7 +140,7 @@ fun ExternalAppIcon(
                 onError = { repoIconFailed = true },
                 onSuccess = onIconBitmap?.let { callback ->
                     { state: AsyncImagePainter.State.Success ->
-                        callback(state.result.image.toBitmap(LauncherIconPx, LauncherIconPx))
+                        state.toSafeBitmap(LauncherIconPx)?.let(callback)
                     }
                 },
                 contentDescription = null,
@@ -153,7 +153,7 @@ fun ExternalAppIcon(
                 onError = { avatarFailed = true },
                 onSuccess = onIconBitmap?.let { callback ->
                     { state: AsyncImagePainter.State.Success ->
-                        callback(state.result.image.toBitmap(LauncherIconPx, LauncherIconPx))
+                        state.toSafeBitmap(LauncherIconPx)?.let(callback)
                     }
                 },
                 contentDescription = null,

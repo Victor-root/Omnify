@@ -28,12 +28,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
-import coil3.toBitmap
 import com.looker.droidify.compose.components.AppTile
 import com.looker.droidify.compose.components.TileIconSize
 import com.looker.droidify.compose.components.TvTileIconSize
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.data.model.AppMinimal
+import com.looker.droidify.utility.common.extension.toSafeBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -85,7 +85,7 @@ fun AppMinimalIcon(
                 },
                 onSuccess = onIconBitmap?.let { callback ->
                     { state: AsyncImagePainter.State.Success ->
-                        callback(state.result.image.toBitmap(LauncherIconPx, LauncherIconPx))
+                        state.toSafeBitmap(LauncherIconPx)?.let(callback)
                     }
                 },
                 contentDescription = null,
