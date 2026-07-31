@@ -346,7 +346,8 @@ fun TvRepoListScreen(
                 prefillUrl = ""
                 externalViewModel.consumeAddState()
             },
-            onAdd = { url, customName, includeForks, includePrereleases, muteUpdates, apkFilter ->
+            onAdd = { url, customName, includeForks, includePrereleases, muteUpdates, apkFilter,
+                versionExcludeFilter ->
                 externalViewModel.addAccount(
                     url = url,
                     customName = customName,
@@ -354,6 +355,7 @@ fun TvRepoListScreen(
                     includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionExcludeFilter = versionExcludeFilter,
                 )
             },
         )
@@ -381,13 +383,14 @@ fun TvRepoListScreen(
                 prefillUrl = ""
                 externalViewModel.consumeAddState()
             },
-            onAdd = { url, includePrereleases, customName, muteUpdates, apkFilter ->
+            onAdd = { url, includePrereleases, customName, muteUpdates, apkFilter, versionExcludeFilter ->
                 externalViewModel.addSource(
                     url = url,
                     includePrereleases = includePrereleases,
                     customName = customName,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionExcludeFilter = versionExcludeFilter,
                 )
             },
         )
@@ -400,13 +403,14 @@ fun TvRepoListScreen(
             app = app,
             iconCandidates = iconCandidates,
             onDismiss = { editingExternal = null },
-            onSave = { customName, includePrereleases, muteUpdates, apkFilter, iconUrl ->
+            onSave = { customName, includePrereleases, muteUpdates, apkFilter, versionExcludeFilter, iconUrl ->
                 externalViewModel.updateSource(
                     app = app,
                     customName = customName,
                     includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionExcludeFilter = versionExcludeFilter,
                     iconUrl = iconUrl,
                 )
                 editingExternal = null

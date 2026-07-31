@@ -404,7 +404,8 @@ fun RepoListScreen(
                 prefillUrl = ""
                 externalViewModel.consumeAddState()
             },
-            onAdd = { url, customName, includeForks, includePrereleases, muteUpdates, apkFilter ->
+            onAdd = { url, customName, includeForks, includePrereleases, muteUpdates, apkFilter,
+                versionExcludeFilter ->
                 externalViewModel.addAccount(
                     url = url,
                     customName = customName,
@@ -412,6 +413,7 @@ fun RepoListScreen(
                     includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionExcludeFilter = versionExcludeFilter,
                 )
             },
         )
@@ -444,13 +446,14 @@ fun RepoListScreen(
                 prefillUrl = ""
                 externalViewModel.consumeAddState()
             },
-            onAdd = { url, includePrereleases, customName, muteUpdates, apkFilter ->
+            onAdd = { url, includePrereleases, customName, muteUpdates, apkFilter, versionExcludeFilter ->
                 externalViewModel.addSource(
                     url = url,
                     includePrereleases = includePrereleases,
                     customName = customName,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionExcludeFilter = versionExcludeFilter,
                 )
             },
         )
@@ -464,13 +467,14 @@ fun RepoListScreen(
             app = app,
             iconCandidates = iconCandidates,
             onDismiss = { editingExternal = null },
-            onSave = { customName, includePrereleases, muteUpdates, apkFilter, iconUrl ->
+            onSave = { customName, includePrereleases, muteUpdates, apkFilter, versionExcludeFilter, iconUrl ->
                 externalViewModel.updateSource(
                     app = app,
                     customName = customName,
                     includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionExcludeFilter = versionExcludeFilter,
                     iconUrl = iconUrl,
                 )
                 editingExternal = null
@@ -1094,6 +1098,7 @@ internal fun AddExternalSourceDialog(
         customName: String,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionExcludeFilter: String,
     ) -> Unit,
     initialUrl: String = "",
 ) {
@@ -1102,6 +1107,7 @@ internal fun AddExternalSourceDialog(
     var includePrereleases by rememberSaveable { mutableStateOf(false) }
     var muteUpdates by rememberSaveable { mutableStateOf(false) }
     var apkFilter by rememberSaveable { mutableStateOf("") }
+    var versionExcludeFilter by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         // Stay cancellable even while loading, so a slow/stuck request can't trap the user.
         onDismissRequest = onDismiss,
@@ -1158,6 +1164,8 @@ internal fun AddExternalSourceDialog(
                         onMuteChange = { muteUpdates = it },
                         apkFilter = apkFilter,
                         onApkFilterChange = { apkFilter = it },
+                        versionExcludeFilter = versionExcludeFilter,
+                        onVersionExcludeFilterChange = { versionExcludeFilter = it },
                     )
                 }
             }
@@ -1165,7 +1173,9 @@ internal fun AddExternalSourceDialog(
         confirmButton = {
             if (!isLoading) {
                 TextButton(
-                    onClick = { onAdd(url, includePrereleases, name, muteUpdates, apkFilter) },
+                    onClick = {
+                        onAdd(url, includePrereleases, name, muteUpdates, apkFilter, versionExcludeFilter)
+                    },
                     enabled = url.isNotBlank(),
                 ) {
                     Text(stringResource(R.string.external_add))
@@ -1194,6 +1204,7 @@ internal fun AddExternalAccountDialog(
         includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionExcludeFilter: String,
     ) -> Unit,
     initialUrl: String = "",
 ) {
@@ -1203,6 +1214,7 @@ internal fun AddExternalAccountDialog(
     var includePrereleases by rememberSaveable { mutableStateOf(false) }
     var muteUpdates by rememberSaveable { mutableStateOf(false) }
     var apkFilter by rememberSaveable { mutableStateOf("") }
+    var versionExcludeFilter by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.external_add_account)) },
@@ -1251,6 +1263,8 @@ internal fun AddExternalAccountDialog(
                         onMuteChange = { muteUpdates = it },
                         apkFilter = apkFilter,
                         onApkFilterChange = { apkFilter = it },
+                        versionExcludeFilter = versionExcludeFilter,
+                        onVersionExcludeFilterChange = { versionExcludeFilter = it },
                     )
                     CheckboxRow(
                         checked = includeForks,
@@ -1263,7 +1277,17 @@ internal fun AddExternalAccountDialog(
         confirmButton = {
             if (!isLoading) {
                 TextButton(
-                    onClick = { onAdd(url, name, includeForks, includePrereleases, muteUpdates, apkFilter) },
+                    onClick = {
+                        onAdd(
+                            url,
+                            name,
+                            includeForks,
+                            includePrereleases,
+                            muteUpdates,
+                            apkFilter,
+                            versionExcludeFilter,
+                        )
+                    },
                     enabled = url.isNotBlank(),
                 ) {
                     Text(stringResource(R.string.external_add))
@@ -1287,6 +1311,7 @@ internal fun EditExternalSourceDialog(
         includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionExcludeFilter: String,
         iconUrl: String?,
     ) -> Unit,
 ) {
@@ -1296,6 +1321,9 @@ internal fun EditExternalSourceDialog(
     var includePrereleases by rememberSaveable(app.key) { mutableStateOf(app.includePrereleases) }
     var muteUpdates by rememberSaveable(app.key) { mutableStateOf(app.muteUpdates) }
     var apkFilter by rememberSaveable(app.key) { mutableStateOf(app.apkFilter ?: "") }
+    var versionExcludeFilter by rememberSaveable(app.key) {
+        mutableStateOf(app.versionExcludeFilter ?: "")
+    }
     // The chosen icon URL; null means "use the account avatar / automatic".
     var selectedIcon by rememberSaveable(app.key) { mutableStateOf(app.repoIconUrl) }
     AlertDialog(
@@ -1326,12 +1354,23 @@ internal fun EditExternalSourceDialog(
                     onMuteChange = { muteUpdates = it },
                     apkFilter = apkFilter,
                     onApkFilterChange = { apkFilter = it },
+                    versionExcludeFilter = versionExcludeFilter,
+                    onVersionExcludeFilterChange = { versionExcludeFilter = it },
                 )
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onSave(name, includePrereleases, muteUpdates, apkFilter, selectedIcon) },
+                onClick = {
+                    onSave(
+                        name,
+                        includePrereleases,
+                        muteUpdates,
+                        apkFilter,
+                        versionExcludeFilter,
+                        selectedIcon,
+                    )
+                },
             ) {
                 Text(stringResource(R.string.external_save))
             }
@@ -1432,6 +1471,8 @@ private fun SourceOptionFields(
     onMuteChange: (Boolean) -> Unit,
     apkFilter: String,
     onApkFilterChange: (String) -> Unit,
+    versionExcludeFilter: String,
+    onVersionExcludeFilterChange: (String) -> Unit,
 ) {
     OutlinedTextField(
         value = name,
@@ -1451,6 +1492,15 @@ private fun SourceOptionFields(
         onValueChange = onApkFilterChange,
         label = { Text(stringResource(R.string.external_apk_filter)) },
         supportingText = { Text(stringResource(R.string.external_apk_filter_hint)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(Modifier.size(8.dp))
+    OutlinedTextField(
+        value = versionExcludeFilter,
+        onValueChange = onVersionExcludeFilterChange,
+        label = { Text(stringResource(R.string.external_version_exclude_filter)) },
+        supportingText = { Text(stringResource(R.string.external_version_exclude_filter_hint)) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )

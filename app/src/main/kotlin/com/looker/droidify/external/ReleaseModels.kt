@@ -10,6 +10,9 @@ import kotlinx.serialization.Serializable
  */
 data class Release(
     val tag: String,
+    /** The release's title, when the provider exposes one distinct from [tag] (e.g. GitHub's "name").
+     *  Null for providers/releases that carry none. */
+    val name: String?,
     val isPrerelease: Boolean,
     val assets: List<ReleaseAsset>,
     /** The release's own notes, in Markdown, as written by the maintainer when publishing it — GitHub/
@@ -33,6 +36,10 @@ sealed class ReleaseLookup {
     /** Every release in the recent window is a pre-release and the source has "include pre-releases"
      *  turned off — nothing else disqualified them. */
     data object OnlyPrereleasesExcluded : ReleaseLookup()
+
+    /** Every release the pre-release setting allowed through was then excluded by the source's own
+     *  [ExternalApp.versionExcludeFilter] — nothing else disqualified them. */
+    data object AllExcludedByFilter : ReleaseLookup()
 
     /** Releases were found (and, if relevant, pre-releases are allowed) but none of them ships an APK
      *  this device can install. */
@@ -70,6 +77,7 @@ data class RestReleaseDto(
 ) {
     fun toRelease(): Release = Release(
         tag = tagName,
+        name = name,
         isPrerelease = prerelease,
         assets = assets.map {
             ReleaseAsset(
@@ -108,6 +116,7 @@ data class GitlabReleaseDto(
 ) {
     fun toRelease(): Release = Release(
         tag = tagName,
+        name = name,
         isPrerelease = upcomingRelease,
         // Prefer the direct asset URL (the real file) over the generic redirect URL.
         assets = assets.links.map { ReleaseAsset(it.name, it.directAssetUrl ?: it.url) },
@@ -204,6 +213,33 @@ private fun applyApkFilter(
     val matched = apks.filter { regex.containsMatchIn(it.name) }
     return if (strict) matched else matched.ifEmpty { apks }
 }
+
+/**
+ * True when this release's tag or title contains one of the user's comma-separated [keywords] (plain
+ * substring, case-insensitive — not a regex, so an ordinary word list works as typed) — lets a source
+ * manually exclude builds that the provider's own pre-release flag doesn't catch (see
+ * [ExternalApp.versionExcludeFilter]), e.g. a browser that ships its Nightly channel as a regular,
+ * non-flagged GitHub release. A blank keyword list never excludes anything.
+ */
+fun Release.matchesExcludeFilter(keywords: String?): Boolean {
+    val terms = keywords?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
+    if (terms.isNullOrEmpty()) return false
+    return terms.any { term ->
+        tag.contains(term, ignoreCase = true) || (name != null && name.contains(term, ignoreCase = true))
+    }
+}
+
+/** True when this single release passes a source's pre-release and exclude-keyword settings — the
+ *  per-release predicate [allowedBy] filters a list with, and [ExternalApi] also checks directly
+ *  while paginating to tell whether it has fetched enough qualifying releases yet. */
+fun Release.isAllowedBy(includePrereleases: Boolean, versionExcludeFilter: String?): Boolean =
+    (includePrereleases || !isPrerelease) && !matchesExcludeFilter(versionExcludeFilter)
+
+/** Releases allowed by a source's pre-release and exclude-keyword settings — the two criteria
+ *  [ExternalApi] applies whenever it picks a release or lists history, kept in one place so they
+ *  can't drift apart. */
+fun List<Release>.allowedBy(includePrereleases: Boolean, versionExcludeFilter: String?): List<Release> =
+    filter { it.isAllowedBy(includePrereleases, versionExcludeFilter) }
 
 /** ABI tokens we recognise in APK file names, used to tell a foreign-architecture build apart from a
  *  universal one. */

@@ -65,6 +65,13 @@ data class ExternalApp(
     /** Optional regex matched against APK file names to choose which APK to install when a release
      *  ships several (e.g. per-ABI splits). Empty/null = pick automatically by device architecture. */
     val apkFilter: String? = null,
+    /** Optional comma-separated keywords matched (plain substring, case-insensitive) against a
+     *  release's tag and title; any match is skipped when picking a release, even if
+     *  [includePrereleases] is on and even when the provider's own release isn't flagged as a
+     *  pre-release. For sources whose automated publishing doesn't reliably set that flag on unstable
+     *  builds (e.g. a browser that ships its Nightly/Beta channel as a plain GitHub release).
+     *  Empty/null = no extra filtering beyond [includePrereleases]. */
+    val versionExcludeFilter: String? = null,
     /** Whether this source is active. Disabled sources are hidden from the External tab and updates,
      *  and skipped when checking for new releases — exactly like a disabled F-Droid repository. */
     val enabled: Boolean = true,

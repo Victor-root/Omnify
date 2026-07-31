@@ -112,6 +112,7 @@ class ExternalApi @Inject constructor(
             app.repo,
             app.includePrereleases,
             app.apkFilter,
+            app.versionExcludeFilter,
         )
 
     /**
@@ -123,14 +124,25 @@ class ExternalApi @Inject constructor(
      */
     suspend fun latestReleaseLookup(app: ExternalApp): ReleaseLookup = withContext(Dispatchers.IO) {
         val releases = runCatching {
-            fetchReleases(app.provider, app.effectiveHost, app.owner, app.repo)
+            fetchReleases(
+                app.provider, app.effectiveHost, app.owner, app.repo,
+                minQualifying = 1,
+                isQualifying = { it.isAllowedBy(app.includePrereleases, app.versionExcludeFilter) },
+            )
         }.getOrNull()
-        val picked = releases?.pickInstallable(app.includePrereleases, app.apkFilter)
+        val picked = releases?.pickInstallable(app.includePrereleases, app.apkFilter, app.versionExcludeFilter)
+        // Only the pre-release setting applied, kept separate from `picked` so a source whose exclude
+        // filter (not the pre-release setting) is what's disqualifying everything gets its own accurate
+        // reason below instead of the generic NoCompatibleApk.
+        val nonPrerelease = releases?.filter { app.includePrereleases || !it.isPrerelease }
         when {
             picked != null -> ReleaseLookup.Found(picked)
             releases == null -> ReleaseLookup.FetchFailed
             releases.isNotEmpty() && releases.all { it.isPrerelease } && !app.includePrereleases ->
                 ReleaseLookup.OnlyPrereleasesExcluded
+            !nonPrerelease.isNullOrEmpty() &&
+                nonPrerelease.all { it.matchesExcludeFilter(app.versionExcludeFilter) } ->
+                ReleaseLookup.AllExcludedByFilter
             else -> ReleaseLookup.NoCompatibleApk
         }
     }
@@ -144,13 +156,22 @@ class ExternalApi @Inject constructor(
      * to show. Empty on network/HTTP/parse failure.
      */
     suspend fun releaseHistory(app: ExternalApp): List<Release> = withContext(Dispatchers.IO) {
-        runCatching { fetchReleases(app.provider, app.effectiveHost, app.owner, app.repo) }
+        runCatching {
+            fetchReleases(
+                app.provider, app.effectiveHost, app.owner, app.repo,
+                minQualifying = RELEASE_HISTORY_TARGET,
+                isQualifying = {
+                    it.isAllowedBy(app.includePrereleases, app.versionExcludeFilter) &&
+                        it.hasApkMatchingFilter(app.apkFilter)
+                },
+            )
+        }
             .getOrNull()
             .orEmpty()
-            // Mirrors pickInstallable's own filter: a pre-release the source excludes shouldn't appear
-            // in the version list either — the list should only ever offer what could actually be
+            // Shares pickInstallable's own criteria: a release the source excludes shouldn't appear in
+            // the version list either — the list should only ever offer what could actually be
             // installed from it.
-            .filter { app.includePrereleases || !it.isPrerelease }
+            .allowedBy(app.includePrereleases, app.versionExcludeFilter)
             // Strict, not selectApkAsset's own mercy fallback (see hasApkMatchingFilter's doc comment):
             // otherwise a monorepo publishing more than one app's releases (e.g. bitwarden/android) would
             // list every release regardless of which app it belongs to, since selectApkAsset always
@@ -724,9 +745,16 @@ class ExternalApi @Inject constructor(
         repo: String,
         includePrereleases: Boolean = false,
         apkFilter: String? = null,
+        versionExcludeFilter: String? = null,
     ): Release? = withContext(Dispatchers.IO) {
-        val releases = runCatching { fetchReleases(provider, host, owner, repo) }.getOrNull()
-        val picked = releases?.pickInstallable(includePrereleases, apkFilter)
+        val releases = runCatching {
+            fetchReleases(
+                provider, host, owner, repo,
+                minQualifying = 1,
+                isQualifying = { it.isAllowedBy(includePrereleases, versionExcludeFilter) },
+            )
+        }.getOrNull()
+        val picked = releases?.pickInstallable(includePrereleases, apkFilter, versionExcludeFilter)
         if (picked == null) {
             // The caller (downloadAndInstall) can't tell "the request itself failed" apart from
             // "it succeeded but nothing in the recent window was installable" — both surface as the
@@ -736,33 +764,77 @@ class ExternalApi @Inject constructor(
             Log.w(
                 TAG,
                 "$owner/$repo: no installable release (fetched=${releases?.size ?: "fetch failed"}, " +
-                    "includePrereleases=$includePrereleases, apkFilter=$apkFilter)",
+                    "includePrereleases=$includePrereleases, apkFilter=$apkFilter, " +
+                    "versionExcludeFilter=$versionExcludeFilter)",
             )
         }
         picked
     }
 
-    /** Fetches and decodes the recent-window release list for one repo, provider-appropriate URL and
-     *  payload shape. Shared by [latestRelease] (picks one to offer) and [releaseHistory] (lists them
-     *  all for the user to choose from). Empty (not null/throwing) when the request itself fails. */
+    /**
+     * Fetches and decodes releases page by page (newest first), stopping once at least
+     * [minQualifying] satisfy [isQualifying], the repo runs out of releases, or
+     * [RELEASE_FETCH_MAX_PAGES] is reached — so a source whose most recent releases are mostly
+     * excluded (several unstable channels sharing one repo, e.g. a browser's Nightly/Beta/Stable)
+     * still surfaces real candidates instead of giving up after the first page. Returns everything
+     * fetched, not just the qualifying ones, so callers keep their own filtering/ordering logic.
+     * Shared by [latestRelease]/[latestReleaseLookup] (pick one to offer) and [releaseHistory] (lists
+     * them for the user to choose from) with a matching [isQualifying], and by [genuineReleaseNotes]
+     * (default arguments: any single non-empty page is "enough"). Empty (not null/throwing) when the
+     * very first request fails.
+     */
     private suspend fun fetchReleases(
         provider: SourceProvider,
         host: String,
         owner: String,
         repo: String,
+        minQualifying: Int = 1,
+        isQualifying: (Release) -> Boolean = { true },
+    ): List<Release> {
+        val all = mutableListOf<Release>()
+        for (page in 1..RELEASE_FETCH_MAX_PAGES) {
+            val batch = fetchReleasesPage(provider, host, owner, repo, page)
+            if (batch.isEmpty()) break
+            all += batch
+            if (all.count(isQualifying) >= minQualifying) return all
+            if (batch.size < RELEASES_PER_PAGE) break
+        }
+        if (all.count(isQualifying) < minQualifying) {
+            Log.d(
+                TAG,
+                "$owner/$repo: only ${all.count(isQualifying)}/$minQualifying qualifying releases " +
+                    "within $RELEASE_FETCH_MAX_PAGES page(s) (${all.size} fetched)",
+            )
+        }
+        return all
+    }
+
+    /** One page of a repo's most recent releases, provider-appropriate URL and payload shape. Empty
+     *  (not null/throwing) when the request itself fails. */
+    private suspend fun fetchReleasesPage(
+        provider: SourceProvider,
+        host: String,
+        owner: String,
+        repo: String,
+        page: Int,
     ): List<Release> {
         val text = when (provider) {
             SourceProvider.GITHUB -> getText(
-                url = "https://api.github.com/repos/$owner/$repo/releases?per_page=10",
+                url = "https://api.github.com/repos/$owner/$repo/releases" +
+                    "?per_page=$RELEASES_PER_PAGE&page=$page",
                 github = true,
             )
             // Gitea/Forgejo: codeberg.org or any self-hosted instance (same REST shape).
             SourceProvider.CODEBERG -> getText(
-                url = "https://$host/api/v1/repos/$owner/$repo/releases?limit=10",
+                url = "https://$host/api/v1/repos/$owner/$repo/releases" +
+                    "?limit=$RELEASES_PER_PAGE&page=$page",
             )
             SourceProvider.GITLAB -> {
                 val path = URLEncoder.encode("$owner/$repo", "UTF-8")
-                getText(url = "https://$host/api/v4/projects/$path/releases?per_page=10")
+                getText(
+                    url = "https://$host/api/v4/projects/$path/releases" +
+                        "?per_page=$RELEASES_PER_PAGE&page=$page",
+                )
             }
         } ?: return emptyList()
         return when (provider) {
@@ -877,8 +949,9 @@ class ExternalApi @Inject constructor(
     private fun List<Release>.pickInstallable(
         includePrereleases: Boolean,
         apkFilter: String?,
+        versionExcludeFilter: String?,
     ): Release? {
-        val candidates = filter { includePrereleases || !it.isPrerelease }
+        val candidates = allowedBy(includePrereleases, versionExcludeFilter)
         return candidates.firstOrNull { it.hasCompatibleApk(filter = apkFilter) }
             ?: candidates.firstOrNull { release ->
                 release.assets.any { it.name.endsWith(".apk", ignoreCase = true) }
@@ -961,6 +1034,21 @@ class ExternalApi @Inject constructor(
 
     private companion object {
         const val TAG = "ExternalApi"
+
+        /** Releases fetched per page/request — a generous size costs no extra rate-limit quota (still
+         *  one request), only a bigger response body. When one page isn't enough, [fetchReleases]
+         *  fetches further pages up to [RELEASE_FETCH_MAX_PAGES]. */
+        const val RELEASES_PER_PAGE = 30
+
+        /** How many pages [fetchReleases] will walk while looking for enough qualifying releases —
+         *  bounds the worst-case request cost for a source whose recent history is mostly excluded
+         *  (several unstable channels sharing one repo, e.g. a browser's Nightly/Beta/Stable). */
+        const val RELEASE_FETCH_MAX_PAGES = 5
+
+        /** How many qualifying releases [releaseHistory] tries to gather for the version list — a
+         *  source with only one or two within a single page would otherwise show a near-empty history
+         *  even though older qualifying releases exist further back. */
+        const val RELEASE_HISTORY_TARGET = 10
 
         /** Page cap when listing an account's repos, so a huge account can't spin forever. */
         const val ACCOUNT_REPOS_MAX_PAGES = 5

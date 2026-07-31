@@ -466,6 +466,7 @@
     <string name="external_source_url_label">Project URL (GitHub, GitLab, Codeberg)</string>
     <string name="external_include_prereleases">Include pre-releases</string>
     <string name="external_only_prereleases">%s only publishes pre-releases. Turn on \"Include pre-releases\" to add it.</string>
+    <string name="external_all_excluded_by_filter">All recent releases of %s match your exclude filter. Clear or adjust it to add this source.</string>
     <string name="external_prerelease_label">Pre-release</string>
     <string name="external_no_issue_tracker">No issue tracker found</string>
     <string name="external_no_changelog">No changelog found</string>
@@ -473,6 +474,8 @@
     <string name="external_custom_name">Custom name (optional)</string>
     <string name="external_apk_filter">APK filter (regex, optional)</string>
     <string name="external_apk_filter_hint">Leave empty to pick the APK automatically by your device\'s architecture. Example: arm64</string>
+    <string name="external_version_exclude_filter">Excluded versions (optional)</string>
+    <string name="external_version_exclude_filter_hint">Type one or more words separated by commas, e.g. nightly, beta (upper or lower case, it doesn\'t matter). Any release whose name contains one of these words is skipped, even if the source doesn\'t mark it as a pre-release.</string>
     <string name="external_icon_label">Icon</string>
     <string name="external_icon_searching">Looking for icons in the repository…</string>
     <string name="external_mute_updates">Don\'t show updates for this source</string>

@@ -956,6 +956,7 @@ class ExternalAppsViewModel @Inject constructor(
         customName: String = "",
         muteUpdates: Boolean = false,
         apkFilter: String = "",
+        versionExcludeFilter: String = "",
     ) {
         _addError.value = null
         val ref = parseExternalSource(url)
@@ -986,6 +987,7 @@ class ExternalAppsViewModel @Inject constructor(
                     includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter.trim().ifEmpty { null },
+                    versionExcludeFilter = versionExcludeFilter.trim().ifEmpty { null },
                     label = trimmedName.ifEmpty { ref.repo },
                     nameOverridden = trimmedName.isNotEmpty(),
                 )
@@ -1009,6 +1011,11 @@ class ExternalAppsViewModel @Inject constructor(
                         ReleaseLookup.OnlyPrereleasesExcluded -> {
                             _addError.value =
                                 context.getString(R.string.external_only_prereleases, app.path)
+                            return@withBusy
+                        }
+                        ReleaseLookup.AllExcludedByFilter -> {
+                            _addError.value =
+                                context.getString(R.string.external_all_excluded_by_filter, app.path)
                             return@withBusy
                         }
                         ReleaseLookup.NoCompatibleApk -> {
@@ -1074,13 +1081,22 @@ class ExternalAppsViewModel @Inject constructor(
         includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionExcludeFilter: String,
     ) {
         val ref = parseAccountSource(url)
         if (ref == null) {
             snack(context.getString(R.string.external_invalid_url))
             return
         }
-        addAccountSource(ref, customName, includeForks, includePrereleases, muteUpdates, apkFilter)
+        addAccountSource(
+            ref,
+            customName,
+            includeForks,
+            includePrereleases,
+            muteUpdates,
+            apkFilter,
+            versionExcludeFilter,
+        )
     }
 
     /**
@@ -1097,6 +1113,7 @@ class ExternalAppsViewModel @Inject constructor(
         includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionExcludeFilter: String,
     ) {
         val trimmedName = label.trim()
         addJob = viewModelScope.launch {
@@ -1149,6 +1166,7 @@ class ExternalAppsViewModel @Inject constructor(
                     includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionExcludeFilter = versionExcludeFilter,
                 )
                 if (discovered.isEmpty()) {
                     // Distinguish "really nothing to install" from "the API rate limit cut the per-repo
@@ -1183,8 +1201,10 @@ class ExternalAppsViewModel @Inject constructor(
         includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionExcludeFilter: String,
     ): List<ExternalApp> {
         val filter = apkFilter.trim().ifEmpty { null }
+        val excludeFilter = versionExcludeFilter.trim().ifEmpty { null }
         val result = mutableListOf<ExternalApp>()
         for (ref in repos) {
             val candidate = ExternalApp(
@@ -1195,6 +1215,7 @@ class ExternalAppsViewModel @Inject constructor(
                 includePrereleases = includePrereleases,
                 muteUpdates = muteUpdates,
                 apkFilter = filter,
+                versionExcludeFilter = excludeFilter,
                 enabled = account.enabled,
                 accountKey = account.key,
                 label = ref.repo,
@@ -1253,6 +1274,7 @@ class ExternalAppsViewModel @Inject constructor(
                 includePrereleases = false,
                 muteUpdates = false,
                 apkFilter = "",
+                versionExcludeFilter = "",
             )
             if (discovered.isNotEmpty()) repository.upsertApps(discovered)
         }
@@ -1445,15 +1467,17 @@ class ExternalAppsViewModel @Inject constructor(
         viewModelScope.launch { repository.upsertApp(app.copy(enabled = enabled)) }
     }
 
-    /** Applies edited per-source settings. Re-fetches the latest release when the pre-release setting
-     *  or the APK filter changed (both affect which release/APK is picked). A blank name reverts to
-     *  the auto-detected one; a blank filter reverts to automatic by-architecture selection. */
+    /** Applies edited per-source settings. Re-fetches the latest release when the pre-release setting,
+     *  the APK filter or the exclude filter changed (all three affect which release/APK is picked). A
+     *  blank name reverts to the auto-detected one; a blank filter reverts to automatic by-architecture
+     *  selection. */
     fun updateSource(
         app: ExternalApp,
         customName: String,
         includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionExcludeFilter: String,
         iconUrl: String?,
     ) {
         viewModelScope.launch {
@@ -1465,6 +1489,7 @@ class ExternalAppsViewModel @Inject constructor(
                 else -> app.repo
             }
             val trimmedFilter = apkFilter.trim().ifEmpty { null }
+            val trimmedExcludeFilter = versionExcludeFilter.trim().ifEmpty { null }
             // A different icon than the stored one means the user picked it; mark it overridden so the
             // refresh backfill won't replace their choice. The edit dialog has already scanned the repo,
             // so mark it checked regardless (a vector-only repo won't be re-scanned on refresh).
@@ -1475,16 +1500,20 @@ class ExternalAppsViewModel @Inject constructor(
                 muteUpdates = muteUpdates,
                 includePrereleases = includePrereleases,
                 apkFilter = trimmedFilter,
+                versionExcludeFilter = trimmedExcludeFilter,
                 repoIconUrl = iconUrl,
                 iconOverridden = iconChanged || app.iconOverridden,
                 iconChecked = true,
             )
-            // The release to offer (and its APK) can change when either the pre-release setting or the
-            // APK filter changes, so re-resolve it in that case — and the version list must forget its
-            // cached fetch too (releaseHistory() filters by these same two fields), or reopening the
-            // detail screen within the cache's freshness window would keep showing the list as it looked
-            // under the old settings.
-            if (includePrereleases != app.includePrereleases || trimmedFilter != app.apkFilter) {
+            // The release to offer (and its APK) can change when the pre-release setting, the APK
+            // filter or the exclude filter changes, so re-resolve it in that case — and the version list
+            // must forget its cached fetch too (releaseHistory() filters by these same fields), or
+            // reopening the detail screen within the cache's freshness window would keep showing the
+            // list as it looked under the old settings.
+            if (includePrereleases != app.includePrereleases ||
+                trimmedFilter != app.apkFilter ||
+                trimmedExcludeFilter != app.versionExcludeFilter
+            ) {
                 releaseHistoryCache.remove(app.key)
                 val release = externalApi.latestReleaseFor(updated)
                 // Stale latest* fields must be cleared, not just left alone, when the new settings no
@@ -1611,6 +1640,10 @@ class ExternalAppsViewModel @Inject constructor(
                 }
                 ReleaseLookup.OnlyPrereleasesExcluded -> {
                     snack(context.getString(R.string.external_only_prereleases, app.path))
+                    return
+                }
+                ReleaseLookup.AllExcludedByFilter -> {
+                    snack(context.getString(R.string.external_all_excluded_by_filter, app.path))
                     return
                 }
                 ReleaseLookup.NoCompatibleApk -> {

@@ -449,6 +449,7 @@
     <string name="external_source_url_label">URL du projet (GitHub, GitLab, Codeberg)</string>
     <string name="external_include_prereleases">Inclure les préversions</string>
     <string name="external_only_prereleases">%s ne publie que des préversions. Activez « Inclure les préversions » pour l\'ajouter.</string>
+    <string name="external_all_excluded_by_filter">Toutes les versions récentes de %s correspondent à votre filtre d\'exclusion. Modifiez-le ou videz-le pour ajouter cette source.</string>
     <string name="external_prerelease_label">Préversion</string>
     <string name="external_no_issue_tracker">Aucun suivi des problèmes trouvé</string>
     <string name="external_no_changelog">Aucun changelog trouvé</string>
@@ -456,6 +457,8 @@
     <string name="external_custom_name">Nom personnalisé (facultatif)</string>
     <string name="external_apk_filter">Filtre d\'APK (regex, facultatif)</string>
     <string name="external_apk_filter_hint">Laissez vide pour choisir l\'APK automatiquement selon l\'architecture de votre appareil. Exemple : arm64</string>
+    <string name="external_version_exclude_filter">Versions exclues (facultatif)</string>
+    <string name="external_version_exclude_filter_hint">Tapez un ou plusieurs mots séparés par une virgule, par exemple nightly, beta (majuscules ou minuscules, ça ne change rien). Toute version dont le nom contient un de ces mots sera ignorée, même si la source ne l\'a pas marquée comme préversion.</string>
     <string name="external_icon_label">Icône</string>
     <string name="external_icon_searching">Recherche d\'icônes dans le dépôt…</string>
     <string name="external_mute_updates">Ne pas afficher les mises à jour de ce dépôt</string>
