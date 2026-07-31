@@ -42,13 +42,8 @@ fun Context.wallpaperAccentColor(): Int? {
  * only (the [WallpaperColors.fromBitmap] factory).
  */
 fun Bitmap.dominantAccentColor(): Int? {
-    Log.d(TAG, "dominantAccentColor: called, SDK=${Build.VERSION.SDK_INT}, ${width}x$height, config=$config")
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-        Log.d(TAG, "dominantAccentColor: skipped, SDK below S")
-        return null
-    }
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
     return runCatching { WallpaperColors.fromBitmap(this).primaryColor.toArgb() }
-        .onSuccess { Log.d(TAG, "dominantAccentColor: extracted ${Integer.toHexString(it)}") }
         .onFailure { Log.e(TAG, "Unable to extract a dominant colour from this bitmap", it) }
         .getOrNull()
 }
