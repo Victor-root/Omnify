@@ -46,6 +46,13 @@ private val googleServicesProviderPackages = setOf(
     "org.microg.nlp",                // microG UnifiedNlp location backend
 )
 
+/** True when [packageName] itself PROVIDES Google services (real GMS, GSF, the Play Store, or a microG
+ *  variant) rather than consumes them, per [googleServicesProviderPackages]. Exposed (rather than the
+ *  set itself) so the app-detail and external-app screens can recognise the same ids without each
+ *  keeping their own copy of the list, e.g. to explain a signing-key mismatch on one of these packages
+ *  as Google's own build already being installed instead of a catalogue's microG entry. */
+fun isGoogleServicesProviderPackage(packageName: String): Boolean = packageName in googleServicesProviderPackages
+
 /** How a marker string is compared against a manifest permission/feature name. */
 private enum class MatchMode { EXACT, PREFIX, SUFFIX }
 
@@ -225,7 +232,7 @@ fun detectGoogleServicesDependencies(
     permissionNames: Set<String>,
     featureNames: Set<String>,
 ): List<GoogleServiceDependency> {
-    if (packageName in googleServicesProviderPackages) return emptyList()
+    if (isGoogleServicesProviderPackage(packageName)) return emptyList()
     val byGroup = LinkedHashMap<CapabilityGroup, GoogleServiceDependency>()
     for (marker in googleServiceMarkers) {
         if (byGroup.containsKey(marker.group)) continue

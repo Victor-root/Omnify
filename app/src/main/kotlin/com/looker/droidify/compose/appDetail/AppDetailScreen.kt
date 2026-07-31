@@ -1599,6 +1599,12 @@ private fun AppHeaderCard(
         footer = heroFooter(
             infoText = installedInfo?.let { info ->
                 when {
+                    // A catalogue entry like microG shares its package id with real Google Play
+                    // Services (see isGoogleServicesProviderPackage). An installer of Google Play
+                    // plus a signer mismatch means Google's own build is what's actually installed,
+                    // not a microG catalogue entry that merely looks like it should update it.
+                    info.signatureMismatch && info.looksLikeGenuineGoogleServices ->
+                        stringResource(R.string.installed_signature_mismatch_google_services, info.version)
                     // A system app can't be uninstalled, so don't tell the user to do it (see the
                     // signatureConflict dialog above, which already makes the same distinction).
                     info.signatureMismatch && info.isSystemApp ->

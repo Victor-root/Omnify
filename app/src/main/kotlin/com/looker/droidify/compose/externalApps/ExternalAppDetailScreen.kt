@@ -79,6 +79,7 @@ import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.appDetail.GoogleServiceDependency
 import com.looker.droidify.compose.appDetail.GoogleServicesCard
+import com.looker.droidify.compose.appDetail.isGoogleServicesProviderPackage
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
@@ -121,6 +122,7 @@ import com.looker.droidify.utility.common.RootDetection
 import com.looker.droidify.utility.common.dominantAccentColor
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
+import com.looker.droidify.utility.common.extension.isInstalledFromGooglePlay
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.singleSignature
 import kotlinx.coroutines.delay
@@ -264,6 +266,12 @@ fun ExternalAppDetailScreen(
     val isInstalled = installedVersion != null
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
+    // Same distinction as the catalogue screen: a tracked app that happens to share its package id with
+    // real Google Play Services (e.g. microG, see isGoogleServicesProviderPackage) shows a dedicated
+    // message instead of the generic mismatch one when Google's own build is what's actually installed.
+    val isMismatchedGenuineGoogleServices = signatureMismatch && app?.packageName?.let { pkg ->
+        isGoogleServicesProviderPackage(pkg) && context.isInstalledFromGooglePlay(pkg)
+    } == true
     // The installed APK's actual signing certificate (lowercase hex; not anything the source repo itself
     // could claim, this reads the real, on-device signature), so it can be shown, compared, and copied,
     // e.g. against a build the user just compiled themselves. Null when not installed, the package id
@@ -586,6 +594,8 @@ fun ExternalAppDetailScreen(
         val footerText = installedVersion?.let { version ->
             val source = installSources[appKey] ?: stringResource(R.string.installer_unknown)
             when {
+                isMismatchedGenuineGoogleServices ->
+                    stringResource(R.string.installed_signature_mismatch_google_services, version)
                 signatureMismatch && isMismatchedSystemApp ->
                     stringResource(R.string.installed_signature_mismatch_system, version, source)
                 signatureMismatch -> stringResource(R.string.installed_signature_mismatch, version, source)

@@ -51,6 +51,7 @@ import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
 import com.looker.droidify.utility.common.extension.installerSourceLabel
+import com.looker.droidify.utility.common.extension.isInstalledFromGooglePlay
 import com.looker.droidify.utility.common.extension.singleSignature
 import com.looker.droidify.utility.common.extension.versionCodeCompat
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -1036,6 +1037,8 @@ class AppDetailViewModel @Inject constructor(
             source = context.installerSourceLabel(packageName),
             signatureMismatch = isSignatureMismatch(currentState),
             isSystemApp = isSystemApp(packageName),
+            looksLikeGenuineGoogleServices = isGoogleServicesProviderPackage(packageName) &&
+                context.isInstalledFromGooglePlay(packageName),
         )
     }
 
@@ -1070,13 +1073,17 @@ class AppDetailViewModel @Inject constructor(
  *  a specific catalogue [com.looker.droidify.data.model.Package] by exact versionCode, which misses
  *  that case entirely. [signatureMismatch] true means this isn't actually a build of the catalogue
  *  entry showing it, see [AppDetailViewModel.isSignatureMismatch]. [isSystemApp] tells the mismatch
- *  message whether to offer uninstalling at all, see [AppDetailViewModel.isSystemApp]. */
+ *  message whether to offer uninstalling at all, see [AppDetailViewModel.isSystemApp].
+ *  [looksLikeGenuineGoogleServices] narrows that message further, for a catalogue entry like microG
+ *  whose package id real Google Play Services also uses: see [isGoogleServicesProviderPackage] and
+ *  [com.looker.droidify.utility.common.extension.isInstalledFromGooglePlay]. */
 data class InstalledInfo(
     val version: String,
     val versionCode: Long,
     val source: String,
     val signatureMismatch: Boolean = false,
     val isSystemApp: Boolean = false,
+    val looksLikeGenuineGoogleServices: Boolean = false,
 )
 
 /** A blocked update because the installed app is signed by a different key. [isSystemApp] means it

@@ -511,4 +511,5 @@
     <string name="certificate_mismatch_warning">Ne correspond pas : l\'application installée a été signée avec un certificat différent.</string>
     <string name="installed_signature_mismatch">La version installée (%1$s, depuis %2$s) n\'a pas été signée par cette source. Android ne permet pas de la mettre à jour directement dans ce cas : il faudra désinstaller l\'application avant d\'installer celle-ci.</string>
     <string name="installed_signature_mismatch_system">La version installée (%1$s, depuis %2$s) n\'a pas été signée par cette source. C\'est une application système : elle ne peut pas être désinstallée ni remplacée par cette version.</string>
+    <string name="installed_signature_mismatch_google_services">La version installée (%1$s) correspond aux vrais services Google Play, pas à cette application : elle ne peut donc pas être remplacée par cette version.</string>
 </resources>

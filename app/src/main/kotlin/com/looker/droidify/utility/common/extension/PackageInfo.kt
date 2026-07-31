@@ -136,21 +136,22 @@ fun PackageManager.getPackageArchiveInfoCompat(
     null
 }
 
+private fun Context.rawInstallerPackageName(packageName: String): String? = runCatching {
+    if (SdkCheck.isR) {
+        packageManager.getInstallSourceInfo(packageName).installingPackageName
+    } else {
+        @Suppress("DEPRECATION")
+        packageManager.getInstallerPackageName(packageName)
+    }
+}.getOrNull()
+
 /** Friendly name of the app that installed [packageName] (Play, F-Droid, this app…), the raw
  *  installer id, or a generic label for a sideloaded app with no recorded installer. Shared between
  *  the F-Droid catalogue and external-source detail pages, so both surface where an update would
  *  actually come from (useful to spot e.g. an app installed by a different client that can't be
  *  updated in place across a signing-key mismatch). */
 fun Context.installerSourceLabel(packageName: String): String {
-    val installer = runCatching {
-        if (SdkCheck.isR) {
-            packageManager.getInstallSourceInfo(packageName).installingPackageName
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.getInstallerPackageName(packageName)
-        }
-    }.getOrNull()
-    return when (installer) {
+    return when (val installer = rawInstallerPackageName(packageName)) {
         null, "" -> getString(R.string.installer_unknown)
         "com.android.vending" -> "Google Play"
         "org.fdroid.fdroid", "org.fdroid.basic" -> "F-Droid"
@@ -158,6 +159,13 @@ fun Context.installerSourceLabel(packageName: String): String {
         else -> installer
     }
 }
+
+/** True when [packageName]'s installer is Google Play itself. The strongest signal (short of the
+ *  signing certificate, which callers already compare separately) that what's installed under a
+ *  Google-services-provider id (see [com.looker.droidify.compose.appDetail.isGoogleServicesProviderPackage])
+ *  is genuinely Google's own build, not e.g. a ROM-integrated microG that impersonates the same id. */
+fun Context.isInstalledFromGooglePlay(packageName: String): Boolean =
+    rawInstallerPackageName(packageName) == "com.android.vending"
 
 /**
  * True when [packageName] is already installed but signed by a different key than [apkFile]. Android

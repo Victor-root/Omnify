@@ -528,4 +528,5 @@
     <string name="certificate_mismatch_warning">Doesn\'t match: the installed app was signed with a different certificate.</string>
     <string name="installed_signature_mismatch">The installed copy (%1$s, from %2$s) wasn\'t signed by this source. Android can\'t update it directly in that case: you\'ll need to uninstall it first, then install this one.</string>
     <string name="installed_signature_mismatch_system">The installed copy (%1$s, from %2$s) wasn\'t signed by this source. It\'s a system app, so it can\'t be uninstalled or replaced by this version.</string>
+    <string name="installed_signature_mismatch_google_services">The installed copy (%1$s) is Google\'s own Play Services, not this app, so it can\'t be replaced by this version.</string>
 </resources>
