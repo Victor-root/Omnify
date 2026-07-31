@@ -7,6 +7,7 @@ import android.app.WallpaperManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
@@ -16,6 +17,10 @@ import com.looker.droidify.utility.common.extension.intent
 import com.looker.droidify.utility.common.extension.powerManager
 
 private const val TAG = "Permissions"
+
+/** A pixel this opaque or more counts as real content in [opaqueContent]; anything less transparent
+ *  gets replaced by that content's own average colour instead. */
+private const val OPAQUE_ALPHA_THRESHOLD = 128
 
 fun Context.isIgnoreBatteryEnabled() =
     powerManager?.isIgnoringBatteryOptimizations(packageName) == true
@@ -43,9 +48,70 @@ fun Context.wallpaperAccentColor(): Int? {
  */
 fun Bitmap.dominantAccentColor(): Int? {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
-    return runCatching { WallpaperColors.fromBitmap(this).primaryColor.toArgb() }
+    val content = opaqueContent() ?: return null
+    return runCatching { WallpaperColors.fromBitmap(content).primaryColor.toArgb() }
         .onFailure { Log.e(TAG, "Unable to extract a dominant colour from this bitmap", it) }
         .getOrNull()
+}
+
+/**
+ * This bitmap cropped to the bounding box of its opaque content, with any transparency still inside
+ * that box (a circular icon's corners, an adaptive icon's own inset) replaced by that content's own
+ * average colour. Null if the bitmap has no opaque content at all.
+ *
+ * [WallpaperColors.fromBitmap] doesn't skip transparent pixels: their RGB (0,0,0 for a premultiplied-
+ * transparent pixel) counts as a real sample during quantization same as any other, so an icon with a
+ * transparent background around a small coloured glyph extracted as black instead of the glyph's own
+ * colour. Flattening onto a fixed colour like white doesn't really fix this, it just replaces "black
+ * wins because the background is large" with "white wins because the background is large" for an icon
+ * whose visible content doesn't fill its square canvas (a circle, an icon with generous padding).
+ * Filling with the content's own average instead can never introduce a new dominant colour that isn't
+ * already part of the icon, whatever shape that content takes.
+ */
+private fun Bitmap.opaqueContent(): Bitmap? {
+    val pixels = IntArray(width * height)
+    getPixels(pixels, 0, width, 0, 0, width, height)
+
+    var left = width
+    var right = -1
+    var top = height
+    var bottom = -1
+    var redSum = 0L
+    var greenSum = 0L
+    var blueSum = 0L
+    var opaqueCount = 0
+    for (y in 0 until height) {
+        for (x in 0 until width) {
+            val pixel = pixels[y * width + x]
+            if (Color.alpha(pixel) < OPAQUE_ALPHA_THRESHOLD) continue
+            if (x < left) left = x
+            if (x > right) right = x
+            if (y < top) top = y
+            if (y > bottom) bottom = y
+            redSum += Color.red(pixel)
+            greenSum += Color.green(pixel)
+            blueSum += Color.blue(pixel)
+            opaqueCount++
+        }
+    }
+    if (opaqueCount == 0) return null
+
+    val averageColor = Color.rgb(
+        (redSum / opaqueCount).toInt(),
+        (greenSum / opaqueCount).toInt(),
+        (blueSum / opaqueCount).toInt(),
+    )
+    val contentWidth = right - left + 1
+    val contentHeight = bottom - top + 1
+    val contentPixels = IntArray(contentWidth * contentHeight) { i ->
+        val x = left + i % contentWidth
+        val y = top + i / contentWidth
+        val pixel = pixels[y * width + x]
+        if (Color.alpha(pixel) >= OPAQUE_ALPHA_THRESHOLD) pixel else averageColor
+    }
+    return Bitmap.createBitmap(contentWidth, contentHeight, Bitmap.Config.ARGB_8888).apply {
+        setPixels(contentPixels, 0, contentWidth, 0, 0, contentWidth, contentHeight)
+    }
 }
 
 /** Whether the app may install APKs from "unknown sources". Always true below Android 8, where it
