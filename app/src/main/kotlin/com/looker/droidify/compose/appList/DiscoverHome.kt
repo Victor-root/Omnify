@@ -36,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,10 +89,20 @@ fun DiscoverCarousel(
     // During the first sync the catalogue fills in and re-sorts, so new apps are prepended to a
     // carousel. A LazyRow anchors on its first visible item by key, so a prepend would keep the old
     // first item in view and leave the row scrolled to the right ("stuck in the middle"). Snap back to
-    // the start whenever the head of the list changes, so each carousel shows its newest items from the
-    // left. Keyed on the first item only, so a user scrolling a settled carousel isn't yanked back.
+    // the start whenever the head of the list actually changes, so each carousel shows its newest items
+    // from the left. Compared against a rememberSaveable, not just this LaunchedEffect's own last-seen
+    // key: opening an app's page and coming back disposes and remounts this whole screen, and a freshly
+    // mounted LaunchedEffect has no memory of what it last ran with. Without comparing against a value
+    // that survives that round trip too, it would re-scroll to the start on every single return,
+    // stomping over the position LazyListState's own rememberSaveable had just correctly restored.
     val firstKey = apps.firstOrNull()?.appId ?: externalApps.firstOrNull()?.key
-    LaunchedEffect(firstKey) { rowState.scrollToItem(0) }
+    var previousFirstKey by rememberSaveable { mutableStateOf(firstKey) }
+    LaunchedEffect(firstKey) {
+        if (firstKey != previousFirstKey) {
+            rowState.scrollToItem(0)
+        }
+        previousFirstKey = firstKey
+    }
     Column(verticalArrangement = spacedBy(10.dp), modifier = modifier) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
