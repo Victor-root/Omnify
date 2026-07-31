@@ -1035,6 +1035,7 @@ class AppDetailViewModel @Inject constructor(
             versionCode = info.versionCodeCompat,
             source = context.installerSourceLabel(packageName),
             signatureMismatch = isSignatureMismatch(currentState),
+            isSystemApp = isSystemApp(packageName),
         )
     }
 
@@ -1068,12 +1069,14 @@ class AppDetailViewModel @Inject constructor(
  *  channel that's ahead of, or otherwise not covered by, the tracked repo), unlike matching against
  *  a specific catalogue [com.looker.droidify.data.model.Package] by exact versionCode, which misses
  *  that case entirely. [signatureMismatch] true means this isn't actually a build of the catalogue
- *  entry showing it, see [AppDetailViewModel.isSignatureMismatch]. */
+ *  entry showing it, see [AppDetailViewModel.isSignatureMismatch]. [isSystemApp] tells the mismatch
+ *  message whether to offer uninstalling at all, see [AppDetailViewModel.isSystemApp]. */
 data class InstalledInfo(
     val version: String,
     val versionCode: Long,
     val source: String,
     val signatureMismatch: Boolean = false,
+    val isSystemApp: Boolean = false,
 )
 
 /** A blocked update because the installed app is signed by a different key. [isSystemApp] means it

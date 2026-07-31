@@ -255,6 +255,9 @@ fun ExternalAppDetailScreen(
     // it just means the update dialog may ask for an uninstall — the warning covers that, not a
     // fake-"not installed" state.
     val signatureMismatch = appKey in signatureMismatches
+    // A system app can't be uninstalled, so the footer below shouldn't tell the user to do it (the same
+    // distinction the signatureConflict dialog above already makes).
+    val isMismatchedSystemApp = signatureMismatches[appKey] == true
     // Read straight off installedVersions (not the separately-collected installedKeys StateFlow) so the
     // button and the footer's "Installé : …" text always agree within the same composition — two
     // independently-collected StateFlows can otherwise land on different frames for a moment.
@@ -583,6 +586,8 @@ fun ExternalAppDetailScreen(
         val footerText = installedVersion?.let { version ->
             val source = installSources[appKey] ?: stringResource(R.string.installer_unknown)
             when {
+                signatureMismatch && isMismatchedSystemApp ->
+                    stringResource(R.string.installed_signature_mismatch_system, version, source)
                 signatureMismatch -> stringResource(R.string.installed_signature_mismatch, version, source)
                 installSources[appKey] != null -> stringResource(R.string.installed_version_source, version, source)
                 else -> stringResource(R.string.external_installed_version, version)

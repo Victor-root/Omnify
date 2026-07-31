@@ -236,12 +236,13 @@ class ExternalAppsViewModel @Inject constructor(
      * completely different app claim the same package name a tracked source uses (a de-Googled fork
      * sharing an app's real package id, say) as long as it got there first — the same collision risk
      * [com.looker.droidify.data.local.model.toPackages] documents for the F-Droid catalogue, just without
-     * an index to cross-check against ahead of time here. A key simply absent from this set (rather than
-     * present with false) means either there's nothing to compare yet or the check hasn't completed —
-     * treat "absent" the same as "no mismatch", never block on it. See [trackSignatureMismatches].
+     * an index to cross-check against ahead of time here. A key simply absent from this map (rather than
+     * mapped to any value) means either there's nothing to compare yet or the check hasn't completed —
+     * treat "absent" the same as "no mismatch", never block on it. The value is whether that installed
+     * app is a system app, i.e. can't actually be uninstalled. See [trackSignatureMismatches].
      */
-    private val _signatureMismatches = MutableStateFlow<Set<String>>(emptySet())
-    val signatureMismatches: StateFlow<Set<String>> = _signatureMismatches
+    private val _signatureMismatches = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val signatureMismatches: StateFlow<Map<String, Boolean>> = _signatureMismatches
 
     /** Keys of tracked apps that are currently installed on the device, by package name — deliberately
      *  NOT excluding [signatureMismatches]: a differently-signed install (most commonly, the same app
@@ -279,10 +280,10 @@ class ExternalAppsViewModel @Inject constructor(
             .collectLatest { (apps, installed) ->
                 val candidates = apps.filter { it.key in installed.keys && it.latestApkUrl != null }
                 if (candidates.isEmpty()) {
-                    _signatureMismatches.value = emptySet()
+                    _signatureMismatches.value = emptyMap()
                     return@collectLatest
                 }
-                val mismatches = mutableSetOf<String>()
+                val mismatches = mutableMapOf<String, Boolean>()
                 candidates.forEach { app ->
                     val pkg = app.packageName ?: return@forEach
                     val apkUrl = app.latestApkUrl ?: return@forEach
@@ -316,7 +317,7 @@ class ExternalAppsViewModel @Inject constructor(
                             "expected=$expectedSigners mismatch=$mismatch",
                     )
                     if (mismatch) {
-                        mismatches += app.key
+                        mismatches[app.key] = isSystemApp(pkg)
                     }
                 }
                 _signatureMismatches.value = mismatches

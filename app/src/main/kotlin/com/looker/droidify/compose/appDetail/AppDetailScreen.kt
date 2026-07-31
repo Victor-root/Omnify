@@ -1598,10 +1598,14 @@ private fun AppHeaderCard(
         // implying the version/source shown is this app's own state.
         footer = heroFooter(
             infoText = installedInfo?.let { info ->
-                if (info.signatureMismatch) {
-                    stringResource(R.string.installed_signature_mismatch, info.version, info.source)
-                } else {
-                    stringResource(R.string.installed_version_source, info.version, info.source)
+                when {
+                    // A system app can't be uninstalled, so don't tell the user to do it (see the
+                    // signatureConflict dialog above, which already makes the same distinction).
+                    info.signatureMismatch && info.isSystemApp ->
+                        stringResource(R.string.installed_signature_mismatch_system, info.version, info.source)
+                    info.signatureMismatch ->
+                        stringResource(R.string.installed_signature_mismatch, info.version, info.source)
+                    else -> stringResource(R.string.installed_version_source, info.version, info.source)
                 }
             },
             onViewVersionsClick = onViewVersionsClick,
