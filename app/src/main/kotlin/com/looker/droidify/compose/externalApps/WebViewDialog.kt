@@ -213,7 +213,7 @@ fun WebViewDialog(
                             textAlign = TextAlign.Center,
                         )
                         Spacer(Modifier.height(12.dp))
-                        Button(onClick = { uriHandler.openUri(webUrl) }) {
+                        Button(onClick = { runCatching { uriHandler.openUri(webUrl) } }) {
                             Text(stringResource(R.string.source_code))
                         }
                     }

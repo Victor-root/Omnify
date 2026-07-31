@@ -358,7 +358,7 @@ private fun RepoInfoTab(
             // Parsing the HTML description is expensive; do it once per description instead of on
             // every recomposition.
             val description = remember(repo.description) {
-                repo.description.toAnnotatedString(onUrlClick = { handler.openUri(it) })
+                repo.description.toAnnotatedString(onUrlClick = { runCatching { handler.openUri(it) } })
             }
             Column {
                 Text(

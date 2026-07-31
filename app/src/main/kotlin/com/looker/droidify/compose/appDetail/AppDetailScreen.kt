@@ -1136,7 +1136,7 @@ private fun AppDetailBody(
         // Parsing the HTML description is expensive; do it once per description instead of on
         // every recomposition (the detail screen recomposes repeatedly while data loads).
         val description = remember(app.metadata.description) {
-            app.metadata.description.toAnnotatedString(onUrlClick = { handler.openUri(it) })
+            app.metadata.description.toAnnotatedString(onUrlClick = { runCatching { handler.openUri(it) } })
         }
         // Show the translation when one is ready (the toggle lives in the top bar); otherwise the
         // original formatted text.

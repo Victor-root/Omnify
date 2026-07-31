@@ -648,7 +648,7 @@ fun ExternalAppDetailScreen(
                     HeroStatsRow(
                         version = heroVersion,
                         size = heroSize,
-                        onSourceCodeClick = { uriHandler.openUri(app.webUrl) },
+                        onSourceCodeClick = { runCatching { uriHandler.openUri(app.webUrl) } },
                     )
                 },
                 actions = {
@@ -1107,7 +1107,7 @@ private fun ExternalAppDetailBody(
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(12.dp))
-            Button(onClick = { uriHandler.openUri(app.webUrl) }) {
+            Button(onClick = { runCatching { uriHandler.openUri(app.webUrl) } }) {
                 Text(stringResource(R.string.source_code))
             }
         }
@@ -1218,7 +1218,7 @@ private fun ExternalLinksSection(
             unavailableText = stringResource(
                 if (issueTrackerLink == null) R.string.loading else R.string.external_no_issue_tracker,
             ),
-            onClick = issueTrackerLink?.url?.let { url -> { uriHandler.openUri(url) } },
+            onClick = issueTrackerLink?.url?.let { url -> { runCatching { uriHandler.openUri(url) } } },
             focusRequester = firstRowFocusRequester,
         )
         LinkRow(
