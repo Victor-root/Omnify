@@ -86,9 +86,9 @@ external apps, and a curated pack of FOSS TV apps ready to install.
 ### 🎨 Modern Material You interface
 
 Rebuilt in **Jetpack Compose** with **Material 3**: an accent-colour picker
-(including a wallpaper-based option), tinted system bars, an edge-to-edge mode,
-a collapsing header, a two-column grid, animated search and wavy progress
-indicators.
+(including a wallpaper-based option, or matching an app's own icon on its
+detail page), tinted system bars, an edge-to-edge mode, a collapsing header,
+a two-column grid, animated search and wavy progress indicators.
 
 ### 🧭 Discover home
 
@@ -112,7 +112,9 @@ already there, never wipes it.
 
 ## 🛡️ Security & privacy
 
-- Signing certificate **verified against the repository index before any install**.
+- Signing certificate **verified against the repository index before any install**,
+  with the installed and expected fingerprints viewable and copyable on the
+  detail screen.
 - Anti-feature warnings and the full runtime-permission list on the detail screen.
 - A badge flags apps that depend on **proprietary Google services**, and how
   well **microG** covers what they actually need.
