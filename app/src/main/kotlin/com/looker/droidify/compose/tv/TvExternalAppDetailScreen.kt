@@ -65,6 +65,7 @@ import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
+import com.looker.droidify.utility.common.IconAccentColorCache
 import com.looker.droidify.utility.common.dominantAccentColor
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
@@ -140,7 +141,10 @@ fun TvExternalAppDetailScreen(
     }
     // Set once the hero icon actually loads (see the ExternalAppIcon call below); reset per screen
     // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
-    var iconAccentColor by remember { mutableStateOf<Int?>(null) }
+    // Seeded from IconAccentColorCache so revisiting the same app doesn't wait for the icon to decode
+    // and get quantized all over again.
+    val iconAccentColorCacheKey = "ext:$appKey"
+    var iconAccentColor by remember { mutableStateOf(IconAccentColorCache.get(iconAccentColorCacheKey)) }
 
     // Make sure the app knows the package id it installs under, so a copy already on the device (installed
     // from any channel) is recognised as installed instead of showing "Install". Keyed on the resolved app
@@ -315,7 +319,16 @@ fun TvExternalAppDetailScreen(
                         app = app,
                         isInstalled = isInstalled,
                         size = 112.dp,
-                        onIconBitmap = { bitmap -> iconAccentColor = bitmap.dominantAccentColor() },
+                        onIconBitmap = { bitmap ->
+                            // Coil re-invokes this on every recomposition of the icon's AsyncImage, not
+                            // just once per real image load; skip it once a colour is already known for
+                            // this screen instance instead of redoing that work every time.
+                            if (iconAccentColor == null) {
+                                iconAccentColor = bitmap.dominantAccentColor()?.also {
+                                    IconAccentColorCache.put(iconAccentColorCacheKey, it)
+                                }
+                            }
+                        },
                     )
                 }
                 Column(verticalArrangement = spacedBy(8.dp)) {

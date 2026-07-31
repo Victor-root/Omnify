@@ -3,6 +3,9 @@ package com.looker.droidify.compose.theme
 import android.app.Activity
 import android.content.ContextWrapper
 import android.os.Build
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -23,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +40,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.wallpaperAccentColor
@@ -235,6 +241,18 @@ fun ScopedAccentColor(accentColor: Int?, content: @Composable () -> Unit) {
         // for the transition, and the outgoing one disposes after the incoming one has already published.
         onDispose { if (systemBarAccent.value == scopedBarColor) systemBarAccent.value = null }
     }
+    // ON_PAUSE fires as soon as this destination stops being the current one, well before the exit
+    // transition finishes and this composable actually leaves composition (what onDispose above waits
+    // for): without this, the navigation bar stayed on the icon accent for the whole transition after
+    // pressing back, even though the previous screen's own header had already reverted. ON_RESUME puts
+    // it back for the other reason ON_PAUSE fires: the app itself backgrounding while still on this
+    // screen, not a real navigation away.
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
+        if (systemBarAccent.value == scopedBarColor) systemBarAccent.value = null
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        systemBarAccent.value = scopedBarColor
+    }
     CompositionLocalProvider(
         LocalAccentBarColor provides scopedBarColor,
         LocalOnAccentBarColor provides scopedColorScheme.onPrimary,
@@ -290,7 +308,16 @@ fun DroidifyTheme(
     // the system bars follow it so they stay part of that screen's header rather than keeping the
     // app-wide colour. Falls back to the app-wide accent on every other screen.
     val scopedAccentBarColor = remember { mutableStateOf<Color?>(null) }
-    val systemBarColor = scopedAccentBarColor.value ?: barColor
+    // Taking on a screen's accent (icon finishes loading, or ON_RESUME restores it) applies the moment
+    // the header itself does, so it snaps instantly to stay in sync with it. Falling back to the
+    // app-wide colour instead happens on ON_PAUSE (see ScopedAccentColor), earlier than that screen's
+    // own header and content actually finish sliding away, so a hard cut there read as switching back
+    // too soon; only that direction eases into the change, to hide that gap.
+    val scopedTarget = scopedAccentBarColor.value
+    val systemBarColor by animateColorAsState(
+        targetValue = scopedTarget ?: barColor,
+        animationSpec = if (scopedTarget == null) tween(durationMillis = 300) else snap(),
+    )
 
     // System-bar icons must stay legible. The status bar always sits behind the accent-coloured top
     // bar, so its icons contrast with the accent. The navigation bar is an opaque accent overlay when
