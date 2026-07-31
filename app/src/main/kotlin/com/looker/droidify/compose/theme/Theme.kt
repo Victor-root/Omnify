@@ -21,8 +21,10 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -222,8 +224,19 @@ fun ScopedAccentColor(accentColor: Int?, content: @Composable () -> Unit) {
         return
     }
     val scopedColorScheme = MaterialTheme.colorScheme.withVividAccent(accentColor)
+    // The system-bar chrome is drawn by DroidifyTheme above every screen, outside the scope below, so
+    // publish the accent there too or the navigation bar keeps the app-wide colour while this screen's
+    // header wears the icon's one. See [LocalScopedAccentBarColor].
+    val systemBarAccent = LocalScopedAccentBarColor.current
+    val scopedBarColor = scopedColorScheme.primary
+    DisposableEffect(systemBarAccent, scopedBarColor) {
+        systemBarAccent.value = scopedBarColor
+        // Release only what's still ours: navigating between two detail pages keeps both in composition
+        // for the transition, and the outgoing one disposes after the incoming one has already published.
+        onDispose { if (systemBarAccent.value == scopedBarColor) systemBarAccent.value = null }
+    }
     CompositionLocalProvider(
-        LocalAccentBarColor provides scopedColorScheme.primary,
+        LocalAccentBarColor provides scopedBarColor,
         LocalOnAccentBarColor provides scopedColorScheme.onPrimary,
     ) {
         MaterialTheme(colorScheme = scopedColorScheme, content = content)
@@ -273,13 +286,19 @@ fun DroidifyTheme(
     val barColor = if (darkTheme) colorScheme.inversePrimary else colorScheme.primary
     val onBarColor = if (barColor.luminance() > 0.5f) Color.Black else Color.White
 
+    // A detail screen matching its app's icon publishes its own accent here (see ScopedAccentColor);
+    // the system bars follow it so they stay part of that screen's header rather than keeping the
+    // app-wide colour. Falls back to the app-wide accent on every other screen.
+    val scopedAccentBarColor = remember { mutableStateOf<Color?>(null) }
+    val systemBarColor = scopedAccentBarColor.value ?: barColor
+
     // System-bar icons must stay legible. The status bar always sits behind the accent-coloured top
     // bar, so its icons contrast with the accent. The navigation bar is an opaque accent overlay when
     // edge-to-edge is off (so its icons contrast with the accent), but transparent over the app
     // background when on (so they must contrast with that background instead).
     val view = LocalView.current
     if (!view.isInEditMode) {
-        val accentIsDark = barColor.luminance() <= 0.5f
+        val accentIsDark = systemBarColor.luminance() <= 0.5f
         SideEffect {
             // Find the Activity safely (some OEM contexts are wrappers); never crash on a bad cast.
             val window = generateSequence(view.context) { (it as? ContextWrapper)?.baseContext }
@@ -318,6 +337,7 @@ fun DroidifyTheme(
             LocalOnAccentBarColor provides onBarColor,
             LocalEdgeToEdge provides edgeToEdge,
             LocalStatusBarScrimAlpha provides statusBarScrimAlpha,
+            LocalScopedAccentBarColor provides scopedAccentBarColor,
             LocalIsTelevision provides isTelevision,
             LocalDensity provides scaledDensity,
         ) {
@@ -339,7 +359,7 @@ fun DroidifyTheme(
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
                             .windowInsetsBottomHeight(WindowInsets.navigationBars)
-                            .background(barColor),
+                            .background(systemBarColor),
                     )
                 }
                 // Under edge-to-edge, a faint scrim over the status bar keeps it perceptible once a

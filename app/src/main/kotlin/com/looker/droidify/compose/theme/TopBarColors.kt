@@ -6,7 +6,9 @@ import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableFloatState
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -32,6 +34,15 @@ val LocalEdgeToEdge = staticCompositionLocalOf { true }
  * current screen drives it from its scroll state; [DroidifyTheme] draws the scrim and resets it to 0.
  */
 val LocalStatusBarScrimAlpha = staticCompositionLocalOf<MutableFloatState> { mutableFloatStateOf(0f) }
+
+/**
+ * The accent a single screen has taken over with [ScopedAccentColor], or null when none has. Only the
+ * system-bar chrome needs this: [DroidifyTheme] draws the navigation-bar overlay, and sets both bars'
+ * icon appearance, above every screen, so it sits outside the scope [ScopedAccentColor] provides
+ * [LocalAccentBarColor] in and cannot read it there. Everything else inside a screen reads
+ * [LocalAccentBarColor] as usual.
+ */
+val LocalScopedAccentBarColor = staticCompositionLocalOf<MutableState<Color?>> { mutableStateOf(null) }
 
 /**
  * Top-bar colours that follow the user's chosen accent: the bar — and the status-bar area it draws
