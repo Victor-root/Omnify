@@ -206,22 +206,40 @@ private fun ColorScheme.withNeutralSurfaces(dark: Boolean, amoled: Boolean): Col
  * instead of the muted tone-40 the Material You generator produces from it. [onPrimary] flips between
  * black and white by the accent's luminance so text stays legible on bright accents (yellow, lime),
  * and [inversePrimary] is set to the same colour so the accent bar is identical in light and dark.
+ *
+ * [overrideAccentRoles] additionally raw-accents primary/secondary/tertiary's container roles, for
+ * [ScopedAccentColor] only: badges, chips and indicators reading those (count badges, the scroll-to-top
+ * FAB, the "suggested"/"root"/"installed" pills, the supported-languages loading indicator's track)
+ * would otherwise keep the app-wide accent's tone instead of following the icon's colour like
+ * everything else in that scope does. Left false for the app-wide theme itself, where the softer
+ * Material-generated container tones are still wanted.
  */
-private fun ColorScheme.withVividAccent(argb: Int): ColorScheme {
+private fun ColorScheme.withVividAccent(argb: Int, overrideAccentRoles: Boolean = false): ColorScheme {
     val accent = Color(argb)
     val onAccent = if (accent.luminance() > 0.5f) Color.Black else Color.White
     return copy(
         primary = accent,
         onPrimary = onAccent,
         inversePrimary = accent,
+        primaryContainer = if (overrideAccentRoles) accent else primaryContainer,
+        onPrimaryContainer = if (overrideAccentRoles) onAccent else onPrimaryContainer,
+        secondary = if (overrideAccentRoles) accent else secondary,
+        onSecondary = if (overrideAccentRoles) onAccent else onSecondary,
+        secondaryContainer = if (overrideAccentRoles) accent else secondaryContainer,
+        onSecondaryContainer = if (overrideAccentRoles) onAccent else onSecondaryContainer,
+        tertiary = if (overrideAccentRoles) accent else tertiary,
+        onTertiary = if (overrideAccentRoles) onAccent else onTertiary,
+        tertiaryContainer = if (overrideAccentRoles) accent else tertiaryContainer,
+        onTertiaryContainer = if (overrideAccentRoles) onAccent else onTertiaryContainer,
     )
 }
 
 /**
- * Overrides just the accent (primary/onPrimary/inversePrimary, and the top bar colour that follows
- * them) within [content], leaving every other role from the enclosing [DroidifyTheme] untouched, for
- * matching a single app's detail page to that app's own icon colour without affecting the rest of the
- * app. A no-op when [accentColor] is null (the feature is off, or no colour has been extracted yet).
+ * Overrides just the accent (primary/secondary/tertiary and their on/container roles, and the top bar
+ * colour that follows them) within [content], leaving every other role from the enclosing
+ * [DroidifyTheme] untouched, for matching a single app's detail page to that app's own icon colour
+ * without affecting the rest of the app. A no-op when [accentColor] is null (the feature is off, or no
+ * colour has been extracted yet).
  */
 @Composable
 fun ScopedAccentColor(accentColor: Int?, content: @Composable () -> Unit) {
@@ -229,7 +247,7 @@ fun ScopedAccentColor(accentColor: Int?, content: @Composable () -> Unit) {
         content()
         return
     }
-    val scopedColorScheme = MaterialTheme.colorScheme.withVividAccent(accentColor)
+    val scopedColorScheme = MaterialTheme.colorScheme.withVividAccent(accentColor, overrideAccentRoles = true)
     // The system-bar chrome is drawn by DroidifyTheme above every screen, outside the scope below, so
     // publish the accent there too or the navigation bar keeps the app-wide colour while this screen's
     // header wears the icon's one. See [LocalScopedAccentBarColor].
