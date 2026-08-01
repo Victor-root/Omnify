@@ -79,6 +79,7 @@ import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.appDetail.GoogleServiceDependency
 import com.looker.droidify.compose.appDetail.GoogleServicesCard
+import com.looker.droidify.compose.appDetail.InstallConflictReason
 import com.looker.droidify.compose.appDetail.isGoogleServicesProviderPackage
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.DescriptionTranslation
@@ -147,7 +148,7 @@ fun ExternalAppDetailScreen(
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
     val installSources by viewModel.installSources.collectAsStateWithLifecycle()
     val signatureMismatches by viewModel.signatureMismatches.collectAsStateWithLifecycle()
-    val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
+    val installConflict by viewModel.installConflict.collectAsStateWithLifecycle()
     val readme by viewModel.readme.collectAsStateWithLifecycle()
     val readmeError by viewModel.readmeError.collectAsStateWithLifecycle()
     val readmeTranslation by viewModel.readmeTranslation.collectAsStateWithLifecycle()
@@ -208,37 +209,38 @@ fun ExternalAppDetailScreen(
     }
     val expectedSigners = app?.latestApkUrl?.let { expectedSignersByApkUrl[it] }
 
-    signatureConflict?.let { conflict ->
+    installConflict?.let { conflict ->
         val conflictAppName = app?.label ?: appKey
         val titleRes = if (conflict.isSystemApp) {
             R.string.signature_conflict_system_title
         } else {
             R.string.signature_conflict_title
         }
-        val messageRes = if (conflict.isSystemApp) {
-            R.string.signature_conflict_system_app
-        } else {
-            R.string.install_failed_signature_mismatch
+        val messageRes = when {
+            conflict.isSystemApp -> R.string.signature_conflict_system_app
+            conflict.reason == InstallConflictReason.VERSION_DOWNGRADE ->
+                R.string.install_failed_version_downgrade
+            else -> R.string.install_failed_signature_mismatch
         }
         AlertDialog(
-            onDismissRequest = viewModel::dismissSignatureConflict,
+            onDismissRequest = viewModel::dismissInstallConflict,
             title = { Text(stringResource(titleRes)) },
             text = { Text(stringResource(messageRes, conflictAppName)) },
             confirmButton = {
                 if (conflict.isSystemApp) {
                     // A system app can't be uninstalled — nothing to do but acknowledge.
-                    TextButton(onClick = viewModel::dismissSignatureConflict) {
+                    TextButton(onClick = viewModel::dismissInstallConflict) {
                         Text(stringResource(android.R.string.ok))
                     }
                 } else {
                     TextButton(
-                        onClick = viewModel::confirmSignatureConflictUninstall,
+                        onClick = viewModel::confirmInstallConflictUninstall,
                     ) { Text(stringResource(R.string.uninstall)) }
                 }
             },
             dismissButton = {
                 if (!conflict.isSystemApp) {
-                    TextButton(onClick = viewModel::dismissSignatureConflict) {
+                    TextButton(onClick = viewModel::dismissInstallConflict) {
                         Text(stringResource(R.string.cancel))
                     }
                 }
@@ -258,7 +260,7 @@ fun ExternalAppDetailScreen(
     // fake-"not installed" state.
     val signatureMismatch = appKey in signatureMismatches
     // A system app can't be uninstalled, so the footer below shouldn't tell the user to do it (the same
-    // distinction the signatureConflict dialog above already makes).
+    // distinction the installConflict dialog above already makes).
     val isMismatchedSystemApp = signatureMismatches[appKey] == true
     // Read straight off installedVersions (not the separately-collected installedKeys StateFlow) so the
     // button and the footer's "Installé : …" text always agree within the same composition — two
@@ -526,9 +528,10 @@ fun ExternalAppDetailScreen(
             installStates[appKey] == InstallState.Installing
         val activeDownloadTag = downloadTargetTag[appKey]
         // A release the user tapped in the version list, awaiting confirmation to install (null = no
-        // dialog). Unlike the F-Droid catalogue's version dialog, downgrades are never flagged here: a
+        // dialog). Unlike the F-Droid catalogue's version dialog, this can't flag a downgrade upfront: a
         // release carries no version code ahead of the download, so there's nothing to compare against
-        // the installed one before the user confirms.
+        // the installed one before the user confirms. A genuine downgrade is instead caught right after
+        // downloading (see ExternalAppsViewModel.downloadAndInstall's installConflict check).
         var versionToInstall by remember { mutableStateOf<Release?>(null) }
         versionToInstall?.let { release ->
             InstallVersionDialog(

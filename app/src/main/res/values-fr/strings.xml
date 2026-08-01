@@ -501,6 +501,7 @@
     <string name="add_source_account">Compte entier</string>
     <string name="add_source_account_desc">Ajoutez toutes les applis d\'un compte d\'un coup (ex. github.com/pseudo) : une seule ligne qui regroupe toutes ses applis.</string>
     <string name="install_failed_signature_mismatch">%1$s est déjà installé depuis une autre source. Désinstallez-le d\'abord, puis installez cette version.</string>
+    <string name="install_failed_version_downgrade">Une version plus récente de %1$s est déjà installée. Désinstallez-la d\'abord, puis installez cette version plus ancienne.</string>
     <string name="signature_conflict_title">Désinstallation nécessaire</string>
     <string name="signature_conflict_system_title">Remplacement impossible</string>
     <string name="signature_conflict_system_app">%1$s est une app système signée avec une clé différente : elle ne peut pas être désinstallée ni remplacée par cette version.</string>

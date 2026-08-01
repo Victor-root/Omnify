@@ -518,6 +518,7 @@
     <string name="add_source_account">Whole account</string>
     <string name="add_source_account_desc">Add every app of an account at once (e.g. github.com/owner): one row that expands to all of its apps.</string>
     <string name="install_failed_signature_mismatch">%1$s is already installed from a different source. Uninstall it first, then install this version.</string>
+    <string name="install_failed_version_downgrade">A newer version of %1$s is already installed. Uninstall it first, then install this older version.</string>
     <string name="signature_conflict_title">Uninstall required</string>
     <string name="signature_conflict_system_title">Can\'t be replaced</string>
     <string name="signature_conflict_system_app">%1$s is a system app signed with a different key, so it can\'t be uninstalled or replaced by this version.</string>

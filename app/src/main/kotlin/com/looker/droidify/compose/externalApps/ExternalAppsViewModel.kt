@@ -14,7 +14,8 @@ import androidx.lifecycle.viewModelScope
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.appDetail.GoogleServiceDependency
-import com.looker.droidify.compose.appDetail.SignatureConflict
+import com.looker.droidify.compose.appDetail.InstallConflict
+import com.looker.droidify.compose.appDetail.InstallConflictReason
 import com.looker.droidify.compose.appDetail.detectGoogleServicesDependencies
 import com.looker.droidify.compose.appDetail.pushCapabilityIsVestigial
 import com.looker.droidify.compose.components.DescriptionTranslation
@@ -61,6 +62,7 @@ import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
 import com.looker.droidify.utility.common.extension.installerSourceLabel
+import com.looker.droidify.utility.common.extension.isVersionDowngrade
 import com.looker.droidify.utility.common.extension.singleSignature
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -367,29 +369,30 @@ class ExternalAppsViewModel @Inject constructor(
     val busy: StateFlow<Set<String>> = _busy
 
     /** Set when the freshly-downloaded APK is signed by a different key than the copy already
-     *  installed on the device — same conflict, same dialog, as the F-Droid catalogue's own
-     *  [com.looker.droidify.compose.appDetail.AppDetailViewModel.signatureConflict]. Android can't
-     *  update across signers, so the UI asks the user to uninstall the existing app first instead of
-     *  firing a doomed system install (which would otherwise leave the tracked record silently
-     *  claiming a version that was never actually applied). */
-    private val _signatureConflict = MutableStateFlow<SignatureConflict?>(null)
-    val signatureConflict: StateFlow<SignatureConflict?> = _signatureConflict
+     *  installed on the device, or the picked release's version code is lower than what's installed
+     *  (e.g. installing an older entry from the version list) — same conflicts, same dialog, as the
+     *  F-Droid catalogue's own [com.looker.droidify.compose.appDetail.AppDetailViewModel.signatureConflict].
+     *  Android allows neither in place, so the UI asks the user to uninstall the existing app first
+     *  instead of firing a doomed system install (which would otherwise leave the tracked record
+     *  silently claiming a version that was never actually applied). */
+    private val _installConflict = MutableStateFlow<InstallConflict?>(null)
+    val installConflict: StateFlow<InstallConflict?> = _installConflict
 
-    fun dismissSignatureConflict() {
-        _signatureConflict.value = null
+    fun dismissInstallConflict() {
+        _installConflict.value = null
     }
 
     /**
-     * Confirms the signature-conflict dialog: uninstalls the differently-signed copy and, once it's
-     * actually gone, automatically installs the new APK that was already downloaded for this update
-     * (see [InstallManager.reinstall]) — rather than just uninstalling and stopping there, which used to
+     * Confirms the install-conflict dialog: uninstalls the blocking copy and, once it's actually gone,
+     * automatically installs the new APK that was already downloaded for this update (see
+     * [InstallManager.reinstall]) — rather than just uninstalling and stopping there, which used to
      * leave the app not installed at all until the user noticed and tapped Install again by hand. Reads
-     * the package/file to reinstall off the conflict itself (see [SignatureConflict]), not off whatever
+     * the package/file to reinstall off the conflict itself (see [InstallConflict]), not off whatever
      * [ExternalApp] is currently displayed, so it stays correct even if that screen state changed.
      */
-    fun confirmSignatureConflictUninstall() {
-        val conflict = _signatureConflict.value
-        _signatureConflict.value = null
+    fun confirmInstallConflictUninstall() {
+        val conflict = _installConflict.value
+        _installConflict.value = null
         val pkg = conflict?.packageName ?: return
         viewModelScope.launch {
             if (conflict.cacheFileName != null) {
@@ -1714,8 +1717,22 @@ class ExternalAppsViewModel @Inject constructor(
                 // Different signer: Android can't update across keys. Ask the user to uninstall the
                 // existing copy first, same as the F-Droid catalogue's own dialog — and don't touch the
                 // tracked record at all, so it keeps correctly pointing at whatever's really installed.
-                _signatureConflict.value = SignatureConflict(
+                _installConflict.value = InstallConflict(
                     isSystemApp = isSystemApp(packageName),
+                    reason = InstallConflictReason.SIGNATURE,
+                    packageName = packageName,
+                    cacheFileName = cacheFileName,
+                )
+                return
+            }
+            if (context.packageManager.isVersionDowngrade(packageName, releaseFile)) {
+                // Picking an older release from the version list (or a source whose latest briefly
+                // pointed at a lower version code) hits Android's own downgrade guard. Same
+                // uninstall-then-reinstall offer as the signature conflict above, just for a different
+                // reason — and likewise leaves the tracked record untouched.
+                _installConflict.value = InstallConflict(
+                    isSystemApp = isSystemApp(packageName),
+                    reason = InstallConflictReason.VERSION_DOWNGRADE,
                     packageName = packageName,
                     cacheFileName = cacheFileName,
                 )

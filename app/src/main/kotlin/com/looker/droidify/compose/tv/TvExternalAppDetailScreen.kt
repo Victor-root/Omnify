@@ -23,6 +23,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.looker.droidify.compose.appDetail.InstallConflictReason
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.externalApps.ReleaseVersionItem
 import com.looker.droidify.external.apkDownloadUrl
@@ -92,7 +93,7 @@ fun TvExternalAppDetailScreen(
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
     val installStates by viewModel.installStates.collectAsStateWithLifecycle()
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
-    val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
+    val installConflict by viewModel.installConflict.collectAsStateWithLifecycle()
     val readme by viewModel.readme.collectAsStateWithLifecycle()
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
@@ -197,37 +198,38 @@ fun TvExternalAppDetailScreen(
         )
     }
 
-    // Signature-conflict prompt (a different-signer install can't update in place), reused from the
-    // phone screen's own flow.
-    signatureConflict?.let { conflict ->
+    // Install-conflict prompt (a different-signer install, or an older version code, can't update in
+    // place), reused from the phone screen's own flow.
+    installConflict?.let { conflict ->
         val titleRes = if (conflict.isSystemApp) {
             R.string.signature_conflict_system_title
         } else {
             R.string.signature_conflict_title
         }
-        val messageRes = if (conflict.isSystemApp) {
-            R.string.signature_conflict_system_app
-        } else {
-            R.string.install_failed_signature_mismatch
+        val messageRes = when {
+            conflict.isSystemApp -> R.string.signature_conflict_system_app
+            conflict.reason == InstallConflictReason.VERSION_DOWNGRADE ->
+                R.string.install_failed_version_downgrade
+            else -> R.string.install_failed_signature_mismatch
         }
         AlertDialog(
-            onDismissRequest = viewModel::dismissSignatureConflict,
+            onDismissRequest = viewModel::dismissInstallConflict,
             title = { Text(stringResource(titleRes)) },
             text = { Text(stringResource(messageRes, app.label)) },
             confirmButton = {
                 if (conflict.isSystemApp) {
-                    TextButton(onClick = viewModel::dismissSignatureConflict) {
+                    TextButton(onClick = viewModel::dismissInstallConflict) {
                         Text(stringResource(android.R.string.ok))
                     }
                 } else {
-                    TextButton(onClick = viewModel::confirmSignatureConflictUninstall) {
+                    TextButton(onClick = viewModel::confirmInstallConflictUninstall) {
                         Text(stringResource(R.string.uninstall))
                     }
                 }
             },
             dismissButton = {
                 if (!conflict.isSystemApp) {
-                    TextButton(onClick = viewModel::dismissSignatureConflict) {
+                    TextButton(onClick = viewModel::dismissInstallConflict) {
                         Text(stringResource(R.string.cancel))
                     }
                 }

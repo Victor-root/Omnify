@@ -187,6 +187,22 @@ fun PackageManager.installedWithDifferentSignature(packageName: String, apkFile:
     return installedSignatures.intersect(apkSignatures).isEmpty()
 }
 
+/**
+ * True when [packageName] is already installed under a higher version code than [apkFile]. Android
+ * refuses to install an update with a lower version code (INSTALL_FAILED_VERSION_DOWNGRADE) — e.g.
+ * picking an older release from a version-history list while a newer one is already installed — so
+ * callers use this to detect the conflict up front and offer an uninstall instead of letting the
+ * system installer fail, the same treatment as [installedWithDifferentSignature]. Returns false when
+ * the app isn't installed or when either version code can't be read (don't block on uncertainty).
+ */
+fun PackageManager.isVersionDowngrade(packageName: String, apkFile: File): Boolean {
+    val installedVersion = runCatching { getPackageInfo(packageName, 0) }
+        .getOrNull()?.versionCodeCompat ?: return false
+    val apkVersion = runCatching { getPackageArchiveInfo(apkFile.absolutePath, 0) }
+        .getOrNull()?.versionCodeCompat ?: return false
+    return apkVersion < installedVersion
+}
+
 /** Signing certificates of a package, as hex strings, using the right API for the SDK level. */
 @Suppress("DEPRECATION", "PackageManagerGetSignatures", "NewApi")
 private fun signaturesOf(getInfo: (flags: Int) -> PackageInfo?): Set<String> {

@@ -308,8 +308,8 @@ class AppDetailViewModel @Inject constructor(
      * installed on the device. Android can't update across signers, so the UI shows a dialog asking
      * the user to uninstall the existing app first, instead of firing a doomed system install.
      */
-    private val _signatureConflict = MutableStateFlow<SignatureConflict?>(null)
-    val signatureConflict: StateFlow<SignatureConflict?> = _signatureConflict
+    private val _signatureConflict = MutableStateFlow<InstallConflict?>(null)
+    val signatureConflict: StateFlow<InstallConflict?> = _signatureConflict
 
     fun dismissSignatureConflict() {
         _signatureConflict.value = null
@@ -320,7 +320,7 @@ class AppDetailViewModel @Inject constructor(
      * actually gone, automatically installs the new APK that was already downloaded and verified for
      * this update (see [InstallManager.reinstall]) — rather than just uninstalling and stopping there,
      * which used to leave the app not installed at all until the user noticed and tapped Install again
-     * by hand. [SignatureConflict.cacheFileName] is only null for the system-app case, which never shows
+     * by hand. [InstallConflict.cacheFileName] is only null for the system-app case, which never shows
      * this confirm action in the first place (see [AppDetailScreen]'s dialog).
      */
     fun confirmSignatureConflictUninstall() {
@@ -996,7 +996,7 @@ class AppDetailViewModel @Inject constructor(
                         // dialog — offering to uninstall the existing copy first, unless it's a system
                         // app, which can't be removed (so there's nothing the user can do, and we must
                         // not keep telling them to uninstall in a loop).
-                        _signatureConflict.value = SignatureConflict(
+                        _signatureConflict.value = InstallConflict(
                             isSystemApp = isSystemApp(packageName),
                             packageName = packageName,
                             cacheFileName = cacheFileName,
@@ -1086,17 +1086,23 @@ data class InstalledInfo(
     val looksLikeGenuineGoogleServices: Boolean = false,
 )
 
-/** A blocked update because the installed app is signed by a different key. [isSystemApp] means it
- *  can't be uninstalled, so the update can never be applied — the dialog says so instead of looping.
- *  [packageName] and [cacheFileName] are the already-downloaded, hash-verified new APK waiting in the
- *  cache — confirming the dialog uninstalls the old copy under [packageName] and, once it's actually
- *  gone, installs this file automatically (see [InstallManager.reinstall]) instead of just uninstalling
- *  and leaving the user to tap Install again by hand. Carried on the conflict itself (not read back off
- *  whatever screen state happens to be displayed when the dialog is confirmed) so the confirm action is
- *  reliable even if that state changed or reloaded meanwhile. Both null only for the system-app case,
- *  where there is no confirm action at all. */
-data class SignatureConflict(
+/** Why an in-place update was blocked and the dialog is offering to uninstall first instead of it. */
+enum class InstallConflictReason { SIGNATURE, VERSION_DOWNGRADE }
+
+/** A blocked update: either the installed app is signed by a different key, or the new APK's version
+ *  code is lower than what's installed (e.g. picking an older release from a version-history list) —
+ *  Android refuses both in place. [isSystemApp] means it can't be uninstalled, so the update can never
+ *  be applied — the dialog says so instead of looping. [packageName] and [cacheFileName] are the
+ *  already-downloaded, hash-verified new APK waiting in the cache — confirming the dialog uninstalls
+ *  the old copy under [packageName] and, once it's actually gone, installs this file automatically
+ *  (see [InstallManager.reinstall]) instead of just uninstalling and leaving the user to tap Install
+ *  again by hand. Carried on the conflict itself (not read back off whatever screen state happens to be
+ *  displayed when the dialog is confirmed) so the confirm action is reliable even if that state changed
+ *  or reloaded meanwhile. Both null only for the system-app case, where there is no confirm action at
+ *  all. */
+data class InstallConflict(
     val isSystemApp: Boolean,
+    val reason: InstallConflictReason = InstallConflictReason.SIGNATURE,
     val packageName: String? = null,
     val cacheFileName: String? = null,
 )
