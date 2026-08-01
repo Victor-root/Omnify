@@ -78,6 +78,7 @@ import com.looker.droidify.utility.common.getInstallPackageName
 import com.looker.droidify.utility.common.sharedSourceUrl
 import com.looker.droidify.utility.common.openUnknownAppSourcesSettings
 import com.looker.droidify.utility.common.requestNotificationPermission
+import com.looker.droidify.utility.common.wallpaperAccentColor
 import com.looker.droidify.work.SyncWorker
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -311,12 +312,28 @@ class MainComposeActivity : ComponentActivity() {
 
     /**
      * Generates an MD3 palette from the chosen accent color and applies it to this activity, so the
-     * Compose screens follow the user's color. Skipped when Material You is on (S+).
+     * Compose screens follow the user's color.
+     *
+     * When Material You is on (S+), this activity's theme (see Theme.Main.DynamicLight/Dark in
+     * values-v31/styles.xml) points colorPrimaryContainer and friends at the system's own
+     * system_accentN_NNN resources instead, expecting those to already track the wallpaper. That holds
+     * on stock/Pixel builds, but not on every OEM skin (see [wallpaperAccentColor]'s own doc comment):
+     * exactly the gap DroidifyTheme's own colour scheme already works around for `primary` via
+     * [wallpaperAccentColor], but this activity-theme half of it was still trusting the unreliable system
+     * colours, which is why a wallpaper-coloured screen could still show default-toned containers (e.g.
+     * the scroll-to-top FAB) on those skins. Seeding with the same wallpaper colour DroidifyTheme uses
+     * keeps both halves consistent. Only skipped when that read genuinely fails (no usable wallpaper
+     * colours), the one case where DroidifyTheme itself falls back to the system-dynamic scheme, so the
+     * activity theme's system-colour containers are the correct thing to keep.
      */
     private fun applyAccentColor(state: ThemeState) {
-        if (state.dynamicTheme && SdkCheck.isSnowCake) return
+        val seedColor = if (state.dynamicTheme && SdkCheck.isSnowCake) {
+            wallpaperAccentColor() ?: return
+        } else {
+            state.themeColor
+        }
         val options = DynamicColorsOptions.Builder()
-            .setContentBasedSource(state.themeColor)
+            .setContentBasedSource(seedColor)
             .build()
         DynamicColors.applyToActivityIfAvailable(this, options)
     }
