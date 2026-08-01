@@ -79,6 +79,12 @@ a two-column grid, animated search and wavy progress indicators.
 A curated landing screen with carousels (what's new, recently updated, most
 downloaded) and a browsable categories section.
 
+### 👁️ Hide apps you don't need
+
+Hide any app, catalogue or external, from every list (Discover, Installed,
+Updates) with one tap on its page. Manage what's hidden, or bring an app
+back, from Settings.
+
 ### 🌍 Built-in translation
 
 Translate an app's **summary and description** into your language, with a choice
