@@ -40,22 +40,6 @@ _Omnify, maintained by [Victor-root](https://github.com/Victor-root), based on [
 
 ---
 
-## Why this fork?
-
-I use Droid-ify every day, intensively, and over time I ran into bugs and wanted
-features that really mattered for that kind of daily use. I proposed fixes
-upstream, but many of them were built with AI assistance, and the
-[Droid-ify](https://github.com/Droid-ify/client) project has chosen to stay
-AI-free. That is entirely their decision to make, so those fixes couldn't be
-merged. Forking was the only way for me to keep improving the app at my own pace.
-
-**To be clear, this is not a fork against Droid-ify.** I have deep respect for the
-original project, its author and its vision for the codebase. Omnify
-simply serves a different need, my own, and only exists because Droid-ify gave it
-such a strong foundation.
-
----
-
 ## ✨ Highlights
 
 ### 📦 Install apps from anywhere (*External sources*)
@@ -165,6 +149,22 @@ SHA-256 fingerprint (e.g. via `apksigner verify --print-certs`) against:
 ```
 F2:2B:D7:B4:63:D8:D8:9C:A1:AC:3B:6C:41:DB:0B:25:AA:C7:7B:86:24:C9:70:E4:52:81:2D:32:19:42:A9:71
 ```
+
+---
+
+## Why this fork?
+
+I use Droid-ify every day, intensively, and over time I ran into bugs and wanted
+features that really mattered for that kind of daily use. I proposed fixes
+upstream, but many of them were built with AI assistance, and the
+[Droid-ify](https://github.com/Droid-ify/client) project has chosen to stay
+AI-free. That is entirely their decision to make, so those fixes couldn't be
+merged. Forking was the only way for me to keep improving the app at my own pace.
+
+**To be clear, this is not a fork against Droid-ify.** I have deep respect for the
+original project, its author and its vision for the codebase. Omnify
+simply serves a different need, my own, and only exists because Droid-ify gave it
+such a strong foundation.
 
 ---
 
