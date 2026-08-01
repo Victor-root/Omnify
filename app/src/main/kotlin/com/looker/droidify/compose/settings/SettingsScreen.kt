@@ -45,6 +45,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -155,6 +156,10 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val isTelevision = LocalIsTelevision.current
+    // The two-pane detail view only ever applies on a tablet-width screen (see AppDetailScreen's own
+    // isTablet check, the same 600dp breakpoint) — offering the toggle on a phone would do nothing
+    // visible there, so the setting itself is hidden instead.
+    val isTablet = !isTelevision && LocalConfiguration.current.screenWidthDp >= 600
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val customButtons by viewModel.customButtons.collectAsStateWithLifecycle()
     val isBackgroundAllowed by viewModel.isBackgroundAllowed.collectAsStateWithLifecycle()
@@ -319,8 +324,8 @@ fun SettingsScreen(
                 }
             }
 
-            // Page-swiping, edge-to-edge and the two-pane detail view are phone/tablet concerns — none
-            // apply to a D-pad TV, so they're hidden there.
+            // Page-swiping and edge-to-edge are phone/tablet concerns — neither applies to a D-pad TV,
+            // so they're hidden there.
             if (!isTelevision) {
                 item {
                     SwitchSettingItem(
@@ -341,7 +346,9 @@ fun SettingsScreen(
                         onCheckedChange = viewModel::setEdgeToEdge,
                     )
                 }
+            }
 
+            if (isTablet) {
                 item {
                     SwitchSettingItem(
                         title = stringResource(R.string.split_view_title),
