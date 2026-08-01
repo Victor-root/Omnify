@@ -47,6 +47,8 @@ import com.looker.droidify.compose.externalApps.navigation.navigateToExternalAcc
 import com.looker.droidify.compose.externalApps.navigation.navigateToExternalAppDetail
 import com.looker.droidify.compose.repoList.navigation.navigateToRepoList
 import com.looker.droidify.compose.repoList.navigation.repoList
+import com.looker.droidify.compose.settings.hiddenApps.navigation.hiddenApps
+import com.looker.droidify.compose.settings.hiddenApps.navigation.navigateToHiddenApps
 import com.looker.droidify.compose.settings.navigation.navigateToSettings
 import com.looker.droidify.compose.settings.navigation.settings
 import com.looker.droidify.compose.theme.DroidifyTheme
@@ -689,7 +691,10 @@ class MainComposeActivity : ComponentActivity() {
                         settings(
                             onBackClick = { navController.popBackStack() },
                             onOpenEasterEgg = { navController.navigateToEasterEgg() },
+                            onNavigateToHiddenApps = { navController.navigateToHiddenApps() },
                         )
+
+                        hiddenApps(onBackClick = { navController.popBackStack() })
 
                         easterEgg(onBackClick = { navController.popBackStack() })
                     }

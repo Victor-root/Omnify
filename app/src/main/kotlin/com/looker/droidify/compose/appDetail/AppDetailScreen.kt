@@ -120,6 +120,7 @@ import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
+import com.looker.droidify.compose.components.HideAppAction
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.LinkRow
@@ -197,6 +198,7 @@ fun AppDetailScreen(
     val downloadStatus by viewModel.downloadStatus.collectAsStateWithLifecycle()
     val downloadTargetVersionCode by viewModel.downloadTargetVersionCode.collectAsStateWithLifecycle()
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
+    val isHidden by viewModel.isHidden.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
     val remoteIcon by viewModel.remoteIcon.collectAsStateWithLifecycle()
     val pushCapabilityConfirmedAbsent by viewModel.pushCapabilityConfirmedAbsent.collectAsStateWithLifecycle()
@@ -478,6 +480,7 @@ fun AppDetailScreen(
                                 contentDescription = stringResource(R.string.share),
                             )
                         }
+                        HideAppAction(isHidden = isHidden, onToggle = viewModel::toggleHidden)
                     }
                     val successApp = successState?.app
                     if (translationEnabled && successApp != null &&

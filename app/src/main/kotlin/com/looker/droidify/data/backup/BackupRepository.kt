@@ -31,6 +31,7 @@ private const val ENTRY_SETTINGS = "settings.json"
 private const val ENTRY_REPOSITORIES = "repositories.json"
 private const val ENTRY_EXTERNAL_SOURCES = "external_sources.json"
 private const val ENTRY_FAVOURITES = "favourites.json"
+private const val ENTRY_HIDDEN_APPS = "hidden_apps.json"
 private const val ENTRY_CUSTOM_BUTTONS = "custom_buttons.json"
 
 private val CATEGORY_ENTRY_NAMES = mapOf(
@@ -38,6 +39,7 @@ private val CATEGORY_ENTRY_NAMES = mapOf(
     BackupCategory.REPOSITORIES to ENTRY_REPOSITORIES,
     BackupCategory.EXTERNAL_SOURCES to ENTRY_EXTERNAL_SOURCES,
     BackupCategory.FAVOURITES to ENTRY_FAVOURITES,
+    BackupCategory.HIDDEN_APPS to ENTRY_HIDDEN_APPS,
     BackupCategory.CUSTOM_BUTTONS to ENTRY_CUSTOM_BUTTONS,
 )
 
@@ -102,12 +104,12 @@ class BackupRepository @Inject constructor(
                         ),
                     )
                     if (BackupCategory.SETTINGS in categories) {
-                        // Favourites/enabled-repo-ids are zeroed here on purpose — they're their own
-                        // categories (FAVOURITES, and the per-repo `enabled` field inside
-                        // REPOSITORIES), never re-derived from this entry on restore. See
+                        // Favourites/hidden apps/enabled-repo-ids are zeroed here on purpose: they're
+                        // their own categories (FAVOURITES, HIDDEN_APPS, and the per-repo `enabled`
+                        // field inside REPOSITORIES), never re-derived from this entry on restore. See
                         // BackupCategory's own doc comment for why they're split out at all.
                         val settings = settingsRepository.getInitial()
-                            .copy(favouriteApps = emptySet(), enabledRepoIds = emptySet())
+                            .copy(favouriteApps = emptySet(), hiddenApps = emptySet(), enabledRepoIds = emptySet())
                         zip.writeEntry(ENTRY_SETTINGS, json.encodeToString(settings))
                     }
                     if (BackupCategory.REPOSITORIES in categories) {
@@ -138,6 +140,10 @@ class BackupRepository @Inject constructor(
                     if (BackupCategory.FAVOURITES in categories) {
                         val favourites = FavouritesBackup(settingsRepository.getInitial().favouriteApps)
                         zip.writeEntry(ENTRY_FAVOURITES, json.encodeToString(favourites))
+                    }
+                    if (BackupCategory.HIDDEN_APPS in categories) {
+                        val hiddenApps = HiddenAppsBackup(settingsRepository.getInitial().hiddenApps)
+                        zip.writeEntry(ENTRY_HIDDEN_APPS, json.encodeToString(hiddenApps))
                     }
                     if (BackupCategory.CUSTOM_BUTTONS in categories) {
                         val buttons = CustomButtonsBackup(customButtonRepository.getButtons())
@@ -175,6 +181,11 @@ class BackupRepository @Inject constructor(
                     val backup = json.decodeFromString<FavouritesBackup>(inspection.entries.getValue(ENTRY_FAVOURITES))
                     restoreFavourites(backup.packageNames)
                 }
+                if (BackupCategory.HIDDEN_APPS in toRestore) {
+                    val backup =
+                        json.decodeFromString<HiddenAppsBackup>(inspection.entries.getValue(ENTRY_HIDDEN_APPS))
+                    restoreHiddenApps(backup.packageNames)
+                }
                 if (BackupCategory.REPOSITORIES in toRestore) {
                     val backup =
                         json.decodeFromString<RepositoriesBackup>(inspection.entries.getValue(ENTRY_REPOSITORIES))
@@ -200,6 +211,7 @@ class BackupRepository @Inject constructor(
         settingsRepository.applySettings(
             imported.copy(
                 favouriteApps = current.favouriteApps,
+                hiddenApps = current.hiddenApps,
                 enabledRepoIds = current.enabledRepoIds,
             ),
         )
@@ -218,6 +230,13 @@ class BackupRepository @Inject constructor(
         // toggleFavourites() adds when absent, removes when present — only call it for names genuinely
         // missing from the current set, so an already-favourited app is never accidentally un-favourited.
         (packageNames - current).forEach { settingsRepository.toggleFavourites(it) }
+    }
+
+    private suspend fun restoreHiddenApps(packageNames: Set<String>) {
+        val current = settingsRepository.getInitial().hiddenApps
+        // Same reasoning as restoreFavourites(): only toggle names genuinely missing from the current
+        // set, so an already-hidden app is never accidentally unhidden.
+        (packageNames - current).forEach { settingsRepository.toggleHidden(it) }
     }
 
     private suspend fun restoreRepositories(imported: List<RepoBackupEntry>) {

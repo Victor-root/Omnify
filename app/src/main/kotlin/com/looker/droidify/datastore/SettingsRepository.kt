@@ -72,6 +72,8 @@ interface SettingsRepository {
 
     suspend fun toggleFavourites(packageName: String)
 
+    suspend fun toggleHidden(packageName: String)
+
     suspend fun toggleRepoSectionCollapsed(sectionKey: String)
 
     suspend fun setRepoEnabled(repoId: Int, enabled: Boolean)

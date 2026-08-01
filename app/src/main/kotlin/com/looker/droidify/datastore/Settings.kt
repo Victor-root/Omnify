@@ -60,6 +60,10 @@ data class Settings(
     val lastRbLogFetch: Long? = null,
     val lastModifiedDownloadStats: Long? = null,
     val favouriteApps: Set<String> = emptySet(),
+    /** Keys of apps hidden from every listing (Discover, Installed, Updates, …): a catalogue app's
+     *  package name, or an external app's [com.looker.droidify.external.ExternalApp.key], same scheme
+     *  as [favouriteApps]. */
+    val hiddenApps: Set<String> = emptySet(),
     val homeScreenSwiping: Boolean = false,
     val enabledRepoIds: Set<Int> = emptySet(),
     val deleteApkOnInstall: Boolean = false,

@@ -34,6 +34,7 @@ fun backupCategoryLabel(category: BackupCategory): String = stringResource(
         BackupCategory.REPOSITORIES -> R.string.backup_category_repositories
         BackupCategory.EXTERNAL_SOURCES -> R.string.backup_category_external_sources
         BackupCategory.FAVOURITES -> R.string.backup_category_favourites
+        BackupCategory.HIDDEN_APPS -> R.string.backup_category_hidden_apps
         BackupCategory.CUSTOM_BUTTONS -> R.string.backup_category_custom_buttons
     },
 )
@@ -46,6 +47,7 @@ fun backupCategoryDescription(category: BackupCategory): String = stringResource
         BackupCategory.REPOSITORIES -> R.string.backup_category_repositories_DESC
         BackupCategory.EXTERNAL_SOURCES -> R.string.backup_category_external_sources_DESC
         BackupCategory.FAVOURITES -> R.string.backup_category_favourites_DESC
+        BackupCategory.HIDDEN_APPS -> R.string.backup_category_hidden_apps_DESC
         BackupCategory.CUSTOM_BUTTONS -> R.string.backup_category_custom_buttons_DESC
     },
 )
@@ -54,7 +56,7 @@ fun backupCategoryDescription(category: BackupCategory): String = stringResource
  * The single checkbox-selection dialog shared by both the backup and the restore flow (see
  * [com.looker.droidify.compose.settings.SettingsScreen]) — which categories to write into a new backup
  * zip, or which ones to apply out of an inspected one. [availableCategories] is every category the
- * caller can offer right now (all five when creating a backup; only whatever
+ * caller can offer right now (all six when creating a backup; only whatever
  * [com.looker.droidify.data.backup.BackupInspection.availableCategories] found in the archive when
  * restoring), and starts fully checked so the common case — everything — is a single confirm tap.
  */

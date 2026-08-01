@@ -50,4 +50,7 @@ data class ExternalSourcesBackup(
 data class FavouritesBackup(val packageNames: Set<String> = emptySet())
 
 @Serializable
+data class HiddenAppsBackup(val packageNames: Set<String> = emptySet())
+
+@Serializable
 data class CustomButtonsBackup(val buttons: List<CustomButton> = emptyList())

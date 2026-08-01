@@ -96,3 +96,9 @@ fun App.minimal() = AppMinimal(
     icon = metadata.icon,
     suggestedVersion = metadata.suggestedVersionName,
 )
+
+/** Removes every app whose package name is in [hidden] (the user's hidden-apps set,
+ *  [com.looker.droidify.datastore.Settings.hiddenApps]): the one filter every catalogue listing applies
+ *  so a hidden app never resurfaces anywhere. */
+fun List<AppMinimal>.excludingHidden(hidden: Set<String>): List<AppMinimal> =
+    if (hidden.isEmpty()) this else filterNot { it.packageName.name in hidden }

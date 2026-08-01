@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -100,6 +101,7 @@ fun TvExternalAppDetailScreen(
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     val expectedSignersByApkUrl by viewModel.expectedSignersByApkUrl.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
+    val hiddenApps by viewModel.hidden.collectAsStateWithLifecycle()
     val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
 
@@ -380,6 +382,14 @@ fun TvExternalAppDetailScreen(
                 TvFavouriteButton(
                     isFavourite = app.key in favourites,
                     onToggle = { viewModel.toggleFavourite(app) },
+                )
+            }
+            // Own row: keeps the action/favourite row above at its already-tuned width budget instead of
+            // squeezing a third pill button into it.
+            Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+                TvHideButton(
+                    isHidden = app.key in hiddenApps,
+                    onToggle = { viewModel.toggleHidden(app) },
                 )
             }
         }

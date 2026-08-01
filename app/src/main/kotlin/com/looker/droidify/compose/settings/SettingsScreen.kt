@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ViewColumn
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -152,6 +153,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBackClick: () -> Unit,
     onOpenEasterEgg: () -> Unit,
+    onNavigateToHiddenApps: () -> Unit,
     highlightGithubToken: Boolean = false,
 ) {
     val context = LocalContext.current
@@ -358,6 +360,15 @@ fun SettingsScreen(
                         onCheckedChange = viewModel::setSplitViewEnabled,
                     )
                 }
+            }
+
+            item {
+                ActionSettingItem(
+                    title = stringResource(R.string.hidden_apps_title),
+                    description = stringResource(R.string.hidden_apps_DESC),
+                    icon = rememberVectorPainter(Icons.Filled.VisibilityOff),
+                    onClick = onNavigateToHiddenApps,
+                )
             }
 
             item {

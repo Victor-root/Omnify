@@ -28,6 +28,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -106,6 +108,7 @@ fun TvAppDetailScreen(
     val downloadStatus by viewModel.downloadStatus.collectAsStateWithLifecycle()
     val downloadTargetVersionCode by viewModel.downloadTargetVersionCode.collectAsStateWithLifecycle()
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
+    val isHidden by viewModel.isHidden.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
     // Set once the hero icon actually loads (see the AppMinimalIcon call below); reset per screen
@@ -365,6 +368,11 @@ fun TvAppDetailScreen(
                         )
                         TvFavouriteButton(isFavourite = isFavourite, onToggle = viewModel::toggleFavourite)
                     }
+                    // Own row: keeps the action/favourite row above at its already-tuned width budget
+                    // instead of squeezing a third pill button into it.
+                    Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+                        TvHideButton(isHidden = isHidden, onToggle = viewModel::toggleHidden)
+                    }
                 }
 
                 if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
@@ -505,6 +513,24 @@ internal fun TvFavouriteButton(isFavourite: Boolean, onToggle: () -> Unit, modif
         )
         Spacer(Modifier.width(10.dp))
         Text(stringResource(R.string.favourites))
+    }
+}
+
+/** The hide/unhide toggle button (eye + label). See [com.looker.droidify.datastore.Settings.hiddenApps].
+ *  Crossed-out eye and muted tint once hidden. Shared by both TV detail screens. */
+@Composable
+internal fun TvHideButton(isHidden: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    FilledTonalButton(
+        onClick = onToggle,
+        modifier = modifier.height(60.dp).widthIn(min = 200.dp).tvFocusScale(1.10f).tvBringIntoViewOnFocus(),
+    ) {
+        Icon(
+            imageVector = if (isHidden) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+            contentDescription = null,
+            tint = if (isHidden) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(stringResource(if (isHidden) R.string.unhide_app else R.string.hide_app))
     }
 }
 

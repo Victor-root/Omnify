@@ -79,6 +79,17 @@ class PreferenceSettingsRepositoryTest {
     }
 
     @Test
+    fun `toggleHidden adds and removes package`() = runTest {
+        repository.toggleHidden("com.example.app")
+        var settings = repository.getInitial()
+        assertTrue(settings.hiddenApps.contains("com.example.app"))
+
+        repository.toggleHidden("com.example.app")
+        settings = repository.getInitial()
+        assertFalse(settings.hiddenApps.contains("com.example.app"))
+    }
+
+    @Test
     fun `setRepoEnabled manages enabled repos`() = runTest {
         repository.setRepoEnabled(1, true)
         repository.setRepoEnabled(2, true)

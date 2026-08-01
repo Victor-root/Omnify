@@ -12,6 +12,7 @@ import com.looker.droidify.data.SuggestedVersion
 import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
+import com.looker.droidify.data.model.excludingHidden
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
@@ -66,6 +67,10 @@ class AppListViewModel @Inject constructor(
     private val _favouritesOnly = MutableStateFlow(false)
     val favouritesOnly: StateFlow<Boolean> = _favouritesOnly
     private val favouriteApps: Flow<Set<String>> = settingsRepository.get { favouriteApps }.distinctUntilChanged()
+
+    // Apps hidden from every listing on this screen (Available/Installed/Updates, every Discover
+    // carousel). See AppMinimal.excludingHidden, applied at each list-producing flow below.
+    private val hiddenApps: Flow<Set<String>> = settingsRepository.get { hiddenApps }.distinctUntilChanged()
 
     // TV-only filter (Android TV only — see AppListScreen's header toggle). Session-only like
     // favouritesOnly above, not persisted: it's a "just for this browsing session" narrowing, not a
@@ -128,13 +133,14 @@ class AppListViewModel @Inject constructor(
     }
         .combine(catalogChanges) { query, _ -> query }
         .combine(tvPackageNames) { query, tvNames -> query to tvNames }
-        .mapLatest { (query, tvNames) ->
+        .combine(hiddenApps) { pair, hidden -> Triple(pair.first, pair.second, hidden) }
+        .mapLatest { (query, tvNames, hidden) ->
             val items = appRepository.apps(
                 // The sort picker was removed; the main list always shows the freshest apps first.
                 sortOrder = SortOrder.UPDATED,
                 searchQuery = query.search,
                 categoriesToInclude = query.categories.toList(),
-            )
+            ).excludingHidden(hidden)
             val favFiltered = if (query.favOnly) {
                 items.filter { it.packageName.name in query.favSet }
             } else {
@@ -329,8 +335,10 @@ class AppListViewModel @Inject constructor(
     }
 
     /** "What's new" carousel on the Discover home — the most recently added apps. */
-    val newApps: StateFlow<List<AppMinimal>> = catalogChanges
-        .mapLatest { appRepository.apps(sortOrder = SortOrder.ADDED).take(DISCOVER_ROW_COUNT) }
+    val newApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
+        .mapLatest { hidden ->
+            appRepository.apps(sortOrder = SortOrder.ADDED).excludingHidden(hidden).take(DISCOVER_ROW_COUNT)
+        }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
@@ -338,9 +346,11 @@ class AppListViewModel @Inject constructor(
     /** "Recently updated" carousel on the Discover home. Restricted to apps that have actually been
      *  updated since they were added, so it isn't a duplicate of the "New apps" carousel (a brand-new
      *  app has lastUpdated == added and would otherwise head both lists identically). */
-    val recentlyUpdatedApps: StateFlow<List<AppMinimal>> = catalogChanges
-        .mapLatest {
-            appRepository.apps(sortOrder = SortOrder.UPDATED, updatedOnly = true).take(DISCOVER_ROW_COUNT)
+    val recentlyUpdatedApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
+        .mapLatest { hidden ->
+            appRepository.apps(sortOrder = SortOrder.UPDATED, updatedOnly = true)
+                .excludingHidden(hidden)
+                .take(DISCOVER_ROW_COUNT)
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
@@ -350,21 +360,21 @@ class AppListViewModel @Inject constructor(
      *  when either the catalogue or the download-stats table changes; empty until the stats worker has
      *  fetched data, so the carousel stays hidden until then. */
     val mostDownloadedApps: StateFlow<List<AppMinimal>> =
-        combine(catalogChanges, statsChanges) { catalog, stats -> catalog to stats }
-            .mapLatest { appRepository.mostDownloadedApps(DISCOVER_ROW_COUNT) }
+        combine(catalogChanges, statsChanges, hiddenApps) { _, _, hidden -> hidden }
+            .mapLatest { hidden -> appRepository.mostDownloadedApps(DISCOVER_ROW_COUNT).excludingHidden(hidden) }
             .distinctUntilChanged()
             .flowOn(Dispatchers.Default)
             .asStateFlow(emptyList())
 
     /** "Shizuku" carousel on the Discover home — apps that declare the Shizuku permission, i.e. apps
      *  that can use Shizuku for elevated actions without root. Empty (row hidden) when none are found. */
-    val shizukuApps: StateFlow<List<AppMinimal>> = catalogChanges
-        .mapLatest {
+    val shizukuApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
+        .mapLatest { hidden ->
             val apps = appRepository.apps(
                 sortOrder = SortOrder.UPDATED,
                 permissionsToInclude = listOf(SHIZUKU_PERMISSION),
             )
-            shizukuFirst(apps).take(DISCOVER_ROW_COUNT)
+            shizukuFirst(apps).excludingHidden(hidden).take(DISCOVER_ROW_COUNT)
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
@@ -372,8 +382,8 @@ class AppListViewModel @Inject constructor(
 
     /** "Root" carousel on the Discover home — apps that need or use root (the superuser permission or
      *  strong root phrasing in their text; see AppDao.rootApps). Empty (row hidden) when none found. */
-    val rootApps: StateFlow<List<AppMinimal>> = catalogChanges
-        .mapLatest { appRepository.rootApps(DISCOVER_ROW_COUNT) }
+    val rootApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
+        .mapLatest { hidden -> appRepository.rootApps(DISCOVER_ROW_COUNT).excludingHidden(hidden) }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
@@ -400,8 +410,8 @@ class AppListViewModel @Inject constructor(
      *  carousel almost empty. Shown only on the TV build (the caller gates the UI too), so couch users
      *  get a row of apps that actually work with a remote. The query is skipped entirely off TV to spare
      *  the work. */
-    val tvApps: StateFlow<List<AppMinimal>> = catalogChanges
-        .mapLatest {
+    val tvApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
+        .mapLatest { hidden ->
             if (!isTelevisionDevice) {
                 emptyList()
             } else {
@@ -410,7 +420,7 @@ class AppListViewModel @Inject constructor(
                     featuresToInclude = listOf(LEANBACK_FEATURE),
                     categoriesToInclude = TV_RELEVANT_CATEGORIES,
                     featuresOrCategories = true,
-                ).take(DISCOVER_ROW_COUNT)
+                ).excludingHidden(hidden).take(DISCOVER_ROW_COUNT)
             }
         }
         .distinctUntilChanged()
@@ -420,28 +430,30 @@ class AppListViewModel @Inject constructor(
     /** Full app list for the carousel page the user opened via "see all" (empty when none is open).
      *  Unlike the carousels above, this isn't capped to a row — it's the whole section. */
     val openedSectionApps: StateFlow<List<AppMinimal>> =
-        combine(catalogChanges, statsChanges, _openedSection) { _, _, section -> section }
-            .mapLatest { section ->
+        combine(catalogChanges, statsChanges, _openedSection, hiddenApps) { _, _, section, hidden -> section to hidden }
+            .mapLatest { (section, hidden) ->
                 when (section) {
                     SECTION_WHATS_NEW ->
-                        appRepository.apps(sortOrder = SortOrder.ADDED).take(SECTION_PAGE_LIMIT)
+                        appRepository.apps(sortOrder = SortOrder.ADDED).excludingHidden(hidden).take(SECTION_PAGE_LIMIT)
                     SECTION_RECENTLY_UPDATED ->
                         appRepository.apps(sortOrder = SortOrder.UPDATED, updatedOnly = true)
+                            .excludingHidden(hidden)
                             .take(SECTION_PAGE_LIMIT)
-                    SECTION_MOST_DOWNLOADED -> appRepository.mostDownloadedApps(SECTION_PAGE_LIMIT)
+                    SECTION_MOST_DOWNLOADED ->
+                        appRepository.mostDownloadedApps(SECTION_PAGE_LIMIT).excludingHidden(hidden)
                     SECTION_TV -> appRepository.apps(
                         sortOrder = SortOrder.UPDATED,
                         featuresToInclude = listOf(LEANBACK_FEATURE),
                         categoriesToInclude = TV_RELEVANT_CATEGORIES,
                         featuresOrCategories = true,
-                    ).take(SECTION_PAGE_LIMIT)
+                    ).excludingHidden(hidden).take(SECTION_PAGE_LIMIT)
                     SECTION_SHIZUKU -> shizukuFirst(
                         appRepository.apps(
                             sortOrder = SortOrder.UPDATED,
                             permissionsToInclude = listOf(SHIZUKU_PERMISSION),
                         ),
-                    ).take(SECTION_PAGE_LIMIT)
-                    SECTION_ROOT -> appRepository.rootApps(SECTION_PAGE_LIMIT)
+                    ).excludingHidden(hidden).take(SECTION_PAGE_LIMIT)
+                    SECTION_ROOT -> appRepository.rootApps(SECTION_PAGE_LIMIT).excludingHidden(hidden)
                     else -> emptyList()
                 }
             }
@@ -462,14 +474,14 @@ class AppListViewModel @Inject constructor(
 
     /** Apps for each currently-expanded category (capped), re-loaded when the catalogue changes. */
     val expandedSectionApps: StateFlow<Map<String, List<AppMinimal>>> =
-        combine(catalogChanges, _expandedSections) { catalog, sections -> catalog to sections }
-            .mapLatest { (_, sections) ->
+        combine(catalogChanges, _expandedSections, hiddenApps) { _, sections, hidden -> sections to hidden }
+            .mapLatest { (sections, hidden) ->
                 val result = mutableMapOf<String, List<AppMinimal>>()
                 for (category in sections) {
                     result[category] = appRepository.apps(
                         sortOrder = SortOrder.UPDATED,
                         categoriesToInclude = listOf(category),
-                    ).take(SECTION_EXPAND_LIMIT)
+                    ).excludingHidden(hidden).take(SECTION_EXPAND_LIMIT)
                 }
                 result.toMap()
             }

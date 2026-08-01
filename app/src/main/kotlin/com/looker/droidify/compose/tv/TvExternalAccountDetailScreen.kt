@@ -46,6 +46,7 @@ fun TvExternalAccountDetailScreen(
 ) {
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val apps by viewModel.apps.collectAsStateWithLifecycle()
+    val hiddenApps by viewModel.hidden.collectAsStateWithLifecycle()
     val installedKeys by viewModel.installedKeys.collectAsStateWithLifecycle()
 
     BackHandler { onBackClick() }
@@ -60,8 +61,9 @@ fun TvExternalAccountDetailScreen(
         return
     }
 
-    val accountApps = remember(apps, accountKey) {
-        apps.filter { it.accountKey == accountKey }.sortedBy { it.label.trim().lowercase() }
+    val accountApps = remember(apps, accountKey, hiddenApps) {
+        apps.filter { it.accountKey == accountKey && it.key !in hiddenApps }
+            .sortedBy { it.label.trim().lowercase() }
     }
     val contentFocus = remember { FocusRequester() }
     LaunchedEffect(accountApps.isEmpty()) { runCatching { contentFocus.requestFocus() } }

@@ -87,6 +87,7 @@ import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
+import com.looker.droidify.compose.components.HideAppAction
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.RootBadge
@@ -166,6 +167,7 @@ fun ExternalAppDetailScreen(
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val splitViewSettingEnabled by viewModel.splitViewEnabled.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
+    val hiddenApps by viewModel.hidden.collectAsStateWithLifecycle()
     val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
     // Set once the hero icon actually loads (see the ExternalAppIcon call below); reset per screen
@@ -501,6 +503,10 @@ fun ExternalAppDetailScreen(
                                 contentDescription = stringResource(R.string.share),
                             )
                         }
+                        HideAppAction(
+                            isHidden = app.key in hiddenApps,
+                            onToggle = { viewModel.toggleHidden(app) },
+                        )
                     }
                     // Only offer translation once there's a README to translate and an engine is set.
                     if (translationEnabled && readme != null) {

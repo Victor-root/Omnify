@@ -100,15 +100,21 @@ class ExternalAppsViewModel @Inject constructor(
 
     val apps: StateFlow<List<ExternalApp>> = repository.apps.asStateFlow(emptyList())
 
+    /** Keys of tracked apps the user has hidden from every app listing: the same store the F-Droid
+     *  catalogue's own hidden apps use ([SettingsRepository.toggleHidden]/`hiddenApps`), keyed by
+     *  [ExternalApp.key] for the same reason [favourites] is. */
+    val hidden: StateFlow<Set<String>> = settingsRepository.get { hiddenApps }.asStateFlow(emptySet())
+
     /** Enabled external apps whose latest release is recent (last [RECENT_WINDOW_DAYS] days), newest
      *  first — so they can join the catalogue's "recently updated" discovery row (same on phone and TV).
      *  Apps added before release dates were captured (null [ExternalApp.latestReleaseAt]) simply don't
      *  appear until a refresh backfills the date. */
     val recentlyUpdatedApps: StateFlow<List<ExternalApp>> = apps
-        .map { list ->
+        .combine(hidden) { list, hiddenKeys -> list to hiddenKeys }
+        .map { (list, hiddenKeys) ->
             val cutoff = System.currentTimeMillis() - RECENT_WINDOW_DAYS * 24L * 60 * 60 * 1000
             list.asSequence()
-                .filter { it.enabled && (it.latestReleaseAt ?: 0L) >= cutoff }
+                .filter { it.enabled && it.key !in hiddenKeys && (it.latestReleaseAt ?: 0L) >= cutoff }
                 .sortedByDescending { it.latestReleaseAt }
                 .take(RECENT_MAX)
                 .toList()
@@ -335,6 +341,11 @@ class ExternalAppsViewModel @Inject constructor(
     /** Adds or removes [app] from the user's favourites. */
     fun toggleFavourite(app: ExternalApp) {
         viewModelScope.launch { settingsRepository.toggleFavourites(app.key) }
+    }
+
+    /** Hides or unhides [app] from every app listing. */
+    fun toggleHidden(app: ExternalApp) {
+        viewModelScope.launch { settingsRepository.toggleHidden(app.key) }
     }
 
     /** Per-app system install state (Pending/Installing/…), keyed by [ExternalApp.key]. */

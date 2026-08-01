@@ -281,6 +281,11 @@
     <string name="material_you_desc">Utiliser les couleurs Material You</string>
     <string name="material_you">Material You</string>
     <string name="favourites">Favoris</string>
+    <string name="hide_app">Masquer l\'application</string>
+    <string name="unhide_app">Réafficher l\'application</string>
+    <string name="hidden_apps_title">Applications masquées</string>
+    <string name="hidden_apps_DESC">Retrouvez et réaffichez les applications que vous avez masquées</string>
+    <string name="no_hidden_apps">Aucune application masquée. Masquez-en une depuis sa propre page pour la voir apparaitre ici.</string>
     <string name="more_options">Plus</string>
     <string name="no_favourites">Aucun favori pour l\'instant. Touchez le cœur d\'une app pour l\'ajouter ici.</string>
     <string name="repository_unreachable">Dépôt inaccessible</string>
@@ -327,6 +332,8 @@
     <string name="backup_category_external_sources_DESC">Applications et comptes suivis sur GitHub, GitLab et Codeberg</string>
     <string name="backup_category_favourites">Favoris</string>
     <string name="backup_category_favourites_DESC">Applications que vous avez ajoutées aux favoris</string>
+    <string name="backup_category_hidden_apps">Applications masquées</string>
+    <string name="backup_category_hidden_apps_DESC">Applications que vous avez masquées</string>
     <string name="backup_category_custom_buttons">Boutons personnalisés</string>
     <string name="backup_category_custom_buttons_DESC">Liens personnalisés affichés sur la page d\'une application</string>
     <string name="external_sources_title">Sources externes</string>

@@ -120,6 +120,8 @@
     <string name="backup_category_external_sources_DESC">Apps and accounts tracked from GitHub, GitLab and Codeberg</string>
     <string name="backup_category_favourites">Favourites</string>
     <string name="backup_category_favourites_DESC">Apps you\'ve added to favourites</string>
+    <string name="backup_category_hidden_apps">Hidden apps</string>
+    <string name="backup_category_hidden_apps_DESC">Apps you\'ve hidden from every listing</string>
     <string name="backup_category_custom_buttons">Custom buttons</string>
     <string name="backup_category_custom_buttons_DESC">Custom links shown on an app\'s page</string>
     <string name="external_sources_title">External sources</string>
@@ -150,6 +152,11 @@
     <string name="auto_translate_DESC">Translate a description on open when it isn\'t already in your language</string>
     <string name="enable_repo">Enable repository</string>
     <string name="favourites">Favourites</string>
+    <string name="hide_app">Hide app</string>
+    <string name="unhide_app">Unhide app</string>
+    <string name="hidden_apps_title">Hidden apps</string>
+    <string name="hidden_apps_DESC">See and unhide apps you\'ve hidden from every list</string>
+    <string name="no_hidden_apps">No hidden apps. Hide one from its own page to see it listed here.</string>
     <string name="more_options">More</string>
     <string name="no_favourites">No favourites yet. Tap the heart on an app to add it here.</string>
     <string name="file_format_error_DESC">Invalid file format</string>

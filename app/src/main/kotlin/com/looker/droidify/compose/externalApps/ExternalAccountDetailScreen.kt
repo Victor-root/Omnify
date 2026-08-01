@@ -81,6 +81,7 @@ fun ExternalAccountDetailScreen(
 ) {
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val apps by viewModel.apps.collectAsStateWithLifecycle()
+    val hiddenApps by viewModel.hidden.collectAsStateWithLifecycle()
     val installedKeys by viewModel.installedKeys.collectAsStateWithLifecycle()
 
     // Keep release tags / install state current on entry, exactly like the app detail screen.
@@ -90,8 +91,9 @@ fun ExternalAccountDetailScreen(
     }
 
     val account = accounts.firstOrNull { it.key == accountKey }
-    val accountApps = remember(apps, accountKey) {
-        apps.filter { it.accountKey == accountKey }.sortedBy { it.label.trim().lowercase() }
+    val accountApps = remember(apps, accountKey, hiddenApps) {
+        apps.filter { it.accountKey == accountKey && it.key !in hiddenApps }
+            .sortedBy { it.label.trim().lowercase() }
     }
     var selectedTab by remember { mutableStateOf(AccountDetailTab.INFO) }
 

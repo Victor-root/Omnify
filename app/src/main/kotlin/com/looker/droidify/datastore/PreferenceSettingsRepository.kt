@@ -160,6 +160,16 @@ class PreferenceSettingsRepository(
         }
     }
 
+    override suspend fun toggleHidden(packageName: String) {
+        dataStore.edit { preference ->
+            val currentSet = preference[HIDDEN_APPS] ?: emptySet()
+            val newSet = currentSet.updateAsMutable {
+                if (!add(packageName)) remove(packageName)
+            }
+            preference[HIDDEN_APPS] = newSet
+        }
+    }
+
     override suspend fun toggleRepoSectionCollapsed(sectionKey: String) {
         dataStore.edit { preference ->
             val currentSet = preference[COLLAPSED_REPO_SECTIONS] ?: emptySet()
@@ -273,6 +283,7 @@ class PreferenceSettingsRepository(
         val lastRbLogFetch = preferences[LAST_RB_FETCH]
         val lastModifiedDownloadStats = preferences[LAST_MODIFIED_DS]?.takeIf { it > 0L }
         val favouriteApps = preferences[FAVOURITE_APPS] ?: emptySet()
+        val hiddenApps = preferences[HIDDEN_APPS] ?: emptySet()
         val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: false
         val enabledRepoIds =
             preferences[ENABLED_REPO_IDS]?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
@@ -312,6 +323,7 @@ class PreferenceSettingsRepository(
             lastRbLogFetch = lastRbLogFetch,
             lastModifiedDownloadStats = lastModifiedDownloadStats,
             favouriteApps = favouriteApps,
+            hiddenApps = hiddenApps,
             homeScreenSwiping = homeScreenSwiping,
             enabledRepoIds = enabledRepoIds,
             deleteApkOnInstall = deleteApkOnInstall,
@@ -352,6 +364,7 @@ class PreferenceSettingsRepository(
         val LAST_RB_FETCH = longPreferencesKey("key_last_rb_logs_fetch_time")
         val LAST_MODIFIED_DS = longPreferencesKey("key_last_modified_download_stats")
         val FAVOURITE_APPS = stringSetPreferencesKey("key_favourite_apps")
+        val HIDDEN_APPS = stringSetPreferencesKey("key_hidden_apps")
         val HOME_SCREEN_SWIPING = booleanPreferencesKey("key_home_swiping")
         val DELETE_APK_ON_INSTALL = booleanPreferencesKey("key_delete_apk_on_install")
         val DOWNLOAD_STATISTICS_ENABLED = booleanPreferencesKey("key_download_statistics_enabled")
@@ -426,6 +439,7 @@ class PreferenceSettingsRepository(
             settings.lastRbLogFetch?.let { set(LAST_RB_FETCH, it) }
             settings.lastModifiedDownloadStats?.let { set(LAST_MODIFIED_DS, it) }
             set(FAVOURITE_APPS, settings.favouriteApps)
+            set(HIDDEN_APPS, settings.hiddenApps)
             set(HOME_SCREEN_SWIPING, settings.homeScreenSwiping)
             set(ENABLED_REPO_IDS, settings.enabledRepoIds.map { it.toString() }.toSet())
             set(DELETE_APK_ON_INSTALL, settings.deleteApkOnInstall)

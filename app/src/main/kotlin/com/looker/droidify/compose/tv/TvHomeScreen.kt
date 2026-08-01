@@ -124,6 +124,7 @@ fun TvHomeScreen(
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
 
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
+    val hiddenExternalApps by externalViewModel.hidden.collectAsStateWithLifecycle()
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
     val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
@@ -302,8 +303,10 @@ fun TvHomeScreen(
                 )
 
                 TvSection.EXTERNAL -> TvExternalGrid(
-                    // Same filter as the phone's External grid: narrow to TV-capable sources when on.
-                    apps = if (tvOnly) externalApps.filter { it.supportsTelevision } else externalApps,
+                    // Same filter as the phone's External grid: narrow to TV-capable sources when on,
+                    // and drop apps the user hid individually.
+                    apps = (if (tvOnly) externalApps.filter { it.supportsTelevision } else externalApps)
+                        .filterNot { it.key in hiddenExternalApps },
                     installedKeys = externalInstalledKeys,
                     onAppClick = openExternal,
                     githubTokenInvalid = githubTokenInvalid,

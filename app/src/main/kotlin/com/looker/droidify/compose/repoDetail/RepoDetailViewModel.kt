@@ -11,6 +11,9 @@ import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledIdentityRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.AppMinimal
+import com.looker.droidify.data.model.excludingHidden
+import com.looker.droidify.datastore.SettingsRepository
+import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.work.InstallAllWorker
@@ -34,6 +37,7 @@ class RepoDetailViewModel @Inject constructor(
     private val repoRepository: RepoRepository,
     private val appRepository: AppRepository,
     installedIdentityRepository: InstalledIdentityRepository,
+    settingsRepository: SettingsRepository,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -46,15 +50,18 @@ class RepoDetailViewModel @Inject constructor(
         .map { repo -> repo?.let { r -> defaultRepoName(r.address)?.let { r.copy(name = it) } ?: r } }
         .asStateFlow(null)
 
+    private val hiddenApps = settingsRepository.get { hiddenApps }
+
     /** Every app this repository serves, alphabetical — refetched whenever the catalogue changes
      *  (e.g. a sync just added/updated rows) so the tab stays live without a manual refresh. */
     val apps: StateFlow<List<AppMinimal>> = repo
         .combine(appRepository.catalogChanges) { repo, _ -> repo }
-        .mapLatest { repo ->
+        .combine(hiddenApps) { repo, hidden -> repo to hidden }
+        .mapLatest { (repo, hidden) ->
             if (repo == null) {
                 emptyList()
             } else {
-                appRepository.apps(sortOrder = SortOrder.NAME, repoId = repo.id)
+                appRepository.apps(sortOrder = SortOrder.NAME, repoId = repo.id).excludingHidden(hidden)
             }
         }
         .flowOn(Dispatchers.Default)

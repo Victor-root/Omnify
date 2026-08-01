@@ -322,6 +322,7 @@ fun AppListScreen(
     // external detail screen, where the install lifecycle lives — exactly like the other tabs.
     val externalViewModel: ExternalAppsViewModel = hiltViewModel()
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
+    val hiddenExternalApps by externalViewModel.hidden.collectAsStateWithLifecycle()
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
     val externalInstalledVersions by externalViewModel.installedVersions.collectAsStateWithLifecycle()
@@ -340,7 +341,11 @@ fun AppListScreen(
         externalViewModel.reconcileInstalledLabels()
     }
     // Disabled sources are hidden from the catalogue and updates, exactly like a disabled F-Droid repo.
-    val enabledExternalApps = remember(externalApps) { externalApps.filter { it.enabled } }
+    // Apps the user hid individually are excluded here too, so every list derived below (the grid, the
+    // TV row, the Updates tab) never has to check hiddenExternalApps itself.
+    val enabledExternalApps = remember(externalApps, hiddenExternalApps) {
+        externalApps.filter { it.enabled && it.key !in hiddenExternalApps }
+    }
     // External sources whose repo manifest declares Android TV support — shown in the "Made for TV" row
     // alongside the F-Droid TV apps (TV only).
     val tvExternalApps = remember(enabledExternalApps) {
