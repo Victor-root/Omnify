@@ -55,7 +55,10 @@ Good pull requests:
 * 🎯 fix one clear problem, and avoid unrelated refactors
 * 📱 keep phone/tablet behavior working · 📺 keep Android TV behavior working
 * 📦 don't break the F-Droid-repo path while fixing an external-source one (or vice versa)
+* 🎨 any UI addition or change matches the existing design exactly: spacing, alignment, theming, interaction patterns
 * 🧪 include tests when practical, and explain what was tested manually
+
+**UI polish matters as much as correctness.** The interface is one of the most important parts of the experience here, so a visual addition or change (a new setting, a new row, a new dialog...) is expected to blend in perfectly with what's already there, not just work. Something that's slightly off compared to its neighbors, an option that doesn't line up with the ones around it, spacing that's a bit inconsistent, a control that ignores an existing pattern, won't get an outright close, but expect a request for changes before it gets merged. This obviously doesn't apply when a PR doesn't touch the UI at all (a backend fix, a sync bug, ...).
 
 Please avoid mixing unrelated changes into the same pull request. Opening several PRs, though, is very welcome if that's what it takes to keep each one focused: working on three unrelated fixes? Three small PRs are much easier (and faster) to review than one big one, and there's no limit on how many you can open at once.
 
@@ -65,6 +68,7 @@ Examples:
 * ✅ good: a translation fix
 * ✅ also good: the three above, as three separate PRs from the same person
 * ⚠️ not ideal: a sync fix + a UI redesign + a dependency bump, all in one PR
+* ⚠️ not ideal: a new settings option that doesn't line up with the ones around it
 
 ---
 
