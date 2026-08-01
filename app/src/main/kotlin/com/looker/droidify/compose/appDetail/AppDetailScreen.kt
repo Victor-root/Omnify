@@ -54,7 +54,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -110,6 +109,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
 import com.looker.droidify.compose.appDetail.components.PackageItem
 import com.looker.droidify.compose.appList.AppMinimalIcon
+import com.looker.droidify.compose.components.AccentScrollableTabRow
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.CountBadge
@@ -142,6 +142,7 @@ import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.theme.LocalIsTelevision
+import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.FilePath
@@ -1296,12 +1297,7 @@ private fun AppDetailBody(
  * The repo tabs (when more than one offers the app) and the version list — extracted only so
  * [AppDetail] can wrap it in a single [onGloballyPositioned] anchor for the hero card's "see all
  * versions" link; the content is unchanged.
- *
- * Uses the deprecated [ScrollableTabRow] rather than its suggested Primary/Secondary replacements:
- * those default to a different colour variant than this row currently shows (no colours/indicator are
- * overridden here), so swapping would risk a real look change rather than a mechanical rename.
  */
-@Suppress("DEPRECATION")
 @Composable
 private fun VersionsSection(
     packages: List<Pair<Package, Repo>>,
@@ -1333,7 +1329,7 @@ private fun VersionsSection(
         val firstVersionFocusRequester = remember { FocusRequester() }
         if (repos.size > 1) {
             val selectedIndex = repos.indexOfFirst { it.id == selectedRepoId }.coerceAtLeast(0)
-            ScrollableTabRow(
+            AccentScrollableTabRow(
                 selectedTabIndex = selectedIndex,
                 edgePadding = 16.dp,
                 modifier = Modifier.fillMaxWidth().tvDpadDownTo(firstVersionFocusRequester, debugLabel = "repo-tabs"),
@@ -1342,6 +1338,10 @@ private fun VersionsSection(
                     Tab(
                         selected = index == selectedIndex,
                         onClick = { selectedRepoId = repo.id },
+                        // TV only: the focused tab scales up. No-op on touch.
+                        modifier = Modifier.tvFocusScale(),
+                        selectedContentColor = LocalOnAccentBarColor.current,
+                        unselectedContentColor = LocalOnAccentBarColor.current.copy(alpha = 0.7f),
                         text = { Text(repo.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     )
                 }

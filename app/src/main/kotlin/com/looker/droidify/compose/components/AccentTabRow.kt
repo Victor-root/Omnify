@@ -9,11 +9,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.TabPosition
 import androidx.compose.material3.TabRow
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.compose.theme.LocalAccentBarColor
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
@@ -44,23 +47,52 @@ fun AccentTabRow(
         selectedTabIndex = selectedTabIndex,
         containerColor = LocalAccentBarColor.current,
         contentColor = LocalOnAccentBarColor.current,
-        indicator = { tabPositions ->
-            if (selectedTabIndex < tabPositions.size) {
-                val pos = tabPositions[selectedTabIndex]
-                val pillWidth = 28.dp
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .wrapContentSize(Alignment.BottomStart)
-                        .offset(x = pos.left + (pos.width - pillWidth) / 2, y = (-8).dp)
-                        .width(pillWidth)
-                        .height(5.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(LocalOnAccentBarColor.current),
-                )
-            }
-        },
+        indicator = { tabPositions -> AccentTabIndicator(selectedTabIndex, tabPositions) },
         divider = {},
         tabs = tabs,
     )
+}
+
+/**
+ * [AccentTabRow]'s scrollable counterpart, for a tab count that isn't fixed ahead of time (e.g. one tab
+ * per repository offering an app) and can outgrow an even, fixed-width split. Same chrome, just built on
+ * [ScrollableTabRow] instead of [TabRow].
+ */
+@Suppress("DEPRECATION")
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AccentScrollableTabRow(
+    selectedTabIndex: Int,
+    edgePadding: Dp,
+    modifier: Modifier = Modifier,
+    tabs: @Composable () -> Unit,
+) {
+    ScrollableTabRow(
+        modifier = modifier,
+        selectedTabIndex = selectedTabIndex,
+        containerColor = LocalAccentBarColor.current,
+        contentColor = LocalOnAccentBarColor.current,
+        edgePadding = edgePadding,
+        indicator = { tabPositions -> AccentTabIndicator(selectedTabIndex, tabPositions) },
+        divider = {},
+        tabs = tabs,
+    )
+}
+
+@Composable
+private fun AccentTabIndicator(selectedTabIndex: Int, tabPositions: List<TabPosition>) {
+    if (selectedTabIndex < tabPositions.size) {
+        val pos = tabPositions[selectedTabIndex]
+        val pillWidth = 28.dp
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .wrapContentSize(Alignment.BottomStart)
+                .offset(x = pos.left + (pos.width - pillWidth) / 2, y = (-8).dp)
+                .width(pillWidth)
+                .height(5.dp)
+                .clip(RoundedCornerShape(50))
+                .background(LocalOnAccentBarColor.current),
+        )
+    }
 }
