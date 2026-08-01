@@ -26,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -90,6 +89,7 @@ import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.HideAppAction
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
+import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.components.RootBadge
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionSeparator
@@ -1142,7 +1142,7 @@ private fun ExternalAppDetailBody(
                 .padding(40.dp),
             contentAlignment = Alignment.Center,
         ) {
-            CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
+            LoadingSpinner(modifier = Modifier.size(36.dp))
         }
     }
 
@@ -1305,7 +1305,7 @@ private fun ExternalVersionsSection(
                     .tvReadable(debugLabel = "versions-loading-row")
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
-                CircularWavyProgressIndicator(modifier = Modifier.size(16.dp))
+                LoadingSpinner(modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(12.dp))
                 Text(
                     text = stringResource(R.string.loading),

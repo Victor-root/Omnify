@@ -127,6 +127,13 @@ fun SupportedLanguagesSection(languages: SupportedLanguages) {
                     // isLoading) — a loading bar instead of that in-between text, so nothing shown
                     // here ever has to be walked back once the real answer comes in.
                     LinearWavyProgressIndicator(
+                        // Explicit, neutral track: the default trackColor is a container role, which
+                        // ScopedAccentColor's icon-matching mode (see Theme.kt's withVividAccent) raw-
+                        // accents to the same vivid colour as the indicator itself, so the two became
+                        // indistinguishable. A plain surface tone keeps the track visible against the
+                        // indicator in every mode and scope, matching how it already looks when icon-
+                        // matching is off.
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 4.dp),

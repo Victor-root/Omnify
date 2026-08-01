@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,7 +72,7 @@ fun TranslateAction(
     ) {
         if (loading) {
             Box(contentAlignment = Alignment.Center) {
-                CircularWavyProgressIndicator(
+                LoadingSpinner(
                     modifier = Modifier.size(30.dp),
                     color = LocalContentColor.current,
                 )

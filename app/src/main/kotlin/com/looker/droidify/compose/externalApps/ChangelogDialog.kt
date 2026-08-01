@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +44,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -228,7 +228,7 @@ fun ChangelogDialog(
                         modifier = Modifier.padding(contentPadding).fillMaxSize(),
                         contentAlignment = Alignment.Center,
                     ) {
-                        CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
+                        LoadingSpinner(modifier = Modifier.size(36.dp))
                     }
                 }
             }

@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Button
@@ -76,6 +75,7 @@ import com.looker.droidify.data.model.Repo
 import androidx.compose.foundation.layout.Arrangement
 import com.looker.droidify.compose.externalApps.ReadmeWebView
 import com.looker.droidify.compose.components.CertificateSection
+import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
@@ -672,7 +672,7 @@ internal fun TvReadmePreview(
                     .height(if (contentHeightPx > 0) with(density) { contentHeightPx.toDp() } else 600.dp),
             )
             if (contentHeightPx <= 0) {
-                CircularWavyProgressIndicator(modifier = Modifier.size(32.dp))
+                LoadingSpinner(modifier = Modifier.size(32.dp))
             }
         }
         TvOpenDescriptionButton(onClick = onOpenFull)

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvPageScroll
@@ -135,7 +135,7 @@ fun TvReadmeScreen(
                         // the WebView itself (network images, heavy markdown): keep the spinner up until it
                         // reports its first real content height, instead of a blank page in between.
                         if (heightPx <= 0) {
-                            CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
+                            LoadingSpinner(modifier = Modifier.size(36.dp))
                         }
                     }
                 }
@@ -168,7 +168,7 @@ fun TvReadmeScreen(
                 }
 
                 else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
+                    LoadingSpinner(modifier = Modifier.size(36.dp))
                 }
             }
         }

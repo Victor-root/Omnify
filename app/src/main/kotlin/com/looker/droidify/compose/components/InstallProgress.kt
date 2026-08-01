@@ -84,12 +84,9 @@ fun DownloadProgressRow(
         }
         val fraction = status.fraction
         if (fraction != null) {
-            LinearWavyProgressIndicator(
-                progress = { fraction },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            DownloadWavyProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
         } else {
-            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+            DownloadWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -124,7 +121,7 @@ fun InstallingRow(
                 Text(stringResource(R.string.cancel))
             }
         }
-        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+        DownloadWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -182,12 +179,27 @@ fun CompactInstallProgressRow(
         // 4.dp — squeezed down to fit this row — clipped the wave peaks, leaving what looked like a
         // flat bar instead of the same "zigouigoui" motion DownloadProgressRow/InstallingRow show.
         if (fraction != null) {
-            LinearWavyProgressIndicator(
-                progress = { fraction },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            DownloadWavyProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
         } else {
-            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+            DownloadWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
+    }
+}
+
+/**
+ * [LinearWavyProgressIndicator] with an explicit, neutral track colour instead of the default container
+ * role: that role reads the same raw-vivid colour as the indicator itself when ScopedAccentColor's
+ * icon-matching mode is on (see Theme.kt's withVividAccent), making the track and the indicator
+ * indistinguishable. A plain surface tone keeps the track visible in every mode and scope. Determinate
+ * when [progress] is given, indeterminate otherwise.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun DownloadWavyProgressIndicator(modifier: Modifier = Modifier, progress: (() -> Float)? = null) {
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    if (progress != null) {
+        LinearWavyProgressIndicator(progress = progress, trackColor = trackColor, modifier = modifier)
+    } else {
+        LinearWavyProgressIndicator(trackColor = trackColor, modifier = modifier)
     }
 }
