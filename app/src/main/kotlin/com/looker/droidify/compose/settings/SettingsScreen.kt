@@ -849,8 +849,10 @@ private fun VersionFooter(onEasterEgg: () -> Unit) {
                 style = MaterialTheme.typography.bodyLarge,
             )
             Text(
-                text = "${stringResource(R.string.version_FORMAT, BuildConfig.VERSION_NAME)} · " +
-                    BuildConfig.BUILD_TYPE,
+                text = stringResource(R.string.version_FORMAT, BuildConfig.VERSION_NAME) +
+                    // The version name already ends in "-beta.N" here, so the build type would just
+                    // repeat it right after.
+                    if (BuildConfig.BUILD_TYPE == "beta") "" else " · ${BuildConfig.BUILD_TYPE}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
