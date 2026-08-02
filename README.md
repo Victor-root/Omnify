@@ -146,8 +146,8 @@ already there, never wipes it.
 [**GitHub Releases**](https://github.com/Victor-root/Omnify/releases/latest).
 **Build from source:** see the [Building Guide](docs/building.md).
 
-> Requires Android 6.0 (API 23) or newer. Ships in English and full (formal)
-> French, with the other languages inherited from upstream.
+> Requires Android 6.0 (API 23) or newer. See **Language support** below for
+> translation coverage.
 
 **Verify:** every release is signed with the same certificate. Compare its
 SHA-256 fingerprint (e.g. via `apksigner verify --print-certs`) against:
@@ -155,6 +155,20 @@ SHA-256 fingerprint (e.g. via `apksigner verify --print-certs`) against:
 ```
 F2:2B:D7:B4:63:D8:D8:9C:A1:AC:3B:6C:41:DB:0B:25:AA:C7:7B:86:24:C9:70:E4:52:81:2D:32:19:42:A9:71
 ```
+
+---
+
+## 🗣️ Language support
+
+Omnify's own interface is fully translated in **English, French, German,
+Russian, Chinese (Simplified), Polish, Portuguese (Brazil), Spanish,
+Indonesian, Turkish, Italian, Dutch and Japanese**. Every other language
+inherited from upstream Droid-ify only has partial coverage: it's missing
+everything added in this fork.
+
+If you're a native speaker of any of these languages, a review pass to catch
+awkward phrasing or mistakes would be very welcome, and adding another
+language entirely is welcome too. See the [Contributing Guide](CONTRIBUTING.md).
 
 ---
 
