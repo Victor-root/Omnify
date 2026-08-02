@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,6 +46,9 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.wallpaperAccentColor
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** Android TV's default density (matched to the same dp-based layouts phones use, plus this app's own
  *  10-foot-UI size bumps — bigger tiles, bigger buttons, bigger focus scale) rendered noticeably larger
@@ -265,10 +269,24 @@ fun ScopedAccentColor(accentColor: Int?, content: @Composable () -> Unit) {
     // pressing back, even though the previous screen's own header had already reverted. ON_RESUME puts
     // it back for the other reason ON_PAUSE fires: the app itself backgrounding while still on this
     // screen, not a real navigation away.
+    //
+    // That second case also covers a brief system overlay on top of this screen (the share sheet, an
+    // app chooser, a permission prompt, …), which pauses this screen without really leaving it. Clearing
+    // the accent the instant ON_PAUSE fires flashed the navigation bar back to the app-wide colour for
+    // that split second before ON_RESUME put it back, visible precisely because opening one of those
+    // takes a moment. Delaying the clear briefly, and cancelling it if ON_RESUME arrives first (the
+    // overlay closed, this was never a real navigation away), avoids that flash. A genuine back-navigation
+    // still reverts the same way, just a little behind where it used to line up with the exit transition.
+    val pauseScope = rememberCoroutineScope()
+    val pendingClear = remember { mutableStateOf<Job?>(null) }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
-        if (systemBarAccent.value == scopedBarColor) systemBarAccent.value = null
+        pendingClear.value = pauseScope.launch {
+            delay(300)
+            if (systemBarAccent.value == scopedBarColor) systemBarAccent.value = null
+        }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        pendingClear.value?.cancel()
         systemBarAccent.value = scopedBarColor
     }
     CompositionLocalProvider(
