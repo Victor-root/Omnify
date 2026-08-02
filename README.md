@@ -40,6 +40,34 @@ _Omnify, maintained by [Victor-root](https://github.com/Victor-root), based on [
 
 ---
 
+## 🧪 This is a beta
+
+Omnify is currently in beta. The core is solid and I use it every day, but
+might as well say so clearly rather than pretend it's already fully polished.
+Any problem report is useful and welcome, see the
+[Contributing Guide](CONTRIBUTING.md) for how.
+
+External sources deserve the most attention right now. Every GitHub, GitLab,
+Codeberg or self-hosted Gitea/Forgejo project organizes its releases,
+descriptions and files a little differently, and Omnify has to figure it out
+entirely on its own, with no F-Droid index to guide it. Here's what's worth
+checking on every external source added:
+
+- The app icon and name shown actually match the real app, even before installing
+- Tags like root-compatible or an anti-feature are accurate for that specific app
+- The version number shown matches what's actually installed
+- The supported languages list is correct
+- The Google-services badge (and how well microG covers it) reflects what the
+  app actually needs
+
+Projects publish their releases in a huge variety of ways, and a given pattern
+can only really be made reliable once it's actually been encountered on a real
+repository. Every mismatch reported on a new source helps make detection a bit
+more solid for the next one: even a simple "this looks wrong" report is
+genuinely useful, never just noise.
+
+---
+
 ## ✨ Highlights
 
 ### 📦 Install apps from anywhere (*External sources*)
