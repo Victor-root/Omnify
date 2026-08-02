@@ -1,3 +1,4 @@
+import com.android.build.api.variant.impl.VariantOutputImpl
 import com.android.build.gradle.internal.tasks.factory.dependsOn
 import io.gitlab.arturbosch.detekt.Detekt
 import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
@@ -25,8 +26,9 @@ val keystoreProperties = Properties().apply {
 }
 val hasReleaseSigning = keystorePropertiesFile.exists()
 
+val latestVersionName = "1.0.0"
+
 android {
-    val latestVersionName = "1.0.0-beta.1"
     namespace = "com.looker.droidify"
     compileSdk {
         version = release(36)
@@ -92,17 +94,20 @@ android {
         create("beta") {
             initWith(getByName("release"))
             applicationIdSuffix = ".beta"
-            versionNameSuffix = ".beta"
+            versionNameSuffix = "-beta.1"
         }
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = ".d"
         }
         all {
+            // Only the beta channel's own pre-release tag belongs in VERSION_NAME (see the "beta"
+            // build type above): release, canary and debug all track latestVersionName as-is.
+            val suffix = if (name == "beta") versionNameSuffix.orEmpty() else ""
             buildConfigField(
                 type = "String",
                 name = "VERSION_NAME",
-                value = "\"v$latestVersionName\"",
+                value = "\"v$latestVersionName$suffix\"",
             )
         }
     }
@@ -155,6 +160,17 @@ android {
                 val processor = Runtime.getRuntime().availableProcessors() / 2
                 if (processor > 1) it.maxParallelForks = processor
             }
+        }
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            // output.versionName is the fully-resolved per-variant name (defaultConfig.versionName
+            // plus that build type's own versionNameSuffix, e.g. beta's "-beta.1"), so the file name
+            // always matches what the build type actually is without repeating that logic here.
+            (output as? VariantOutputImpl)?.outputFileName?.set(output.versionName.map { "Omnify-v$it.apk" })
         }
     }
 }
