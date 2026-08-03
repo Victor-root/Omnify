@@ -99,6 +99,12 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = ".d"
+            // Same custom key as release/beta/canary when available, so a debug build's signature
+            // still matches the expected fingerprint instead of Android Studio's auto-generated
+            // debug keystore.
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         all {
             // Only the beta channel's own pre-release tag belongs in VERSION_NAME (see the "beta"
