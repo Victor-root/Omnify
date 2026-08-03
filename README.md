@@ -1,3 +1,24 @@
+<div align="center">
+
+[![Latest release](https://img.shields.io/github/v/release/Victor-root/Omnify?style=for-the-badge&logo=github&label=release&include_prereleases)](https://github.com/Victor-root/Omnify/releases/latest)
+[![Last update](https://img.shields.io/github/last-commit/Victor-root/Omnify/main?style=for-the-badge&logo=git&label=last%20update)](https://github.com/Victor-root/Omnify/commits/main)
+[![Beta](https://img.shields.io/badge/status-beta-orange?style=for-the-badge&logo=testinglibrary&logoColor=white)](https://github.com/Victor-root/Omnify#beta)
+
+[![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Victor-root/Omnify/releases/latest)
+[![Android TV](https://img.shields.io/badge/Android%20TV-supported-3DDC84?style=for-the-badge&logo=androidtv&logoColor=white)](https://github.com/Victor-root/Omnify#-made-for-android-tv)
+[![F-Droid repositories](https://img.shields.io/badge/F--Droid-repositories-1976D2?style=for-the-badge&logo=fdroid&logoColor=white)](https://github.com/Victor-root/Omnify#-highlights)
+[![External sources](https://img.shields.io/badge/External-sources-8A2BE2?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
+
+[![GitHub](https://img.shields.io/badge/GitHub-supported-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
+[![GitLab](https://img.shields.io/badge/GitLab-supported-FC6D26?style=for-the-badge&logo=gitlab&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
+[![Codeberg](https://img.shields.io/badge/Codeberg-supported-2185D0?style=for-the-badge&logo=codeberg&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
+[![Forgejo](https://img.shields.io/badge/Forgejo-supported-FB923C?style=for-the-badge&logo=forgejo&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
+
+[![Automatic updates](https://img.shields.io/badge/External%20apps-auto--updated-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
+[![Material You](https://img.shields.io/badge/Material%20You-Material%203-6750A4?style=for-the-badge&logo=materialdesign&logoColor=white)](https://github.com/Victor-root/Omnify#-modern-material-you-interface)
+
+</div>
+
 > [!WARNING]
 > **Free and Open-Source Android is under threat.**
 > Google plans to make Android more locked-down, restricting your freedom to install the apps of your choice.
@@ -7,11 +28,7 @@
 
 <img src="metadata/en-US/images/featureGraphic.png" alt="Omnify" width="100%">
 
-### Omnify
-
 **A clutter-free F-Droid client that also installs apps from anywhere.**
-
-_Omnify, maintained by [Victor-root](https://github.com/Victor-root), based on [Droid-ify](https://github.com/Droid-ify/client) by LooKeR._
 
 </div>
 
@@ -200,7 +217,7 @@ language entirely is welcome too. See the [Contributing Guide](CONTRIBUTING.md).
 
 ---
 
-## Why this fork?
+## 🔀 Why this fork?
 
 I use Droid-ify every day, intensively, and over time I ran into bugs and wanted
 features that really mattered for that kind of daily use. I proposed fixes
