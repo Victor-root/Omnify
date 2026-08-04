@@ -97,9 +97,10 @@
   }
 
   /* ---------- Accent colour ----------
-     Repaints the site and swaps the hero screenshots for a set shot in the same
-     colour, so the page shows off the app's own accent picker instead of just
-     describing it. The colours and their screenshots live in accents.js. */
+     Repaints the site and swaps the hero and Android TV screenshots for ones
+     shot in the same colour, so the page shows off the app's own accent picker
+     instead of just describing it. The colours and their screenshots live in
+     accents.js. */
 
   var ACCENTS = window.OMNIFY_ACCENTS || [];
   var accentBtn = document.getElementById("accent-toggle");
@@ -113,14 +114,34 @@
     return null;
   }
 
-  /* Every set is the same pixel size and preloaded, so the replacement is put
-     in place only once it has decoded. The screenshot then changes in a single
-     frame: nothing fades, moves or resizes, only the colour appears to change. */
+  /* Every set is the same pixel size and the replacement is put in place only
+     once it has decoded, so the screenshot changes in a single frame: nothing
+     fades, moves or resizes, only the colour appears to change.
+
+     Decoded copies are kept rather than dropped. Fetching again is cheap once
+     the file is cached, decoding is not: without this the TV screenshot landed
+     about 100ms after the click, visibly behind the rest of the page. */
+  var warmed = {};
+
+  function warm(src) {
+    var img = warmed[src];
+    if (!img) {
+      img = new Image();
+      img.decoding = "async";
+      img.src = src;
+      /* Downloading alone is not enough: an image held off the page is decoded
+         lazily, which would leave the cost to be paid on the click. Ask for it
+         now, while nothing else is happening. */
+      if (typeof img.decode === "function") img.decode().catch(function () {});
+      warmed[src] = img;
+    }
+    return img;
+  }
+
   function swapShot(img, src) {
     if (img.getAttribute("src") === src) return;
-    var next = new Image();
+    var next = warm(src);
     var assign = function () { img.src = src; };
-    next.src = src;
     if (typeof next.decode === "function") {
       next.decode().then(assign, assign);
     } else if (next.complete) {
@@ -142,6 +163,9 @@
     for (var i = 0; i < shots.length; i++) {
       if (accent.shots && accent.shots[i]) swapShot(shots[i], accent.shots[i]);
     }
+
+    var tv = document.querySelector(".tv-shot img");
+    if (tv && accent.tvShot) swapShot(tv, accent.tvShot);
 
     if (accentList) {
       var buttons = accentList.querySelectorAll(".accent-swatch");
@@ -203,14 +227,10 @@
     }
 
     /* Warm the other colours' screenshots once the page is idle, so switching
-       is instant rather than showing a gap while the new set downloads. */
+       is instant rather than showing a gap while the new set loads. */
     var preload = function () {
       ACCENTS.forEach(function (accent) {
-        (accent.shots || []).forEach(function (src) {
-          var img = new Image();
-          img.decoding = "async";
-          img.src = src;
-        });
+        (accent.shots || []).concat(accent.tvShot || []).forEach(warm);
       });
     };
     if (window.requestIdleCallback) {

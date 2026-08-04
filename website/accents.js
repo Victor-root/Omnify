@@ -8,7 +8,7 @@
  * the page and the phones in it are the same colour rather than merely similar.
  *
  * To add a colour: append an entry here, add an "accent.<id>" key to both
- * locales in i18n.js, and drop three screenshots in assets/screenshots (see the
+ * locales in i18n.js, and drop the screenshots in assets/screenshots (see the
  * README there). Nothing else needs touching, the header builds itself from
  * this list and every tinted value in the CSS derives from brand / brand2.
  *
@@ -21,6 +21,7 @@
  *            white here, a light one wants ink.
  *   shots    the three hero screenshots, in the order they are stacked:
  *            left (tilted back), centre (in front), right (tilted forward)
+ *   tvShot   the Android TV screenshot further down the page
  */
 
 window.OMNIFY_ACCENTS = [
@@ -33,7 +34,8 @@ window.OMNIFY_ACCENTS = [
       "assets/screenshots/green-1.webp",
       "assets/screenshots/green-2.webp",
       "assets/screenshots/green-3.webp"
-    ]
+    ],
+    tvShot: "assets/screenshots/tv-green.webp"
   },
   {
     id: "red",
@@ -44,7 +46,8 @@ window.OMNIFY_ACCENTS = [
       "assets/screenshots/red-1.webp",
       "assets/screenshots/red-2.webp",
       "assets/screenshots/red-3.webp"
-    ]
+    ],
+    tvShot: "assets/screenshots/tv-red.webp"
   },
   {
     id: "purple",
@@ -55,6 +58,7 @@ window.OMNIFY_ACCENTS = [
       "assets/screenshots/purple-1.webp",
       "assets/screenshots/purple-2.webp",
       "assets/screenshots/purple-3.webp"
-    ]
+    ],
+    tvShot: "assets/screenshots/tv-purple.webp"
   }
 ];

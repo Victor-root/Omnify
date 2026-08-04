@@ -23,9 +23,11 @@ try:
 except ImportError:
     sys.exit("Pillow is missing: pip install pillow")
 
-# The largest a hero screenshot is ever drawn is about 254 CSS pixels wide, so
-# this still has room to spare on a 3x display.
-TARGET_WIDTH = 760
+# The widest the site ever draws each kind of screenshot, with room to spare on
+# a high-density display. Nothing is upscaled past its source, so exporting
+# larger than this costs disk in the repository and nothing on the page.
+PHONE_WIDTH = 760   # the hero phones, drawn at up to 254 CSS pixels
+TV_WIDTH = 2000     # the Android TV shot, drawn at up to 1000 CSS pixels
 QUALITY = 90
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -35,9 +37,16 @@ if not sources:
     sys.exit("No .png found next to this script.")
 
 for path in sources:
+    name = os.path.basename(path)
     image = Image.open(path).convert("RGBA")
-    height = round(image.height * TARGET_WIDTH / image.width)
-    resized = image.resize((TARGET_WIDTH, height), Image.LANCZOS)
+
+    target = TV_WIDTH if name.startswith("tv-") else PHONE_WIDTH
+    width = min(target, image.width)
+    if width == image.width:
+        resized = image
+    else:
+        height = round(image.height * width / image.width)
+        resized = image.resize((width, height), Image.LANCZOS)
 
     out = os.path.splitext(path)[0] + ".webp"
     resized.save(out, "WEBP", quality=QUALITY, method=6)
@@ -45,6 +54,6 @@ for path in sources:
     before = os.path.getsize(path) / 1024
     after = os.path.getsize(out) / 1024
     print(
-        f"{os.path.basename(path):16} {image.width}x{image.height} {before:7.0f} KB"
-        f"  ->  {os.path.basename(out):17} {TARGET_WIDTH}x{height} {after:6.0f} KB"
+        f"{name:16} {image.width}x{image.height} {before:7.0f} KB"
+        f"  ->  {os.path.basename(out):17} {resized.width}x{resized.height} {after:6.0f} KB"
     )

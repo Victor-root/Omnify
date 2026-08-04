@@ -26,13 +26,13 @@ This needs to be enabled once: repository **Settings** then **Pages**, with
 
 The header lets a visitor repaint the site, which doubles as a live demo of the
 app's own accent picker: picking a colour also swaps the three hero screenshots
-for a set shot in that same colour.
+and the Android TV one for shots taken in that same colour.
 
 Everything lives in `accents.js`. Each entry needs an `id`, the two accent tones
-(`brand` and `brand2`) and the three `shots` URLs. The header builds itself from
-that list, so adding a colour means appending an entry there and adding an
-`accent.<id>` label to both locales in `i18n.js`. Nothing in the CSS needs
-touching: every tinted value derives from `--brand` / `--brand-2`.
+(`brand` and `brand2`), the three `shots` URLs and the `tvShot` one. The header
+builds itself from that list, so adding a colour means appending an entry there
+and adding an `accent.<id>` label to both locales in `i18n.js`. Nothing in the
+CSS needs touching: every tinted value derives from `--brand` / `--brand-2`.
 
 The other colours' screenshots are preloaded once the page goes idle, so
 switching is instant rather than showing a gap.
@@ -67,6 +67,8 @@ Variants of the same three attributes cover every case:
   own screens.
 - Icons are [Tabler](https://tabler.io/icons) outlines, inlined as an SVG sprite,
   matching the set already used inside the app.
-- Screenshots are hotlinked from the same GitHub attachment URLs the README
-  uses. To make the site fully self-contained instead, drop the images in
-  `assets/` and point the `src` attributes at them.
+- The hero and Android TV screenshots are served from `assets/screenshots`
+  because they have to change with the accent colour. The gallery near the
+  bottom is still hotlinked from the same GitHub attachment URLs the project
+  README uses, so it stays green whatever colour the visitor picks. Moving it
+  to local files means one set per accent, six shots each.
