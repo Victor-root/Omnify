@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="meta.title">Omnify: a clutter-free F-Droid client that installs apps from anywhere</title>
+<meta name="description" data-i18n-attr="content:meta.desc" content="Omnify is a free and open-source Android app store. Browse F-Droid repositories and install apps straight from GitHub, GitLab, Codeberg or self-hosted Gitea and Forgejo releases, with a proper Android TV interface.">
+<meta name="theme-color" content="#080b09" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f7faf8" media="(prefers-color-scheme: light)">
+<link rel="icon" href="assets/omnify-logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="Omnify">
+<meta property="og:description" content="A clutter-free, open-source F-Droid client that also installs apps from anywhere.">
+<meta property="og:type" content="website">
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="i-box"><path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5"/><path d="M12 12l8 -4.5"/><path d="M12 12l0 9"/><path d="M12 12l-8 -4.5"/></g>
+    <g id="i-tv"><path d="M3 7m0 1a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v9a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1z"/><path d="M16 3l-4 4l-4 -4"/></g>
+    <g id="i-palette"><path d="M12 21a9 9 0 0 1 0 -18a9 8 0 0 1 9 8a4.5 4 0 0 1 -4.5 4h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25"/><path d="M7.5 10.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M16.5 10.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></g>
+    <g id="i-compass"><path d="M8 16l2 -6l6 -2l-2 6l-6 2"/><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/></g>
+    <g id="i-eye-off"><path d="M10.585 10.587a2 2 0 0 0 2.829 2.828"/><path d="M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87"/><path d="M3 3l18 18"/></g>
+    <g id="i-language"><path d="M4 5h7"/><path d="M9 3v2c0 4.418 -2.239 8 -5 8"/><path d="M5 9c0 2.144 2.952 3.908 6.7 4"/><path d="M12 20l4 -9l4 9"/><path d="M19.1 18h-6.2"/></g>
+    <g id="i-archive"><path d="M3 4m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z"/><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10"/><path d="M10 12l4 0"/></g>
+    <g id="i-shield"><path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06"/><path d="M15 19l2 2l4 -4"/></g>
+    <g id="i-github"><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5"/></g>
+    <g id="i-download"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></g>
+    <g id="i-copy"><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></g>
+    <g id="i-check"><path d="M5 12l5 5l10 -10"/></g>
+    <g id="i-sun"><path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></g>
+    <g id="i-moon"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"/></g>
+    <g id="i-menu"><path d="M4 6l16 0"/><path d="M4 12l16 0"/><path d="M4 18l16 0"/></g>
+    <g id="i-x"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></g>
+    <g id="i-world"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M3.6 9h16.8"/><path d="M3.6 15h16.8"/><path d="M11.5 3a17 17 0 0 0 0 18"/><path d="M12.5 3a17 17 0 0 1 0 18"/></g>
+    <g id="i-git"><path d="M16 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 8m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 15v-6"/><path d="M15 11l-2 -2"/><path d="M11 7l-1.9 -1.9"/><path d="M13.446 2.6l7.955 7.954a2.045 2.045 0 0 1 0 2.892l-7.955 7.955a2.045 2.045 0 0 1 -2.892 0l-7.955 -7.955a2.045 2.045 0 0 1 0 -2.892l7.955 -7.955a2.045 2.045 0 0 1 2.892 0"/></g>
+    <g id="i-bug"><path d="M9 9v-1a3 3 0 0 1 6 0v1"/><path d="M8 9h8a6 6 0 0 1 1 3v3a5 5 0 0 1 -10 0v-3a6 6 0 0 1 1 -3"/><path d="M3 13l4 0"/><path d="M17 13l4 0"/><path d="M12 20l0 -6"/><path d="M4 19l3.35 -2"/><path d="M20 19l-3.35 -2"/><path d="M4 7l3.75 2.4"/><path d="M20 7l-3.75 2.4"/></g>
+    <g id="i-cpu"><path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z"/><path d="M9 9h6v6h-6z"/><path d="M3 10l2 0"/><path d="M3 14l2 0"/><path d="M10 3l0 2"/><path d="M14 3l0 2"/><path d="M21 10l-2 0"/><path d="M21 14l-2 0"/><path d="M10 21l0 -2"/><path d="M14 21l0 -2"/></g>
+    <g id="i-refresh"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></g>
+    <g id="i-arrow-right"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></g>
+    <g id="i-scale"><path d="M7 20l10 0"/><path d="M6 6l6 -1l6 1"/><path d="M12 3l0 17"/><path d="M9 12l-3 -6l-3 6a3 3 0 0 0 6 0"/><path d="M21 12l-3 -6l-3 6a3 3 0 0 0 6 0"/></g>
+    <g id="i-code"><path d="M7 8l-4 4l4 4"/><path d="M17 8l4 4l-4 4"/><path d="M14 4l-4 16"/></g>
+    <g id="i-heart"><path d="M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572"/></g>
+    <g id="i-lock-open"><path d="M5 11m0 2a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z"/><path d="M12 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M8 11v-4a4 4 0 0 1 8 0"/></g>
+  </defs>
+</svg>
+
+<a class="skip" href="#main" data-i18n="nav.skip">Skip to content</a>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="Omnify">
+      <img src="assets/omnify-logo.svg" alt="" width="34" height="34">
+      <span>Omnify</span>
+    </a>
+    <nav class="nav-links" id="nav-links" aria-label="Main">
+      <a href="#sources" data-i18n="nav.sources">External sources</a>
+      <a href="#features" data-i18n="nav.features">Features</a>
+      <a href="#opensource" data-i18n="nav.opensource">Open source</a>
+      <a href="#tv" data-i18n="nav.tv">Android TV</a>
+      <a href="#download" data-i18n="nav.download">Download</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="icon-btn lang-btn" id="lang-toggle" type="button" data-i18n-attr="aria-label:nav.langAria" aria-label="Change language">
+        <span id="lang-label">EN</span>
+      </button>
+      <button class="icon-btn" id="theme-toggle" type="button" data-i18n-attr="aria-label:nav.themeAria" aria-label="Switch theme">
+        <svg class="ico ico-sun" viewBox="0 0 24 24"><use href="#i-sun"/></svg>
+        <svg class="ico ico-moon" viewBox="0 0 24 24"><use href="#i-moon"/></svg>
+      </button>
+      <a class="btn btn-ghost nav-gh" href="https://github.com/Victor-root/Omnify" target="_blank" rel="noopener">
+        <svg class="ico" viewBox="0 0 24 24"><use href="#i-github"/></svg>
+        <span>GitHub</span>
+      </a>
+      <button class="icon-btn nav-burger" id="nav-burger" type="button" data-i18n-attr="aria-label:nav.menuAria" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
+        <svg class="ico ico-open" viewBox="0 0 24 24"><use href="#i-menu"/></svg>
+        <svg class="ico ico-close" viewBox="0 0 24 24"><use href="#i-x"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="hero" id="top">
+  <div class="aurora" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+    <span class="blob b3"></span>
+  </div>
+  <div class="wrap hero-inner">
+    <div class="hero-copy">
+      <a class="pill" href="#beta">
+        <span class="dot"></span>
+        <span id="version-pill" data-i18n="hero.pill">Now in beta</span>
+        <svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-arrow-right"/></svg>
+      </a>
+      <h1 data-i18n-html="hero.title">Install apps from <span class="grad">anywhere</span>.</h1>
+      <p class="lede" data-i18n="hero.lede">
+        A free and open-source F-Droid client that also tracks releases straight
+        from GitHub, GitLab, Codeberg and self-hosted Gitea or Forgejo. No
+        repository required, no Play Store, no account.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="https://github.com/Victor-root/Omnify/releases/latest" target="_blank" rel="noopener">
+          <svg class="ico" viewBox="0 0 24 24"><use href="#i-download"/></svg>
+          <span data-i18n="hero.download">Download the APK</span>
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/Victor-root/Omnify" target="_blank" rel="noopener">
+          <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
+          <span data-i18n="hero.source">Read the source</span>
+        </a>
+      </div>
+      <ul class="hero-meta">
+        <li data-i18n="hero.m1">100% open source</li>
+        <li data-i18n="hero.m2">GPL-3.0</li>
+        <li data-i18n="hero.m3">No trackers, no ads</li>
+        <li data-i18n="hero.m4">Android 6.0 and up</li>
+      </ul>
+    </div>
+    <div class="hero-shots" aria-hidden="true">
+      <img class="shot s1" src="https://github.com/user-attachments/assets/e1fc44da-126b-4842-94e7-8037190d3849" alt="" loading="eager" decoding="async">
+      <img class="shot s2" src="https://github.com/user-attachments/assets/7233680b-6ab0-4a41-b003-7a2769332c68" alt="" loading="eager" decoding="async">
+      <img class="shot s3" src="https://github.com/user-attachments/assets/18ad4073-05aa-413c-b06b-29cef46a78d6" alt="" loading="lazy" decoding="async">
+    </div>
+  </div>
+</section>
+
+<section class="strip reveal">
+  <div class="wrap">
+    <p class="strip-label" data-i18n="strip.label">Installs and updates apps from</p>
+    <ul class="strip-list">
+      <li>F-Droid</li>
+      <li>IzzyOnDroid</li>
+      <li>GitHub</li>
+      <li>GitLab</li>
+      <li>Codeberg</li>
+      <li>Gitea</li>
+      <li>Forgejo</li>
+      <li data-i18n="strip.any">Any F-Droid style repo</li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" id="sources">
+  <div class="wrap split">
+    <div class="split-copy reveal">
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-git"/></svg> <span data-i18n="sources.eyebrow">External sources</span></span>
+      <h2 data-i18n="sources.title">The app store for projects that never made it to a store.</h2>
+      <p data-i18n="sources.body">
+        Plenty of great Android apps only ever ship a release on their own forge.
+        Omnify tracks those releases directly, so they install and update like any
+        other app instead of being a file you re-download by hand every few months.
+      </p>
+      <ul class="ticks">
+        <li data-i18n="sources.t1">Picks the right APK for your CPU architecture automatically, with an optional name filter, and falls back to an older release when the latest has nothing compatible.</li>
+        <li data-i18n-html="sources.t2">Shows the real app name and icon <strong>before</strong> you install, read from the release APK itself rather than guessed from the repo name.</li>
+        <li data-i18n="sources.t3">Update notifications, signature-conflict handling, and the project README rendered inside the app.</li>
+        <li data-i18n="sources.t4">Track a whole publisher account at once instead of adding one project at a time.</li>
+        <li data-i18n="sources.t5">Per-source settings: custom name, pre-releases, version filters, mute. All included in your backup.</li>
+      </ul>
+    </div>
+    <div class="split-visual reveal">
+      <div class="card-stack">
+        <div class="fake-card">
+          <div class="fake-head">
+            <span class="fake-icon" style="--c:#7ADA9D">
+              <svg class="ico" viewBox="0 0 24 24"><use href="#i-git"/></svg>
+            </span>
+            <div>
+              <strong>owner / project</strong>
+              <span data-i18n="sources.cardRelease">GitHub release, v2.4.1</span>
+            </div>
+            <span class="chip chip-ok" data-i18n="sources.cardChip">Update</span>
+          </div>
+          <div class="fake-rows">
+            <div class="fake-row"><svg class="ico" viewBox="0 0 24 24"><use href="#i-cpu"/></svg><span data-i18n="sources.r1">arm64-v8a picked automatically</span></div>
+            <div class="fake-row"><svg class="ico" viewBox="0 0 24 24"><use href="#i-shield"/></svg><span data-i18n="sources.r2">Signature checked against the installed app</span></div>
+            <div class="fake-row"><svg class="ico" viewBox="0 0 24 24"><use href="#i-world"/></svg><span data-i18n="sources.r3">17 supported languages detected</span></div>
+            <div class="fake-row"><svg class="ico" viewBox="0 0 24 24"><use href="#i-refresh"/></svg><span data-i18n="sources.r4">Watched for new releases</span></div>
+          </div>
+        </div>
+        <div class="fake-card fake-card-behind"></div>
+        <div class="fake-card fake-card-behind2"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow" data-i18n="features.eyebrow">Everything else</span>
+      <h2 data-i18n="features.title">Built to be used every day.</h2>
+      <p class="section-sub" data-i18n="features.sub">A daily-driver store, not a tech demo. Every feature below is in the app today.</p>
+    </div>
+    <div class="grid">
+      <article class="feature reveal">
+        <span class="feature-ico" style="--c:#7ADA9D"><svg class="ico" viewBox="0 0 24 24"><use href="#i-tv"/></svg></span>
+        <h3 data-i18n="feat.tv.t">Made for Android TV</h3>
+        <p data-i18n="feat.tv.d">A real 10-foot interface: full D-pad navigation, a scaled-up UI, automatic "Made for TV" detection for catalogue and external apps, and a curated pack of FOSS TV apps.</p>
+      </article>
+      <article class="feature reveal">
+        <span class="feature-ico" style="--c:#FFB780"><svg class="ico" viewBox="0 0 24 24"><use href="#i-palette"/></svg></span>
+        <h3 data-i18n="feat.you.t">Modern Material You</h3>
+        <p data-i18n="feat.you.d">Rebuilt in Jetpack Compose with Material 3: an accent-colour picker that can follow your wallpaper or an app's own icon, tinted system bars, edge-to-edge, and wavy progress indicators.</p>
+      </article>
+      <article class="feature reveal">
+        <span class="feature-ico" style="--c:#7ADA9D"><svg class="ico" viewBox="0 0 24 24"><use href="#i-compass"/></svg></span>
+        <h3 data-i18n="feat.disc.t">Discover home</h3>
+        <p data-i18n="feat.disc.d">A curated landing screen with carousels for what's new, recently updated and most downloaded, plus a browsable categories section.</p>
+      </article>
+      <article class="feature reveal">
+        <span class="feature-ico" style="--c:#FFB780"><svg class="ico" viewBox="0 0 24 24"><use href="#i-eye-off"/></svg></span>
+        <h3 data-i18n="feat.hide.t">Hide what you don't need</h3>
+        <p data-i18n="feat.hide.d">Hide any app, catalogue or external, from every list with one tap on its page. Manage what's hidden, or bring an app back, from Settings.</p>
+      </article>
+      <article class="feature reveal">
+        <span class="feature-ico" style="--c:#7ADA9D"><svg class="ico" viewBox="0 0 24 24"><use href="#i-language"/></svg></span>
+        <h3 data-i18n="feat.tr.t">Built-in translation</h3>
+        <p data-i18n="feat.tr.d">Translate an app's summary and description into your language with online, self-hosted or fully offline on-device engines. Nothing is downloaded until you pick the on-device one.</p>
+      </article>
+      <article class="feature reveal">
+        <span class="feature-ico" style="--c:#FFB780"><svg class="ico" viewBox="0 0 24 24"><use href="#i-archive"/></svg></span>
+        <h3 data-i18n="feat.bk.t">Backup and restore</h3>
+        <p data-i18n="feat.bk.d">Back up repositories, external sources, settings, favourites and custom buttons independently, all in one file. Restoring only ever adds to what's there, it never wipes it.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="opensource">
+  <div class="wrap">
+    <div class="oss-panel reveal">
+      <div class="oss-head">
+        <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg> <span data-i18n="oss.eyebrow">Free and open source</span></span>
+        <h2 data-i18n="oss.title">Open source, all the way down.</h2>
+        <p data-i18n="oss.body">
+          Omnify is free software, licensed under the GNU General Public License
+          v3.0. Not "source available", not open-core with a paid tier: the whole
+          app is public, anyone can read it, build it, fork it or check that the
+          release they installed matches the code they can see.
+        </p>
+        <div class="oss-cta">
+          <a class="btn btn-ghost" href="https://github.com/Victor-root/Omnify" target="_blank" rel="noopener">
+            <svg class="ico" viewBox="0 0 24 24"><use href="#i-github"/></svg>
+            <span data-i18n="oss.browse">Browse the code</span>
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/Victor-root/Omnify/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">
+            <svg class="ico" viewBox="0 0 24 24"><use href="#i-heart"/></svg>
+            <span data-i18n="oss.contribute">Contribute</span>
+          </a>
+        </div>
+      </div>
+      <ul class="oss-points">
+        <li>
+          <span class="feature-ico" style="--c:#7ADA9D"><svg class="ico" viewBox="0 0 24 24"><use href="#i-scale"/></svg></span>
+          <div>
+            <strong data-i18n="oss.p1t">GPL-3.0 or later</strong>
+            <span data-i18n="oss.p1d">Copyleft, so it stays free for whoever comes next.</span>
+          </div>
+        </li>
+        <li>
+          <span class="feature-ico" style="--c:#FFB780"><svg class="ico" viewBox="0 0 24 24"><use href="#i-eye-off"/></svg></span>
+          <div>
+            <strong data-i18n="oss.p2t">Nothing phones home</strong>
+            <span data-i18n="oss.p2d">No trackers, no analytics, no ads, no account to create.</span>
+          </div>
+        </li>
+        <li>
+          <span class="feature-ico" style="--c:#7ADA9D"><svg class="ico" viewBox="0 0 24 24"><use href="#i-lock-open"/></svg></span>
+          <div>
+            <strong data-i18n="oss.p3t">Verifiable builds</strong>
+            <span data-i18n="oss.p3d">Build it yourself, or check the signature against the published fingerprint.</span>
+          </div>
+        </li>
+        <li>
+          <span class="feature-ico" style="--c:#FFB780"><svg class="ico" viewBox="0 0 24 24"><use href="#i-heart"/></svg></span>
+          <div>
+            <strong data-i18n="oss.p4t">Built on FOSS</strong>
+            <span data-i18n="oss.p4d">A fork of Droid-ify, itself grown from Foxy-Droid. Credit where it is due.</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section section-tv" id="tv">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-tv"/></svg> <span data-i18n="tv.eyebrow">Android TV</span></span>
+      <h2 data-i18n="tv.title">Not an afterthought.</h2>
+      <p class="section-sub" data-i18n="tv.body">
+        Most stores on a TV box are a phone app you fight with a remote. Omnify has
+        its own TV interface: a home screen with carousels, a navigation rail, detail
+        pages built for the D-pad, and a curated pack of FOSS TV apps ready to install.
+      </p>
+    </div>
+    <figure class="tv-shot reveal">
+      <img src="https://github.com/user-attachments/assets/46b59cbe-f019-49f7-8164-3228a6ff9f0d" alt="Omnify on Android TV" loading="lazy" decoding="async">
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="security">
+  <div class="wrap split split-reverse">
+    <div class="split-copy reveal">
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-shield"/></svg> <span data-i18n="sec.eyebrow">Security and privacy</span></span>
+      <h2 data-i18n="sec.title">Installing from anywhere should not mean trusting anything.</h2>
+      <p data-i18n="sec.body">
+        Every install path in Omnify verifies what it is about to hand to Android,
+        and every check it runs is visible to you rather than hidden behind a spinner.
+      </p>
+      <ul class="ticks">
+        <li data-i18n-html="sec.t1">The signing certificate is verified against the repository index <strong>before any install</strong>, with the installed and expected fingerprints viewable and copyable on the detail screen.</li>
+        <li data-i18n="sec.t2">Anti-feature warnings and the full runtime-permission list on every app page.</li>
+        <li data-i18n="sec.t3">A badge flags apps that depend on proprietary Google services, and how well microG actually covers what they need.</li>
+        <li data-i18n="sec.t4">The optional GitHub token is scope-less: it only lifts the API rate limit, it can do nothing else.</li>
+        <li data-i18n="sec.t5">Translation can run fully offline on your device, with no service to trust.</li>
+      </ul>
+    </div>
+    <div class="split-visual reveal">
+      <div class="fake-card">
+        <div class="fake-head">
+          <span class="fake-icon" style="--c:#7ADA9D"><svg class="ico" viewBox="0 0 24 24"><use href="#i-shield"/></svg></span>
+          <div>
+            <strong data-i18n="sec.cardTitle">Signing certificate</strong>
+            <span data-i18n="sec.cardSub">Installed matches expected</span>
+          </div>
+          <span class="chip chip-ok"><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-check"/></svg></span>
+        </div>
+        <div class="fake-rows">
+          <div class="fake-row fake-mono"><span>SHA-256</span><code>F2:2B:D7:B4:63:D8&hellip;</code></div>
+          <div class="fake-row"><svg class="ico" viewBox="0 0 24 24"><use href="#i-check"/></svg><span data-i18n="sec.r2">No anti-features declared</span></div>
+          <div class="fake-row"><svg class="ico" viewBox="0 0 24 24"><use href="#i-check"/></svg><span data-i18n="sec.r3">Works without Google services</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="screenshots">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow" data-i18n="shots.eyebrow">Screenshots</span>
+      <h2 data-i18n="shots.title">See it.</h2>
+    </div>
+  </div>
+  <div class="gallery reveal">
+    <img src="https://github.com/user-attachments/assets/7233680b-6ab0-4a41-b003-7a2769332c68" alt="Omnify Discover home screen" loading="lazy" decoding="async">
+    <img src="https://github.com/user-attachments/assets/e1fc44da-126b-4842-94e7-8037190d3849" alt="An app detail page in Omnify" loading="lazy" decoding="async">
+    <img src="https://github.com/user-attachments/assets/18ad4073-05aa-413c-b06b-29cef46a78d6" alt="External sources list in Omnify" loading="lazy" decoding="async">
+    <img src="https://github.com/user-attachments/assets/3cb5ab6d-dc3a-45ae-864c-de833f63561b" alt="Omnify settings" loading="lazy" decoding="async">
+    <img src="https://github.com/user-attachments/assets/f440ff5b-28ea-4da3-8211-8690c1752dd3" alt="Repository management in Omnify" loading="lazy" decoding="async">
+    <img src="https://github.com/user-attachments/assets/210e9c1f-4be9-4ac3-8c40-14a36b20fd2f" alt="App list in Omnify" loading="lazy" decoding="async">
+  </div>
+</section>
+
+<section class="section section-langs">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-world"/></svg> <span data-i18n="langs.eyebrow">Languages</span></span>
+      <h2 data-i18n="langs.title">Fully translated in 13 languages.</h2>
+      <p class="section-sub" data-i18n="langs.sub">Native speakers are very welcome to review these, and to add more.</p>
+    </div>
+    <ul class="langs reveal">
+      <li>English</li><li>Fran&ccedil;ais</li><li>Deutsch</li><li>&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;</li>
+      <li>&#31616;&#20307;&#20013;&#25991;</li><li>Polski</li><li>Portugu&ecirc;s (BR)</li><li>Espa&ntilde;ol</li>
+      <li>Indonesia</li><li>T&uuml;rk&ccedil;e</li><li>Italiano</li><li>Nederlands</li><li>&#26085;&#26412;&#35486;</li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" id="beta">
+  <div class="wrap">
+    <div class="beta-card reveal">
+      <span class="feature-ico" style="--c:#FFB780"><svg class="ico" viewBox="0 0 24 24"><use href="#i-bug"/></svg></span>
+      <h2 data-i18n="beta.title">This is a beta.</h2>
+      <p data-i18n="beta.p1">
+        The core is solid and it gets used every day, but there is no point
+        pretending it is already fully polished. External sources deserve the
+        closest look right now: every project structures its releases a little
+        differently, and a pattern only becomes reliable once it has been seen on a
+        real repository.
+      </p>
+      <p data-i18n="beta.p2">
+        If an app's icon, name, version, tags, languages or Google-services badge
+        looks wrong, that report is genuinely useful. It is never just noise.
+      </p>
+      <a class="btn btn-ghost" href="https://github.com/Victor-root/Omnify/issues/new" target="_blank" rel="noopener">
+        <svg class="ico" viewBox="0 0 24 24"><use href="#i-bug"/></svg>
+        <span data-i18n="beta.cta">Report something</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="section section-download" id="download">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-download"/></svg> <span data-i18n="dl.eyebrow">Get Omnify</span></span>
+      <h2 data-i18n="dl.title">Download and verify.</h2>
+      <p class="section-sub" data-i18n="dl.sub">Requires Android 6.0 (API 23) or newer. Phones, tablets and Android TV.</p>
+    </div>
+    <div class="dl-actions reveal">
+      <a class="btn btn-primary btn-lg" href="https://github.com/Victor-root/Omnify/releases/latest" target="_blank" rel="noopener">
+        <svg class="ico" viewBox="0 0 24 24"><use href="#i-download"/></svg>
+        <span data-i18n="dl.latest">Latest release</span>
+      </a>
+      <a class="btn btn-ghost btn-lg" href="https://github.com/Victor-root/Omnify/blob/main/docs/building.md" target="_blank" rel="noopener">
+        <span data-i18n="dl.build">Build from source</span>
+      </a>
+    </div>
+    <div class="verify reveal">
+      <div class="verify-head">
+        <h3 data-i18n="dl.verifyTitle">Verify what you installed</h3>
+        <p data-i18n-html="dl.verifyBody">
+          Every release is signed with the same certificate. Compare its SHA-256
+          fingerprint, for example via <code>apksigner verify --print-certs</code>,
+          against this one:
+        </p>
+      </div>
+      <div class="fingerprint">
+        <code id="fp">F2:2B:D7:B4:63:D8:D8:9C:A1:AC:3B:6C:41:DB:0B:25:AA:C7:7B:86:24:C9:70:E4:52:81:2D:32:19:42:A9:71</code>
+        <button class="icon-btn" id="copy-fp" type="button" data-i18n-attr="aria-label:dl.copyAria" aria-label="Copy fingerprint">
+          <svg class="ico ico-copy" viewBox="0 0 24 24"><use href="#i-copy"/></svg>
+          <svg class="ico ico-done" viewBox="0 0 24 24"><use href="#i-check"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <a class="brand" href="#top">
+        <img src="assets/omnify-logo.svg" alt="" width="30" height="30">
+        <span>Omnify</span>
+      </a>
+      <p data-i18n-html="footer.about">
+        Maintained by <a href="https://github.com/Victor-root" target="_blank" rel="noopener">Victor-root</a>.
+        Built on <a href="https://github.com/Droid-ify/client" target="_blank" rel="noopener">Droid-ify</a> by
+        LooKeR, which itself grew from
+        <a href="https://github.com/kitsunyan/foxy-droid" target="_blank" rel="noopener">Foxy-Droid</a> by
+        kitsunyan. Huge thanks to both.
+      </p>
+    </div>
+    <nav class="footer-links" aria-label="Footer">
+      <div>
+        <h4 data-i18n="footer.project">Project</h4>
+        <a href="https://github.com/Victor-root/Omnify" target="_blank" rel="noopener" data-i18n="footer.source">Source code</a>
+        <a href="https://github.com/Victor-root/Omnify/releases" target="_blank" rel="noopener" data-i18n="footer.releases">Releases</a>
+        <a href="https://github.com/Victor-root/Omnify/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" data-i18n="footer.contributing">Contributing</a>
+        <a href="https://github.com/Victor-root/Omnify/blob/main/docs/building.md" target="_blank" rel="noopener" data-i18n="footer.building">Building</a>
+      </div>
+      <div>
+        <h4 data-i18n="footer.help">Help</h4>
+        <a href="https://github.com/Victor-root/Omnify/issues" target="_blank" rel="noopener" data-i18n="footer.issues">Issues</a>
+        <a href="https://github.com/Victor-root/Omnify/issues/new" target="_blank" rel="noopener" data-i18n="footer.report">Report a bug</a>
+        <a href="#download" data-i18n="footer.verify">Verify a build</a>
+      </div>
+    </nav>
+  </div>
+  <div class="wrap footer-legal">
+    <p>
+      <svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-scale"/></svg>
+      <span data-i18n="footer.license">Free software under the GNU General Public License v3.0 or later.</span>
+    </p>
+    <p data-i18n-html="footer.icons">Icons by <a href="https://tabler.io/icons" target="_blank" rel="noopener">Tabler</a>.</p>
+  </div>
+</footer>
+
+<script src="i18n.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
