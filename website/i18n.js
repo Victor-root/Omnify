@@ -16,6 +16,10 @@ window.OMNIFY_I18N = {
     "nav.tv": "Android TV",
     "nav.download": "Download",
     "nav.langAria": "Change language",
+    "nav.accentAria": "Change accent colour",
+    "accent.green": "Green",
+    "accent.red": "Red",
+    "accent.purple": "Purple",
     "nav.themeAria": "Switch theme",
     "nav.menuAria": "Menu",
 
@@ -144,6 +148,10 @@ window.OMNIFY_I18N = {
     "nav.tv": "Android TV",
     "nav.download": "Télécharger",
     "nav.langAria": "Changer de langue",
+    "nav.accentAria": "Changer la couleur d'accentuation",
+    "accent.green": "Vert",
+    "accent.red": "Rouge",
+    "accent.purple": "Violet",
     "nav.themeAria": "Changer de thème",
     "nav.menuAria": "Menu",
 

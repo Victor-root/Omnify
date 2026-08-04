@@ -62,6 +62,15 @@
       <a href="#download" data-i18n="nav.download">Download</a>
     </nav>
     <div class="nav-actions">
+      <div class="accent-picker">
+        <button class="icon-btn accent-btn" id="accent-toggle" type="button"
+                data-i18n-attr="aria-label:nav.accentAria" aria-label="Change accent colour"
+                aria-expanded="false" aria-controls="accent-list">
+          <span class="accent-dot" aria-hidden="true"></span>
+        </button>
+        <div class="accent-list" id="accent-list" role="group"
+             data-i18n-attr="aria-label:nav.accentAria" aria-label="Change accent colour" hidden></div>
+      </div>
       <button class="icon-btn lang-btn" id="lang-toggle" type="button" data-i18n-attr="aria-label:nav.langAria" aria-label="Change language">
         <span id="lang-label">EN</span>
       </button>
@@ -120,9 +129,9 @@
       </ul>
     </div>
     <div class="hero-shots" aria-hidden="true">
-      <img class="shot s1" src="https://github.com/user-attachments/assets/e1fc44da-126b-4842-94e7-8037190d3849" alt="" loading="eager" decoding="async">
-      <img class="shot s2" src="https://github.com/user-attachments/assets/7233680b-6ab0-4a41-b003-7a2769332c68" alt="" loading="eager" decoding="async">
-      <img class="shot s3" src="https://github.com/user-attachments/assets/18ad4073-05aa-413c-b06b-29cef46a78d6" alt="" loading="lazy" decoding="async">
+      <img class="shot s1" src="assets/screenshots/green-1.webp" alt="" loading="eager" decoding="async">
+      <img class="shot s2" src="assets/screenshots/green-2.webp" alt="" loading="eager" decoding="async">
+      <img class="shot s3" src="assets/screenshots/green-3.webp" alt="" loading="lazy" decoding="async">
     </div>
   </div>
 </section>
@@ -165,7 +174,7 @@
       <div class="card-stack">
         <div class="fake-card">
           <div class="fake-head">
-            <span class="fake-icon" style="--c:#7ADA9D">
+            <span class="fake-icon" style="--c:var(--brand);--c-on:var(--brand-on)">
               <svg class="ico" viewBox="0 0 24 24"><use href="#i-git"/></svg>
             </span>
             <div>
@@ -197,32 +206,32 @@
     </div>
     <div class="grid">
       <article class="feature reveal">
-        <span class="feature-ico" style="--c:#7ADA9D"><svg class="ico" viewBox="0 0 24 24"><use href="#i-tv"/></svg></span>
+        <span class="feature-ico" style="--c:var(--brand);--c-on:var(--brand-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-tv"/></svg></span>
         <h3 data-i18n="feat.tv.t">Made for Android TV</h3>
         <p data-i18n="feat.tv.d">A real 10-foot interface: full D-pad navigation, a scaled-up UI, automatic "Made for TV" detection for catalogue and external apps, and a curated pack of FOSS TV apps.</p>
       </article>
       <article class="feature reveal">
-        <span class="feature-ico" style="--c:#FFB780"><svg class="ico" viewBox="0 0 24 24"><use href="#i-palette"/></svg></span>
+        <span class="feature-ico" style="--c:var(--brand-2);--c-on:var(--brand-2-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-palette"/></svg></span>
         <h3 data-i18n="feat.you.t">Modern Material You</h3>
         <p data-i18n="feat.you.d">Rebuilt in Jetpack Compose with Material 3: an accent-colour picker that can follow your wallpaper or an app's own icon, tinted system bars, edge-to-edge, and wavy progress indicators.</p>
       </article>
       <article class="feature reveal">
-        <span class="feature-ico" style="--c:#7ADA9D"><svg class="ico" viewBox="0 0 24 24"><use href="#i-compass"/></svg></span>
+        <span class="feature-ico" style="--c:var(--brand);--c-on:var(--brand-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-compass"/></svg></span>
         <h3 data-i18n="feat.disc.t">Discover home</h3>
         <p data-i18n="feat.disc.d">A curated landing screen with carousels for what's new, recently updated and most downloaded, plus a browsable categories section.</p>
       </article>
       <article class="feature reveal">
-        <span class="feature-ico" style="--c:#FFB780"><svg class="ico" viewBox="0 0 24 24"><use href="#i-eye-off"/></svg></span>
+        <span class="feature-ico" style="--c:var(--brand-2);--c-on:var(--brand-2-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-eye-off"/></svg></span>
         <h3 data-i18n="feat.hide.t">Hide what you don't need</h3>
         <p data-i18n="feat.hide.d">Hide any app, catalogue or external, from every list with one tap on its page. Manage what's hidden, or bring an app back, from Settings.</p>
       </article>
       <article class="feature reveal">
-        <span class="feature-ico" style="--c:#7ADA9D"><svg class="ico" viewBox="0 0 24 24"><use href="#i-language"/></svg></span>
+        <span class="feature-ico" style="--c:var(--brand);--c-on:var(--brand-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-language"/></svg></span>
         <h3 data-i18n="feat.tr.t">Built-in translation</h3>
         <p data-i18n="feat.tr.d">Translate an app's summary and description into your language with online, self-hosted or fully offline on-device engines. Nothing is downloaded until you pick the on-device one.</p>
       </article>
       <article class="feature reveal">
-        <span class="feature-ico" style="--c:#FFB780"><svg class="ico" viewBox="0 0 24 24"><use href="#i-archive"/></svg></span>
+        <span class="feature-ico" style="--c:var(--brand-2);--c-on:var(--brand-2-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-archive"/></svg></span>
         <h3 data-i18n="feat.bk.t">Backup and restore</h3>
         <p data-i18n="feat.bk.d">Back up repositories, external sources, settings, favourites and custom buttons independently, all in one file. Restoring only ever adds to what's there, it never wipes it.</p>
       </article>
@@ -255,28 +264,28 @@
       </div>
       <ul class="oss-points">
         <li>
-          <span class="feature-ico" style="--c:#7ADA9D"><svg class="ico" viewBox="0 0 24 24"><use href="#i-scale"/></svg></span>
+          <span class="feature-ico" style="--c:var(--brand);--c-on:var(--brand-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-scale"/></svg></span>
           <div>
             <strong data-i18n="oss.p1t">GPL-3.0 or later</strong>
             <span data-i18n="oss.p1d">Copyleft, so it stays free for whoever comes next.</span>
           </div>
         </li>
         <li>
-          <span class="feature-ico" style="--c:#FFB780"><svg class="ico" viewBox="0 0 24 24"><use href="#i-eye-off"/></svg></span>
+          <span class="feature-ico" style="--c:var(--brand-2);--c-on:var(--brand-2-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-eye-off"/></svg></span>
           <div>
             <strong data-i18n="oss.p2t">Nothing phones home</strong>
             <span data-i18n="oss.p2d">No trackers, no analytics, no ads, no account to create.</span>
           </div>
         </li>
         <li>
-          <span class="feature-ico" style="--c:#7ADA9D"><svg class="ico" viewBox="0 0 24 24"><use href="#i-lock-open"/></svg></span>
+          <span class="feature-ico" style="--c:var(--brand);--c-on:var(--brand-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-lock-open"/></svg></span>
           <div>
             <strong data-i18n="oss.p3t">Verifiable builds</strong>
             <span data-i18n="oss.p3d">Build it yourself, or check the signature against the published fingerprint.</span>
           </div>
         </li>
         <li>
-          <span class="feature-ico" style="--c:#FFB780"><svg class="ico" viewBox="0 0 24 24"><use href="#i-heart"/></svg></span>
+          <span class="feature-ico" style="--c:var(--brand-2);--c-on:var(--brand-2-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-heart"/></svg></span>
           <div>
             <strong data-i18n="oss.p4t">Built on FOSS</strong>
             <span data-i18n="oss.p4d">A fork of Droid-ify, itself grown from Foxy-Droid. Credit where it is due.</span>
@@ -324,7 +333,7 @@
     <div class="split-visual reveal">
       <div class="fake-card">
         <div class="fake-head">
-          <span class="fake-icon" style="--c:#7ADA9D"><svg class="ico" viewBox="0 0 24 24"><use href="#i-shield"/></svg></span>
+          <span class="fake-icon" style="--c:var(--brand);--c-on:var(--brand-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-shield"/></svg></span>
           <div>
             <strong data-i18n="sec.cardTitle">Signing certificate</strong>
             <span data-i18n="sec.cardSub">Installed matches expected</span>
@@ -376,7 +385,7 @@
 <section class="section" id="beta">
   <div class="wrap">
     <div class="beta-card reveal">
-      <span class="feature-ico" style="--c:#FFB780"><svg class="ico" viewBox="0 0 24 24"><use href="#i-bug"/></svg></span>
+      <span class="feature-ico" style="--c:var(--brand-2);--c-on:var(--brand-2-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-bug"/></svg></span>
       <h2 data-i18n="beta.title">This is a beta.</h2>
       <p data-i18n="beta.p1">
         The core is solid and it gets used every day, but there is no point
@@ -476,6 +485,7 @@
 </footer>
 
 <script src="i18n.js"></script>
+<script src="accents.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

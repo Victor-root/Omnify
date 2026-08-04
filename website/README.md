@@ -22,6 +22,21 @@ Pages. It can also be run manually from the Actions tab.
 This needs to be enabled once: repository **Settings** then **Pages**, with
 **GitHub Actions** selected as the source.
 
+## Accent colours
+
+The header lets a visitor repaint the site, which doubles as a live demo of the
+app's own accent picker: picking a colour also swaps the three hero screenshots
+for a set shot in that same colour.
+
+Everything lives in `accents.js`. Each entry needs an `id`, the two accent tones
+(`brand` and `brand2`) and the three `shots` URLs. The header builds itself from
+that list, so adding a colour means appending an entry there and adding an
+`accent.<id>` label to both locales in `i18n.js`. Nothing in the CSS needs
+touching: every tinted value derives from `--brand` / `--brand-2`.
+
+The other colours' screenshots are preloaded once the page goes idle, so
+switching is instant rather than showing a gap.
+
 ## Translations
 
 All copy lives in `i18n.js`, keyed by the `data-i18n` attributes in

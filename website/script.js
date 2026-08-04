@@ -79,6 +79,7 @@
     var label = document.getElementById("lang-label");
     if (label) label.textContent = translate("lang.name", locale) || locale.toUpperCase();
 
+    renderAccentSwatches();
     if (latestTag) showLatestTag(latestTag);
   }
 
@@ -93,6 +94,132 @@
     });
   } else if (langBtn) {
     langBtn.hidden = true;
+  }
+
+  /* ---------- Accent colour ----------
+     Repaints the site and swaps the hero screenshots for a set shot in the same
+     colour, so the page shows off the app's own accent picker instead of just
+     describing it. The colours and their screenshots live in accents.js. */
+
+  var ACCENTS = window.OMNIFY_ACCENTS || [];
+  var accentBtn = document.getElementById("accent-toggle");
+  var accentList = document.getElementById("accent-list");
+  var currentAccent = ACCENTS[0] || null;
+
+  function accentById(id) {
+    for (var i = 0; i < ACCENTS.length; i++) {
+      if (ACCENTS[i].id === id) return ACCENTS[i];
+    }
+    return null;
+  }
+
+  /* Every set is the same pixel size and preloaded, so the replacement is put
+     in place only once it has decoded. The screenshot then changes in a single
+     frame: nothing fades, moves or resizes, only the colour appears to change. */
+  function swapShot(img, src) {
+    if (img.getAttribute("src") === src) return;
+    var next = new Image();
+    var assign = function () { img.src = src; };
+    next.src = src;
+    if (typeof next.decode === "function") {
+      next.decode().then(assign, assign);
+    } else if (next.complete) {
+      assign();
+    } else {
+      next.onload = assign;
+      next.onerror = assign;
+    }
+  }
+
+  function applyAccent(accent) {
+    if (!accent) return;
+    currentAccent = accent;
+    root.style.setProperty("--brand", accent.brand);
+    root.style.setProperty("--brand-2", accent.brand2);
+    root.style.setProperty("--on-brand", accent.onBrand || "#ffffff");
+
+    var shots = document.querySelectorAll(".shot");
+    for (var i = 0; i < shots.length; i++) {
+      if (accent.shots && accent.shots[i]) swapShot(shots[i], accent.shots[i]);
+    }
+
+    if (accentList) {
+      var buttons = accentList.querySelectorAll(".accent-swatch");
+      for (var j = 0; j < buttons.length; j++) {
+        buttons[j].setAttribute(
+          "aria-pressed",
+          buttons[j].getAttribute("data-accent") === accent.id ? "true" : "false"
+        );
+      }
+    }
+  }
+
+  function renderAccentSwatches() {
+    if (!accentList) return;
+    accentList.textContent = "";
+    ACCENTS.forEach(function (accent) {
+      var name = translate("accent." + accent.id, currentLocale) || accent.id;
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "accent-swatch";
+      btn.style.setProperty("--c", accent.brand);
+      btn.setAttribute("data-accent", accent.id);
+      btn.setAttribute("aria-label", name);
+      btn.title = name;
+      btn.setAttribute(
+        "aria-pressed",
+        currentAccent && currentAccent.id === accent.id ? "true" : "false"
+      );
+      btn.addEventListener("click", function () {
+        applyAccent(accent);
+        store("omnify-accent", accent.id);
+        setAccentOpen(false);
+      });
+      accentList.appendChild(btn);
+    });
+  }
+
+  function setAccentOpen(open) {
+    if (!accentList || !accentBtn) return;
+    accentList.hidden = !open;
+    accentBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  if (ACCENTS.length) {
+    applyAccent(accentById(read("omnify-accent")) || ACCENTS[0]);
+    renderAccentSwatches();
+
+    if (accentBtn && accentList) {
+      accentBtn.addEventListener("click", function (event) {
+        event.stopPropagation();
+        setAccentOpen(accentList.hidden);
+      });
+      document.addEventListener("click", function (event) {
+        if (!accentList.hidden && !accentList.contains(event.target)) setAccentOpen(false);
+      });
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") setAccentOpen(false);
+      });
+    }
+
+    /* Warm the other colours' screenshots once the page is idle, so switching
+       is instant rather than showing a gap while the new set downloads. */
+    var preload = function () {
+      ACCENTS.forEach(function (accent) {
+        (accent.shots || []).forEach(function (src) {
+          var img = new Image();
+          img.decoding = "async";
+          img.src = src;
+        });
+      });
+    };
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(preload, { timeout: 4000 });
+    } else {
+      window.addEventListener("load", function () { setTimeout(preload, 1200); });
+    }
+  } else if (accentBtn) {
+    accentBtn.hidden = true;
   }
 
   /* ---------- Theme ---------- */

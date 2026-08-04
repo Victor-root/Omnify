@@ -1,10 +1,13 @@
-/* Omnify site. Brand marks and the aurora motif are lifted straight from the app:
-   the same #7ADA9D / #FFB780 pair, and the same drifting ambient blobs its own
-   screens render behind their content. */
+/* Omnify site. The aurora motif is lifted straight from the app: the same
+   drifting ambient blobs its own screens render behind their content.
+   --brand / --brand-2 are the accent pair. They are not fixed: accents.js
+   rewrites them when a visitor picks a colour in the header, the same way the
+   app lets you repaint itself. Everything tinted below derives from them, so a
+   new colour needs no other change here. */
 
 :root {
-  --brand-green: #7ada9d;
-  --brand-orange: #ffb780;
+  --brand: #7ada9d;
+  --brand-2: #ffb780;
 
   --bg: #080b09;
   --bg-2: #0d1210;
@@ -14,7 +17,17 @@
   --border-strong: rgba(255, 255, 255, 0.16);
   --text: #e9efeb;
   --dim: #97a49d;
-  --accent: #7ada9d;
+  /* The accents are the app's real colours, which are saturated and fairly
+     dark. Used as a surface (buttons, blobs, swatches) that is exactly what is
+     wanted, but the same value as small text or an icon glyph would sink into
+     the background. These are the readable counterparts: lifted toward white on
+     the dark theme, pushed toward ink on the light one, hue kept either way. */
+  --brand-on: color-mix(in oklab, var(--brand) 62%, white);
+  --brand-2-on: color-mix(in oklab, var(--brand-2) 62%, white);
+  --accent: var(--brand-on);
+  /* Text drawn on top of a full-strength accent. Set per colour in accents.js,
+     since a light accent needs dark text and a dark one needs white. */
+  --on-brand: #ffffff;
   --shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.8);
   --aurora-strength: 0.5;
 
@@ -36,7 +49,9 @@
     --border-strong: rgba(9, 26, 17, 0.18);
     --text: #0d1512;
     --dim: #55635c;
-    --accent: #157f4c;
+    --brand-on: color-mix(in oklab, var(--brand) 65%, #04150d);
+    --brand-2-on: color-mix(in oklab, var(--brand-2) 65%, #04150d);
+    --accent: var(--brand-on);
     --shadow: 0 24px 60px -24px rgba(9, 26, 17, 0.25);
     --aurora-strength: 0.55;
     color-scheme: light;
@@ -52,7 +67,9 @@
   --border-strong: rgba(9, 26, 17, 0.18);
   --text: #0d1512;
   --dim: #55635c;
-  --accent: #157f4c;
+  --brand-on: color-mix(in oklab, var(--brand) 65%, #04150d);
+  --brand-2-on: color-mix(in oklab, var(--brand-2) 65%, #04150d);
+  --accent: var(--brand-on);
   --shadow: 0 24px 60px -24px rgba(9, 26, 17, 0.25);
   --aurora-strength: 0.55;
   color-scheme: light;
@@ -213,6 +230,54 @@ a { color: inherit; }
   letter-spacing: 0.05em;
 }
 
+/* ---------- Accent picker ---------- */
+
+.accent-picker { position: relative; }
+
+.accent-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brand);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 45%, transparent),
+    0 0 14px -2px var(--brand);
+  transition: background 0.3s;
+}
+
+.accent-list {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 15px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-2) 96%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
+  z-index: 120;
+}
+.accent-list[hidden] { display: none; }
+
+.accent-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--c);
+  cursor: pointer;
+  padding: 0;
+  outline-offset: 3px;
+  transition: transform 0.2s var(--ease), box-shadow 0.2s;
+}
+.accent-swatch:hover { transform: scale(1.12); }
+.accent-swatch[aria-pressed="true"] {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--bg-2) inset;
+}
+
 /* ---------- Buttons ---------- */
 
 .btn {
@@ -234,12 +299,16 @@ a { color: inherit; }
 .btn:active { transform: translateY(1px) scale(0.99); }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--brand-green), #a8e8bf);
-  color: #06130c;
-  box-shadow: 0 10px 30px -10px rgba(122, 218, 157, 0.55);
+  background: linear-gradient(
+    135deg,
+    var(--brand),
+    color-mix(in oklab, var(--brand) 80%, white)
+  );
+  color: var(--on-brand);
+  box-shadow: 0 10px 30px -10px color-mix(in srgb, var(--brand) 55%, transparent);
 }
 .btn-primary:hover {
-  box-shadow: 0 16px 40px -12px rgba(122, 218, 157, 0.7);
+  box-shadow: 0 16px 40px -12px color-mix(in srgb, var(--brand) 70%, transparent);
   transform: translateY(-2px);
 }
 
@@ -280,13 +349,13 @@ a { color: inherit; }
 }
 .b1 {
   width: 46vw; height: 46vw; min-width: 340px; min-height: 340px;
-  background: radial-gradient(circle, var(--brand-green), transparent 68%);
+  background: radial-gradient(circle, var(--brand), transparent 68%);
   top: 2%; left: -6%;
   animation: drift1 22s ease-in-out infinite alternate;
 }
 .b2 {
   width: 40vw; height: 40vw; min-width: 300px; min-height: 300px;
-  background: radial-gradient(circle, var(--brand-orange), transparent 68%);
+  background: radial-gradient(circle, var(--brand-2), transparent 68%);
   top: 22%; right: -4%;
   animation: drift2 26s ease-in-out infinite alternate;
 }
@@ -326,8 +395,8 @@ a { color: inherit; }
 .pill:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); }
 .pill .dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--brand-orange);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-orange) 22%, transparent);
+  background: var(--brand-2);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-2) 22%, transparent);
 }
 .pill .ico-xs { opacity: 0.6; }
 
@@ -339,7 +408,7 @@ a { color: inherit; }
   font-weight: 800;
 }
 .grad {
-  background: linear-gradient(115deg, var(--brand-green) 5%, var(--brand-orange) 95%);
+  background: linear-gradient(115deg, var(--brand-on) 5%, var(--brand-2-on) 95%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -368,7 +437,7 @@ a { color: inherit; }
 .hero-meta li::before {
   content: "";
   width: 5px; height: 5px; border-radius: 50%;
-  background: var(--brand-green);
+  background: var(--accent);
 }
 
 .hero-shots {
@@ -470,16 +539,16 @@ a { color: inherit; }
   left: 0; top: 8px;
   width: 18px; height: 18px;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--brand-green) 20%, transparent);
-  border: 1px solid color-mix(in srgb, var(--brand-green) 45%, transparent);
+  background: color-mix(in srgb, var(--brand) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand) 45%, transparent);
 }
 .ticks li::after {
   content: "";
   position: absolute;
   left: 5px; top: 12px;
   width: 8px; height: 4px;
-  border-left: 2px solid var(--brand-green);
-  border-bottom: 2px solid var(--brand-green);
+  border-left: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
   transform: rotate(-45deg);
 }
 
@@ -513,7 +582,11 @@ a { color: inherit; }
 .fake-head { display: flex; align-items: center; gap: 13px; }
 .fake-head > div { display: grid; min-width: 0; }
 .fake-head strong { font-size: 15.5px; font-weight: 650; }
-.fake-head span { font-size: 13px; color: var(--dim); }
+/* Scoped to the subtitle only. As ".fake-head span" this also caught the icon
+   and the chip beside it, and beat their own colour on specificity, so the chip
+   label was drawn in the muted text colour: invisible once the accent behind it
+   became a saturated one. */
+.fake-head > div > span { font-size: 13px; color: var(--dim); }
 
 .fake-icon {
   display: grid;
@@ -521,9 +594,9 @@ a { color: inherit; }
   width: 46px; height: 46px;
   border-radius: 14px;
   flex: none;
-  color: var(--c, var(--brand-green));
-  background: color-mix(in srgb, var(--c, var(--brand-green)) 15%, transparent);
-  border: 1px solid color-mix(in srgb, var(--c, var(--brand-green)) 32%, transparent);
+  color: var(--c-on, var(--c, var(--brand)));
+  background: color-mix(in srgb, var(--c, var(--brand)) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c, var(--brand)) 32%, transparent);
 }
 
 .chip {
@@ -538,8 +611,8 @@ a { color: inherit; }
   font-weight: 650;
 }
 .chip-ok {
-  color: #06130c;
-  background: var(--brand-green);
+  color: var(--on-brand);
+  background: var(--brand);
 }
 
 .fake-rows { display: grid; gap: 2px; margin-top: 20px; }
@@ -589,9 +662,9 @@ a { color: inherit; }
   place-items: center;
   width: 50px; height: 50px;
   border-radius: 15px;
-  color: var(--c, var(--brand-green));
-  background: color-mix(in srgb, var(--c, var(--brand-green)) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--c, var(--brand-green)) 30%, transparent);
+  color: var(--c-on, var(--c, var(--brand)));
+  background: color-mix(in srgb, var(--c, var(--brand)) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c, var(--brand)) 30%, transparent);
 }
 
 /* ---------- Open source ---------- */
@@ -603,11 +676,11 @@ a { color: inherit; }
   align-items: center;
   padding: clamp(30px, 4.6vw, 60px);
   border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--brand-green) 26%, var(--border));
+  border: 1px solid color-mix(in srgb, var(--brand) 26%, var(--border));
   background:
     radial-gradient(
       120% 100% at 0% 0%,
-      color-mix(in srgb, var(--brand-green) 11%, transparent),
+      color-mix(in srgb, var(--brand) 11%, transparent),
       transparent 62%
     ),
     var(--surface);
@@ -690,10 +763,10 @@ a { color: inherit; }
 
 .beta-card {
   border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--brand-orange) 28%, var(--border));
+  border: 1px solid color-mix(in srgb, var(--brand-2) 28%, var(--border));
   background: linear-gradient(
     150deg,
-    color-mix(in srgb, var(--brand-orange) 9%, transparent),
+    color-mix(in srgb, var(--brand-2) 9%, transparent),
     var(--surface)
   );
   padding: clamp(28px, 4.5vw, 52px);
@@ -746,7 +819,7 @@ a { color: inherit; }
 }
 .fingerprint .icon-btn { flex: none; }
 .icon-btn.done .ico-copy { display: none; }
-.icon-btn.done .ico-done { display: block; color: var(--brand-green); }
+.icon-btn.done .ico-done { display: block; color: var(--brand); }
 
 /* ---------- Footer ---------- */
 
@@ -855,6 +928,14 @@ a { color: inherit; }
   }
   .nav-burger[aria-expanded="true"] .ico-open { display: none; }
   .nav-burger[aria-expanded="true"] .ico-close { display: block; }
+}
+
+@media (max-width: 520px) {
+  /* The accent picker earns its place in the header more than a second GitHub
+     button does: the same link is in the download section and the footer. */
+  .nav-gh { display: none; }
+  .nav-inner { gap: 12px; }
+  .nav-actions { gap: 6px; }
 }
 
 @media (max-width: 600px) {
