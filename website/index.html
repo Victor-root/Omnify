@@ -71,9 +71,15 @@
         <div class="accent-list" id="accent-list" role="group"
              data-i18n-attr="aria-label:nav.accentAria" aria-label="Change accent colour" hidden></div>
       </div>
-      <button class="icon-btn lang-btn" id="lang-toggle" type="button" data-i18n-attr="aria-label:nav.langAria" aria-label="Change language">
-        <span id="lang-label">EN</span>
-      </button>
+      <div class="lang-picker">
+        <button class="icon-btn lang-btn" id="lang-toggle" type="button"
+                data-i18n-attr="aria-label:nav.langAria" aria-label="Change language"
+                aria-expanded="false" aria-controls="lang-list">
+          <span id="lang-label">EN</span>
+        </button>
+        <div class="lang-list" id="lang-list" role="group"
+             data-i18n-attr="aria-label:nav.langAria" aria-label="Change language" hidden></div>
+      </div>
       <button class="icon-btn" id="theme-toggle" type="button" data-i18n-attr="aria-label:nav.themeAria" aria-label="Switch theme">
         <svg class="ico ico-sun" viewBox="0 0 24 24"><use href="#i-sun"/></svg>
         <svg class="ico ico-moon" viewBox="0 0 24 24"><use href="#i-moon"/></svg>

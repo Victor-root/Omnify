@@ -230,6 +230,61 @@ a { color: inherit; }
   letter-spacing: 0.05em;
 }
 
+/* ---------- Language picker ---------- */
+
+.lang-picker { position: relative; }
+
+.lang-list {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+  min-width: 190px;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  border-radius: 15px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-2) 96%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
+  z-index: 120;
+}
+.lang-list[hidden] { display: none; }
+
+.lang-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 11px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.lang-option:hover { background: var(--surface-2); }
+.lang-option .code {
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.lang-option[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--brand) 14%, transparent);
+  color: var(--brand-on);
+  font-weight: 600;
+}
+.lang-option[aria-pressed="true"] .code { color: inherit; }
+
 /* ---------- Accent picker ---------- */
 
 .accent-picker { position: relative; }

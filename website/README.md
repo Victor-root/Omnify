@@ -39,18 +39,29 @@ switching is instant rather than showing a gap.
 
 ## Translations
 
+The site is translated in the same 13 languages as the app itself: English,
+French, German, Russian, Chinese (Simplified), Polish, Portuguese (Brazil),
+Spanish, Indonesian, Turkish, Italian, Dutch and Japanese. Register matches
+what each language already uses in the app's own `values-<locale>` strings
+(formal, informal or polite-without-a-pronoun, depending on the language), so
+the site and the app read as if the same person wrote both.
+
 All copy lives in `i18n.js`, keyed by the `data-i18n` attributes in
 `index.html`. English is the source text and the fallback for any key a locale
 does not define.
 
 The language is picked from the browser's own `navigator.languages` on first
 visit, matching on the base tag so `fr-CA` and `fr-BE` both land on French. A
-visitor can override it with the button in the header, and that choice is
+visitor can override it with the picker in the header, which lists every
+locale by its own name for itself (`lang.autonym`) rather than translated
+through whichever locale is currently on screen, and that choice is
 remembered. Anything not covered falls back to English.
 
-To add a locale: copy the `en` block in `i18n.js`, translate the values, and key
-it by its language code. The header button cycles through whatever is defined,
-so nothing else needs changing.
+To add a locale: copy the `en` block in `i18n.js`, translate the values, and
+key it by its language code. Give it a `lang.name` (the short code shown on
+the closed picker button) and a `lang.autonym` (the language's own name for
+itself, shown in the open list). The header picker builds itself from
+whatever locales are defined, so nothing else needs changing.
 
 Variants of the same three attributes cover every case:
 

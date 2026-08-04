@@ -24,6 +24,26 @@
     }
   }
 
+  /* Shared open/close behaviour for the header's two dropdowns (language,
+     accent colour): toggle on click, close on an outside click or Escape. */
+  function makeDropdown(btn, list) {
+    function setOpen(open) {
+      list.hidden = !open;
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+    btn.addEventListener("click", function (event) {
+      event.stopPropagation();
+      setOpen(list.hidden);
+    });
+    document.addEventListener("click", function (event) {
+      if (!list.hidden && !list.contains(event.target)) setOpen(false);
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") setOpen(false);
+    });
+    return setOpen;
+  }
+
   /* An explicit choice wins. Otherwise the browser's own language order decides,
      matching on the base tag so fr-CA and fr-BE both land on French. */
   function detectLocale() {
@@ -79,6 +99,17 @@
     var label = document.getElementById("lang-label");
     if (label) label.textContent = translate("lang.name", locale) || locale.toUpperCase();
 
+    var langList = document.getElementById("lang-list");
+    if (langList) {
+      var options = langList.querySelectorAll(".lang-option");
+      for (var k = 0; k < options.length; k++) {
+        options[k].setAttribute(
+          "aria-pressed",
+          options[k].getAttribute("data-lang") === locale ? "true" : "false"
+        );
+      }
+    }
+
     renderAccentSwatches();
     if (latestTag) showLatestTag(latestTag);
   }
@@ -86,12 +117,43 @@
   applyLocale(detectLocale());
 
   var langBtn = document.getElementById("lang-toggle");
-  if (langBtn && LOCALES.length > 1) {
-    langBtn.addEventListener("click", function () {
-      var next = LOCALES[(LOCALES.indexOf(currentLocale) + 1) % LOCALES.length];
-      store("omnify-lang", next);
-      applyLocale(next);
+  var langList = document.getElementById("lang-list");
+
+  /* Each language names itself: the label is always read from that language's
+     own dictionary entry, never translated through the locale on screen, so a
+     visitor can find their language even if they can't read the current one. */
+  function renderLangOptions() {
+    if (!langList) return;
+    langList.textContent = "";
+    LOCALES.forEach(function (code) {
+      var entry = DICT[code] || {};
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "lang-option";
+      btn.setAttribute("data-lang", code);
+      btn.setAttribute("aria-pressed", code === currentLocale ? "true" : "false");
+
+      var name = document.createElement("span");
+      name.textContent = entry["lang.autonym"] || code;
+      var tag = document.createElement("span");
+      tag.className = "code";
+      tag.textContent = entry["lang.name"] || code.toUpperCase();
+
+      btn.appendChild(name);
+      btn.appendChild(tag);
+      btn.addEventListener("click", function () {
+        store("omnify-lang", code);
+        applyLocale(code);
+        setLangOpen(false);
+      });
+      langList.appendChild(btn);
     });
+  }
+
+  var setLangOpen = function () {};
+  if (langBtn && langList && LOCALES.length > 1) {
+    renderLangOptions();
+    setLangOpen = makeDropdown(langBtn, langList);
   } else if (langBtn) {
     langBtn.hidden = true;
   }
@@ -203,27 +265,14 @@
     });
   }
 
-  function setAccentOpen(open) {
-    if (!accentList || !accentBtn) return;
-    accentList.hidden = !open;
-    accentBtn.setAttribute("aria-expanded", open ? "true" : "false");
-  }
+  var setAccentOpen = function () {};
 
   if (ACCENTS.length) {
     applyAccent(accentById(read("omnify-accent")) || ACCENTS[0]);
     renderAccentSwatches();
 
     if (accentBtn && accentList) {
-      accentBtn.addEventListener("click", function (event) {
-        event.stopPropagation();
-        setAccentOpen(accentList.hidden);
-      });
-      document.addEventListener("click", function (event) {
-        if (!accentList.hidden && !accentList.contains(event.target)) setAccentOpen(false);
-      });
-      document.addEventListener("keydown", function (event) {
-        if (event.key === "Escape") setAccentOpen(false);
-      });
+      setAccentOpen = makeDropdown(accentBtn, accentList);
     }
 
     /* Warm the other colours' screenshots once the page is idle, so switching
