@@ -212,6 +212,13 @@ object ApkResourceLocales {
         pkgEnd: Long,
         byType: MutableMap<Int, LinkedHashMap<Locale, EntryCounts>>,
     ) {
+        // A real ResTable_package header runs well past its keyStrings field, so a chunk ending before
+        // that field can't be one and there is nothing here to walk. Checked rather than left to the
+        // read below to throw: this sits *before* the key pool is parsed, so an out-of-range read here
+        // fails localeCodes() for the whole file, losing every language of every package including
+        // the ones already walked, where skipping just this package keeps the rest, which is exactly
+        // what this function's own doc promises for a key pool that can't be read.
+        if (pkgStart + PACKAGE_KEY_STRINGS_OFFSET + Int.SIZE_BYTES > pkgEnd) return
         val pkgHeaderSize = u16(arsc, pkgStart.toInt() + 2)
         val keyStringsRelOffset = u32(arsc, pkgStart.toInt() + PACKAGE_KEY_STRINGS_OFFSET)
         val keyPool = parseStringPool(arsc, (pkgStart + keyStringsRelOffset).toInt())
