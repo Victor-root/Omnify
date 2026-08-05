@@ -25,9 +25,16 @@
         android:name="android.hardware.touchscreen"
         android:required="false" />
 
+    <!--
+      allowBackup="false": nothing this app holds is copied out by Android's automatic backup, so no
+      GitHub token, repository login, or encryption key ever leaves the device that way. Restoring on
+      a new phone is covered by the app's own export in Settings, which is better suited to this data
+      anyway: it is started deliberately, it says what it contains, and the token travels only when
+      its box is ticked (see BackupCategory.GITHUB_TOKEN).
+    -->
     <application
         android:name=".Droidify"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:banner="@drawable/tv_banner"
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
