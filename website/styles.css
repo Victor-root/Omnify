@@ -43,6 +43,7 @@
     color-mix(in srgb, var(--brand-2) 80%, #fff)
   );
 
+  --section-pad: clamp(56px, 8vw, 104px);
   --radius: 18px;
   --radius-lg: 26px;
   --wrap: 1180px;
@@ -115,7 +116,8 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 90px;
+  /* The sticky bar is 72px; the rest is the air an anchored heading gets under it. */
+  scroll-padding-top: 104px;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -583,7 +585,14 @@ a { color: inherit; }
 
 /* ---------- Sections ---------- */
 
-.section { padding: clamp(56px, 8vw, 104px) 0; }
+.section {
+  padding: var(--section-pad) 0;
+  /* An anchor aligns the top of the section, and a section opens on a full band of padding, so a
+     link from the header left that whole band under the bar before any text showed up, dropping the
+     heading a third of the way down the screen. Cancelling exactly that padding puts the first line
+     of the section where the scroll padding above intends it, at any width. */
+  scroll-margin-top: calc(-1 * var(--section-pad));
+}
 
 .eyebrow {
   display: inline-flex;
@@ -807,6 +816,8 @@ a { color: inherit; }
 .tv-shot { margin: 46px auto 0; max-width: 1000px; }
 .tv-shot img {
   width: 100%;
+  /* "auto" so the real file still decides once it is here: this only holds its place until then. */
+  aspect-ratio: auto 1955 / 1177;
   filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.32));
 }
 
@@ -830,6 +841,10 @@ a { color: inherit; }
 .gallery img {
   flex: none;
   width: min(258px, 62vw);
+  /* Hosted off-site and sized by nothing, so the row was flat until the six of them arrived and
+     everything under it dropped by their height, which is what left a link from another page short
+     of the section it named. Same "auto" as above: a real ratio wins as soon as there is one. */
+  aspect-ratio: auto 760 / 1606;
   scroll-snap-align: center;
 }
 
