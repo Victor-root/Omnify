@@ -600,7 +600,10 @@ a { color: inherit; }
 .ticks li::after {
   content: "";
   position: absolute;
-  left: 5px; top: 12px;
+  /* Centred on the square above, whose middle sits at 9px / 17px. The tick is a right angle pivoted
+     45 degrees, so what it draws ends up about 1.4px below the middle of its own box, and the box
+     has to sit that much higher for the tick itself to land centred. */
+  left: 5px; top: 13.6px;
   width: 8px; height: 4px;
   border-left: 2px solid var(--accent);
   border-bottom: 2px solid var(--accent);
