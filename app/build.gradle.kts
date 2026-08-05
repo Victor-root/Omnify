@@ -26,7 +26,10 @@ val keystoreProperties = Properties().apply {
 }
 val hasReleaseSigning = keystorePropertiesFile.exists()
 
-val latestVersionName = "1.0.0"
+// Bump this on every published build, and specifically its dotted part: an external source's update
+// check reads the version out of the release tag / APK name and stops at the first hyphen, so a new
+// "-beta.N" on its own reads as the same version and no update is offered.
+val latestVersionName = "1.0.1"
 
 android {
     namespace = "com.looker.droidify"
@@ -38,7 +41,10 @@ android {
         applicationId = "com.omnify.vroot"
         minSdk = 23
         versionName = latestVersionName
-        versionCode = 1001
+        // Android's own ordering, invisible to the user: it refuses to install over a build whose
+        // versionCode isn't lower, so this has to rise on every published build regardless of what
+        // versionName says.
+        versionCode = 1002
 
         testInstrumentationRunner = "com.looker.droidify.TestRunner"
     }
@@ -94,7 +100,7 @@ android {
         create("beta") {
             initWith(getByName("release"))
             applicationIdSuffix = ".beta"
-            versionNameSuffix = "-beta.1"
+            versionNameSuffix = "-beta.2"
         }
         debug {
             applicationIdSuffix = ".debug"
@@ -174,7 +180,7 @@ androidComponents {
     onVariants { variant ->
         variant.outputs.forEach { output ->
             // output.versionName is the fully-resolved per-variant name (defaultConfig.versionName
-            // plus that build type's own versionNameSuffix, e.g. beta's "-beta.1"), so the file name
+            // plus that build type's own versionNameSuffix, e.g. beta's "-beta.2"), so the file name
             // always matches what the build type actually is without repeating that logic here.
             (output as? VariantOutputImpl)?.outputFileName?.set(output.versionName.map { "Omnify-v$it.apk" })
         }
