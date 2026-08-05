@@ -89,6 +89,7 @@ import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.HideAppAction
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
+import com.looker.droidify.compose.components.LoadingBar
 import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.components.RootBadge
 import com.looker.droidify.compose.components.ScrollToTopFab
@@ -690,6 +691,9 @@ fun ExternalAppDetailScreen(
                         null
                     },
                     isWarning = signatureMismatch,
+                    // Null means the release list is still being fetched (empty means there is
+                    // genuinely none), the same distinction the version section further down draws.
+                    isLoadingVersions = releaseHistory == null,
                 ),
             )
         }
@@ -1314,20 +1318,22 @@ private fun ExternalVersionsSection(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
         if (releaseHistory == null) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            // Label over a full-width bar, the shape every other wait in the app uses (sync,
+            // supported languages) and the same bar the card at the top of this page now shows for
+            // this very fetch, so both ends of the page say the same thing about it.
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .tvReadable(debugLabel = "versions-loading-row")
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
-                LoadingSpinner(modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(12.dp))
                 Text(
                     text = stringResource(R.string.loading),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Spacer(Modifier.height(8.dp))
+                LoadingBar(modifier = Modifier.fillMaxWidth())
             }
         } else {
             // Collapsed to the newest few by default — same as the F-Droid catalogue's version

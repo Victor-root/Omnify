@@ -249,8 +249,8 @@ fun HeroSourceCodeStatItem(onClick: () -> Unit, modifier: Modifier = Modifier) {
  * The [HeroCard] footer content shared by both detail screens: an optional info line (installed
  * version / latest APK details) plus an optional "see all versions" link that jumps to the version
  * list further down the page — kept in one place so the F-Droid and external pages can't drift apart
- * on this. Returns null (no footer at all) when there's neither, so the caller can pass it straight
- * through to [HeroCard]'s `footer` slot.
+ * on this. Returns null (no footer at all) when there's nothing to show, so the caller can pass it
+ * straight through to [HeroCard]'s `footer` slot.
  */
 fun heroFooter(
     infoText: String?,
@@ -259,8 +259,14 @@ fun heroFooter(
     // match this catalogue entry's own signer) rather than routine info — shown in the theme's error
     // colour instead of the usual muted one so it doesn't read as an ordinary detail.
     isWarning: Boolean = false,
+    // True while the version list is still being fetched, which for an external source is a network
+    // round trip and can take a moment. The link takes its place when the list arrives. Without this
+    // the footer simply had nothing there, at the top of the page, while the list loaded far below:
+    // indistinguishable from a source that has no versions at all, so a slow repository read as a
+    // broken one.
+    isLoadingVersions: Boolean = false,
 ): (@Composable () -> Unit)? {
-    if (infoText == null && onViewVersionsClick == null) return null
+    if (infoText == null && onViewVersionsClick == null && !isLoadingVersions) return null
     return {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             infoText?.let { text ->
@@ -275,7 +281,14 @@ fun heroFooter(
                     textAlign = TextAlign.Center,
                 )
             }
-            if (onViewVersionsClick != null) {
+            // The bar stands exactly where the link will appear, so the footer says "still working"
+            // in the same spot rather than staying empty until the list lands. Drawn across the full
+            // width rather than as a small circle: this is the card's own closing line, and a bar
+            // spanning it reads as the card still filling in, which is what is actually happening.
+            if (isLoadingVersions) {
+                if (infoText != null) Spacer(modifier = Modifier.height(6.dp))
+                LoadingBar(modifier = Modifier.fillMaxWidth().padding(4.dp))
+            } else if (onViewVersionsClick != null) {
                 if (infoText != null) Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

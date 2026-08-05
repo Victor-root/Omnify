@@ -2,6 +2,7 @@ package com.looker.droidify.compose.components
 
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -19,6 +20,25 @@ import androidx.compose.ui.graphics.Color
 @Composable
 fun LoadingSpinner(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.primary) {
     CircularWavyProgressIndicator(
+        modifier = modifier,
+        color = color,
+        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+    )
+}
+
+/**
+ * The straight-line counterpart of [LoadingSpinner], with the same track-colour fix, for waits that
+ * span a row rather than sit inside one: a bar drawn across the available width reads as "this whole
+ * strip is busy" where a small circle reads as one detail loading.
+ *
+ * Pass a width-constraining modifier ([androidx.compose.foundation.layout.fillMaxWidth] and any
+ * padding); the indicator's own height is left to Material so it matches every other wavy bar in the
+ * app (download and install progress, sync, supported languages).
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun LoadingBar(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.primary) {
+    LinearWavyProgressIndicator(
         modifier = modifier,
         color = color,
         trackColor = MaterialTheme.colorScheme.surfaceVariant,
