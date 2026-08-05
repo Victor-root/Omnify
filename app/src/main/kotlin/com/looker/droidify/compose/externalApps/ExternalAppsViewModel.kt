@@ -445,9 +445,6 @@ class ExternalAppsViewModel @Inject constructor(
     /** The in-flight "add source" coroutine, so it can be cancelled if the dialog is dismissed mid-add. */
     private var addJob: Job? = null
 
-    /** When the last network refresh ran (elapsedRealtime), to throttle the per-screen-entry refresh. */
-    private var lastNetworkRefreshAt = 0L
-
     val snackbarHostState = SnackbarHostState()
 
     /** README (HTML) of the app shown on the detail screen, or null while loading / when none. */
@@ -1369,13 +1366,31 @@ class ExternalAppsViewModel @Inject constructor(
      *  and stayed on the owner-avatar fallback (see ExternalAppIcon.kt) indefinitely, even after the
      *  source had been sitting there for months. It's still genuinely one-time per repo either way (the
      *  *Checked flags below), so this doesn't add ongoing cost, only a one-off scan the first time each
-     *  source is ever seen. Throttled: this fires on every screen entry. */
+     *  source is ever seen. Throttled: this fires on every screen entry.
+     *
+     *  The list is read straight from the repository, never from [apps]: that state flow is shared
+     *  `WhileSubscribed` and starts on its `emptyList()` placeholder, so at the moment this runs (from a
+     *  `LaunchedEffect` in the screen that has just composed) it hasn't emitted yet and the loop below
+     *  had nothing to iterate, silently skipping every source while arming the throttle all the same.
+     *  Entering a screen then never refreshed any source's latest* fields, which is what decides whether
+     *  an update exists, so a newly published release simply never became an available update. Only
+     *  adding or editing a source resolved them, leaving each one frozen on the release it shipped the
+     *  day it was added. The version list on the detail screen kept showing new releases correctly
+     *  throughout, since it queries the provider directly instead of reading those fields. */
     fun refresh() {
         val now = SystemClock.elapsedRealtime()
         if (now - lastNetworkRefreshAt < REFRESH_THROTTLE_MS) return
         lastNetworkRefreshAt = now
         viewModelScope.launch {
-            apps.value.forEach { app ->
+            val tracked = repository.getApps()
+            // No sources yet, so nothing was requested: give the throttle window back instead of sitting
+            // it out over a pass that cost nothing. This is a real first-launch case, since the seeded
+            // sources are still being written by MainComposeActivity while this screen composes.
+            if (tracked.isEmpty()) {
+                lastNetworkRefreshAt = 0L
+                return@launch
+            }
+            tracked.forEach { app ->
                 // A release may not exist yet (e.g. the seeded Omnify source has no published release),
                 // or the source may simply not be enabled yet — either way we still scan the repo below
                 // for its icon / name / TV support, which don't depend on a downloadable APK, and simply
@@ -1443,7 +1458,7 @@ class ExternalAppsViewModel @Inject constructor(
                     // installedApkToken/packageName/label are already stale, and copying from it here
                     // would silently overwrite that fresh install state with the old pre-install values —
                     // flashing the Update button back on right after it correctly switched to Launch.
-                    val current = apps.value.firstOrNull { it.key == app.key } ?: app
+                    val current = repository.getApps().firstOrNull { it.key == app.key } ?: app
                     repository.upsertApp(
                         current.copy(
                             packageName = current.packageName ?: packageId,
@@ -1465,7 +1480,7 @@ class ExternalAppsViewModel @Inject constructor(
             // Once a day, re-scan each enabled account for newly published apps (the apps it already
             // found are refreshed by the per-app loop above). Disabled accounts and never-scanned ones
             // (handled by the init watcher) are skipped, so this barely adds to the API cost.
-            accounts.value
+            repository.getAccounts()
                 .filter {
                     it.enabled &&
                         it.lastScan != 0L &&
@@ -1946,6 +1961,13 @@ private const val EMIT_INTERVAL_MS = 150L
 /** Minimum gap between automatic network refreshes of external sources (they fire on every screen
  *  entry and each enabled source is one GitHub API call, so this protects the rate-limit budget). */
 private const val REFRESH_THROTTLE_MS = 10 * 60 * 1000L
+
+/** When the last network refresh ran (elapsedRealtime), throttling the per-screen-entry refresh.
+ *  Process-wide rather than per instance: this ViewModel is obtained with `hiltViewModel()` inside each
+ *  navigation destination, so the app list and every detail screen get their own instance. A
+ *  per-instance timer would start back at zero on every single screen open, and the throttle it exists
+ *  to enforce would never actually apply to any of them. */
+private var lastNetworkRefreshAt = 0L
 
 /** How often an account source is re-scanned for newly published apps. Listing a whole account is
  *  several API calls, so it runs at most once a day rather than on every refresh. */
