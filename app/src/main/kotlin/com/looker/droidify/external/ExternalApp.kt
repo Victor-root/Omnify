@@ -134,7 +134,11 @@ data class ExternalApp(
     /** "owner/repo", shown in the UI. */
     val path: String get() = "$owner/$repo"
 
-    val webUrl: String get() = "https://$effectiveHost/$owner/$repo"
+    /** [path] for use inside a URL, where a name has to stay a name — see [urlPathSegment]. Every
+     *  address built below goes through this rather than [path]. */
+    internal val repoPath: String get() = repoPath(owner, repo)
+
+    val webUrl: String get() = "https://$effectiveHost/$repoPath"
 
     /** Origin shown in the UI: the provider name for a public host (GitHub / GitLab / Codeberg), or the
      *  actual instance host for a self-hosted source — so a Forgejo at git.example.org isn't labelled
@@ -146,9 +150,9 @@ data class ExternalApp(
      *  the real file to. No default-branch lookup is needed. */
     val readmeBaseUrl: String
         get() = when (provider) {
-            SourceProvider.GITHUB -> "https://raw.githubusercontent.com/$owner/$repo/HEAD/"
-            SourceProvider.CODEBERG -> "https://$effectiveHost/api/v1/repos/$owner/$repo/raw/"
-            SourceProvider.GITLAB -> "https://$effectiveHost/$owner/$repo/-/raw/HEAD/"
+            SourceProvider.GITHUB -> "https://raw.githubusercontent.com/$repoPath/HEAD/"
+            SourceProvider.CODEBERG -> "https://$effectiveHost/api/v1/repos/$repoPath/raw/"
+            SourceProvider.GITLAB -> "https://$effectiveHost/$repoPath/-/raw/HEAD/"
         }
 
     /** Base the README WebView resolves relative links/images against. It differs from [readmeBaseUrl]
@@ -156,7 +160,7 @@ data class ExternalApp(
      *  user-agents like the WebView, so the browser-facing web raw path is used for images to load. */
     val readmeWebBaseUrl: String
         get() = when (provider) {
-            SourceProvider.CODEBERG -> "https://$effectiveHost/$owner/$repo/raw/HEAD/"
+            SourceProvider.CODEBERG -> "https://$effectiveHost/$repoPath/raw/HEAD/"
             else -> readmeBaseUrl
         }
 
@@ -164,9 +168,9 @@ data class ExternalApp(
      *  this is a page meant to be opened in a real browser, not fetched as raw content, so each
      *  provider's own file-viewer path is used instead of its raw-content one. */
     fun fileViewUrl(fileName: String): String = when (provider) {
-        SourceProvider.GITHUB -> "https://$effectiveHost/$owner/$repo/blob/HEAD/$fileName"
-        SourceProvider.CODEBERG -> "https://$effectiveHost/$owner/$repo/src/branch/HEAD/$fileName"
-        SourceProvider.GITLAB -> "https://$effectiveHost/$owner/$repo/-/blob/HEAD/$fileName"
+        SourceProvider.GITHUB -> "https://$effectiveHost/$repoPath/blob/HEAD/$fileName"
+        SourceProvider.CODEBERG -> "https://$effectiveHost/$repoPath/src/branch/HEAD/$fileName"
+        SourceProvider.GITLAB -> "https://$effectiveHost/$repoPath/-/blob/HEAD/$fileName"
     }
 
     /** The provider's own "all releases" page — the changelog destination for a repo that documents
@@ -174,8 +178,8 @@ data class ExternalApp(
      *  [com.looker.droidify.external.ExternalApi.fetchChangelogUrl]). */
     val releasesUrl: String
         get() = when (provider) {
-            SourceProvider.GITLAB -> "https://$effectiveHost/$owner/$repo/-/releases"
-            SourceProvider.GITHUB, SourceProvider.CODEBERG -> "https://$effectiveHost/$owner/$repo/releases"
+            SourceProvider.GITLAB -> "https://$effectiveHost/$repoPath/-/releases"
+            SourceProvider.GITHUB, SourceProvider.CODEBERG -> "https://$effectiveHost/$repoPath/releases"
         }
 
     /**
@@ -186,7 +190,8 @@ data class ExternalApp(
      */
     val iconUrl: String?
         get() = when {
-            provider == SourceProvider.GITHUB && host.isEmpty() -> "https://github.com/$owner.png"
+            provider == SourceProvider.GITHUB && host.isEmpty() ->
+                "https://github.com/${owner.urlPathSegment()}.png"
             else -> null
         }
 

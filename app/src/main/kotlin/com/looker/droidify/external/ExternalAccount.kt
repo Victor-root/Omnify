@@ -51,13 +51,14 @@ data class ExternalAccount(
     /** Origin shown in the UI: the provider name for a public host, else the instance host. */
     val sourceLabel: String get() = if (host.isEmpty()) provider.label else host
 
-    val webUrl: String get() = "https://$effectiveHost/$owner"
+    val webUrl: String get() = "https://$effectiveHost/${owner.urlPathSegment()}"
 
     /** Account avatar where one is stably addressable by name (GitHub); null otherwise (falls back to a
      *  letter monogram in the UI). */
     val iconUrl: String?
         get() = when {
-            provider == SourceProvider.GITHUB && host.isEmpty() -> "https://github.com/$owner.png"
+            provider == SourceProvider.GITHUB && host.isEmpty() ->
+                "https://github.com/${owner.urlPathSegment()}.png"
             else -> null
         }
 

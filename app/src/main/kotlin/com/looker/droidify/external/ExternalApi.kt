@@ -26,7 +26,6 @@ import org.commonmark.ext.gfm.tables.TablesExtension
 import org.commonmark.ext.task.list.items.TaskListItemsExtension
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
-import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -183,7 +182,7 @@ class ExternalApi @Inject constructor(
      *  isn't a known public provider be recognised as a self-hosted instance. Never throws. */
     suspend fun isGiteaInstance(host: String, owner: String, repo: String): Boolean =
         withContext(Dispatchers.IO) {
-            runCatching { getText("https://$host/api/v1/repos/$owner/$repo") }.getOrNull() != null
+            runCatching { getText("https://$host/api/v1/repos/${repoPath(owner, repo)}") }.getOrNull() != null
         }
 
     /**
@@ -395,7 +394,7 @@ class ExternalApi @Inject constructor(
             SourceProvider.GITHUB -> fetchGithubTreePaths(app)
 
             SourceProvider.CODEBERG -> {
-                val url = "https://${app.effectiveHost}/api/v1/repos/${app.owner}/${app.repo}" +
+                val url = "https://${app.effectiveHost}/api/v1/repos/${app.repoPath}" +
                     "/git/trees/HEAD?recursive=true&per_page=1000"
                 val text = runCatching { getText(url) }.getOrNull() ?: return emptyList()
                 runCatching { parseTreePaths(text, "${app.owner}/${app.repo}") }.getOrNull() ?: emptyList()
@@ -413,7 +412,7 @@ class ExternalApi @Inject constructor(
      *  tree-dependent features (icons, app name) need — a truncated listing here silently hides whole
      *  res/values-xx/ directories from [fetchSourceLocales] if they sort late. */
     private suspend fun fetchGitlabTreePaths(app: ExternalApp): List<String> {
-        val encoded = URLEncoder.encode("${app.owner}/${app.repo}", "UTF-8")
+        val encoded = app.gitlabProjectPath
         val paths = mutableListOf<String>()
         for (page in 1..GITLAB_TREE_MAX_PAGES) {
             val url = "https://${app.effectiveHost}/api/v4/projects/$encoded/repository/tree" +
@@ -444,7 +443,7 @@ class ExternalApi @Inject constructor(
      * the common case still costs a single request.
      */
     private suspend fun fetchGithubTreePaths(app: ExternalApp): List<String> {
-        val url = "https://api.github.com/repos/${app.owner}/${app.repo}/git/trees/HEAD?recursive=1"
+        val url = "https://api.github.com/repos/${app.repoPath}/git/trees/HEAD?recursive=1"
         val text = runCatching { getText(url, github = true) }.getOrNull() ?: return emptyList()
         val response = runCatching { json.decodeFromString(TreeResponse.serializer(), text) }
             .getOrNull() ?: return emptyList()
@@ -476,7 +475,7 @@ class ExternalApi @Inject constructor(
         while (queue.isNotEmpty() && calls < GITHUB_TREE_WALK_MAX_CALLS) {
             val (parentPath, sha) = queue.removeFirst()
             calls++
-            val url = "https://api.github.com/repos/${app.owner}/${app.repo}/git/trees/$sha"
+            val url = "https://api.github.com/repos/${app.repoPath}/git/trees/${sha.urlPathSegment()}"
             val text = runCatching { getText(url, github = true) }.getOrNull() ?: continue
             val entries = runCatching { json.decodeFromString(TreeResponse.serializer(), text) }
                 .getOrNull()?.tree ?: continue
@@ -603,25 +602,25 @@ class ExternalApi @Inject constructor(
         runCatching {
             val enabled = when (app.provider) {
                 SourceProvider.GITHUB -> repoHasIssues(
-                    url = "https://api.github.com/repos/${app.owner}/${app.repo}",
+                    url = "https://api.github.com/repos/${app.repoPath}",
                     github = true,
                 )
                 // Gitea/Forgejo (codeberg.org or self-hosted) exposes the same has_issues field.
                 SourceProvider.CODEBERG -> repoHasIssues(
-                    url = "https://${app.effectiveHost}/api/v1/repos/${app.owner}/${app.repo}",
+                    url = "https://${app.effectiveHost}/api/v1/repos/${app.repoPath}",
                 )
                 SourceProvider.GITLAB -> {
                     // GitLab's project API doesn't reliably expose an issues-enabled flag to anonymous
                     // requests; the issues list endpoint itself returns 403 when issues are disabled
                     // for the project (200, even with an empty list, otherwise), so that doubles as
                     // the check without needing a second request.
-                    val path = URLEncoder.encode("${app.owner}/${app.repo}", "UTF-8")
+                    val path = app.gitlabProjectPath
                     getText("https://${app.effectiveHost}/api/v4/projects/$path/issues?per_page=1") != null
                 }
             }
             if (!enabled) return@runCatching null
             val suffix = if (app.provider == SourceProvider.GITLAB) "-/issues" else "issues"
-            "https://${app.effectiveHost}/${app.owner}/${app.repo}/$suffix"
+            "https://${app.effectiveHost}/${app.repoPath}/$suffix"
         }.getOrNull()
     }
 
@@ -820,17 +819,17 @@ class ExternalApi @Inject constructor(
     ): List<Release> {
         val text = when (provider) {
             SourceProvider.GITHUB -> getText(
-                url = "https://api.github.com/repos/$owner/$repo/releases" +
+                url = "https://api.github.com/repos/${repoPath(owner, repo)}/releases" +
                     "?per_page=$RELEASES_PER_PAGE&page=$page",
                 github = true,
             )
             // Gitea/Forgejo: codeberg.org or any self-hosted instance (same REST shape).
             SourceProvider.CODEBERG -> getText(
-                url = "https://$host/api/v1/repos/$owner/$repo/releases" +
+                url = "https://$host/api/v1/repos/${repoPath(owner, repo)}/releases" +
                     "?limit=$RELEASES_PER_PAGE&page=$page",
             )
             SourceProvider.GITLAB -> {
-                val path = URLEncoder.encode("$owner/$repo", "UTF-8")
+                val path = gitlabProjectPath(owner, repo)
                 getText(
                     url = "https://$host/api/v4/projects/$path/releases" +
                         "?per_page=$RELEASES_PER_PAGE&page=$page",
@@ -861,7 +860,7 @@ class ExternalApi @Inject constructor(
             when (provider) {
                 SourceProvider.GITHUB -> pagedAccountRepos { page ->
                     val text = getText(
-                        url = "https://api.github.com/users/$owner/repos" +
+                        url = "https://api.github.com/users/${owner.urlPathSegment()}/repos" +
                             "?per_page=100&page=$page&type=owner&sort=pushed",
                         github = true,
                     ) ?: return@pagedAccountRepos PageResult(emptyList(), 0)
@@ -870,7 +869,7 @@ class ExternalApi @Inject constructor(
 
                 SourceProvider.CODEBERG -> pagedAccountRepos { page ->
                     val text = getText(
-                        url = "https://$host/api/v1/users/$owner/repos?limit=50&page=$page",
+                        url = "https://$host/api/v1/users/${owner.urlPathSegment()}/repos?limit=50&page=$page",
                     ) ?: return@pagedAccountRepos PageResult(emptyList(), 0)
                     giteaPage(text, owner, includeForks)
                 }
@@ -879,12 +878,15 @@ class ExternalApi @Inject constructor(
                     // A GitLab account name can be a user or a group; try user projects first, then group
                     // projects (including subgroups) when that yields nothing.
                     val user = pagedAccountRepos { page ->
-                        gitlabProjects("https://$host/api/v4/users/$owner/projects?per_page=100&page=$page")
+                        gitlabProjects(
+                            "https://$host/api/v4/users/${owner.urlPathSegment()}" +
+                                "/projects?per_page=100&page=$page",
+                        )
                     }
                     user.ifEmpty {
                         pagedAccountRepos { page ->
                             gitlabProjects(
-                                "https://$host/api/v4/groups/$owner/projects" +
+                                "https://$host/api/v4/groups/${owner.urlPathSegment()}/projects" +
                                     "?per_page=100&page=$page&include_subgroups=true",
                             )
                         }
