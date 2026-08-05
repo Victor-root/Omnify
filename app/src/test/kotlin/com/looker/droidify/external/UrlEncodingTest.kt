@@ -52,7 +52,7 @@ class UrlEncodingTest {
 
     @Test
     fun `an escape cannot be smuggled in already escaped`() {
-        // Left as-is, "%2E%2E" would arrive at the server as ".." — the percent has to go first.
+        // Left as-is, "%2E%2E" would arrive at the server as "..", so the percent has to go first.
         assertEquals("%252E%252E", "%2E%2E".urlPathSegment())
     }
 

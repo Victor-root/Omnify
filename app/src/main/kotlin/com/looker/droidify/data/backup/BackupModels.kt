@@ -39,7 +39,7 @@ data class RepositoriesBackup(val repositories: List<RepoBackupEntry> = emptyLis
 
 /** The GitHub token, in its own entry so [BackupCategory.GITHUB_TOKEN] can be left out of an export
  *  without also dropping the rest of the settings. Stored as plain text, like the repository
- *  credentials above — a backup that includes it is a file worth treating as a secret. */
+ *  credentials above: a backup that includes it is a file worth treating as a secret. */
 @Serializable
 data class GithubTokenBackup(val token: String = "")
 

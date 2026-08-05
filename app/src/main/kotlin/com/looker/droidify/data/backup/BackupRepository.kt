@@ -110,7 +110,7 @@ class BackupRepository @Inject constructor(
                         // their own categories (FAVOURITES, HIDDEN_APPS, and the per-repo `enabled`
                         // field inside REPOSITORIES), never re-derived from this entry on restore. See
                         // BackupCategory's own doc comment for why they're split out at all. The GitHub
-                        // token goes the same way, into GITHUB_TOKEN — so leaving that category
+                        // token goes the same way, into GITHUB_TOKEN, so leaving that category
                         // unchecked genuinely keeps the token out of the file, rather than writing it
                         // here anyway where nothing would ever look for it.
                         val settings = settingsRepository.getInitial().copy(

@@ -65,7 +65,7 @@ fun backupCategoryDescription(category: BackupCategory): String = stringResource
  * [BackupCategory.GITHUB_TOKEN] is the one exception: it starts unchecked, because a backup file
  * travels (a PC, a cloud drive, a chat) and an access token in it is usable by whoever ends up
  * holding the file. Including a credential is a decision worth taking deliberately, so it's offered
- * rather than assumed — one tap to add it, none to leave it out.
+ * rather than assumed: one tap to add it, none to leave it out.
  */
 @Composable
 fun BackupCategoryDialog(

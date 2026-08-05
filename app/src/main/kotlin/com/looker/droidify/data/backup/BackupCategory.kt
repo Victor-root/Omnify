@@ -16,7 +16,7 @@ enum class BackupCategory {
     SETTINGS,
 
     /** The personal GitHub access token. Split out of [SETTINGS] because it's a credential, not a
-     *  preference: a backup file gets copied to a PC, a cloud drive, a chat — and a token in it is
+     *  preference: a backup file gets copied to a PC, a cloud drive, a chat, and a token in it is
      *  usable by whoever ends up holding the file, so whether it travels with the backup is a
      *  decision to take per export rather than one bundled into "settings". */
     GITHUB_TOKEN,

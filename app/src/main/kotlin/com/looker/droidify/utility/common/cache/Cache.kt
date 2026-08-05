@@ -45,7 +45,7 @@ object Cache {
     /**
      * Resolves [name] inside [dir], rejecting anything that isn't a plain file name. A name carrying
      * a path separator or a `..` segment would resolve *outside* the cache directory, which turns any
-     * caller that merely passes a name through — an install request, an index download — into an
+     * caller that merely passes a name through (an install request, an index download) into an
      * arbitrary-path read or write. Every legitimate name (an APK hash, a sanitized source/tag pair,
      * an index constant) is already a plain file name, so this only ever rejects a malformed one.
      */
@@ -190,7 +190,7 @@ object Cache {
          * The release file [uri] points at. The path is resolved and then checked to really sit
          * directly inside the releases directory: a `..` segment in the URI would otherwise walk out
          * of the cache and hand out (or overwrite) any file the app itself can reach, which is worth
-         * refusing even though this provider isn't exported — a granted URI permission is per-URI, and
+         * refusing even though this provider isn't exported: a granted URI permission is per-URI, and
          * the receiving app should never be able to widen it by editing the path.
          */
         private fun getFileAndTypeForUri(uri: Uri): Pair<File, String> {

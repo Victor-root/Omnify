@@ -134,7 +134,7 @@ data class ExternalApp(
     /** "owner/repo", shown in the UI. */
     val path: String get() = "$owner/$repo"
 
-    /** [path] for use inside a URL, where a name has to stay a name — see [urlPathSegment]. Every
+    /** [path] for use inside a URL, where a name has to stay a name (see [urlPathSegment]). Every
      *  address built below goes through this rather than [path]. */
     internal val repoPath: String get() = repoPath(owner, repo)
 
