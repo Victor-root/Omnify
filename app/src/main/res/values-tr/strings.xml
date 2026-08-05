@@ -310,6 +310,8 @@
     <string name="restore_failed">Geri yükleme başarısız</string>
     <string name="backup_category_settings">Ayarlar</string>
     <string name="backup_category_settings_DESC">Tema, kurucu, senkronizasyon, proxy, çeviri ve diğer tercihler</string>
+    <string name="backup_category_github_token">GitHub token</string>
+    <string name="backup_category_github_token_DESC">Kişisel erişim token\'ınız, düz metin olarak. Yedek dosyasına sahip olan herkes onu kullanabilir</string>
     <string name="backup_category_repositories">Depolar</string>
     <string name="backup_category_repositories_DESC">Depolarınızın adresleri, kimlik bilgileri ve etkinlik durumu</string>
     <string name="backup_category_external_sources">Harici kaynaklar</string>

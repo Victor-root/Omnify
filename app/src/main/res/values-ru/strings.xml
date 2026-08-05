@@ -316,6 +316,8 @@
     <string name="restore_failed">Не удалось выполнить восстановление</string>
     <string name="backup_category_settings">Настройки</string>
     <string name="backup_category_settings_DESC">Тема, установщик, синхронизация, прокси, перевод и другие настройки</string>
+    <string name="backup_category_github_token">Токен GitHub</string>
+    <string name="backup_category_github_token_DESC">Ваш персональный токен доступа в открытом виде. Им сможет воспользоваться любой, у кого есть файл резервной копии</string>
     <string name="backup_category_repositories">Репозитории</string>
     <string name="backup_category_repositories_DESC">Адреса, учётные данные и статус активности ваших репозиториев</string>
     <string name="backup_category_external_sources">Внешние источники</string>

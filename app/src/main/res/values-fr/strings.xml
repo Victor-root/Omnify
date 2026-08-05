@@ -326,6 +326,8 @@
     <string name="restore_failed">Échec de la restauration</string>
     <string name="backup_category_settings">Paramètres</string>
     <string name="backup_category_settings_DESC">Thème, installation, synchronisation, proxy, traduction et autres réglages</string>
+    <string name="backup_category_github_token">Jeton GitHub</string>
+    <string name="backup_category_github_token_DESC">Votre jeton d\'accès personnel, en clair. Quiconque possède le fichier de sauvegarde peut l\'utiliser</string>
     <string name="backup_category_repositories">Dépôts</string>
     <string name="backup_category_repositories_DESC">Adresses, identifiants et état actif/inactif de vos dépôts</string>
     <string name="backup_category_external_sources">Sources externes</string>

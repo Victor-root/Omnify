@@ -288,6 +288,8 @@
     <string name="restore_failed">还原失败</string>
     <string name="backup_category_settings">设置</string>
     <string name="backup_category_settings_DESC">主题、安装器、同步、代理、翻译等偏好设置</string>
+    <string name="backup_category_github_token">GitHub 令牌</string>
+    <string name="backup_category_github_token_DESC">您的个人访问令牌，以明文保存。任何持有备份文件的人都可以使用它</string>
     <string name="backup_category_repositories">存储库</string>
     <string name="backup_category_repositories_DESC">您存储库的地址、凭据和启用状态</string>
     <string name="backup_category_external_sources">外部来源</string>

@@ -275,6 +275,8 @@
     <string name="restore_failed">Herstel mislukt</string>
     <string name="backup_category_settings">Instellingen</string>
     <string name="backup_category_settings_DESC">Thema, installatieprogramma, synchronisatie, proxy, vertaling en overige voorkeuren</string>
+    <string name="backup_category_github_token">GitHub-token</string>
+    <string name="backup_category_github_token_DESC">Je persoonlijke toegangstoken, in leesbare tekst. Iedereen die het back-upbestand heeft, kan hem gebruiken</string>
     <string name="backup_category_repositories">Bronnen</string>
     <string name="backup_category_repositories_DESC">Adressen, inloggegevens en ingeschakelde status van je bronnen</string>
     <string name="backup_category_external_sources">Externe bronnen</string>

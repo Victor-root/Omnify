@@ -278,6 +278,8 @@
     <string name="restore_failed">Falha na restauração</string>
     <string name="backup_category_settings">Configurações</string>
     <string name="backup_category_settings_DESC">Tema, instalador, sincronização, proxy, tradução e outras preferências</string>
+    <string name="backup_category_github_token">Token do GitHub</string>
+    <string name="backup_category_github_token_DESC">Seu token de acesso pessoal, em texto simples. Qualquer pessoa com o arquivo de backup pode usá-lo</string>
     <string name="backup_category_repositories">Repositórios</string>
     <string name="backup_category_repositories_DESC">Endereços, credenciais e estado de ativação dos seus repositórios</string>
     <string name="backup_category_external_sources">Fontes externas</string>

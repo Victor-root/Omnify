@@ -260,6 +260,8 @@
     <string name="restore_failed">復元に失敗しました</string>
     <string name="backup_category_settings">設定</string>
     <string name="backup_category_settings_DESC">テーマ、インストーラー、同期、プロキシ、翻訳などの設定</string>
+    <string name="backup_category_github_token">GitHub トークン</string>
+    <string name="backup_category_github_token_DESC">個人用アクセストークンが平文で保存されます。バックアップファイルを持つ人は誰でも使用できます</string>
     <string name="backup_category_repositories">リポジトリ</string>
     <string name="backup_category_repositories_DESC">リポジトリのアドレス、認証情報、有効状態</string>
     <string name="backup_category_external_sources">外部ソース</string>

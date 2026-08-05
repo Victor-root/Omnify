@@ -310,6 +310,8 @@
     <string name="restore_failed">Wiederherstellung fehlgeschlagen</string>
     <string name="backup_category_settings">Einstellungen</string>
     <string name="backup_category_settings_DESC">Design, Installation, Synchronisierung, Proxy, Übersetzung und weitere Einstellungen</string>
+    <string name="backup_category_github_token">GitHub-Token</string>
+    <string name="backup_category_github_token_DESC">Dein persönlicher Zugriffstoken im Klartext. Wer die Sicherungsdatei hat, kann ihn verwenden</string>
     <string name="backup_category_repositories">Paketquellen</string>
     <string name="backup_category_repositories_DESC">Adressen, Zugangsdaten und Aktivierungsstatus deiner Paketquellen</string>
     <string name="backup_category_external_sources">Externe Quellen</string>

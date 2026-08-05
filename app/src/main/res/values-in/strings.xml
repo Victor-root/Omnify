@@ -306,6 +306,8 @@
     <string name="restore_failed">Pemulihan gagal</string>
     <string name="backup_category_settings">Pengaturan</string>
     <string name="backup_category_settings_DESC">Tema, pemasang, sinkronisasi, proksi, terjemahan, dan preferensi lainnya</string>
+    <string name="backup_category_github_token">Token GitHub</string>
+    <string name="backup_category_github_token_DESC">Token akses pribadi Anda, dalam teks biasa. Siapa pun yang memiliki berkas cadangan dapat menggunakannya</string>
     <string name="backup_category_repositories">Repositori</string>
     <string name="backup_category_repositories_DESC">Alamat, kredensial, dan status aktif repositori Anda</string>
     <string name="backup_category_external_sources">Sumber eksternal</string>
