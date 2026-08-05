@@ -11,9 +11,15 @@ package com.looker.droidify.data.backup
  * string mapping kept in the Compose layer instead.
  */
 enum class BackupCategory {
-    /** Everything configurable on the Settings screen except favourites, hidden apps, and per-repo
-     *  enabled state: theme, installer, sync, proxy, translation, and so on. */
+    /** Everything configurable on the Settings screen except favourites, hidden apps, per-repo
+     *  enabled state, and the GitHub token: theme, installer, sync, proxy, translation, and so on. */
     SETTINGS,
+
+    /** The personal GitHub access token. Split out of [SETTINGS] because it's a credential, not a
+     *  preference: a backup file gets copied to a PC, a cloud drive, a chat — and a token in it is
+     *  usable by whoever ends up holding the file, so whether it travels with the backup is a
+     *  decision to take per export rather than one bundled into "settings". */
+    GITHUB_TOKEN,
 
     /** Tracked F-Droid-style repositories: address, credentials, and enabled/disabled state. */
     REPOSITORIES,

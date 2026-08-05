@@ -28,6 +28,7 @@ import javax.inject.Singleton
 
 private const val ENTRY_MANIFEST = "manifest.json"
 private const val ENTRY_SETTINGS = "settings.json"
+private const val ENTRY_GITHUB_TOKEN = "github_token.json"
 private const val ENTRY_REPOSITORIES = "repositories.json"
 private const val ENTRY_EXTERNAL_SOURCES = "external_sources.json"
 private const val ENTRY_FAVOURITES = "favourites.json"
@@ -36,6 +37,7 @@ private const val ENTRY_CUSTOM_BUTTONS = "custom_buttons.json"
 
 private val CATEGORY_ENTRY_NAMES = mapOf(
     BackupCategory.SETTINGS to ENTRY_SETTINGS,
+    BackupCategory.GITHUB_TOKEN to ENTRY_GITHUB_TOKEN,
     BackupCategory.REPOSITORIES to ENTRY_REPOSITORIES,
     BackupCategory.EXTERNAL_SOURCES to ENTRY_EXTERNAL_SOURCES,
     BackupCategory.FAVOURITES to ENTRY_FAVOURITES,
@@ -107,10 +109,21 @@ class BackupRepository @Inject constructor(
                         // Favourites/hidden apps/enabled-repo-ids are zeroed here on purpose: they're
                         // their own categories (FAVOURITES, HIDDEN_APPS, and the per-repo `enabled`
                         // field inside REPOSITORIES), never re-derived from this entry on restore. See
-                        // BackupCategory's own doc comment for why they're split out at all.
-                        val settings = settingsRepository.getInitial()
-                            .copy(favouriteApps = emptySet(), hiddenApps = emptySet(), enabledRepoIds = emptySet())
+                        // BackupCategory's own doc comment for why they're split out at all. The GitHub
+                        // token goes the same way, into GITHUB_TOKEN — so leaving that category
+                        // unchecked genuinely keeps the token out of the file, rather than writing it
+                        // here anyway where nothing would ever look for it.
+                        val settings = settingsRepository.getInitial().copy(
+                            favouriteApps = emptySet(),
+                            hiddenApps = emptySet(),
+                            enabledRepoIds = emptySet(),
+                            githubToken = "",
+                        )
                         zip.writeEntry(ENTRY_SETTINGS, json.encodeToString(settings))
+                    }
+                    if (BackupCategory.GITHUB_TOKEN in categories) {
+                        val token = GithubTokenBackup(settingsRepository.getInitial().githubToken)
+                        zip.writeEntry(ENTRY_GITHUB_TOKEN, json.encodeToString(token))
                     }
                     if (BackupCategory.REPOSITORIES in categories) {
                         // getRepo() (unlike the repos flow) also resolves credentials and mirrors — the
@@ -177,6 +190,12 @@ class BackupRepository @Inject constructor(
                 if (BackupCategory.SETTINGS in toRestore) {
                     restoreSettings(json.decodeFromString(inspection.entries.getValue(ENTRY_SETTINGS)))
                 }
+                if (BackupCategory.GITHUB_TOKEN in toRestore) {
+                    val backup = json.decodeFromString<GithubTokenBackup>(
+                        inspection.entries.getValue(ENTRY_GITHUB_TOKEN),
+                    )
+                    restoreGithubToken(backup.token)
+                }
                 if (BackupCategory.FAVOURITES in toRestore) {
                     val backup = json.decodeFromString<FavouritesBackup>(inspection.entries.getValue(ENTRY_FAVOURITES))
                     restoreFavourites(backup.packageNames)
@@ -213,15 +232,25 @@ class BackupRepository @Inject constructor(
                 favouriteApps = current.favouriteApps,
                 hiddenApps = current.hiddenApps,
                 enabledRepoIds = current.enabledRepoIds,
+                // The token is BackupCategory.GITHUB_TOKEN's business, so the one in place stays put.
+                // This also covers a backup written before that category existed: its settings entry
+                // still carries a token, and restoring settings is not the user ticking the box that
+                // says to take it.
+                githubToken = current.githubToken,
             ),
         )
-        // A restored GitHub token (however stale, expired, or unchanged from before) has never
-        // actually been checked against GitHub through this path: applySettings above writes it
-        // straight to DataStore, bypassing SettingsViewModel.setGithubToken, the only other place
-        // that calls this. Without it, the Settings screen would keep showing whatever verification
-        // state happened to be sitting in memory before the restore (most likely "never checked yet",
-        // which reads as verified) until some unrelated background call organically noticed a
-        // failure, possibly much later.
+    }
+
+    /**
+     * Writes a restored GitHub token, then confirms it against GitHub. That check matters here because
+     * nothing else on this path performs it: a restored token (however stale, expired, or unchanged
+     * from before) has never actually been used yet, and without this the Settings screen would keep
+     * showing whatever verification state was sitting in memory before the restore (most likely "never
+     * checked yet", which reads as verified) until some unrelated background call organically noticed
+     * a failure, possibly much later.
+     */
+    private suspend fun restoreGithubToken(token: String) {
+        settingsRepository.setGithubToken(token)
         externalApi.verifyGithubToken()
     }
 

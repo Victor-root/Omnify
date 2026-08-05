@@ -114,6 +114,8 @@
     <string name="restore_failed">Restore failed</string>
     <string name="backup_category_settings">Settings</string>
     <string name="backup_category_settings_DESC">Theme, installer, sync, proxy, translation and other preferences</string>
+    <string name="backup_category_github_token">GitHub token</string>
+    <string name="backup_category_github_token_DESC">Your personal access token, in clear text. Anyone holding the backup file can use it</string>
     <string name="backup_category_repositories">Repositories</string>
     <string name="backup_category_repositories_DESC">Addresses, credentials and enabled state of your repositories</string>
     <string name="backup_category_external_sources">External sources</string>

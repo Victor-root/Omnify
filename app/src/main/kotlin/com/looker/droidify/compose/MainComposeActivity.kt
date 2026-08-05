@@ -66,15 +66,12 @@ import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.datastore.extension.getThemeRes
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.Theme
-import com.looker.droidify.installer.InstallManager
-import com.looker.droidify.installer.model.installFrom
 import com.looker.droidify.model.Repository
 import com.looker.droidify.utility.common.DeeplinkType
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.sdkAbove
 import com.looker.droidify.utility.common.canRequestPackageInstalls
 import com.looker.droidify.utility.common.deeplinkType
-import com.looker.droidify.utility.common.getInstallPackageName
 import com.looker.droidify.utility.common.sharedSourceUrl
 import com.looker.droidify.utility.common.openUnknownAppSourcesSettings
 import com.looker.droidify.utility.common.requestNotificationPermission
@@ -110,14 +107,8 @@ class MainComposeActivity : ComponentActivity() {
     @Inject
     lateinit var externalApi: ExternalApi
 
-    @Inject
-    lateinit var installer: InstallManager
-
     companion object {
-        const val ACTION_INSTALL = "${BuildConfig.APPLICATION_ID}.intent.action.INSTALL"
         const val ACTION_UPDATES = "${BuildConfig.APPLICATION_ID}.intent.action.UPDATES"
-        const val EXTRA_CACHE_FILE_NAME =
-            "${BuildConfig.APPLICATION_ID}.intent.extra.CACHE_FILE_NAME"
 
         private const val FIRST_RUN_PREFS = "first_run"
         private const val KEY_UNKNOWN_SOURCES_PROMPTED = "unknown_sources_prompted"
@@ -371,17 +362,6 @@ class MainComposeActivity : ComponentActivity() {
     private fun handleDeeplink(intent: Intent, navController: NavController) {
         try {
             when (intent.action) {
-                ACTION_INSTALL -> {
-                    val packageName = intent.getInstallPackageName
-                    val cacheFileName = intent.getStringExtra(EXTRA_CACHE_FILE_NAME)
-                    if (!packageName.isNullOrEmpty() && !cacheFileName.isNullOrEmpty()) {
-                        navController.navigateToAppDetail(packageName)
-                        lifecycleScope.launch {
-                            installer.install(packageName installFrom cacheFileName)
-                        }
-                    }
-                }
-
                 ACTION_UPDATES -> navController.navigateToAppList()
 
                 Intent.ACTION_VIEW -> when (val deeplink = intent.deeplinkType()) {

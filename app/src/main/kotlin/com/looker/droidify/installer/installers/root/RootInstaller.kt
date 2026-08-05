@@ -21,9 +21,9 @@ class RootInstaller(private val context: Context) : Installer {
     ): InstallState = suspendCancellableCoroutine { cont ->
         val releaseFile = Cache.getReleaseFile(context, installItem.installFileName)
         val installCommand = INSTALL_COMMAND.format(
-            releaseFile.absolutePath,
-            currentUser(),
-            context.packageName,
+            releaseFile.absolutePath.shellQuote(),
+            currentUser().shellQuote(),
+            context.packageName.shellQuote(),
             installReasonFlag(),
             releaseFile.length(),
         )
@@ -41,7 +41,7 @@ class RootInstaller(private val context: Context) : Installer {
                 InstallState.Failed
             }
             cont.resume(result)
-            val deleteCommand = DELETE_COMMAND.format(utilBox(), releaseFile.absolutePath)
+            val deleteCommand = DELETE_COMMAND.format(utilBox(), releaseFile.absolutePath.shellQuote())
             Shell.cmd(deleteCommand).submit()
         }
     }
@@ -54,6 +54,14 @@ class RootInstaller(private val context: Context) : Installer {
 
 private const val INSTALL_COMMAND = "cat %s | pm install --user %s -i %s %s -t -r -S %s"
 private const val DELETE_COMMAND = "%s rm %s"
+
+/**
+ * [this] as a single shell word: wrapped in single quotes, with any single quote inside it escaped
+ * the POSIX way (`'\''`). These commands run as root, so a value reaching them with a space or a
+ * shell metacharacter in it (a file name, the current-user id read back from `am`) must never be
+ * able to end the argument and start a command of its own.
+ */
+private fun String.shellQuote(): String = "'" + replace("'", "'\\''") + "'"
 
 /**
  * Marks the install as user-initiated (`INSTALL_REASON_USER` = 4). `pm install` creates a regular

@@ -37,6 +37,12 @@ data class RepoBackupEntry(
 @Serializable
 data class RepositoriesBackup(val repositories: List<RepoBackupEntry> = emptyList())
 
+/** The GitHub token, in its own entry so [BackupCategory.GITHUB_TOKEN] can be left out of an export
+ *  without also dropping the rest of the settings. Stored as plain text, like the repository
+ *  credentials above — a backup that includes it is a file worth treating as a secret. */
+@Serializable
+data class GithubTokenBackup(val token: String = "")
+
 /** Both tracked external-source shapes together — a single-repo [ExternalApp] and a whole-account
  *  [ExternalAccount] — since the old per-category export only ever covered the former, silently
  *  dropping any account-level source on every export. */

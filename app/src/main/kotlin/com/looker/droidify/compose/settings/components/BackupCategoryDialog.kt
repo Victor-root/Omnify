@@ -31,6 +31,7 @@ import com.looker.droidify.data.backup.BackupCategory
 fun backupCategoryLabel(category: BackupCategory): String = stringResource(
     when (category) {
         BackupCategory.SETTINGS -> R.string.backup_category_settings
+        BackupCategory.GITHUB_TOKEN -> R.string.backup_category_github_token
         BackupCategory.REPOSITORIES -> R.string.backup_category_repositories
         BackupCategory.EXTERNAL_SOURCES -> R.string.backup_category_external_sources
         BackupCategory.FAVOURITES -> R.string.backup_category_favourites
@@ -44,6 +45,7 @@ fun backupCategoryLabel(category: BackupCategory): String = stringResource(
 fun backupCategoryDescription(category: BackupCategory): String = stringResource(
     when (category) {
         BackupCategory.SETTINGS -> R.string.backup_category_settings_DESC
+        BackupCategory.GITHUB_TOKEN -> R.string.backup_category_github_token_DESC
         BackupCategory.REPOSITORIES -> R.string.backup_category_repositories_DESC
         BackupCategory.EXTERNAL_SOURCES -> R.string.backup_category_external_sources_DESC
         BackupCategory.FAVOURITES -> R.string.backup_category_favourites_DESC
@@ -56,9 +58,14 @@ fun backupCategoryDescription(category: BackupCategory): String = stringResource
  * The single checkbox-selection dialog shared by both the backup and the restore flow (see
  * [com.looker.droidify.compose.settings.SettingsScreen]) — which categories to write into a new backup
  * zip, or which ones to apply out of an inspected one. [availableCategories] is every category the
- * caller can offer right now (all six when creating a backup; only whatever
+ * caller can offer right now (all of them when creating a backup; only whatever
  * [com.looker.droidify.data.backup.BackupInspection.availableCategories] found in the archive when
  * restoring), and starts fully checked so the common case — everything — is a single confirm tap.
+ *
+ * [BackupCategory.GITHUB_TOKEN] is the one exception: it starts unchecked, because a backup file
+ * travels (a PC, a cloud drive, a chat) and an access token in it is usable by whoever ends up
+ * holding the file. Including a credential is a decision worth taking deliberately, so it's offered
+ * rather than assumed — one tap to add it, none to leave it out.
  */
 @Composable
 fun BackupCategoryDialog(
@@ -71,7 +78,9 @@ fun BackupCategoryDialog(
     val orderedCategories = remember(availableCategories) {
         BackupCategory.entries.filter { it in availableCategories }
     }
-    var selected by remember { mutableStateOf(availableCategories) }
+    var selected by remember {
+        mutableStateOf(availableCategories - BackupCategory.GITHUB_TOKEN)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,

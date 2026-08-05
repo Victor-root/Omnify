@@ -1,23 +1,14 @@
 package com.looker.droidify.data.encryption
 
-import java.io.File
-import java.io.InputStream
 import java.security.MessageDigest
 
-private val DIGEST = MessageDigest.getInstance("SHA-256")
-
-fun sha256(data: String): ByteArray = DIGEST.digest(data.toByteArray())
-
-fun sha256(data: ByteArray): ByteArray = DIGEST.digest(data)
-
-fun sha256(data: File): ByteArray = data.inputStream().use(::sha256)
-
-fun sha256(data: InputStream): ByteArray = synchronized(DIGEST) {
-    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-    var bytesRead = data.read(buffer)
-    while (bytesRead >= 0) {
-        DIGEST.update(buffer, 0, bytesRead)
-        bytesRead = data.read(buffer)
-    }
-    DIGEST.digest()
-}
+/**
+ * SHA-256 of [data], computed on a [MessageDigest] of its own every call.
+ *
+ * A [MessageDigest] holds the state of whatever has been fed into it and is not thread-safe, so one
+ * shared instance lets two concurrent callers interleave and walk away with a digest of neither
+ * one's input. Every caller here hashes a certificate whose fingerprint an install decision rests on
+ * (a repository's signing key, an app's signer), which is not something to trade for the cost of
+ * allocating a digest object.
+ */
+fun sha256(data: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(data)

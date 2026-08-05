@@ -42,6 +42,24 @@ object Cache {
         return dir
     }
 
+    /**
+     * Resolves [name] inside [dir], rejecting anything that isn't a plain file name. A name carrying
+     * a path separator or a `..` segment would resolve *outside* the cache directory, which turns any
+     * caller that merely passes a name through — an install request, an index download — into an
+     * arbitrary-path read or write. Every legitimate name (an APK hash, a sanitized source/tag pair,
+     * an index constant) is already a plain file name, so this only ever rejects a malformed one.
+     */
+    private fun resolveInDir(dir: File, name: String): File {
+        require(
+            name.isNotEmpty() &&
+                name != "." &&
+                name != ".." &&
+                !name.contains('/') &&
+                !name.contains('\\'),
+        ) { "Invalid cache file name: $name" }
+        return File(dir, name)
+    }
+
     private fun applyOrMode(file: File, mode: Int) {
         // Only take first 12 significant digits
         val oldMode = Os.stat(file.path).st_mode and 0b111111111111
@@ -62,15 +80,15 @@ object Cache {
     }
 
     fun getIndexFile(context: Context, indexName: String): File {
-        return File(ensureCacheDir(context, INDEX_DIR), indexName)
+        return resolveInDir(ensureCacheDir(context, INDEX_DIR), indexName)
     }
 
     fun getPartialReleaseFile(context: Context, cacheFileName: String): File {
-        return File(ensureCacheDir(context, PARTIAL_DIR), cacheFileName)
+        return resolveInDir(ensureCacheDir(context, PARTIAL_DIR), cacheFileName)
     }
 
     fun getReleaseFile(context: Context, cacheFileName: String): File {
-        return File(ensureCacheDir(context, RELEASE_DIR), cacheFileName).apply {
+        return resolveInDir(ensureCacheDir(context, RELEASE_DIR), cacheFileName).apply {
             sdkAbove(Build.VERSION_CODES.N) {
                 // Make readable for package installer
                 val cacheDir = context.cacheDir.parentFile!!.parentFile!!
@@ -168,15 +186,23 @@ object Cache {
             private val defaultColumns = arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE)
         }
 
+        /**
+         * The release file [uri] points at. The path is resolved and then checked to really sit
+         * directly inside the releases directory: a `..` segment in the URI would otherwise walk out
+         * of the cache and hand out (or overwrite) any file the app itself can reach, which is worth
+         * refusing even though this provider isn't exported — a granted URI permission is per-URI, and
+         * the receiving app should never be able to widen it by editing the path.
+         */
         private fun getFileAndTypeForUri(uri: Uri): Pair<File, String> {
-            return when (uri.pathSegments?.firstOrNull()) {
-                RELEASE_DIR -> Pair(
-                    File(context!!.cacheDir, uri.encodedPath!!),
-                    "application/vnd.android.package-archive",
-                )
-
-                else -> throw SecurityException()
-            }
+            if (uri.pathSegments?.firstOrNull() != RELEASE_DIR) throw SecurityException()
+            val cacheDir = context?.cacheDir ?: throw SecurityException()
+            val path = uri.encodedPath ?: throw SecurityException()
+            val file = runCatching { File(cacheDir, path).canonicalFile }.getOrNull()
+                ?: throw SecurityException()
+            val releasesDir = runCatching { File(cacheDir, RELEASE_DIR).canonicalFile }.getOrNull()
+                ?: throw SecurityException()
+            if (file.parentFile != releasesDir) throw SecurityException()
+            return Pair(file, "application/vnd.android.package-archive")
         }
 
         override fun onCreate(): Boolean = true

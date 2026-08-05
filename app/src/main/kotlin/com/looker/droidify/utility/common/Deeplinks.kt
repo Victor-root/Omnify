@@ -88,9 +88,6 @@ fun Intent.deeplinkType(): DeeplinkType? {
     }
 }
 
-val Intent.getInstallPackageName: String?
-    get() = if (data?.scheme == "package") data?.schemeSpecificPart?.nullIfEmpty() else null
-
 /**
  * The URL from a shared-text intent (ACTION_SEND, e.g. a browser's "Share link" on a repo page).
  * Browsers usually put just the URL in EXTRA_TEXT, but some prepend a title, so the first http(s)
