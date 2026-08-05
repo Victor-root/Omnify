@@ -1,9 +1,6 @@
 package com.looker.droidify
 
-import android.annotation.SuppressLint
 import android.app.Application
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import androidx.appcompat.app.AppCompatDelegate
@@ -173,11 +170,6 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
             }
             DownloadStatsWorker.schedulePeriodic(this@Droidify)
         }
-    }
-
-    class BootReceiver : BroadcastReceiver() {
-        @SuppressLint("UnsafeProtectedBroadcastReceiver")
-        override fun onReceive(context: Context, intent: Intent) = Unit
     }
 
     override val workManagerConfiguration: Configuration

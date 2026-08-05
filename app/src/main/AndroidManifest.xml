@@ -45,16 +45,6 @@
         android:theme="@style/MainTheme"
         tools:ignore="UnusedAttribute">
 
-        <receiver
-            android:name=".Droidify$BootReceiver"
-            android:exported="true">
-
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-
-        </receiver>
-
         <!--
           Compose entry point — the launcher and deeplink handler. The legacy Views
           MainActivity has been removed; the migration to Jetpack Compose is ongoing.
