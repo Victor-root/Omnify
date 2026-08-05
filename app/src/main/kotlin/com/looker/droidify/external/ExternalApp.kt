@@ -248,15 +248,36 @@ data class ExternalApp(
      * is more precise and is trusted as-is (it correctly ignores a tag-only bump that ships no new APK).
      */
     fun hasUpdateGiven(currentInstalledVersionName: String?): Boolean {
+        val latestVersion = latestDottedVersion
+        val installedVersion = currentInstalledVersionName?.let(::dottedVersionOrNull)
+        // Going backwards is never an update, whatever the records say. This happens for real: a
+        // project whose newest build reaches other channels first (Brave ships to Play while the
+        // matching GitHub release is still a pre-release, which a source that excludes pre-releases
+        // rightly ignores) leaves the newest *visible* release older than what is installed. Offering
+        // it would push the user down a version, and Android would refuse the install anyway.
+        if (latestVersion != null && installedVersion != null &&
+            compareVersionStrings(latestVersion, installedVersion) < 0
+        ) {
+            return false
+        }
         val recordMatchesReality = currentInstalledVersionName != null &&
             currentInstalledVersionName == installedVersionName
         if ((installedApkToken != null || installedTag != null) && recordMatchesReality) {
             return hasUpdate
         }
-        val installed = currentInstalledVersionName ?: return false
-        val latest = latestApkName?.let(::apkVersionLabel) ?: latestTag?.let(::apkVersionLabel) ?: return false
-        return compareVersionStrings(latest, installed) > 0
+        // Both sides have to be real version numbers to be worth comparing. They used to fall back to
+        // the raw APK file name when it carried no version, which then got compared to a version
+        // number as text: "BraveMonoarm64.apk" against "1.93.130" compares 'B' to '1', and every
+        // letter sorts after every digit, so any such release read as newer than anything installed.
+        if (latestVersion == null || installedVersion == null) return false
+        return compareVersionStrings(latestVersion, installedVersion) > 0
     }
+
+    /** The latest release's version as a plain dotted number: from the APK file name when it carries
+     *  one (usually more accurate than the tag, see [releaseVersionLabel]), from the release tag
+     *  otherwise. Null when neither does, i.e. when there is no version here to compare. */
+    private val latestDottedVersion: String?
+        get() = latestApkName?.let(::dottedVersionOrNull) ?: latestTag?.let(::dottedVersionOrNull)
 
     companion object {
         /** Key of the built-in Omnify repo source (github.com/Victor-root/Omnify). Pinned to the top of
