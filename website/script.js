@@ -361,35 +361,40 @@
     });
   }
 
-  /* ---------- Copy the fingerprint ---------- */
+  /* ---------- Copy buttons ---------- */
 
-  var copyBtn = document.getElementById("copy-fp");
-  var fp = document.getElementById("fp");
-  if (copyBtn && fp && navigator.clipboard) {
-    copyBtn.addEventListener("click", function () {
-      navigator.clipboard.writeText(fp.textContent.trim()).then(
+  /* A button marked data-copy copies the code sitting next to it in the same box, and says so on
+     itself for a moment. Shared by the fingerprint and by every command on the build page, rather
+     than each growing its own copy of this. Hidden outright where there is no clipboard to write
+     to, since a button that silently does nothing is worse than no button. */
+  document.querySelectorAll(".icon-btn[data-copy]").forEach(function (btn) {
+    var source = btn.parentNode.querySelector("code");
+    if (!source || !navigator.clipboard) {
+      btn.hidden = true;
+      return;
+    }
+    btn.addEventListener("click", function () {
+      navigator.clipboard.writeText(source.textContent.trim()).then(
         function () {
-          copyBtn.classList.add("done");
-          copyBtn.setAttribute(
+          btn.classList.add("done");
+          btn.setAttribute(
             "aria-label",
             translate("dl.copiedAria", currentLocale) || "Copied"
           );
           setTimeout(function () {
-            copyBtn.classList.remove("done");
-            copyBtn.setAttribute(
+            btn.classList.remove("done");
+            btn.setAttribute(
               "aria-label",
               translate("dl.copyAria", currentLocale) || "Copy"
             );
           }, 2000);
         },
         function () {
-          /* Clipboard refused: the fingerprint is still selectable by hand. */
+          /* Clipboard refused: the text is still selectable by hand. */
         }
       );
     });
-  } else if (copyBtn) {
-    copyBtn.hidden = true;
-  }
+  });
 
   /* ---------- Latest release: the hero pill and the download links ---------- */
 

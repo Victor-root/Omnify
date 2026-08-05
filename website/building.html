@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="build.metaTitle">Build Omnify from source</title>
+<meta name="description" data-i18n-attr="content:build.metaDesc" content="Clone the repository and build Omnify yourself in three commands. What to install, which variant to pick, how signing works and what to do when it goes wrong.">
+<meta name="theme-color" content="#080b09" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f7faf8" media="(prefers-color-scheme: light)">
+<link rel="icon" href="assets/omnify-logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="Build Omnify from source">
+<meta property="og:description" content="Clone the repository and build Omnify yourself in three commands.">
+<meta property="og:type" content="article">
+</head>
+<body>
+
+<!-- Only the icons this page uses. The nav and footer are repeated here rather than shared: the site
+     is plain static HTML with no template step, so a second page repeats them the same way. -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="i-github"><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5"/></g>
+    <g id="i-copy"><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></g>
+    <g id="i-check"><path d="M5 12l5 5l10 -10"/></g>
+    <g id="i-sun"><path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></g>
+    <g id="i-moon"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"/></g>
+    <g id="i-menu"><path d="M4 6l16 0"/><path d="M4 12l16 0"/><path d="M4 18l16 0"/></g>
+    <g id="i-x"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></g>
+    <g id="i-git"><path d="M16 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 8m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 15v-6"/><path d="M15 11l-2 -2"/><path d="M11 7l-1.9 -1.9"/><path d="M13.446 2.6l7.955 7.954a2.045 2.045 0 0 1 0 2.892l-7.955 7.955a2.045 2.045 0 0 1 -2.892 0l-7.955 -7.955a2.045 2.045 0 0 1 0 -2.892l7.955 -7.955a2.045 2.045 0 0 1 2.892 0"/></g>
+    <g id="i-bug"><path d="M9 9v-1a3 3 0 0 1 6 0v1"/><path d="M8 9h8a6 6 0 0 1 1 3v3a5 5 0 0 1 -10 0v-3a6 6 0 0 1 1 -3"/><path d="M3 13l4 0"/><path d="M17 13l4 0"/><path d="M12 20l0 -6"/><path d="M4 19l3.35 -2"/><path d="M20 19l-3.35 -2"/><path d="M4 7l3.75 2.4"/><path d="M20 7l-3.75 2.4"/></g>
+    <g id="i-cpu"><path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z"/><path d="M9 9h6v6h-6z"/><path d="M3 10l2 0"/><path d="M3 14l2 0"/><path d="M10 3l0 2"/><path d="M14 3l0 2"/><path d="M21 10l-2 0"/><path d="M21 14l-2 0"/><path d="M10 21l0 -2"/><path d="M14 21l0 -2"/></g>
+    <g id="i-arrow-right"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></g>
+    <g id="i-scale"><path d="M7 20l10 0"/><path d="M6 6l6 -1l6 1"/><path d="M12 3l0 17"/><path d="M9 12l-3 -6l-3 6a3 3 0 0 0 6 0"/><path d="M21 12l-3 -6l-3 6a3 3 0 0 0 6 0"/></g>
+    <g id="i-code"><path d="M7 8l-4 4l4 4"/><path d="M17 8l4 4l-4 4"/><path d="M14 4l-4 16"/></g>
+    <g id="i-shield"><path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06"/><path d="M15 19l2 2l4 -4"/></g>
+    <g id="i-terminal"><path d="M8 9l3 3l-3 3"/><path d="M13 15l3 0"/><path d="M3 6a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2l0 -12"/></g>
+    <g id="i-device-mobile"><path d="M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14"/><path d="M11 4h2"/><path d="M12 17v.01"/></g>
+    <g id="i-key"><path d="M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0"/><path d="M15 9h.01"/></g>
+    <g id="i-clock"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 12l3 2"/><path d="M12 7v5"/></g>
+    <g id="i-folder"><path d="M5 19l2.757 -7.351a1 1 0 0 1 .936 -.649h12.307a1 1 0 0 1 .986 1.164l-.996 5.211a2 2 0 0 1 -1.964 1.625h-14.026a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2"/></g>
+    <g id="i-alert"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0"/><path d="M12 16h.01"/></g>
+    <g id="i-puzzle"><path d="M4 7h3a1 1 0 0 0 1 -1v-1a2 2 0 0 1 4 0v1a1 1 0 0 0 1 1h3a1 1 0 0 1 1 1v3a1 1 0 0 0 1 1h1a2 2 0 0 1 0 4h-1a1 1 0 0 0 -1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1v-1a2 2 0 0 0 -4 0v1a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1h1a2 2 0 0 0 0 -4h-1a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1"/></g>
+  </defs>
+</svg>
+
+<a class="skip" href="#main" data-i18n="nav.skip">Skip to content</a>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html" aria-label="Omnify">
+      <img src="assets/omnify-logo.svg" alt="" width="34" height="34">
+      <span>Omnify</span>
+    </a>
+    <nav class="nav-links" id="nav-links" aria-label="Main">
+      <a href="index.html#sources" data-i18n="nav.sources">External sources</a>
+      <a href="index.html#features" data-i18n="nav.features">Features</a>
+      <a href="index.html#opensource" data-i18n="nav.opensource">Open source</a>
+      <a href="index.html#tv" data-i18n="nav.tv">Android TV</a>
+      <a href="index.html#download" data-i18n="nav.download">Download</a>
+    </nav>
+    <div class="nav-actions">
+      <div class="accent-picker">
+        <button class="icon-btn accent-btn" id="accent-toggle" type="button"
+                data-i18n-attr="aria-label:nav.accentAria" aria-label="Change accent colour"
+                aria-expanded="false" aria-controls="accent-list">
+          <span class="accent-dot" aria-hidden="true"></span>
+        </button>
+        <div class="accent-list" id="accent-list" role="group"
+             data-i18n-attr="aria-label:nav.accentAria" aria-label="Change accent colour" hidden></div>
+      </div>
+      <div class="lang-picker">
+        <button class="icon-btn lang-btn" id="lang-toggle" type="button"
+                data-i18n-attr="aria-label:nav.langAria" aria-label="Change language"
+                aria-expanded="false" aria-controls="lang-list">
+          <span id="lang-label">EN</span>
+        </button>
+        <div class="lang-list" id="lang-list" role="group"
+             data-i18n-attr="aria-label:nav.langAria" aria-label="Change language" hidden></div>
+      </div>
+      <button class="icon-btn" id="theme-toggle" type="button" data-i18n-attr="aria-label:nav.themeAria" aria-label="Switch theme">
+        <svg class="ico ico-sun" viewBox="0 0 24 24"><use href="#i-sun"/></svg>
+        <svg class="ico ico-moon" viewBox="0 0 24 24"><use href="#i-moon"/></svg>
+      </button>
+      <a class="btn btn-ghost nav-gh" href="https://github.com/Victor-root/Omnify" target="_blank" rel="noopener">
+        <svg class="ico" viewBox="0 0 24 24"><use href="#i-github"/></svg>
+        <span>GitHub</span>
+      </a>
+      <button class="icon-btn nav-burger" id="nav-burger" type="button" data-i18n-attr="aria-label:nav.menuAria" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
+        <svg class="ico ico-open" viewBox="0 0 24 24"><use href="#i-menu"/></svg>
+        <svg class="ico ico-close" viewBox="0 0 24 24"><use href="#i-x"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="doc-hero" id="top">
+  <div class="aurora" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+  </div>
+  <div class="wrap doc-hero-inner">
+    <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg> <span data-i18n="build.eyebrow">Build it yourself</span></span>
+    <h1 data-i18n-html="build.title">Build Omnify <span class="grad">from source</span>.</h1>
+    <p class="lede" data-i18n="build.lede">
+      Nothing here is hidden behind a build server. Clone the repository, run one
+      command, and out comes the same app the releases page hands you.
+    </p>
+    <ul class="doc-facts">
+      <li><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-clock"/></svg><span data-i18n="build.fact1">Around 15 minutes the first time</span></li>
+      <li><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-terminal"/></svg><span data-i18n="build.fact2">One command to build</span></li>
+      <li><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-cpu"/></svg><span data-i18n="build.fact3">Windows, macOS or Linux</span></li>
+    </ul>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#commands">
+        <svg class="ico" viewBox="0 0 24 24"><use href="#i-terminal"/></svg>
+        <span data-i18n="build.cta">Go to the commands</span>
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/Victor-root/Omnify" target="_blank" rel="noopener">
+        <svg class="ico" viewBox="0 0 24 24"><use href="#i-github"/></svg>
+        <span data-i18n="build.ctaSource">Read the source</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="prerequisites">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-puzzle"/></svg> <span data-i18n="build.req.eyebrow">Before you start</span></span>
+      <h2 data-i18n="build.req.title">Two things to install.</h2>
+      <p class="section-sub" data-i18n="build.req.sub">
+        Everything else, Gradle included and the exact Java version the project
+        wants, is fetched by the build itself the first time it runs. There is
+        nothing to configure by hand.
+      </p>
+    </div>
+    <div class="grid">
+      <div class="feature reveal">
+        <span class="feature-ico" style="--c:var(--brand);--c-on:var(--brand-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-git"/></svg></span>
+        <h3 data-i18n="build.req.gitTitle">Git</h3>
+        <p data-i18n="build.req.gitBody">To copy the repository onto your machine and pull later changes. Any recent version does.</p>
+      </div>
+      <div class="feature reveal">
+        <span class="feature-ico" style="--c:var(--brand-2);--c-on:var(--brand-2-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-cpu"/></svg></span>
+        <h3 data-i18n="build.req.studioTitle">Android Studio</h3>
+        <p data-i18n="build.req.studioBody">The simplest way to get the Android SDK, and it settles the Java question on its own. You can build from the command line afterwards and never open it again.</p>
+      </div>
+      <div class="feature reveal">
+        <span class="feature-ico" style="--c:var(--brand);--c-on:var(--brand-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-folder"/></svg></span>
+        <h3 data-i18n="build.req.roomTitle">Some room</h3>
+        <p data-i18n="build.req.roomBody">The build is allowed up to 6 GB of memory, and the SDK plus the download cache take a few gigabytes of disk. A machine with 8 GB of RAM will manage, slowly.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="commands">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-terminal"/></svg> <span data-i18n="build.run.eyebrow">The build</span></span>
+      <h2 data-i18n="build.run.title">Three commands.</h2>
+      <p class="section-sub" data-i18n-html="build.run.sub">
+        Run them from a terminal, in this order. On Windows, write
+        <code>gradlew.bat</code> wherever you see <code>./gradlew</code>.
+      </p>
+    </div>
+
+    <ol class="steps">
+      <li class="reveal">
+        <span class="step-n" aria-hidden="true">1</span>
+        <div class="step-body">
+          <h3 data-i18n="build.run.s1Title">Copy the repository</h3>
+          <p data-i18n="build.run.s1Body">This creates an Omnify folder wherever you are.</p>
+          <div class="cmd">
+            <pre><code>git clone https://github.com/Victor-root/Omnify.git
+cd Omnify</code></pre>
+            <button class="icon-btn" type="button" data-copy data-i18n-attr="aria-label:dl.copyAria" aria-label="Copy">
+              <svg class="ico ico-copy" viewBox="0 0 24 24"><use href="#i-copy"/></svg>
+              <svg class="ico ico-done" viewBox="0 0 24 24"><use href="#i-check"/></svg>
+            </button>
+          </div>
+        </div>
+      </li>
+      <li class="reveal">
+        <span class="step-n" aria-hidden="true">2</span>
+        <div class="step-body">
+          <h3 data-i18n="build.run.s2Title">Build the APK</h3>
+          <p data-i18n="build.run.s2Body">The first run downloads Gradle, the Android libraries and everything else the project depends on, so give it time. The ones after that are far quicker.</p>
+          <div class="cmd">
+            <pre><code>./gradlew assembleRelease</code></pre>
+            <button class="icon-btn" type="button" data-copy data-i18n-attr="aria-label:dl.copyAria" aria-label="Copy">
+              <svg class="ico ico-copy" viewBox="0 0 24 24"><use href="#i-copy"/></svg>
+              <svg class="ico ico-done" viewBox="0 0 24 24"><use href="#i-check"/></svg>
+            </button>
+          </div>
+        </div>
+      </li>
+      <li class="reveal">
+        <span class="step-n" aria-hidden="true">3</span>
+        <div class="step-body">
+          <h3 data-i18n="build.run.s3Title">Collect the file</h3>
+          <p data-i18n-html="build.run.s3Body">It is named after the version it was built from, for instance <code>Omnify-v1.0.1.apk</code>. Copy it to your phone and open it, or push it over from the computer.</p>
+          <div class="cmd">
+            <pre><code>app/build/outputs/apk/release/</code></pre>
+            <button class="icon-btn" type="button" data-copy data-i18n-attr="aria-label:dl.copyAria" aria-label="Copy">
+              <svg class="ico ico-copy" viewBox="0 0 24 24"><use href="#i-copy"/></svg>
+              <svg class="ico ico-done" viewBox="0 0 24 24"><use href="#i-check"/></svg>
+            </button>
+          </div>
+          <div class="cmd">
+            <pre><code>./gradlew installRelease</code></pre>
+            <button class="icon-btn" type="button" data-copy data-i18n-attr="aria-label:dl.copyAria" aria-label="Copy">
+              <svg class="ico ico-copy" viewBox="0 0 24 24"><use href="#i-copy"/></svg>
+              <svg class="ico ico-done" viewBox="0 0 24 24"><use href="#i-check"/></svg>
+            </button>
+          </div>
+          <p class="cmd-note" data-i18n="build.run.s3Note">That last one installs it straight onto a phone plugged in with USB debugging turned on.</p>
+        </div>
+      </li>
+    </ol>
+
+    <div class="callout reveal">
+      <span class="feature-ico" style="--c:var(--brand);--c-on:var(--brand-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-cpu"/></svg></span>
+      <div>
+        <h3 data-i18n="build.run.studioTitle">Rather not use a terminal?</h3>
+        <p data-i18n-html="build.run.studioBody">
+          Open the Omnify folder in Android Studio, wait for the first sync to
+          finish, then <strong>Build</strong>, <strong>Build Bundle(s) / APK(s)</strong>,
+          <strong>Build APK(s)</strong>. It runs the very same build, and the file
+          lands in the very same folder.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="variants">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-puzzle"/></svg> <span data-i18n="build.var.eyebrow">Variants</span></span>
+      <h2 data-i18n="build.var.title">Which one to build.</h2>
+      <p class="section-sub" data-i18n-html="build.var.sub">
+        Four builds come out of the same code. Swap the word in
+        <code>assembleRelease</code> for the one you want.
+      </p>
+    </div>
+    <ul class="variants reveal">
+      <li>
+        <code>assembleRelease</code>
+        <div>
+          <strong data-i18n="build.var.releaseTitle">Release</strong>
+          <span data-i18n="build.var.releaseBody">Optimised and stripped down. This is exactly what the releases page publishes.</span>
+        </div>
+      </li>
+      <li>
+        <code>assembleBeta</code>
+        <div>
+          <strong data-i18n="build.var.betaTitle">Beta</strong>
+          <span data-i18n="build.var.betaBody">The same build as release, except it installs next to a copy you already have instead of replacing it. The safe one to try.</span>
+        </div>
+      </li>
+      <li>
+        <code>assembleDebug</code>
+        <div>
+          <strong data-i18n="build.var.debugTitle">Debug</strong>
+          <span data-i18n="build.var.debugBody">Compiles much faster and skips every optimisation. Handy while changing something, not meant for daily use.</span>
+        </div>
+      </li>
+      <li>
+        <code>assembleCanary</code>
+        <div>
+          <strong data-i18n="build.var.canaryTitle">Canary</strong>
+          <span data-i18n="build.var.canaryBody">A throwaway build for confirming a fix on one bug report, labelled as a test build everywhere its name appears.</span>
+        </div>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" id="signing">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-key"/></svg> <span data-i18n="build.sign.eyebrow">Signing</span></span>
+      <h2 data-i18n="build.sign.title">Your build is not the published one.</h2>
+    </div>
+
+    <div class="callout callout-warn reveal">
+      <span class="feature-ico" style="--c:var(--brand-2);--c-on:var(--brand-2-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-alert"/></svg></span>
+      <div>
+        <h3 data-i18n="build.sign.warnTitle">It cannot replace an install from the releases page</h3>
+        <p data-i18n="build.sign.warnBody">
+          Android tells apps apart by the key they were signed with, not by their
+          name. A build you made carries your key, not the project's, so Android
+          refuses to install it over the published one. Uninstall that copy first,
+          or build the beta variant, which lives alongside it.
+        </p>
+      </div>
+    </div>
+
+    <div class="verify reveal">
+      <div class="verify-head">
+        <h3 data-i18n="build.sign.keyTitle">Signing it with your own key</h3>
+        <p data-i18n-html="build.sign.keyBody">
+          With no key configured the release build simply comes out unsigned,
+          which is what an F-Droid style build server expects. To sign it
+          yourself, put a <code>keystore.properties</code> file at the root of the
+          project, next to <code>settings.gradle.kts</code>:
+        </p>
+      </div>
+      <div class="cmd">
+        <pre><code>storeFile=my-key.jks
+storePassword=your password
+keyAlias=your alias
+keyPassword=your key password</code></pre>
+        <button class="icon-btn" type="button" data-copy data-i18n-attr="aria-label:dl.copyAria" aria-label="Copy">
+          <svg class="ico ico-copy" viewBox="0 0 24 24"><use href="#i-copy"/></svg>
+          <svg class="ico ico-done" viewBox="0 0 24 24"><use href="#i-check"/></svg>
+        </button>
+      </div>
+      <p class="cmd-note" data-i18n-html="build.sign.keyNote">
+        Android Studio creates the key file for you under <strong>Build</strong>,
+        <strong>Generate Signed App Bundle / APK</strong>. Git is told to ignore
+        both files, and neither should ever be committed.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="trouble">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-bug"/></svg> <span data-i18n="build.fix.eyebrow">If it goes wrong</span></span>
+      <h2 data-i18n="build.fix.title">The usual suspects.</h2>
+    </div>
+    <ul class="oss-points faq reveal">
+      <li>
+        <span class="feature-ico" style="--c:var(--brand);--c-on:var(--brand-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-folder"/></svg></span>
+        <div>
+          <strong data-i18n="build.fix.sdkTitle">"SDK location not found"</strong>
+          <span data-i18n-html="build.fix.sdkBody">Create a <code>local.properties</code> file at the root of the project holding one line, <code>sdk.dir=</code> followed by the path to your Android SDK. Opening the project in Android Studio once writes it for you.</span>
+        </div>
+      </li>
+      <li>
+        <span class="feature-ico" style="--c:var(--brand-2);--c-on:var(--brand-2-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-bug"/></svg></span>
+        <div>
+          <strong data-i18n="build.fix.staleTitle">It failed right after pulling changes</strong>
+          <span data-i18n-html="build.fix.staleBody">Something cached went out of date. Run <code>./gradlew clean --refresh-dependencies</code> and build again.</span>
+        </div>
+      </li>
+      <li>
+        <span class="feature-ico" style="--c:var(--brand);--c-on:var(--brand-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-cpu"/></svg></span>
+        <div>
+          <strong data-i18n="build.fix.memTitle">Gradle runs out of memory</strong>
+          <span data-i18n-html="build.fix.memBody">Open <code>gradle.properties</code> at the root and lower the <code>-Xmx6g</code> to what your machine can spare. The build takes longer, it still works.</span>
+        </div>
+      </li>
+      <li>
+        <span class="feature-ico" style="--c:var(--brand-2);--c-on:var(--brand-2-on)"><svg class="ico" viewBox="0 0 24 24"><use href="#i-device-mobile"/></svg></span>
+        <div>
+          <strong data-i18n="build.fix.deviceTitle">The phone is not detected</strong>
+          <span data-i18n="build.fix.deviceBody">Turn on USB debugging in the developer options, then accept the prompt that appears on the phone when the cable goes in.</span>
+        </div>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="section section-download">
+  <div class="wrap">
+    <div class="beta-card reveal">
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-shield"/></svg> <span data-i18n="build.verify.eyebrow">Or verify instead</span></span>
+      <h2 data-i18n="build.verify.title">Not going to build it?</h2>
+      <p data-i18n="build.verify.body">
+        You do not have to compile it to know what you installed. Every release
+        carries the same certificate, and checking the one on your phone against
+        the published fingerprint takes a few seconds.
+      </p>
+      <a class="btn btn-primary" href="index.html#download">
+        <svg class="ico" viewBox="0 0 24 24"><use href="#i-arrow-right"/></svg>
+        <span data-i18n="build.verify.cta">Check a build</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <a class="brand" href="index.html">
+        <img src="assets/omnify-logo.svg" alt="" width="30" height="30">
+        <span>Omnify</span>
+      </a>
+      <p data-i18n-html="footer.about">
+        Maintained by <a href="https://github.com/Victor-root" target="_blank" rel="noopener">Victor-root</a>.
+        Built on <a href="https://github.com/Droid-ify/client" target="_blank" rel="noopener">Droid-ify</a> by
+        LooKeR, which itself grew from
+        <a href="https://github.com/kitsunyan/foxy-droid" target="_blank" rel="noopener">Foxy-Droid</a> by
+        kitsunyan. Huge thanks to both.
+      </p>
+    </div>
+    <nav class="footer-links" aria-label="Footer">
+      <div>
+        <h4 data-i18n="footer.project">Project</h4>
+        <a href="https://github.com/Victor-root/Omnify" target="_blank" rel="noopener" data-i18n="footer.source">Source code</a>
+        <a href="https://github.com/Victor-root/Omnify/releases" target="_blank" rel="noopener" data-i18n="footer.releases">Releases</a>
+        <a href="https://github.com/Victor-root/Omnify/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" data-i18n="footer.contributing">Contributing</a>
+        <a href="building.html" data-i18n="footer.building">Building</a>
+      </div>
+      <div>
+        <h4 data-i18n="footer.help">Help</h4>
+        <a href="https://github.com/Victor-root/Omnify/issues" target="_blank" rel="noopener" data-i18n="footer.issues">Issues</a>
+        <a href="https://github.com/Victor-root/Omnify/issues/new" target="_blank" rel="noopener" data-i18n="footer.report">Report a bug</a>
+        <a href="index.html#download" data-i18n="footer.verify">Verify a build</a>
+      </div>
+    </nav>
+  </div>
+  <div class="wrap footer-legal">
+    <p>
+      <svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-scale"/></svg>
+      <span data-i18n="footer.license">Free software under the GNU General Public License v3.0 or later.</span>
+    </p>
+    <p data-i18n-html="footer.icons">Icons by <a href="https://tabler.io/icons" target="_blank" rel="noopener">Tabler</a>.</p>
+  </div>
+</footer>
+
+<script src="i18n.js"></script>
+<script src="accents.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
