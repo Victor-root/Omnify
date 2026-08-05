@@ -200,10 +200,16 @@
     return img;
   }
 
+  /* wantedSrc is what the image is meant to end up showing, which is not the same as what it shows:
+     a swap waits on a decode, and a second one can start before the first has landed, which two
+     presses on the theme toggle do easily. Both lines below exist for that: the guard reads the
+     pending target so a reversal isn't mistaken for a no-op, and the assignment checks it again on
+     the way out so an earlier, slower decode can no longer land last and win. */
   function swapShot(img, src) {
-    if (img.getAttribute("src") === src) return;
+    if ((img.wantedSrc || img.getAttribute("src")) === src) return;
+    img.wantedSrc = src;
     var next = warm(src);
-    var assign = function () { img.src = src; };
+    var assign = function () { if (img.wantedSrc === src) img.src = src; };
     if (typeof next.decode === "function") {
       next.decode().then(assign, assign);
     } else if (next.complete) {
@@ -293,22 +299,48 @@
 
   /* ---------- Theme ---------- */
 
+  var darkQuery = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
+
+  /* What the page is actually showing: an explicit choice from the toggle when there is one, the
+     system's own preference otherwise. Dark when neither says anything, matching the CSS default. */
+  function isDark() {
+    var chosen = root.getAttribute("data-theme");
+    if (chosen) return chosen === "dark";
+    return darkQuery ? darkQuery.matches : true;
+  }
+
+  /* The gallery screenshots were taken twice, light and dark, so they belong to the page rather than
+     sitting on it as six bright rectangles on a dark background. Swapped through the same path as
+     the accent screenshots above: decoded first, then put in place, so the picture changes in one
+     frame instead of blanking and reflowing. */
+  function applyShotTheme() {
+    var attribute = isDark() ? "data-dark" : "data-light";
+    document.querySelectorAll("img[data-light][data-dark]").forEach(function (img) {
+      var src = img.getAttribute(attribute);
+      if (src) swapShot(img, src);
+    });
+  }
+
   var savedTheme = read("omnify-theme");
   if (savedTheme === "light" || savedTheme === "dark") {
     root.setAttribute("data-theme", savedTheme);
   }
+  applyShotTheme();
 
   var themeBtn = document.getElementById("theme-toggle");
   if (themeBtn) {
     themeBtn.addEventListener("click", function () {
-      var prefersLight =
-        window.matchMedia &&
-        window.matchMedia("(prefers-color-scheme: light)").matches;
-      var current = root.getAttribute("data-theme") || (prefersLight ? "light" : "dark");
-      var next = current === "dark" ? "light" : "dark";
+      var next = isDark() ? "light" : "dark";
       root.setAttribute("data-theme", next);
       store("omnify-theme", next);
+      applyShotTheme();
     });
+  }
+
+  /* The system can flip on its own, e.g. at sunset. Only matters while no explicit choice is stored,
+     which isDark() already accounts for. */
+  if (darkQuery && darkQuery.addEventListener) {
+    darkQuery.addEventListener("change", applyShotTheme);
   }
 
   /* ---------- Nav ---------- */

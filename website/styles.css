@@ -841,9 +841,10 @@ a { color: inherit; }
 .gallery img {
   flex: none;
   width: min(258px, 62vw);
-  /* Hosted off-site and sized by nothing, so the row was flat until the six of them arrived and
-     everything under it dropped by their height, which is what left a link from another page short
-     of the section it named. Same "auto" as above: a real ratio wins as soon as there is one. */
+  /* Holds each shot's height before its file is here. Without it the row was flat until all six
+     arrived and everything under it dropped as they did, which is what left a link from another
+     page short of the section it named. Same "auto" as above: a screenshot with other proportions
+     would still be drawn on its own. */
   aspect-ratio: auto 760 / 1606;
   scroll-snap-align: center;
 }

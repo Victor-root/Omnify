@@ -38,12 +38,12 @@
 
 <p align="center"><strong>📱 Mobile</strong></p>
 <p align="center">
-<img width="220" alt="image" src="https://github.com/user-attachments/assets/7233680b-6ab0-4a41-b003-7a2769332c68"/>
-<img width="220" alt="image" src="https://github.com/user-attachments/assets/e1fc44da-126b-4842-94e7-8037190d3849" />
-<img width="220" alt="image" src="https://github.com/user-attachments/assets/18ad4073-05aa-413c-b06b-29cef46a78d6" />
-<img width="220" alt="image" src="https://github.com/user-attachments/assets/3cb5ab6d-dc3a-45ae-864c-de833f63561b" />
-<img width="220" alt="image" src="https://github.com/user-attachments/assets/f440ff5b-28ea-4da3-8211-8690c1752dd3" />
-<img width="220" alt="image" src="https://github.com/user-attachments/assets/210e9c1f-4be9-4ac3-8c40-14a36b20fd2f" />
+<picture><source media="(prefers-color-scheme: dark)" srcset="website/assets/screenshots/explore-dark.webp"><img width="220" alt="Discover home screen" src="website/assets/screenshots/explore-light.webp" /></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="website/assets/screenshots/external-dark.webp"><img width="220" alt="The External tab, showing tracked sources" src="website/assets/screenshots/external-light.webp" /></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="website/assets/screenshots/addsource-dark.webp"><img width="220" alt="Adding a source: a repository, one app, or a whole account" src="website/assets/screenshots/addsource-light.webp" /></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="website/assets/screenshots/adaway-dark.webp"><img width="220" alt="AdAway's page, with its README" src="website/assets/screenshots/adaway-light.webp" /></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="website/assets/screenshots/glasskeep-dark.webp"><img width="220" alt="GlassKeep's page, with its README" src="website/assets/screenshots/glasskeep-light.webp" /></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="website/assets/screenshots/shizuku-dark.webp"><img width="220" alt="Shizuku's page, with its README" src="website/assets/screenshots/shizuku-light.webp" /></picture>
 </p>
 
 <p align="center"><strong>📺 Android TV</strong></p>

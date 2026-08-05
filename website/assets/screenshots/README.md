@@ -1,9 +1,9 @@
-# Accent screenshots
+# Screenshots
 
-Drop the accent-colour screenshot sets here as PNG, then run `optimise.py`.
-The PNGs are the source, the `.webp` files it produces are what the site serves,
-and `accents.js` points at those by file name, so no code needs editing when a
-set is added or replaced.
+Two sets live here: the accent-colour ones behind the header's colour picker,
+and the gallery ones further down the page, which come in a light and a dark
+version each. Drop either kind here as PNG, then run `optimise.py`. The PNGs are
+the source, the `.webp` files it produces are what the site serves.
 
     python3 optimise.py
 
@@ -12,9 +12,11 @@ actually draws it is nearer 100KB. That is the whole reason for the step. The
 script sizes each file from its name: `tv-` prefixed ones are kept large because
 the page draws them across the full column, everything else is a hero phone.
 
-## Naming
+## Naming: the accent sets
 
-Each colour needs three hero screenshots and one Android TV screenshot:
+`accents.js` points at these by file name, so no code needs editing when a set
+is added or replaced. Each colour needs three hero screenshots and one Android
+TV screenshot:
 
 ```
 <accent-id>-1.png
@@ -49,6 +51,25 @@ same one three times, and it reads best when every colour set uses the same
 three screens, so only the colour appears to change when a visitor switches.
 
 The `tv-` one has no number: there is a single Android TV shot per colour.
+
+## Naming: the gallery
+
+The screenshots in the "See it" row are named after the screen they show, twice
+over:
+
+```
+<screen>-light.png
+<screen>-dark.png
+```
+
+Unlike the accent sets, these are named in `index.html` (and in the repository's
+own README), so adding one means adding an `<img>` there carrying the two paths.
+`script.js` puts up whichever matches the theme on screen, and the two versions
+of a screen must share the same pixel dimensions or the page will jump when a
+visitor switches theme.
+
+These carry the accent colour they were taken in and are never swapped by the
+colour picker, so a set of six can happily show six different colours.
 
 ## Format
 
