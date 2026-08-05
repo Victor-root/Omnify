@@ -391,7 +391,7 @@
     copyBtn.hidden = true;
   }
 
-  /* ---------- Latest release in the hero pill ---------- */
+  /* ---------- Latest release: the hero pill and the download links ---------- */
 
   var latestTag = null;
 
@@ -404,6 +404,23 @@
       : tag;
   }
 
+  /* The APK a release ships. Its file name carries the version, so it can't be written into the page
+     ahead of time and the download links are authored pointing at the release page instead, which
+     always resolves and needs no script at all. This only upgrades them to the file itself. */
+  function apkAssetUrl(release) {
+    var assets = release.assets || [];
+    for (var i = 0; i < assets.length; i++) {
+      if (/\.apk$/i.test(assets[i].name)) return assets[i].browser_download_url;
+    }
+    return null;
+  }
+
+  function pointDownloadsAt(url) {
+    document.querySelectorAll("[data-apk-link]").forEach(function (link) {
+      link.href = url;
+    });
+  }
+
   if (window.fetch) {
     fetch("https://api.github.com/repos/Victor-root/Omnify/releases/latest", {
       headers: { Accept: "application/vnd.github+json" }
@@ -412,13 +429,17 @@
         return response.ok ? response.json() : null;
       })
       .then(function (release) {
-        if (release && release.tag_name) {
+        if (!release) return;
+        if (release.tag_name) {
           latestTag = release.tag_name;
           showLatestTag(latestTag);
         }
+        var apk = apkAssetUrl(release);
+        if (apk) pointDownloadsAt(apk);
       })
       .catch(function () {
-        /* Offline, rate-limited or no release yet: keep the static wording. */
+        /* Offline, rate-limited or no release yet: keep the static wording, and the download links
+           keep leading to the release page, where the file is one section further down. */
       });
   }
 })();
