@@ -1025,8 +1025,9 @@ private fun ExternalAppDetailBody(
     // GitHub leaves repo-relative image paths un-rewritten, so the WebView resolves them
     // against the raw content host. While it loads, show a spinner instead of empty space.
     if (readmeHtml != null && !readmeRendererGone) {
-        // Collapsed to fill the space left below it down to the bottom of the screen — same idea as
-        // the F-Droid catalogue's description. A WebView has no line count to cap, so a pixel height is
+        // Collapsed to a multiple of the space left below it down to the bottom of the screen (see
+        // README_COLLAPSED_VIEWPORTS), so the preview scales with the device the way the F-Droid
+        // catalogue's description does. A WebView has no line count to cap, so a pixel height is
         // capped instead; Compose coerces the WebView's own (larger) requested height down to it, so
         // the extra content is simply clipped rather than scrolled internally. The "Show more" button
         // is a real button, shown once and never again once tapped (no collapsing back). Split view: the
@@ -1036,9 +1037,11 @@ private fun ExternalAppDetailBody(
         var readmeTopY by remember(app.key) { mutableStateOf(0) }
         val fullReadmeHeight = if (readmeHeightPx > 0) with(density) { readmeHeightPx.toDp() } else 600.dp
         val collapsedReadmeHeight = if (viewportPx > 0 && readmeTopY > 0) {
-            with(density) { (viewportPx - readmeTopY).coerceAtLeast(0).toDp() }
+            with(density) {
+                ((viewportPx - readmeTopY).coerceAtLeast(0) * README_COLLAPSED_VIEWPORTS).toDp()
+            }
         } else {
-            README_COLLAPSED_HEIGHT
+            README_COLLAPSED_HEIGHT * README_COLLAPSED_VIEWPORTS
         }
         val readmeCanCollapse = showSidebarSections && fullReadmeHeight > collapsedReadmeHeight
         // A software-layered WebView (see ReadmeWebView's forceSoftwareLayer doc comment) can only ever
@@ -1199,8 +1202,21 @@ private fun ExternalAppDetailBody(
     }
 }
 
-/** How tall the collapsed README preview is before a "Show more" tap reveals the rest. */
+/** How tall the collapsed README preview is before a "Show more" tap reveals the rest, for the brief
+ *  moment before the screen has been measured. Multiplied by [README_COLLAPSED_VIEWPORTS] like the
+ *  measured height it stands in for, so both paths preview the same amount. */
 private val README_COLLAPSED_HEIGHT = 320.dp
+
+/**
+ * How many screenfuls the collapsed README preview shows.
+ *
+ * One (the space left between the README's top edge and the bottom of the screen) placed the "Show
+ * more" button exactly at the fold, which looks tidy but previews far too little of the README to
+ * judge an app by. Two keeps that same measurement, and with it the property that the preview is
+ * proportional to the device rather than a fixed number of pixels, but shows twice as much. The
+ * trade is that the button now sits below the fold and has to be scrolled to.
+ */
+private const val README_COLLAPSED_VIEWPORTS = 2
 
 /**
  * "Issue tracker" and "Changelog" — an external source has no index metadata for these like the
