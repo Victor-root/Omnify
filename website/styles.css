@@ -31,6 +31,18 @@
   --shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.8);
   --aurora-strength: 0.5;
 
+  /* Scrollbar, same recipe as the GlassKeep site: a thin bar with no arrow buttons, a track faintly
+     tinted with the accent and a gradient thumb. Both ends are the accent pair at full strength, so
+     a colour picked in the header repaints the scrollbar along with everything else. The track is
+     lifted here and lowered in the light blocks below, since it has to hold against a dark page. */
+  --scroll-track: color-mix(in srgb, var(--brand) 22%, transparent);
+  --scroll-thumb: linear-gradient(180deg, var(--brand), var(--brand-2));
+  --scroll-thumb-hover: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand) 80%, #fff),
+    color-mix(in srgb, var(--brand-2) 80%, #fff)
+  );
+
   --radius: 18px;
   --radius-lg: 26px;
   --wrap: 1180px;
@@ -54,6 +66,12 @@
     --accent: var(--brand-on);
     --shadow: 0 24px 60px -24px rgba(9, 26, 17, 0.25);
     --aurora-strength: 0.55;
+    --scroll-track: color-mix(in srgb, var(--brand) 16%, transparent);
+    --scroll-thumb-hover: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--brand) 82%, #000),
+      color-mix(in srgb, var(--brand-2) 82%, #000)
+    );
     color-scheme: light;
   }
 }
@@ -72,10 +90,28 @@
   --accent: var(--brand-on);
   --shadow: 0 24px 60px -24px rgba(9, 26, 17, 0.25);
   --aurora-strength: 0.55;
+  --scroll-track: color-mix(in srgb, var(--brand) 16%, transparent);
+  --scroll-thumb-hover: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand) 82%, #000),
+    color-mix(in srgb, var(--brand-2) 82%, #000)
+  );
   color-scheme: light;
 }
 
 * { box-sizing: border-box; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-button { display: none; height: 0; width: 0; }
+::-webkit-scrollbar-track { background: var(--scroll-track); }
+::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
+
+/* Firefox has no ::-webkit-scrollbar, and scrollbar-color takes solid colours only, so it gets the
+   accent itself rather than the gradient. */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--brand) var(--scroll-track); }
+}
 
 html {
   scroll-behavior: smooth;
@@ -782,7 +818,6 @@ a { color: inherit; }
   overflow-x: auto;
   padding: 40px 24px 30px;
   scroll-snap-type: x mandatory;
-  scrollbar-width: thin;
   /* "safe" matters on a scroll container: it centres the row while it fits, then
      falls back to start-aligned once it overflows, instead of centring the
      overflow and pushing the first screenshots out of reach of the scrollbar. */
