@@ -1,3 +1,0 @@
-Omnify ${VERSION_NAME} :psyduck:
-
-${CHANGELOG}
