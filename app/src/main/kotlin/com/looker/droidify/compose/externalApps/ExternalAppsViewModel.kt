@@ -1404,13 +1404,24 @@ class ExternalAppsViewModel @Inject constructor(
                 val apkSize = release?.apkFileSize(filter = app.apkFilter) ?: app.latestApkSize
                 val apkUrl = release?.apkDownloadUrl(filter = app.apkFilter) ?: app.latestApkUrl
                 val releaseAt = release?.apkUpdatedAtMillis(filter = app.apkFilter) ?: app.latestReleaseAt
-                if (release != null) {
-                    Log.d(
-                        TAG,
-                        "refresh ${app.key}: fetchedSize=${release.apkFileSize(filter = app.apkFilter)} " +
-                            "storedSize=${app.latestApkSize} -> $apkSize",
-                    )
-                }
+                // Every field the update decision reads, on one line, plus the answer it produces:
+                // whether a source offers an update comes down to comparing these two halves (see
+                // ExternalApp.hasUpdateGiven), and without them a wrongly-offered update is guesswork
+                // from outside. Logged whether or not the lookup succeeded, since a source keeping its
+                // previous values because the provider couldn't be reached is itself worth seeing.
+                val onDevice = app.packageName?.let(::installedVersionName)
+                Log.d(
+                    TAG,
+                    "refresh ${app.key}: fetched=${release != null} | " +
+                        "latest tag=$tag apk=$apkName token=$token | " +
+                        "installed tag=${app.installedTag} token=${app.installedApkToken} " +
+                        "version=${app.installedVersionName} onDevice=$onDevice | " +
+                        "update=${app.copy(
+                            latestTag = tag,
+                            latestApkToken = token,
+                            latestApkName = apkName,
+                        ).hasUpdateGiven(onDevice)}",
+                )
                 // Backfill the package id (source build.gradle, else the release APK's own manifest) for
                 // sources added before this existed, so an installed app starts showing its real name +
                 // icon and is matched as installed even when it arrived via another channel; the existing
@@ -1814,11 +1825,16 @@ class ExternalAppsViewModel @Inject constructor(
                     .first { it == InstallState.Installed || it == InstallState.Failed }
                 if (terminal == InstallState.Installed) {
                     val current = repository.getApps().firstOrNull { it.key == app.key } ?: return@launch
+                    val versionName = installedVersionName(packageName)
+                    // What this install leaves on record. An update wrongly offered straight after one
+                    // is these three not lining up with the latest* half logged by refresh() above, and
+                    // the absence of this line means the record was never written at all.
+                    Log.d(TAG, "installed ${app.key}: tag=${release.tag} token=$token version=$versionName")
                     repository.upsertApp(
                         current.copy(
                             installedTag = release.tag,
                             installedApkToken = token,
-                            installedVersionName = installedVersionName(packageName),
+                            installedVersionName = versionName,
                         ),
                     )
                 }
