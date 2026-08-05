@@ -3,8 +3,8 @@ package com.looker.droidify.encryption
 import com.looker.droidify.data.encryption.Key
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFails
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 
 class EncryptionTest {
 
@@ -25,7 +25,7 @@ class EncryptionTest {
     fun `encrypt and decrypt with fake key`() {
         val (encrypted, iv) = secretKey.encrypt(testString)
         assertNotEquals(testString, encrypted.value, "Encrypted and original string are the same")
-        assertFails { encrypted.decrypt(fakeKey, iv) }
+        assertNull(encrypted.decrypt(fakeKey, iv), "Decrypted with a key that never encrypted it")
     }
 
     @Test

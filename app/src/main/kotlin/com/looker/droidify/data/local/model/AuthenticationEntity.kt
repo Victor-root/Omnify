@@ -27,7 +27,10 @@ class AuthenticationEntity(
     val repoId: Int,
 )
 
-fun AuthenticationEntity.toAuthentication(key: Key) = Authentication(
-    password = password.decrypt(key, initializationVector),
-    username = username,
-)
+/** Null when the saved password can't be decrypted any more, which reads the same as having no
+ *  credentials at all: the repository is synced anonymously and the user can enter them again. See
+ *  [Encrypted.decrypt] for when that happens. */
+fun AuthenticationEntity.toAuthentication(key: Key): Authentication? =
+    password.decrypt(key, initializationVector)?.let { plain ->
+        Authentication(password = plain, username = username)
+    }

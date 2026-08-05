@@ -8,6 +8,8 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.looker.droidify.data.encryption.EncryptionStorage
+import com.looker.droidify.data.encryption.KeyWrapper
+import com.looker.droidify.data.encryption.KeystoreKeyWrapper
 import com.looker.droidify.datastore.PreferenceSettingsRepository
 import com.looker.droidify.datastore.Settings
 import com.looker.droidify.datastore.SettingsRepository
@@ -54,10 +56,15 @@ object DatastoreModule {
 
     @Singleton
     @Provides
+    fun provideKeyWrapper(): KeyWrapper = KeystoreKeyWrapper()
+
+    @Singleton
+    @Provides
     fun provideEncryptionStorage(
         dataStore: DataStore<Preferences>,
+        keyWrapper: KeyWrapper,
         @IoDispatcher dispatcher: CoroutineDispatcher,
-    ): EncryptionStorage = EncryptionStorage(dataStore, dispatcher)
+    ): EncryptionStorage = EncryptionStorage(dataStore, keyWrapper, dispatcher)
 
     @Singleton
     @Provides
