@@ -1355,6 +1355,18 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
+    private val _isRefreshing = MutableStateFlow(false)
+
+    /** True while a [refresh] pass is querying the providers. The app list's sync strip reads this
+     *  alongside the repository sync, so one press of the toolbar's refresh shows one progress line that
+     *  lasts until both halves are done instead of ending when the faster of the two does. */
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
+
+    /** The in-flight [refresh] pass, so a forced one can't start a second concurrent scan of every
+     *  source: that would double the API cost and let whichever pass finished first clear
+     *  [isRefreshing] while the other was still running. */
+    private var refreshJob: Job? = null
+
     /** Re-checks every app for a newer release tag (e.g. on opening the screen) and backfills icon/
      *  name/TV-support metadata. The release check itself is enabled-only, like a disabled repository —
      *  each one costs a GitHub API call, so a source nobody's opted into yet shouldn't burn the anonymous
@@ -1377,11 +1389,17 @@ class ExternalAppsViewModel @Inject constructor(
      *  adding or editing a source resolved them, leaving each one frozen on the release it shipped the
      *  day it was added. The version list on the detail screen kept showing new releases correctly
      *  throughout, since it queries the provider directly instead of reading those fields. */
-    fun refresh() {
+    fun refresh(force: Boolean = false) {
         val now = SystemClock.elapsedRealtime()
-        if (now - lastNetworkRefreshAt < REFRESH_THROTTLE_MS) return
+        // [force] is the user having asked, through the app list's refresh button. The throttle is there
+        // to stop merely walking into a screen from spending the provider's rate limit, not to refuse
+        // someone who pressed the button: without this, that button did visibly nothing for external
+        // sources within ten minutes of the last screen entry, which is most of the time.
+        if (!force && now - lastNetworkRefreshAt < REFRESH_THROTTLE_MS) return
+        if (refreshJob?.isActive == true) return
         lastNetworkRefreshAt = now
-        viewModelScope.launch {
+        _isRefreshing.value = true
+        val job = viewModelScope.launch {
             val tracked = repository.getApps()
             // No sources yet, so nothing was requested: give the throttle window back instead of sitting
             // it out over a pass that cost nothing. This is a real first-launch case, since the seeded
@@ -1499,6 +1517,8 @@ class ExternalAppsViewModel @Inject constructor(
                 }
                 .forEach { rescanAccountNow(it) }
         }
+        refreshJob = job
+        job.invokeOnCompletion { _isRefreshing.value = false }
     }
 
     /** Enables or disables a source — like toggling an F-Droid repo. Disabled sources are hidden

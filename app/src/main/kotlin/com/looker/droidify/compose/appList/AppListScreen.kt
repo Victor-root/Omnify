@@ -331,6 +331,11 @@ fun AppListScreen(
     val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
     val githubRateLimitRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
+    // Kept apart from isSyncing rather than folded into it: that one drives the catalogue's own
+    // first-load state (catalogLoading below), which is about the repository index specifically and
+    // would misread an external refresh as the catalogue still being empty. Only the thin progress
+    // line, which stands for "a refresh is running", takes both.
+    val isRefreshingExternal by externalViewModel.isRefreshing.collectAsStateWithLifecycle()
     // External-repo updates surface in the Updates tab too (no difference from F-Droid repos), so we
     // refresh release tags on screen entry — not only when the External tab is open.
     LaunchedEffect(Unit) {
@@ -512,7 +517,15 @@ fun AppListScreen(
                     )
                 } else {
                     AppListTopBar(
-                        onSync = viewModel::sync,
+                        // Both halves of the catalogue, since the toolbar's refresh doesn't say which
+                        // it means and the two are presented as equivalent everywhere else (an
+                        // external source's update lands in the Updates tab like a repository's).
+                        // Forced, so pressing it inside the external refresh's throttle window still
+                        // does something: see ExternalAppsViewModel.refresh.
+                        onSync = {
+                            viewModel.sync()
+                            externalViewModel.refresh(force = true)
+                        },
                         contentFocusRequester = contentFocusRequester,
                         overflowExpanded = overflowExpanded,
                         onOverflowExpandedChange = { overflowExpanded = it },
@@ -585,7 +598,7 @@ fun AppListScreen(
                         },
                     )
                     // While the full-screen fetching state is up, the thin banner is redundant.
-                    if (isSyncing && !catalogLoading) {
+                    if ((isSyncing || isRefreshingExternal) && !catalogLoading) {
                         SyncBanner()
                     }
                     // Glued directly under the tabs (not inside the grid below, whose own content
