@@ -20,6 +20,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -34,6 +36,15 @@ private const val ENTRY_EXTERNAL_SOURCES = "external_sources.json"
 private const val ENTRY_FAVOURITES = "favourites.json"
 private const val ENTRY_HIDDEN_APPS = "hidden_apps.json"
 private const val ENTRY_CUSTOM_BUTTONS = "custom_buttons.json"
+
+/**
+ * Ceilings on what [BackupRepository.readAllEntries] will hold in memory for one imported archive.
+ * Both sit far above any real backup, whose largest entry is the external-sources list: a few
+ * hundred tracked sources come to well under a megabyte of JSON. So the only thing these ever stop
+ * is a file that was never a backup of this app's data.
+ */
+private const val MAX_ENTRY_BYTES = 8 * 1024 * 1024
+private const val MAX_TOTAL_BYTES = 32L * 1024 * 1024
 
 private val CATEGORY_ENTRY_NAMES = mapOf(
     BackupCategory.SETTINGS to ENTRY_SETTINGS,
@@ -303,19 +314,51 @@ class BackupRepository @Inject constructor(
         imported.filter { it.id !in existingIds }.forEach { customButtonRepository.addButton(it) }
     }
 
+    /**
+     * The text of the entries this app knows how to restore, read once from [source].
+     *
+     * A backup is a file the user picked, and a file the user picked is not necessarily a file this
+     * app wrote: it travels (a chat, a mail attachment, a cloud drive) and can just as easily be one
+     * someone else made. So the read is bounded rather than trusting what the archive declares about
+     * itself. Entries this app doesn't restore are skipped instead of being held in memory, an entry
+     * is refused past [MAX_ENTRY_BYTES] and the archive as a whole past [MAX_TOTAL_BYTES]: a zip
+     * whose entries decompress to far more than their stored size (the shape of the whole file is a
+     * few hundred bytes) would otherwise be read to the end and take the app down with it. The
+     * decompressed size is measured as it is read, never taken from [ZipEntry.getSize], which is a
+     * claim made by the archive.
+     */
     private fun readAllEntries(source: Uri): Map<String, String> {
         val input = context.contentResolver.openInputStream(source) ?: error("Cannot open input stream")
+        val known = CATEGORY_ENTRY_NAMES.values.toSet() + ENTRY_MANIFEST
         val entries = mutableMapOf<String, String>()
+        var total = 0L
         ZipInputStream(BufferedInputStream(input)).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
-                if (!entry.isDirectory) {
-                    entries[entry.name] = zip.readBytes().toString(Charsets.UTF_8)
+                if (!entry.isDirectory && entry.name in known && entry.name !in entries) {
+                    val bytes = zip.readAtMost(MAX_ENTRY_BYTES)
+                        ?: error("${entry.name} is larger than a backup entry can be")
+                    total += bytes.size
+                    if (total > MAX_TOTAL_BYTES) error("Backup is larger than a backup can be")
+                    entries[entry.name] = bytes.toString(Charsets.UTF_8)
                 }
                 zip.closeEntry()
             }
         }
         return entries
+    }
+
+    /** The current entry's bytes, or null as soon as it turns out to hold more than [limit] of them,
+     *  without ever buffering past that. An entry of exactly [limit] bytes still comes back whole. */
+    private fun InputStream.readAtMost(limit: Int): ByteArray? {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        while (true) {
+            val read = read(buffer)
+            if (read < 0) return output.toByteArray()
+            if (output.size() + read > limit) return null
+            output.write(buffer, 0, read)
+        }
     }
 
     private fun ZipOutputStream.writeEntry(name: String, content: String) {
