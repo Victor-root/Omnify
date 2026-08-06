@@ -33,15 +33,24 @@ class SessionInstallerReceiver : BroadcastReceiver() {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)
 
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-            // prompts user to enable unknown source
+            // Android is asking the user to confirm this install and has handed us the screen to
+            // show. Put it in front of them as-is. FLAG_ACTIVITY_NEW_TASK is required: this runs in
+            // a receiver, which has no task of its own to start an activity in.
+            //
+            // Nothing is added to it. This used to attach EXTRA_NOT_UNKNOWN_SOURCE and an
+            // EXTRA_INSTALLER_PACKAGE_NAME of "com.android.vending", claiming the install came from
+            // the Play Store so the confirmation would drop its unknown-source wording. Both belong
+            // to ACTION_INSTALL_PACKAGE, the install flow deprecated in Android 10 and replaced by
+            // the PackageInstaller sessions this app uses, so on the confirmation intent for a
+            // session they were read by nothing: the system attributes an install to whoever opened
+            // the session, which is why a device installing through here says "Omnify" and not the
+            // Play Store. Dead either way, and had they worked they would have told the user
+            // something untrue about where their apps come from.
             val promptIntent: Intent? =
                 IntentCompat.getParcelableExtra(intent, Intent.EXTRA_INTENT, Intent::class.java)
 
             promptIntent?.let {
-                it.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
-                it.putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, "com.android.vending")
                 it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-
                 context.startActivity(it)
             }
         } else {
