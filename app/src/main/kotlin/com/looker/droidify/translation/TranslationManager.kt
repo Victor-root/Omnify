@@ -43,8 +43,13 @@ class TranslationManager @Inject constructor(
      *  drives the "translate automatically" decision. Null/"und" when unknown. */
     suspend fun detectLanguage(text: String): String? = mlKitTranslator.detectLanguage(text)
 
-    /** Translates [text] into [targetLanguage] (an ISO-639-1 code such as "fr"). */
+    /** Translates [text] into [targetLanguage] (an ISO-639-1 code such as "fr"), holding back the emoji
+     *  that open and close a line so no engine can eat them (see [translatePreservingSymbols]). */
     suspend fun translate(text: String, targetLanguage: String): String = withContext(Dispatchers.IO) {
+        translatePreservingSymbols(text) { translateWithEngine(it, targetLanguage) }
+    }
+
+    private suspend fun translateWithEngine(text: String, targetLanguage: String): String =
         when (settingsRepository.getInitial().translationEngine) {
             TranslationEngine.NONE -> error("No translation engine selected")
             TranslationEngine.GOOGLE -> googleTranslate(text, targetLanguage)
@@ -60,7 +65,6 @@ class TranslationManager @Inject constructor(
 
             TranslationEngine.MLKIT -> mlKitTranslator.translate(text, targetLanguage)
         }
-    }
 
     /** Google's free, unofficial endpoint. Returns the concatenated translated sentences. */
     private suspend fun googleTranslate(text: String, target: String): String {
