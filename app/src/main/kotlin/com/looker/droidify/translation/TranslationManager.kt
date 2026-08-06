@@ -43,13 +43,28 @@ class TranslationManager @Inject constructor(
      *  drives the "translate automatically" decision. Null/"und" when unknown. */
     suspend fun detectLanguage(text: String): String? = mlKitTranslator.detectLanguage(text)
 
-    /** Translates [text] into [targetLanguage] (an ISO-639-1 code such as "fr"), holding back the emoji
-     *  that open and close a line so no engine can eat them (see [translatePreservingSymbols]). */
-    suspend fun translate(text: String, targetLanguage: String): String = withContext(Dispatchers.IO) {
-        translatePreservingSymbols(text) { translateWithEngine(it, targetLanguage) }
+    /**
+     * Translates [text] into [targetLanguage] (an ISO-639-1 code such as "fr"), holding back the emoji
+     * that open and close a line so no engine can eat them (see [translatePreservingSymbols]).
+     *
+     * [sourceLanguage] is for callers translating one document in several pieces: detect it once over
+     * the whole thing and pass it to every piece. The network engines detect server side and ignore it;
+     * the on-device one needs it (see [MlKitTranslator.translate]). Null leaves each engine to work the
+     * source language out for itself.
+     */
+    suspend fun translate(
+        text: String,
+        targetLanguage: String,
+        sourceLanguage: String? = null,
+    ): String = withContext(Dispatchers.IO) {
+        translatePreservingSymbols(text) { translateWithEngine(it, targetLanguage, sourceLanguage) }
     }
 
-    private suspend fun translateWithEngine(text: String, targetLanguage: String): String =
+    private suspend fun translateWithEngine(
+        text: String,
+        targetLanguage: String,
+        sourceLanguage: String?,
+    ): String =
         when (settingsRepository.getInitial().translationEngine) {
             TranslationEngine.NONE -> error("No translation engine selected")
             TranslationEngine.GOOGLE -> googleTranslate(text, targetLanguage)
@@ -63,7 +78,7 @@ class TranslationManager @Inject constructor(
                 )
             }
 
-            TranslationEngine.MLKIT -> mlKitTranslator.translate(text, targetLanguage)
+            TranslationEngine.MLKIT -> mlKitTranslator.translate(text, targetLanguage, sourceLanguage)
         }
 
     /** Google's free, unofficial endpoint. Returns the concatenated translated sentences. */

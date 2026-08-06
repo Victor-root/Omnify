@@ -127,30 +127,39 @@ class AppDetailViewModel @Inject constructor(
                 translationManager.detectLanguage(plainText(descriptionHtml))
             }.getOrNull()
             if (detected != null && detected != "und" && detected != target) {
-                translateBoth(summary, descriptionHtml, whatsNew, notifyError = false)
+                translateBoth(summary, descriptionHtml, whatsNew, notifyError = false, source = detected)
             }
         }
     }
 
+    /** [source] is the description's language when the caller has already worked it out. */
     private suspend fun translateBoth(
         summary: String,
         descriptionHtml: String,
         whatsNew: String,
         notifyError: Boolean,
+        source: String? = null,
     ) {
         _descriptionTranslation.value = DescriptionTranslation.Loading
         val target = java.util.Locale.getDefault().language
         val description = plainText(descriptionHtml)
+        // One language for all three, read off the description since it is by far the longest of them.
+        // A summary of a few words, or a what's-new line that is just a version number, gets identified
+        // as almost anything on its own, and an on-device engine would then load a different language
+        // model for each of the three (see TranslationManager.translate).
+        val detectedSource = source ?: runCatching {
+            translationManager.detectLanguage(description.ifBlank { summary })
+        }.getOrNull()?.takeIf { it != "und" }
         val result = runCatching {
             coroutineScope {
                 val translatedSummary = async {
-                    if (summary.isBlank()) "" else translationManager.translate(summary, target)
+                    if (summary.isBlank()) "" else translationManager.translate(summary, target, detectedSource)
                 }
                 val translatedDescription = async {
-                    if (description.isBlank()) "" else translationManager.translate(description, target)
+                    if (description.isBlank()) "" else translationManager.translate(description, target, detectedSource)
                 }
                 val translatedWhatsNew = async {
-                    if (whatsNew.isBlank()) "" else translationManager.translate(whatsNew, target)
+                    if (whatsNew.isBlank()) "" else translationManager.translate(whatsNew, target, detectedSource)
                 }
                 DescriptionTranslation.Translated(
                     summary = translatedSummary.await(),

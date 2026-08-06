@@ -902,7 +902,16 @@ class ExternalAppsViewModel @Inject constructor(
         }
         if (indices.isEmpty()) return html
 
-        val translated = translateSegments(indices.map { tokens[it].trim() }, target)
+        val segments = indices.map { tokens[it].trim() }
+        // Worked out once for the whole README, not per piece sent. An on-device engine has to settle on
+        // a source language before it can translate at all, and a single run ("OK", a version number, a
+        // heading of two words) gets identified as almost anything, so detecting per piece both wastes
+        // the work and makes the engine swap language model between pieces of the same page.
+        val source = translationManager
+            .detectLanguage(segments.joinToString(" ").take(DETECT_SAMPLE_CHARS))
+            ?.takeIf { it != "und" }
+
+        val translated = translateSegments(segments, target, source)
 
         // Splice the translations back in, keeping each run's surrounding whitespace.
         val builder = StringBuilder(html.length)
@@ -925,7 +934,11 @@ class ExternalAppsViewModel @Inject constructor(
     /** Translates [segments] in newline-joined batches (each <= [MAX_TRANSLATE_CHUNK] chars), which the
      *  engines return line-for-line. On the rare batch that doesn't map 1:1, its segments are translated
      *  one by one, and any segment that still fails keeps its original text. */
-    private suspend fun translateSegments(segments: List<String>, target: String): List<String> {
+    private suspend fun translateSegments(
+        segments: List<String>,
+        target: String,
+        source: String?,
+    ): List<String> {
         val out = arrayOfNulls<String>(segments.size)
         var i = 0
         while (i < segments.size) {
@@ -940,13 +953,13 @@ class ExternalAppsViewModel @Inject constructor(
                 if (seg.length >= MAX_TRANSLATE_CHUNK) break
             }
             val count = i - start
-            val parts = translationManager.translate(batch.toString(), target).split('\n')
+            val parts = translationManager.translate(batch.toString(), target, source).split('\n')
             if (parts.size == count) {
                 for (j in 0 until count) out[start + j] = parts[j]
             } else {
                 for (j in 0 until count) {
                     out[start + j] = runCatching {
-                        translationManager.translate(segments[start + j], target)
+                        translationManager.translate(segments[start + j], target, source)
                     }.getOrDefault(segments[start + j])
                 }
             }
@@ -1978,6 +1991,10 @@ private const val RECENT_WINDOW_DAYS = 30
 private const val RECENT_MAX = 20
 
 private const val MAX_TRANSLATE_CHUNK = 1500
+
+/** How much of a README is enough to tell what language it is in. Language identification is a
+ *  whole-text judgement, so more text past this adds nothing but the cost of scanning it. */
+private const val DETECT_SAMPLE_CHARS = 2000
 
 private val TAG_REGEX = Regex("<[^>]+>")
 
