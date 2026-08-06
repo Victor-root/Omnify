@@ -29,7 +29,10 @@ profileinstaller = "1.4.1"
 # 3.5.0 means moving to Kotlin 2.4, which KSP has no release for. It moves when Kotlin does.
 coil = "3.4.0"
 leakcanary = "2.14"
-hilt = "2.59.2"
+hilt = "2.60.1"
+# Held: 1.4.0 declares minCompileSdk 37 (hilt-navigation-compose) and this project compiles against
+# 36. Same wall as core and lifecycle, and it lifts the same way. Unrelated to the dagger `hilt`
+# version above, which the two version refs make easy to confuse: they release on their own schedules.
 hiltExt = "1.3.0"
 kotlin = "2.3.21"
 coroutines = "1.11.0"
