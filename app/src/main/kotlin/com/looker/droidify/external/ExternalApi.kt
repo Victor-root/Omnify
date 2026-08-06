@@ -1365,7 +1365,11 @@ private val markdownRenderer: HtmlRenderer =
 /**
  * Renders Markdown to an HTML fragment locally (no network, no external service). Relative links and
  * images stay relative so the WebView resolves them against the repo's raw base. Raw HTML in the
- * source is passed through (as GitHub does); the WebView runs no JavaScript, so it stays inert.
+ * source is passed through (as GitHub does), so a README keeps the layout its author wrote for it.
+ * What that HTML is allowed to *do* is settled later, on the way into the WebView, by
+ * [com.looker.droidify.utility.text.ReadmeHtmlSanitizer]: this used to say the raw HTML stays inert
+ * because no JavaScript ever runs, which stopped being true when the "JavaScript in READMEs" setting
+ * was added.
  *
  * GitHub's "alert" blockquotes (`> [!NOTE]` / `[!TIP]` / `[!IMPORTANT]` / `[!WARNING]` / `[!CAUTION]`
  * as the sole content of a blockquote's first line) are a GitHub-specific convention layered on top of

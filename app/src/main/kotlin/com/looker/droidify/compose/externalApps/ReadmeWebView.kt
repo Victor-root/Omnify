@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.viewinterop.AndroidView
 import com.looker.droidify.compose.theme.LocalIsTelevision
+import com.looker.droidify.utility.text.ReadmeHtmlSanitizer
 import kotlinx.coroutines.launch
 
 /**
@@ -108,9 +109,15 @@ fun ReadmeWebView(
     // ("val cannot be reassigned"), so the receiver-side assignment needs `this.javaScriptEnabled =`
     // explicitly, and reading the parameter's value here under its own name keeps both sides unambiguous.
     val allowJavaScript = javaScriptEnabled
-    val document = remember(html, colorScheme, pageBackground) {
+    // A README is written by whoever owns the repository, and the Markdown renderer passes its raw
+    // HTML through the way the forges do. Everything that would let that HTML *act* rather than draw
+    // (script, embedded documents, form targets, javascript:/intent:/file: links) is taken out here,
+    // once, on the way into the WebView: the one point every caller and every cached copy passes
+    // through. Remembered on [html] alone so a theme change re-wraps without re-sanitizing.
+    val body = remember(html) { ReadmeHtmlSanitizer.sanitize(html) }
+    val document = remember(body, colorScheme, pageBackground) {
         wrapReadmeHtml(
-            body = html,
+            body = body,
             // The app background (not the raised surface) when translucentBackground is set, so the page
             // reads as part of the screen rather than a card floating on it. Code blocks/tables/quotes
             // below keep their own solid surface colour for contrast; only the page itself blends in.
@@ -225,7 +232,17 @@ fun ReadmeWebView(
                     override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
                         openExternally(url)
 
+                    /**
+                     * Always returns true: the WebView itself never navigates, whatever the link is.
+                     * A URL [ReadmeHtmlSanitizer] would keep as a link is handed to the system;
+                     * anything else is dropped rather than passed on, since handing an arbitrary
+                     * scheme to the system resolves it against every app installed on the device,
+                     * and this URL is the README author's to choose. The sanitizer already takes
+                     * those out of the document, so what reaches here is what a redirect: or a
+                     * script, when the setting allows one: navigated to afterwards.
+                     */
                     private fun openExternally(url: String): Boolean {
+                        if (!ReadmeHtmlSanitizer.isFollowableUrl(url)) return true
                         runCatching { uriHandler.openUri(humanizeGitHubMarkdownUrl(url)) }
                         return true
                     }
