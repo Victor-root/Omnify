@@ -61,8 +61,14 @@ test-core = "1.7.0"
 arch-core-testing = "2.2.0"
 mockk = "1.14.11"
 turbine = "1.2.1"
-compose-bom = "2026.02.00"
-compose-material = "1.5.0-alpha15"
+compose-bom = "2026.06.01"
+# Held at alpha18, the last one that still builds here: alpha19 and above declare minCompileSdk 37
+# while this project compiles against 36. Same wall as core, lifecycle and hiltExt above, and it lifts
+# the same way. Note this version is what actually decides the compose-ui/foundation/runtime version
+# too: material3 requires a far newer one than the BOM pins (1.4.0 there), so the BOM only wins where
+# it is the higher of the two, which is exactly what puts ui on the stable 1.11.4 instead of the
+# 1.11.0 beta this alpha asks for.
+compose-material = "1.5.0-alpha18"
 compose-navigation = "2.9.8"
 detekt = "1.23.8"
 detekt-compose = "0.4.22"
