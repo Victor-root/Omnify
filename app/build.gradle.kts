@@ -323,22 +323,31 @@ dependencies {
 //    debugImplementation(libs.leakcanary)
 }
 
-// using a task as a preBuild dependency instead of a function that takes some time insures that it runs
-// in /res are (almost) all languages that have a translated string is saved. this is safer and saves some time
-task("detectAndroidLocals") {
-    val langsList: MutableSet<String> = HashSet()
-
-    // in /res are (almost) all languages that have a translated string is saved. this is safer and saves some time
-    fileTree("src/main/res").visit {
-        if (this.file.path.endsWith("strings.xml") &&
-            this.file.canonicalFile.readText().contains("<string")
-        ) {
-            var languageCode = this.file.parentFile.name.replace("values-", "")
-            languageCode = if (languageCode == "values") "en" else languageCode
-            langsList.add(languageCode)
-        }
+// Every language the app actually has a translated string for, read off res/ itself and handed to
+// the code as BuildConfig.DETECTED_LOCALES (the list SettingsViewModel offers in the language
+// picker). Reading res is more reliable than keeping a list by hand, which drifts the moment a
+// translation lands.
+//
+// This used to sit inside task("detectAndroidLocals") that preBuild depended on, but that task never
+// executed anything: task(name) { } runs its block as configuration, so the scan and the
+// buildConfigField call below already ran while the build was being configured, and the task itself
+// had no action to perform afterwards. Registering it lazily instead, the usual fix for the
+// deprecation, would have been worse than the warning: the block would then run only once the task
+// graph was built, far too late for buildConfigField to reach the variant, and the picker would come
+// up empty. So it stays where it always effectively ran, without the deprecated
+// Project.task(String, Action) or the empty task around it.
+val detectedLocales: MutableSet<String> = HashSet()
+fileTree("src/main/res").visit {
+    if (this.file.path.endsWith("strings.xml") &&
+        this.file.canonicalFile.readText().contains("<string")
+    ) {
+        var languageCode = this.file.parentFile.name.replace("values-", "")
+        languageCode = if (languageCode == "values") "en" else languageCode
+        detectedLocales.add(languageCode)
     }
-    val langsListString = "{${langsList.sorted().joinToString(",") { "\"${it}\"" }}}"
-    android.defaultConfig.buildConfigField("String[]", "DETECTED_LOCALES", langsListString)
 }
-tasks.preBuild.dependsOn("detectAndroidLocals")
+android.defaultConfig.buildConfigField(
+    "String[]",
+    "DETECTED_LOCALES",
+    "{${detectedLocales.sorted().joinToString(",") { "\"$it\"" }}}",
+)
