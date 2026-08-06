@@ -12,6 +12,7 @@ import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.utility.common.extension.asStateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
@@ -37,6 +38,7 @@ sealed interface HiddenApp {
 }
 
 @HiltViewModel
+@OptIn(ExperimentalCoroutinesApi::class)
 class HiddenAppsViewModel @Inject constructor(
     private val appRepository: AppRepository,
     externalAppRepository: ExternalAppRepository,
