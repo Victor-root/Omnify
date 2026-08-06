@@ -60,6 +60,7 @@ class UpdateAllWorker @AssistedInject constructor(
     private val appRepository: AppRepository,
     private val repoRepository: RepoRepository,
     private val downloader: Downloader,
+    private val batchProgress: BatchUpdateProgress,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -67,12 +68,20 @@ class UpdateAllWorker @AssistedInject constructor(
         if (packages.isEmpty()) return@withContext Result.success()
 
         Log.i(TAG, "Updating ${packages.size} app(s)")
-        for (packageName in packages) {
-            // Publish which app is being handled right now, so the Updates tab can show a live spinner
-            // on that tile and move to the next as the batch progresses.
-            setProgress(Data.Builder().putString(KEY_CURRENT_PACKAGE, packageName).build())
-            runCatching { updateOne(packageName) }
-                .onFailure { Log.w(TAG, "Update failed for $packageName", it) }
+        try {
+            packages.forEachIndexed { index, packageName ->
+                // Publish which app is being handled right now, so the Updates tab can show a live
+                // spinner on that tile and move to the next as the batch progresses.
+                setProgress(Data.Builder().putString(KEY_CURRENT_PACKAGE, packageName).build())
+                // The same, plus the byte counts, for anything on screen: see BatchUpdateProgress.
+                batchProgress.startPackage(packageName, index + 1, packages.size)
+                runCatching { updateOne(packageName) }
+                    .onFailure { Log.w(TAG, "Update failed for $packageName", it) }
+            }
+        } finally {
+            // In a finally so a cancelled batch (the user leaving, the system stopping the work)
+            // doesn't leave a download frozen on screen at whatever percentage it had reached.
+            batchProgress.clear()
         }
         Result.success()
     }
@@ -91,6 +100,8 @@ class UpdateAllWorker @AssistedInject constructor(
             return
         }
         val (pkg, repo) = target
+        // Now that the release is known, an app's version list can mark the row being downloaded.
+        batchProgress.setTargetVersion(pkg.manifest.versionCode)
 
         // Download and verify first — never touch the installed app until the new APK is in hand.
         val cacheFileName = downloadAndVerify(pkg, repo) ?: return
@@ -127,7 +138,12 @@ class UpdateAllWorker @AssistedInject constructor(
             headers = {
                 repo.authentication?.let { authentication(it.username, it.password) }
             },
-        )
+        ) { read, total ->
+            // The batch downloads outside any screen, so this is the only place the bytes are known.
+            // BatchUpdateProgress throttles them; this callback fires far too often to publish raw.
+            batchProgress.reportDownload(read.value, total?.value)
+        }
+        batchProgress.finishDownload()
         if (response !is NetworkResponse.Success) {
             Log.w(TAG, "Download failed for ${pkg.apk.name}")
             partialFile.delete()
@@ -182,6 +198,20 @@ class UpdateAllWorker @AssistedInject constructor(
                 request = request,
             )
             Log.i(TAG, "Update-all enqueued for ${packageNames.size} app(s)")
+        }
+
+        /**
+         * Stops a running batch. Cancelling the work cancels the coroutine it runs in, so the
+         * download in flight is abandoned and [doWork]'s finally clears the on-screen progress.
+         *
+         * The whole batch, not one app: the run is a single piece of work with a single sequential
+         * loop, so there is no per-app handle to pull. Cancel on an app's page therefore means "stop
+         * updating", not "skip this one", which is the plain reading of the button given that the
+         * page shows the batch's download as its own.
+         */
+        fun cancel(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork(TAG)
+            Log.i(TAG, "Update-all cancelled")
         }
 
         /** Emits `true` while a batch update is downloading, so the button can show progress and lock. */

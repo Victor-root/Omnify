@@ -65,6 +65,11 @@ fun AppTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isUpdating: Boolean = false,
+    // How far this app's download has come, 0f..1f, when that is known. The ring then fills and
+    // carries the percentage instead of spinning with nothing to say, which is the difference between
+    // "something is happening" and "it is 60 % through". Null keeps the previous indeterminate ring:
+    // the size isn't always known, and the install phase has no bytes to count.
+    updateFraction: Float? = null,
     icon: @Composable () -> Unit,
 ) {
     // Android TV: the focused tile scales up inside a green focus box (see below). The scale is applied
@@ -154,7 +159,21 @@ fun AppTile(
                 icon()
             }
             if (isUpdating) {
-                CircularWavyProgressIndicator(modifier = Modifier.size(32.dp))
+                if (updateFraction != null) {
+                    Box(contentAlignment = Alignment.Center) {
+                        CircularWavyProgressIndicator(
+                            progress = { updateFraction },
+                            modifier = Modifier.size(36.dp),
+                        )
+                        Text(
+                            text = "${(updateFraction * 100).toInt()}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                } else {
+                    CircularWavyProgressIndicator(modifier = Modifier.size(32.dp))
+                }
             } else if (isInstalled) {
                 Box(
                     contentAlignment = Alignment.Center,

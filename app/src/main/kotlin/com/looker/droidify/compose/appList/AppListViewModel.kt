@@ -19,6 +19,7 @@ import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.extension.asStateFlow
+import com.looker.droidify.work.BatchUpdateProgress
 import com.looker.droidify.work.SyncWorker
 import com.looker.droidify.work.UpdateAllWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -48,6 +49,7 @@ class AppListViewModel @Inject constructor(
     private val installedRepository: InstalledRepository,
     installedIdentityRepository: InstalledIdentityRepository,
     private val settingsRepository: SettingsRepository,
+    batchProgress: BatchUpdateProgress,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -321,6 +323,15 @@ class AppListViewModel @Inject constructor(
     /** The package currently being updated by a running "update all" batch (null when idle), so the
      *  Updates tab shows a live spinner on that app and moves to the next in real time. */
     val updatingPackage: StateFlow<String?> = UpdateAllWorker.currentPackage(context).asStateFlow(null)
+
+    /**
+     * The same batch, with its byte counts and its place in the run, so the tile being updated can
+     * show how far along it actually is and the "update all" button how far the whole batch has come.
+     * Distinct from [updatingPackage], which comes from WorkManager and so survives the app's process
+     * being restarted: this one is in memory (see [BatchUpdateProgress]) and is simply null in that
+     * case, which leaves the tile on its plain spinner rather than showing nothing.
+     */
+    val batchUpdate: StateFlow<BatchUpdateProgress.State?> = batchProgress.state
 
     /**
      * Downloads and installs every app currently listed on the Updates tab. The list is already

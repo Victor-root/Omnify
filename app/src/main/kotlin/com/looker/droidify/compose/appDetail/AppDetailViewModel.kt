@@ -54,6 +54,8 @@ import com.looker.droidify.utility.common.extension.installerSourceLabel
 import com.looker.droidify.utility.common.extension.isInstalledFromGooglePlay
 import com.looker.droidify.utility.common.extension.singleSignature
 import com.looker.droidify.utility.common.extension.versionCodeCompat
+import com.looker.droidify.work.BatchUpdateProgress
+import com.looker.droidify.work.UpdateAllWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -89,6 +91,7 @@ class AppDetailViewModel @Inject constructor(
     private val downloader: Downloader,
     private val translationManager: TranslationManager,
     private val externalApi: ExternalApi,
+    private val batchProgress: BatchUpdateProgress,
     @param:ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -298,8 +301,17 @@ class AppDetailViewModel @Inject constructor(
     /**
      * Live download progress (bytes received, total, speed), or null when no download is
      * running. Drives the progress bar shown before the system install starts.
+     *
+     * Two sources, because a download of this app can be started from two places: this screen, and a
+     * batch "update all" running in the background ([BatchUpdateProgress]). Opening an app's page
+     * while the batch was downloading that very app used to show an idle screen, since only the
+     * first source existed here, and the batch is exactly when the wait is longest. The screen's own
+     * download wins when both somehow apply, being the one the user is watching.
      */
-    val downloadStatus: StateFlow<DownloadStatus?> = _downloadStatus
+    val downloadStatus: StateFlow<DownloadStatus?> =
+        combine(_downloadStatus, batchProgress.state) { own, batch ->
+            own ?: batch?.takeIf { it.packageName == packageName }?.download
+        }.asStateFlow(null)
 
     private val _downloadTargetVersionCode = MutableStateFlow<Long?>(null)
 
@@ -310,8 +322,15 @@ class AppDetailViewModel @Inject constructor(
      * [downloadStatus]/[installState] actually being active). Lets the version list show progress on
      * the specific row the user tapped instead of only in the hero card, which stays out of view once
      * the user has scrolled down to the list.
+     *
+     * Same two sources as [downloadStatus], and for the same reason: a batch "update all" downloading
+     * this app is shown on this page, so the version list has to be able to mark the row it is
+     * fetching too, instead of leaving the progress visible only in the hero card at the top.
      */
-    val downloadTargetVersionCode: StateFlow<Long?> = _downloadTargetVersionCode
+    val downloadTargetVersionCode: StateFlow<Long?> =
+        combine(_downloadTargetVersionCode, batchProgress.state) { own, batch ->
+            own ?: batch?.takeIf { it.packageName == packageName }?.versionCode
+        }.asStateFlow(null)
 
     /**
      * Set when the freshly-downloaded APK is signed by a different key than the copy already
@@ -857,10 +876,17 @@ class AppDetailViewModel @Inject constructor(
     /** Cancels an in-progress download or install. */
     fun cancel() {
         val job = downloadJob
-        if (job?.isActive == true) {
-            job.cancel()
-        } else {
-            installManager.cancel(PackageName(packageName))
+        when {
+            job?.isActive == true -> job.cancel()
+            // The progress on screen belongs to a running "update all", which owns the download this
+            // screen is only showing: there is no local job to cancel, and cancelling the install
+            // queue does nothing for a download that hasn't reached it. Stopping the batch is what
+            // makes the button do what it says. It stops the whole run, not just this app: see
+            // UpdateAllWorker.cancel.
+            batchProgress.state.value?.packageName == packageName ->
+                UpdateAllWorker.cancel(context)
+
+            else -> installManager.cancel(PackageName(packageName))
         }
     }
 

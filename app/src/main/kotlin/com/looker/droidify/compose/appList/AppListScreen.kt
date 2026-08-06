@@ -152,6 +152,7 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.LocalStatusBarScrimAlpha
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import com.looker.droidify.work.BatchUpdateProgress
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.roundToInt
@@ -185,6 +186,7 @@ fun AppListScreen(
     val updatesCount by viewModel.updatesCount.collectAsStateWithLifecycle()
     val isUpdatingAll by viewModel.isUpdatingAll.collectAsStateWithLifecycle()
     val updatingPackage by viewModel.updatingPackage.collectAsStateWithLifecycle()
+    val batchUpdate by viewModel.batchUpdate.collectAsStateWithLifecycle()
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
     val homeScreenSwiping by viewModel.homeScreenSwiping.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
@@ -879,6 +881,7 @@ fun AppListScreen(
                     UpdateAllButton(
                         count = apps.size,
                         isUpdating = isUpdatingAll,
+                        batch = batchUpdate,
                         onClick = viewModel::updateAll,
                     )
                 }
@@ -980,6 +983,13 @@ fun AppListScreen(
                         // downloading right now, so progress is visible in real time.
                         isUpdating = selectedTab == AppTab.UPDATES &&
                             app.packageName.name == updatingPackage,
+                        // How far that app's own download has come, so the ring fills and shows a
+                        // percentage instead of spinning with nothing to say. Null while the batch is
+                        // installing rather than downloading, or when the size isn't known: the tile
+                        // falls back to the plain spinner then.
+                        updateFraction = batchUpdate
+                            ?.takeIf { it.packageName == app.packageName.name }
+                            ?.download?.fraction,
                         onClick = { openApp(app.packageName.name) },
                         modifier = Modifier.restoreFocusTarget(
                             isTelevision && restoreFocusId == "app:${app.packageName.name}",
@@ -1166,6 +1176,11 @@ private fun EmptyTabMessage(tab: AppTab) {
 private fun UpdateAllButton(
     count: Int,
     isUpdating: Boolean,
+    // Live state of the running batch, so the button says how far the whole run has come instead of
+    // spinning identically from the first app to the last. Null when no batch is running, and also
+    // when one is running in a process that outlived the screen (see AppListViewModel.batchUpdate),
+    // which is why isUpdating stays the separate source of truth for "a batch is happening".
+    batch: BatchUpdateProgress.State?,
     onClick: () -> Unit,
 ) {
     FilledTonalButton(
@@ -1179,16 +1194,31 @@ private fun UpdateAllButton(
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         if (isUpdating) {
-            CircularWavyProgressIndicator(modifier = Modifier.size(20.dp))
+            // Determinate as soon as the batch reports where it is, so the ring fills across the whole
+            // run; indeterminate otherwise, which is what it always was.
+            if (batch != null) {
+                CircularWavyProgressIndicator(
+                    progress = { batch.overallFraction },
+                    modifier = Modifier.size(20.dp),
+                )
+            } else {
+                CircularWavyProgressIndicator(modifier = Modifier.size(20.dp))
+            }
         } else {
             Icon(imageVector = Icons.Filled.Download, contentDescription = null)
         }
         Spacer(Modifier.width(8.dp))
         Text(
-            text = if (isUpdating) {
-                stringResource(R.string.updating_all)
-            } else {
-                stringResource(R.string.update_all_FORMAT, count)
+            text = when {
+                // "Updating 2/7 · 34 %": which app of how many, and how far the whole batch has come.
+                // Built from the label already translated for this state plus plain numbers, so no
+                // new string has to be written and translated for every locale.
+                isUpdating && batch != null ->
+                    "${stringResource(R.string.updating_all)}  " +
+                        "${batch.position}/${batch.count}  ·  ${batch.overallPercent} %"
+
+                isUpdating -> stringResource(R.string.updating_all)
+                else -> stringResource(R.string.update_all_FORMAT, count)
             },
         )
     }
