@@ -2,16 +2,15 @@ package com.looker.droidify.compose.settings
 
 import android.content.Context
 import android.net.Uri
+import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.compose.material3.SnackbarHostState
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.data.PrivacyRepository
-import com.looker.droidify.data.StringHandler
 import com.looker.droidify.data.backup.BackupCategory
 import com.looker.droidify.data.backup.BackupInspection
 import com.looker.droidify.data.backup.BackupRepository
@@ -56,12 +55,9 @@ class SettingsViewModel @Inject constructor(
     private val privacyRepository: PrivacyRepository,
     private val backupRepository: BackupRepository,
     private val customButtonRepository: CustomButtonRepository,
-    private val handler: StringHandler,
     private val externalApi: ExternalApi,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
-
-    val snackbarHostState = SnackbarHostState()
 
     val settings = settingsRepository.data.asStateFlow(Settings())
 
@@ -85,10 +81,8 @@ class SettingsViewModel @Inject constructor(
         _isBackgroundAllowed.value = allowed
     }
 
-    fun showSnackbar(@StringRes messageRes: Int) {
-        viewModelScope.launch {
-            snackbarHostState.showSnackbar(handler.getString(messageRes))
-        }
+    fun showToast(@StringRes messageRes: Int) {
+        Toast.makeText(context, messageRes, Toast.LENGTH_SHORT).show()
     }
 
     fun setLanguage(language: String) {
@@ -194,7 +188,7 @@ class SettingsViewModel @Inject constructor(
     private suspend fun handleShizukuInstaller(context: Context, installerType: InstallerType) {
         if (isShizukuInstalled(context) || initSui(context)) {
             when {
-                !isShizukuAlive() -> showSnackbar(R.string.shizuku_not_alive)
+                !isShizukuAlive() -> showToast(R.string.shizuku_not_alive)
                 isShizukuGranted() -> settingsRepository.setInstallerType(installerType)
                 else -> {
                     if (requestPermissionListener()) {
@@ -203,7 +197,7 @@ class SettingsViewModel @Inject constructor(
                 }
             }
         } else {
-            showSnackbar(R.string.shizuku_not_installed)
+            showToast(R.string.shizuku_not_installed)
         }
     }
 
@@ -218,7 +212,7 @@ class SettingsViewModel @Inject constructor(
         } else {
             // Previously silent: nothing told the user why the switch didn't happen — it just looked
             // like tapping "Root" did nothing, with only a logcat line (see isMagiskGranted) to go on.
-            showSnackbar(R.string.root_not_granted)
+            showToast(R.string.root_not_granted)
         }
     }
 
@@ -260,14 +254,14 @@ class SettingsViewModel @Inject constructor(
     fun setProxyType(proxyType: ProxyType) {
         viewModelScope.launch {
             settingsRepository.setProxyType(proxyType)
-            showSnackbar(R.string.proxy_restart_required)
+            showToast(R.string.proxy_restart_required)
         }
     }
 
     fun setProxyHost(host: String) {
         viewModelScope.launch {
             settingsRepository.setProxyHost(host)
-            showSnackbar(R.string.proxy_restart_required)
+            showToast(R.string.proxy_restart_required)
         }
     }
 
@@ -275,10 +269,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val portInt = port.toIntOrNull()
             if (portInt == null) {
-                showSnackbar(R.string.proxy_port_error_not_int)
+                showToast(R.string.proxy_port_error_not_int)
             } else {
                 settingsRepository.setProxyPort(portInt)
-                showSnackbar(R.string.proxy_restart_required)
+                showToast(R.string.proxy_restart_required)
             }
         }
     }
@@ -340,8 +334,8 @@ class SettingsViewModel @Inject constructor(
     fun backup(uri: Uri, categories: Set<BackupCategory>) {
         viewModelScope.launch {
             backupRepository.createBackup(uri, categories).fold(
-                onSuccess = { showSnackbar(R.string.backup_success) },
-                onFailure = { showSnackbar(R.string.backup_failed) },
+                onSuccess = { showToast(R.string.backup_success) },
+                onFailure = { showToast(R.string.backup_failed) },
             )
         }
     }
@@ -353,7 +347,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             backupRepository.inspectBackup(uri).fold(
                 onSuccess = { inspection -> _pendingRestore.value = inspection },
-                onFailure = { showSnackbar(R.string.file_format_error_DESC) },
+                onFailure = { showToast(R.string.file_format_error_DESC) },
             )
         }
     }
@@ -363,8 +357,8 @@ class SettingsViewModel @Inject constructor(
         val inspection = _pendingRestore.value ?: return
         viewModelScope.launch {
             backupRepository.restoreBackup(inspection, categories).fold(
-                onSuccess = { showSnackbar(R.string.restore_success) },
-                onFailure = { showSnackbar(R.string.restore_failed) },
+                onSuccess = { showToast(R.string.restore_success) },
+                onFailure = { showToast(R.string.restore_failed) },
             )
             _pendingRestore.value = null
         }

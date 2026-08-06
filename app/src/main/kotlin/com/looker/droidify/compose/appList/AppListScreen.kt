@@ -80,7 +80,6 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -501,7 +500,6 @@ fun AppListScreen(
                 Modifier
             },
         ),
-        snackbarHost = { SnackbarHost(externalViewModel.snackbarHostState) },
         floatingActionButton = { ScrollToTopFab(gridState) },
         topBar = {
             Column(

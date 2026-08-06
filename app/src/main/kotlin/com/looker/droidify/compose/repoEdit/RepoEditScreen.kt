@@ -24,8 +24,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -72,7 +70,6 @@ fun RepoEditScreen(
     val authEnabled by viewModel.authEnabled.collectAsStateWithLifecycle()
     val isFormValid by remember { derivedStateOf { !errorState.hasError } }
 
-    val snackbarHostState = remember { SnackbarHostState() }
     // TV / D-pad: the top bar doesn't release focus downward on its own, so "down" on the back arrow
     // would leave the user stuck in the header. This points at the first field; the key handler below
     // moves focus into the form. No effect on touch.
@@ -130,7 +127,6 @@ fun RepoEditScreen(
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize()) {
             // Its own, edge-to-edge-aware padding (see forFloatingBackground's doc comment) — not the

@@ -7,8 +7,6 @@ import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHostState
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -446,8 +444,6 @@ class ExternalAppsViewModel @Inject constructor(
     /** The in-flight "add source" coroutine, so it can be cancelled if the dialog is dismissed mid-add. */
     private var addJob: Job? = null
 
-    val snackbarHostState = SnackbarHostState()
-
     /** README (HTML) of the app shown on the detail screen, or null while loading / when none. */
     private val _readme = MutableStateFlow<String?>(null)
     val readme: StateFlow<String?> = _readme
@@ -839,8 +835,7 @@ class ExternalAppsViewModel @Inject constructor(
     }
 
     /** Translates the README's plain text into the device language. Never throws: on failure it reports
-     *  it the same way the catalogue's own detail screen does and leaves the toggle in the "failed"
-     *  state (tapping again retries). */
+     *  it and leaves the toggle in the "failed" state (tapping again retries). */
     fun translateReadme(html: String) {
         if (html.isBlank()) return
         viewModelScope.launch {
@@ -857,10 +852,7 @@ class ExternalAppsViewModel @Inject constructor(
                     // to go somewhere: without this a failing engine, a missing model or a language it
                     // doesn't support all look identical from outside.
                     Log.w(TAG, "README translation failed (-> $target)", error)
-                    // A toast, not this screen's snackbar: it is the exact same failure the catalogue's
-                    // detail screen reports, and the two showing it differently for the same reason
-                    // read as two unrelated problems.
-                    Toast.makeText(context, R.string.translation_failed, Toast.LENGTH_SHORT).show()
+                    toast(context.getString(R.string.translation_failed))
                     DescriptionTranslation.Failed
                 },
             )
@@ -1094,7 +1086,7 @@ class ExternalAppsViewModel @Inject constructor(
                             latestReleaseAt = release.apkUpdatedAtMillis(filter = app.apkFilter),
                         ),
                     )
-                    snack(context.getString(R.string.external_added, app.repo))
+                    toast(context.getString(R.string.external_added, app.repo))
                     added = true
                 }
             } finally {
@@ -1118,7 +1110,7 @@ class ExternalAppsViewModel @Inject constructor(
     ) {
         val ref = parseAccountSource(url)
         if (ref == null) {
-            snack(context.getString(R.string.external_invalid_url))
+            toast(context.getString(R.string.external_invalid_url))
             return
         }
         addAccountSource(
@@ -1173,7 +1165,7 @@ class ExternalAppsViewModel @Inject constructor(
                     val (message, urgent) = githubFailureMessage(
                         context.getString(R.string.external_account_no_repos, ref.owner),
                     )
-                    snack(message = message, long = urgent)
+                    toast(message = message, long = urgent)
                     return@launch
                 }
                 val account = ExternalAccount(
@@ -1186,7 +1178,7 @@ class ExternalAppsViewModel @Inject constructor(
                     lastScan = System.currentTimeMillis(),
                 )
                 if (accounts.value.any { it.key == account.key }) {
-                    snack(context.getString(R.string.external_account_already_added, account.label))
+                    toast(context.getString(R.string.external_account_already_added, account.label))
                     return@launch
                 }
                 // Don't absorb a repo the user already tracks as its own single-repo source (e.g. the
@@ -1209,12 +1201,12 @@ class ExternalAppsViewModel @Inject constructor(
                     val (message, _) = githubFailureMessage(
                         context.getString(R.string.external_account_no_apps, ref.owner),
                     )
-                    snack(message = message, long = true)
+                    toast(message = message, long = true)
                     return@launch
                 }
                 repository.upsertApps(discovered)
                 repository.upsertAccount(account)
-                snack(context.getString(R.string.external_account_added, account.label, discovered.size))
+                toast(context.getString(R.string.external_account_added, account.label, discovered.size))
                 added = true
             } finally {
                 _addState.value = if (added) AddSourceState.SUCCESS else AddSourceState.IDLE
@@ -1355,7 +1347,7 @@ class ExternalAppsViewModel @Inject constructor(
         val pkg = app.packageName ?: return
         val intent = context.packageManager.getLaunchIntentForPackage(pkg)
         if (intent == null) {
-            snack(context.getString(R.string.external_cant_launch, app.label))
+            toast(context.getString(R.string.external_cant_launch, app.label))
             return
         }
         context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -1706,7 +1698,7 @@ class ExternalAppsViewModel @Inject constructor(
         // Fail fast before downloading: if the Shizuku installer is selected but not usable, tell the
         // user why instead of downloading an APK that could never be installed.
         ShizukuState.installBlockReason(context, settingsRepository.getInitial().installerType)?.let {
-            snack(context.getString(it))
+            toast(context.getString(it))
             return
         }
         updateDownload(app.key, DownloadStatus(read = 0, total = -1, bytesPerSecond = 0))
@@ -1717,25 +1709,25 @@ class ExternalAppsViewModel @Inject constructor(
                     val (message, urgent) = githubFailureMessage(
                         context.getString(R.string.external_unreachable, app.sourceLabel),
                     )
-                    snack(message = message, long = urgent)
+                    toast(message = message, long = urgent)
                     return
                 }
                 ReleaseLookup.OnlyPrereleasesExcluded -> {
-                    snack(context.getString(R.string.external_only_prereleases, app.path))
+                    toast(context.getString(R.string.external_only_prereleases, app.path))
                     return
                 }
                 ReleaseLookup.AllExcludedByFilter -> {
-                    snack(context.getString(R.string.external_all_excluded_by_filter, app.path))
+                    toast(context.getString(R.string.external_all_excluded_by_filter, app.path))
                     return
                 }
                 ReleaseLookup.NoCompatibleApk -> {
-                    snack(context.getString(R.string.external_no_apk, app.repo))
+                    toast(context.getString(R.string.external_no_apk, app.repo))
                     return
                 }
             }
             val asset = selectApkAsset(release.assets, filter = app.apkFilter, releaseTag = release.tag)
             if (asset == null) {
-                snack(context.getString(R.string.external_no_apk, app.repo))
+                toast(context.getString(R.string.external_no_apk, app.repo))
                 return
             }
             val cacheFileName = "${app.provider.name}_${app.owner}_${app.repo}_${release.tag}.apk"
@@ -1778,7 +1770,7 @@ class ExternalAppsViewModel @Inject constructor(
                 result
             }
             if (response !is NetworkResponse.Success) {
-                snack(context.getString(R.string.external_download_failed, app.repo))
+                toast(context.getString(R.string.external_download_failed, app.repo))
                 return
             }
             // External APKs aren't pre-registered like F-Droid ones, so read the package name from
@@ -1787,7 +1779,7 @@ class ExternalAppsViewModel @Inject constructor(
                 .getPackageArchiveInfo(releaseFile.absolutePath, 0)
                 ?.packageName
             if (packageName == null) {
-                snack(context.getString(R.string.external_invalid_apk))
+                toast(context.getString(R.string.external_invalid_apk))
                 return
             }
             // Read the real icon + app name from the APK we just downloaded (releases carry neither).
@@ -1884,7 +1876,7 @@ class ExternalAppsViewModel @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            snack(context.getString(R.string.external_download_failed, app.repo))
+            toast(context.getString(R.string.external_download_failed, app.repo))
         } finally {
             clearDownload(app.key)
         }
@@ -1977,13 +1969,9 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    private fun snack(message: String, long: Boolean = false) {
-        viewModelScope.launch {
-            snackbarHostState.showSnackbar(
-                message = message,
-                duration = if (long) SnackbarDuration.Long else SnackbarDuration.Short,
-            )
-        }
+    /** Reports [message] the same way the catalogue's own detail screen does. */
+    private fun toast(message: String, long: Boolean = false) {
+        Toast.makeText(context, message, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
     }
 }
 
