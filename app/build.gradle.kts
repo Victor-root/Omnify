@@ -34,12 +34,21 @@ val latestVersionName = "1.0.1"
 android {
     namespace = "com.looker.droidify"
     compileSdk {
-        version = release(36)
+        version = release(37)
     }
 
     defaultConfig {
         applicationId = "com.omnify.vroot"
         minSdk = 23
+        // Spelled out rather than left to default, which is not the harmless omission it looks like:
+        // AGP falls back to compileSdk when this is unset, so raising compileSdk to 37 silently moved
+        // this to 37 as well, and with it every behaviour Android applies to an app that claims to
+        // target its newest release (background limits, foreground service rules, installer
+        // restrictions). compileSdk only decides what the code compiles against; this is what the
+        // device reads. 36 is exactly what the app has been shipping and running as, so pinning it
+        // changes nothing at all, it just stops the number from following a build setting around.
+        // Raising it is a deliberate decision with its own testing, not a side effect.
+        targetSdk = 36
         versionName = latestVersionName
         // Android's own ordering, invisible to the user: it refuses to install over a build whose
         // versionCode isn't lower, so this has to rise on every published build regardless of what
