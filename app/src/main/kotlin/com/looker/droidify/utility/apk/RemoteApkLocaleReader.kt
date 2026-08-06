@@ -101,21 +101,24 @@ object RemoteApkLocaleReader {
         //   MAX_ARSC_BYTES), exactly like an ordinary Android app's res/values-xx/ folders would produce.
         //   This detector still matters for a genuinely split-installed app's own base/config APKs
         //   (see InstalledApkLocaleReader), where the real per-locale .pak files do live at this path.
-        // - Cross-platform apps shipping one translation JSON per locale under an i18n-ish directory
-        //   somewhere in `assets/` (see ASSET_JSON_LOCALE_REGEX): Flutter `easy_localization`
+        // - Apps shipping one translation file per locale under an i18n-ish directory somewhere in
+        //   `assets/` (see ASSET_LOCALE_FILE_REGEX): Flutter `easy_localization`
         //   (`assets/flutter_assets/assets/<i18n-ish-dir>/<code>.json`, confirmed against a real Obtainium
         //   APK — 29 per-locale files under assets/flutter_assets/assets/translations/, resources.arsc
         //   carrying zero Obtainium-authored strings), Capacitor/Ionic ngx-translate
-        //   (`assets/public/assets/i18n/<code>.json`) and Cordova (`assets/www/**/<code>.json`). Some
+        //   (`assets/public/assets/i18n/<code>.json`), Cordova (`assets/www/**/<code>.json`), and a
+        //   native/C++ app rolling its own (`assets/lang/<code>.ini`, confirmed against a real PPSSPP
+        //   release: 45 translations, resources.arsc carrying zero app-authored strings). Some
         //   Flutter i18n approaches instead compile translations straight into the Dart AOT snapshot with
         //   NO per-file signal at all — the official ARB-based `flutter gen-l10n`, and the `slang` package
         //   (confirmed on iyox Wormhole: resources.arsc carried zero app-authored strings and no per-locale
         //   asset file of any kind, despite genuinely having en/de/it/cs/zh) — those degrade safely to a
         //   less-reliable tier rather than a false "English only".
         // Just the file NAMES are needed — already in hand from the same central directory fetched for
-        // resources.arsc below, so this costs no extra request. Each pattern's own non-locale files
-        // (Chromium's chrome_100_percent.pak/chrome_200_percent.pak/resources.pak; a Flutter app's other,
-        // non-i18n JSON assets) don't match the locale-code shape and are naturally excluded.
+        // resources.arsc below, so this costs no extra request. Chromium's own non-locale .pak files
+        // (chrome_100_percent.pak, resources.pak, …) don't match the locale-code shape; a directory that
+        // merely happens to be *named* something i18n-ish is rejected by what it actually holds (see
+        // holdsTranslations).
         val assetLocales = assetLocalesFromEntryNames(ApkZipLocator.findEntryNames(centralDirectoryBytes) { true })
         if (assetLocales.isNotEmpty()) {
             Log.d(TAG, "$apkUrl: found ${assetLocales.size} per-locale asset file(s) outside resources.arsc")
@@ -186,40 +189,90 @@ object RemoteApkLocaleReader {
      *  naturally excluded without an explicit denylist. */
     private val PAK_LOCALE_REGEX = Regex("""assets/locales/([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,4})?)\.pak$""")
 
-    /** Matches a per-locale translation JSON file bundled under `assets/`, whatever the cross-platform
-     *  framework that put it there: Flutter `easy_localization` (`assets/flutter_assets/assets/
-     *  translations/fr.json`), Capacitor/Ionic ngx-translate (`assets/public/assets/i18n/fr.json`),
-     *  Cordova (`assets/www/.../i18n/fr.json`) — all ship one JSON per locale inside an i18n-ish directory
-     *  (i18n/l10n/intl/lang/locales/translations/…), just under a different `assets/` sub-path per
-     *  framework. The optional wildcard path segment before the i18n-ish directory matches all of them
-     *  (and a Flutter app that
-     *  declares its translations at project root, `assets/flutter_assets/translations/`, with no nested
-     *  `assets/`) rather than hard-coding one framework's prefix. Up to two optional subtags (not just
-     *  one) so a language+script+region code like "zh-Hant-TW" is captured whole instead of just its last
-     *  segment, plus an optional trailing CLDR/POSIX-style `@variant` suffix (e.g. `en@pirate.json`,
-     *  confirmed shipped as a genuine, deliberately-translated locale variant by a real app) — without
-     *  it, that suffix isn't part of a plain `.json` extension match at all, so the whole file name fails
-     *  to match and the variant is silently skipped entirely. */
-    private val ASSET_JSON_LOCALE_REGEX = Regex(
+    /**
+     * Matches one file of a per-locale translation set bundled under `assets/`, whatever put it there:
+     * Flutter `easy_localization` (`assets/flutter_assets/assets/translations/fr.json`),
+     * Capacitor/Ionic ngx-translate (`assets/public/assets/i18n/fr.json`), Cordova
+     * (`assets/www/.../i18n/fr.json`), and a native/C++ app rolling its own (`assets/lang/fr_FR.ini`,
+     * confirmed on a real PPSSPP release: 45 translations there, and a `resources.arsc` carrying not one
+     * app-authored string, so the whole app read as English-only). They all ship one file per locale
+     * inside an i18n-ish directory, differing only in the `assets/` sub-path, the separator inside the
+     * code, and the file format. The optional wildcard path segment before that directory covers every
+     * sub-path (including a Flutter app declaring its translations at project root,
+     * `assets/flutter_assets/translations/`) rather than hard-coding one framework's.
+     *
+     * Deliberately loose about the format, since which one a project picks says nothing about whether
+     * these are translations: the directory it put them in, and what its neighbours look like, is what
+     * answers that ([holdsTranslations]). `_` is accepted alongside `-` because the Java/POSIX-flavoured
+     * `fr_FR` spelling is at least as common as BCP47's `fr-FR` outside Android's own resource system
+     * (all 45 of PPSSPP's use it); the captured code is normalised to `-` in
+     * [assetLocalesFromEntryNames], so it can never be reported twice under two spellings.
+     *
+     * Up to two optional subtags (not just one) so a language+script+region code like "zh-Hant-TW" is
+     * captured whole instead of just its last segment, plus an optional trailing CLDR/POSIX-style
+     * `@variant` suffix (e.g. `en@pirate.json`, confirmed shipped as a genuine, deliberately-translated
+     * locale variant by a real app). Without it, that suffix isn't part of a plain extension match at
+     * all, so the whole file name fails to match and the variant is silently skipped entirely.
+     */
+    private val ASSET_LOCALE_FILE_REGEX = Regex(
         """assets/(?:.*/)?(?:i18n|l10n|intl|locales?|translations?|lang(?:uages?)?)/""" +
-            """([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,4}){0,2}(?:@[a-zA-Z0-9]+)?)\.json$""",
+            """([a-zA-Z]{2,3}(?:[-_][a-zA-Z0-9]{2,4}){0,2}(?:@[a-zA-Z0-9]+)?)""" +
+            """\.(?:json|ini|xml|ya?ml|properties|po|arb|strings|lang|txt|qm)$""",
         RegexOption.IGNORE_CASE,
     )
 
+    /** Below this, a directory isn't a translation set. A lone locale-shaped file name is as likely to
+     *  be a coincidence as a translation, and an app that really does ship exactly one has nothing to
+     *  contribute anyway: that one language is already whatever the app is written in. */
+    private const val MIN_LOCALE_FILES = 2
+
+    /**
+     * Whether a directory holding [localeFiles] locale-shaped names out of [totalFiles] is really a set
+     * of translations, rather than a directory that merely happens to be *called* something i18n-ish.
+     *
+     * The name alone is not enough, and this is not theoretical: a real Markor release keeps its
+     * syntax-highlighting definitions in `assets/highlight/languages/`, where `cpp.json` and
+     * `map.properties` are shaped exactly like locale codes. On a 32-APK corpus that one directory was
+     * the *only* thing the previous, name-only rule ever matched, so the entire feature's real-world
+     * output was a single app wrongly claiming to be translated into "cpp".
+     *
+     * What separates the two is the company a file keeps. A translation set is overwhelmingly made of
+     * translations: PPSSPP's `assets/lang/` is 45 locales and one README. A directory of something else
+     * only brushes past the shape here and there: Markor's is 2 of 4. Requiring a strict majority, on
+     * top of [MIN_LOCALE_FILES], tells them apart without needing a curated list of language codes to
+     * check against, which would fail the real cases anyway, since PPSSPP genuinely ships `cz`, `gr`
+     * and `dr`, none of them an ISO 639-1 code, all of them real translations.
+     */
+    private fun holdsTranslations(localeFiles: Int, totalFiles: Int): Boolean =
+        localeFiles >= MIN_LOCALE_FILES && localeFiles * 2 > totalFiles
+
     /**
      * Locale codes carried by per-locale asset file names among [entryNames] (a Chromium `.pak` bundle,
-     * or a cross-platform framework's per-locale translation JSON — see [PAK_LOCALE_REGEX]/
-     * [ASSET_JSON_LOCALE_REGEX]), not resources.arsc entries. Shared with [InstalledApkLocaleReader],
-     * which walks an installed package's own local ZIP entries the same way this walks a remote APK's
-     * central-directory-derived ones — those frameworks' locales are invisible to [ApkResourceLocales]
-     * either way, so both callers need this same detection, not just the download path.
+     * or any per-locale translation set, see [PAK_LOCALE_REGEX]/[ASSET_LOCALE_FILE_REGEX]), not
+     * resources.arsc entries. Shared with [InstalledApkLocaleReader], which walks an installed package's
+     * own local ZIP entries the same way this walks a remote APK's central-directory-derived ones.
+     * Those locales are invisible to [ApkResourceLocales] either way, so both callers need this same
+     * detection, not just the download path.
+     *
+     * [entryNames] must be the APK's *whole* entry list, not a pre-filtered one: [holdsTranslations]
+     * judges a candidate directory by everything sitting in it, so the files that didn't match matter
+     * as much as the ones that did.
      */
     fun assetLocalesFromEntryNames(entryNames: List<String>): List<String> = (
-        entryNames.filter { PAK_LOCALE_REGEX.matches(it) }
-            .mapNotNull { PAK_LOCALE_REGEX.find(it)?.groupValues?.get(1) } +
-            entryNames.filter { ASSET_JSON_LOCALE_REGEX.matches(it) }
-                .mapNotNull { ASSET_JSON_LOCALE_REGEX.find(it)?.groupValues?.get(1) }
+        entryNames.mapNotNull { PAK_LOCALE_REGEX.matchEntire(it)?.groupValues?.get(1) } +
+            translationSetLocales(entryNames)
         ).distinct()
+
+    /** Locale codes from every `assets/` directory that both looks and behaves like a translation set. */
+    private fun translationSetLocales(entryNames: List<String>): List<String> = entryNames
+        .filterNot { it.endsWith("/") }
+        .groupBy { it.substringBeforeLast('/', missingDelimiterValue = "") }
+        .values
+        .flatMap { siblings ->
+            val codes = siblings.mapNotNull { ASSET_LOCALE_FILE_REGEX.matchEntire(it)?.groupValues?.get(1) }
+            if (holdsTranslations(codes.size, siblings.size)) codes else emptyList()
+        }
+        .map { it.replace('_', '-') }
 
     private suspend fun fetchBytes(
         downloader: Downloader,
