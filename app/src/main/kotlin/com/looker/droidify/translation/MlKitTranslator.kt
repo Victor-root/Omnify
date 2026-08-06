@@ -7,6 +7,7 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -55,7 +56,28 @@ class MlKitTranslator @Inject constructor() {
         // The held translator is one shared native resource, so translations queue rather than overlap.
         // That is no loss on device (a single model, one piece of text at a time either way) and it is
         // what makes it safe to keep: nothing can close a translator another caller is still using.
-        return lock.withLock { openTranslator(source, target).translate(text).await() }
+        return lock.withLock {
+            val translator = openTranslator(source, target)
+            try {
+                translator.translate(text).await()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // A kept translator can stop working on its own: ML Kit closes it from under us when
+                // its own guard fires, and every call after that fails with "Translator has been
+                // closed". Since this one is held for as long as the process lives, that would break
+                // translation everywhere, in every screen, until the app was restarted. Throwing the
+                // bad one away means the next attempt builds a fresh one instead.
+                discard(translator)
+                throw e
+            }
+        }
+    }
+
+    /** Forgets [translator], so the next translation opens a new one. The caller holds [lock]. */
+    private fun discard(translator: Translator) {
+        if (open?.translator === translator) open = null
+        runCatching { translator.close() }
     }
 
     /**

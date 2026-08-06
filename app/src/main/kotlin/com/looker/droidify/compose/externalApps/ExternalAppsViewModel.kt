@@ -6,6 +6,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.core.graphics.drawable.toBitmap
@@ -837,8 +838,9 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    /** Translates the README's plain text into the device language. Never throws: on failure it shows a
-     *  snackbar and leaves the toggle in the "failed" state (tapping again retries). */
+    /** Translates the README's plain text into the device language. Never throws: on failure it reports
+     *  it the same way the catalogue's own detail screen does and leaves the toggle in the "failed"
+     *  state (tapping again retries). */
     fun translateReadme(html: String) {
         if (html.isBlank()) return
         viewModelScope.launch {
@@ -851,7 +853,14 @@ class ExternalAppsViewModel @Inject constructor(
                 onSuccess = { DescriptionTranslation.Translated(summary = "", description = it) },
                 onFailure = { error ->
                     if (error is CancellationException) throw error
-                    snack(context.getString(R.string.translation_failed))
+                    // The message the user gets can only ever say "it didn't work", so the reason has
+                    // to go somewhere: without this a failing engine, a missing model or a language it
+                    // doesn't support all look identical from outside.
+                    Log.w(TAG, "README translation failed (-> $target)", error)
+                    // A toast, not this screen's snackbar: it is the exact same failure the catalogue's
+                    // detail screen reports, and the two showing it differently for the same reason
+                    // read as two unrelated problems.
+                    Toast.makeText(context, R.string.translation_failed, Toast.LENGTH_SHORT).show()
                     DescriptionTranslation.Failed
                 },
             )

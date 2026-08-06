@@ -168,7 +168,11 @@ class AppDetailViewModel @Inject constructor(
                 )
             }
         }
-        _descriptionTranslation.value = result.getOrElse {
+        _descriptionTranslation.value = result.getOrElse { error ->
+            // The message the user gets can only ever say "it didn't work", so the reason has to go
+            // somewhere: without this a failing engine, a missing model or a language it doesn't
+            // support all look identical from outside.
+            Log.w(TAG, "Translation failed ($detectedSource -> $target)", error)
             if (notifyError) {
                 Toast.makeText(context, R.string.translation_failed, Toast.LENGTH_SHORT).show()
             }
