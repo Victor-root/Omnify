@@ -6,11 +6,12 @@ import android.util.Log
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.utility.common.LanguageDetector
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
-import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.isSuccess
+import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +27,7 @@ import org.commonmark.ext.gfm.tables.TablesExtension
 import org.commonmark.ext.task.list.items.TaskListItemsExtension
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -720,11 +722,10 @@ class ExternalApi @Inject constructor(
         if (!response.status.isSuccess()) return null
         val contentType = response.headers["Content-Type"]?.substringBefore(';')?.trim().orEmpty()
         if (!contentType.startsWith("image/")) return null
-        response.headers["Content-Length"]?.toLongOrNull()?.let {
-            if (it > MAX_INLINE_IMAGE_BYTES) return null
-        }
-        val bytes: ByteArray = response.body()
-        if (bytes.size > MAX_INLINE_IMAGE_BYTES) return null
+        // Bounded while reading, not after: the size check used to run on an already-fully-buffered
+        // body, so a host that simply omits Content-Length could send as much as it liked and the
+        // check came too late to matter.
+        val bytes = response.bodyBytesAtMost(MAX_INLINE_IMAGE_BYTES) ?: return null
         return "data:$contentType;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
@@ -1004,7 +1005,13 @@ class ExternalApi @Inject constructor(
             Log.w(TAG, "GET $url -> HTTP ${response.status.value}")
             return null
         }
-        return response.bodyAsText()
+        // Every response read here comes from a host the user pointed this app at, which for a
+        // self-hosted Gitea/Forgejo instance is any host at all. Reading one whole into memory with
+        // no ceiling means such a host can end the app by answering a release listing with gigabytes.
+        // Null reads as "this call failed", which every caller already handles.
+        val body = response.bodyTextAtMost(MAX_RESPONSE_BYTES)
+        if (body == null) Log.w(TAG, "GET $url -> response larger than $MAX_RESPONSE_BYTES bytes, dropped")
+        return body
     }
 
     @Serializable
@@ -1325,6 +1332,39 @@ private const val GITHUB_TREE_WALK_MAX_CALLS = 50
 
 /** Largest README image inlined as a data URI; bigger ones are left as-is to avoid bloating the HTML. */
 private const val MAX_INLINE_IMAGE_BYTES = 1_000_000
+
+/**
+ * Most this app will hold in memory for one API response. Far above anything a forge really answers
+ * with here: the biggest of these calls is a repository's recursive file listing, which the providers
+ * themselves truncate long before this, and the rest are release listings and README markdown. What
+ * it is here for is the host that isn't a forge at all, since a self-hosted Gitea or Forgejo source
+ * is any address the user was given.
+ */
+private const val MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+
+/**
+ * The response body, or null once it turns out to be longer than [limit], without ever buffering past
+ * that. A declared Content-Length over the limit is refused before a byte is read, but the reading
+ * itself is what enforces it: a host that omits the header, or states one it then exceeds, is
+ * precisely the host worth guarding against.
+ */
+internal suspend fun HttpResponse.bodyBytesAtMost(limit: Int): ByteArray? {
+    headers["Content-Length"]?.toLongOrNull()?.let { if (it > limit) return null }
+    val channel = bodyAsChannel()
+    val output = ByteArrayOutputStream()
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    while (true) {
+        val read = channel.readAvailable(buffer)
+        if (read < 0) return output.toByteArray()
+        if (output.size() + read > limit) return null
+        output.write(buffer, 0, read)
+    }
+}
+
+/** [bodyBytesAtMost] as text, matching what `bodyAsText()` decodes to for the JSON and Markdown read
+ *  here (both are UTF-8), but bounded. */
+internal suspend fun HttpResponse.bodyTextAtMost(limit: Int): String? =
+    bodyBytesAtMost(limit)?.toString(Charsets.UTF_8)
 
 /** Captures the `src` of an `<img>` tag (CommonMark output and any raw HTML in the README). */
 private val IMG_SRC_REGEX = Regex("""<img\b[^>]*?\bsrc="([^"]+)"[^>]*>""", RegexOption.IGNORE_CASE)
