@@ -1,6 +1,9 @@
 [versions]
 desugaring = "2.1.5"
-agp = "9.1.0"
+# Tied to the Gradle wrapper, which this cannot move without: 9.1.0 needed Gradle 9.3.1, 9.3.1 needs
+# 9.5.0, and the wrapper is on 9.5.1 for that reason. This is also what raises the ceiling on
+# compileSdk, since an AGP only knows the API levels of its day (9.1.0 stopped at 36, 9.3.1 knows 37).
+agp = "9.3.1"
 material = "1.14.0"
 activity = "1.13.0"
 app-compat = "1.7.1"
