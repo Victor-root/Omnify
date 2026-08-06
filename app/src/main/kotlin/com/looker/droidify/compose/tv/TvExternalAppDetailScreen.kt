@@ -67,8 +67,8 @@ import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.Release
-import com.looker.droidify.utility.common.IconAccentColorCache
-import com.looker.droidify.utility.common.dominantAccentColor
+import com.looker.droidify.utility.common.IconAccentCache
+import com.looker.droidify.utility.common.iconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
@@ -144,10 +144,10 @@ fun TvExternalAppDetailScreen(
     }
     // Set once the hero icon actually loads (see the ExternalAppIcon call below); reset per screen
     // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
-    // Seeded from IconAccentColorCache so revisiting the same app doesn't wait for the icon to decode
+    // Seeded from IconAccentCache so revisiting the same app doesn't wait for the icon to decode
     // and get quantized all over again.
-    val iconAccentColorCacheKey = "ext:$appKey"
-    var iconAccentColor by remember { mutableStateOf(IconAccentColorCache.get(iconAccentColorCacheKey)) }
+    val iconAccentCacheKey = "ext:$appKey"
+    var iconAccent by remember { mutableStateOf(IconAccentCache.get(iconAccentCacheKey)) }
 
     // Make sure the app knows the package id it installs under, so a copy already on the device (installed
     // from any channel) is recognised as installed instead of showing "Install". Keyed on the resolved app
@@ -169,7 +169,7 @@ fun TvExternalAppDetailScreen(
     }
     var showDescription by remember(app.key) { mutableStateOf(false) }
     if (showDescription && readme != null) {
-        ScopedAccentColor(if (accentMatchesAppIcon) iconAccentColor else null) {
+        ScopedAccentColor(if (accentMatchesAppIcon) iconAccent else null) {
             TvReadmeScreen(
                 title = stringResource(R.string.description),
                 html = readme,
@@ -281,7 +281,7 @@ fun TvExternalAppDetailScreen(
     // Scoped to just this screen: when the setting is on and a colour has been sampled from the app's own
     // icon, it overrides the accent for every MaterialTheme.colorScheme.primary use inside (e.g. the
     // favourite heart, the primary action button), without touching the app-wide theme.
-    ScopedAccentColor(if (accentMatchesAppIcon) iconAccentColor else null) {
+    ScopedAccentColor(if (accentMatchesAppIcon) iconAccent else null) {
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
     TvAccentBackground()
     CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
@@ -327,9 +327,9 @@ fun TvExternalAppDetailScreen(
                             // Coil re-invokes this on every recomposition of the icon's AsyncImage, not
                             // just once per real image load; skip it once a colour is already known for
                             // this screen instance instead of redoing that work every time.
-                            if (iconAccentColor == null) {
-                                iconAccentColor = bitmap.dominantAccentColor()?.also {
-                                    IconAccentColorCache.put(iconAccentColorCacheKey, it)
+                            if (iconAccent == null) {
+                                iconAccent = bitmap.iconAccent()?.also {
+                                    IconAccentCache.put(iconAccentCacheKey, it)
                                 }
                             }
                         },

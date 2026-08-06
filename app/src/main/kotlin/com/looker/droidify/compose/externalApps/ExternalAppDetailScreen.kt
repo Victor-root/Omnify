@@ -119,9 +119,9 @@ import com.looker.droidify.external.compareVersionStrings
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
-import com.looker.droidify.utility.common.IconAccentColorCache
+import com.looker.droidify.utility.common.IconAccentCache
 import com.looker.droidify.utility.common.RootDetection
-import com.looker.droidify.utility.common.dominantAccentColor
+import com.looker.droidify.utility.common.iconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.isInstalledFromGooglePlay
@@ -172,10 +172,10 @@ fun ExternalAppDetailScreen(
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
     // Set once the hero icon actually loads (see the ExternalAppIcon call below); reset per screen
     // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
-    // Seeded from IconAccentColorCache so revisiting the same app doesn't wait for the icon to decode
+    // Seeded from IconAccentCache so revisiting the same app doesn't wait for the icon to decode
     // and get quantized all over again.
-    val iconAccentColorCacheKey = "ext:$appKey"
-    var iconAccentColor by remember { mutableStateOf(IconAccentColorCache.get(iconAccentColorCacheKey)) }
+    val iconAccentCacheKey = "ext:$appKey"
+    var iconAccent by remember { mutableStateOf(IconAccentCache.get(iconAccentCacheKey)) }
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -378,7 +378,7 @@ fun ExternalAppDetailScreen(
     // Scoped to just this screen: when the setting is on and a colour has been sampled from the app's own
     // icon (see the ExternalAppIcon call below), it overrides the accent for the top bar and every
     // MaterialTheme.colorScheme.primary use inside, without touching the app-wide theme.
-    ScopedAccentColor(if (accentMatchesAppIcon) iconAccentColor else null) {
+    ScopedAccentColor(if (accentMatchesAppIcon) iconAccent else null) {
     Scaffold(
         // TV only: the remote's alternate "menu" key (e.g. the Nvidia Shield's, which opens Android TV's
         // own quick settings from the home screen) opens this app's Android "App info" management page —
@@ -632,9 +632,9 @@ fun ExternalAppDetailScreen(
                             // Coil re-invokes this on every recomposition of the icon's AsyncImage, not
                             // just once per real image load; skip it once a colour is already known for
                             // this screen instance instead of redoing that work every time.
-                            if (iconAccentColor == null) {
-                                iconAccentColor = bitmap.dominantAccentColor()?.also {
-                                    IconAccentColorCache.put(iconAccentColorCacheKey, it)
+                            if (iconAccent == null) {
+                                iconAccent = bitmap.iconAccent()?.also {
+                                    IconAccentCache.put(iconAccentCacheKey, it)
                                 }
                             }
                         },

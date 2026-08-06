@@ -44,6 +44,7 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
+import com.looker.droidify.utility.common.IconAccent
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.wallpaperAccentColor
 import kotlinx.coroutines.Job
@@ -238,15 +239,32 @@ private fun ColorScheme.withVividAccent(argb: Int, overrideAccentRoles: Boolean 
     )
 }
 
+/** The two accents a black-and-white icon can wear, picked by which one the theme leaves visible. */
+private const val BLACK_ARGB = 0xFF000000.toInt()
+private const val WHITE_ARGB = 0xFFFFFFFF.toInt()
+
 /**
  * Overrides just the accent (primary/secondary/tertiary and their on/container roles, and the top bar
  * colour that follows them) within [content], leaving every other role from the enclosing
  * [DroidifyTheme] untouched, for matching a single app's detail page to that app's own icon colour
- * without affecting the rest of the app. A no-op when [accentColor] is null (the feature is off, or no
- * colour has been extracted yet).
+ * without affecting the rest of the app. A no-op when [accent] is null (the feature is off, or no
+ * icon has been read yet).
+ *
+ * A black-and-white icon ([IconAccent.Monochrome]) is the one case with no answer of its own, and it
+ * is settled here because here is where the theme is known. Black and white are each unusable against
+ * one of this app's own backgrounds: a black accent vanishes into the AMOLED theme's #000000 surfaces
+ * exactly as a white one vanishes into the light theme's #FFFFFF ones. Taking whichever contrasts with
+ * the surface actually on screen keeps such an icon's page black-on-white or white-on-black instead of
+ * invisible, and is the only place the accent deliberately differs between light and dark.
  */
 @Composable
-fun ScopedAccentColor(accentColor: Int?, content: @Composable () -> Unit) {
+fun ScopedAccentColor(accent: IconAccent?, content: @Composable () -> Unit) {
+    val accentColor = when (accent) {
+        null -> null
+        is IconAccent.Colour -> accent.argb
+        IconAccent.Monochrome ->
+            if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) BLACK_ARGB else WHITE_ARGB
+    }
     if (accentColor == null) {
         content()
         return

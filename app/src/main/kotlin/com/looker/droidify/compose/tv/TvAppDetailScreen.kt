@@ -83,8 +83,8 @@ import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.selectForDevice
-import com.looker.droidify.utility.common.IconAccentColorCache
-import com.looker.droidify.utility.common.dominantAccentColor
+import com.looker.droidify.utility.common.IconAccentCache
+import com.looker.droidify.utility.common.iconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
@@ -113,10 +113,10 @@ fun TvAppDetailScreen(
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
     // Set once the hero icon actually loads (see the AppMinimalIcon call below); reset per screen
     // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
-    // Seeded from IconAccentColorCache so revisiting the same app doesn't wait for the icon to decode
+    // Seeded from IconAccentCache so revisiting the same app doesn't wait for the icon to decode
     // and get quantized all over again.
-    val iconAccentColorCacheKey = "pkg:${viewModel.packageName}"
-    var iconAccentColor by remember { mutableStateOf(IconAccentColorCache.get(iconAccentColorCacheKey)) }
+    val iconAccentCacheKey = "pkg:${viewModel.packageName}"
+    var iconAccent by remember { mutableStateOf(IconAccentCache.get(iconAccentCacheKey)) }
 
     BackHandler { onBackClick() }
 
@@ -273,7 +273,7 @@ fun TvAppDetailScreen(
             // app's own icon, it overrides the accent for every MaterialTheme.colorScheme.primary use
             // inside (e.g. the favourite heart, the primary action button), without touching the app-wide
             // theme.
-            ScopedAccentColor(if (accentMatchesAppIcon) iconAccentColor else null) {
+            ScopedAccentColor(if (accentMatchesAppIcon) iconAccent else null) {
             Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             // The full description reader replaces the whole page (not an overlay) so the detail's cards
             // below can't steal D-pad focus from behind it.
@@ -312,9 +312,9 @@ fun TvAppDetailScreen(
                                 // Coil re-invokes this on every recomposition of the icon's AsyncImage,
                                 // not just once per real image load; skip it once a colour is already
                                 // known for this screen instance instead of redoing that work every time.
-                                if (iconAccentColor == null) {
-                                    iconAccentColor = bitmap.dominantAccentColor()?.also {
-                                        IconAccentColorCache.put(iconAccentColorCacheKey, it)
+                                if (iconAccent == null) {
+                                    iconAccent = bitmap.iconAccent()?.also {
+                                        IconAccentCache.put(iconAccentCacheKey, it)
                                     }
                                 }
                             },
