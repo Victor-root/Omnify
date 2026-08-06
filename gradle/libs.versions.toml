@@ -42,7 +42,7 @@ serialization = "1.11.0"
 # Kotlin (2.3.7 through 2.3.11 all against 2.3.20). 2.3.11 is the newest of the 2.3 series, and there
 # is no 2.4 series at all, which is what holds Kotlin here.
 ksp = "2.3.11"
-ktor = "3.4.1"
+ktor = "3.5.2"
 libsu = "6.0.0"
 room = "2.8.4"
 # Held at 13.0.0 on purpose. Every 13.1.x raises its own minSdk to 24, which would drop this app's
