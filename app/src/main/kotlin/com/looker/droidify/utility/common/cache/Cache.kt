@@ -7,12 +7,10 @@ import android.content.pm.PackageManager
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
-import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import android.system.Os
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
-import com.looker.droidify.utility.common.sdkAbove
 import java.io.File
 import java.util.UUID
 import kotlin.concurrent.thread
@@ -60,16 +58,6 @@ object Cache {
         return File(dir, name)
     }
 
-    private fun applyOrMode(file: File, mode: Int) {
-        // Only take first 12 significant digits
-        val oldMode = Os.stat(file.path).st_mode and 0b111111111111
-        // Merge old permission and new permission
-        val newMode = oldMode or mode
-        if (newMode != oldMode) {
-            Os.chmod(file.path, newMode)
-        }
-    }
-
     fun getEmptySpace(context: Context): Long {
         val dir = context.cacheDir
         return min(dir.usableSpace, dir.freeSpace)
@@ -87,19 +75,21 @@ object Cache {
         return resolveInDir(ensureCacheDir(context, PARTIAL_DIR), cacheFileName)
     }
 
+    /**
+     * The downloaded APK for [cacheFileName], inside the app's own cache and readable by nothing else.
+     *
+     * This used to add world-read to the APK and world-execute to every directory above it, up to and
+     * including the app's own data directory, "to make it readable for the package installer". That
+     * was only ever true of the pre-Nougat installer, which is handed a `file://` URI and reads the
+     * path itself, and the widening was gated to Nougat *and above*, so it ran on exactly the
+     * versions that don't need it: [getReleaseUri] hands out a `content://` URI backed by [Provider]
+     * with a per-URI read grant instead, and the session, root and Shizuku installers all read the
+     * file through this app. What it did do is let any other app on the device read every APK sitting
+     * in the cache on Android 7 and 8, where the platform doesn't separate app data directories by
+     * SELinux category the way it has since Android 9.
+     */
     fun getReleaseFile(context: Context, cacheFileName: String): File {
-        return resolveInDir(ensureCacheDir(context, RELEASE_DIR), cacheFileName).apply {
-            sdkAbove(Build.VERSION_CODES.N) {
-                // Make readable for package installer
-                val cacheDir = context.cacheDir.parentFile!!.parentFile!!
-                generateSequence(this) { it.parentFile!! }.takeWhile { it != cacheDir }.forEach {
-                    when {
-                        it.isDirectory -> applyOrMode(it, 0b001001001)
-                        it.isFile -> applyOrMode(it, 0b100100100)
-                    }
-                }
-            }
-        }
+        return resolveInDir(ensureCacheDir(context, RELEASE_DIR), cacheFileName)
     }
 
     fun getReleaseUri(context: Context, cacheFileName: String): Uri {
