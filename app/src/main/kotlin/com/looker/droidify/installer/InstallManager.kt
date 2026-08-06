@@ -21,6 +21,7 @@ import com.looker.droidify.utility.common.extension.filter
 import com.looker.droidify.utility.common.extension.notificationManager
 import com.looker.droidify.utility.common.extension.updateAsMutable
 import com.looker.droidify.utility.common.log
+import com.looker.droidify.utility.extension.syncInstalled
 import com.looker.droidify.utility.notifications.createInstallNotification
 import com.looker.droidify.utility.notifications.installNotification
 import com.looker.droidify.utility.notifications.removeInstallNotification
@@ -222,10 +223,19 @@ class InstallManager(
     }
 
     private suspend fun onInstallSucceeded(item: InstallItem) {
-        if (installer !is LegacyInstaller && deleteApkPreference.first()) {
+        // LegacyInstaller resumes as soon as the system's install dialog has been launched, so for it
+        // nothing below is true yet: the APK is still needed and the device still holds the old
+        // version. Its install is only ever learned about through the package broadcast, like one this
+        // app didn't perform itself. Every other installer resumes on the real result.
+        if (installer is LegacyInstaller) return
+        if (deleteApkPreference.first()) {
             val apkFile = Cache.getReleaseFile(context, item.installFileName)
             apkFile.delete()
         }
+        // Record the new version straight away rather than waiting for the system's package broadcast
+        // to tell us what we already know. Waiting for it is what left a freshly updated app sitting
+        // in the Updates tab, whose condition reads this table.
+        installedRepository.syncInstalled(context.packageManager, item.packageName.name)
     }
 
     private fun CoroutineScope.uninstaller() = launch {

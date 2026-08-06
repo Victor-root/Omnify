@@ -5,8 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import com.looker.droidify.data.InstalledRepository
-import com.looker.droidify.utility.common.extension.getPackageInfoCompat
-import com.looker.droidify.utility.extension.toInstalledItem
+import com.looker.droidify.utility.extension.syncInstalled
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -23,15 +22,7 @@ class InstalledAppReceiver(
             when (intent.action.orEmpty()) {
                 Intent.ACTION_PACKAGE_ADDED,
                 Intent.ACTION_PACKAGE_REMOVED,
-                -> {
-                    val packageInfo = packageManager.getPackageInfoCompat(packageName)
-                    if (packageInfo != null) {
-                        val installedItem = packageInfo.toInstalledItem()
-                        scope.launch { installedRepository.put(installedItem) }
-                    } else {
-                        scope.launch { installedRepository.delete(packageName) }
-                    }
-                }
+                -> scope.launch { installedRepository.syncInstalled(packageManager, packageName) }
             }
         }
     }
