@@ -1,0 +1,61 @@
+name: Build
+
+# Builds the app and runs its unit tests on every pull request, so a change is known to compile
+# before it is merged rather than after.
+#
+# This is what gives Dependabot's security pull requests a verdict. Dependabot only knows how to
+# raise the version number; it cannot tell whether the new release still fits this project, and most
+# of the ways a dependency bump breaks an Android build are caught precisely here: a library raising
+# its own minSdk above this app's, one demanding a newer compileSdk than the project uses, an API
+# that disappeared, a Kotlin or KSP version that no longer lines up. Every one of those fails
+# assembleDebug below rather than reaching a phone.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the same branch makes the run in progress pointless.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # 17 is what the project compiles against (see app/build.gradle.kts).
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Puts the Android SDK's command line tools on the runner and accepts the SDK licences, which
+      # is what lets Gradle fetch the platform this project compiles against on its own.
+      - uses: android-actions/setup-android@v3
+
+      # Caches the Gradle distribution and the dependency downloads between runs.
+      - uses: gradle/actions/setup-gradle@v4
+
+      # assembleDebug is the part that catches a dependency no longer fitting the project.
+      # testDebugUnitTest then runs the unit tests, which cover the pieces that are pure logic
+      # (the README sanitizer, the language detection, the icon accent, and so on).
+      - name: Build and test
+        run: ./gradlew --no-daemon assembleDebug testDebugUnitTest
+
+      # Only useful when something failed: the HTML report says which test, and why.
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: app/build/reports/tests/
+          retention-days: 7

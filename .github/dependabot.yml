@@ -1,0 +1,29 @@
+version: 2
+
+# Security only, deliberately. `open-pull-requests-limit: 0` switches OFF Dependabot's routine
+# "a newer version exists" pull requests, which on a project this size would mean a steady trickle of
+# them for no reason, and most would have to be closed anyway: several versions here are held back on
+# purpose (see the comments in gradle/libs.versions.toml), so a bot proposing them is noise, not help.
+#
+# Security updates are NOT affected by that limit. They are the ones worth interrupting for: a real
+# advisory published against something this app actually ships. They come from a separate switch in
+# the repository's own settings (Settings, Advanced Security, Dependabot alerts + security updates),
+# not from this file, so both have to be on for any of this to happen.
+#
+# No `ignore` entries on purpose either: an ignore would silence a genuine vulnerability report for
+# exactly the dependencies most likely to be stuck on an old version.
+updates:
+  # Reads gradle/libs.versions.toml, where every version in this project lives.
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+
+  # The actions used by the workflows in this same folder. They run with access to the repository, so
+  # an advisory against one of them matters here as much as one against a library the app ships.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
