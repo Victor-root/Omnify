@@ -24,6 +24,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.*
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -156,10 +159,20 @@ class PreferenceSettingsRepository(
     override suspend fun toggleFavourites(packageName: String) {
         dataStore.edit { preference ->
             val currentSet = preference[FAVOURITE_APPS] ?: emptySet()
+            val adding = packageName !in currentSet
             val newSet = currentSet.updateAsMutable {
                 if (!add(packageName)) remove(packageName)
             }
             preference[FAVOURITE_APPS] = newSet
+            val currentTimestamps = preference[FAVOURITED_AT]?.let {
+                runCatching { Json.decodeFromString<Map<String, Long>>(it) }.getOrNull()
+            }.orEmpty()
+            val newTimestamps = if (adding) {
+                currentTimestamps + (packageName to Clock.System.now().toEpochMilliseconds())
+            } else {
+                currentTimestamps - packageName
+            }
+            preference[FAVOURITED_AT] = Json.encodeToString(newTimestamps)
         }
     }
 
@@ -286,6 +299,9 @@ class PreferenceSettingsRepository(
         val lastRbLogFetch = preferences[LAST_RB_FETCH]
         val lastModifiedDownloadStats = preferences[LAST_MODIFIED_DS]?.takeIf { it > 0L }
         val favouriteApps = preferences[FAVOURITE_APPS] ?: emptySet()
+        val favouritedAt = preferences[FAVOURITED_AT]?.let {
+            runCatching { Json.decodeFromString<Map<String, Long>>(it) }.getOrNull()
+        }.orEmpty()
         val hiddenApps = preferences[HIDDEN_APPS] ?: emptySet()
         val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: false
         val showFavouritesCarousel = preferences[SHOW_FAVOURITES_CAROUSEL] ?: true
@@ -327,6 +343,7 @@ class PreferenceSettingsRepository(
             lastRbLogFetch = lastRbLogFetch,
             lastModifiedDownloadStats = lastModifiedDownloadStats,
             favouriteApps = favouriteApps,
+            favouritedAt = favouritedAt,
             hiddenApps = hiddenApps,
             homeScreenSwiping = homeScreenSwiping,
             showFavouritesCarousel = showFavouritesCarousel,
@@ -369,6 +386,7 @@ class PreferenceSettingsRepository(
         val LAST_RB_FETCH = longPreferencesKey("key_last_rb_logs_fetch_time")
         val LAST_MODIFIED_DS = longPreferencesKey("key_last_modified_download_stats")
         val FAVOURITE_APPS = stringSetPreferencesKey("key_favourite_apps")
+        val FAVOURITED_AT = stringPreferencesKey("key_favourited_at")
         val HIDDEN_APPS = stringSetPreferencesKey("key_hidden_apps")
         val HOME_SCREEN_SWIPING = booleanPreferencesKey("key_home_swiping")
         val SHOW_FAVOURITES_CAROUSEL = booleanPreferencesKey("key_show_favourites_carousel")
@@ -445,6 +463,7 @@ class PreferenceSettingsRepository(
             settings.lastRbLogFetch?.let { set(LAST_RB_FETCH, it) }
             settings.lastModifiedDownloadStats?.let { set(LAST_MODIFIED_DS, it) }
             set(FAVOURITE_APPS, settings.favouriteApps)
+            set(FAVOURITED_AT, Json.encodeToString(settings.favouritedAt))
             set(HIDDEN_APPS, settings.hiddenApps)
             set(HOME_SCREEN_SWIPING, settings.homeScreenSwiping)
             set(SHOW_FAVOURITES_CAROUSEL, settings.showFavouritesCarousel)

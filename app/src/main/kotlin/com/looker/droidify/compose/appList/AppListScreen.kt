@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
@@ -55,6 +56,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
@@ -175,6 +177,9 @@ fun AppListScreen(
     val tvApps by viewModel.tvApps.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val favouriteApps by viewModel.favouriteApps.collectAsStateWithLifecycle()
+    val favouritedAt by viewModel.favouritedAt.collectAsStateWithLifecycle()
+    val favouriteInstallDates by viewModel.favouriteInstallDates.collectAsStateWithLifecycle()
+    val favouritesSortOrder by viewModel.favouritesSortOrder.collectAsStateWithLifecycle()
     val showFavouritesCarousel by viewModel.showFavouritesCarousel.collectAsStateWithLifecycle()
     val tvOnly by viewModel.tvOnly.collectAsStateWithLifecycle()
     val expandedSections by viewModel.expandedSections.collectAsStateWithLifecycle()
@@ -323,6 +328,7 @@ fun AppListScreen(
     val hiddenExternalApps by externalViewModel.hidden.collectAsStateWithLifecycle()
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val favouriteExternalApps by externalViewModel.favouriteApps.collectAsStateWithLifecycle()
+    val favouriteExternalInstallDates by externalViewModel.favouriteInstallDates.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
     val externalInstalledVersions by externalViewModel.installedVersions.collectAsStateWithLifecycle()
     val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
@@ -365,6 +371,32 @@ fun AppListScreen(
     val externalUpdates = remember(enabledExternalApps, externalInstalledVersions) {
         enabledExternalApps.filter {
             it.hasUpdateGiven(externalInstalledVersions[it.key]) && !it.muteUpdates
+        }
+    }
+    // The favourites full page's own order, independent of the carousel above it: catalogue and
+    // external favourites merged into one list and sorted by whatever favouritesSortOrder currently
+    // is. Just a re-sort of data already resolved elsewhere (including the PackageManager lookups
+    // behind favouriteInstallDates/favouriteExternalInstallDates), so a plain remember is enough:
+    // nothing here needs its own background dispatch.
+    val sortedFavourites = remember(
+        favouriteApps,
+        favouriteExternalApps,
+        favouritesSortOrder,
+        favouritedAt,
+        favouriteInstallDates,
+        favouriteExternalInstallDates,
+    ) {
+        val combined: List<FavouriteApp> = favouriteApps.map { FavouriteApp.Catalogue(it) } +
+            favouriteExternalApps.map { FavouriteApp.External(it) }
+        when (favouritesSortOrder) {
+            FavouritesSortOrder.NAME -> combined.sortedBy { it.name.lowercase() }
+            FavouritesSortOrder.FAVOURITED_AT -> combined.sortedByDescending { favouritedAt[it.key] ?: 0L }
+            FavouritesSortOrder.INSTALLED_AT -> {
+                val installDates = favouriteInstallDates + favouriteExternalInstallDates
+                // Never installed sinks to the end rather than floating to the top as if it were the
+                // most recent install, since it categorically isn't one at all.
+                combined.sortedByDescending { installDates[it.key] ?: Long.MIN_VALUE }
+            }
         }
     }
 
@@ -510,6 +542,16 @@ fun AppListScreen(
                         title = sectionTitle(openedSection),
                         onBack = { viewModel.closeSection() },
                         contentFocusRequester = contentFocusRequester,
+                        actions = {
+                            // Only the favourites page can be sorted several ways; every other
+                            // section (New apps, Recently updated, …) has one fixed, curated order.
+                            if (openedSection == SECTION_FAVOURITES) {
+                                FavouritesSortMenu(
+                                    sortOrder = favouritesSortOrder,
+                                    onSortOrderChange = viewModel::setFavouritesSortOrder,
+                                )
+                            }
+                        },
                     )
                 } else {
                     AppListTopBar(
@@ -925,7 +967,6 @@ fun AppListScreen(
                 // ([favouriteApps]/[favouriteExternalApps]) rather than a fresh query, so the row and
                 // this page can never disagree.
                 val flatList = when {
-                    sectionView && openedSection == SECTION_FAVOURITES -> favouriteApps
                     sectionView -> openedSectionApps
                     isSearching -> apps
                     else -> emptyList()
@@ -933,9 +974,11 @@ fun AppListScreen(
                 // A "see all" page runs its query after opening, so on a slow device it's briefly empty.
                 // These sections always have apps (the carousel only appears when non-empty), so an empty
                 // list here means "still loading" — show a spinner so the page never looks blank/broken.
+                // The favourites page is exempt outright: it never runs a fresh query on open, it just
+                // re-sorts data the carousel already resolved, so there's nothing to wait on.
                 val sectionLoading = sectionView && flatList.isEmpty() &&
                     !(isTelevision && openedSection == SECTION_TV && tvExternalApps.isNotEmpty()) &&
-                    !(openedSection == SECTION_FAVOURITES && favouriteExternalApps.isNotEmpty())
+                    openedSection != SECTION_FAVOURITES
                 if (sectionLoading) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "section-loading") {
                         Box(
@@ -962,38 +1005,49 @@ fun AppListScreen(
                         )
                     }
                 }
-                // The favourites see-all page lists favourited external apps too, exactly like the row.
+                // The favourites page renders catalogue and external favourites as one list, in
+                // whatever order favouritesSortOrder currently picks (see sortedFavourites above).
+                // Unlike every other section, which is catalogue apps then external apps as two
+                // separate groups, because only this one lets the user reorder them at all.
                 if (openedSection == SECTION_FAVOURITES) {
+                    items(items = sortedFavourites, key = { it.key }, contentType = { "fav-tile" }) { item ->
+                        when (item) {
+                            is FavouriteApp.Catalogue -> CatalogAppTile(
+                                app = item.app,
+                                isInstalled = item.app.packageName.name in installedPackages,
+                                onClick = { openApp(item.app.packageName.name) },
+                                modifier = Modifier.restoreFocusTarget(
+                                    isTelevision && restoreFocusId == "app:${item.app.packageName.name}",
+                                    restoreRequester,
+                                ),
+                            )
+                            is FavouriteApp.External -> ExternalAppTile(
+                                app = item.app,
+                                isInstalled = item.app.key in externalInstalledKeys,
+                                onClick = { openExternalApp(item.app.key) },
+                                modifier = Modifier.restoreFocusTarget(
+                                    isTelevision && restoreFocusId == "ext:${item.app.key}",
+                                    restoreRequester,
+                                ),
+                            )
+                        }
+                    }
+                } else {
                     items(
-                        items = favouriteExternalApps,
-                        key = { "fav-ext-${it.key}" },
-                        contentType = { "ext-tile" },
+                        items = flatList,
+                        key = { it.appId },
+                        contentType = { "app-tile" },
                     ) { app ->
-                        ExternalAppTile(
+                        CatalogAppTile(
                             app = app,
-                            isInstalled = app.key in externalInstalledKeys,
-                            onClick = { openExternalApp(app.key) },
+                            isInstalled = app.packageName.name in installedPackages,
+                            onClick = { openApp(app.packageName.name) },
                             modifier = Modifier.restoreFocusTarget(
-                                isTelevision && restoreFocusId == "ext:${app.key}",
+                                isTelevision && restoreFocusId == "app:${app.packageName.name}",
                                 restoreRequester,
                             ),
                         )
                     }
-                }
-                items(
-                    items = flatList,
-                    key = { it.appId },
-                    contentType = { "app-tile" },
-                ) { app ->
-                    CatalogAppTile(
-                        app = app,
-                        isInstalled = app.packageName.name in installedPackages,
-                        onClick = { openApp(app.packageName.name) },
-                        modifier = Modifier.restoreFocusTarget(
-                            isTelevision && restoreFocusId == "app:${app.packageName.name}",
-                            restoreRequester,
-                        ),
-                    )
                 }
             } else {
                 items(
@@ -1699,6 +1753,7 @@ private fun SectionTopBar(
     title: String,
     onBack: () -> Unit,
     contentFocusRequester: FocusRequester,
+    actions: @Composable RowScope.() -> Unit = {},
 ) {
     TopAppBar(
         colors = accentTopAppBarColors(),
@@ -1721,6 +1776,52 @@ private fun SectionTopBar(
             }
         },
         title = { Text(title) },
+        actions = actions,
     )
 }
+
+/** The favourites full page's sort control: an icon button that opens a menu of [FavouritesSortOrder]
+ *  options, the current one checked. Selecting one applies immediately and closes the menu, and never
+ *  affects the carousel, only this page (see AppListViewModel.favouritesSortOrder). */
+@Composable
+private fun FavouritesSortMenu(
+    sortOrder: FavouritesSortOrder,
+    onSortOrderChange: (FavouritesSortOrder) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = if (LocalIsTelevision.current) Modifier.size(48.dp).tvFocusScale() else Modifier,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_tabler_sort),
+                contentDescription = stringResource(R.string.sort),
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            FavouritesSortOrder.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(option.labelRes)) },
+                    onClick = {
+                        onSortOrderChange(option)
+                        expanded = false
+                    },
+                    trailingIcon = if (option == sortOrder) {
+                        { Icon(Icons.Filled.Check, contentDescription = null) }
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
+    }
+}
+
+private val FavouritesSortOrder.labelRes: Int
+    get() = when (this) {
+        FavouritesSortOrder.NAME -> R.string.name
+        FavouritesSortOrder.FAVOURITED_AT -> R.string.date_favourited
+        FavouritesSortOrder.INSTALLED_AT -> R.string.date_installed
+    }
 

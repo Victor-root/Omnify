@@ -187,6 +187,8 @@
     <string name="favourites">Favoritas</string>
     <string name="show_favourites">Mostrar favoritas</string>
     <string name="hide_favourites">Ocultar favoritas</string>
+    <string name="date_favourited">Fecha de favorito</string>
+    <string name="date_installed">Fecha de instalación</string>
     <string name="repository_unreachable">Repositorio inaccesible</string>
     <string name="force_clean_up">Forzar limpieza</string>
     <string name="force_clean_up_DESC">Limpiar archivos redundantes</string>

@@ -349,6 +349,22 @@ class ExternalAppsViewModel @Inject constructor(
         .distinctUntilChanged()
         .asStateFlow(emptyList())
 
+    /** Favourited external apps' on-device install date (epoch millis), read live from PackageManager
+     *  once [ExternalApp.packageName] is resolved: purely an ordering signal for the favourites full
+     *  page's "date installed" sort. Never installed (or not yet resolved) means no entry, same as the
+     *  catalogue half in AppListViewModel.favouriteInstallDates. */
+    val favouriteInstallDates: StateFlow<Map<String, Long>> = favouriteApps
+        .map { apps ->
+            apps.mapNotNull { app ->
+                val pkg = app.packageName ?: return@mapNotNull null
+                val installedAt = context.packageManager.getPackageInfoCompat(pkg, 0)?.firstInstallTime
+                installedAt?.let { app.key to it }
+            }.toMap()
+        }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyMap())
+
     /** Adds or removes [app] from the user's favourites. */
     fun toggleFavourite(app: ExternalApp) {
         viewModelScope.launch { settingsRepository.toggleFavourites(app.key) }

@@ -193,6 +193,8 @@
     <string name="favourites">Ulubione</string>
     <string name="show_favourites">Pokaż ulubione</string>
     <string name="hide_favourites">Ukryj ulubione</string>
+    <string name="date_favourited">Data dodania do ulubionych</string>
+    <string name="date_installed">Data instalacji</string>
     <string name="force_clean_up">Wymuś oczyszczenie</string>
     <string name="repository_unreachable">Repozytorium nieosiągalne</string>
     <string name="auto_update">Aktualizuj aplikacje automatycznie</string>

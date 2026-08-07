@@ -126,6 +126,7 @@ class BackupRepository @Inject constructor(
                         // here anyway where nothing would ever look for it.
                         val settings = settingsRepository.getInitial().copy(
                             favouriteApps = emptySet(),
+                            favouritedAt = emptyMap(),
                             hiddenApps = emptySet(),
                             enabledRepoIds = emptySet(),
                             githubToken = "",
@@ -241,6 +242,7 @@ class BackupRepository @Inject constructor(
         settingsRepository.applySettings(
             imported.copy(
                 favouriteApps = current.favouriteApps,
+                favouritedAt = current.favouritedAt,
                 hiddenApps = current.hiddenApps,
                 enabledRepoIds = current.enabledRepoIds,
                 // The token is BackupCategory.GITHUB_TOKEN's business, so the one in place stays put.

@@ -184,6 +184,8 @@
     <string name="favourites">Favorieten</string>
     <string name="show_favourites">Favorieten tonen</string>
     <string name="hide_favourites">Favorieten verbergen</string>
+    <string name="date_favourited">Datum favoriet</string>
+    <string name="date_installed">Installatiedatum</string>
     <string name="material_you">Material You</string>
     <string name="material_you_desc">Material You kleuren gebruiken</string>
     <string name="enable_repo">Bron inschakelen</string>

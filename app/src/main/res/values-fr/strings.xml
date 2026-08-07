@@ -283,6 +283,8 @@
     <string name="favourites">Favoris</string>
     <string name="show_favourites">Afficher les favoris</string>
     <string name="hide_favourites">Masquer les favoris</string>
+    <string name="date_favourited">Date d\'ajout en favoris</string>
+    <string name="date_installed">Date d\'installation</string>
     <string name="hide_app">Masquer l\'application</string>
     <string name="unhide_app">Réafficher l\'application</string>
     <string name="hidden_apps_title">Applications masquées</string>

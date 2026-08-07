@@ -186,6 +186,8 @@
     <string name="favourites">Preferiti</string>
     <string name="show_favourites">Mostra preferiti</string>
     <string name="hide_favourites">Nascondi preferiti</string>
+    <string name="date_favourited">Data preferito</string>
+    <string name="date_installed">Data installazione</string>
     <string name="material_you_desc">Usa i colori Material You</string>
     <string name="repository_unreachable">Repository irraggiungibile</string>
     <string name="force_clean_up_DESC">Pulisce i file ridondanti</string>

@@ -182,6 +182,8 @@
     <string name="favourites">Favoriten</string>
     <string name="show_favourites">Favoriten anzeigen</string>
     <string name="hide_favourites">Favoriten ausblenden</string>
+    <string name="date_favourited">Favorisierungsdatum</string>
+    <string name="date_installed">Installationsdatum</string>
     <string name="material_you">Material You</string>
     <string name="material_you_desc">Material-You-Farbschema verwenden</string>
     <string name="repository_unreachable">Paketquelle unerreichbar</string>

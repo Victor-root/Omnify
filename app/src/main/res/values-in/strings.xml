@@ -179,6 +179,8 @@
     <string name="favourites">Favorit</string>
     <string name="show_favourites">Tampilkan favorit</string>
     <string name="hide_favourites">Sembunyikan favorit</string>
+    <string name="date_favourited">Tanggal difavoritkan</string>
+    <string name="date_installed">Tanggal terpasang</string>
     <string name="material_you">Material You</string>
     <string name="material_you_desc">Pakai warna Material You</string>
     <string name="enable_repo">Aktifkan repositori</string>

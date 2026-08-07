@@ -79,6 +79,17 @@ class PreferenceSettingsRepositoryTest {
     }
 
     @Test
+    fun `toggleFavourites records and clears a timestamp alongside the package`() = runTest {
+        repository.toggleFavourites("com.example.app")
+        var settings = repository.getInitial()
+        assertTrue(settings.favouritedAt.containsKey("com.example.app"))
+
+        repository.toggleFavourites("com.example.app")
+        settings = repository.getInitial()
+        assertFalse(settings.favouritedAt.containsKey("com.example.app"))
+    }
+
+    @Test
     fun `toggleHidden adds and removes package`() = runTest {
         repository.toggleHidden("com.example.app")
         var settings = repository.getInitial()

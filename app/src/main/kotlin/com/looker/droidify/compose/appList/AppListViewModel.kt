@@ -17,9 +17,11 @@ import com.looker.droidify.data.model.excludingHidden
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
+import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.extension.asStateFlow
+import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.work.BatchUpdateProgress
 import com.looker.droidify.work.SyncWorker
 import com.looker.droidify.work.UpdateAllWorker
@@ -43,6 +45,27 @@ import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/** One entry in the favourites full page: a catalogue app or an external one, unified so the page can
+ *  sort and render either the same way (same shape as HiddenAppsViewModel's own HiddenApp). */
+sealed interface FavouriteApp {
+    val key: String
+    val name: String
+
+    data class Catalogue(val app: AppMinimal) : FavouriteApp {
+        override val key get() = app.packageName.name
+        override val name get() = app.name
+    }
+
+    data class External(val app: ExternalApp) : FavouriteApp {
+        override val key get() = app.key
+        override val name get() = app.label
+    }
+}
+
+/** How the favourites full page orders [FavouriteApp] entries. Independent of the carousel's own
+ *  fixed most-recently-favourited-first order, which this never affects. */
+enum class FavouritesSortOrder { NAME, FAVOURITED_AT, INSTALLED_AT }
 
 @HiltViewModel
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
@@ -70,6 +93,13 @@ class AppListViewModel @Inject constructor(
     // Keys (a catalogue app's package name, or an external app's ExternalApp.key) the user has
     // favourited: the heart on any app's own detail screen, catalogue or external, writes here.
     private val favouriteKeys: Flow<Set<String>> = settingsRepository.get { favouriteApps }.distinctUntilChanged()
+
+    /** Epoch millis each favourite (catalogue or external, same keys as [favouriteKeys]) was added,
+     *  straight from the store [toggleFavourites][com.looker.droidify.datastore.SettingsRepository.toggleFavourites]
+     *  writes. Drives [favouriteApps]'s own order below, and, combined with the external half from
+     *  ExternalAppsViewModel, the "date favourited" option on the favourites full page. */
+    val favouritedAt: StateFlow<Map<String, Long>> =
+        settingsRepository.get { favouritedAt }.asStateFlow(emptyMap())
 
     // Apps hidden from every listing on this screen (Available/Installed/Updates, every Discover
     // carousel). See AppMinimal.excludingHidden, applied at each list-producing flow below.
@@ -316,6 +346,16 @@ class AppListViewModel @Inject constructor(
         _tvOnly.value = !_tvOnly.value
     }
 
+    // How the favourites full page is sorted right now. Session-only like tvOnly above, and scoped to
+    // that one page: it never touches favouriteApps' own order, so leaving the page resets nothing and
+    // affects nothing else.
+    private val _favouritesSortOrder = MutableStateFlow(FavouritesSortOrder.FAVOURITED_AT)
+    val favouritesSortOrder: StateFlow<FavouritesSortOrder> = _favouritesSortOrder
+
+    fun setFavouritesSortOrder(order: FavouritesSortOrder) {
+        _favouritesSortOrder.value = order
+    }
+
     /** True while any sync runs (first launch, manual, repo-enable, periodic) — drives the bar. */
     val isSyncing: StateFlow<Boolean> = SyncWorker.isSyncing(context).asStateFlow(false)
 
@@ -354,18 +394,38 @@ class AppListViewModel @Inject constructor(
      *  is also what keeps the carousel itself off the Discover home until then (see AppListScreen). */
     val favouriteApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
         .combine(favouriteKeys) { hidden, favourites -> hidden to favourites }
-        .mapLatest { (hidden, favourites) ->
+        .combine(favouritedAt) { (hidden, favourites), timestamps -> Triple(hidden, favourites, timestamps) }
+        .mapLatest { (hidden, favourites, timestamps) ->
             if (favourites.isEmpty()) {
                 emptyList()
             } else {
-                appRepository.apps(sortOrder = SortOrder.UPDATED)
+                // NAME is just a stable base order for apps with no recorded timestamp (favourited
+                // before this was tracked, or two favourited the same millisecond) to tie-break on,
+                // rather than the arbitrary order the catalogue query happens to return.
+                appRepository.apps(sortOrder = SortOrder.NAME)
                     .excludingHidden(hidden)
                     .filter { it.packageName.name in favourites }
+                    .sortedByDescending { timestamps[it.packageName.name] ?: 0L }
             }
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
+
+    /** Catalogue favourites' on-device install date (epoch millis), read live from PackageManager:
+     *  purely an ordering signal for the favourites full page's "date installed" sort. A favourite
+     *  that was never installed simply has no entry here rather than a fabricated date. */
+    val favouriteInstallDates: StateFlow<Map<String, Long>> = favouriteApps
+        .map { apps ->
+            apps.mapNotNull { app ->
+                val pkg = app.packageName.name
+                val installedAt = context.packageManager.getPackageInfoCompat(pkg, 0)?.firstInstallTime
+                installedAt?.let { pkg to it }
+            }.toMap()
+        }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyMap())
 
     /** "What's new" carousel on the Discover home — the most recently added apps. */
     val newApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }

@@ -183,6 +183,8 @@
     <string name="favourites">お気に入り</string>
     <string name="show_favourites">お気に入りを表示</string>
     <string name="hide_favourites">お気に入りを非表示</string>
+    <string name="date_favourited">お気に入り追加日</string>
+    <string name="date_installed">インストール日</string>
     <string name="material_you">Material You</string>
     <string name="repository_unreachable">リポジトリに到達できません</string>
     <string name="enable_repo">リポジトリを有効化</string>

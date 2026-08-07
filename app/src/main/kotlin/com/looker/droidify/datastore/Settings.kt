@@ -60,6 +60,12 @@ data class Settings(
     val lastRbLogFetch: Long? = null,
     val lastModifiedDownloadStats: Long? = null,
     val favouriteApps: Set<String> = emptySet(),
+    /** Epoch millis each entry in [favouriteApps] was added, same keys. Purely an ordering signal
+     *  (the favourites carousel's fixed order, and the "date favourited" option on its full page);
+     *  a key present in [favouriteApps] but missing here (restored from a backup written before this
+     *  existed) just sorts as if favourited at the start of time. Excluded from the generic settings
+     *  backup/restore, same as [favouriteApps] itself, since it means nothing without it. */
+    val favouritedAt: Map<String, Long> = emptyMap(),
     /** Keys of apps hidden from every listing (Discover, Installed, Updates, …): a catalogue app's
      *  package name, or an external app's [com.looker.droidify.external.ExternalApp.key], same scheme
      *  as [favouriteApps]. */
