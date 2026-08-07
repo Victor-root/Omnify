@@ -24,7 +24,9 @@ work = "2.11.2"
 profileinstaller = "1.4.1"
 # Held at 3.4.0, which is the release built against Kotlin 2.3.10, exactly the compiler here. Each
 # coil release tracks the Kotlin of its day (3.3.0 -> 2.2.0, 3.4.0 -> 2.3.10, 3.5.0 -> 2.4.0), so
-# 3.5.0 means moving to Kotlin 2.4, which KSP has no release for. It moves when Kotlin does.
+# 3.5.0 means moving to Kotlin 2.4. Kotlin 2.4 does exist now (2.4.10); KSP is what does not, its
+# newest being 2.3.11, built against Kotlin 2.3.20. So this moves when KSP ships a 2.4, not when
+# Kotlin does.
 coil = "3.4.0"
 leakcanary = "2.14"
 hilt = "2.60.1"
