@@ -65,6 +65,10 @@ data class Settings(
      *  as [favouriteApps]. */
     val hiddenApps: Set<String> = emptySet(),
     val homeScreenSwiping: Boolean = false,
+    /** Whether the Discover home's favourites carousel is allowed to show at all. On by default: the
+     *  carousel only actually appears once a favourite exists, so this only matters once the user has
+     *  explicitly hidden it via the overflow menu ("Hide favourites"). */
+    val showFavouritesCarousel: Boolean = true,
     val enabledRepoIds: Set<Int> = emptySet(),
     val deleteApkOnInstall: Boolean = false,
     val dlStatsEnabled: Boolean = true,

@@ -55,7 +55,6 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
@@ -175,7 +174,8 @@ fun AppListScreen(
     val rootApps by viewModel.rootApps.collectAsStateWithLifecycle()
     val tvApps by viewModel.tvApps.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
-    val favouritesOnly by viewModel.favouritesOnly.collectAsStateWithLifecycle()
+    val favouriteApps by viewModel.favouriteApps.collectAsStateWithLifecycle()
+    val showFavouritesCarousel by viewModel.showFavouritesCarousel.collectAsStateWithLifecycle()
     val tvOnly by viewModel.tvOnly.collectAsStateWithLifecycle()
     val expandedSections by viewModel.expandedSections.collectAsStateWithLifecycle()
     val expandedSectionApps by viewModel.expandedSectionApps.collectAsStateWithLifecycle()
@@ -211,10 +211,6 @@ fun AppListScreen(
     BackHandler(enabled = sectionView && !searchExpanded) {
         viewModel.closeSection()
     }
-    // System back leaves the favourites filter and returns to the full Discover home.
-    BackHandler(enabled = favouritesOnly && !searchExpanded && !sectionView) {
-        viewModel.toggleFavouritesOnly()
-    }
     // Same for the TV-only filter (Android TV only — the toggle itself is never reachable off TV, so
     // tvOnly is always false there and this is a no-op).
     BackHandler(enabled = tvOnly && !searchExpanded && !sectionView) {
@@ -234,7 +230,7 @@ fun AppListScreen(
     }
     // Switching tab or opening search must reveal the collapsed header again — otherwise a short
     // tab (e.g. a near-empty Installed list) could leave it stuck hidden with no room to scroll up.
-    LaunchedEffect(selectedTab, searchExpanded, favouritesOnly) {
+    LaunchedEffect(selectedTab, searchExpanded) {
         scrollBehavior.state.heightOffset = 0f
     }
 
@@ -308,6 +304,7 @@ fun AppListScreen(
             .collect { scrolling -> if (scrolling) userScrolled = true }
     }
     LaunchedEffect(
+        favouriteApps.size,
         newApps.size,
         recentlyUpdatedApps.size,
         mostDownloadedApps.size,
@@ -325,6 +322,7 @@ fun AppListScreen(
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
     val hiddenExternalApps by externalViewModel.hidden.collectAsStateWithLifecycle()
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
+    val favouriteExternalApps by externalViewModel.favouriteApps.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
     val externalInstalledVersions by externalViewModel.installedVersions.collectAsStateWithLifecycle()
     val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
@@ -573,8 +571,8 @@ fun AppListScreen(
                                 )
                             }
                         },
-                        favouritesOnly = favouritesOnly,
-                        onToggleFavourites = viewModel::toggleFavouritesOnly,
+                        showFavouritesCarousel = showFavouritesCarousel,
+                        onToggleFavouritesCarousel = viewModel::toggleFavouritesCarousel,
                         tvOnly = tvOnly,
                         onToggleTvOnly = viewModel::toggleTvOnly,
                     )
@@ -737,11 +735,33 @@ fun AppListScreen(
             // carousels then the categories accordion. A carousel arrow opens that section as its own
             // page; a category chevron expands its apps inline. When searching or on a section page,
             // this is skipped and the apps render as a flat list below.
-            if (selectedTab == AppTab.AVAILABLE && !isSearching && !sectionView && !favouritesOnly) {
+            if (selectedTab == AppTab.AVAILABLE && !isSearching && !sectionView) {
                 // Breathing room below the header: the first carousel's round "see all" button
                 // otherwise sits glued to the tabs.
                 item(span = { GridItemSpan(maxLineSpan) }, key = "discover-top-gap") {
                     Spacer(Modifier.height(12.dp))
+                }
+                // Favourites lead the Discover home when there are any: a carousel the user built on
+                // purpose (the heart on any app's own page), not one Omnify curates, so it comes before
+                // every curated row. Hidden with nothing favourited yet; appears the moment a first
+                // favourite exists, and from then on follows the user's own show/hide choice in the
+                // overflow menu (see AppListViewModel.showFavouritesCarousel).
+                if (showFavouritesCarousel && (favouriteApps.isNotEmpty() || favouriteExternalApps.isNotEmpty())) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-favourites", contentType = "carousel") {
+                        DiscoverCarousel(
+                            title = stringResource(R.string.favourites),
+                            apps = favouriteApps,
+                            installedPackages = installedPackages,
+                            onAppClick = openApp,
+                            onSeeAll = { viewModel.openSection(SECTION_FAVOURITES) },
+                            modifier = Modifier.padding(bottom = 8.dp),
+                            externalApps = favouriteExternalApps,
+                            externalInstalledKeys = externalInstalledKeys,
+                            onExternalAppClick = openExternalApp,
+                            restoreFocusId = restoreFocusId,
+                            restoreRequester = restoreRequester,
+                        )
+                    }
                 }
                 // TV only: lead with apps actually built for the television (leanback launcher), both
                 // from the F-Droid catalogue and from tracked external sources. Hidden on touch and when
@@ -901,36 +921,11 @@ fun AppListScreen(
             // A flat list of app tiles appears when searching (search results) or on a carousel "see
             // all" page (the whole section). The Installed/Updates tabs use the same tiles.
             if (selectedTab == AppTab.AVAILABLE) {
-                // The favourites filter (toggled from the overflow menu) takes over the Explore tab:
-                // a "Favourites" heading then the favourite apps as the same tiles, or a hint if empty.
-                if (favouritesOnly) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "favourites-title") {
-                        Text(
-                            text = stringResource(R.string.favourites),
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
-                    }
-                    if (apps.isEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }, key = "favourites-empty") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.no_favourites),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
-                    }
-                }
+                // The favourites carousel's own "see all" reuses the exact list already backing it
+                // ([favouriteApps]/[favouriteExternalApps]) rather than a fresh query, so the row and
+                // this page can never disagree.
                 val flatList = when {
-                    favouritesOnly -> apps
+                    sectionView && openedSection == SECTION_FAVOURITES -> favouriteApps
                     sectionView -> openedSectionApps
                     isSearching -> apps
                     else -> emptyList()
@@ -939,7 +934,8 @@ fun AppListScreen(
                 // These sections always have apps (the carousel only appears when non-empty), so an empty
                 // list here means "still loading" — show a spinner so the page never looks blank/broken.
                 val sectionLoading = sectionView && flatList.isEmpty() &&
-                    !(isTelevision && openedSection == SECTION_TV && tvExternalApps.isNotEmpty())
+                    !(isTelevision && openedSection == SECTION_TV && tvExternalApps.isNotEmpty()) &&
+                    !(openedSection == SECTION_FAVOURITES && favouriteExternalApps.isNotEmpty())
                 if (sectionLoading) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "section-loading") {
                         Box(
@@ -955,6 +951,24 @@ fun AppListScreen(
                 // The "Made for TV" see-all page also lists the tracked external TV apps (TV only).
                 if (isTelevision && openedSection == SECTION_TV) {
                     items(items = tvExternalApps, key = { "tv-ext-${it.key}" }, contentType = { "ext-tile" }) { app ->
+                        ExternalAppTile(
+                            app = app,
+                            isInstalled = app.key in externalInstalledKeys,
+                            onClick = { openExternalApp(app.key) },
+                            modifier = Modifier.restoreFocusTarget(
+                                isTelevision && restoreFocusId == "ext:${app.key}",
+                                restoreRequester,
+                            ),
+                        )
+                    }
+                }
+                // The favourites see-all page lists favourited external apps too, exactly like the row.
+                if (openedSection == SECTION_FAVOURITES) {
+                    items(
+                        items = favouriteExternalApps,
+                        key = { "fav-ext-${it.key}" },
+                        contentType = { "ext-tile" },
+                    ) { app ->
                         ExternalAppTile(
                             app = app,
                             isInstalled = app.key in externalInstalledKeys,
@@ -1376,8 +1390,8 @@ private fun AppListTopBar(
     searchState: TextFieldState,
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    favouritesOnly: Boolean,
-    onToggleFavourites: () -> Unit,
+    showFavouritesCarousel: Boolean,
+    onToggleFavouritesCarousel: () -> Unit,
     tvOnly: Boolean,
     onToggleTvOnly: () -> Unit,
     title: @Composable () -> Unit,
@@ -1392,8 +1406,8 @@ private fun AppListTopBar(
             onToggleSearch = onToggleSearch,
             onNavigateToRepos = onNavigateToRepos,
             onNavigateToSettings = onNavigateToSettings,
-            favouritesOnly = favouritesOnly,
-            onToggleFavourites = onToggleFavourites,
+            showFavouritesCarousel = showFavouritesCarousel,
+            onToggleFavouritesCarousel = onToggleFavouritesCarousel,
             tvOnly = tvOnly,
             onToggleTvOnly = onToggleTvOnly,
             overflowExpanded = overflowExpanded,
@@ -1422,8 +1436,8 @@ private fun AppListMainTopBar(
     onToggleSearch: () -> Unit,
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    favouritesOnly: Boolean,
-    onToggleFavourites: () -> Unit,
+    showFavouritesCarousel: Boolean,
+    onToggleFavouritesCarousel: () -> Unit,
     tvOnly: Boolean,
     onToggleTvOnly: () -> Unit,
     overflowExpanded: Boolean,
@@ -1530,21 +1544,22 @@ private fun AppListMainTopBar(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                stringResource(R.string.favourites),
+                                stringResource(
+                                    if (showFavouritesCarousel) {
+                                        R.string.hide_favourites
+                                    } else {
+                                        R.string.show_favourites
+                                    },
+                                ),
                                 style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
                             )
                         },
                         onClick = {
-                            onToggleFavourites()
+                            onToggleFavouritesCarousel()
                             onOverflowExpandedChange(false)
                         },
                         leadingIcon = {
                             Icon(Icons.Filled.Favorite, contentDescription = null)
-                        },
-                        trailingIcon = if (favouritesOnly) {
-                            { Icon(Icons.Filled.Check, contentDescription = null) }
-                        } else {
-                            null
                         },
                         contentPadding = if (isTablet) {
                             PaddingValues(horizontal = 20.dp, vertical = 4.dp)
@@ -1667,6 +1682,7 @@ private fun CategoriesTitle() {
 /** The localized title for a curated-carousel "see all" page. */
 @Composable
 private fun sectionTitle(key: String?): String = when (key) {
+    SECTION_FAVOURITES -> stringResource(R.string.favourites)
     SECTION_WHATS_NEW -> stringResource(R.string.discover_new_apps)
     SECTION_RECENTLY_UPDATED -> stringResource(R.string.discover_recently_updated)
     SECTION_MOST_DOWNLOADED -> stringResource(R.string.discover_most_downloaded)

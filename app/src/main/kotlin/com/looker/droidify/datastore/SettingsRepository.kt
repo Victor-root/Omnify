@@ -70,6 +70,8 @@ interface SettingsRepository {
 
     suspend fun setHomeScreenSwiping(value: Boolean)
 
+    suspend fun setShowFavouritesCarousel(value: Boolean)
+
     suspend fun toggleFavourites(packageName: String)
 
     suspend fun toggleHidden(packageName: String)

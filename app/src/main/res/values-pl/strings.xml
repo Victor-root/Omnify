@@ -191,6 +191,8 @@
     <string name="installing">Instalowanie</string>
     <string name="waiting_to_start_installation">Oczekiwanie na rozpoczęcie instalacji…</string>
     <string name="favourites">Ulubione</string>
+    <string name="show_favourites">Pokaż ulubione</string>
+    <string name="hide_favourites">Ukryj ulubione</string>
     <string name="force_clean_up">Wymuś oczyszczenie</string>
     <string name="repository_unreachable">Repozytorium nieosiągalne</string>
     <string name="auto_update">Aktualizuj aplikacje automatycznie</string>
@@ -360,7 +362,6 @@
     <string name="hidden_apps_DESC">Zobacz i odkryj aplikacje ukryte na wszystkich listach</string>
     <string name="no_hidden_apps">Brak ukrytych aplikacji. Ukryj jedną na jej własnej stronie, aby zobaczyć ją tutaj.</string>
     <string name="more_options">Więcej</string>
-    <string name="no_favourites">Brak ulubionych. Stuknij serce przy aplikacji, aby dodać ją tutaj.</string>
     <string name="install_version_FORMAT">Zainstalować wersję %s?</string>
     <string name="install_version_downgrade_DESC">Zainstalowana jest nowsza wersja. Android nie pozwala zastąpić jej starszą wersją w miejscu, więc najpierw trzeba odinstalować obecną wersję (utracisz jej dane). Odinstaluj ją, a następnie stuknij ponownie tę wersję, aby ją zainstalować.</string>
     <string name="root_compatible">Zgodne z root</string>

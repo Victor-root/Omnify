@@ -181,6 +181,8 @@
     <string name="installing">インストール中</string>
     <string name="waiting_to_start_installation">インストール開始を待機中…</string>
     <string name="favourites">お気に入り</string>
+    <string name="show_favourites">お気に入りを表示</string>
+    <string name="hide_favourites">お気に入りを非表示</string>
     <string name="material_you">Material You</string>
     <string name="repository_unreachable">リポジトリに到達できません</string>
     <string name="enable_repo">リポジトリを有効化</string>
@@ -304,7 +306,6 @@
     <string name="hidden_apps_DESC">非表示にしたアプリを確認し、表示を戻せます</string>
     <string name="no_hidden_apps">非表示のアプリはありません。アプリのページから非表示にすると、ここに表示されます。</string>
     <string name="more_options">その他</string>
-    <string name="no_favourites">お気に入りはまだありません。アプリのハートマークをタップして追加してください。</string>
     <string name="install_version_FORMAT">バージョン %s をインストールしますか？</string>
     <string name="install_version_downgrade_DESC">より新しいバージョンがインストールされています。Androidはアプリをその場でダウングレードできないため、先にインストール済みのバージョンをアンインストールする必要があります (データは失われます)。アンインストール後、もう一度このバージョンをタップしてインストールしてください。</string>
     <string name="legacyInstallerComponent">レガシーインストーラーコンポーネント</string>

@@ -180,6 +180,8 @@
     <string name="shizuku_installer">Shizuku/Sui-Installation</string>
     <string name="io_error_DESC">Bestimmte Aktionen können nicht ausgeführt werden</string>
     <string name="favourites">Favoriten</string>
+    <string name="show_favourites">Favoriten anzeigen</string>
+    <string name="hide_favourites">Favoriten ausblenden</string>
     <string name="material_you">Material You</string>
     <string name="material_you_desc">Material-You-Farbschema verwenden</string>
     <string name="repository_unreachable">Paketquelle unerreichbar</string>
@@ -354,7 +356,6 @@
     <string name="hidden_apps_DESC">Ausgeblendete Apps ansehen und wieder einblenden</string>
     <string name="no_hidden_apps">Keine ausgeblendeten Apps. Blende eine App über ihre eigene Seite aus, damit sie hier erscheint.</string>
     <string name="more_options">Mehr</string>
-    <string name="no_favourites">Noch keine Favoriten. Tippe auf das Herz einer App, um sie hier hinzuzufügen.</string>
     <string name="install_version_FORMAT">Version %s installieren?</string>
     <string name="install_version_downgrade_DESC">Es ist bereits eine neuere Version installiert. Android kann eine App nicht direkt herabstufen, daher muss die installierte Version zuerst deinstalliert werden (dabei gehen ihre Daten verloren). Deinstalliere sie und tippe dann erneut auf diese Version, um sie zu installieren.</string>
     <string name="root_compatible">Root-kompatibel</string>

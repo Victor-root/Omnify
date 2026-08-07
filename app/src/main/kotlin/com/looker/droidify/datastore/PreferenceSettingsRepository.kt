@@ -150,6 +150,9 @@ class PreferenceSettingsRepository(
     override suspend fun setHomeScreenSwiping(value: Boolean) =
         HOME_SCREEN_SWIPING.update(value)
 
+    override suspend fun setShowFavouritesCarousel(value: Boolean) =
+        SHOW_FAVOURITES_CAROUSEL.update(value)
+
     override suspend fun toggleFavourites(packageName: String) {
         dataStore.edit { preference ->
             val currentSet = preference[FAVOURITE_APPS] ?: emptySet()
@@ -285,6 +288,7 @@ class PreferenceSettingsRepository(
         val favouriteApps = preferences[FAVOURITE_APPS] ?: emptySet()
         val hiddenApps = preferences[HIDDEN_APPS] ?: emptySet()
         val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: false
+        val showFavouritesCarousel = preferences[SHOW_FAVOURITES_CAROUSEL] ?: true
         val enabledRepoIds =
             preferences[ENABLED_REPO_IDS]?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
         val deleteApkOnInstall = preferences[DELETE_APK_ON_INSTALL] ?: false
@@ -325,6 +329,7 @@ class PreferenceSettingsRepository(
             favouriteApps = favouriteApps,
             hiddenApps = hiddenApps,
             homeScreenSwiping = homeScreenSwiping,
+            showFavouritesCarousel = showFavouritesCarousel,
             enabledRepoIds = enabledRepoIds,
             deleteApkOnInstall = deleteApkOnInstall,
             dlStatsEnabled = downloadStatisticsEnabled,
@@ -366,6 +371,7 @@ class PreferenceSettingsRepository(
         val FAVOURITE_APPS = stringSetPreferencesKey("key_favourite_apps")
         val HIDDEN_APPS = stringSetPreferencesKey("key_hidden_apps")
         val HOME_SCREEN_SWIPING = booleanPreferencesKey("key_home_swiping")
+        val SHOW_FAVOURITES_CAROUSEL = booleanPreferencesKey("key_show_favourites_carousel")
         val DELETE_APK_ON_INSTALL = booleanPreferencesKey("key_delete_apk_on_install")
         val DOWNLOAD_STATISTICS_ENABLED = booleanPreferencesKey("key_download_statistics_enabled")
         val REPRODUCIBILITY_LOGS_ENABLED = booleanPreferencesKey("key_reproducibility_logs_enabled")
@@ -441,6 +447,7 @@ class PreferenceSettingsRepository(
             set(FAVOURITE_APPS, settings.favouriteApps)
             set(HIDDEN_APPS, settings.hiddenApps)
             set(HOME_SCREEN_SWIPING, settings.homeScreenSwiping)
+            set(SHOW_FAVOURITES_CAROUSEL, settings.showFavouritesCarousel)
             set(ENABLED_REPO_IDS, settings.enabledRepoIds.map { it.toString() }.toSet())
             set(DELETE_APK_ON_INSTALL, settings.deleteApkOnInstall)
             set(DOWNLOAD_STATISTICS_ENABLED, settings.dlStatsEnabled)

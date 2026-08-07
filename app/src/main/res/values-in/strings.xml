@@ -177,6 +177,8 @@
     <string name="cleanup_title">Interval pembersihan APK</string>
     <string name="downloaded_FORMAT">%s telah diunduh</string>
     <string name="favourites">Favorit</string>
+    <string name="show_favourites">Tampilkan favorit</string>
+    <string name="hide_favourites">Sembunyikan favorit</string>
     <string name="material_you">Material You</string>
     <string name="material_you_desc">Pakai warna Material You</string>
     <string name="enable_repo">Aktifkan repositori</string>
@@ -350,7 +352,6 @@
     <string name="hidden_apps_DESC">Lihat dan tampilkan kembali aplikasi yang telah Anda sembunyikan dari semua daftar</string>
     <string name="no_hidden_apps">Tidak ada aplikasi tersembunyi. Sembunyikan salah satu dari halamannya sendiri untuk melihatnya di sini.</string>
     <string name="more_options">Lainnya</string>
-    <string name="no_favourites">Belum ada favorit. Ketuk ikon hati pada aplikasi untuk menambahkannya di sini.</string>
     <string name="install_version_FORMAT">Pasang versi %s?</string>
     <string name="install_version_downgrade_DESC">Versi yang lebih baru telah terpasang. Android tidak dapat menurunkan versi aplikasi secara langsung, sehingga versi yang terpasang harus dicopot terlebih dahulu (data aplikasi akan hilang). Copot aplikasi tersebut, lalu ketuk versi ini lagi untuk memasangnya.</string>
     <string name="root_compatible">Kompatibel dengan root</string>

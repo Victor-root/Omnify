@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledIdentityRepository
 import com.looker.droidify.data.InstalledRepository
@@ -40,6 +41,7 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -65,23 +67,34 @@ class AppListViewModel @Inject constructor(
     private val _selectedCategories = MutableStateFlow<Set<DefaultName>>(emptySet())
     val selectedCategories: StateFlow<Set<DefaultName>> = _selectedCategories
 
-    // Favourites state
-    private val _favouritesOnly = MutableStateFlow(false)
-    val favouritesOnly: StateFlow<Boolean> = _favouritesOnly
-    private val favouriteApps: Flow<Set<String>> = settingsRepository.get { favouriteApps }.distinctUntilChanged()
+    // Keys (a catalogue app's package name, or an external app's ExternalApp.key) the user has
+    // favourited: the heart on any app's own detail screen, catalogue or external, writes here.
+    private val favouriteKeys: Flow<Set<String>> = settingsRepository.get { favouriteApps }.distinctUntilChanged()
 
     // Apps hidden from every listing on this screen (Available/Installed/Updates, every Discover
     // carousel). See AppMinimal.excludingHidden, applied at each list-producing flow below.
     private val hiddenApps: Flow<Set<String>> = settingsRepository.get { hiddenApps }.distinctUntilChanged()
 
-    // TV-only filter (Android TV only — see AppListScreen's header toggle). Session-only like
-    // favouritesOnly above, not persisted: it's a "just for this browsing session" narrowing, not a
-    // lasting preference.
+    // TV-only filter (Android TV only, see AppListScreen's header toggle). Session-only, not
+    // persisted: it's a "just for this browsing session" narrowing, not a lasting preference.
     private val _tvOnly = MutableStateFlow(false)
     val tvOnly: StateFlow<Boolean> = _tvOnly
 
     /** Whether a left/right swipe on the home grid switches tab (user setting, off by default). */
     val homeScreenSwiping = settingsRepository.get { homeScreenSwiping }.asStateFlow(false)
+
+    /** Whether the Discover home's favourites carousel is allowed to show at all (persisted, on by
+     *  default). The carousel itself also needs a favourite to exist (see [favouriteApps] and
+     *  AppListScreen's gate); this is only the user's own show/hide choice from the overflow menu, so
+     *  hiding it once keeps it hidden until they show it again, even across a favourite being removed
+     *  and a new one added later. */
+    val showFavouritesCarousel: StateFlow<Boolean> =
+        settingsRepository.get { showFavouritesCarousel }.asStateFlow(true)
+
+    /** Flips [showFavouritesCarousel]. */
+    fun toggleFavouritesCarousel() {
+        viewModelScope.launch { settingsRepository.setShowFavouritesCarousel(!showFavouritesCarousel.value) }
+    }
 
     // Emits whenever the catalogue (apps/versions) changes — e.g. after a sync — so every list
     // below re-queries automatically instead of waiting for the user to change a filter.
@@ -127,11 +140,9 @@ class AppListViewModel @Inject constructor(
     val appsState: StateFlow<List<AppMinimal>> = combine(
         searchQueryStream,
         selectedCategories,
-        favouritesOnly,
-        favouriteApps,
         tvOnly,
-    ) { searchQuery, categories, favOnly, favSet, tvOnlyValue ->
-        AppQuery(searchQuery, categories, favOnly, favSet, tvOnlyValue)
+    ) { searchQuery, categories, tvOnlyValue ->
+        AppQuery(searchQuery, categories, tvOnlyValue)
     }
         .combine(catalogChanges) { query, _ -> query }
         .combine(tvPackageNames) { query, tvNames -> query to tvNames }
@@ -143,12 +154,7 @@ class AppListViewModel @Inject constructor(
                 searchQuery = query.search,
                 categoriesToInclude = query.categories.toList(),
             ).excludingHidden(hidden)
-            val favFiltered = if (query.favOnly) {
-                items.filter { it.packageName.name in query.favSet }
-            } else {
-                items
-            }
-            if (query.tvOnly) favFiltered.filter { it.packageName.name in tvNames } else favFiltered
+            if (query.tvOnly) items.filter { it.packageName.name in tvNames } else items
         }
         // Off the main thread, and skip re-emitting an identical list (the catalogue flow fires
         // repeatedly during a sync) so the grid doesn't needlessly re-diff and re-animate.
@@ -306,10 +312,6 @@ class AppListViewModel @Inject constructor(
         _openedSection.value = null
     }
 
-    fun toggleFavouritesOnly() {
-        _favouritesOnly.value = !_favouritesOnly.value
-    }
-
     fun toggleTvOnly() {
         _tvOnly.value = !_tvOnly.value
     }
@@ -344,6 +346,26 @@ class AppListViewModel @Inject constructor(
         val packages = updatableApps.value.map { it.packageName.name }
         UpdateAllWorker.updateAll(context, packages)
     }
+
+    /** "Favourites" carousel on the Discover home: every catalogue app the user has favourited (the
+     *  heart on its own detail screen), newest update first like the other carousels. Unlike a curated
+     *  discovery row this is a list the user built on purpose, so it isn't capped to [DISCOVER_ROW_COUNT]:
+     *  nothing they favourited should hide behind a "see all" tap. Empty until a favourite exists, which
+     *  is also what keeps the carousel itself off the Discover home until then (see AppListScreen). */
+    val favouriteApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
+        .combine(favouriteKeys) { hidden, favourites -> hidden to favourites }
+        .mapLatest { (hidden, favourites) ->
+            if (favourites.isEmpty()) {
+                emptyList()
+            } else {
+                appRepository.apps(sortOrder = SortOrder.UPDATED)
+                    .excludingHidden(hidden)
+                    .filter { it.packageName.name in favourites }
+            }
+        }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyList())
 
     /** "What's new" carousel on the Discover home — the most recently added apps. */
     val newApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
@@ -513,6 +535,7 @@ private const val DISCOVER_ROW_COUNT = 16
 
 /** Section keys for the inline-expandable Discover sections (the "::" prefix can't collide with a
  *  category name). */
+const val SECTION_FAVOURITES = "::favourites"
 const val SECTION_WHATS_NEW = "::whats_new"
 const val SECTION_RECENTLY_UPDATED = "::recently_updated"
 const val SECTION_MOST_DOWNLOADED = "::most_downloaded"
@@ -554,8 +577,6 @@ private const val CATALOG_REFRESH_MS = 500L
 private data class AppQuery(
     val search: String,
     val categories: Set<DefaultName>,
-    val favOnly: Boolean,
-    val favSet: Set<String>,
     val tvOnly: Boolean,
 )
 

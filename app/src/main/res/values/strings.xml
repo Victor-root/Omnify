@@ -154,13 +154,14 @@
     <string name="auto_translate_DESC">Translate a description on open when it isn\'t already in your language</string>
     <string name="enable_repo">Enable repository</string>
     <string name="favourites">Favourites</string>
+    <string name="show_favourites">Show favourites</string>
+    <string name="hide_favourites">Hide favourites</string>
     <string name="hide_app">Hide app</string>
     <string name="unhide_app">Unhide app</string>
     <string name="hidden_apps_title">Hidden apps</string>
     <string name="hidden_apps_DESC">See and unhide apps you\'ve hidden from every list</string>
     <string name="no_hidden_apps">No hidden apps. Hide one from its own page to see it listed here.</string>
     <string name="more_options">More</string>
-    <string name="no_favourites">No favourites yet. Tap the heart on an app to add it here.</string>
     <string name="file_format_error_DESC">Invalid file format</string>
     <string name="fingerprint">Fingerprint</string>
     <string name="force_clean_up">Force cleanup</string>

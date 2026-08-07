@@ -185,6 +185,8 @@
     <string name="material_you_desc">Usar cores do Material You</string>
     <string name="material_you">Material You</string>
     <string name="favourites">Favoritos</string>
+    <string name="show_favourites">Mostrar favoritos</string>
+    <string name="hide_favourites">Ocultar favoritos</string>
     <string name="force_clean_up">Forçar limpeza</string>
     <string name="force_clean_up_DESC">Limpa arquivos redundantes</string>
     <string name="repository_unreachable">Repositório inacessível</string>
@@ -322,7 +324,6 @@
     <string name="hidden_apps_DESC">Veja e desoculte apps que você ocultou de todas as listas</string>
     <string name="no_hidden_apps">Nenhum app oculto. Oculte um a partir da própria página dele para vê-lo listado aqui.</string>
     <string name="more_options">Mais</string>
-    <string name="no_favourites">Nenhum favorito ainda. Toque no coração de um app para adicioná-lo aqui.</string>
     <string name="install_version_FORMAT">Instalar versão %s?</string>
     <string name="install_version_downgrade_DESC">Uma versão mais recente está instalada. O Android não consegue fazer downgrade de um app diretamente, então a versão instalada precisa ser desinstalada primeiro (você perderá os dados dela). Desinstale-a e depois toque nesta versão novamente para instalá-la.</string>
     <string name="delete_apk_on_install">Excluir APK após instalação</string>

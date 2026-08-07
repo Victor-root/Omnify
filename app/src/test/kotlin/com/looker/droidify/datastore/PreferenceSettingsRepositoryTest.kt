@@ -136,6 +136,15 @@ class PreferenceSettingsRepositoryTest {
     }
 
     @Test
+    fun `setShowFavouritesCarousel updates setting`() = runTest {
+        val settings = repository.getInitial()
+        assertTrue(settings.showFavouritesCarousel)
+
+        repository.setShowFavouritesCarousel(false)
+        assertFalse(repository.getInitial().showFavouritesCarousel)
+    }
+
+    @Test
     fun `setDeleteApkOnInstall updates setting`() = runTest {
         repository.setDeleteApkOnInstall(true)
         val settings = repository.getInitial()

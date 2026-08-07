@@ -180,6 +180,8 @@
     <string name="auto_update_apps">自动安装更新</string>
     <string name="installing">正在安装</string>
     <string name="favourites">收藏夹</string>
+    <string name="show_favourites">显示收藏夹</string>
+    <string name="hide_favourites">隐藏收藏夹</string>
     <string name="material_you_desc">使用 Material You 配色</string>
     <string name="repository_unreachable">存储库无法访问</string>
     <string name="force_clean_up">强制清理</string>
@@ -332,7 +334,6 @@
     <string name="hidden_apps_DESC">查看并取消隐藏您从所有列表中隐藏的应用</string>
     <string name="no_hidden_apps">没有隐藏的应用。在应用的详情页面将其隐藏后，即可在此处查看。</string>
     <string name="more_options">更多</string>
-    <string name="no_favourites">暂无收藏。点击应用上的心形图标即可添加到此处。</string>
     <string name="install_version_FORMAT">安装版本 %s？</string>
     <string name="install_version_downgrade_DESC">已安装更新的版本。Android 无法直接降级应用，因此必须先卸载已安装的版本（这将丢失其数据）。卸载后，再次点击此版本即可安装。</string>
     <string name="delete_apk_on_install">安装后删除 APK</string>

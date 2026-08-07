@@ -182,6 +182,8 @@
     <string name="material_you_desc">Material You renklerini kullan</string>
     <string name="material_you">Material You</string>
     <string name="favourites">Favoriler</string>
+    <string name="show_favourites">Favorileri göster</string>
+    <string name="hide_favourites">Favorileri gizle</string>
     <string name="repository_unreachable">Depoya ulaşılamıyor</string>
     <string name="force_clean_up">Temizlemeye zorla</string>
     <string name="force_clean_up_DESC">Gereksiz dosyaları temizler</string>
@@ -354,7 +356,6 @@
     <string name="hidden_apps_DESC">Her listeden gizlediğiniz uygulamaları görüntüleyin ve tekrar gösterin</string>
     <string name="no_hidden_apps">Gizli uygulama yok. Burada listelenmesi için bir uygulamayı kendi sayfasından gizle.</string>
     <string name="more_options">Daha fazla</string>
-    <string name="no_favourites">Henüz favori yok. Buraya eklemek için bir uygulamanın kalbine dokunun.</string>
     <string name="install_version_FORMAT">%s sürümü kurulsun mu?</string>
     <string name="install_version_downgrade_DESC">Daha yeni bir sürüm kurulu. Android bir uygulamayı yerinde eski sürüme düşüremez, bu yüzden önce kurulu sürümün kaldırılması gerekir (verilerini kaybedersiniz). Kaldırın, ardından kurmak için bu sürüme tekrar dokunun.</string>
     <string name="root_compatible">Root uyumlu</string>

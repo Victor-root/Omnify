@@ -337,6 +337,18 @@ class ExternalAppsViewModel @Inject constructor(
      *  package name, [ExternalApp.key] never collides with a real Android package id). */
     val favourites: StateFlow<Set<String>> = settingsRepository.get { favouriteApps }.asStateFlow(emptySet())
 
+    /** Favourited external apps, resolved to the real app objects: the external half of the Discover
+     *  home's favourites carousel, shown in the same row as the catalogue's own [favourites]. Same
+     *  enabled/not-hidden rule as [recentlyUpdatedApps], so a disabled or hidden source doesn't linger in
+     *  a carousel it's excluded from everywhere else. */
+    val favouriteApps: StateFlow<List<ExternalApp>> = apps
+        .combine(hidden) { list, hiddenKeys -> list to hiddenKeys }
+        .combine(favourites) { (list, hiddenKeys), favouriteKeys ->
+            list.filter { it.enabled && it.key !in hiddenKeys && it.key in favouriteKeys }
+        }
+        .distinctUntilChanged()
+        .asStateFlow(emptyList())
+
     /** Adds or removes [app] from the user's favourites. */
     fun toggleFavourite(app: ExternalApp) {
         viewModelScope.launch { settingsRepository.toggleFavourites(app.key) }

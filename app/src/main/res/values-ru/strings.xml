@@ -188,6 +188,8 @@
     <string name="material_you">Material You</string>
     <string name="material_you_desc">Использовать цвета Material You</string>
     <string name="favourites">Избранное</string>
+    <string name="show_favourites">Показать избранное</string>
+    <string name="hide_favourites">Скрыть избранное</string>
     <string name="repository_unreachable">Репозиторий недоступен</string>
     <string name="force_clean_up">Произвести очистку</string>
     <string name="force_clean_up_DESC">Удаление лишних файлов</string>
@@ -360,7 +362,6 @@
     <string name="hidden_apps_DESC">Просмотр и возврат приложений, скрытых из всех списков</string>
     <string name="no_hidden_apps">Нет скрытых приложений. Скройте приложение на его странице, чтобы оно появилось здесь.</string>
     <string name="more_options">Ещё</string>
-    <string name="no_favourites">Пока нет избранного. Нажмите на сердечко у приложения, чтобы добавить его сюда.</string>
     <string name="install_version_FORMAT">Установить версию %s?</string>
     <string name="install_version_downgrade_DESC">Установлена более новая версия. Android не может выполнить откат приложения на месте, поэтому сначала нужно удалить установленную версию (при этом вы потеряете её данные). Удалите её, а затем снова нажмите на эту версию, чтобы установить её.</string>
     <string name="root_compatible">Совместимо с root</string>
