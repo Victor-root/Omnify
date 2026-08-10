@@ -371,10 +371,6 @@ private val versionInFileName = Regex("""\d+(?:\.\d+)+""")
  *  none is present. */
 internal fun dottedVersionOrNull(text: String): String? = versionInFileName.find(text)?.value
 
-/** Pulls a dotted version number out of an APK file name (e.g. "GlassKeep-v1.4.6.apk" -> "1.4.6") for
- *  a tidy "latest APK" line, falling back to the whole file name when none is present. */
-fun apkVersionLabel(fileName: String): String = dottedVersionOrNull(fileName) ?: fileName
-
 /**
  * The best human-readable version for a release, shown identically everywhere a version needs to read
  * (the hero card's "Version" stat, the version list, the installed-row match check): a dotted number

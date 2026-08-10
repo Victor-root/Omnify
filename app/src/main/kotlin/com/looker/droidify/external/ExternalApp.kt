@@ -214,7 +214,13 @@ data class ExternalApp(
      * project tagging build-iteration rebuilds "v8.7.3-1"/"v8.7.3-2" without bumping the app's own
      * versionName — the hyphenated suffix isn't part of the dotted-version extraction, so both tags
      * reduce to the identical "8.7.3" label despite being genuinely different releases with genuinely
-     * different APKs).
+     * different APKs). The label must fall back from the APK file name to the release tag when the file
+     * name carries no version at all (via [releaseVersionLabel], the same fallback every other version
+     * label in the app already uses). Otherwise this comparison can never agree (confirmed real:
+     * Brave's GitHub APKs are named per architecture with no version in the file name at all, e.g.
+     * "Bravearm64Universal.apk"), which silently disables this whole suppression and turns any
+     * re-uploaded-but-unchanged release (the same tag and version, just a replaced asset) into a
+     * permanent false "update available".
      */
     val hasUpdate: Boolean
         get() {
@@ -227,7 +233,7 @@ data class ExternalApp(
             if (!tokenOrTagChanged) return false
             val sameRelease = installedTag != null && installedTag == latestTag
             val installedLabel = installedVersionName
-            val latestLabel = latestApkName?.let(::apkVersionLabel) ?: latestTag?.let(::apkVersionLabel)
+            val latestLabel = releaseVersionLabel(latestApkName, latestTag).takeIf { it.isNotEmpty() }
             val sameLabel = installedLabel != null && latestLabel != null &&
                 installedLabel.equals(latestLabel, ignoreCase = true)
             return !(sameRelease && sameLabel)

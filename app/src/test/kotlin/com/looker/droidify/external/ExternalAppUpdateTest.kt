@@ -72,6 +72,29 @@ class ExternalAppUpdateTest {
     }
 
     @Test
+    fun `a re-uploaded asset for the same tracked version is not an update`() {
+        // Same idea as above, but tracked: installedTag/installedApkToken/installedVersionName are all
+        // set (this source was installed through the app) and agree with the device, so this exercises
+        // the token/label-based provenance check (hasUpdate) instead of the plain dotted-version
+        // fallback. Brave can replace a release's asset under the same tag after publish (a respin),
+        // which changes installedApkToken vs latestApkToken even though the version is unchanged; with
+        // no version in the file name, the label comparison has to fall back to the tag to catch this.
+        val same = source(
+            latestApkName = "Bravearm64Universal.apk",
+            latestTag = "v1.93.134",
+            installedTag = "v1.93.134",
+            installedApkToken = "2026-08-01T00:00:00Z",
+            latestApkToken = "2026-08-09T00:00:00Z",
+            installedVersionName = "1.93.134",
+        )
+
+        assertFalse(
+            same.hasUpdateGiven("1.93.134"),
+            "Offered an update for a re-uploaded asset of the exact version already installed",
+        )
+    }
+
+    @Test
     fun `a downgrade stays blocked even when the record matches the device`() {
         // This source was installed through the app, so its record agrees with the device and the
         // provenance check (a changed APK identity) would normally be trusted outright. A changed APK
