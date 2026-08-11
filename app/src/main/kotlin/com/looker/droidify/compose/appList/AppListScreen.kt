@@ -11,6 +11,8 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -81,7 +83,6 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
@@ -121,6 +122,8 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -577,9 +580,13 @@ fun AppListScreen(
                         onNavigateToSettings = onNavigateToSettings,
                         title = {
                             // Pull the whole logo+wordmark left, past the top bar's default title inset.
+                            // fillMaxWidth so the second child's weight(1f) below has the bar's true
+                            // available width (up to the action buttons) to divide, on any screen size.
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.offset(x = (-16).dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .offset(x = (-16).dp),
                             ) {
                                 Box {
                                     Icon(
@@ -605,11 +612,15 @@ fun AppListScreen(
                                         )
                                     }
                                 }
-                                // The monochrome logo has a wide built-in safe-zone margin, so nudge the
-                                // wordmark left to sit right next to the glyph instead of after the gap.
-                                Text(
-                                    text = stringResource(R.string.application_name),
-                                    modifier = Modifier.offset(x = (-12).dp),
+                                // While a sync runs, this same spot hands itself over to a status bar
+                                // instead of a second strip elsewhere competing with the app list for
+                                // space (see TitleOrSyncIndicator). The wordmark isn't needed to orient
+                                // once the app is already open, so it's the one thing in the bar spare
+                                // enough to lend out. weight(1f), not a fixed width, so the bar reaches
+                                // to (almost) the action buttons on any screen size, phone or tablet.
+                                TitleOrSyncIndicator(
+                                    syncing = (isSyncing || isRefreshingExternal) && !catalogLoading,
+                                    modifier = Modifier.weight(1f),
                                 )
                             }
                         },
@@ -635,10 +646,6 @@ fun AppListScreen(
                             Modifier
                         },
                     )
-                    // While the full-screen fetching state is up, the thin banner is redundant.
-                    if ((isSyncing || isRefreshingExternal) && !catalogLoading) {
-                        SyncBanner()
-                    }
                     // Glued directly under the tabs (not inside the grid below, whose own content
                     // padding leaves a small gap meant for tile breathing room, wrong for a banner that
                     // should read as part of the header). A token GitHub is actively rejecting silently
@@ -1196,28 +1203,55 @@ private fun RepoFetchingState(modifier: Modifier = Modifier) {
 }
 
 /**
- * Status strip shown under the tabs while a sync runs. A filled container (not a bare line that
- * blended into the tab indicator) with a spinner + label, so it reads as "syncing", not decoration.
+ * The header wordmark's stand-in while a sync runs: two independently shown/hidden pieces overlaid
+ * in a [Box], each using the exact same matched expandHorizontally(Start)/shrinkHorizontally(End)
+ * pair as the search field reveal above (just mirrored to grow towards the end, not the start) so
+ * arriving content always reveals left to right and leaving content always erases left to right,
+ * whichever of the two is doing which. Two separate [AnimatedVisibility]s rather than one
+ * [AnimatedContent], since the latter's own container-size reconciliation between a short wordmark
+ * and a bar filling the whole row fought the per-content transitions instead of leaving them alone,
+ * and it also stops the wavy bar's own animation the moment it finishes leaving instead of running
+ * it forever off-screen. Replaces the old strip that used to sit under the tabs and cost the app
+ * list real height for every sync; the action buttons beside the title live in a separate TopAppBar
+ * slot, so they never move.
+ *
+ * No visible label: "syncing" runs long in several locales (German, French, ...) and would crowd the
+ * action buttons on a phone-width bar, unlike the old full-width strip that had room to spare. Spoken
+ * to accessibility services only.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SyncBanner() {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+private fun TitleOrSyncIndicator(syncing: Boolean, modifier: Modifier = Modifier) {
+    val syncingLabel = stringResource(R.string.syncing)
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+        AnimatedVisibility(
+            visible = !syncing,
+            enter = expandHorizontally(tween(260), expandFrom = Alignment.Start) + fadeIn(tween(260)),
+            exit = shrinkHorizontally(tween(260), shrinkTowards = Alignment.End) + fadeOut(tween(260)),
         ) {
+            // The monochrome logo has a wide built-in safe-zone margin, so nudge the wordmark left
+            // to sit right next to the glyph instead of after the gap left by that margin.
             Text(
-                text = stringResource(R.string.syncing),
-                style = MaterialTheme.typography.bodyMedium,
+                text = stringResource(R.string.application_name),
+                modifier = Modifier.offset(x = (-12).dp),
             )
-            // The same wavy bar shown while an app installs, so the two read as the same kind of work.
-            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+        AnimatedVisibility(
+            visible = syncing,
+            enter = expandHorizontally(tween(260), expandFrom = Alignment.Start) + fadeIn(tween(260)),
+            exit = shrinkHorizontally(tween(260), shrinkTowards = Alignment.End) + fadeOut(tween(260)),
+        ) {
+            // The same wavy bar shown while an app installs, so the two read as the same kind of
+            // work. Fills the width the caller's weight(1f) hands this composable (see the title
+            // block above), so it reaches to (almost) the action buttons on any screen size instead
+            // of a fixed dp guess that undershoots a wide bar and risks overflowing a narrow one.
+            LinearWavyProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = syncingLabel },
+                color = LocalOnAccentBarColor.current,
+                trackColor = LocalOnAccentBarColor.current.copy(alpha = 0.24f),
+            )
         }
     }
 }
