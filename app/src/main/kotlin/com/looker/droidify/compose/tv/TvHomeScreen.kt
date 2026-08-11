@@ -258,6 +258,8 @@ fun TvHomeScreen(
             syncing = tvSyncing,
             tvOnly = tvOnly,
             onToggleTvOnly = viewModel::toggleTvOnly,
+            restoreFocusId = restoreFocusId,
+            restoreRequester = restoreRequester,
             modifier = Modifier
                 .focusRequester(railFocus)
                 .onFocusChanged { railFocused = it.hasFocus },
@@ -273,8 +275,12 @@ fun TvHomeScreen(
                 viewModel.sync()
                 externalViewModel.refresh(force = true)
             },
-            onRepos = onNavigateToRepos,
-            onSettings = onNavigateToSettings,
+            // Repositories and Settings are separate NavHost destinations, not a TvSection, so their
+            // own screen leaving the composition on the way there and this one re-entering it on Back
+            // is what needs restoreFocusId (see its own doc comment) to land focus back on the button
+            // that opened them, the same way it already restores a card after a detail screen.
+            onRepos = { restoreFocusId = "rail:repos"; onNavigateToRepos() },
+            onSettings = { restoreFocusId = "rail:settings"; onNavigateToSettings() },
         )
         Box(
             modifier = Modifier
@@ -391,6 +397,12 @@ private fun TvNavRail(
     syncing: Boolean,
     tvOnly: Boolean,
     onToggleTvOnly: () -> Unit,
+    // Restores focus to the Repositories/Settings button on return from either screen, the same
+    // restoreFocusId/restoreRequester pair the content grids use to restore a card (see TvHomeScreen's
+    // own doc comment on restoreFocusId): section/catalogLoading alone can't tell "just came back from
+    // Repositories" apart from "switching tabs normally", since neither screen is a TvSection at all.
+    restoreFocusId: String?,
+    restoreRequester: FocusRequester,
     modifier: Modifier = Modifier,
     onSelect: (TvSection) -> Unit,
     onSearch: () -> Unit,
@@ -490,8 +502,18 @@ private fun TvNavRail(
             selected = tvOnly,
         ) { onToggleTvOnly() }
         // Repositories uses the same box glyph as the phone's Repositories entry.
-        TvRailButton(painterResource(R.drawable.ic_tabler_box), stringResource(R.string.repositories), false) { onRepos() }
-        TvRailButton(painterResource(R.drawable.ic_tv_settings), stringResource(R.string.settings), false) { onSettings() }
+        TvRailButton(
+            painterResource(R.drawable.ic_tabler_box),
+            stringResource(R.string.repositories),
+            false,
+            modifier = Modifier.restoreFocusTarget(restoreFocusId == "rail:repos", restoreRequester),
+        ) { onRepos() }
+        TvRailButton(
+            painterResource(R.drawable.ic_tv_settings),
+            stringResource(R.string.settings),
+            false,
+            modifier = Modifier.restoreFocusTarget(restoreFocusId == "rail:settings", restoreRequester),
+        ) { onSettings() }
     }
 }
 
@@ -508,13 +530,17 @@ private fun TvRailButton(
     // swap) while the icon, badge, focus and click handling stay exactly the same either way. Null
     // (every other button) renders [label] as the plain Text below, unchanged.
     labelContent: (@Composable () -> Unit)? = null,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     // Accent (selected) follows the theme; the resting colour is the fixed dark-palette neutral.
     val tint = if (selected) MaterialTheme.colorScheme.primary else RailNeutralContent
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
+        // The caller's modifier (e.g. restoreFocusTarget's focusRequester) must wrap the actual focus
+        // target, so it has to come before clickable, not after, matching TvAppCard's own modifier
+        // param, which is the working reference for this exact pattern.
+        modifier = modifier
             .fillMaxWidth()
             .tvFocusFill(RoundedCornerShape(16.dp))
             .tvBringIntoViewOnFocus()
