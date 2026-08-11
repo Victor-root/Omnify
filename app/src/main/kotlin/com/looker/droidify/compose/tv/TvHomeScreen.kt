@@ -3,6 +3,7 @@ package com.looker.droidify.compose.tv
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -40,6 +41,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -111,6 +113,7 @@ fun TvHomeScreen(
     val externalViewModel: ExternalAppsViewModel = hiltViewModel()
 
     val newApps by viewModel.newApps.collectAsStateWithLifecycle()
+    val favouriteApps by viewModel.favouriteApps.collectAsStateWithLifecycle()
     val recentlyUpdatedApps by viewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val mostDownloadedApps by viewModel.mostDownloadedApps.collectAsStateWithLifecycle()
     val tvApps by viewModel.tvApps.collectAsStateWithLifecycle()
@@ -125,7 +128,9 @@ fun TvHomeScreen(
 
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
     val hiddenExternalApps by externalViewModel.hidden.collectAsStateWithLifecycle()
+    val favouriteExternalApps by externalViewModel.favouriteApps.collectAsStateWithLifecycle()
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
+    val isRefreshingExternal by externalViewModel.isRefreshing.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
     val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
@@ -156,6 +161,9 @@ fun TvHomeScreen(
     }
     // The External tab loads its own data (not the F-Droid catalogue), so it's never behind this loader.
     val catalogLoading = !catalogReady && newApps.isEmpty()
+    // Drives the sync rail button's own text-or-progress-bar swap (see TvRailButton's labelContent
+    // below), same signal and same suppression during the cold-start loader as the phone header's.
+    val tvSyncing = (isSyncing || isRefreshingExternal) && !catalogLoading
 
     LaunchedEffect(Unit) {
         externalViewModel.refresh()
@@ -228,6 +236,7 @@ fun TvHomeScreen(
         TvNavRail(
             section = section,
             updatesCount = updatesCount,
+            syncing = tvSyncing,
             tvOnly = tvOnly,
             onToggleTvOnly = viewModel::toggleTvOnly,
             modifier = Modifier
@@ -238,6 +247,12 @@ fun TvHomeScreen(
                 restoreFocusId = null
                 viewModel.selectTab(AppTab.AVAILABLE)
                 section = TvSection.SEARCH
+            },
+            // Same "sync everything" as the phone header's own sync button (AppListMainTopBar):
+            // the catalogue's own worker plus a forced external-sources refresh.
+            onSync = {
+                viewModel.sync()
+                externalViewModel.refresh(force = true)
             },
             onRepos = onNavigateToRepos,
             onSettings = onNavigateToSettings,
@@ -268,6 +283,8 @@ fun TvHomeScreen(
 
                 else -> when (section) {
                 TvSection.EXPLORE -> TvExplore(
+                    favouriteApps = favouriteApps,
+                    favouriteExternalApps = favouriteExternalApps,
                     newApps = newApps,
                     recentlyUpdatedApps = recentlyUpdatedApps,
                     mostDownloadedApps = mostDownloadedApps,
@@ -345,15 +362,20 @@ private val RailNeutralContent = androidx.compose.ui.graphics.Color(0xFFC3C8BC) 
 private val RailNeutralStrong = androidx.compose.ui.graphics.Color(0xFFE1E4DA)  // md_theme_d_onSurface
 
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun TvNavRail(
     section: TvSection,
     updatesCount: Int,
+    // Drives the sync button's own label: the wordmark "Synchroniser" swaps for a wavy progress bar
+    // while true (see the TvRailButton call below), the icon is untouched either way.
+    syncing: Boolean,
     tvOnly: Boolean,
     onToggleTvOnly: () -> Unit,
     modifier: Modifier = Modifier,
     onSelect: (TvSection) -> Unit,
     onSearch: () -> Unit,
+    onSync: () -> Unit,
     onRepos: () -> Unit,
     onSettings: () -> Unit,
 ) {
@@ -370,17 +392,20 @@ private fun TvNavRail(
     ) {
         // The Omnify brand mark + wordmark anchor the rail. The launcher art keeps its own colours, so
         // it's an untinted Image, not a tinted Icon. The launcher PNG carries a chunk of transparent
-        // safe-zone padding at the bottom, so the wordmark is pulled up (negative spacing) to sit snug
-        // under the visible mark instead of a frame-height away.
+        // safe-zone padding at the bottom, so the wordmark is pulled up (negative spacing, scaled down
+        // together with the mark below so it stays snug under it at this smaller size too) instead of a
+        // frame-height away. Kept compact (was 156dp) so the two button groups below (destinations, then
+        // the settings-ish group past the flexible spacer) have room to actually separate on a real TV's
+        // shorter effective height, not just on a tall desktop preview window.
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = spacedBy((-42).dp),
-            modifier = Modifier.padding(bottom = 10.dp),
+            verticalArrangement = spacedBy((-29).dp),
+            modifier = Modifier.padding(bottom = 8.dp),
         ) {
             androidx.compose.foundation.Image(
                 painter = painterResource(R.drawable.ic_launcher_foreground),
                 contentDescription = null,
-                modifier = Modifier.size(156.dp),
+                modifier = Modifier.size(108.dp),
             )
             Text(
                 text = stringResource(R.string.application_name),
@@ -399,6 +424,36 @@ private fun TvNavRail(
             selected = section == TvSection.UPDATES,
             badge = updatesCount.takeIf { it > 0 },
         ) { onSelect(TvSection.UPDATES) }
+        // Not a section (nothing to select, mirrors Repositories/Settings below): fires the same
+        // catalogue-plus-external sync the phone header's own button does. TV never had a way to
+        // trigger a sync by hand before, only ever the periodic background one.
+        TvRailButton(
+            icon = painterResource(R.drawable.ic_tv_sync),
+            label = stringResource(R.string.sync),
+            selected = false,
+            // Only the label swaps for a progress bar while syncing (see labelContent's own doc
+            // comment on TvRailButton). The icon above stays the sync glyph throughout, never hidden.
+            labelContent = {
+                val syncLabel = stringResource(R.string.sync)
+                Crossfade(targetState = syncing, label = "tvSyncLabel") { isSyncing ->
+                    if (isSyncing) {
+                        LinearWavyProgressIndicator(
+                            modifier = Modifier.width(80.dp),
+                            color = RailNeutralContent,
+                            trackColor = RailNeutralContent.copy(alpha = 0.24f),
+                        )
+                    } else {
+                        Text(
+                            text = syncLabel,
+                            color = RailNeutralContent,
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            },
+        ) { onSync() }
         // External sources are GitHub/GitLab repos: the orange Git mark from the Omnify logo (rendered
         // untinted so it keeps its fixed brand orange) — a small visual rhyme with the app's own icon.
         TvRailButton(
@@ -430,6 +485,10 @@ private fun TvRailButton(
     // When true the glyph keeps its own colours (used for the orange Git brand mark) instead of being
     // tinted by the focus/selected state like every other rail icon.
     preserveIconColor: Boolean = false,
+    // Overrides the plain label Text below with custom content (the sync button's text-or-progress-bar
+    // swap) while the icon, badge, focus and click handling stay exactly the same either way. Null
+    // (every other button) renders [label] as the plain Text below, unchanged.
+    labelContent: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     // Accent (selected) follows the theme; the resting colour is the fixed dark-palette neutral.
@@ -472,14 +531,18 @@ private fun TvRailButton(
             }
         }
         Spacer(Modifier.width(14.dp))
-        Text(
-            text = label,
-            color = tint,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (labelContent != null) {
+            labelContent()
+        } else {
+            Text(
+                text = label,
+                color = tint,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -489,6 +552,8 @@ private fun TvRailButton(
 
 @Composable
 private fun TvExplore(
+    favouriteApps: List<AppMinimal>,
+    favouriteExternalApps: List<ExternalApp>,
     newApps: List<AppMinimal>,
     recentlyUpdatedApps: List<AppMinimal>,
     mostDownloadedApps: List<AppMinimal>,
@@ -510,6 +575,21 @@ private fun TvExplore(
             .padding(top = TvOverscan + 12.dp, bottom = TvOverscan),
         verticalArrangement = spacedBy(28.dp),
     ) {
+        // Favourites lead Explore here too (mirrors the phone's Discover home), but always on when
+        // there are any: TV has no show/hide toggle for it yet, unlike the phone's overflow-menu one.
+        if (favouriteApps.isNotEmpty() || favouriteExternalApps.isNotEmpty()) {
+            TvCarousel(
+                title = stringResource(R.string.favourites),
+                apps = favouriteApps,
+                installedPackages = installedPackages,
+                onAppClick = onAppClick,
+                externalApps = favouriteExternalApps,
+                externalInstalledKeys = externalInstalledKeys,
+                onExternalAppClick = onExternalAppClick,
+                restoreFocusId = restoreFocusId,
+                restoreRequester = restoreRequester,
+            )
+        }
         if (tvApps.isNotEmpty()) {
             TvCarousel(stringResource(R.string.discover_tv_apps), tvApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
         }
