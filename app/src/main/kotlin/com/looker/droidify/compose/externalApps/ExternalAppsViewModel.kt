@@ -167,9 +167,11 @@ class ExternalAppsViewModel @Inject constructor(
     /** Tracked whole-account sources (each expands to several entries in [apps]). */
     val accounts: StateFlow<List<ExternalAccount>> = repository.accounts.asStateFlow(emptyList())
 
-    /** Account keys whose discovery is currently running, so the watcher below never launches a second
-     *  scan for the same account. */
-    private val scanningAccounts = MutableStateFlow<Set<String>>(emptySet())
+    /** Account keys whose discovery is currently running (an automatic first scan or a manual rescan),
+     *  so callers never launch a second scan for the same account and the repositories list can show a
+     *  spinner on the account row while one is in flight. */
+    private val _scanningAccounts = MutableStateFlow<Set<String>>(emptySet())
+    val scanningAccounts: StateFlow<Set<String>> = _scanningAccounts
 
     init {
         // Discover the apps of any enabled account that has never been scanned (lastScan == 0) as soon
@@ -181,16 +183,16 @@ class ExternalAppsViewModel @Inject constructor(
                 list.forEach { account ->
                     if (!account.enabled ||
                         account.lastScan != 0L ||
-                        account.key in scanningAccounts.value
+                        account.key in _scanningAccounts.value
                     ) {
                         return@forEach
                     }
-                    scanningAccounts.update { it + account.key }
+                    _scanningAccounts.update { it + account.key }
                     launch {
                         try {
                             rescanAccountNow(account)
                         } finally {
-                            scanningAccounts.update { it - account.key }
+                            _scanningAccounts.update { it - account.key }
                         }
                     }
                 }
@@ -1303,12 +1305,45 @@ class ExternalAppsViewModel @Inject constructor(
     }
 
     /** Re-scans [account]'s repos to pick up newly published apps (existing ones are left untouched;
-     *  the normal [refresh] keeps their releases current). Updates the account's last-scan time. */
+     *  the normal [refresh] keeps their releases current). Updates the account's last-scan time. This is
+     *  the only way to look for new apps sooner than the once-a-day automatic pass (see [refresh]), so
+     *  unlike that silent background pass, this one is guarded against overlapping with another scan of
+     *  the same account, shows a spinner on the account row for as long as it runs (see
+     *  [scanningAccounts]), and reports what it found once done, the same way other user-triggered
+     *  actions do. */
     fun rescanAccount(account: ExternalAccount) {
-        viewModelScope.launch { rescanAccountNow(account) }
+        if (account.key in _scanningAccounts.value) return
+        _scanningAccounts.update { it + account.key }
+        viewModelScope.launch {
+            try {
+                val found = rescanAccountNow(account)
+                // A big account (many repos) can burn through the anonymous 60-requests/hour GitHub quota
+                // partway through, silently: every repo checked after that point looks exactly like one
+                // that genuinely has nothing installable (see ExternalApi.getText), so found == 0 alone
+                // can't tell "nothing new" apart from "gave up partway through". shouldSuggestGithubToken
+                // can, and it's the same signal the add-source dialogs already warn with.
+                toast(
+                    when {
+                        found > 0 -> context.resources.getQuantityString(
+                            R.plurals.external_account_rescan_found_FORMAT,
+                            found,
+                            found,
+                        )
+                        externalApi.shouldSuggestGithubToken() ->
+                            context.getString(R.string.external_account_rescan_rate_limited)
+                        else -> context.getString(R.string.external_account_rescan_none_found)
+                    },
+                )
+            } finally {
+                _scanningAccounts.update { it - account.key }
+            }
+        }
     }
 
-    private suspend fun rescanAccountNow(account: ExternalAccount) {
+    /** Returns how many new apps were discovered, so [rescanAccount] can report it; the automatic
+     *  callers (the init watcher above, and [refresh]'s own once-a-day pass) ignore it, since only a
+     *  manual rescan needs to tell the user anything. */
+    private suspend fun rescanAccountNow(account: ExternalAccount): Int {
         val host = account.host.ifEmpty { publicHost(account.provider) }
         val repos = externalApi.listAccountRepos(
             account.provider,
@@ -1318,6 +1353,7 @@ class ExternalAppsViewModel @Inject constructor(
         )
         // Bump the last-scan time even when the listing fails/empties, so a transient failure doesn't make
         // every refresh hammer the API; a real new app shows up at the next daily scan.
+        var discoveredCount = 0
         if (repos.isNotEmpty()) {
             // Skip repos already tracked: this account's existing apps, plus any standalone single-repo
             // source (so the account never absorbs e.g. the built-in Omnify repo).
@@ -1334,9 +1370,13 @@ class ExternalAppsViewModel @Inject constructor(
                 apkFilter = "",
                 versionExcludeFilter = "",
             )
-            if (discovered.isNotEmpty()) repository.upsertApps(discovered)
+            if (discovered.isNotEmpty()) {
+                repository.upsertApps(discovered)
+                discoveredCount = discovered.size
+            }
         }
         repository.upsertAccount(account.copy(lastScan = System.currentTimeMillis()))
+        return discoveredCount
     }
 
     /** Enables/disables a whole account, cascading to all of its discovered apps. */

@@ -488,6 +488,13 @@
     <string name="external_account_disabled">desativado</string>
     <string name="external_account_scanning">buscando…</string>
     <string name="external_account_rescan">Escanear novamente</string>
+    <string name="external_account_rescan_none_found">Nenhum app novo encontrado</string>
+    <string name="external_account_rescan_rate_limited">O limite de requisições do GitHub foi atingido no meio da varredura. Adicione um token gratuito em Configurações › Fontes externas para escanear a conta inteira.</string>
+    <plurals name="external_account_rescan_found_FORMAT">
+        <item quantity="one">%d app novo encontrado</item>
+        <item quantity="many">%d apps novos encontrados</item>
+        <item quantity="other">%d apps novos encontrados</item>
+    </plurals>
     <string name="external_account_omnify_description">Mantenedor do Omnify e apaixonado por código aberto. Eu crio apps Android e ferramentas de self-hosting porque acredito em uma computação livre e transparente.</string>
     <string name="external_unreachable">Não foi possível acessar %1$s</string>
     <string name="external_no_apk">O lançamento mais recente de %1$s não tem APK</string>

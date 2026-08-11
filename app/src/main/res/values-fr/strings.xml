@@ -490,6 +490,13 @@
     <string name="external_account_disabled">désactivé</string>
     <string name="external_account_scanning">recherche…</string>
     <string name="external_account_rescan">Rescanner</string>
+    <string name="external_account_rescan_none_found">Aucune nouvelle application trouvée</string>
+    <string name="external_account_rescan_rate_limited">La limite de requêtes GitHub a été atteinte en cours de route. Ajoutez un jeton gratuit dans Paramètres › Sources externes pour scanner tout le compte.</string>
+    <plurals name="external_account_rescan_found_FORMAT">
+        <item quantity="one">%d nouvelle application trouvée</item>
+        <item quantity="many">%d nouvelles applications trouvées</item>
+        <item quantity="other">%d nouvelles applications trouvées</item>
+    </plurals>
     <string name="external_account_omnify_description">Mainteneur d\'Omnify et amoureux de l\'open source. Je conçois des applications Android et des outils de self-hosting, parce que je crois en une informatique libre et transparente.</string>
     <string name="external_unreachable">Impossible de joindre %1$s</string>
     <string name="external_no_apk">La dernière release de %1$s ne contient pas d\'APK</string>

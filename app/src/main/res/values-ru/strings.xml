@@ -492,6 +492,14 @@
     <string name="external_account_disabled">отключён</string>
     <string name="external_account_scanning">поиск…</string>
     <string name="external_account_rescan">Пересканировать</string>
+    <string name="external_account_rescan_none_found">Новых приложений не найдено</string>
+    <string name="external_account_rescan_rate_limited">Лимит запросов GitHub был достигнут в процессе сканирования. Добавьте бесплатный токен в Настройках › Внешние источники, чтобы просканировать весь аккаунт.</string>
+    <plurals name="external_account_rescan_found_FORMAT">
+        <item quantity="one">Найдено %d новое приложение</item>
+        <item quantity="few">Найдено %d новых приложения</item>
+        <item quantity="many">Найдено %d новых приложений</item>
+        <item quantity="other">Найдено %d новых приложений</item>
+    </plurals>
     <string name="external_account_omnify_description">Мейнтейнер Omnify и энтузиаст открытого исходного кода. Я создаю приложения для Android и инструменты для self-hosting, потому что верю в свободные и прозрачные технологии.</string>
     <string name="external_unreachable">Не удалось подключиться к %1$s</string>
     <string name="external_no_apk">Последний релиз %1$s не содержит APK</string>

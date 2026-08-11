@@ -484,6 +484,12 @@
     <string name="external_account_disabled">uitgeschakeld</string>
     <string name="external_account_scanning">zoeken…</string>
     <string name="external_account_rescan">Opnieuw scannen</string>
+    <string name="external_account_rescan_none_found">Geen nieuwe apps gevonden</string>
+    <string name="external_account_rescan_rate_limited">De GitHub-aanvraaglimiet werd halverwege het scannen bereikt. Voeg gratis een token toe bij Instellingen › Externe bronnen om het hele account te scannen.</string>
+    <plurals name="external_account_rescan_found_FORMAT">
+        <item quantity="one">%d nieuwe app gevonden</item>
+        <item quantity="other">%d nieuwe apps gevonden</item>
+    </plurals>
     <string name="external_account_omnify_description">Beheerder van Omnify en gepassioneerd door open source. Ik bouw Android-apps en selfhosting-tools omdat ik geloof in vrije en transparante technologie.</string>
     <string name="external_unreachable">Kan %1$s niet bereiken</string>
     <string name="external_no_apk">De nieuwste release van %1$s heeft geen APK</string>

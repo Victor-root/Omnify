@@ -480,6 +480,11 @@
     <string name="external_account_disabled">無効</string>
     <string name="external_account_scanning">検索中…</string>
     <string name="external_account_rescan">再検索</string>
+    <string name="external_account_rescan_none_found">新しいアプリは見つかりませんでした</string>
+    <string name="external_account_rescan_rate_limited">スキャンの途中で GitHub のリクエスト上限に達しました。設定 › 外部ソースで無料のトークンを追加すると、アカウント全体をスキャンできます。</string>
+    <plurals name="external_account_rescan_found_FORMAT">
+        <item quantity="other">%d 個の新しいアプリが見つかりました</item>
+    </plurals>
     <string name="external_account_omnify_description">Omnifyのメンテナーで、オープンソースに情熱を注いでいます。自由で透明性のあるコンピューティングを信じているからこそ、Androidアプリやセルフホスティングツールを作っています。</string>
     <string name="external_unreachable">%1$s に到達できませんでした</string>
     <string name="external_no_apk">%1$s の最新リリースにAPKが含まれていません</string>

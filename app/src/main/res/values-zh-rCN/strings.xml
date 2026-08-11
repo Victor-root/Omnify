@@ -480,6 +480,11 @@
     <string name="external_account_disabled">已禁用</string>
     <string name="external_account_scanning">搜索中…</string>
     <string name="external_account_rescan">重新扫描</string>
+    <string name="external_account_rescan_none_found">未发现新应用</string>
+    <string name="external_account_rescan_rate_limited">扫描过程中达到了 GitHub 请求限制。请在设置 › 外部来源中免费添加一个令牌，以扫描整个账户。</string>
+    <plurals name="external_account_rescan_found_FORMAT">
+        <item quantity="other">发现 %d 个新应用</item>
+    </plurals>
     <string name="external_account_omnify_description">Omnify 的维护者，热爱开源。我开发 Android 应用和自托管工具，因为我相信自由、透明的计算。</string>
     <string name="external_unreachable">无法访问 %1$s</string>
     <string name="external_no_apk">%1$s 的最新发布版本没有 APK</string>

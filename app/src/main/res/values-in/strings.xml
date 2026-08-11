@@ -480,6 +480,11 @@
     <string name="external_account_disabled">dinonaktifkan</string>
     <string name="external_account_scanning">mencari…</string>
     <string name="external_account_rescan">Pindai ulang</string>
+    <string name="external_account_rescan_none_found">Tidak ada aplikasi baru ditemukan</string>
+    <string name="external_account_rescan_rate_limited">Batas permintaan GitHub tercapai di tengah proses. Tambahkan token gratis di Pengaturan › Sumber eksternal untuk memindai seluruh akun.</string>
+    <plurals name="external_account_rescan_found_FORMAT">
+        <item quantity="other">%d aplikasi baru ditemukan</item>
+    </plurals>
     <string name="external_account_omnify_description">Maintainer Omnify dan penggemar sumber terbuka. Saya membuat aplikasi Android dan alat self-hosting karena saya percaya pada komputasi yang bebas dan transparan.</string>
     <string name="external_unreachable">Tidak bisa menjangkau %1$s</string>
     <string name="external_no_apk">Rilis %1$s terbaru tidak memiliki APK</string>

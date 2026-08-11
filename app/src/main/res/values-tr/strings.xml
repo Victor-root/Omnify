@@ -484,6 +484,12 @@
     <string name="external_account_disabled">devre dışı</string>
     <string name="external_account_scanning">aranıyor…</string>
     <string name="external_account_rescan">Yeniden tara</string>
+    <string name="external_account_rescan_none_found">Yeni uygulama bulunamadı</string>
+    <string name="external_account_rescan_rate_limited">Tarama sırasında GitHub istek sınırına ulaşıldı. Hesabın tamamını taramak için Ayarlar › Harici kaynaklar bölümünden ücretsiz bir token ekleyin.</string>
+    <plurals name="external_account_rescan_found_FORMAT">
+        <item quantity="one">%d yeni uygulama bulundu</item>
+        <item quantity="other">%d yeni uygulama bulundu</item>
+    </plurals>
     <string name="external_account_omnify_description">Omnify\'nin bakımcısıyım ve açık kaynağa tutkuyla bağlıyım. Özgür ve şeffaf bilişime inandığım için Android uygulamaları ve kendi kendine barındırma araçları geliştiriyorum.</string>
     <string name="external_unreachable">%1$s\'e ulaşılamadı</string>
     <string name="external_no_apk">%1$s\'in en son sürümünde APK yok</string>

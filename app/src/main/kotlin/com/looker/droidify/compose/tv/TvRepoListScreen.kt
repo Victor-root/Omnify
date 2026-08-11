@@ -103,6 +103,7 @@ fun TvRepoListScreen(
     val externalViewModel: ExternalAppsViewModel = hiltViewModel()
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
     val externalAccounts by externalViewModel.accounts.collectAsStateWithLifecycle()
+    val scanningAccounts by externalViewModel.scanningAccounts.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         externalViewModel.refreshInstalled()
@@ -221,6 +222,7 @@ fun TvRepoListScreen(
             TvAccountRow(
                 account = account,
                 appCount = accountAppCounts[account.key] ?: 0,
+                isScanning = account.key in scanningAccounts,
                 onOpen = { onAccountClick(account.key) },
                 onToggle = { externalViewModel.setAccountEnabled(account, !account.enabled) },
                 onRescan = { externalViewModel.rescanAccount(account) },
@@ -268,6 +270,7 @@ fun TvRepoListScreen(
             TvAccountRow(
                 account = account,
                 appCount = accountAppCounts[account.key] ?: 0,
+                isScanning = account.key in scanningAccounts,
                 onOpen = { onAccountClick(account.key) },
                 onToggle = { externalViewModel.setAccountEnabled(account, !account.enabled) },
                 onRescan = { externalViewModel.rescanAccount(account) },
@@ -636,6 +639,7 @@ private fun TvSourceRow(
 private fun TvAccountRow(
     account: ExternalAccount,
     appCount: Int,
+    isScanning: Boolean,
     onOpen: () -> Unit,
     onToggle: () -> Unit,
     onRescan: () -> Unit,
@@ -659,16 +663,19 @@ private fun TvAccountRow(
         },
         title = account.label,
         subtitle = {
-            val isScanning = account.enabled && appCount == 0 && account.lastScan == 0L
+            // A spinner + "searching…" during the first scan of a freshly-enabled account (isFirstScan);
+            // a spinner alone, count untouched, during a later manual rescan of an already-populated
+            // account (the isScanning param, see ExternalAppsViewModel.rescanAccount).
+            val isFirstScan = account.enabled && appCount == 0 && account.lastScan == 0L
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isScanning) {
+                if (isFirstScan || isScanning) {
                     CircularWavyProgressIndicator(modifier = Modifier.size(12.dp))
                     Spacer(Modifier.size(6.dp))
                 }
                 val status = when {
                     appCount > 0 -> stringResource(R.string.external_account_apps, appCount)
                     !account.enabled -> stringResource(R.string.external_account_disabled)
-                    isScanning -> stringResource(R.string.external_account_scanning)
+                    isFirstScan -> stringResource(R.string.external_account_scanning)
                     else -> stringResource(R.string.external_account_apps, 0)
                 }
                 Text(
