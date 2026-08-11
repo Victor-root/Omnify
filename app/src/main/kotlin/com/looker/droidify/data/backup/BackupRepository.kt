@@ -20,8 +20,10 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
+import java.io.OutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -105,91 +107,132 @@ class BackupRepository @Inject constructor(
             runCatching {
                 val output = context.contentResolver.openOutputStream(target)
                     ?: error("Cannot open output stream")
-                ZipOutputStream(BufferedOutputStream(output)).use { zip ->
-                    zip.writeEntry(
-                        ENTRY_MANIFEST,
-                        json.encodeToString(
-                            BackupManifest(
-                                appVersionName = BuildConfig.VERSION_NAME,
-                                exportedAt = System.currentTimeMillis(),
-                                categories = categories,
-                            ),
-                        ),
-                    )
-                    if (BackupCategory.SETTINGS in categories) {
-                        // Favourites/hidden apps/enabled-repo-ids are zeroed here on purpose: they're
-                        // their own categories (FAVOURITES, HIDDEN_APPS, and the per-repo `enabled`
-                        // field inside REPOSITORIES), never re-derived from this entry on restore. See
-                        // BackupCategory's own doc comment for why they're split out at all. The GitHub
-                        // token goes the same way, into GITHUB_TOKEN, so leaving that category
-                        // unchecked genuinely keeps the token out of the file, rather than writing it
-                        // here anyway where nothing would ever look for it.
-                        val settings = settingsRepository.getInitial().copy(
-                            favouriteApps = emptySet(),
-                            favouritedAt = emptyMap(),
-                            hiddenApps = emptySet(),
-                            enabledRepoIds = emptySet(),
-                            githubToken = "",
-                        )
-                        zip.writeEntry(ENTRY_SETTINGS, json.encodeToString(settings))
-                    }
-                    if (BackupCategory.GITHUB_TOKEN in categories) {
-                        val token = GithubTokenBackup(settingsRepository.getInitial().githubToken)
-                        zip.writeEntry(ENTRY_GITHUB_TOKEN, json.encodeToString(token))
-                    }
-                    if (BackupCategory.REPOSITORIES in categories) {
-                        // getRepo() (unlike the repos flow) also resolves credentials and mirrors — the
-                        // flow alone would silently drop saved logins from the backup.
-                        val repos = repoRepository.repos.first()
-                            .mapNotNull { repoRepository.getRepo(it.id) }
-                            .map {
-                                RepoBackupEntry(
-                                    address = it.address,
-                                    name = it.name,
-                                    description = it.description.raw,
-                                    fingerprint = it.fingerprint?.value.orEmpty(),
-                                    enabled = it.enabled,
-                                    username = it.authentication?.username,
-                                    password = it.authentication?.password,
-                                )
-                            }
-                        zip.writeEntry(ENTRY_REPOSITORIES, json.encodeToString(RepositoriesBackup(repos)))
-                    }
-                    if (BackupCategory.EXTERNAL_SOURCES in categories) {
-                        val bundle = ExternalSourcesBackup(
-                            apps = externalAppRepository.getApps(),
-                            accounts = externalAppRepository.getAccounts(),
-                        )
-                        zip.writeEntry(ENTRY_EXTERNAL_SOURCES, json.encodeToString(bundle))
-                    }
-                    if (BackupCategory.FAVOURITES in categories) {
-                        val favourites = FavouritesBackup(settingsRepository.getInitial().favouriteApps)
-                        zip.writeEntry(ENTRY_FAVOURITES, json.encodeToString(favourites))
-                    }
-                    if (BackupCategory.HIDDEN_APPS in categories) {
-                        val hiddenApps = HiddenAppsBackup(settingsRepository.getInitial().hiddenApps)
-                        zip.writeEntry(ENTRY_HIDDEN_APPS, json.encodeToString(hiddenApps))
-                    }
-                    if (BackupCategory.CUSTOM_BUTTONS in categories) {
-                        val buttons = CustomButtonsBackup(customButtonRepository.getButtons())
-                        zip.writeEntry(ENTRY_CUSTOM_BUTTONS, json.encodeToString(buttons))
-                    }
-                }
+                writeBackup(output, categories)
             }
         }
+
+    /**
+     * The same zip [createBackup] writes, as bytes rather than into a file, for a device-to-device
+     * transfer (see [com.looker.droidify.transfer.TransferHost]) where the archive is encrypted and
+     * sent instead of ever being stored. Holding it in memory is what keeps a backup carrying
+     * repository passwords and a GitHub token from being written to disk purely to be read straight
+     * back and deleted; it is comfortably small enough (see [MAX_TOTAL_BYTES]) for that to be the
+     * simpler as well as the safer option.
+     */
+    suspend fun createBackupBytes(categories: Set<BackupCategory>): Result<ByteArray> =
+        withContext(ioDispatcher) {
+            runCatching {
+                val output = ByteArrayOutputStream()
+                writeBackup(output, categories)
+                output.toByteArray()
+            }
+        }
+
+    /** Shared by both entry points above so the archive is built exactly once in the codebase, and a
+     *  file and a transfer can never drift into carrying different things. */
+    private suspend fun writeBackup(output: OutputStream, categories: Set<BackupCategory>) {
+        ZipOutputStream(BufferedOutputStream(output)).use { zip ->
+            zip.writeEntry(
+                ENTRY_MANIFEST,
+                json.encodeToString(
+                    BackupManifest(
+                        appVersionName = BuildConfig.VERSION_NAME,
+                        exportedAt = System.currentTimeMillis(),
+                        categories = categories,
+                    ),
+                ),
+            )
+            if (BackupCategory.SETTINGS in categories) {
+                // Favourites/hidden apps/enabled-repo-ids are zeroed here on purpose: they're
+                // their own categories (FAVOURITES, HIDDEN_APPS, and the per-repo `enabled`
+                // field inside REPOSITORIES), never re-derived from this entry on restore. See
+                // BackupCategory's own doc comment for why they're split out at all. The GitHub
+                // token goes the same way, into GITHUB_TOKEN, so leaving that category
+                // unchecked genuinely keeps the token out of the file, rather than writing it
+                // here anyway where nothing would ever look for it.
+                val settings = settingsRepository.getInitial().copy(
+                    favouriteApps = emptySet(),
+                    favouritedAt = emptyMap(),
+                    hiddenApps = emptySet(),
+                    enabledRepoIds = emptySet(),
+                    githubToken = "",
+                )
+                zip.writeEntry(ENTRY_SETTINGS, json.encodeToString(settings))
+            }
+            if (BackupCategory.GITHUB_TOKEN in categories) {
+                val token = GithubTokenBackup(settingsRepository.getInitial().githubToken)
+                zip.writeEntry(ENTRY_GITHUB_TOKEN, json.encodeToString(token))
+            }
+            if (BackupCategory.REPOSITORIES in categories) {
+                // getRepo() (unlike the repos flow) also resolves credentials and mirrors — the
+                // flow alone would silently drop saved logins from the backup.
+                val repos = repoRepository.repos.first()
+                    .mapNotNull { repoRepository.getRepo(it.id) }
+                    .map {
+                        RepoBackupEntry(
+                            address = it.address,
+                            name = it.name,
+                            description = it.description.raw,
+                            fingerprint = it.fingerprint?.value.orEmpty(),
+                            enabled = it.enabled,
+                            username = it.authentication?.username,
+                            password = it.authentication?.password,
+                        )
+                    }
+                zip.writeEntry(ENTRY_REPOSITORIES, json.encodeToString(RepositoriesBackup(repos)))
+            }
+            if (BackupCategory.EXTERNAL_SOURCES in categories) {
+                val bundle = ExternalSourcesBackup(
+                    apps = externalAppRepository.getApps(),
+                    accounts = externalAppRepository.getAccounts(),
+                )
+                zip.writeEntry(ENTRY_EXTERNAL_SOURCES, json.encodeToString(bundle))
+            }
+            if (BackupCategory.FAVOURITES in categories) {
+                val favourites = FavouritesBackup(settingsRepository.getInitial().favouriteApps)
+                zip.writeEntry(ENTRY_FAVOURITES, json.encodeToString(favourites))
+            }
+            if (BackupCategory.HIDDEN_APPS in categories) {
+                val hiddenApps = HiddenAppsBackup(settingsRepository.getInitial().hiddenApps)
+                zip.writeEntry(ENTRY_HIDDEN_APPS, json.encodeToString(hiddenApps))
+            }
+            if (BackupCategory.CUSTOM_BUTTONS in categories) {
+                val buttons = CustomButtonsBackup(customButtonRepository.getButtons())
+                zip.writeEntry(ENTRY_CUSTOM_BUTTONS, json.encodeToString(buttons))
+            }
+        }
+    }
 
     /** Reads [source]'s manifest and every entry's raw text, without applying anything — lets the
      *  restore dialog show a checkbox only for what this specific archive genuinely contains. */
     suspend fun inspectBackup(source: Uri): Result<BackupInspection> = withContext(ioDispatcher) {
         runCatching {
-            val entries = readAllEntries(source)
-            val manifestText = entries[ENTRY_MANIFEST] ?: error("Missing manifest.json — not an Omnify backup")
-            val manifest = json.decodeFromString<BackupManifest>(manifestText)
-            val available = manifest.categories.filterTo(mutableSetOf()) { category ->
-                CATEGORY_ENTRY_NAMES[category] in entries
-            }
-            BackupInspection(manifest, available, entries)
+            val input = context.contentResolver.openInputStream(source) ?: error("Cannot open input stream")
+            inspectEntries(readAllEntries(input))
         }
+    }
+
+    /**
+     * The same inspection [inspectBackup] performs, on an archive that arrived over the network from
+     * another device rather than out of a file the user picked.
+     *
+     * Deliberately the same path, bounds and all. A transfer is authenticated (only a device that was
+     * given the pairing code can take part at all), but authenticated is not well-formed: the other
+     * end is another install of this app, of some version, holding whatever its own data has become.
+     * So what arrives is read exactly as cautiously as a file off a cloud drive, and reading it is all
+     * this does: what it turned out to contain is shown before any of it is applied.
+     */
+    suspend fun inspectBackupBytes(bytes: ByteArray): Result<BackupInspection> = withContext(ioDispatcher) {
+        runCatching { inspectEntries(readAllEntries(ByteArrayInputStream(bytes))) }
+    }
+
+    private fun inspectEntries(entries: Map<String, String>): BackupInspection {
+        val manifestText = entries[ENTRY_MANIFEST] ?: error("Missing manifest.json — not an Omnify backup")
+        val manifest = json.decodeFromString<BackupManifest>(manifestText)
+        val available = manifest.categories.filterTo(mutableSetOf()) { category ->
+            CATEGORY_ENTRY_NAMES[category] in entries
+        }
+        return BackupInspection(manifest, available, entries)
     }
 
     /** Applies exactly [categories] from [inspection] — each one only if it's also in
@@ -317,7 +360,7 @@ class BackupRepository @Inject constructor(
     }
 
     /**
-     * The text of the entries this app knows how to restore, read once from [source].
+     * The text of the entries this app knows how to restore, read once from [input].
      *
      * A backup is a file the user picked, and a file the user picked is not necessarily a file this
      * app wrote: it travels (a chat, a mail attachment, a cloud drive) and can just as easily be one
@@ -327,10 +370,10 @@ class BackupRepository @Inject constructor(
      * whose entries decompress to far more than their stored size (the shape of the whole file is a
      * few hundred bytes) would otherwise be read to the end and take the app down with it. The
      * decompressed size is measured as it is read, never taken from [ZipEntry.getSize], which is a
-     * claim made by the archive.
+     * claim made by the archive. All of which applies just as much to one that arrived from another
+     * device (see [inspectBackupBytes]) as to one off the filesystem.
      */
-    private fun readAllEntries(source: Uri): Map<String, String> {
-        val input = context.contentResolver.openInputStream(source) ?: error("Cannot open input stream")
+    private fun readAllEntries(input: InputStream): Map<String, String> {
         val known = CATEGORY_ENTRY_NAMES.values.toSet() + ENTRY_MANIFEST
         val entries = mutableMapOf<String, String>()
         var total = 0L

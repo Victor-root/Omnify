@@ -2,20 +2,27 @@
 
 ## 🚀 v1.0.3-beta.4 (2026-08-11)
 
-External-source update accuracy, a redesigned sync indicator on the app list header, and Android TV catching up with favourites and a real sync button.
+Settings can now be copied straight from one device to another over the local network, plus external-source update accuracy, a redesigned sync indicator on the app list header, and Android TV catching up with favourites and a real sync button.
 
 ### ➕ Added
+- 📲 **Send your settings to another device:** setting up a second phone, or an Android TV, no longer means exporting a file and finding a way to move it across. Settings › Backup and restore gains "Send my data" and "Receive data": the receiving device shows an eight-digit code, you type it on the sending one, and everything travels directly between them. Choosing what to send uses the same list as a backup file, so nothing new to learn; the receiving side then lists what turned up and applies it only once you say so. The data never leaves the network the two devices share.
+- 🔒 **The transfer is encrypted, and nothing leaves before the other device has proved itself:** the two devices agree on a key nobody else can derive (an elliptic-curve exchange), and the typed code is stretched into that key rather than used as one, so recording the traffic gives an eavesdropper nothing to test a guess against. The sending device then makes the receiving one answer for the code before parting with anything at all, so a machine on the same Wi-Fi that merely claims to be waiting is turned away empty handed rather than left holding your data to work on at its leisure. It also checks that what it sent genuinely arrived, instead of taking "done" on trust. Three wrong codes end the session, a code stops being valid after five minutes, nothing identifying is broadcast, and neither device will open a connection outside its own network, VPN tunnels included.
 - 📡 **Sync button on Android TV:** the sidebar now has its own "Synchroniser" entry right below "Mise à jour", refreshing catalogue and external sources together like the mobile pull-to-sync does, with a loading bar replacing its label while it works.
 - ⭐ **Favourites carousel on Android TV:** favourited apps now get their own row at the top of Explore on TV too, shown automatically as soon as one exists, matching mobile.
 
 ### 🔄 Changed
 - 🎬 **Sync indicator moved into the header:** the app list no longer shows a separate "Synchronisation en cours" banner below the tabs. The header title now turns into the loading bar itself while a sync runs, then writes itself back in once it's done, freeing up space in the list.
 - 🔀 **Favourites carousel follows your sort order:** it used to always group catalogue apps before external ones regardless of the chosen sort. It now fully interleaves both by the same order shown on the carousel's "see all" page.
+- 🔁 **"Rescan" on a whole-account source now shows what it did:** the action existed but ran silently, so pressing it looked like nothing had happened whether it found something or not. It now spins while it works and says how many new apps it found, or that GitHub's request limit was reached partway through, which is a different thing from finding nothing.
 - 🖼️ **Android TV sidebar icons:** "Mise à jour" gets a new cloud-download icon, freeing up the previous refresh icon for the new "Synchroniser" entry.
 
 ### 🐛 Fixed
 - 🔄 **No more false "update available" for unversioned external releases:** apps like Brave, whose release assets carry no version number in the filename, could be flagged as updatable even when the installed version already matched the latest one.
 - 🎯 **Correct initial focus on Android TV Explore:** opening the app used to land the remote's focus one row too low when favourites were present, as if the screen had already been scrolled. It now lands on Favourites right away, or on the first carousel when there are none.
+- 📺 **Focus comes back where you left it on Android TV:** returning from Repositories or Settings dropped the remote's focus into the content instead of onto the sidebar entry you had just used.
+
+### 🛡️ Security
+- 🔇 **Diagnostic logging no longer runs outside debug builds:** a sweep of every log statement in the app found a large number of development traces (TV focus tracking, remote APK parsing, database queries, update-decision dumps) that ran in release and beta too. They are now limited to debug builds. No credential was ever among them, which was checked specifically; genuine error logging is untouched.
 
 ## 🚀 v1.0.2-beta.3 (2026-08-07)
 

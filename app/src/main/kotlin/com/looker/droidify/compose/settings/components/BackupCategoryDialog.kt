@@ -87,38 +87,11 @@ fun BackupCategoryDialog(
         title = { Text(text = title) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                orderedCategories.forEach { category ->
-                    val checked = category in selected
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            // TV only: a soft accent fill behind the focused option (no-op on touch).
-                            .tvFocusFill(RoundedCornerShape(8.dp))
-                            .clickable {
-                                selected = if (checked) selected - category else selected + category
-                            }
-                            .padding(vertical = 4.dp),
-                    ) {
-                        Checkbox(
-                            checked = checked,
-                            onCheckedChange = {
-                                selected = if (it) selected + category else selected - category
-                            },
-                        )
-                        Column(modifier = Modifier.padding(start = 8.dp)) {
-                            Text(
-                                text = backupCategoryLabel(category),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                            Text(
-                                text = backupCategoryDescription(category),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
+                BackupCategoryChecklist(
+                    categories = orderedCategories,
+                    selected = selected,
+                    onSelectedChange = { selected = it },
+                )
             }
         },
         confirmButton = {
@@ -135,4 +108,47 @@ fun BackupCategoryDialog(
             }
         },
     )
+}
+
+/**
+ * The checkbox list itself, without a dialog around it.
+ *
+ * Shared so that choosing what to put in a backup looks and behaves identically wherever it is asked:
+ * writing a file (the dialog above) and sending to another device (see
+ * [com.looker.droidify.compose.settings.transfer.DeviceTransferSendDialog]) offer the same rows, in
+ * the same order, with the same descriptions. A transfer is a backup that happens to travel over the
+ * network rather than through a file, and there is no reason for it to be presented as anything else.
+ */
+@Composable
+fun BackupCategoryChecklist(
+    categories: List<BackupCategory>,
+    selected: Set<BackupCategory>,
+    onSelectedChange: (Set<BackupCategory>) -> Unit,
+) {
+    categories.forEach { category ->
+        val checked = category in selected
+        val toggle = { onSelectedChange(if (checked) selected - category else selected + category) }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                // TV only: a soft accent fill behind the focused option (no-op on touch).
+                .tvFocusFill(RoundedCornerShape(8.dp))
+                .clickable(onClick = toggle)
+                .padding(vertical = 4.dp),
+        ) {
+            Checkbox(checked = checked, onCheckedChange = { toggle() })
+            Column(modifier = Modifier.padding(start = 8.dp)) {
+                Text(
+                    text = backupCategoryLabel(category),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = backupCategoryDescription(category),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
 }

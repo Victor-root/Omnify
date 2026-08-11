@@ -77,6 +77,8 @@ import com.looker.droidify.compose.settings.components.SwitchSettingItem
 import com.looker.droidify.compose.settings.components.TextInputSettingItem
 import com.looker.droidify.compose.settings.components.ThemeColorPickerDialog
 import com.looker.droidify.compose.settings.components.WarningBanner
+import com.looker.droidify.compose.settings.transfer.DeviceTransferReceiveDialog
+import com.looker.droidify.compose.settings.transfer.DeviceTransferSendDialog
 import com.looker.droidify.data.backup.BackupCategory
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.InstallerType
@@ -226,6 +228,10 @@ fun SettingsScreen(
 
     var showBackupDialog by remember { mutableStateOf(false) }
     var showColorPicker by remember { mutableStateOf(false) }
+    // The two halves of a device-to-device transfer: sending types the code the receiving device
+    // shows.
+    var showTransferSend by remember { mutableStateOf(false) }
+    var showTransferReceive by remember { mutableStateOf(false) }
 
     // TV / D-pad: drop focus from the header into the settings list (the top bar won't on its own).
     val contentFocusRequester = remember { FocusRequester() }
@@ -663,6 +669,24 @@ fun SettingsScreen(
             }
 
             item {
+                ActionSettingItem(
+                    title = stringResource(R.string.transfer_send_title),
+                    description = stringResource(R.string.transfer_send_row_DESC),
+                    icon = painterResource(R.drawable.ic_tabler_home_up),
+                    onClick = { showTransferSend = true },
+                )
+            }
+
+            item {
+                ActionSettingItem(
+                    title = stringResource(R.string.transfer_receive_title),
+                    description = stringResource(R.string.transfer_receive_row_DESC),
+                    icon = painterResource(R.drawable.ic_tabler_home_down),
+                    onClick = { showTransferReceive = true },
+                )
+            }
+
+            item {
                 SettingHeader(title = stringResource(R.string.custom_buttons_section))
             }
 
@@ -754,6 +778,17 @@ fun SettingsScreen(
             },
             onDismiss = { showBackupDialog = false },
         )
+    }
+
+    // Unlike a restored file, a transfer applies what arrives without a second dialog: the user
+    // chose to receive another device's data, and asking them to confirm the same thing again in
+    // different words is what made this hard to follow.
+    if (showTransferSend) {
+        DeviceTransferSendDialog(onDismiss = { showTransferSend = false })
+    }
+
+    if (showTransferReceive) {
+        DeviceTransferReceiveDialog(onDismiss = { showTransferReceive = false })
     }
 
     val restoreInspection = pendingRestore
