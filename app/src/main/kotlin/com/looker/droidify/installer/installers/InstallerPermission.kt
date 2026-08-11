@@ -83,9 +83,11 @@ fun isMagiskGranted(): Boolean {
         android.util.Log.w(ROOT_TAG, "Couldn't obtain a root shell", it)
     }.getOrNull()
     val granted = com.topjohnwu.superuser.Shell.isAppGrantedRoot()
-    android.util.Log.d(
-        ROOT_TAG,
-        "isMagiskGranted: shellStatus=${shell?.status} isAppGrantedRoot=$granted",
-    )
+    if (com.looker.droidify.BuildConfig.DEBUG) {
+        android.util.Log.d(
+            ROOT_TAG,
+            "isMagiskGranted: shellStatus=${shell?.status} isAppGrantedRoot=$granted",
+        )
+    }
     return granted == true
 }

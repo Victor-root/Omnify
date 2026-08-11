@@ -12,6 +12,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.data.PrivacyRepository
 import com.looker.droidify.data.local.model.DownloadStatsData
 import com.looker.droidify.data.local.model.DownloadStatsData.Companion.toEpochMillis
@@ -74,7 +75,9 @@ class DownloadStatsWorker @AssistedInject constructor(
             val lastModified = settings.lastModifiedDownloadStats
             val fileNames = generateMonthlyFileNames(lastModified)
 
-            Log.d(TAG, "Fetching ${fileNames.size} monthly files")
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Fetching ${fileNames.size} monthly files")
+            }
             for (fileName in fileNames) {
                 // Suspend until a slot is free (cap: 2 concurrent). The previous code spun the loop on
                 // tryAcquire(), pegging a CPU core while waiting — costly during the first-launch load.
@@ -128,7 +131,9 @@ class DownloadStatsWorker @AssistedInject constructor(
         }
         privacyRepository.save(downloadStats)
         settingsRepo.updateLastModifiedDownloadStats(response.lastModified ?: Date())
-        Log.d(TAG, "Processed updated file: $fileName")
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "Processed updated file: $fileName")
+        }
     }
 
     private suspend fun downloadFile(

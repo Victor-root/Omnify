@@ -1,6 +1,7 @@
 package com.looker.droidify.sync.v2.model
 
 import android.util.Log
+import com.looker.droidify.BuildConfig
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -45,7 +46,9 @@ class IndexV2Merger(private val baseFile: File) : AutoCloseable {
                 }
             }
 
-            Log.d("IndexV2Merger", "Merged a diff JSON into the base: $hasChanged")
+            if (BuildConfig.DEBUG) {
+                Log.d("IndexV2Merger", "Merged a diff JSON into the base: $hasChanged")
+            }
             return hasChanged
         } finally {
             tempFile.delete()

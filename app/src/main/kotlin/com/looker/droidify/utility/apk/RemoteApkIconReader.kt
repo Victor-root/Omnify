@@ -1,6 +1,7 @@
 package com.looker.droidify.utility.apk
 
 import android.util.Log
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.RangeResult
 import com.looker.droidify.network.header.HeadersBuilder
@@ -37,6 +38,12 @@ object RemoteApkIconReader {
     private const val TAG = "RemoteApkIconReader"
     private const val MANIFEST_ENTRY_NAME = "AndroidManifest.xml"
     private const val ARSC_ENTRY_NAME = "resources.arsc"
+
+    private fun logD(message: String) {
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, message)
+        }
+    }
 
     /** Same bound [RemoteApkManifestReader] uses — a compiled manifest is at most a few hundred KB even
      *  for an unusually component-heavy app. */
@@ -77,8 +84,7 @@ object RemoteApkIconReader {
         val tail = when (tailResult) {
             is RangeResult.Success -> {
                 if (expectedTotalSize != null && tailResult.totalSize != expectedTotalSize) {
-                    Log.d(
-                        TAG,
+                    logD(
                         "$apkUrl: total size mismatch (remote ${tailResult.totalSize}B, " +
                             "expected ${expectedTotalSize}B) — not the same artifact",
                     )
@@ -87,31 +93,31 @@ object RemoteApkIconReader {
                 tailResult.bytes
             }
             RangeResult.RangeNotSupported, is RangeResult.Failed ->
-                return null.also { Log.d(TAG, "$apkUrl: tail fetch failed (range not supported or network error)") }
+                return null.also { logD("$apkUrl: tail fetch failed (range not supported or network error)") }
         }
         val centralDir = ApkZipLocator.findCentralDirectory(tail)
-            ?: return null.also { Log.d(TAG, "$apkUrl: no End-Of-Central-Directory found in ${tail.size}B tail") }
+            ?: return null.also { logD("$apkUrl: no End-Of-Central-Directory found in ${tail.size}B tail") }
         if (centralDir.size <= 0 || centralDir.size > MAX_ARSC_BYTES) {
-            Log.d(TAG, "$apkUrl: central directory size out of bounds (${centralDir.size}B)")
+            logD("$apkUrl: central directory size out of bounds (${centralDir.size}B)")
             return null
         }
         val centralDirectoryBytes = fetchBytes(downloader, apkUrl) {
             inRange(centralDir.offset, centralDir.offset + centralDir.size - 1)
             headers()
-        } ?: return null.also { Log.d(TAG, "$apkUrl: central directory fetch failed") }
+        } ?: return null.also { logD("$apkUrl: central directory fetch failed") }
 
         val manifest = fetchEntry(downloader, apkUrl, centralDirectoryBytes, MANIFEST_ENTRY_NAME, MAX_MANIFEST_BYTES, headers)
-            ?: return null.also { Log.d(TAG, "$apkUrl: $MANIFEST_ENTRY_NAME fetch failed") }
+            ?: return null.also { logD("$apkUrl: $MANIFEST_ENTRY_NAME fetch failed") }
         val iconResId = ApkBinaryManifest.applicationIconResourceId(manifest)
-            ?: return null.also { Log.d(TAG, "$apkUrl: no <application android:icon> reference in manifest") }
+            ?: return null.also { logD("$apkUrl: no <application android:icon> reference in manifest") }
 
         val arsc = fetchEntry(downloader, apkUrl, centralDirectoryBytes, ARSC_ENTRY_NAME, MAX_ARSC_BYTES, headers)
-            ?: return null.also { Log.d(TAG, "$apkUrl: $ARSC_ENTRY_NAME fetch failed") }
+            ?: return null.also { logD("$apkUrl: $ARSC_ENTRY_NAME fetch failed") }
         val iconPath = resolveRasterIconPath(arsc, iconResId)
-            ?: return null.also { Log.d(TAG, "$apkUrl: icon resource ${iconResId.toString(16)} has no raster config") }
+            ?: return null.also { logD("$apkUrl: icon resource ${iconResId.toString(16)} has no raster config") }
 
         return fetchEntry(downloader, apkUrl, centralDirectoryBytes, iconPath, MAX_ICON_BYTES, headers)
-            ?: return null.also { Log.d(TAG, "$apkUrl: icon file $iconPath fetch failed") }
+            ?: return null.also { logD("$apkUrl: icon file $iconPath fetch failed") }
     }
 
     /** Fetches and decompresses one named ZIP entry, given the already-fetched Central Directory bytes

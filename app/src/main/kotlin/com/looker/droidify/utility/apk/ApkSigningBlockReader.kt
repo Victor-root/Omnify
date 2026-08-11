@@ -1,6 +1,7 @@
 package com.looker.droidify.utility.apk
 
 import android.util.Log
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.data.encryption.sha256
 import com.looker.droidify.data.model.hex
 import com.looker.droidify.network.Downloader
@@ -32,6 +33,12 @@ object ApkSigningBlockReader {
 
     private const val TAG = "ApkSigningBlockReader"
 
+    private fun logD(message: String) {
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, message)
+        }
+    }
+
     /** Same tail window [RemoteApkLocaleReader] uses to find the EOCD — comfortably covers the record
      *  plus its (near-always empty, for an APK) comment. */
     private const val TAIL_FETCH_BYTES = 128L * 1024
@@ -62,9 +69,9 @@ object ApkSigningBlockReader {
         val tail = fetchBytes(downloader, apkUrl) {
             inRangeSuffix(TAIL_FETCH_BYTES)
             headers()
-        } ?: return null.also { Log.d(TAG, "$apkUrl: tail fetch failed (range not supported or network error)") }
+        } ?: return null.also { logD("$apkUrl: tail fetch failed (range not supported or network error)") }
         val centralDir = ApkZipLocator.findCentralDirectory(tail)
-            ?: return null.also { Log.d(TAG, "$apkUrl: no End-Of-Central-Directory found in ${tail.size}B tail") }
+            ?: return null.also { logD("$apkUrl: no End-Of-Central-Directory found in ${tail.size}B tail") }
         val centralDirOffset = centralDir.offset
         if (centralDirOffset < 24) return null
 
@@ -73,9 +80,9 @@ object ApkSigningBlockReader {
         val footer = fetchBytes(downloader, apkUrl) {
             inRange(centralDirOffset - 24, centralDirOffset - 1)
             headers()
-        } ?: return null.also { Log.d(TAG, "$apkUrl: signing block footer fetch failed") }
+        } ?: return null.also { logD("$apkUrl: signing block footer fetch failed") }
         if (footer.size != 24 || !footer.copyOfRange(8, 24).contentEquals(SIG_BLOCK_MAGIC)) {
-            return null.also { Log.d(TAG, "$apkUrl: no APK Signing Block found (v1-only signed APK?)") }
+            return null.also { logD("$apkUrl: no APK Signing Block found (v1-only signed APK?)") }
         }
 
         // This size value excludes only the block's own *leading* 8-byte size field (it's mirrored at
@@ -87,13 +94,13 @@ object ApkSigningBlockReader {
         // bounds check placed after the arithmetic instead of before it.
         val blockSize = u64(footer, 0)
         if (blockSize < 25 || blockSize > MAX_BLOCK_BYTES) {
-            Log.d(TAG, "$apkUrl: signing block size out of bounds (${blockSize}B)")
+            logD("$apkUrl: signing block size out of bounds (${blockSize}B)")
             return null
         }
         val pairsLen = blockSize - 24
         val blockStart = centralDirOffset - blockSize - 8
         if (blockStart < 0) {
-            Log.d(TAG, "$apkUrl: signing block would start before the file start ($blockStart)")
+            logD("$apkUrl: signing block would start before the file start ($blockStart)")
             return null
         }
 
@@ -101,10 +108,10 @@ object ApkSigningBlockReader {
         val pairsBytes = fetchBytes(downloader, apkUrl) {
             inRange(pairsStart, pairsStart + pairsLen - 1)
             headers()
-        } ?: return null.also { Log.d(TAG, "$apkUrl: signing block pairs fetch failed") }
+        } ?: return null.also { logD("$apkUrl: signing block pairs fetch failed") }
         if (pairsBytes.size.toLong() != pairsLen) {
             return null.also {
-                Log.d(TAG, "$apkUrl: signing block pairs size mismatch (got ${pairsBytes.size}B, expected ${pairsLen}B)")
+                logD("$apkUrl: signing block pairs size mismatch (got ${pairsBytes.size}B, expected ${pairsLen}B)")
             }
         }
 
@@ -114,7 +121,7 @@ object ApkSigningBlockReader {
                 parseSignerCertificates(value).forEach { cert -> hashes += sha256(cert).hex() }
             }
         }
-        Log.d(TAG, "$apkUrl: found ${hashes.size} signer fingerprint(s)")
+        logD("$apkUrl: found ${hashes.size} signer fingerprint(s)")
         return hashes.ifEmpty { null }
     }
 

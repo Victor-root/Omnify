@@ -2,6 +2,7 @@ package com.looker.droidify.sync.v2
 
 import android.content.Context
 import android.util.Log
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.percentBy
@@ -103,10 +104,12 @@ class EntrySyncable(
                                 merger.processDiff(
                                     diffFile.inputStream(),
                                 ).let {
-                                    Log.d(
-                                        "EntrySyncable",
-                                        "merged diff file $diffFile, success = $it, indexFile = $indexFile.",
-                                    )
+                                    if (BuildConfig.DEBUG) {
+                                        Log.d(
+                                            "EntrySyncable",
+                                            "merged diff file $diffFile, success = $it, indexFile = $indexFile.",
+                                        )
+                                    }
                                 }
                             }
                             JsonParser.decodeFromString<IndexV2>(

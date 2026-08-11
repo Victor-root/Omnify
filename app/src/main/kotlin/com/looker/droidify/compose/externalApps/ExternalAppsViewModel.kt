@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.appDetail.GoogleServiceDependency
@@ -318,11 +319,13 @@ class ExternalAppsViewModel @Inject constructor(
                     // for the expected signers (the release APK's own signing block; there's no index
                     // declaring them ahead of time here).
                     val mismatch = signerMismatch(installedSigner, expectedSigners)
-                    Log.d(
-                        TAG,
-                        "signature check ${app.key}: apkUrl=$apkUrl installed=$installedSigner " +
-                            "expected=$expectedSigners mismatch=$mismatch",
-                    )
+                    if (BuildConfig.DEBUG) {
+                        Log.d(
+                            TAG,
+                            "signature check ${app.key}: apkUrl=$apkUrl installed=$installedSigner " +
+                                "expected=$expectedSigners mismatch=$mismatch",
+                        )
+                    }
                     if (mismatch) {
                         mismatches[app.key] = isSystemApp(pkg)
                     }
@@ -1090,12 +1093,14 @@ class ExternalAppsViewModel @Inject constructor(
                         else -> packageId?.let { installedLabel(it) } ?: meta?.appName ?: app.label
                     }
                     val addApkSize = release.apkFileSize(filter = app.apkFilter)
-                    Log.d(
-                        TAG,
-                        "addApp ${app.key}: asset=" +
-                            "${selectApkAsset(release.assets, filter = app.apkFilter, releaseTag = release.tag)?.name} " +
-                            "size=$addApkSize rawAssetSizes=${release.assets.map { it.name to it.size }}",
-                    )
+                    if (BuildConfig.DEBUG) {
+                        Log.d(
+                            TAG,
+                            "addApp ${app.key}: asset=" +
+                                "${selectApkAsset(release.assets, filter = app.apkFilter, releaseTag = release.tag)?.name} " +
+                                "size=$addApkSize rawAssetSizes=${release.assets.map { it.name to it.size }}",
+                        )
+                    }
                     repository.addApp(
                         app.copy(
                             packageName = packageId,
@@ -1470,18 +1475,20 @@ class ExternalAppsViewModel @Inject constructor(
                 // from outside. Logged whether or not the lookup succeeded, since a source keeping its
                 // previous values because the provider couldn't be reached is itself worth seeing.
                 val onDevice = app.packageName?.let(::installedVersionName)
-                Log.d(
-                    TAG,
-                    "refresh ${app.key}: fetched=${release != null} | " +
-                        "latest tag=$tag apk=$apkName token=$token | " +
-                        "installed tag=${app.installedTag} token=${app.installedApkToken} " +
-                        "version=${app.installedVersionName} onDevice=$onDevice | " +
-                        "update=${app.copy(
-                            latestTag = tag,
-                            latestApkToken = token,
-                            latestApkName = apkName,
-                        ).hasUpdateGiven(onDevice)}",
-                )
+                if (BuildConfig.DEBUG) {
+                    Log.d(
+                        TAG,
+                        "refresh ${app.key}: fetched=${release != null} | " +
+                            "latest tag=$tag apk=$apkName token=$token | " +
+                            "installed tag=${app.installedTag} token=${app.installedApkToken} " +
+                            "version=${app.installedVersionName} onDevice=$onDevice | " +
+                            "update=${app.copy(
+                                latestTag = tag,
+                                latestApkToken = token,
+                                latestApkName = apkName,
+                            ).hasUpdateGiven(onDevice)}",
+                    )
+                }
                 // Backfill the package id (source build.gradle, else the release APK's own manifest) for
                 // sources added before this existed, so an installed app starts showing its real name +
                 // icon and is matched as installed even when it arrived via another channel; the existing
@@ -1891,7 +1898,9 @@ class ExternalAppsViewModel @Inject constructor(
                     // What this install leaves on record. An update wrongly offered straight after one
                     // is these three not lining up with the latest* half logged by refresh() above, and
                     // the absence of this line means the record was never written at all.
-                    Log.d(TAG, "installed ${app.key}: tag=${release.tag} token=$token version=$versionName")
+                    if (BuildConfig.DEBUG) {
+                        Log.d(TAG, "installed ${app.key}: tag=${release.tag} token=$token version=$versionName")
+                    }
                     repository.upsertApp(
                         current.copy(
                             installedTag = release.tag,

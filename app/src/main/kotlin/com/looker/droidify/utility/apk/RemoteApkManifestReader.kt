@@ -1,6 +1,7 @@
 package com.looker.droidify.utility.apk
 
 import android.util.Log
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.RangeResult
 import com.looker.droidify.network.header.HeadersBuilder
@@ -32,6 +33,12 @@ object RemoteApkManifestReader {
 
     private const val TAG = "RemoteApkManifestReader"
     private const val ENTRY_NAME = "AndroidManifest.xml"
+
+    private fun logD(message: String) {
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, message)
+        }
+    }
 
     /** A compiled AndroidManifest.xml is a few KB to, at the very most, a few hundred KB for an
      *  unusually component-heavy app — this only guards against reading an unreasonable amount of data
@@ -68,8 +75,7 @@ object RemoteApkManifestReader {
         val tail = when (tailResult) {
             is RangeResult.Success -> {
                 if (expectedTotalSize != null && tailResult.totalSize != expectedTotalSize) {
-                    Log.d(
-                        TAG,
+                    logD(
                         "$apkUrl: total size mismatch (remote ${tailResult.totalSize}B, " +
                             "expected ${expectedTotalSize}B) — not the same artifact",
                     )
@@ -78,58 +84,57 @@ object RemoteApkManifestReader {
                 tailResult.bytes
             }
             RangeResult.RangeNotSupported, is RangeResult.Failed ->
-                return null.also { Log.d(TAG, "$apkUrl: tail fetch failed (range not supported or network error)") }
+                return null.also { logD("$apkUrl: tail fetch failed (range not supported or network error)") }
         }
         val centralDir = ApkZipLocator.findCentralDirectory(tail)
-            ?: return null.also { Log.d(TAG, "$apkUrl: no End-Of-Central-Directory found in ${tail.size}B tail") }
+            ?: return null.also { logD("$apkUrl: no End-Of-Central-Directory found in ${tail.size}B tail") }
         if (centralDir.size <= 0 || centralDir.size > MAX_MANIFEST_BYTES) {
-            Log.d(TAG, "$apkUrl: central directory size out of bounds (${centralDir.size}B)")
+            logD("$apkUrl: central directory size out of bounds (${centralDir.size}B)")
             return null
         }
 
         val centralDirectoryBytes = fetchBytes(downloader, apkUrl) {
             inRange(centralDir.offset, centralDir.offset + centralDir.size - 1)
             headers()
-        } ?: return null.also { Log.d(TAG, "$apkUrl: central directory fetch failed") }
+        } ?: return null.also { logD("$apkUrl: central directory fetch failed") }
 
         val entry = ApkZipLocator.findEntry(centralDirectoryBytes, ENTRY_NAME)
-            ?: return null.also { Log.d(TAG, "$apkUrl: no $ENTRY_NAME entry in central directory") }
+            ?: return null.also { logD("$apkUrl: no $ENTRY_NAME entry in central directory") }
         if (entry.uncompressedSize <= 0 || entry.uncompressedSize > MAX_MANIFEST_BYTES) {
-            Log.d(TAG, "$apkUrl: $ENTRY_NAME uncompressed size out of bounds (${entry.uncompressedSize}B)")
+            logD("$apkUrl: $ENTRY_NAME uncompressed size out of bounds (${entry.uncompressedSize}B)")
             return null
         }
         if (entry.compressionMethod != COMPRESSION_STORED && entry.compressionMethod != COMPRESSION_DEFLATED) {
-            Log.d(TAG, "$apkUrl: unsupported compression method ${entry.compressionMethod}")
+            logD("$apkUrl: unsupported compression method ${entry.compressionMethod}")
             return null
         }
 
         val localHeaderBytes = fetchBytes(downloader, apkUrl) {
             inRange(entry.localHeaderOffset, entry.localHeaderOffset + 29)
             headers()
-        } ?: return null.also { Log.d(TAG, "$apkUrl: local file header fetch failed") }
+        } ?: return null.also { logD("$apkUrl: local file header fetch failed") }
         val dataStart = ApkZipLocator.localFileDataOffset(localHeaderBytes, entry.localHeaderOffset)
-            ?: return null.also { Log.d(TAG, "$apkUrl: couldn't compute local file data offset") }
+            ?: return null.also { logD("$apkUrl: couldn't compute local file data offset") }
 
         val compressedBytes = fetchBytes(downloader, apkUrl) {
             inRange(dataStart, dataStart + entry.compressedSize - 1)
             headers()
-        } ?: return null.also { Log.d(TAG, "$apkUrl: $ENTRY_NAME data fetch failed (${entry.compressedSize}B)") }
+        } ?: return null.also { logD("$apkUrl: $ENTRY_NAME data fetch failed (${entry.compressedSize}B)") }
 
         val manifestBytes = when (entry.compressionMethod) {
             COMPRESSION_STORED -> compressedBytes
             else -> inflateRaw(compressedBytes, entry.uncompressedSize.toInt())
-                ?: return null.also { Log.d(TAG, "$apkUrl: inflate failed (${compressedBytes.size}B compressed)") }
+                ?: return null.also { logD("$apkUrl: inflate failed (${compressedBytes.size}B compressed)") }
         }
         if (manifestBytes.size.toLong() != entry.uncompressedSize) {
-            Log.d(
-                TAG,
+            logD(
                 "$apkUrl: decoded $ENTRY_NAME size mismatch (got ${manifestBytes.size}B, " +
                     "expected ${entry.uncompressedSize}B)",
             )
             return null
         }
 
-        Log.d(TAG, "$apkUrl: fetched ${manifestBytes.size}B manifest")
+        logD("$apkUrl: fetched ${manifestBytes.size}B manifest")
         return manifestBytes
     }
 

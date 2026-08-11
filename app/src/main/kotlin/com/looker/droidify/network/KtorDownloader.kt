@@ -1,6 +1,7 @@
 package com.looker.droidify.network
 
 import android.util.Log
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.network.header.HeadersBuilder
 import com.looker.droidify.network.header.KtorHeadersBuilder
 import io.ktor.client.HttpClient
@@ -105,7 +106,7 @@ internal class KtorDownloader(
         val rangeRequest = request(url, headers = headers)
         val suffixLength = rangeRequest.headers[HttpHeaders.Range]?.let(::parseSuffixRangeLength)
         val result = executeRange(rangeRequest)
-        if (result is RangeResult.Failed) {
+        if (result is RangeResult.Failed && BuildConfig.DEBUG) {
             Log.d(TAG, "$url: range request failed (${result.error})")
         }
         if (result is RangeResult.Success || suffixLength == null) return@withContext result
@@ -118,7 +119,9 @@ internal class KtorDownloader(
         val totalSize = contentLength(url, headers)
         if (totalSize == null || totalSize <= 0) return@withContext result
         val start = (totalSize - suffixLength).coerceAtLeast(0)
-        Log.d(TAG, "$url: suffix range unsupported, retrying as explicit bytes=$start-${totalSize - 1}")
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "$url: suffix range unsupported, retrying as explicit bytes=$start-${totalSize - 1}")
+        }
         val explicitRequest = request(url, headers = headers)
         explicitRequest.headers.remove(HttpHeaders.Range)
         explicitRequest.headers.append(HttpHeaders.Range, "bytes=$start-${totalSize - 1}")

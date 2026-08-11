@@ -1,6 +1,7 @@
 package com.looker.droidify.utility.apk
 
 import android.util.Log
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.RangeResult
 import com.looker.droidify.network.header.HeadersBuilder
@@ -20,6 +21,12 @@ object RemoteApkLocaleReader {
 
     private const val TAG = "RemoteApkLocaleReader"
     private const val ENTRY_NAME = "resources.arsc"
+
+    private fun logD(message: String) {
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, message)
+        }
+    }
 
     /** Generous but bounded: real resources.arsc files are typically well under 5MB even for very
      *  heavily localized apps (F-Droid's own client, translated into 100+ languages, is ~4.7MB) — but a
@@ -66,8 +73,7 @@ object RemoteApkLocaleReader {
         val tail = when (tailResult) {
             is RangeResult.Success -> {
                 if (expectedTotalSize != null && tailResult.totalSize != expectedTotalSize) {
-                    Log.d(
-                        TAG,
+                    logD(
                         "$apkUrl: total size mismatch (remote ${tailResult.totalSize}B, " +
                             "expected ${expectedTotalSize}B) — not the same artifact",
                     )
@@ -76,19 +82,19 @@ object RemoteApkLocaleReader {
                 tailResult.bytes
             }
             RangeResult.RangeNotSupported, is RangeResult.Failed ->
-                return null.also { Log.d(TAG, "$apkUrl: tail fetch failed (range not supported or network error)") }
+                return null.also { logD("$apkUrl: tail fetch failed (range not supported or network error)") }
         }
         val centralDir = ApkZipLocator.findCentralDirectory(tail)
-            ?: return null.also { Log.d(TAG, "$apkUrl: no End-Of-Central-Directory found in ${tail.size}B tail") }
+            ?: return null.also { logD("$apkUrl: no End-Of-Central-Directory found in ${tail.size}B tail") }
         if (centralDir.size <= 0 || centralDir.size > MAX_ARSC_BYTES) {
-            Log.d(TAG, "$apkUrl: central directory size out of bounds (${centralDir.size}B)")
+            logD("$apkUrl: central directory size out of bounds (${centralDir.size}B)")
             return null
         }
 
         val centralDirectoryBytes = fetchBytes(downloader, apkUrl) {
             inRange(centralDir.offset, centralDir.offset + centralDir.size - 1)
             headers()
-        } ?: return null.also { Log.d(TAG, "$apkUrl: central directory fetch failed") }
+        } ?: return null.also { logD("$apkUrl: central directory fetch failed") }
 
         // Some frameworks don't localise through Android's resource-table mechanism at all — their UI
         // strings live entirely in their own per-language asset files instead, invisible to
@@ -121,18 +127,18 @@ object RemoteApkLocaleReader {
         // holdsTranslations).
         val assetLocales = assetLocalesFromEntryNames(ApkZipLocator.findEntryNames(centralDirectoryBytes) { true })
         if (assetLocales.isNotEmpty()) {
-            Log.d(TAG, "$apkUrl: found ${assetLocales.size} per-locale asset file(s) outside resources.arsc")
+            logD("$apkUrl: found ${assetLocales.size} per-locale asset file(s) outside resources.arsc")
         }
 
         val entry = ApkZipLocator.findEntry(centralDirectoryBytes, ENTRY_NAME)
             ?: return assetLocales.ifEmpty { null }
-                .also { Log.d(TAG, "$apkUrl: no $ENTRY_NAME entry in central directory") }
+                .also { logD("$apkUrl: no $ENTRY_NAME entry in central directory") }
         if (entry.uncompressedSize <= 0 || entry.uncompressedSize > MAX_ARSC_BYTES) {
-            Log.d(TAG, "$apkUrl: $ENTRY_NAME uncompressed size out of bounds (${entry.uncompressedSize}B)")
+            logD("$apkUrl: $ENTRY_NAME uncompressed size out of bounds (${entry.uncompressedSize}B)")
             return assetLocales.ifEmpty { null }
         }
         if (entry.compressionMethod != COMPRESSION_STORED && entry.compressionMethod != COMPRESSION_DEFLATED) {
-            Log.d(TAG, "$apkUrl: unsupported compression method ${entry.compressionMethod}")
+            logD("$apkUrl: unsupported compression method ${entry.compressionMethod}")
             return assetLocales.ifEmpty { null }
         }
 
@@ -143,26 +149,25 @@ object RemoteApkLocaleReader {
             inRange(entry.localHeaderOffset, entry.localHeaderOffset + 29)
             headers()
         } ?: return assetLocales.ifEmpty { null }
-            .also { Log.d(TAG, "$apkUrl: local file header fetch failed") }
+            .also { logD("$apkUrl: local file header fetch failed") }
         val dataStart = ApkZipLocator.localFileDataOffset(localHeaderBytes, entry.localHeaderOffset)
             ?: return assetLocales.ifEmpty { null }
-                .also { Log.d(TAG, "$apkUrl: couldn't compute local file data offset") }
+                .also { logD("$apkUrl: couldn't compute local file data offset") }
 
         val compressedBytes = fetchBytes(downloader, apkUrl) {
             inRange(dataStart, dataStart + entry.compressedSize - 1)
             headers()
         } ?: return assetLocales.ifEmpty { null }
-            .also { Log.d(TAG, "$apkUrl: $ENTRY_NAME data fetch failed (${entry.compressedSize}B)") }
+            .also { logD("$apkUrl: $ENTRY_NAME data fetch failed (${entry.compressedSize}B)") }
 
         val arscBytes = when (entry.compressionMethod) {
             COMPRESSION_STORED -> compressedBytes
             else -> inflateRaw(compressedBytes, entry.uncompressedSize.toInt())
                 ?: return assetLocales.ifEmpty { null }
-                    .also { Log.d(TAG, "$apkUrl: inflate failed (${compressedBytes.size}B compressed)") }
+                    .also { logD("$apkUrl: inflate failed (${compressedBytes.size}B compressed)") }
         }
         if (arscBytes.size.toLong() != entry.uncompressedSize) {
-            Log.d(
-                TAG,
+            logD(
                 "$apkUrl: decoded $ENTRY_NAME size mismatch (got ${arscBytes.size}B, " +
                     "expected ${entry.uncompressedSize}B)",
             )
@@ -170,8 +175,7 @@ object RemoteApkLocaleReader {
         }
 
         val arscLocales = ApkResourceLocales.localeCodes(arscBytes)
-        Log.d(
-            TAG,
+        logD(
             "$apkUrl: parsed ${arscBytes.size}B $ENTRY_NAME -> ${arscLocales?.size ?: "unparsable"} " +
                 "locale(s), plus ${assetLocales.size} from per-locale asset files",
         )

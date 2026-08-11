@@ -33,6 +33,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import kotlinx.coroutines.launch
 
@@ -55,7 +56,9 @@ val TvOverscan = 24.dp
 private const val TV_FOCUS_DEBUG_TAG = "TvFocusDebug"
 
 private fun tvFocusDebugLog(message: String) {
-    Log.d(TV_FOCUS_DEBUG_TAG, message)
+    if (BuildConfig.DEBUG) {
+        Log.d(TV_FOCUS_DEBUG_TAG, message)
+    }
 }
 
 /**

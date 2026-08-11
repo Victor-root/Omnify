@@ -463,12 +463,15 @@ fun AppListScreen(
     val headerSyncing = (isSyncing || isRefreshingExternal) && !catalogLoading
     // TEMP DEBUG, remove once the header title flicker is diagnosed: logs every change to the three
     // signals headerSyncing is built from, to catch it dropping true mid-sync and see which one did it.
-    LaunchedEffect(isSyncing, isRefreshingExternal, catalogLoading, headerSyncing) {
-        Log.d(
-            "HeaderSyncDebug",
-            "isSyncing=$isSyncing isRefreshingExternal=$isRefreshingExternal " +
-                "catalogLoading=$catalogLoading newAppsSize=${newApps.size} -> headerSyncing=$headerSyncing",
-        )
+    // Debug builds only, never beta or release.
+    if (BuildConfig.DEBUG) {
+        LaunchedEffect(isSyncing, isRefreshingExternal, catalogLoading, headerSyncing) {
+            Log.d(
+                "HeaderSyncDebug",
+                "isSyncing=$isSyncing isRefreshingExternal=$isRefreshingExternal " +
+                    "catalogLoading=$catalogLoading newAppsSize=${newApps.size} -> headerSyncing=$headerSyncing",
+            )
+        }
     }
 
     // Android TV must always have a focused element on screen: if a remote key is pressed while nothing

@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.appDetail.DownloadStatus
@@ -129,6 +130,13 @@ import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.singleSignature
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+// Temporary TV D-pad diagnostics, see TvFocus.kt's own debug-logging doc comment. Debug builds only.
+private fun tvFocusDebugLog(message: String) {
+    if (BuildConfig.DEBUG) {
+        Log.d("TvFocusDebug", message)
+    }
+}
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -300,8 +308,7 @@ fun ExternalAppDetailScreen(
     // see TvFocus.kt's own debug-logging doc comment.
     LaunchedEffect(Unit) {
         snapshotFlow { scrollState.value }.collect { value ->
-            Log.d(
-                "TvFocusDebug",
+            tvFocusDebugLog(
                 "ExternalAppDetailScreen scrollState -> $value at ${System.currentTimeMillis()}",
             )
         }
@@ -364,8 +371,7 @@ fun ExternalAppDetailScreen(
         LaunchedEffect(app?.key) {
             repeat(20) {
                 val result = runCatching { primaryActionFocusRequester.requestFocus() }
-                Log.d(
-                    "TvFocusDebug",
+                tvFocusDebugLog(
                     "ExternalAppDetailScreen startup retry #$it: primaryActionFocusRequester.requestFocus() " +
                         "success=${result.isSuccess} at ${System.currentTimeMillis()}",
                 )
@@ -394,8 +400,7 @@ fun ExternalAppDetailScreen(
                         // Marks startup focus as "settled" — see userInteracted and the TopAppBar's own
                         // onFocusChanged below, which stop correcting focus the moment this is true.
                         if (!userInteracted) {
-                            Log.d(
-                                "TvFocusDebug",
+                            tvFocusDebugLog(
                                 "ExternalAppDetailScreen-root: userInteracted set true by ${event.key} at " +
                                     "${System.currentTimeMillis()}",
                             )
@@ -454,8 +459,7 @@ fun ExternalAppDetailScreen(
                             val stuckAtStartup = !userInteracted
                             val teleportedFromDeepContent = userInteracted && scrollState.value > 0
                             if (focusState.hasFocus) {
-                                Log.d(
-                                    "TvFocusDebug",
+                                tvFocusDebugLog(
                                     "ExternalAppDetailScreen TopAppBar: hasFocus=true, userInteracted=" +
                                         "$userInteracted, scrollState=${scrollState.value} at " +
                                         "${System.currentTimeMillis()}" +
@@ -582,9 +586,6 @@ fun ExternalAppDetailScreen(
         // Mirrors the F-Droid catalogue's "Taille" stat; null (hidden) when the provider's release
         // API doesn't expose a file size (GitLab's release link assets carry none).
         val heroSize = app.latestApkSize?.let { DataSize(it).toString() }
-        LaunchedEffect(app.key, app.latestApkSize) {
-            Log.d("ExternalAppDetailScreen", "${app.key}: latestApkSize=${app.latestApkSize} heroSize=$heroSize")
-        }
         // Fuzzy but shared with the F-Droid catalogue's own check (see RootDetection): an external
         // source has no manifest permissions to read, so this only has the app's own text to go on
         // — its name and README (once loaded; the badge simply isn't shown yet before then).
@@ -891,8 +892,7 @@ fun ExternalAppDetailScreen(
                         modifier = if (isTelevision) {
                             Modifier.focusGroup().onFocusChanged {
                                 if (it.hasFocus != heroCardHasFocus) {
-                                    Log.d(
-                                        "TvFocusDebug",
+                                    tvFocusDebugLog(
                                         "ExternalAppDetailScreen heroCardHasFocus: $heroCardHasFocus -> " +
                                             "${it.hasFocus}, scrollState=${scrollState.value} at " +
                                             "${System.currentTimeMillis()}",
@@ -1076,8 +1076,7 @@ private fun ExternalAppDetailBody(
                 translucentBackground = true,
                 onContentHeight = {
                     if (it != readmeHeightPx) {
-                        Log.d(
-                            "TvFocusDebug",
+                        tvFocusDebugLog(
                             "ExternalAppDetailScreen readmeHeightPx: $readmeHeightPx -> $it, " +
                                 "scrollState=${scrollState.value}/${scrollState.maxValue} at " +
                                 "${System.currentTimeMillis()}",
@@ -1365,8 +1364,7 @@ private fun ExternalVersionsSection(
                     onCancel = if (isThisRowDownloading) onCancel else null,
                     modifier = Modifier.onFocusChanged {
                         if (it.isFocused) {
-                            Log.d(
-                                "TvFocusDebug",
+                            tvFocusDebugLog(
                                 "FOCUS -> external-version-row (${release.tag}) at " +
                                     "${System.currentTimeMillis()}",
                             )
@@ -1381,8 +1379,7 @@ private fun ExternalVersionsSection(
                     onToggle = { versionsExpanded = !versionsExpanded },
                     modifier = Modifier.onFocusChanged {
                         if (it.isFocused) {
-                            Log.d(
-                                "TvFocusDebug",
+                            tvFocusDebugLog(
                                 "FOCUS -> external-versions-show-more at ${System.currentTimeMillis()}",
                             )
                         }
