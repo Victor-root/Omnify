@@ -65,17 +65,27 @@ import com.looker.droidify.sync.v2.model.DefaultName
 @Composable
 fun DiscoverCarousel(
     title: String,
-    apps: List<AppMinimal>,
     installedPackages: Set<String>,
     onAppClick: (String) -> Unit,
     onSeeAll: () -> Unit,
     modifier: Modifier = Modifier,
     expanded: Boolean = false,
+    // The default two-block layout below: every catalogue app, then (optionally) every external one
+    // after it in the same row. Fine for a curated row like "Made for TV", where the two kinds were
+    // never meant to interleave. Left empty by a caller passing [unifiedOrder] instead.
+    apps: List<AppMinimal> = emptyList(),
     // Optional external (GitHub/GitLab) apps shown after the catalogue ones in the same row — used by
     // the "Made for TV" carousel so tracked external TV apps appear alongside the F-Droid ones.
     externalApps: List<ExternalApp> = emptyList(),
     externalInstalledKeys: Set<String> = emptySet(),
     onExternalAppClick: (String) -> Unit = {},
+    // When set, overrides [apps]/[externalApps]: renders exactly this order, catalogue and external
+    // tiles interleaved with no distinction between the two, instead of the default two-block layout.
+    // Only the favourites carousel passes this. Unlike a curated row, its order is the user's own
+    // sort choice (name / date added / date installed) from the favourites full page, which the
+    // two-block layout can't represent since it always finishes every catalogue tile before starting
+    // on external ones regardless of how each is individually ordered.
+    unifiedOrder: List<FavouriteApp>? = null,
     // TV only: re-targets whichever tile the user last opened from this carousel, so returning from its
     // detail screen lands focus back on it instead of falling through to the grid/tabs. Both default to
     // "never matches" for callers (e.g. none currently) that don't opt in.
@@ -95,7 +105,10 @@ fun DiscoverCarousel(
     // mounted LaunchedEffect has no memory of what it last ran with. Without comparing against a value
     // that survives that round trip too, it would re-scroll to the start on every single return,
     // stomping over the position LazyListState's own rememberSaveable had just correctly restored.
-    val firstKey = apps.firstOrNull()?.appId ?: externalApps.firstOrNull()?.key
+    // A re-sort on the favourites full page changes what's first here too (e.g. switching to "name"
+    // jumps to whatever now sorts first alphabetically), which this same mechanism handles for free.
+    val firstKey = unifiedOrder?.firstOrNull()?.key
+        ?: (apps.firstOrNull()?.appId ?: externalApps.firstOrNull()?.key)
     var previousFirstKey by rememberSaveable { mutableStateOf(firstKey) }
     LaunchedEffect(firstKey) {
         if (firstKey != previousFirstKey) {
@@ -139,32 +152,50 @@ fun DiscoverCarousel(
                 )
             }
         }
+        // Shared by both layouts below so a tile reads identically whichever one renders it.
+        val catalogueTile: @Composable (AppMinimal) -> Unit = { app ->
+            CatalogAppTile(
+                app = app,
+                isInstalled = app.packageName.name in installedPackages,
+                onClick = { onAppClick(app.packageName.name) },
+                modifier = Modifier.width(tileWidth).restoreFocusTarget(
+                    restoreFocusId == "app:${app.packageName.name}",
+                    restoreRequester,
+                ),
+            )
+        }
+        val externalTile: @Composable (ExternalApp) -> Unit = { app ->
+            ExternalAppTile(
+                app = app,
+                isInstalled = app.key in externalInstalledKeys,
+                onClick = { onExternalAppClick(app.key) },
+                modifier = Modifier.width(tileWidth).restoreFocusTarget(
+                    restoreFocusId == "ext:${app.key}",
+                    restoreRequester,
+                ),
+            )
+        }
         LazyRow(
             state = rowState,
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = spacedBy(16.dp),
         ) {
-            items(apps, key = { it.appId }, contentType = { "app-tile" }) { app ->
-                CatalogAppTile(
-                    app = app,
-                    isInstalled = app.packageName.name in installedPackages,
-                    onClick = { onAppClick(app.packageName.name) },
-                    modifier = Modifier.width(tileWidth).restoreFocusTarget(
-                        restoreFocusId == "app:${app.packageName.name}",
-                        restoreRequester,
-                    ),
-                )
-            }
-            items(externalApps, key = { "ext-${it.key}" }, contentType = { "ext-tile" }) { app ->
-                ExternalAppTile(
-                    app = app,
-                    isInstalled = app.key in externalInstalledKeys,
-                    onClick = { onExternalAppClick(app.key) },
-                    modifier = Modifier.width(tileWidth).restoreFocusTarget(
-                        restoreFocusId == "ext:${app.key}",
-                        restoreRequester,
-                    ),
-                )
+            if (unifiedOrder != null) {
+                items(
+                    unifiedOrder,
+                    key = { entry -> if (entry is FavouriteApp.Catalogue) "app-${entry.key}" else "ext-${entry.key}" },
+                    contentType = { entry -> if (entry is FavouriteApp.Catalogue) "app-tile" else "ext-tile" },
+                ) { entry ->
+                    when (entry) {
+                        is FavouriteApp.Catalogue -> catalogueTile(entry.app)
+                        is FavouriteApp.External -> externalTile(entry.app)
+                    }
+                }
+            } else {
+                items(apps, key = { it.appId }, contentType = { "app-tile" }) { app -> catalogueTile(app) }
+                items(externalApps, key = { "ext-${it.key}" }, contentType = { "ext-tile" }) { app ->
+                    externalTile(app)
+                }
             }
         }
     }

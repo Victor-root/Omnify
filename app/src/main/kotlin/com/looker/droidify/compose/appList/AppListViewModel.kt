@@ -63,8 +63,9 @@ sealed interface FavouriteApp {
     }
 }
 
-/** How the favourites full page orders [FavouriteApp] entries. Independent of the carousel's own
- *  fixed most-recently-favourited-first order, which this never affects. */
+/** How the favourites full page orders [FavouriteApp] entries. The Discover home's own favourites
+ *  carousel follows the same choice (see AppListScreen's sortedFavourites), so picking an order on
+ *  the full page is reflected there too instead of the carousel keeping some order of its own. */
 enum class FavouritesSortOrder { NAME, FAVOURITED_AT, INSTALLED_AT }
 
 @HiltViewModel
@@ -387,11 +388,14 @@ class AppListViewModel @Inject constructor(
         UpdateAllWorker.updateAll(context, packages)
     }
 
-    /** "Favourites" carousel on the Discover home: every catalogue app the user has favourited (the
-     *  heart on its own detail screen), newest update first like the other carousels. Unlike a curated
-     *  discovery row this is a list the user built on purpose, so it isn't capped to [DISCOVER_ROW_COUNT]:
-     *  nothing they favourited should hide behind a "see all" tap. Empty until a favourite exists, which
-     *  is also what keeps the carousel itself off the Discover home until then (see AppListScreen). */
+    /** Every catalogue app the user has favourited (the heart on its own detail screen), feeding both
+     *  the favourites full page and, after AppListScreen re-sorts it by [FavouritesSortOrder], the
+     *  Discover home's own favourites carousel. Unlike a curated discovery row this is a list the user
+     *  built on purpose, so it isn't capped to [DISCOVER_ROW_COUNT]: nothing they favourited should
+     *  hide behind a "see all" tap. Empty until a favourite exists, which is also what keeps the
+     *  carousel itself off the Discover home until then (see AppListScreen). This flow's own
+     *  most-recently-favourited-first order is only ever the tie-break base for that re-sort now (e.g.
+     *  two favourites added the very same millisecond), not what either place actually displays. */
     val favouriteApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
         .combine(favouriteKeys) { hidden, favourites -> hidden to favourites }
         .combine(favouritedAt) { (hidden, favourites), timestamps -> Triple(hidden, favourites, timestamps) }

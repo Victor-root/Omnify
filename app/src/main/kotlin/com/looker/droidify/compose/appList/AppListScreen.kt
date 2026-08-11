@@ -799,16 +799,20 @@ fun AppListScreen(
                     item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-favourites", contentType = "carousel") {
                         DiscoverCarousel(
                             title = stringResource(R.string.favourites),
-                            apps = favouriteApps,
                             installedPackages = installedPackages,
                             onAppClick = openApp,
                             onSeeAll = { viewModel.openSection(SECTION_FAVOURITES) },
                             modifier = Modifier.padding(bottom = 8.dp),
-                            externalApps = favouriteExternalApps,
                             externalInstalledKeys = externalInstalledKeys,
                             onExternalAppClick = openExternalApp,
                             restoreFocusId = restoreFocusId,
                             restoreRequester = restoreRequester,
+                            // Catalogue and external favourites interleaved in the user's own sort
+                            // order (see DiscoverCarousel's unifiedOrder), not the default two-block
+                            // layout every other carousel uses: favourites make no distinction between
+                            // the two app kinds anywhere else in the app, so the carousel shouldn't
+                            // either.
+                            unifiedOrder = sortedFavourites,
                         )
                     }
                 }
