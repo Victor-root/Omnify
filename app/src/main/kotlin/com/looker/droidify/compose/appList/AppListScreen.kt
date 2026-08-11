@@ -2,8 +2,12 @@ package com.looker.droidify.compose.appList
 
 import android.app.Activity
 import android.content.ContextWrapper
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDp
@@ -99,6 +103,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -110,6 +115,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -454,6 +460,16 @@ fun AppListScreen(
     } else {
         isSyncing && newApps.isEmpty() && selectedTab != AppTab.EXTERNAL
     }
+    val headerSyncing = (isSyncing || isRefreshingExternal) && !catalogLoading
+    // TEMP DEBUG, remove once the header title flicker is diagnosed: logs every change to the three
+    // signals headerSyncing is built from, to catch it dropping true mid-sync and see which one did it.
+    LaunchedEffect(isSyncing, isRefreshingExternal, catalogLoading, headerSyncing) {
+        Log.d(
+            "HeaderSyncDebug",
+            "isSyncing=$isSyncing isRefreshingExternal=$isRefreshingExternal " +
+                "catalogLoading=$catalogLoading newAppsSize=${newApps.size} -> headerSyncing=$headerSyncing",
+        )
+    }
 
     // Android TV must always have a focused element on screen: if a remote key is pressed while nothing
     // holds focus, input dispatch times out and the system kills the app (an ANR, "does not have a
@@ -619,7 +635,7 @@ fun AppListScreen(
                                 // enough to lend out. weight(1f), not a fixed width, so the bar reaches
                                 // to (almost) the action buttons on any screen size, phone or tablet.
                                 TitleOrSyncIndicator(
-                                    syncing = (isSyncing || isRefreshingExternal) && !catalogLoading,
+                                    syncing = headerSyncing,
                                     modifier = Modifier.weight(1f),
                                 )
                             }
@@ -1208,16 +1224,33 @@ private fun RepoFetchingState(modifier: Modifier = Modifier) {
 
 /**
  * The header wordmark's stand-in while a sync runs: two independently shown/hidden pieces overlaid
- * in a [Box], each using the exact same matched expandHorizontally(Start)/shrinkHorizontally(End)
- * pair as the search field reveal above (just mirrored to grow towards the end, not the start) so
- * arriving content always reveals left to right and leaving content always erases left to right,
- * whichever of the two is doing which. Two separate [AnimatedVisibility]s rather than one
- * [AnimatedContent], since the latter's own container-size reconciliation between a short wordmark
- * and a bar filling the whole row fought the per-content transitions instead of leaving them alone,
- * and it also stops the wavy bar's own animation the moment it finishes leaving instead of running
- * it forever off-screen. Replaces the old strip that used to sit under the tabs and cost the app
- * list real height for every sync; the action buttons beside the title live in a separate TopAppBar
- * slot, so they never move.
+ * in a [Box].
+ *
+ * The wordmark is revealed and erased with a hand-drawn horizontal mask ([drawWithContent] +
+ * [clipRect]) bound to its own [AnimatedVisibility] transition, not [expandHorizontally]/
+ * [shrinkHorizontally] or any other [Alignment]-driven transition: those resize the composable's own
+ * layout width over the course of the animation, which is fine for the wavy bar below (nothing to
+ * misalign) but would make the wordmark's text reflow/re-measure mid-reveal. Its AnimatedVisibility
+ * instead uses [EnterTransition.None]/[ExitTransition.None], so the Text is measured and placed at
+ * its final size for the transition's whole duration; only the pixels the mask lets through change,
+ * so it never slides, resizes, or affects the action buttons in the TopAppBar's separate slot.
+ * Entering, the clip's right edge runs 0 -> size.width, revealing left to right (the leftmost glyph
+ * first). Leaving, the clip's LEFT edge runs 0 -> size.width, erasing left to right too, not the
+ * mirror image a size-based shrink would give it. Both progresses come from `transition.animateFloat`
+ * (this AnimatedVisibility's own transition), not an independent `animateFloatAsState`, so they're
+ * torn down the moment the Text itself is, same as the wavy bar's still-built-in transitions below,
+ * and are always in absolute local pixels, never `Alignment.Start`/`End`, so the sweep direction is
+ * identical whatever the layout direction resolves to.
+ *
+ * The wavy bar keeps its original matched expandHorizontally(Start)/shrinkHorizontally(End) pair
+ * (mirrors the search field reveal above), which already reads correctly and isn't part of this.
+ *
+ * Two separate [AnimatedVisibility]s rather than one [AnimatedContent], since the latter's own
+ * container-size reconciliation between a short wordmark and a bar filling the whole row fought the
+ * per-content transitions instead of leaving them alone, and it also stops the wavy bar's own
+ * animation the moment it finishes leaving instead of running it forever off-screen. Replaces the old
+ * strip that used to sit under the tabs and cost the app list real height for every sync; the action
+ * buttons beside the title live in a separate TopAppBar slot, so they never move.
  *
  * No visible label: "syncing" runs long in several locales (German, French, ...) and would crowd the
  * action buttons on a phone-width bar, unlike the old full-width strip that had room to spare. Spoken
@@ -1230,14 +1263,39 @@ private fun TitleOrSyncIndicator(syncing: Boolean, modifier: Modifier = Modifier
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
         AnimatedVisibility(
             visible = !syncing,
-            enter = expandHorizontally(tween(260), expandFrom = Alignment.Start) + fadeIn(tween(260)),
-            exit = shrinkHorizontally(tween(260), shrinkTowards = Alignment.End) + fadeOut(tween(260)),
+            // The monochrome logo has a wide built-in safe-zone margin, so nudge the wordmark left to
+            // sit right next to the glyph instead of after the gap left by that margin. Kept on this
+            // outer node, not on the Text below: the clip mask reads the Text's own local coordinates
+            // (0 to size.width), and anything placed between the Text and that mask would shift what
+            // those coordinates actually line up with on screen.
+            modifier = Modifier.offset(x = (-12).dp),
+            enter = EnterTransition.None,
+            exit = ExitTransition.None,
         ) {
-            // The monochrome logo has a wide built-in safe-zone margin, so nudge the wordmark left
-            // to sit right next to the glyph instead of after the gap left by that margin.
+            // 0 while this Text is entering (both PreEnter and Visible map to it), animating 0 -> 1
+            // only across PreEnter -> Visible. Drives the clip's right edge.
+            val enterProgress by transition.animateFloat(
+                transitionSpec = { tween(260) },
+                label = "titleEnter",
+            ) { state -> if (state == EnterExitState.PreEnter) 0f else 1f }
+            // Mirror image of enterProgress: 0 while this Text is still fully shown (PreEnter and
+            // Visible both map to it), animating 0 -> 1 only across Visible -> PostExit. Drives the
+            // clip's left edge, so leaving erases left to right instead of mirroring the reveal.
+            val exitProgress by transition.animateFloat(
+                transitionSpec = { tween(260) },
+                label = "titleExit",
+            ) { state -> if (state == EnterExitState.PostExit) 1f else 0f }
             Text(
                 text = stringResource(R.string.application_name),
-                modifier = Modifier.offset(x = (-12).dp),
+                modifier = Modifier.drawWithContent {
+                    // Visible span is [size.width * exitProgress, size.width * enterProgress]. Entering,
+                    // exitProgress is pinned at 0 and the right edge alone sweeps 0 -> size.width.
+                    // Leaving, enterProgress is pinned at 1 and the left edge alone sweeps the same
+                    // 0 -> size.width, eating the text away left to right rather than right to left.
+                    clipRect(left = size.width * exitProgress, right = size.width * enterProgress) {
+                        this@drawWithContent.drawContent()
+                    }
+                },
             )
         }
         AnimatedVisibility(
