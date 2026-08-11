@@ -53,6 +53,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,8 +85,12 @@ import com.looker.droidify.compose.settings.components.InfoBanner
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.external.ExternalApp
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.res.stringResource
 
 /** Which content the couch/remote home is showing. Driven entirely by the left rail; unlike the phone
@@ -101,6 +106,7 @@ private enum class TvSection { EXPLORE, INSTALLED, UPDATES, EXTERNAL, SEARCH }
  * build. Never composed off TV (the navigation layer picks the phone screen there), so it carries no
  * `isTelevision` guards of its own.
  */
+@OptIn(FlowPreview::class)
 @Composable
 fun TvHomeScreen(
     viewModel: AppListViewModel,
@@ -188,6 +194,14 @@ fun TvHomeScreen(
     val openExternal: (String) -> Unit = { key -> restoreFocusId = "ext:$key"; onExternalAppClick(key) }
 
     val railFocus = remember { FocusRequester() }
+    // Whether Explore currently leads with the favourites carousel (see TvExplore) instead of "Made for
+    // TV"/whatever else is first. Comes from a different source (settingsRepository's favourites store)
+    // than catalogLoading (the catalogue sync) below, so it can still be a beat behind even once
+    // catalogLoading is already ready. Most visible on a warm reopen, where catalogLoading is true from
+    // the previous launch and the effect below fires immediately. Read via snapshotFlow just below
+    // (not a plain captured val) specifically so that wait can observe it actually settle rather than
+    // the single stale snapshot a suspended coroutine would otherwise see for the rest of its run.
+    val hasFavourites = favouriteApps.isNotEmpty() || favouriteExternalApps.isNotEmpty()
     // Entering a section hands focus to its content (the rail keeps the section highlighted), so the
     // remote lands on a card instead of nowhere. During the cold-start loader the content has nothing
     // focusable, so focus is parked on the rail instead — Android TV must always have a focused element
@@ -204,6 +218,11 @@ fun TvHomeScreen(
                 delay(50)
             }
         }
+        // Give hasFavourites a short quiet window to settle before ever requesting focus, instead of
+        // requesting it against whatever's first right now and correcting visibly a beat later once
+        // favourites actually appears above it. Capped at 200ms total so a stuck flow still leaves the
+        // screen with a focused element rather than none at all.
+        withTimeoutOrNull(200) { snapshotFlow { hasFavourites }.debounce(32).first() }
         runCatching { contentFocus.requestFocus() }
     }
 
