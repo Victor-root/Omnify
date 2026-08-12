@@ -565,6 +565,12 @@ a { color: inherit; }
   position: absolute;
   width: auto;
   filter: drop-shadow(0 24px 40px rgba(0, 0, 0, 0.35));
+  /* Hints the browser to give each shot its own composited layer from the start
+     instead of promoting it reactively. Chromium has a known class of bug where a
+     filter + transform element skips a repaint on its first composite and leaves
+     a stale rectangular tile behind the actual image until something forces a
+     redraw (scrolling, a text selection). This heads that off at the source. */
+  will-change: transform;
 }
 .s1 { height: 84%; left: 0;    top: 10%; transform: rotate(-7deg); z-index: 1; }
 .s2 { height: 96%; left: 30%;  top: 2%;  transform: rotate(2deg);  z-index: 3; }
