@@ -218,8 +218,18 @@ class ExternalAppsViewModel @Inject constructor(
         installedChanges,
     ) { apps, _, _, _ ->
         apps.mapNotNull { app ->
-            val pkg = app.packageName ?: return@mapNotNull null
-            val version = installedVersionName(pkg) ?: return@mapNotNull null
+            val pkg = app.packageName
+            if (pkg == null) {
+                if (BuildConfig.DEBUG) Log.d(TAG, "installedVersions ${app.key}: no packageName on record")
+                return@mapNotNull null
+            }
+            val version = installedVersionName(pkg)
+            if (version == null) {
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "installedVersions ${app.key}: pkg=$pkg but not found by the package manager")
+                }
+                return@mapNotNull null
+            }
             app.key to version
         }.toMap()
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
@@ -1552,6 +1562,7 @@ class ExternalAppsViewModel @Inject constructor(
                         TAG,
                         "refresh ${app.key}: fetched=${release != null} | " +
                             "latest tag=$tag apk=$apkName token=$token | " +
+                            "pkg=${app.packageName} isInstalled=${app.packageName?.let(::isInstalled)} | " +
                             "installed tag=${app.installedTag} token=${app.installedApkToken} " +
                             "version=${app.installedVersionName} onDevice=$onDevice | " +
                             "update=${app.copy(
@@ -1929,10 +1940,21 @@ class ExternalAppsViewModel @Inject constructor(
             // hasUpdate still correctly flags that a newer release exists. Installing via the normal
             // Install/Update button (no override) installs exactly the release those fields already
             // point at, so adopting them here is a no-op for that case and just keeps the values in sync.
+            //
+            // packageName is deliberately NOT written here, even though it is already known: it is what
+            // decides whether this source is ever recognised as installed again (see installedVersions),
+            // and this download's own manifest read is the only thing that has actually happened so far,
+            // not a real install. A source whose latest release temporarily belongs to a different build
+            // of the same app under its own package id (confirmed real: brave/brave-browser's releases
+            // are not all the same channel, some tagged builds are Beta under com.brave.browser_beta
+            // rather than the Stable com.brave.browser) would otherwise have this field overwritten the
+            // moment such a release is merely attempted, orphaning whatever was genuinely installed
+            // before, permanently, whether or not the install that follows actually succeeds. It is
+            // written below alongside installedTag/installedApkToken/installedVersionName instead, once
+            // the system install is confirmed to have actually reached the device under this exact id.
             val token = release.apkVersionToken(filter = app.apkFilter)
             repository.upsertApp(
                 app.copy(
-                    packageName = packageName,
                     label = realLabel ?: app.label,
                     latestTag = if (releaseOverride == null) release.tag else app.latestTag,
                     latestApkToken = if (releaseOverride == null) token else app.latestApkToken,
@@ -1953,13 +1975,13 @@ class ExternalAppsViewModel @Inject constructor(
                     },
                 ),
             )
-            // installedTag/installedApkToken/installedVersionName are only recorded once the system
-            // install actually reaches Installed — not right after merely enqueueing it above. Writing
-            // them optimistically here used to leave a stale "installed" record (and a wrongly-hidden
-            // update) whenever the install silently failed after this function had already returned,
-            // e.g. exactly the signature conflict this same function now catches, or a cancelled/failed
-            // system install dialog. This runs as its own job so it isn't cut short by this function's
-            // own finally block below.
+            // packageName and installedTag/installedApkToken/installedVersionName are only recorded once
+            // the system install actually reaches Installed, not right after merely enqueueing it above.
+            // Writing them optimistically used to leave a stale "installed" record (and a wrongly-hidden
+            // update, or a permanently wrong packageName) whenever the install silently failed after this
+            // function had already returned, e.g. exactly the signature conflict this same function now
+            // catches, or a cancelled/failed system install dialog. This runs as its own job so it isn't
+            // cut short by this function's own finally block below.
             viewModelScope.launch {
                 val terminal = installManager.state
                     .map { it[PackageName(packageName)] }
@@ -1980,6 +2002,7 @@ class ExternalAppsViewModel @Inject constructor(
                     }
                     repository.upsertApp(
                         current.copy(
+                            packageName = packageName,
                             installedTag = release.tag,
                             installedApkToken = token,
                             installedVersionName = versionName,

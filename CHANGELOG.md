@@ -21,6 +21,7 @@ Settings can now be copied straight from one device to another over the local ne
 
 ### 🐛 Fixed
 - 🔄 **No more false "update available" for unversioned external releases:** apps like Brave, whose release assets carry no version number in the filename, could be flagged as updatable even when the installed version already matched the latest one.
+- 📲 **An external app could stop being recognised as installed:** installing or updating one through Omnify recorded which package it now belongs to right away, before the system install was actually confirmed. A source whose latest release temporarily points to a differently-packaged build of the same app (confirmed real: brave/brave-browser mixes Stable and Beta releases, each its own separate Android package) could have this overwritten the moment such a release was merely attempted, permanently losing track of the copy actually on the device, whether or not that particular install went on to succeed. It's now only recorded once the system genuinely confirms the install.
 - 🎯 **Correct initial focus on Android TV Explore:** opening the app used to land the remote's focus one row too low when favourites were present, as if the screen had already been scrolled. It now lands on Favourites right away, or on the first carousel when there are none.
 - 📺 **Focus comes back where you left it on Android TV:** returning from Repositories or Settings dropped the remote's focus into the content instead of onto the sidebar entry you had just used.
 
