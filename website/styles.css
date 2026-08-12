@@ -34,14 +34,18 @@
   /* Scrollbar, same recipe as the GlassKeep site: a thin bar with no arrow buttons, a track faintly
      tinted with the accent and a gradient thumb. Both ends are the accent pair at full strength, so
      a colour picked in the header repaints the scrollbar along with everything else. The track is
-     lifted here and lowered in the light blocks below, since it has to hold against a dark page. */
+     lifted here and lowered in the light blocks below, since it has to hold against a dark page.
+     Horizontal (the gallery strip) gets its own gradient variable rather than sharing one through a
+     reassigned angle: WebKit does not re-resolve a custom property overridden on
+     ::-webkit-scrollbar-thumb:horizontal against the var() the plain thumb rule already resolved, so
+     that override was silently ignored. */
   --scroll-track: color-mix(in srgb, var(--brand) 22%, transparent);
   --scroll-thumb: linear-gradient(180deg, var(--brand), var(--brand-2));
-  --scroll-thumb-hover: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--brand) 80%, #fff),
-    color-mix(in srgb, var(--brand-2) 80%, #fff)
-  );
+  --scroll-thumb-horizontal: linear-gradient(90deg, var(--brand), var(--brand-2));
+  --scroll-hover-c1: color-mix(in srgb, var(--brand) 80%, #fff);
+  --scroll-hover-c2: color-mix(in srgb, var(--brand-2) 80%, #fff);
+  --scroll-thumb-hover: linear-gradient(180deg, var(--scroll-hover-c1), var(--scroll-hover-c2));
+  --scroll-thumb-horizontal-hover: linear-gradient(90deg, var(--scroll-hover-c1), var(--scroll-hover-c2));
 
   --section-pad: clamp(56px, 8vw, 104px);
   --radius: 18px;
@@ -68,11 +72,10 @@
     --shadow: 0 24px 60px -24px rgba(9, 26, 17, 0.25);
     --aurora-strength: 0.55;
     --scroll-track: color-mix(in srgb, var(--brand) 16%, transparent);
-    --scroll-thumb-hover: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--brand) 82%, #000),
-      color-mix(in srgb, var(--brand-2) 82%, #000)
-    );
+    --scroll-hover-c1: color-mix(in srgb, var(--brand) 82%, #000);
+    --scroll-hover-c2: color-mix(in srgb, var(--brand-2) 82%, #000);
+    --scroll-thumb-hover: linear-gradient(180deg, var(--scroll-hover-c1), var(--scroll-hover-c2));
+    --scroll-thumb-horizontal-hover: linear-gradient(90deg, var(--scroll-hover-c1), var(--scroll-hover-c2));
     color-scheme: light;
   }
 }
@@ -92,11 +95,10 @@
   --shadow: 0 24px 60px -24px rgba(9, 26, 17, 0.25);
   --aurora-strength: 0.55;
   --scroll-track: color-mix(in srgb, var(--brand) 16%, transparent);
-  --scroll-thumb-hover: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--brand) 82%, #000),
-    color-mix(in srgb, var(--brand-2) 82%, #000)
-  );
+  --scroll-hover-c1: color-mix(in srgb, var(--brand) 82%, #000);
+  --scroll-hover-c2: color-mix(in srgb, var(--brand-2) 82%, #000);
+  --scroll-thumb-hover: linear-gradient(180deg, var(--scroll-hover-c1), var(--scroll-hover-c2));
+  --scroll-thumb-horizontal-hover: linear-gradient(90deg, var(--scroll-hover-c1), var(--scroll-hover-c2));
   color-scheme: light;
 }
 
@@ -106,7 +108,9 @@
 ::-webkit-scrollbar-button { display: none; height: 0; width: 0; }
 ::-webkit-scrollbar-track { background: var(--scroll-track); }
 ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 10px; }
+::-webkit-scrollbar-thumb:horizontal { background: var(--scroll-thumb-horizontal); }
 ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
+::-webkit-scrollbar-thumb:horizontal:hover { background: var(--scroll-thumb-horizontal-hover); }
 
 /* Firefox has no ::-webkit-scrollbar, and scrollbar-color takes solid colours only, so it gets the
    accent itself rather than the gradient. */
