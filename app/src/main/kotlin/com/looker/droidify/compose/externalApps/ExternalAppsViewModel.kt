@@ -40,6 +40,7 @@ import com.looker.droidify.external.apkVersionToken
 import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.external.parseAccountSource
 import com.looker.droidify.external.parseExternalSource
+import com.looker.droidify.external.prettifyRepoName
 import com.looker.droidify.external.selectApkAsset
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.installers.shizuku.ShizukuState
@@ -1077,7 +1078,7 @@ class ExternalAppsViewModel @Inject constructor(
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter.trim().ifEmpty { null },
                     versionExcludeFilter = versionExcludeFilter.trim().ifEmpty { null },
-                    label = trimmedName.ifEmpty { ref.repo },
+                    label = trimmedName.ifEmpty { prettifyRepoName(ref.repo) },
                     nameOverridden = trimmedName.isNotEmpty(),
                 )
                 if (apps.value.any { it.key == app.key }) {
@@ -1152,7 +1153,7 @@ class ExternalAppsViewModel @Inject constructor(
                             latestReleaseAt = release.apkUpdatedAtMillis(filter = app.apkFilter),
                         ),
                     )
-                    toast(context.getString(R.string.external_added, app.repo))
+                    toast(context.getString(R.string.external_added, resolvedLabel))
                     added = true
                 }
             } finally {
@@ -1309,14 +1310,14 @@ class ExternalAppsViewModel @Inject constructor(
                 versionExcludeFilter = excludeFilter,
                 enabled = account.enabled,
                 accountKey = account.key,
-                label = ref.repo,
+                label = prettifyRepoName(ref.repo),
             )
             if (candidate.key in skipKeys) continue
             val release = externalApi.latestReleaseFor(candidate) ?: continue
             val packageId =
                 resolvePackageId(candidate, release.apkDownloadUrl(filter = candidate.apkFilter))
             val meta = externalApi.fetchRepoMetadata(candidate)
-            val resolvedLabel = packageId?.let { installedLabel(it) } ?: meta?.appName ?: candidate.repo
+            val resolvedLabel = packageId?.let { installedLabel(it) } ?: meta?.appName ?: candidate.label
             result += candidate.copy(
                 packageName = packageId,
                 label = resolvedLabel,
@@ -1579,16 +1580,21 @@ class ExternalAppsViewModel @Inject constructor(
                 // user-picked icon just because we re-scanned for TV support.
                 val repoIcon = if (needsIcon) meta?.iconCandidates?.firstOrNull() ?: app.repoIconUrl else app.repoIconUrl
                 val supportsTv = if (needsTv) meta?.supportsTelevision ?: app.supportsTelevision else app.supportsTelevision
-                // Only replace the label while it's still the bare repo name (never a user/on-device one).
-                val resolvedLabel = if (
-                    meta?.appName != null &&
-                    !app.nameOverridden &&
-                    app.label == app.repo &&
-                    app.packageName?.let { isInstalled(it) } != true
-                ) {
-                    meta.appName
-                } else {
-                    app.label
+                // Only replace the label while it's still an automatic default (never a user/on-device
+                // one): either the bare repo name from before prettifying it existed, or the prettified
+                // version of it.
+                val stillDefaultLabel = !app.nameOverridden &&
+                    app.packageName?.let { isInstalled(it) } != true &&
+                    (app.label == app.repo || app.label == prettifyRepoName(app.repo))
+                val resolvedLabel = when {
+                    !stillDefaultLabel -> app.label
+                    // The real, manifest-read name when one was found (e.g. on a repo backfilled
+                    // before this scan ever ran). Otherwise, a repo that ships no Android source at all
+                    // to read a name from (brave/brave-browser, which openly says as much in its own
+                    // README) never gets past this, however many times it is rescanned. The prettified
+                    // repo name is what it settles on instead of the raw slug.
+                    meta?.appName != null -> meta.appName
+                    else -> prettifyRepoName(app.repo)
                 }
                 if (tag != app.latestTag ||
                     token != app.latestApkToken ||
@@ -1665,8 +1671,8 @@ class ExternalAppsViewModel @Inject constructor(
             val overridden = trimmedName.isNotEmpty()
             val label = when {
                 overridden -> trimmedName
-                app.packageName != null -> installedLabel(app.packageName) ?: app.repo
-                else -> app.repo
+                app.packageName != null -> installedLabel(app.packageName) ?: prettifyRepoName(app.repo)
+                else -> prettifyRepoName(app.repo)
             }
             val trimmedFilter = apkFilter.trim().ifEmpty { null }
             val trimmedExcludeFilter = versionExcludeFilter.trim().ifEmpty { null }

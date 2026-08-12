@@ -291,3 +291,22 @@ data class ExternalApp(
         const val OMNIFY_REPO_KEY = "GITHUB/Victor-root/Omnify"
     }
 }
+
+/**
+ * A repo's bare slug turned into something worth reading, for when a real app name (read from the
+ * manifest's own `<application android:label>`) genuinely cannot be found: a repo that carries no
+ * Android source at all, such as brave/brave-browser, whose own README says it exists only for
+ * issues, releases and the wiki, with the actual source kept in a different repository entirely.
+ * Hyphens and underscores become spaces, and each resulting word is capitalised.
+ *
+ * A single already mixed-case word (NewPipe, K9Mail, microG) is left untouched, since that already
+ * reads as a deliberately chosen style rather than a raw slug; only a plain lowercase one gets its
+ * first letter capitalised.
+ */
+internal fun prettifyRepoName(repo: String): String = when {
+    repo.any { it == '-' || it == '_' } -> repo.split('-', '_')
+        .filter { it.isNotEmpty() }
+        .joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
+    repo.any { it.isUpperCase() } -> repo
+    else -> repo.replaceFirstChar(Char::uppercase)
+}
