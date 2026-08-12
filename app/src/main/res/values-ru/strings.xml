@@ -197,6 +197,8 @@
     <string name="force_clean_up_DESC">Удаление лишних файлов</string>
     <string name="enable_repo">Включить репозиторий</string>
     <string name="installing">Установка</string>
+    <string name="updating">Обновление</string>
+    <string name="updated">Обновлено</string>
     <string name="waiting_to_start_installation">Ожидание начала установки…</string>
     <string name="auto_update">Автообновление приложений</string>
     <string name="auto_update_apps">Устанавливать обновления автоматически</string>

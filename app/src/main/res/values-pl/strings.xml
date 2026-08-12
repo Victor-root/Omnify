@@ -189,6 +189,8 @@
     <string name="material_you">Silnik motywu Monet</string>
     <string name="enable_repo">Włącz repozytorium</string>
     <string name="installing">Instalowanie</string>
+    <string name="updating">Aktualizowanie</string>
+    <string name="updated">Zaktualizowano</string>
     <string name="waiting_to_start_installation">Oczekiwanie na rozpoczęcie instalacji…</string>
     <string name="favourites">Ulubione</string>
     <string name="show_favourites">Pokaż ulubione</string>

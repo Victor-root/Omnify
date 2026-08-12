@@ -181,6 +181,8 @@
     <string name="io_error_DESC">Kan bepaalde acties niet uitvoeren</string>
     <string name="auto_update">Apps autom. bijwerken</string>
     <string name="installing">Installeren</string>
+    <string name="updating">Bijwerken</string>
+    <string name="updated">Bijgewerkt</string>
     <string name="favourites">Favorieten</string>
     <string name="show_favourites">Favorieten tonen</string>
     <string name="hide_favourites">Favorieten verbergen</string>

@@ -179,6 +179,8 @@
     <string name="auto_update">アプリの自動更新</string>
     <string name="auto_update_apps">アップデートを自動的にインストールします</string>
     <string name="installing">インストール中</string>
+    <string name="updating">アップデート中</string>
+    <string name="updated">アップデート済み</string>
     <string name="waiting_to_start_installation">インストール開始を待機中…</string>
     <string name="favourites">お気に入り</string>
     <string name="show_favourites">お気に入りを表示</string>

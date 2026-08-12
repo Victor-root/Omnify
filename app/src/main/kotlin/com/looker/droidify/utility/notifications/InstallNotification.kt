@@ -29,12 +29,23 @@ fun NotificationManager.removeInstallNotification(
 
 private fun installTag(name: String): String = "install-${name.trim().replace(' ', '_')}"
 
-const val SUCCESS_TIMEOUT = 5_000L
+/** How long a "done" notification (installed, updated, uninstalled) stays before Android clears it on
+ *  its own. Long enough to be read by someone who wasn't watching when it appeared, which is the normal
+ *  case now that updates install by themselves, without leaving finished work sitting in the shade. */
+const val SUCCESS_TIMEOUT = 10_000L
 
+/**
+ * @param isUpdate replacing a copy already on the device rather than installing something new. Only
+ *  the wording changes: "Updating"/"Updated" instead of "Installing"/"Installed", so a notification
+ *  that appears on its own (an automatic update, with nobody having pressed anything) says what
+ *  actually happened. Failures stay worded as an installation whichever it was, since a failed update
+ *  is a failed install and the message already names the app.
+ */
 fun Context.createInstallNotification(
     appName: String,
     state: InstallState,
     isUninstall: Boolean = false,
+    isUpdate: Boolean = false,
     autoCancel: Boolean = true,
     block: NotificationCompat.Builder.() -> Unit = {},
 ): Notification {
@@ -67,14 +78,14 @@ fun Context.createInstallNotification(
                     InstallState.Installing -> {
                         setSmallIcon(R.drawable.ic_download)
                         setProgress(-1, -1, true)
-                        getString(R.string.installing) to
+                        getString(if (isUpdate) R.string.updating else R.string.installing) to
                             appName
                     }
 
                     InstallState.Installed -> {
                         setTimeoutAfter(SUCCESS_TIMEOUT)
                         setSmallIcon(R.drawable.ic_check)
-                        getString(R.string.installed) to
+                        getString(if (isUpdate) R.string.updated else R.string.installed) to
                             appName
                     }
                 }

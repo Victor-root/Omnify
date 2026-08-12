@@ -18,6 +18,7 @@ import com.looker.droidify.utility.common.Constants
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.addAndCompute
 import com.looker.droidify.utility.common.extension.filter
+import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.notificationManager
 import com.looker.droidify.utility.common.extension.updateAsMutable
 import com.looker.droidify.utility.common.log
@@ -191,6 +192,9 @@ class InstallManager(
                     notification = context.createInstallNotification(
                         appName = name,
                         state = InstallState.Installing,
+                        // Read before the installer runs, which is the only moment this is knowable
+                        // here: once it has run, the package is present either way.
+                        isUpdate = context.packageManager.getPackageInfoCompat(name) != null,
                     ),
                 )
             }

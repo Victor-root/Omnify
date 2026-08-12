@@ -191,6 +191,8 @@
     <string name="enable_repo">Paketquelle aktivieren</string>
     <string name="force_clean_up_DESC">Entfernt doppelte Dateien</string>
     <string name="installing">Wird installiert</string>
+    <string name="updating">Wird aktualisiert</string>
+    <string name="updated">Aktualisiert</string>
     <string name="waiting_to_start_installation">Warten auf den Start der Installation …</string>
     <string name="auto_update">Apps automatisch aktualisieren</string>
     <string name="auto_update_apps">Updates automatisch installieren</string>

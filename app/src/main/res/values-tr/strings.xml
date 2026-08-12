@@ -191,6 +191,8 @@
     <string name="force_clean_up_DESC">Gereksiz dosyaları temizler</string>
     <string name="enable_repo">Depoyu etkinleştir</string>
     <string name="installing">Kuruluyor</string>
+    <string name="updating">Güncelleniyor</string>
+    <string name="updated">Güncellendi</string>
     <string name="waiting_to_start_installation">Kurulumun başlatılması bekleniyor…</string>
     <string name="auto_update">Uygulamaları otomatik güncelle</string>
     <string name="auto_update_apps">Güncellemeleri otomatik yükle</string>

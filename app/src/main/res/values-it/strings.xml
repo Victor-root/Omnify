@@ -194,6 +194,8 @@
     <string name="force_clean_up">Pulizia forzata</string>
     <string name="enable_repo">Abilita repository</string>
     <string name="installing">Installazione</string>
+    <string name="updating">Aggiornamento</string>
+    <string name="updated">Aggiornato</string>
     <string name="waiting_to_start_installation">In attesa di avviare l’installazione…</string>
     <string name="auto_update">Aggiornamento automatico delle app</string>
     <string name="auto_update_apps">Installa automaticamente gli aggiornamenti</string>

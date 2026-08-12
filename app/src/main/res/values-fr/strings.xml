@@ -296,6 +296,8 @@
     <string name="force_clean_up_DESC">Nettoyer les fichiers redondants</string>
     <string name="enable_repo">Activer dépôt</string>
     <string name="installing">En cours d\'installation</string>
+    <string name="updating">En cours de mise à jour</string>
+    <string name="updated">Mis à jour</string>
     <string name="waiting_to_start_installation">En attente du démarrage de l\'installation…</string>
     <string name="auto_update">Mise à jour automatique des applis</string>
     <string name="auto_update_apps">Installer les mises à jour automatiquement</string>

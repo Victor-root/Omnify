@@ -194,6 +194,8 @@
     <string name="repository_unreachable">Repositório inacessível</string>
     <string name="enable_repo">Ativar o repositório</string>
     <string name="installing">Instalando</string>
+    <string name="updating">Atualizando</string>
+    <string name="updated">Atualizado</string>
     <string name="waiting_to_start_installation">Aguardando para iniciar a instalação…</string>
     <string name="auto_update">Atualizar apps automaticamente</string>
     <string name="auto_update_apps">Instalar atualizações automaticamente</string>

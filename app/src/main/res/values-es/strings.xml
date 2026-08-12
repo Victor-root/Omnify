@@ -194,6 +194,8 @@
     <string name="force_clean_up_DESC">Limpiar archivos redundantes</string>
     <string name="enable_repo">Habilitar repositorio</string>
     <string name="installing">Instalando</string>
+    <string name="updating">Actualizando</string>
+    <string name="updated">Actualizado</string>
     <string name="waiting_to_start_installation">Esperando para iniciar la instalación…</string>
     <string name="auto_update">Actualizar automáticamente las aplicaciones</string>
     <string name="auto_update_apps">Instalar actualizaciones automáticamente</string>

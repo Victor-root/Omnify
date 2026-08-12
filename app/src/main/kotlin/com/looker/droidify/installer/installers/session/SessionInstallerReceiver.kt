@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
+import android.content.pm.PackageManager
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.IntentCompat
@@ -13,6 +14,7 @@ import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_CHANNEL_INSTALL
 import com.looker.droidify.utility.common.createNotificationChannel
+import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.getPackageName
 import com.looker.droidify.utility.common.extension.notificationManager
 import com.looker.droidify.utility.common.log
@@ -86,9 +88,8 @@ class SessionInstallerReceiver : BroadcastReceiver() {
                         appName = (appName ?: packageName.substringAfterLast('.')).toString(),
                         state = InstallState.Installed,
                         isUninstall = isUninstall,
-                    ) {
-                        setTimeoutAfter(SUCCESS_TIMEOUT)
-                    }
+                        isUpdate = !isUninstall && packageManager.replacedAnExistingCopy(packageName),
+                    )
                     notificationManager?.installNotification(
                         packageName = packageName,
                         notification = notification,
@@ -146,6 +147,20 @@ class SessionInstallerReceiver : BroadcastReceiver() {
         const val ACTION_UNINSTALL = "action_uninstall"
 
         private const val TAG = "SessionInstaller"
-        private const val SUCCESS_TIMEOUT = 5_000L
     }
+}
+
+/**
+ * Whether the install that just succeeded replaced a copy already on the device, rather than putting
+ * a new app there.
+ *
+ * This runs after the fact, so it can't ask whether the package is installed: it always is by now.
+ * Android keeps the answer itself, though. It stamps firstInstallTime once and only once, and moves
+ * lastUpdateTime on every install after that, so the two matching means nothing has replaced the
+ * original yet. Reading it back beats threading a flag through the install for the same reason: no
+ * state to keep in step, and nothing to go stale if a result arrives late.
+ */
+private fun PackageManager.replacedAnExistingCopy(packageName: String): Boolean {
+    val info = getPackageInfoCompat(packageName) ?: return false
+    return info.lastUpdateTime > info.firstInstallTime
 }
