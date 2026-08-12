@@ -424,7 +424,7 @@ a { color: inherit; }
 .hero {
   position: relative;
   overflow-x: clip;
-  padding: clamp(48px, 9vw, 110px) 0 clamp(56px, 8vw, 96px);
+  padding: clamp(20px, 2vw, 28px) 0 clamp(56px, 8vw, 96px);
 }
 
 .aurora {
