@@ -16,6 +16,7 @@ Settings can now be copied straight from one device to another over the local ne
 - 🔀 **Favourites carousel follows your sort order:** it used to always group catalogue apps before external ones regardless of the chosen sort. It now fully interleaves both by the same order shown on the carousel's "see all" page.
 - 🔁 **"Rescan" on a whole-account source now shows what it did:** the action existed but ran silently, so pressing it looked like nothing had happened whether it found something or not. It now spins while it works and says how many new apps it found, or that GitHub's request limit was reached partway through, which is a different thing from finding nothing.
 - 🖼️ **Android TV sidebar icons:** "Mise à jour" gets a new cloud-download icon, freeing up the previous refresh icon for the new "Synchroniser" entry.
+- ⚡ **Faster to open an external app's page:** the version list used to fetch and hold a whole page of releases from GitHub/GitLab/Codeberg the moment the page opened, even though only the newest five are ever shown before "Show more" is tapped. It now asks for just enough to know whether there's more, and only fetches the rest once you actually tap it.
 
 ### 🐛 Fixed
 - 🔄 **No more false "update available" for unversioned external releases:** apps like Brave, whose release assets carry no version number in the filename, could be flagged as updatable even when the installed version already matched the latest one.

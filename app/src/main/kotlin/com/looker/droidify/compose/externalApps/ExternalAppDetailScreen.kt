@@ -110,6 +110,7 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.external.apkDownloadUrl
@@ -336,9 +337,13 @@ fun ExternalAppDetailScreen(
     LaunchedEffect(app?.key) {
         app?.let { viewModel.loadReadme(it) }
     }
-    // Recent releases, for the "choose a version to install" list at the bottom of the screen.
+    // Recent releases, for the "choose a version to install" list at the bottom of the screen. Asks
+    // for one more than the collapsed row count rather than exactly it, so ExternalVersionsSection can
+    // still tell there's more to reveal (VERSIONS_COLLAPSED_COUNT + 1 releases back means there is;
+    // VERSIONS_COLLAPSED_COUNT or fewer means that's genuinely everything) without fetching the full
+    // ceiling before "show more" is ever tapped.
     LaunchedEffect(app?.key) {
-        app?.let { viewModel.loadReleaseHistory(it) }
+        app?.let { viewModel.loadReleaseHistory(it, limit = VERSIONS_COLLAPSED_COUNT + 1) }
     }
     // The Links section's "Issue tracker" and "Changelog" rows.
     LaunchedEffect(app?.key) {
@@ -761,6 +766,7 @@ fun ExternalAppDetailScreen(
                         releaseHistory = releaseHistory,
                         installedVersion = installedVersion,
                         onVersionClick = { versionToInstall = it },
+                        onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
                         onAnchorPositioned = { leftPaneVersionsAnchorY = it },
                         downloadStatus = downloads[appKey],
                         installing = installing,
@@ -801,6 +807,7 @@ fun ExternalAppDetailScreen(
                         supportedLanguages = supportedLanguages,
                         releaseHistory = releaseHistory,
                         onVersionClick = { versionToInstall = it },
+                        onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
                         onAnchorPositioned = { versionsAnchorY = it },
                         showSidebarSections = false,
                         showLeadingSeparator = false,
@@ -928,6 +935,7 @@ fun ExternalAppDetailScreen(
                         supportedLanguages = supportedLanguages,
                         releaseHistory = releaseHistory,
                         onVersionClick = { versionToInstall = it },
+                        onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
                         onAnchorPositioned = { versionsAnchorY = it },
                         showSidebarSections = true,
                         showLeadingSeparator = true,
@@ -977,6 +985,7 @@ private fun ExternalAppDetailBody(
     supportedLanguages: SupportedLanguages?,
     releaseHistory: List<Release>?,
     onVersionClick: (Release) -> Unit,
+    onExpandVersions: () -> Unit,
     onAnchorPositioned: (Int) -> Unit,
     // False in split view: the tablet-landscape left pane shows links, supported languages and
     // versions itself (see ExternalAppDetailScreen), so this body must not repeat them.
@@ -1198,6 +1207,7 @@ private fun ExternalAppDetailBody(
             releaseHistory = releaseHistory,
             installedVersion = installedVersion,
             onVersionClick = onVersionClick,
+            onExpandVersions = onExpandVersions,
             onAnchorPositioned = onAnchorPositioned,
             downloadStatus = downloadStatus,
             installing = installing,
@@ -1300,6 +1310,10 @@ private fun ExternalVersionsSection(
     // via that same live check) says otherwise.
     installedVersion: String?,
     onVersionClick: (Release) -> Unit,
+    // Fetches the full version list (see ExternalApi.RELEASE_HISTORY_TARGET), called once when the
+    // user actually taps "show more" rather than eagerly on every screen open. See this section's own
+    // "show more" branch below for why one more than the collapsed count is fetched upfront regardless.
+    onExpandVersions: () -> Unit,
     onAnchorPositioned: (Int) -> Unit,
     downloadStatus: DownloadStatus?,
     installing: Boolean,
@@ -1391,9 +1405,17 @@ private fun ExternalVersionsSection(
             }
             if (releaseHistory.size > VERSIONS_COLLAPSED_COUNT) {
                 ShowMoreRow(
-                    hiddenCount = releaseHistory.size - VERSIONS_COLLAPSED_COUNT,
+                    // Null rather than the true remaining count: the screen only ever asked for enough
+                    // to know there's at least one more hidden (see the LaunchedEffect that starts
+                    // this off), not the true total, so a number here would risk understating what
+                    // tapping this actually reveals.
+                    hiddenCount = null,
                     expanded = versionsExpanded,
-                    onToggle = { versionsExpanded = !versionsExpanded },
+                    onToggle = {
+                        val expanding = !versionsExpanded
+                        versionsExpanded = expanding
+                        if (expanding) onExpandVersions()
+                    },
                     modifier = Modifier.onFocusChanged {
                         if (it.isFocused) {
                             tvFocusDebugLog(

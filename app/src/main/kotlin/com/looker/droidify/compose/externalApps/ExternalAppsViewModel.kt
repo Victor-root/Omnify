@@ -498,18 +498,36 @@ class ExternalAppsViewModel @Inject constructor(
     private val _releaseHistory = MutableStateFlow<List<Release>?>(null)
     val releaseHistory: StateFlow<List<Release>?> = _releaseHistory
 
-    /** Per-app (elapsedRealtime fetched-at, releases) — an in-memory cache so re-opening the same app's
-     *  detail screen doesn't burn a fresh GitHub API call every time (mirrors [ReadmeCache]'s freshness
-     *  window, just kept in memory since a stale version list is harmless to lose on process death). */
-    private val releaseHistoryCache = mutableMapOf<String, Pair<Long, List<Release>>>()
+    /** One [releaseHistoryCache] entry: when it was fetched, the [limit] it was fetched with, and what
+     *  came back. [limit] is what lets a later call tell whether the cache already answers it, or is
+     *  too small a fetch to trust for a bigger ask (see [loadReleaseHistory]). */
+    private data class ReleaseHistoryCacheEntry(val fetchedAt: Long, val limit: Int, val releases: List<Release>)
 
-    fun loadReleaseHistory(app: ExternalApp) {
+    /** Per-app cache so re-opening the same app's detail screen, or toggling "show more" back and
+     *  forth, doesn't burn a fresh GitHub API call every time (mirrors [ReadmeCache]'s freshness
+     *  window, just kept in memory since a stale version list is harmless to lose on process death). */
+    private val releaseHistoryCache = mutableMapOf<String, ReleaseHistoryCacheEntry>()
+
+    /**
+     * Fetches up to [limit] releases for the version list, e.g. just enough for the collapsed row
+     * count before "show more" is ever tapped, or the full ceiling once it is.
+     *
+     * A repo with an active release cadence can have far more releases than the handful the collapsed
+     * list actually shows, so this caller-supplied [limit] is what keeps opening the screen from
+     * fetching (and holding) a whole page of releases nobody may ever scroll to. A cache entry
+     * fetched for a smaller [limit] than requested is trusted anyway once it already came back short
+     * of what it was originally asked for: that means the repo genuinely has no more, and asking again
+     * with a bigger number would only repeat the same request for the same answer.
+     */
+    fun loadReleaseHistory(app: ExternalApp, limit: Int) {
         val cached = releaseHistoryCache[app.key]
-        _releaseHistory.value = cached?.second
-        if (cached != null && SystemClock.elapsedRealtime() - cached.first < README_FRESHNESS_MS) return
+        _releaseHistory.value = cached?.releases
+        val fresh = cached != null && SystemClock.elapsedRealtime() - cached.fetchedAt < README_FRESHNESS_MS
+        val cacheAnswersThis = cached != null && (cached.limit >= limit || cached.releases.size < cached.limit)
+        if (fresh && cacheAnswersThis) return
         viewModelScope.launch {
-            val releases = externalApi.releaseHistory(app)
-            releaseHistoryCache[app.key] = SystemClock.elapsedRealtime() to releases
+            val releases = externalApi.releaseHistory(app, limit)
+            releaseHistoryCache[app.key] = ReleaseHistoryCacheEntry(SystemClock.elapsedRealtime(), limit, releases)
             _releaseHistory.value = releases
         }
     }

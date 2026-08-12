@@ -20,13 +20,17 @@ import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 
 /**
- * A "show more (N) / show less" toggle row, for a list that's collapsed to its first few items —
- * e.g. a version list — so a long list doesn't make the whole page require endless scrolling. [hiddenCount]
- * is the number of items collapsed out of view, shown in the "show more" label; collapsing back never
- * needs a count.
+ * A "show more (N) / show less" toggle row, for a list that's collapsed to its first few items (e.g.
+ * a version list), so a long list doesn't make the whole page require endless scrolling.
+ * [hiddenCount] is the number of items collapsed out of view, shown in the "show more" label; null
+ * when the caller only knows there's at least one more rather than exactly how many (a source whose
+ * full count is worth a second network fetch of its own, not paid just to size this label, see
+ * [com.looker.droidify.compose.externalApps.ExternalAppDetailScreen]'s own version list), which shows
+ * a plain "show more" instead of a number that would otherwise undersell what tapping it actually
+ * reveals. Collapsing back never needs a count either way.
  */
 @Composable
-fun ShowMoreRow(hiddenCount: Int, expanded: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+fun ShowMoreRow(hiddenCount: Int?, expanded: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -37,10 +41,10 @@ fun ShowMoreRow(hiddenCount: Int, expanded: Boolean, onToggle: () -> Unit, modif
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = if (expanded) {
-                stringResource(R.string.show_less)
-            } else {
-                stringResource(R.string.show_more_versions_FORMAT, hiddenCount)
+            text = when {
+                expanded -> stringResource(R.string.show_less)
+                hiddenCount != null -> stringResource(R.string.show_more_versions_FORMAT, hiddenCount)
+                else -> stringResource(R.string.show_more)
             },
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,

@@ -66,6 +66,7 @@ import com.looker.droidify.compose.externalApps.ExternalLifecycleActions
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
 import com.looker.droidify.utility.common.IconAccentCache
 import com.looker.droidify.utility.common.iconAccent
@@ -162,10 +163,12 @@ fun TvExternalAppDetailScreen(
     val expectedSigners = app.latestApkUrl?.let { expectedSignersByApkUrl[it] }
 
     // Same content the phone screen loads, so an external app's page is as rich as a catalogue one
-    // (Omnify deliberately blurs the line between the two).
+    // (Omnify deliberately blurs the line between the two). Unlike the phone screen, TV's version
+    // list has no "show more" (see TvExternalVersionsList below), so it asks for the full ceiling
+    // straight away rather than the smaller amount the phone starts with.
     LaunchedEffect(app.key) {
         viewModel.loadReadme(app)
-        viewModel.loadReleaseHistory(app)
+        viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET)
     }
     var showDescription by remember(app.key) { mutableStateOf(false) }
     if (showDescription && readme != null) {

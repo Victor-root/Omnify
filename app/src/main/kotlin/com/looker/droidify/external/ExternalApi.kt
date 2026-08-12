@@ -149,18 +149,27 @@ class ExternalApi @Inject constructor(
     }
 
     /**
-     * All non-draft releases within the recent window (newest first) that ship at least one APK
-     * this source's [ExternalApp.apkFilter] would accept — the external-app equivalent of the
+     * Up to [limit] non-draft releases within the recent window (newest first) that ship at least one
+     * APK this source's [ExternalApp.apkFilter] would accept: the external-app equivalent of the
      * F-Droid catalogue's version list, so the user can pick a specific past version to install
      * instead of only ever the one [latestReleaseFor] would offer. Unlike that function, nothing
      * is filtered by device-ABI compatibility or pre-release status here; the caller decides what
      * to show. Empty on network/HTTP/parse failure.
+     *
+     * [limit] both bounds how far pagination walks (nothing is gathered beyond what answers it) and
+     * caps what's returned, so a caller asking for a handful of rows to show before a "show more" tap
+     * gets back exactly that, not however many happened to share the same fetched page: a repo with
+     * frequent releases can otherwise fill an entire page (see [RELEASES_PER_PAGE]) that this then has
+     * to hold and the caller discards all but a handful of.
      */
-    suspend fun releaseHistory(app: ExternalApp): List<Release> = withContext(Dispatchers.IO) {
+    suspend fun releaseHistory(
+        app: ExternalApp,
+        limit: Int = RELEASE_HISTORY_TARGET,
+    ): List<Release> = withContext(Dispatchers.IO) {
         runCatching {
             fetchReleases(
                 app.provider, app.effectiveHost, app.owner, app.repo,
-                minQualifying = RELEASE_HISTORY_TARGET,
+                minQualifying = limit,
                 isQualifying = {
                     it.isAllowedBy(app.includePrereleases, app.versionExcludeFilter) &&
                         it.hasApkMatchingFilter(app.apkFilter)
@@ -170,14 +179,15 @@ class ExternalApi @Inject constructor(
             .getOrNull()
             .orEmpty()
             // Shares pickInstallable's own criteria: a release the source excludes shouldn't appear in
-            // the version list either — the list should only ever offer what could actually be
+            // the version list either: the list should only ever offer what could actually be
             // installed from it.
             .allowedBy(app.includePrereleases, app.versionExcludeFilter)
-            // Strict, not selectApkAsset's own mercy fallback (see hasApkMatchingFilter's doc comment):
-            // otherwise a monorepo publishing more than one app's releases (e.g. bitwarden/android) would
-            // list every release regardless of which app it belongs to, since selectApkAsset always
-            // returns *something* once a release has any APK at all.
+            // Strict, not selectApkAsset's own mercy fallback (see hasApkMatchingFilter's doc
+            // comment): otherwise a monorepo publishing more than one app's releases (e.g.
+            // bitwarden/android) would list every release regardless of which app it belongs to,
+            // since selectApkAsset always returns *something* once a release has any APK at all.
             .filter { it.hasApkMatchingFilter(app.apkFilter) }
+            .take(limit)
     }
 
     /** Probes whether [host] runs Gitea/Forgejo by hitting its repo API. Lets a pasted URL whose host
@@ -1077,11 +1087,6 @@ class ExternalApi @Inject constructor(
          *  (several unstable channels sharing one repo, e.g. a browser's Nightly/Beta/Stable). */
         const val RELEASE_FETCH_MAX_PAGES = 5
 
-        /** How many qualifying releases [releaseHistory] tries to gather for the version list — a
-         *  source with only one or two within a single page would otherwise show a near-empty history
-         *  even though older qualifying releases exist further back. */
-        const val RELEASE_HISTORY_TARGET = 10
-
         /** Page cap when listing an account's repos, so a huge account can't spin forever. */
         const val ACCOUNT_REPOS_MAX_PAGES = 5
 
@@ -1110,6 +1115,15 @@ class ExternalApi @Inject constructor(
         )
     }
 }
+
+/**
+ * The ceiling [ExternalApi.releaseHistory] fetches and returns when the caller wants the full version
+ * list, rather than only the handful shown before a "show more" tap (see
+ * [com.looker.droidify.compose.externalApps.ExternalAppDetailScreen]'s own smaller default). Internal
+ * rather than private: both the phone and the Android TV detail screens ask for this exact ceiling once
+ * the user wants everything, so it lives here once instead of the same number typed twice.
+ */
+internal const val RELEASE_HISTORY_TARGET = 10
 
 /** How many distinct icon candidates we keep for the picker (one per icon family, best density). */
 private const val MAX_ICON_CANDIDATES = 12
