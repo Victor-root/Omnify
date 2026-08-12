@@ -486,6 +486,7 @@
     <string name="external_only_prereleases">%s yalnızca ön sürümler yayımlıyor. Eklemek için \"Ön sürümleri dahil et\"i aç.</string>
     <string name="external_all_excluded_by_filter">%s\'in tüm son sürümleri hariç tutma filtrenizle eşleşiyor. Bu kaynağı eklemek için filtreyi temizle veya ayarla.</string>
     <string name="external_prerelease_label">Ön sürüm</string>
+    <string name="external_no_website">Web sitesi bulunamadı</string>
     <string name="external_no_issue_tracker">Sorun takibi bulunamadı</string>
     <string name="external_no_changelog">Değişim günlüğü bulunamadı</string>
     <string name="external_edit_source">Kaynağı düzenle</string>

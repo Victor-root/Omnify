@@ -482,6 +482,7 @@
     <string name="external_only_prereleases">%s 只发布预发布版本。请开启\"包含预发布版本\"以添加它。</string>
     <string name="external_all_excluded_by_filter">%s 的所有近期发布版本都匹配您的排除过滤器。请清空或调整它以添加此来源。</string>
     <string name="external_prerelease_label">预发布版本</string>
+    <string name="external_no_website">未找到网站</string>
     <string name="external_no_issue_tracker">未找到问题追踪器</string>
     <string name="external_no_changelog">未找到更新日志</string>
     <string name="external_edit_source">编辑来源</string>

@@ -486,6 +486,7 @@
     <string name="external_only_prereleases">%s publiceert alleen pre-releases. Schakel \"Pre-releases opnemen\" in om deze toe te voegen.</string>
     <string name="external_all_excluded_by_filter">Alle recente releases van %s komen overeen met je uitsluitingsfilter. Wis of pas dit aan om deze bron toe te voegen.</string>
     <string name="external_prerelease_label">Pre-release</string>
+    <string name="external_no_website">Geen website gevonden</string>
     <string name="external_no_issue_tracker">Geen issuetracker gevonden</string>
     <string name="external_no_changelog">Geen wijzigingsoverzicht gevonden</string>
     <string name="external_edit_source">Bron bewerken</string>

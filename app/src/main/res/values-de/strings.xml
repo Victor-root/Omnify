@@ -486,6 +486,7 @@
     <string name="external_only_prereleases">%s veröffentlicht nur Vorabversionen. Aktiviere \"Vorabversionen einschließen\", um sie hinzuzufügen.</string>
     <string name="external_all_excluded_by_filter">Alle aktuellen Versionen von %s entsprechen deinem Ausschlussfilter. Leere ihn oder passe ihn an, um diese Quelle hinzuzufügen.</string>
     <string name="external_prerelease_label">Vorabversion</string>
+    <string name="external_no_website">Keine Website gefunden</string>
     <string name="external_no_issue_tracker">Keine Problemverfolgung gefunden</string>
     <string name="external_no_changelog">Kein Änderungsprotokoll gefunden</string>
     <string name="external_edit_source">Quelle bearbeiten</string>

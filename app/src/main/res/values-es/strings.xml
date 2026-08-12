@@ -490,6 +490,7 @@
     <string name="external_only_prereleases">%s solo publica versiones preliminares. Activa \"Incluir versiones preliminares\" para agregarlo.</string>
     <string name="external_all_excluded_by_filter">Todas las versiones recientes de %s coinciden con tu filtro de exclusión. Bórralo o ajústalo para agregar esta fuente.</string>
     <string name="external_prerelease_label">Preliminar</string>
+    <string name="external_no_website">No se encontró ningún sitio web</string>
     <string name="external_no_issue_tracker">No se encontró ningún registro de incidencias</string>
     <string name="external_no_changelog">No se encontró ningún registro de cambios</string>
     <string name="external_edit_source">Editar fuente</string>

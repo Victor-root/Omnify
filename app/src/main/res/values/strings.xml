@@ -509,6 +509,7 @@
     <string name="external_only_prereleases">%s only publishes pre-releases. Turn on \"Include pre-releases\" to add it.</string>
     <string name="external_all_excluded_by_filter">All recent releases of %s match your exclude filter. Clear or adjust it to add this source.</string>
     <string name="external_prerelease_label">Pre-release</string>
+    <string name="external_no_website">No website found</string>
     <string name="external_no_issue_tracker">No issue tracker found</string>
     <string name="external_no_changelog">No changelog found</string>
     <string name="external_edit_source">Edit source</string>

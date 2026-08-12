@@ -169,6 +169,7 @@ fun ExternalAppDetailScreen(
     val expectedSignersByApkUrl by viewModel.expectedSignersByApkUrl.collectAsStateWithLifecycle()
     val issueTrackerLink by viewModel.issueTrackerLink.collectAsStateWithLifecycle()
     val changelogLink by viewModel.changelogLink.collectAsStateWithLifecycle()
+    val websiteLink by viewModel.websiteLink.collectAsStateWithLifecycle()
     val changelogHtml by viewModel.changelogHtml.collectAsStateWithLifecycle()
     val changelogUnavailable by viewModel.changelogUnavailable.collectAsStateWithLifecycle()
     var showChangelog by remember { mutableStateOf(false) }
@@ -727,6 +728,7 @@ fun ExternalAppDetailScreen(
                     }
                     headerCard()
                     ExternalLinksSection(
+                        websiteLink = websiteLink,
                         issueTrackerLink = issueTrackerLink,
                         changelogLink = changelogLink,
                         onChangelogClick = {
@@ -789,6 +791,7 @@ fun ExternalAppDetailScreen(
                         readmeJavaScriptEnabled = readmeJavaScriptEnabled,
                         viewportPx = viewportPx,
                         scrollState = scrollState,
+                        websiteLink = websiteLink,
                         issueTrackerLink = issueTrackerLink,
                         changelogLink = changelogLink,
                         onChangelogClick = {
@@ -915,6 +918,7 @@ fun ExternalAppDetailScreen(
                         readmeJavaScriptEnabled = readmeJavaScriptEnabled,
                         viewportPx = viewportPx,
                         scrollState = scrollState,
+                        websiteLink = websiteLink,
                         issueTrackerLink = issueTrackerLink,
                         changelogLink = changelogLink,
                         onChangelogClick = {
@@ -966,6 +970,7 @@ private fun ExternalAppDetailBody(
     readmeJavaScriptEnabled: Boolean,
     viewportPx: Int,
     scrollState: ScrollState,
+    websiteLink: LinkCheckState?,
     issueTrackerLink: LinkCheckState?,
     changelogLink: LinkCheckState?,
     onChangelogClick: () -> Unit,
@@ -1153,6 +1158,7 @@ private fun ExternalAppDetailBody(
     if (showSidebarSections) {
         Spacer(Modifier.height(16.dp))
         ExternalLinksSection(
+            websiteLink = websiteLink,
             issueTrackerLink = issueTrackerLink,
             changelogLink = changelogLink,
             onChangelogClick = onChangelogClick,
@@ -1220,14 +1226,16 @@ private val README_COLLAPSED_HEIGHT = 320.dp
 private const val README_COLLAPSED_VIEWPORTS = 2
 
 /**
- * "Issue tracker" and "Changelog" — an external source has no index metadata for these like the
- * F-Droid catalogue does, so they're resolved live from the provider. Always shown (not hidden while
- * resolving/absent) so the page doesn't jump around as the checks complete; a still-loading or
- * genuinely absent link reads as a plain "…" / explanatory row instead. Extracted so both the
- * single-column body and the tablet-landscape split view's left pane render the exact same content.
+ * "Project website", "Issue tracker" and "Changelog": an external source has no index metadata for
+ * these like the F-Droid catalogue does, so they're resolved live from the provider. Always shown (not
+ * hidden while resolving/absent) so the page doesn't jump around as the checks complete; a
+ * still-loading or genuinely absent link reads as a plain "…" / explanatory row instead. Extracted so
+ * both the single-column body and the tablet-landscape split view's left pane render the exact same
+ * content.
  */
 @Composable
 private fun ExternalLinksSection(
+    websiteLink: LinkCheckState?,
     issueTrackerLink: LinkCheckState?,
     changelogLink: LinkCheckState?,
     onChangelogClick: () -> Unit,
@@ -1238,6 +1246,16 @@ private fun ExternalLinksSection(
     val uriHandler = LocalUriHandler.current
     Column(modifier = Modifier.fillMaxWidth()) {
         LinkRow(
+            iconRes = R.drawable.ic_public,
+            title = stringResource(R.string.website),
+            url = websiteLink?.url,
+            unavailableText = stringResource(
+                if (websiteLink == null) R.string.loading else R.string.external_no_website,
+            ),
+            onClick = websiteLink?.url?.let { url -> { runCatching { uriHandler.openUri(url) } } },
+            focusRequester = firstRowFocusRequester,
+        )
+        LinkRow(
             iconRes = R.drawable.ic_bug_report,
             title = stringResource(R.string.issue_tracker),
             url = issueTrackerLink?.url,
@@ -1245,7 +1263,6 @@ private fun ExternalLinksSection(
                 if (issueTrackerLink == null) R.string.loading else R.string.external_no_issue_tracker,
             ),
             onClick = issueTrackerLink?.url?.let { url -> { runCatching { uriHandler.openUri(url) } } },
-            focusRequester = firstRowFocusRequester,
         )
         LinkRow(
             iconRes = R.drawable.ic_history,

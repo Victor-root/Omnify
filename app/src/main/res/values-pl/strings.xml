@@ -494,6 +494,7 @@
     <string name="external_only_prereleases">%s publikuje tylko wersje wstępne. Włącz opcję \"Uwzględnij wersje wstępne\", aby ją dodać.</string>
     <string name="external_all_excluded_by_filter">Wszystkie ostatnie wersje %s pasują do Twojego filtra wykluczeń. Wyczyść go lub dostosuj, aby dodać to źródło.</string>
     <string name="external_prerelease_label">Wersja wstępna</string>
+    <string name="external_no_website">Nie znaleziono strony internetowej</string>
     <string name="external_no_issue_tracker">Brak śledzenia zgłoszeń</string>
     <string name="external_no_changelog">Brak listy zmian</string>
     <string name="external_edit_source">Edytuj źródło</string>

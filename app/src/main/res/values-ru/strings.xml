@@ -494,6 +494,7 @@
     <string name="external_only_prereleases">%s публикует только предварительные релизы. Включите \"Включать предварительные релизы\", чтобы добавить его.</string>
     <string name="external_all_excluded_by_filter">Все последние релизы %s соответствуют вашему фильтру исключений. Очистите или измените его, чтобы добавить этот источник.</string>
     <string name="external_prerelease_label">Предварительный релиз</string>
+    <string name="external_no_website">Сайт не найден</string>
     <string name="external_no_issue_tracker">Трекер ошибок не найден</string>
     <string name="external_no_changelog">Список изменений не найден</string>
     <string name="external_edit_source">Редактировать источник</string>

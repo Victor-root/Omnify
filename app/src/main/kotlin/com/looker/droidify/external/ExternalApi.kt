@@ -603,14 +603,8 @@ class ExternalApi @Inject constructor(
     suspend fun fetchIssueTrackerUrl(app: ExternalApp): String? = withContext(Dispatchers.IO) {
         runCatching {
             val enabled = when (app.provider) {
-                SourceProvider.GITHUB -> repoHasIssues(
-                    url = "https://api.github.com/repos/${app.repoPath}",
-                    github = true,
-                )
-                // Gitea/Forgejo (codeberg.org or self-hosted) exposes the same has_issues field.
-                SourceProvider.CODEBERG -> repoHasIssues(
-                    url = "https://${app.effectiveHost}/api/v1/repos/${app.repoPath}",
-                )
+                // GitHub and Gitea/Forgejo (codeberg.org or self-hosted) share the has_issues field.
+                SourceProvider.GITHUB, SourceProvider.CODEBERG -> fetchRepoInfo(app)?.hasIssues ?: false
                 SourceProvider.GITLAB -> {
                     // GitLab's project API doesn't reliably expose an issues-enabled flag to anonymous
                     // requests; the issues list endpoint itself returns 403 when issues are disabled
@@ -626,12 +620,41 @@ class ExternalApi @Inject constructor(
         }.getOrNull()
     }
 
-    /** True when the repo's REST payload reports `has_issues: true` (GitHub and Gitea/Codeberg share
-     *  this field). False on any failure, so a broken check reads as "no tracker" rather than crashing. */
-    private suspend fun repoHasIssues(url: String, github: Boolean = false): Boolean {
-        val text = getText(url, github) ?: return false
-        return runCatching { json.decodeFromString(RepoIssuesFlagDto.serializer(), text) }
-            .getOrNull()?.hasIssues ?: false
+    /**
+     * The project's own declared website, when the repo carries one: GitHub's `homepage` field, Gitea/
+     * Codeberg's `website` field, both shown in the provider's own sidebar as a dedicated "Website" box
+     * distinct from the repo's own page. Mirrors the F-Droid catalogue's "Project website" link, which an
+     * external source has no equivalent metadata for. GitLab's project API exposes nothing equivalent, so
+     * this is always null there. Null when the field is empty/absent or the check itself fails.
+     */
+    suspend fun fetchWebsiteUrl(app: ExternalApp): String? = withContext(Dispatchers.IO) {
+        fetchRepoInfo(app)?.websiteUrl
+    }
+
+    /** Shared cache for [fetchRepoInfo], keyed and bounded exactly like [treeCache]: asking about a
+     *  repo's issue tracker and its website both read this same small JSON response, and without this
+     *  they'd each fire their own request against the same URL when the detail screen opens both. */
+    private val repoInfoCache = ConcurrentHashMap<String, Pair<Long, RepoInfoDto?>>()
+
+    /** GitHub's and Gitea/Codeberg's repo REST payload in one small DTO, covering everything read off it:
+     *  whether issues are enabled, and the project's declared website. Null (not cached, see [treeCache]'s
+     *  own reasoning) when the request or the parse fails, so a transient failure retries on the next call
+     *  instead of caching "nothing here" for [TREE_CACHE_TTL_MS]. Always null for GitLab, which has no
+     *  matching single-request repo-info endpoint. */
+    private suspend fun fetchRepoInfo(app: ExternalApp): RepoInfoDto? {
+        val cacheKey = "${app.provider}|${app.effectiveHost}|${app.owner}|${app.repo}"
+        repoInfoCache[cacheKey]?.let { (fetchedAt, info) ->
+            if (SystemClock.elapsedRealtime() - fetchedAt < TREE_CACHE_TTL_MS) return info
+        }
+        val url = when (app.provider) {
+            SourceProvider.GITHUB -> "https://api.github.com/repos/${app.repoPath}"
+            SourceProvider.CODEBERG -> "https://${app.effectiveHost}/api/v1/repos/${app.repoPath}"
+            SourceProvider.GITLAB -> return null
+        }
+        val info = getText(url, github = app.provider == SourceProvider.GITHUB)
+            ?.let { text -> runCatching { json.decodeFromString(RepoInfoDto.serializer(), text) }.getOrNull() }
+        if (info != null) repoInfoCache[cacheKey] = SystemClock.elapsedRealtime() to info
+        return info
     }
 
     /**
@@ -1387,9 +1410,20 @@ private val CHANGELOG_NAMES = listOf(
  *  last few versions" changelog without pulling in the entire release history in one page. */
 private const val CHANGELOG_RELEASE_NOTES_LIMIT = 5
 
-/** GitHub's and Gitea/Codeberg's repo REST payload share this field for whether issues are enabled. */
+/**
+ * GitHub's and Gitea/Codeberg's repo REST payload, narrowed to the two fields [ExternalApi.fetchRepoInfo]
+ * reads off it. GitHub calls the project's declared website `homepage`; Gitea/Codeberg calls it `website`,
+ * both null on the other provider's response. `ignoreUnknownKeys` means neither name ever fails to
+ * parse, and [websiteUrl] reads whichever of the two is actually present.
+ */
 @Serializable
-private data class RepoIssuesFlagDto(@SerialName("has_issues") val hasIssues: Boolean = false)
+private data class RepoInfoDto(
+    @SerialName("has_issues") val hasIssues: Boolean = false,
+    val homepage: String? = null,
+    val website: String? = null,
+) {
+    val websiteUrl: String? get() = (homepage ?: website)?.trim()?.takeIf { it.isNotEmpty() }
+}
 
 /** GitHub-flavoured Markdown extensions: tables, strikethrough, autolinks and task lists. */
 private val MARKDOWN_EXTENSIONS = listOf(

@@ -611,17 +611,21 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    /** The detail screen's "Issue tracker" and "Changelog" links, resolved from the provider itself
-     *  (an external source has no index metadata to read these from, unlike the F-Droid catalogue).
-     *  Null while still checking; once checked, [LinkCheckState.url] is null when the repo genuinely
-     *  has no issue tracker / no changelog file, so the screen can say so instead of hiding the row. */
+    /** The detail screen's "Issue tracker", "Changelog" and "Project website" links, resolved from the
+     *  provider itself (an external source has no index metadata to read these from, unlike the
+     *  F-Droid catalogue). Null while still checking; once checked, [LinkCheckState.url] is null when
+     *  the repo genuinely has no issue tracker / no changelog file / no declared website, so the screen
+     *  can say so instead of hiding the row. */
     private val _issueTrackerLink = MutableStateFlow<LinkCheckState?>(null)
     val issueTrackerLink: StateFlow<LinkCheckState?> = _issueTrackerLink
     private val _changelogLink = MutableStateFlow<LinkCheckState?>(null)
     val changelogLink: StateFlow<LinkCheckState?> = _changelogLink
+    private val _websiteLink = MutableStateFlow<LinkCheckState?>(null)
+    val websiteLink: StateFlow<LinkCheckState?> = _websiteLink
 
     private val issueTrackerCache = mutableMapOf<String, Pair<Long, String?>>()
     private val changelogCache = mutableMapOf<String, Pair<Long, String?>>()
+    private val websiteCache = mutableMapOf<String, Pair<Long, String?>>()
 
     fun loadIssueTrackerAndChangelog(app: ExternalApp) {
         val now = SystemClock.elapsedRealtime()
@@ -641,6 +645,15 @@ class ExternalAppsViewModel @Inject constructor(
                 val url = externalApi.fetchChangelogUrl(app)
                 changelogCache[app.key] = SystemClock.elapsedRealtime() to url
                 _changelogLink.value = LinkCheckState(url)
+            }
+        }
+        val cachedWebsite = websiteCache[app.key]
+        _websiteLink.value = cachedWebsite?.let { LinkCheckState(it.second) }
+        if (cachedWebsite == null || now - cachedWebsite.first >= README_FRESHNESS_MS) {
+            viewModelScope.launch {
+                val url = externalApi.fetchWebsiteUrl(app)
+                websiteCache[app.key] = SystemClock.elapsedRealtime() to url
+                _websiteLink.value = LinkCheckState(url)
             }
         }
     }

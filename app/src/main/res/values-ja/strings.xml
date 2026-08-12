@@ -482,6 +482,7 @@
     <string name="external_only_prereleases">%s はプレリリースしか公開していません。追加するには「プレリリースを含める」を有効にしてください。</string>
     <string name="external_all_excluded_by_filter">%s の最近のリリースはすべて除外フィルターに一致しています。このソースを追加するには、フィルターを解除するか調整してください。</string>
     <string name="external_prerelease_label">プレリリース</string>
+    <string name="external_no_website">ウェブサイトが見つかりません</string>
     <string name="external_no_issue_tracker">イシュートラッカーが見つかりません</string>
     <string name="external_no_changelog">変更履歴が見つかりません</string>
     <string name="external_edit_source">ソースを編集</string>
