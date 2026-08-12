@@ -506,6 +506,18 @@ a { color: inherit; }
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  /* background-clip: text only paints within the element's own box, and at this
+     weight a glyph can ink past it under the heading's tight line-height, clipping
+     letters like the "e" in "n'importe". How far depends on the system font
+     actually rendering it, so the margin below is generous on purpose rather than
+     tuned to just one. Padding on an inline element grows that box without
+     pushing the surrounding lines apart. */
+  padding-block: 0.3em;
+  /* At some widths only the last word of this span ("où") wraps to its own line,
+     splitting the gradient across two fragments. Some renderers then clip the
+     fragment before the break. Keeping the whole phrase on one line removes that
+     split instead of chasing how each engine paints around it. */
+  white-space: nowrap;
 }
 
 .lede {
