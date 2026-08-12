@@ -420,16 +420,6 @@ fun SettingsScreen(
             }
 
             item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.ignore_signature),
-                    description = stringResource(R.string.ignore_signature_summary),
-                    icon = painterResource(R.drawable.ic_verified_off),
-                    checked = settings.ignoreSignature,
-                    onCheckedChange = viewModel::setIgnoreSignature,
-                )
-            }
-
-            item {
                 SettingHeader(title = stringResource(R.string.sync_repositories))
             }
 

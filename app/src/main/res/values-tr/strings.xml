@@ -216,8 +216,6 @@
     <string name="installation_failed_DESC">%s kurulamadı</string>
     <string name="uninstalled_application">Kaldırıldı</string>
     <string name="uninstalled_application_DESC">%s kaldırıldı</string>
-    <string name="ignore_signature">İmza kontrolünü atla</string>
-    <string name="ignore_signature_summary">Uygulama yüklenirken imza doğrulamayı devre dışı bırak</string>
     <string name="error_shizuku_service_unavailable">Shizuku/Sui Servisi çalışıyor</string>
     <string name="error_shizuku_not_running_DESC">Shizuku/Sui servisi çalışmıyor</string>
     <string name="error_shizuku_not_granted">Shizuku/ Sui izni verilmedi</string>

@@ -210,8 +210,6 @@
     <string name="installation_failed_DESC">Η εγκατάσταση του %s απέτυχε</string>
     <string name="uninstalled_application">Απεγκαταστάθηκε</string>
     <string name="uninstalled_application_DESC">Το %s απεγκαταστάθηκε</string>
-    <string name="ignore_signature">Αγνόηση επαλήθευσης υπογραφής</string>
-    <string name="ignore_signature_summary">Αγνοήστε την επαλήθευση υπογραφής κατά την εγκατάσταση εφαρμογής</string>
     <string name="error_shizuku_not_granted_DESC">Η άδεια λειτουργίας της υπηρεσίας Shizuku/Sui δεν έχει παραχωρηθεί</string>
     <string name="error_shizuku_not_installed">Το Shizuku/Sui δεν έχει εγκατασταθεί</string>
     <string name="open_shizuku">Άνοιγμα Shizuku</string>

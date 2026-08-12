@@ -207,7 +207,6 @@
     <string name="require_background_access">Require acceso en segundo plano</string>
     <string name="require_background_access_DESC">O acceso en segundo plano é requirido para executar correctamente sincronización en segundo plano</string>
     <string name="switch_to_default_installer">Cambiar a predeterminado</string>
-    <string name="ignore_signature">Ignorar sinatura</string>
     <string name="label_open_video">Vídeo</string>
     <string name="legacyInstallerComponent">Compoñente instalador herdado</string>
     <string name="unspecified">Sen especificar</string>
@@ -227,7 +226,6 @@
     <string name="home_screen_swiping">Escorregamento pola pantalla de inicio</string>
     <string name="repository_not_found">O seguinte repositorio non foi atopado</string>
     <string name="has_non_free_components">Ten compoñentes non libres</string>
-    <string name="ignore_signature_summary">*Advertencia* Ignorar a verificación de sinatura cando se instala un APK, para usuarios de LSPosed ou usuarios avanzados</string>
     <string name="shizuku_not_installed">Shizuku non está instalado</string>
     <string name="label_sdk_version">Obxectivo: Android %1$s | Mínimo: Android %2$s</string>
 </resources>

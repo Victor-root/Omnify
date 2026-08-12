@@ -3,16 +3,13 @@ package com.looker.droidify.work
 import android.content.Context
 import android.util.Log
 import androidx.hilt.work.HiltWorker
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.looker.droidify.data.PendingUpdates
 import com.looker.droidify.datastore.SettingsRepository
-import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.external.ExternalInstallOutcome
 import com.looker.droidify.external.ExternalInstaller
 import com.looker.droidify.utility.common.extension.exceptCancellation
@@ -58,7 +55,7 @@ class AutoUpdateWorker @AssistedInject constructor(
             return@withContext Result.success()
         }
 
-        val cataloguePackages = pendingUpdates.cataloguePackages()
+        val cataloguePackages = pendingUpdates.catalogueApps().map { it.packageName.name }
         if (cataloguePackages.isNotEmpty()) {
             Log.i(TAG, "Auto-updating ${cataloguePackages.size} catalogue app(s)")
             UpdateAllWorker.updateAll(applicationContext, cataloguePackages)
@@ -96,26 +93,17 @@ class AutoUpdateWorker @AssistedInject constructor(
          * updates that were already waiting instead of appearing to do nothing until the next sync.
          *
          * The network condition follows the user's existing sync preference rather than adding a second
-         * one to keep in step: someone who limits background syncing to Wi-Fi plainly does not want APKs
-         * (much heavier than an index) pulled over mobile data. [AutoSync.NEVER] can't reach here at
-         * all, since it cancels the sync that triggers this.
+         * one to keep in step: someone who limits background syncing to Wi-Fi plainly does not want
+         * APKs (much heavier than an index) pulled over mobile data. "Never" can't reach here at all,
+         * since it cancels the sync that triggers this.
          */
         suspend fun enqueue(context: Context, settingsRepository: SettingsRepository) {
             val settings = settingsRepository.getInitial()
             if (!settings.autoUpdate) return
-            val networkType = when (settings.autoSync) {
-                AutoSync.WIFI_ONLY, AutoSync.WIFI_PLUGGED_IN -> NetworkType.UNMETERED
-                else -> NetworkType.CONNECTED
-            }
             val request = OneTimeWorkRequestBuilder<AutoUpdateWorker>()
-                .setConstraints(
-                    Constraints.Builder()
-                        .setRequiredNetworkType(networkType)
-                        // Downloading and installing a batch of apps on a nearly-flat battery is the
-                        // kind of background work that should wait; nothing here is time-critical.
-                        .setRequiresBatteryNotLow(true)
-                        .build(),
-                )
+                // Downloading and installing a batch of apps on a nearly-flat battery is the kind of
+                // background work that should wait; nothing here is time-critical.
+                .setConstraints(settings.autoSync.workConstraints(requiresBatteryNotLow = true))
                 .addTag(TAG)
                 .build()
             // KEEP, not REPLACE: a pass already queued or running is doing this exact job, and replacing

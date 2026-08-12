@@ -7,26 +7,33 @@ import android.view.ContextThemeWrapper
 import androidx.core.app.NotificationCompat
 import com.looker.droidify.compose.MainComposeActivity
 import com.looker.droidify.R
-import com.looker.droidify.model.ProductItem
 import com.looker.droidify.utility.common.Constants
 import com.looker.droidify.utility.common.SdkCheck
+import com.looker.droidify.utility.common.createNotificationChannel
 import com.looker.droidify.utility.common.extension.getColorFromAttr
+import com.looker.droidify.utility.common.extension.notificationManager
 import android.R as AndroidR
 
 private const val MAX_UPDATE_NOTIFICATION = 5
 
+/** One line of the "updates available" notification: an app's name and the version being offered.
+ *  Catalogue apps and external sources both reduce to this, since the notification only ever shows
+ *  those two things. */
+data class UpdateEntry(val name: String, val version: String)
+
 fun updatesAvailableNotification(
     context: Context,
-    productItems: List<ProductItem>,
+    updates: List<UpdateEntry>,
 ) = NotificationCompat
     .Builder(context, Constants.NOTIFICATION_CHANNEL_UPDATES)
     .setSmallIcon(R.drawable.ic_new_releases)
     .setContentTitle(context.getString(R.string.new_updates_available))
+    .setAutoCancel(true)
     .setContentText(
         context.resources.getQuantityString(
             R.plurals.new_updates_DESC_FORMAT,
-            productItems.size,
-            productItems.size,
+            updates.size,
+            updates.size,
         ),
     )
     .setColor(
@@ -43,14 +50,14 @@ fun updatesAvailableNotification(
     )
     .setStyle(
         NotificationCompat.InboxStyle().also {
-            for (productItem in productItems.take(MAX_UPDATE_NOTIFICATION)) {
-                it.addLine("${productItem.name} ${productItem.version}")
+            for (update in updates.take(MAX_UPDATE_NOTIFICATION)) {
+                it.addLine("${update.name} ${update.version}")
             }
-            if (productItems.size > MAX_UPDATE_NOTIFICATION) {
+            if (updates.size > MAX_UPDATE_NOTIFICATION) {
                 val summary =
                     context.getString(
                         R.string.plus_more_FORMAT,
-                        productItems.size - MAX_UPDATE_NOTIFICATION,
+                        updates.size - MAX_UPDATE_NOTIFICATION,
                     )
                 if (SdkCheck.isNougat) {
                     it.addLine(summary)
@@ -61,3 +68,20 @@ fun updatesAvailableNotification(
         },
     )
     .build()
+
+/** Posts the "updates available" notification, or clears it when [updates] is empty (they were
+ *  installed, or turned out not to be updates after all). The channel is created here rather than at
+ *  startup, so it only appears in the system's notification settings once the app has something to say. */
+fun Context.showUpdatesAvailableNotification(updates: List<UpdateEntry>) {
+    val manager = notificationManager ?: return
+    if (updates.isEmpty()) {
+        manager.cancel(Constants.NOTIFICATION_ID_UPDATES)
+        return
+    }
+    createNotificationChannel(
+        id = Constants.NOTIFICATION_CHANNEL_UPDATES,
+        name = getString(R.string.updates),
+        showBadge = true,
+    )
+    manager.notify(Constants.NOTIFICATION_ID_UPDATES, updatesAvailableNotification(this, updates))
+}

@@ -299,6 +299,12 @@ class AppDetailViewModel @Inject constructor(
     val accentMatchesAppIcon: StateFlow<Boolean> = settingsRepository.get { accentMatchesAppIcon }
         .asStateFlow(false)
 
+    /** Whether the version list should also list releases this device can't install (the Settings
+     *  toggle). Off, they are simply absent, which is right for nearly everyone but hides why an app
+     *  offers fewer versions here than its repository actually publishes. */
+    val showIncompatibleVersions: StateFlow<Boolean> = settingsRepository.get { incompatibleVersions }
+        .asStateFlow(false)
+
     /** Adds or removes this app from the user's favourites. */
     fun toggleFavourite() {
         viewModelScope.launch { appRepository.addToFavourite(PackageName(packageName)) }

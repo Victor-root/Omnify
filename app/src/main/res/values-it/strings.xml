@@ -219,8 +219,6 @@
     <string name="installation_failed_DESC">Impossibile installare %s</string>
     <string name="uninstalled_application">Disinstallato</string>
     <string name="uninstalled_application_DESC">%s è stato disinstallato</string>
-    <string name="ignore_signature">Ignora verifica della firma</string>
-    <string name="ignore_signature_summary">Ignora la verifica della firma durante l\'installazione di una app</string>
     <string name="insufficient_storage_DESC">Lo spazio libero non è sufficiente per installare questa app</string>
     <string name="insufficient_storage">Spazio insufficiente</string>
     <string name="label_open_video">Video</string>

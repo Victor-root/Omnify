@@ -195,7 +195,6 @@
     <string name="uninstalled_application">অপসারিত</string>
     <string name="special_credits">বিশেষ কৃতজ্ঞতাস্বীকার</string>
     <string name="error_shizuku_not_granted_DESC">শিজুকু সেবার অনুমতি দেওয়া হয়নি। শিজুকু অ্যাপটি দেখো</string>
-    <string name="ignore_signature_summary">*সতর্কতা* এপিকে ইন্সটলে সময় স্বাক্ষর যাচাইকরণ এড়াও, এলএসপোজড ব্যবহারকারী বা অগ্রগামী ব্যবহারকারীর জন্য</string>
     <string name="contains_nsfw">নিষিদ্ধ বিষয়বস্ত বিদ্যমান</string>
     <string name="label_open_video">ভিডিও</string>
     <string name="insufficient_storage">অপর্যাপ্ত জায়গা</string>
@@ -206,7 +205,6 @@
     <string name="shizuku_not_installed">শিজুকু ইন্সটল করা নেই</string>
     <string name="installation_failed">ইন্সটল ব্যর্থ</string>
     <string name="installation_failed_DESC">%s ইন্সটল করতে ব্যর্থ</string>
-    <string name="ignore_signature">স্বাক্ষর উপেক্ষা করো</string>
     <string name="error_shizuku_service_unavailable">শিজুকু চলছে না</string>
     <string name="error_shizuku_not_granted">শিজুকু অনুমতি নেই</string>
     <string name="error_shizuku_not_installed">শিজুকু ইন্সটল করা হয়নি</string>

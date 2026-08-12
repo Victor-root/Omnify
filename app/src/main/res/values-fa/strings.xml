@@ -208,9 +208,7 @@
     <string name="require_background_access_DESC">غیرفعال کردن بهینه‌سازی باتری برای اجرای صحیح همگام سازی در پس‌زمینه لازم است</string>
     <string name="installation_failed">نصب نشد</string>
     <string name="uninstalled_application">حذف نصب شد</string>
-    <string name="ignore_signature">تائید امضا را نادیده بگیر</string>
     <string name="uninstalled_application_DESC">%s پاک شده</string>
-    <string name="ignore_signature_summary">هنگام نصب کاره تأیید امضا را نادیده بگیر</string>
     <string name="installation_failed_DESC">نصب %s ناموفق بود</string>
     <string name="insufficient_storage_DESC">فضای کافی برای نصب این برنامه وجود ندارد</string>
     <string name="error_shizuku_not_granted">دسترسی شیزوکو یا Sui داده نشده</string>

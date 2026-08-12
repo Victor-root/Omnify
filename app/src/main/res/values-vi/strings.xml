@@ -206,9 +206,7 @@
     <string name="installation_failed_DESC">Không cài đặt được %s</string>
     <string name="uninstalled_application">Đã gỡ cài đặt</string>
     <string name="installation_failed">Cài đặt thất bại</string>
-    <string name="ignore_signature">Bỏ qua chữ ký</string>
     <string name="uninstalled_application_DESC">%s đã được gỡ cài đặt</string>
-    <string name="ignore_signature_summary">Bỏ qua xác minh chữ ký khi cài đặt app</string>
     <string name="error_shizuku_not_running_DESC">Dịch vụ Shizuku/Sui không hoạt động. Vui lòng kiểm tra trong Ứng dụng Shizuku</string>
     <string name="insufficient_storage_DESC">Không có đủ dung lượng trống trên thiết bị để cài đặt ứng dụng này</string>
     <string name="error_shizuku_not_installed">Shizuku/Sui Không Được Cài Đặt</string>

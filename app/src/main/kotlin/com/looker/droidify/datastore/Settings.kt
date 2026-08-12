@@ -9,7 +9,6 @@ import com.looker.droidify.datastore.model.ProxyPreference
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.datastore.model.TranslationEngine
-import kotlinx.serialization.Contextual
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -21,8 +20,6 @@ import java.io.InputStream
 import java.io.OutputStream
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
-import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 /**
  * Default accent colour: Material Green #4CAF50 — Android's colour, and a good match for the logo.
@@ -37,13 +34,11 @@ val DEFAULT_THEME_COLOR: Int =
     }
 
 @Serializable
-@OptIn(ExperimentalTime::class)
 data class Settings(
     val language: String = "system",
     val incompatibleVersions: Boolean = false,
     val notifyUpdate: Boolean = true,
     val unstableUpdate: Boolean = false,
-    val ignoreSignature: Boolean = false,
     val theme: Theme = Theme.SYSTEM,
     val dynamicTheme: Boolean = false,
     val themeColor: Int = DEFAULT_THEME_COLOR,
@@ -55,8 +50,6 @@ data class Settings(
     val sortOrder: SortOrder = SortOrder.UPDATED,
     val proxy: ProxyPreference = ProxyPreference(),
     val cleanUpInterval: Duration = 12.hours,
-    @Contextual
-    val lastCleanup: Instant? = null,
     val lastRbLogFetch: Long? = null,
     val lastModifiedDownloadStats: Long? = null,
     val favouriteApps: Set<String> = emptySet(),
@@ -117,7 +110,6 @@ object SettingsSerializer : Serializer<Settings> {
 
     private val json = Json { encodeDefaults = true }
 
-    @OptIn(ExperimentalTime::class)
     override val defaultValue: Settings = Settings()
 
     override suspend fun readFrom(input: InputStream): Settings {

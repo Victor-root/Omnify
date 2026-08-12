@@ -218,8 +218,6 @@
     <string name="insufficient_storage_DESC">이 앱을 설치할 저장공간이 부족합니다.</string>
     <string name="open_shizuku">Shizuku 열기</string>
     <string name="switch_to_default_installer">기본 설치 관리자로 전환</string>
-    <string name="ignore_signature">서명 무시</string>
-    <string name="ignore_signature_summary">서명 검증을 무시하고 APK 파일을 설치합니다. LSPosed 사용자 및 고급 사용자용 기능입니다.</string>
     <string name="label_open_video">동영상</string>
     <string name="shizuku_legacy_installer">Shizuku 레거시 설치관리자</string>
 </resources>

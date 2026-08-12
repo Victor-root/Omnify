@@ -10,7 +10,6 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.utility.common.cache.Cache
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -23,7 +22,6 @@ import kotlin.time.toJavaDuration
 class CleanUpWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val settingsRepository: SettingsRepository,
 ) : CoroutineWorker(context, workerParams) {
     companion object {
         private const val TAG = "CleanUpWorker"
@@ -63,7 +61,6 @@ class CleanUpWorker @AssistedInject constructor(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
             Log.i(TAG, "doWork: Started Cleanup")
-            settingsRepository.setCleanupInstant()
             Cache.cleanup(applicationContext)
             Result.success()
         } catch (e: Exception) {

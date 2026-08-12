@@ -201,8 +201,6 @@
     <string name="installation_failed">ההתקנה נכשלה</string>
     <string name="installation_failed_DESC">ההתקנה נכשלה %s</string>
     <string name="uninstalled_application">הוסר</string>
-    <string name="ignore_signature">התעלם מאישור חתימה</string>
-    <string name="ignore_signature_summary">התעלמות מאימות חתימה בעת התקנת יישום</string>
     <string name="socket_error_DESC">השרת לא הצליח לספק חבילה חדשה</string>
     <string name="connection_error_DESC">לא היה ניתן להתחבר לשרת</string>
     <string name="has_tethered_network">תלוי בשירות רשת מסוימת</string>

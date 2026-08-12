@@ -32,7 +32,6 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
 class PreferenceSettingsRepository(
@@ -69,9 +68,6 @@ class PreferenceSettingsRepository(
 
     override suspend fun enableUnstableUpdates(enable: Boolean) =
         UNSTABLE_UPDATES.update(enable)
-
-    override suspend fun setIgnoreSignature(enable: Boolean) =
-        IGNORE_SIGNATURE.update(enable)
 
     override suspend fun setTheme(theme: Theme) =
         THEME.update(theme.name)
@@ -136,9 +132,6 @@ class PreferenceSettingsRepository(
 
     override suspend fun setCleanUpInterval(interval: Duration) =
         CLEAN_UP_INTERVAL.update(interval.inWholeHours)
-
-    override suspend fun setCleanupInstant() =
-        LAST_CLEAN_UP.update(Clock.System.now().toEpochMilliseconds())
 
     override suspend fun setRbLogLastModified(date: Date) =
         LAST_RB_FETCH.update(date.time)
@@ -282,7 +275,6 @@ class PreferenceSettingsRepository(
         val incompatibleVersions = preferences[INCOMPATIBLE_VERSIONS] ?: false
         val notifyUpdate = preferences[NOTIFY_UPDATES] ?: true
         val unstableUpdate = preferences[UNSTABLE_UPDATES] ?: false
-        val ignoreSignature = preferences[IGNORE_SIGNATURE] ?: false
         val theme = Theme.valueOf(preferences[THEME] ?: Theme.SYSTEM.name)
         val dynamicTheme = preferences[DYNAMIC_THEME] ?: false
         val themeColor = preferences[THEME_COLOR] ?: DEFAULT_THEME_COLOR
@@ -295,7 +287,6 @@ class PreferenceSettingsRepository(
         val port = preferences[PROXY_PORT] ?: 9050
         val proxy = ProxyPreference(type = type, host = host, port = port)
         val cleanUpInterval = preferences[CLEAN_UP_INTERVAL]?.hours ?: 12L.hours
-        val lastCleanup = preferences[LAST_CLEAN_UP]?.let { Instant.fromEpochMilliseconds(it) }
         val lastRbLogFetch = preferences[LAST_RB_FETCH]
         val lastModifiedDownloadStats = preferences[LAST_MODIFIED_DS]?.takeIf { it > 0L }
         val favouriteApps = preferences[FAVOURITE_APPS] ?: emptySet()
@@ -327,7 +318,6 @@ class PreferenceSettingsRepository(
             incompatibleVersions = incompatibleVersions,
             notifyUpdate = notifyUpdate,
             unstableUpdate = unstableUpdate,
-            ignoreSignature = ignoreSignature,
             theme = theme,
             dynamicTheme = dynamicTheme,
             themeColor = themeColor,
@@ -339,7 +329,6 @@ class PreferenceSettingsRepository(
             sortOrder = sortOrder,
             proxy = proxy,
             cleanUpInterval = cleanUpInterval,
-            lastCleanup = lastCleanup,
             lastRbLogFetch = lastRbLogFetch,
             lastModifiedDownloadStats = lastModifiedDownloadStats,
             favouriteApps = favouriteApps,
@@ -374,7 +363,6 @@ class PreferenceSettingsRepository(
         val INCOMPATIBLE_VERSIONS = booleanPreferencesKey("key_incompatible_versions")
         val NOTIFY_UPDATES = booleanPreferencesKey("key_notify_updates")
         val UNSTABLE_UPDATES = booleanPreferencesKey("key_unstable_updates")
-        val IGNORE_SIGNATURE = booleanPreferencesKey("key_ignore_signature")
         val DYNAMIC_THEME = booleanPreferencesKey("key_dynamic_theme")
         val THEME_COLOR = intPreferencesKey("key_theme_color")
         val EDGE_TO_EDGE = booleanPreferencesKey("key_edge_to_edge")
@@ -382,7 +370,6 @@ class PreferenceSettingsRepository(
         val PROXY_HOST = stringPreferencesKey("key_proxy_host")
         val PROXY_PORT = intPreferencesKey("key_proxy_port")
         val CLEAN_UP_INTERVAL = longPreferencesKey("key_clean_up_interval")
-        val LAST_CLEAN_UP = longPreferencesKey("key_last_clean_up_time")
         val LAST_RB_FETCH = longPreferencesKey("key_last_rb_logs_fetch_time")
         val LAST_MODIFIED_DS = longPreferencesKey("key_last_modified_download_stats")
         val FAVOURITE_APPS = stringSetPreferencesKey("key_favourite_apps")
@@ -422,7 +409,6 @@ class PreferenceSettingsRepository(
             set(INCOMPATIBLE_VERSIONS, settings.incompatibleVersions)
             set(NOTIFY_UPDATES, settings.notifyUpdate)
             set(UNSTABLE_UPDATES, settings.unstableUpdate)
-            set(IGNORE_SIGNATURE, settings.ignoreSignature)
             set(THEME, settings.theme.name)
             set(DYNAMIC_THEME, settings.dynamicTheme)
             set(THEME_COLOR, settings.themeColor)
@@ -459,7 +445,6 @@ class PreferenceSettingsRepository(
             set(PROXY_HOST, settings.proxy.host)
             set(PROXY_PORT, settings.proxy.port)
             set(CLEAN_UP_INTERVAL, settings.cleanUpInterval.inWholeHours)
-            settings.lastCleanup?.toEpochMilliseconds()?.let { set(LAST_CLEAN_UP, it) }
             settings.lastRbLogFetch?.let { set(LAST_RB_FETCH, it) }
             settings.lastModifiedDownloadStats?.let { set(LAST_MODIFIED_DS, it) }
             set(FAVOURITE_APPS, settings.favouriteApps)

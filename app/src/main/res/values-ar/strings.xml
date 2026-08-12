@@ -222,8 +222,6 @@
     <string name="uninstalled_application_DESC">أُلغِيَ التثبيث %s</string>
     <string name="installation_failed">فشل التثبيت</string>
     <string name="installation_failed_DESC">فشل في تثبيت %s</string>
-    <string name="ignore_signature_summary">تجاهل التحقق من التوقيع عند تثبيت أحد التطبيقات</string>
-    <string name="ignore_signature">تجاهل التوقيع</string>
     <string name="insufficient_storage">مساحة غير كافية</string>
     <string name="insufficient_storage_DESC">لا توجد مساحة خالية كافية على الجهاز لتثبيت هذا التطبيق</string>
     <string name="error_shizuku_not_granted">لم يمنح إذن Shizuku/Sui</string>

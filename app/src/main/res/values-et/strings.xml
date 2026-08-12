@@ -142,7 +142,6 @@
     <string name="system">Süsteem</string>
     <string name="tap_to_install_DESC">Puuduta paigaldamiseks</string>
     <string name="tracks_or_reports_your_activity">Jälgib või teatab sinu tegevusest</string>
-    <string name="ignore_signature">Eira allkirja kontrollimist</string>
     <string name="no_applications_installed">Paigaldatud rakendusi pole</string>
     <string name="network_error_DESC">Võrgu viga</string>
     <string name="links">Lingid</string>
@@ -202,7 +201,6 @@
     <string name="installed">Paigaldatud</string>
     <string name="installing">Paigaldamine</string>
     <string name="installation_failed">Paigaldamine nurjus</string>
-    <string name="ignore_signature_summary">Eira rakenduse paigaldamisel allkirja kontrolli</string>
     <string name="update">Uuendus</string>
     <string name="upstream_source_code_is_not_free">Algne lähtekood ei ole vaba</string>
     <string name="username">Kasutajanimi</string>

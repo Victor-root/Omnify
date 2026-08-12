@@ -206,12 +206,10 @@
     <string name="import_export">Biztonsági mentés és visszaállítás</string>
     <string name="require_background_access">Akkumulátor-optimalizálás letiltása</string>
     <string name="require_background_access_DESC">Az akkumulátor-optimalizálás kikapcsolása szükséges a háttér-szinkronizálás megfelelő működéséhez</string>
-    <string name="ignore_signature_summary">Aláírás figyelmen kívül hagyása az alkalmazás telepítésekor</string>
     <string name="installation_failed">Sikertelen telepítés</string>
     <string name="installation_failed_DESC">%s telepítése sikertelen</string>
     <string name="uninstalled_application">Eltávolítva</string>
     <string name="uninstalled_application_DESC">%s eltávolításra került</string>
-    <string name="ignore_signature">Aláírás figyelmen kívül hagyása</string>
     <string name="error_shizuku_not_granted">Hiányzó Shizuku/Sui engedély</string>
     <string name="error_shizuku_not_granted_DESC">A Shizuku/Sui engedélyek nem aktívak</string>
     <string name="error_shizuku_not_installed_DESC">Úgy tűnik a Shizuku/Sui nincs telepítve</string>

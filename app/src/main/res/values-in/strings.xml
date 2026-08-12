@@ -213,8 +213,6 @@
     <string name="installation_failed_DESC">Gagal memasang %s</string>
     <string name="uninstalled_application">Tercopot</string>
     <string name="uninstalled_application_DESC">%s telah dicopot</string>
-    <string name="ignore_signature">Abaikan verifikasi tanda tangan</string>
-    <string name="ignore_signature_summary">Abaikan verifikasi tanda tangan saat memasang aplikasi</string>
     <string name="insufficient_storage_DESC">Tidak ada cukup ruang kosong untuk memasang aplikasi ini</string>
     <string name="insufficient_storage">Ruang tidak cukup</string>
     <string name="error_shizuku_not_installed_DESC">Shizuku/Sui tidak terpasang</string>

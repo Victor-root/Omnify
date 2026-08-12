@@ -212,8 +212,6 @@
     <string name="has_tethered_network">Залежить від певного екземпляра мережевої служби</string>
     <string name="require_background_access">Вимкнути оптимізацію батареї</string>
     <string name="require_background_access_DESC">Для належної роботи фонової синхронізації потрібне вимкнення оптимізації батареї</string>
-    <string name="ignore_signature">Ігнорувати перевірку підпису</string>
-    <string name="ignore_signature_summary">Ігноруйте перевірку підпису під час встановлення програми</string>
     <string name="installation_failed">Помилка встановлення</string>
     <string name="installation_failed_DESC">Не вдалося встановити %s</string>
     <string name="uninstalled_application_DESC">%s було видалено</string>

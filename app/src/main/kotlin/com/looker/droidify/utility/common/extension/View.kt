@@ -17,8 +17,6 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlin.math.min
-import kotlin.math.roundToInt
 
 private val networkHeader by lazy { NetworkHeaders.Builder() }
 
@@ -56,13 +54,3 @@ val RecyclerView.firstItemPosition: Flow<Int>
 val RecyclerView.isFirstItemVisible: Flow<Boolean>
     get() = firstItemPosition.map { it == 0 }.distinctUntilChanged()
 
-val View.minDimension: Int
-    get() = (
-        min(
-            layoutParams.width,
-            layoutParams.height,
-        ) / resources.displayMetrics.density
-        ).roundToInt()
-
-val View.dpi: Int
-    get() = (context.resources.displayMetrics.densityDpi * minDimension) / 48

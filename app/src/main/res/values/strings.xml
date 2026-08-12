@@ -395,8 +395,6 @@
     <string name="unknown_FORMAT">Unknown: %s</string>
     <string name="unstable_updates">Unstable updates</string>
     <string name="unstable_updates_summary">Suggest installing unstable app versions</string>
-    <string name="ignore_signature">Ignore signature verification</string>
-    <string name="ignore_signature_summary">Ignore signature verification when installing an app</string>
     <string name="update">Update</string>
     <string name="updates">Updates</string>
     <!-- Short label used only on the tab so it never wraps to a second line -->

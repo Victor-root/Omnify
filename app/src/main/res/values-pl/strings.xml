@@ -222,8 +222,6 @@
     <string name="installation_failed_DESC">Nie udało się zainstalować %s</string>
     <string name="uninstalled_application">Odinstalowano</string>
     <string name="uninstalled_application_DESC">Aplikacja %s została odinstalowana</string>
-    <string name="ignore_signature">Ignoruj weryfikację sygnatury</string>
-    <string name="ignore_signature_summary">Ignoruj weryfikację sygnatury podczas instalacji aplikacji</string>
     <string name="insufficient_storage">Za mało miejsca</string>
     <string name="insufficient_storage_DESC">Za mało wolnego miejsca na instalację tej aplikacji</string>
     <string name="error_shizuku_service_unavailable">Shizuku/Sui nie działa</string>

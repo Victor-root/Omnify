@@ -207,8 +207,6 @@
     <string name="installation_failed_DESC">安裝 %s 失敗</string>
     <string name="uninstalled_application">已解除安裝</string>
     <string name="uninstalled_application_DESC">%s 已被解除安裝</string>
-    <string name="ignore_signature">忽略簽名驗證</string>
-    <string name="ignore_signature_summary">安裝應用程式時忽略簽名驗證</string>
     <string name="error_shizuku_service_unavailable">Shizuku/Sui 服務未運行</string>
     <string name="error_shizuku_not_running_DESC">Shizuku/Sui 服務未運行。</string>
     <string name="error_shizuku_not_granted">缺少 Shizuku/Sui 權限</string>

@@ -215,9 +215,7 @@
     <string name="installation_failed">Не ўдалося ўсталяваць</string>
     <string name="uninstalled_application">Выдалены</string>
     <string name="uninstalled_application_DESC">%s быў выдалены</string>
-    <string name="ignore_signature">Ігнараваць подпіс</string>
     <string name="installation_failed_DESC">Не ўдалося ўсталяваць %s</string>
-    <string name="ignore_signature_summary">Ігнараванне праверкі подпісу пры ўстаноўцы apk</string>
     <string name="error_shizuku_service_unavailable">Shizuku/Sui не працуе</string>
     <string name="error_shizuku_not_running_DESC">Сэрвіс Shizuku не працуе</string>
     <string name="error_shizuku_not_granted">У Shizuku няма дазволу</string>

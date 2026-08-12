@@ -159,9 +159,9 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
             return
         }
         // Auto-sync runs through the single data layer (SyncWorker -> RepoRepository -> Room), the
-        // same engine as the manual Sync button. The per-network-type conditions are simplified to
-        // "connected" for now.
-        SyncWorker.schedulePeriodicSync(this, 12.hours)
+        // same engine as the manual Sync button. The chosen mode decides what the scheduled run waits
+        // for, so Wi-Fi only really does mean Wi-Fi only.
+        SyncWorker.schedulePeriodicSync(this, 12.hours, autoSync)
     }
 
     private fun forceSyncAll() {

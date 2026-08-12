@@ -406,8 +406,6 @@
     <string name="installation_failed_DESC">L\'installation de %s a échoué</string>
     <string name="uninstalled_application">Désinstallé</string>
     <string name="uninstalled_application_DESC">%s a été désinstallé</string>
-    <string name="ignore_signature">Ignorer la vérification de signature</string>
-    <string name="ignore_signature_summary">Ignorer la vérification de la signature lors de l\'installation d\'une appli</string>
     <string name="insufficient_storage">Espace insuffisant</string>
     <string name="insufficient_storage_DESC">Il n\'y a pas assez d\'espace libre pour installer cette appli</string>
     <string name="error_shizuku_not_running_DESC">Le service Shizuku/Sui n\'est pas démarré</string>

@@ -215,8 +215,6 @@
     <string name="has_tethered_network">Depende de una determinada instancia de un servicio de red</string>
     <string name="require_background_access">Desactivar optimización de batería</string>
     <string name="require_background_access_DESC">Es necesario deshabilitar la optimización de batería para que la sincronización en segundo plano se ejecute correctamente</string>
-    <string name="ignore_signature">Ignorar verificación de firma</string>
-    <string name="ignore_signature_summary">Ignorar la verificación de firma al instalar una app</string>
     <string name="installation_failed_DESC">No se pudo instalar %s</string>
     <string name="uninstalled_application_DESC">%s ha sido desinstalada</string>
     <string name="installation_failed">Instalación fallida</string>

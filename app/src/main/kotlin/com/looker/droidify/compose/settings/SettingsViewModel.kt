@@ -141,12 +141,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setIgnoreSignature(enabled: Boolean) {
-        viewModelScope.launch {
-            settingsRepository.setIgnoreSignature(enabled)
-        }
-    }
-
     fun setIncompatibleUpdates(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.enableIncompatibleVersion(enabled)

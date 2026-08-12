@@ -198,8 +198,6 @@
     <string name="unknown">Teu dipikanyaho</string>
     <string name="unknown_error_DESC">Error teu dipikanyaho</string>
     <string name="unstable_updates">Pembaruan teu stabil</string>
-    <string name="ignore_signature">Abaikeun vérifikasi tandatangan</string>
-    <string name="ignore_signature_summary">Ngabaikeun verifikasi tandatangan mun keur masang apl</string>
     <string name="versions">Vérsi</string>
     <string name="waiting_to_start_download">Nungguan ngamimitian download…</string>
     <string name="whats_new">Naon nu anyarna</string>

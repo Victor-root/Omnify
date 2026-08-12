@@ -212,8 +212,6 @@
     <string name="require_background_access">Batterijoptimalisaties uitschakelen</string>
     <string name="special_credits">Speciale dank</string>
     <string name="contains_nsfw">Bevat inhoud ongeschikt voor (NSFW-) werk</string>
-    <string name="ignore_signature_summary">Handtekeningverificatie negeren bij het installeren van een app</string>
-    <string name="ignore_signature">Handtekeningverificatie negeren</string>
     <string name="installation_failed_DESC">%s is niet geïnstalleerd</string>
     <string name="uninstalled_application">Verwijderd</string>
     <string name="uninstalled_application_DESC">%s is verwijderd</string>

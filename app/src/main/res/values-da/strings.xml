@@ -206,12 +206,10 @@
     <string name="session_installer">Sessionsinstallatør</string>
     <string name="special_credits">Særlige krediteringer</string>
     <string name="contains_nsfw">Indeholder potentielt stødende indhold (NSFW)</string>
-    <string name="ignore_signature_summary">Ignorer signaturverifikation ved installation af en app</string>
     <string name="installation_failed">Installation mislykkedes</string>
     <string name="installation_failed_DESC">Kunne ikke installere %s</string>
     <string name="uninstalled_application">Afinstalleret</string>
     <string name="uninstalled_application_DESC">%s blev afinstalleret</string>
-    <string name="ignore_signature">Ignorer signaturverifikation</string>
     <string name="insufficient_storage">Utilstrækkelig plads</string>
     <string name="insufficient_storage_DESC">Der er ikke nok ledig plads til at installere denne app</string>
     <string name="error_shizuku_not_running_DESC">Shizuku-/Sui-tjenesten kører ikke</string>

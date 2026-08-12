@@ -223,8 +223,6 @@
     <string name="require_background_access_DESC">Arxa planda sinxronizasiyanın yaxşı işləməsi üçün batareya optimizasiyalarını deaktiv edin</string>
     <string name="special_credits">Xüsüsi təşəkkürlər</string>
     <string name="switch_to_default_installer">Defolt rejimə keçin</string>
-    <string name="ignore_signature">İmza verifikasiyasını yox saymaq</string>
-    <string name="ignore_signature_summary">Applikasiya quraşdırılanda imza verifikasiyasını yox sayın</string>
     <string name="contains_nsfw">Uyğnsuz (NSFW) material mövcuddur</string>
     <string name="label_open_video">Video</string>
     <string name="label_unknown_sdk">Naməlum (%d)</string>

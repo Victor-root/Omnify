@@ -34,8 +34,6 @@ interface SettingsRepository {
 
     suspend fun enableUnstableUpdates(enable: Boolean)
 
-    suspend fun setIgnoreSignature(enable: Boolean)
-
     suspend fun setTheme(theme: Theme)
 
     suspend fun setDynamicTheme(enable: Boolean)
@@ -61,8 +59,6 @@ interface SettingsRepository {
     suspend fun setProxyPort(proxyPort: Int)
 
     suspend fun setCleanUpInterval(interval: Duration)
-
-    suspend fun setCleanupInstant()
 
     suspend fun setRbLogLastModified(date: Date)
 

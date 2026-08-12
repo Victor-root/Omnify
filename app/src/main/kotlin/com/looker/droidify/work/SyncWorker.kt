@@ -20,13 +20,16 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.hasKeyWithValueOfType
 import com.looker.droidify.R
+import com.looker.droidify.data.PendingUpdates
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.datastore.SettingsRepository
+import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.sync.SyncState
 import com.looker.droidify.utility.common.createNotificationChannel
 import com.looker.droidify.utility.common.extension.exceptCancellation
 import com.looker.droidify.utility.common.toForegroundInfo
+import com.looker.droidify.utility.notifications.showUpdatesAvailableNotification
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +47,7 @@ class SyncWorker @AssistedInject constructor(
     private val repoRepository: RepoRepository,
     private val externalRefresher: ExternalRefresher,
     private val settingsRepository: SettingsRepository,
+    private val pendingUpdates: PendingUpdates,
 ) : CoroutineWorker(context, workerParams) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val repoId = if (inputData.hasKeyWithValueOfType<Int>(KEY_REPO_ID)) {
@@ -99,6 +103,12 @@ class SyncWorker @AssistedInject constructor(
                 // and starting installs out from under a deliberate tap on Sync would be a surprise.
                 if (inputData.getString(KEY_TRIGGER) == TRIGGER_PERIODIC) {
                     AutoUpdateWorker.enqueue(applicationContext, settingsRepository)
+                    try {
+                        notifyAvailableUpdates()
+                    } catch (t: Throwable) {
+                        t.exceptCancellation()
+                        Log.w(TAG, "Could not post the updates notification", t)
+                    }
                 }
             }
             if (success) {
@@ -130,6 +140,24 @@ class SyncWorker @AssistedInject constructor(
             Log.w(TAG, "Sync gave up after $MAX_SYNC_ATTEMPTS attempts (repoId=$repoId)")
             Result.success()
         }
+
+    /**
+     * Tells the user what a background check turned up, if they asked to be told.
+     *
+     * The notification itself had been written and then never wired to anything, so "Notify about
+     * updates" had no effect whatsoever, on by default, for as long as it had existed. It lists what
+     * the Updates tab lists, catalogue and external sources together, since [PendingUpdates] answers
+     * with the same rules the tab does.
+     *
+     * Nothing is posted while automatic installation is on: those updates are about to be installed,
+     * and each install announces itself. An empty result clears any notification still showing from a
+     * previous round, so one can't outlive the updates it was about.
+     */
+    private suspend fun notifyAvailableUpdates() {
+        if (!settingsRepository.getInitial().notifyUpdate) return
+        if (settingsRepository.getInitial().autoUpdate) return
+        applicationContext.showUpdatesAvailableNotification(pendingUpdates.allAsEntries())
+    }
 
     private fun createForegroundInfo(name: String, percent: Int): ForegroundInfo {
         val id = "sync_channel"
@@ -167,7 +195,9 @@ class SyncWorker @AssistedInject constructor(
         private const val TRIGGER_USER = "user"
         private const val TRIGGER_PERIODIC = "periodic"
 
-        private val defaultConstraints: Constraints = Constraints.Builder()
+        /** For a sync the user asked for: any connection will do, since they are waiting on it. The
+         *  scheduled one goes by their auto-sync choice instead (see [workConstraints]). */
+        private val userSyncConstraints: Constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
@@ -179,7 +209,7 @@ class SyncWorker @AssistedInject constructor(
 
             val request = OneTimeWorkRequestBuilder<SyncWorker>()
                 .setInputData(data)
-                .setConstraints(defaultConstraints)
+                .setConstraints(userSyncConstraints)
                 .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS)
                 .addTag(TAG)
                 // A per-repo tag, since WorkInfo never exposes its own inputData back (only tags,
@@ -208,14 +238,16 @@ class SyncWorker @AssistedInject constructor(
             enqueueUserSync(context, repoId)
         }
 
-        fun schedulePeriodicSync(context: Context, repeatInterval: Duration) {
+        /** [autoSync] is the user's own choice of when background work may run; see [workConstraints].
+         *  A sync they press for themselves goes through [enqueueUserSync] instead and ignores it. */
+        fun schedulePeriodicSync(context: Context, repeatInterval: Duration, autoSync: AutoSync) {
             val data = Data.Builder()
                 .putString(KEY_TRIGGER, TRIGGER_PERIODIC)
                 .build()
 
             val request = PeriodicWorkRequestBuilder<SyncWorker>(repeatInterval.toJavaDuration())
                 .setInputData(data)
-                .setConstraints(defaultConstraints)
+                .setConstraints(autoSync.workConstraints())
                 // Delay the first periodic run by a full interval: a freshly-scheduled periodic work
                 // otherwise fires immediately, and on first launch it would run *alongside* the one-time
                 // launch sync — two full index parses at once exhausted memory on low-RAM TVs. The
@@ -231,7 +263,7 @@ class SyncWorker @AssistedInject constructor(
                     existingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE,
                     request = request,
                 )
-            Log.i(TAG, "Periodic sync scheduled every $repeatInterval")
+            Log.i(TAG, "Periodic sync scheduled every $repeatInterval ($autoSync)")
         }
 
         fun cancelAll(context: Context) {

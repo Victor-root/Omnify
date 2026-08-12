@@ -209,8 +209,6 @@
     <string name="has_tethered_network">Závisí na určité instanci síťové služby</string>
     <string name="require_background_access_DESC">Zakázání optimalizací baterie je vyžadováno pro správnou funkčnost synchronizace na pozadí</string>
     <string name="require_background_access">Zakázat optimalizace baterie</string>
-    <string name="ignore_signature">Ignorovat ověření podpisu</string>
-    <string name="ignore_signature_summary">Ignorovat ověření podpisu při instalaci aplikace</string>
     <string name="uninstalled_application_DESC">Aplikace %s byla odinstalována</string>
     <string name="installation_failed">Instalace selhala</string>
     <string name="installation_failed_DESC">Nepodařilo se nainstalovat aplikaci %s</string>

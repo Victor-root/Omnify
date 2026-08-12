@@ -210,8 +210,6 @@
     <string name="installation_failed_DESC">Misslyckades att installera %s</string>
     <string name="uninstalled_application">Avinstallerad</string>
     <string name="uninstalled_application_DESC">%s har blivit avinstallerad</string>
-    <string name="ignore_signature">Ignorera signaturverifiering</string>
-    <string name="ignore_signature_summary">Ignorera signaturverifiering när du installerar appar</string>
     <string name="insufficient_storage">Otillräckligt utrymme</string>
     <string name="insufficient_storage_DESC">Det finns inte tillräckligt med ledigt utrymme för att installera appen</string>
     <string name="error_shizuku_service_unavailable">Shizuku/Sui-tjänsten körs inte</string>

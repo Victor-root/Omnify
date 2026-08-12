@@ -210,7 +210,6 @@
     <string name="installation_failed_DESC">Neizdevās uzstādīt %s</string>
     <string name="uninstalled_application">Noņemta</string>
     <string name="uninstalled_application_DESC">%s noņemta</string>
-    <string name="ignore_signature_summary">Neveikt paraksta pārbaudi, kad uzstāda lietotni</string>
     <string name="home_screen_swiping">Iespējot sadaļas nomaiņu pavelkot ar pirkstu</string>
     <string name="has_tethered_network">Atkarīga no konkrēta tīkla pakalpojuma</string>
     <string name="socket_error_DESC">Serveris nevarēja nodrošināt jaunu paketi</string>
@@ -223,7 +222,6 @@
     <string name="require_background_access_DESC">Ir nepieciešama fona piekļuves atļauja, lai fona sinhronizācija darbotos korekti</string>
     <string name="special_credits">Īpašs paldies</string>
     <string name="switch_to_default_installer">Izmantot noklusējuma uzstādītāju</string>
-    <string name="ignore_signature">Ignorēt paraksta pārbaudi</string>
     <string name="contains_nsfw">Satur darba vietai nepiemērotu saturu</string>
     <string name="label_open_video">Video</string>
     <string name="label_unknown_sdk">Nezināms (%d)</string>

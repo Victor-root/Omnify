@@ -151,6 +151,7 @@ import com.looker.droidify.data.model.FilePath
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Permission
 import com.looker.droidify.data.model.Repo
+import com.looker.droidify.data.model.isInstallableOnDevice
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.installer.model.InstallState
@@ -215,6 +216,7 @@ fun AppDetailScreen(
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val splitViewSettingEnabled by viewModel.splitViewEnabled.collectAsStateWithLifecycle()
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
+    val showIncompatibleVersions by viewModel.showIncompatibleVersions.collectAsStateWithLifecycle()
     // Set once the hero icon actually loads (see AppHeaderCard's onIconBitmap); reset per screen instance,
     // i.e. per app, since a different app's detail page is a fresh composition of this whole screen.
     // Seeded from IconAccentCache so revisiting the same app doesn't wait for the icon to decode
@@ -557,6 +559,7 @@ fun AppDetailScreen(
                     primaryActionFocusRequester = primaryActionFocusRequester,
                     scrollState = scrollState,
                     useSplitView = useSplitView,
+                    showIncompatibleVersions = showIncompatibleVersions,
                     modifier = Modifier.padding(padding),
                     onIconBitmap = { bitmap ->
                         // Coil re-invokes this on every recomposition of the icon's AsyncImage, not just
@@ -741,6 +744,7 @@ private fun AppDetail(
     primaryActionFocusRequester: FocusRequester,
     scrollState: ScrollState,
     useSplitView: Boolean,
+    showIncompatibleVersions: Boolean,
     modifier: Modifier = Modifier,
     onIconBitmap: ((Bitmap) -> Unit)? = null,
 ) {
@@ -948,6 +952,7 @@ private fun AppDetail(
                         installing = installing,
                         downloadTargetVersionCode = downloadTargetVersionCode,
                         onCancel = onCancel,
+                        showIncompatibleVersions = showIncompatibleVersions,
                     )
                 }
             }
@@ -980,6 +985,7 @@ private fun AppDetail(
                     installing = installing,
                     downloadTargetVersionCode = downloadTargetVersionCode,
                     onCancel = onCancel,
+                    showIncompatibleVersions = showIncompatibleVersions,
                     installedSignerRaw = installedSignerRaw,
                     expectedSigners = expectedSigners,
                 )
@@ -1071,6 +1077,7 @@ private fun AppDetail(
                     installing = installing,
                     downloadTargetVersionCode = downloadTargetVersionCode,
                     onCancel = onCancel,
+                    showIncompatibleVersions = showIncompatibleVersions,
                     lastVersionFocusRequester = lastVersionFocusRequester,
                     installedSignerRaw = installedSignerRaw,
                     expectedSigners = expectedSigners,
@@ -1117,6 +1124,7 @@ private fun AppDetailBody(
     onCancel: () -> Unit,
     installedSignerRaw: String?,
     expectedSigners: Set<String>?,
+    showIncompatibleVersions: Boolean,
     // TV only: focus target for the hero card's "see all versions" link, attached to the last visible
     // version row (see VersionsSection). Null in split view, where the versions list lives in the left
     // pane's own direct VersionsSection call instead of through this body.
@@ -1294,6 +1302,7 @@ private fun AppDetailBody(
             installing = installing,
             downloadTargetVersionCode = downloadTargetVersionCode,
             onCancel = onCancel,
+            showIncompatibleVersions = showIncompatibleVersions,
             lastVersionFocusRequester = lastVersionFocusRequester,
         )
     }
@@ -1316,6 +1325,7 @@ private fun VersionsSection(
     installing: Boolean,
     downloadTargetVersionCode: Long?,
     onCancel: () -> Unit,
+    showIncompatibleVersions: Boolean,
     lastVersionFocusRequester: FocusRequester? = null,
 ) {
     Column(modifier = Modifier.onGloballyPositioned { onAnchorPositioned(it.positionInParent().y.toInt()) }) {
@@ -1361,12 +1371,20 @@ private fun VersionsSection(
         // to one row per versionName, keeping the build the device can actually install (primary ABI
         // first); versions with no compatible build are dropped. This screen is a single (non-lazy)
         // scroll column, so every row composes eagerly; cap to the newest releases (sorted below).
-        val shownPackages = remember(packages, selectedRepoId) {
+        val shownPackages = remember(packages, selectedRepoId, showIncompatibleVersions) {
             packages
                 .filter { it.second.id == selectedRepoId }
                 .groupBy { it.first.manifest.versionName }
                 .values
-                .mapNotNull { variants -> variants.selectForDevice(Long.MAX_VALUE) }
+                .mapNotNull { variants ->
+                    variants.selectForDevice(Long.MAX_VALUE)
+                    // With the setting on, a version whose every build needs a newer Android or another
+                    // architecture is still listed, marked as such, instead of silently missing. That is
+                    // all the setting ever meant, and until now it meant nothing at all: it is for
+                    // seeing what a repository really publishes, not for installing it.
+                        ?: variants.takeIf { showIncompatibleVersions }
+                            ?.maxByOrNull { it.first.manifest.versionCode }
+                }
                 .sortedByDescending { it.first.manifest.versionCode }
         }
         // The release the Install button would pull from the selected repo gets the "suggested" badge,
@@ -1437,6 +1455,21 @@ private fun VersionsSection(
                             modifier = Modifier
                                 .background(
                                     MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = CircleShape,
+                                )
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        )
+                    }
+                    // Only ever reachable with the setting on, since such a row is otherwise absent.
+                    // Saying so matters: tapping it would hand Android a build it will refuse.
+                    if (!pkg.isInstallableOnDevice()) {
+                        Text(
+                            text = stringResource(R.string.incompatible_version).uppercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.errorContainer,
                                     shape = CircleShape,
                                 )
                                 .padding(horizontal = 8.dp, vertical = 6.dp),

@@ -195,8 +195,6 @@
     <string name="unknown_FORMAT">தெரியவில்லை: %s</string>
     <string name="unstable_updates">நிலையற்ற புதுப்பிப்புகள்</string>
     <string name="unstable_updates_summary">நிலையற்ற பதிப்புகளை நிறுவ பரிந்துரைக்கவும்</string>
-    <string name="ignore_signature">கையொப்பத்தை புறக்கணிக்கவும்</string>
-    <string name="ignore_signature_summary">APK ஐ நிறுவும் போது கையொப்ப சரிபார்ப்பை புறக்கணிக்கவும், பயனர்கள் அல்லது மேம்பட்ட பயனர்களுக்கு</string>
     <string name="update">புதுப்பிப்பு</string>
     <string name="updates">புதுப்பிப்புகள்</string>
     <string name="upstream_source_code_is_not_free">மேலோடை மூலக் குறியீடு இலவசம் அல்ல</string>

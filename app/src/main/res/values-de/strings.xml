@@ -210,8 +210,6 @@
     <string name="import_export">Sicherung und Wiederherstellung</string>
     <string name="cannot_open_link">Der Link kann nicht geöffnet werden</string>
     <string name="has_tethered_network">Von einem bestimmten Netzwerkdienst abhängig</string>
-    <string name="ignore_signature">Signaturprüfung ignorieren</string>
-    <string name="ignore_signature_summary">Signaturprüfung bei einer App-Installation ignorieren</string>
     <string name="installation_failed">Installation fehlgeschlagen</string>
     <string name="uninstalled_application_DESC">%s wurde deinstalliert</string>
     <string name="installation_failed_DESC">%s konnte nicht installiert werden</string>

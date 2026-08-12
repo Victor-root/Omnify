@@ -212,8 +212,6 @@
     <string name="installation_failed">Instalacija neuspjela</string>
     <string name="uninstalled_application">Deinstalirano</string>
     <string name="uninstalled_application_DESC">%s je deinstaliran</string>
-    <string name="ignore_signature">Ignoriraj provjeru potpisa</string>
-    <string name="ignore_signature_summary">Zanemari provjeru potpisa prilikom instaliranja aplikacije</string>
     <string name="error_shizuku_service_unavailable">Shizuku/Sui usluga ne radi</string>
     <string name="error_shizuku_not_running_DESC">Shizuku/Sui usluga ne radi</string>
     <string name="error_shizuku_not_granted">Nema dopuštenja za Shizuku/Sui</string>

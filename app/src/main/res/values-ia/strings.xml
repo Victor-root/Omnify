@@ -210,8 +210,6 @@
     <string name="installation_failed_DESC">Falleva le installation de %s</string>
     <string name="uninstalled_application">Disinstallate</string>
     <string name="uninstalled_application_DESC">%s ha essite disinstallate</string>
-    <string name="ignore_signature">Ignorar le signatura</string>
-    <string name="ignore_signature_summary">Ignorar le verification de signatura in le installation de apk, pro usatores avantiate o de LSPosed</string>
     <string name="switch_to_default_installer">Cambiar al predefinite</string>
     <string name="label_open_video">Video</string>
     <string name="label_unknown_sdk">Incognite (%d)</string>

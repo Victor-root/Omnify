@@ -219,8 +219,6 @@
     <string name="installation_failed_DESC">Falha ao instalar %s</string>
     <string name="uninstalled_application">Desinstalado</string>
     <string name="uninstalled_application_DESC">%s foi desinstalado</string>
-    <string name="ignore_signature_summary">Ignora a verificação de assinatura ao instalar um app</string>
-    <string name="ignore_signature">Ignorar verificação de assinatura</string>
     <string name="open_shizuku">Abrir Shizuku</string>
     <string name="error_shizuku_not_running_DESC">O serviço Shizuku/Sui não está em execução</string>
     <string name="insufficient_storage_DESC">Não há espaço livre suficiente para instalar este app</string>

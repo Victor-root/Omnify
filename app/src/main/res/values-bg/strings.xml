@@ -210,8 +210,6 @@
     <string name="uninstalled_application">Деинсталирано</string>
     <string name="uninstalled_application_DESC">%s е било деинсталирано</string>
     <string name="installation_failed">Неуспешна инсталация</string>
-    <string name="ignore_signature">Игнориране проверката на подписа</string>
-    <string name="ignore_signature_summary">Игнориране проверката на подписа при инсталиране на приложение</string>
     <string name="insufficient_storage">Недостатъчно място</string>
     <string name="insufficient_storage_DESC">Няма достатъчно свободно място за инсталиране на това приложение</string>
     <string name="error_shizuku_not_installed">Shizuku/Sui не е инсталиран</string>

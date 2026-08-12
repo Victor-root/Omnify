@@ -193,7 +193,6 @@
     <string name="waiting_to_start_installation">Se așteaptă începerea instalării…</string>
     <string name="auto_update_apps">Instalează actualizările automat</string>
     <string name="installing">Se instalează</string>
-    <string name="ignore_signature">Ignoră verificarea semnăturii</string>
     <string name="insufficient_storage_DESC">Nu există suficient spațiu suficient pentru a instala această aplicație</string>
     <string name="insufficient_storage">Spațiu insuficient</string>
     <string name="installation_failed_DESC">Nu s-a putut instala %s</string>
@@ -213,7 +212,6 @@
     <string name="require_background_access_DESC">Dezactivarea optimizărilor bateriei este necesară pentru ca sincronizarea în fundal să ruleze corespunzător</string>
     <string name="special_credits">Credite speciale</string>
     <string name="switch_to_default_installer">Schimbă la implicit</string>
-    <string name="ignore_signature_summary">Ignoră verificarea semnăturii când intalezi o aplicație</string>
     <string name="contains_nsfw">Conține conținut nepotrivit pentru muncă (NSFW)</string>
     <string name="label_open_video">Video</string>
     <string name="unspecified">Nespecificat</string>

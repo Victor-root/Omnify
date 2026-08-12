@@ -213,8 +213,6 @@
     <string name="uninstalled_application_DESC">A aplicação %s foi desinstalada</string>
     <string name="installation_failed">Falha na instalação</string>
     <string name="installation_failed_DESC">Não foi possível instalar %s</string>
-    <string name="ignore_signature">Ignorar verificação de assinatura</string>
-    <string name="ignore_signature_summary">Ignora a verificação de assinatura ao instalar um app</string>
     <string name="insufficient_storage">Espaço insuficiente</string>
     <string name="insufficient_storage_DESC">Não há espaço livre suficiente para instalar este app</string>
     <string name="open_shizuku">Abrir Shizuku</string>
