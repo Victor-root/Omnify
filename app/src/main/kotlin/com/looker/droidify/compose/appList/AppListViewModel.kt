@@ -10,7 +10,7 @@ import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledIdentityRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.SuggestedVersion
-import com.looker.droidify.data.signerMismatch
+import com.looker.droidify.data.hasCatalogueUpdate
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.data.model.excludingHidden
@@ -294,32 +294,21 @@ class AppListViewModel @Inject constructor(
         .distinctUntilChanged()
         .asStateFlow(0)
 
-    /**
-     * Whether [app] has a newer catalogue version worth offering.
-     *
-     * We hide an update only when it provably can't be carried out: the newer version is signed by a
-     * different key than what's installed (Android refuses an in-place update across signers) *and*
-     * the installed app is a system app, which can't be uninstalled to clear the conflict. For a
-     * normal app the same conflict is resolvable — uninstall then reinstall, which the detail screen
-     * offers — so the update still shows. When either signature is unknown we never hide a legitimate
-     * update.
-     */
+    /** Whether [app] has a newer catalogue version worth offering. The rule itself lives in
+     *  [hasCatalogueUpdate], shared with the automatic update installer, which has no ViewModel to read
+     *  it from; this only unpacks [installed] for it. */
     private fun hasUpdate(
         app: AppMinimal,
         installed: InstalledInfo,
         suggested: Map<String, SuggestedVersion>,
     ): Boolean {
         val pkg = app.packageName.name
-        val installedCode = installed.versions[pkg] ?: return false
-        val suggestedVersion = suggested[pkg] ?: return false
-        if (suggestedVersion.versionCode <= installedCode) return false
-
-        // A newer version exists. Suppress it only when it can't replace the installed app —
-        // signerMismatch is the one shared definition of that comparison (see
-        // InstalledIdentityRepository).
-        val signerConflict = signerMismatch(installed.signatures[pkg], suggestedVersion.signers)
-        if (signerConflict && pkg in installed.systemApps) return false
-        return true
+        return hasCatalogueUpdate(
+            installedVersionCode = installed.versions[pkg],
+            installedSigner = installed.signatures[pkg],
+            isSystemApp = pkg in installed.systemApps,
+            suggested = suggested[pkg],
+        )
     }
 
     private fun isSystemApp(packageName: String): Boolean = runCatching {

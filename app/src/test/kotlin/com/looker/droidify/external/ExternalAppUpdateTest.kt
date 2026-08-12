@@ -122,4 +122,52 @@ class ExternalAppUpdateTest {
 
         assertTrue(untracked.hasUpdateGiven("1.93.130"), "Missed an update for an untracked install")
     }
+
+    // isUpdatePending is what the Updates tab lists and what the automatic installer acts on, so these
+    // cover the two opt-outs it adds on top of the comparison above. Getting one wrong no longer just
+    // shows a wrong row: it would install something behind the user's back, or on a source they
+    // deliberately disabled.
+
+    @Test
+    fun `a disabled source offers nothing, however new its release`() {
+        val disabled = source(latestApkName = "BraveMonoarm64.apk", latestTag = "v1.94.0")
+            .copy(enabled = false)
+
+        assertTrue(disabled.hasUpdateGiven("1.93.130"), "Test setup no longer describes a real update")
+        assertFalse(
+            disabled.isUpdatePending("1.93.130"),
+            "Listed an update for a source the user had switched off",
+        )
+    }
+
+    @Test
+    fun `a track-only source offers nothing, however new its release`() {
+        val tracked = source(latestApkName = "BraveMonoarm64.apk", latestTag = "v1.94.0")
+            .copy(muteUpdates = true)
+
+        assertFalse(
+            tracked.isUpdatePending("1.93.130"),
+            "Listed an update for a source set to track only",
+        )
+    }
+
+    @Test
+    fun `a source with nothing installed is never an update`() {
+        // The auto-installer only ever updates what is on the device. Passing no on-device version is
+        // how "not installed" reaches here, and it has to come back false or an app the user merely
+        // follows would be installed for them.
+        val notInstalled = source(latestApkName = "BraveMonoarm64.apk", latestTag = "v1.94.0")
+
+        assertFalse(
+            notInstalled.isUpdatePending(null),
+            "Treated an app that isn't installed as having an update waiting",
+        )
+    }
+
+    @Test
+    fun `an enabled, unmuted source with a newer release is an update`() {
+        val normal = source(latestApkName = "BraveMonoarm64.apk", latestTag = "v1.94.0")
+
+        assertTrue(normal.isUpdatePending("1.93.130"), "Missed a plain, ordinary update")
+    }
 }

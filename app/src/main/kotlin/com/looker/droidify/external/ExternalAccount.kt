@@ -36,13 +36,7 @@ data class ExternalAccount(
     val curated: Boolean = false,
 ) {
     val effectiveHost: String
-        get() = host.ifEmpty {
-            when (provider) {
-                SourceProvider.GITHUB -> "github.com"
-                SourceProvider.GITLAB -> "gitlab.com"
-                SourceProvider.CODEBERG -> "codeberg.org"
-            }
-        }
+        get() = host.ifEmpty { publicHost(provider) }
 
     /** Stable identity, matching [ExternalApp.accountKey] of its discovered apps. */
     val key: String

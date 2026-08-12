@@ -14,6 +14,16 @@ enum class SourceProvider(val label: String) {
     CODEBERG("Codeberg"),
 }
 
+/** The host a provider is reached at when a source names no instance of its own, i.e. the platform's
+ *  own public one, as opposed to a self-hosted Gitea/Forgejo or GitLab. See [ExternalApp.effectiveHost]
+ *  and [ExternalAccount.effectiveHost], which is what nearly every caller wants; this bare form is for
+ *  the one case with neither yet, resolving an account URL whose provider is still being guessed. */
+fun publicHost(provider: SourceProvider): String = when (provider) {
+    SourceProvider.GITHUB -> "github.com"
+    SourceProvider.GITLAB -> "gitlab.com"
+    SourceProvider.CODEBERG -> "codeberg.org"
+}
+
 /** A parsed reference to a project: enough to build API + web URLs (after the host is known). */
 data class ExternalSourceRef(
     /** Null when the host isn't a known public provider — the caller probes the instance

@@ -378,9 +378,7 @@ fun AppListScreen(
     // hasUpdateGiven (not the plain hasUpdate) also catches an app installed before its source was
     // tracked, by falling back to its real on-device version — see ExternalApp.hasUpdateGiven.
     val externalUpdates = remember(enabledExternalApps, externalInstalledVersions) {
-        enabledExternalApps.filter {
-            it.hasUpdateGiven(externalInstalledVersions[it.key]) && !it.muteUpdates
-        }
+        enabledExternalApps.filter { it.isUpdatePending(externalInstalledVersions[it.key]) }
     }
     // The favourites full page's own order, independent of the carousel above it: catalogue and
     // external favourites merged into one list and sorted by whatever favouritesSortOrder currently

@@ -28,6 +28,7 @@ import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.getDrawableCompat
 import com.looker.droidify.utility.common.extension.getInstalledPackagesCompat
 import com.looker.droidify.utility.extension.toInstalledItem
+import com.looker.droidify.work.AutoUpdateWorker
 import com.looker.droidify.work.CleanUpWorker
 import com.looker.droidify.work.DownloadStatsWorker
 import com.looker.droidify.work.SyncWorker
@@ -131,6 +132,21 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
                         CleanUpWorker.removeAllSchedules(applicationContext)
                     } else {
                         CleanUpWorker.scheduleCleanup(applicationContext, it)
+                    }
+                }
+            }
+            launch {
+                // Switching automatic updates on runs a pass right away rather than leaving the
+                // setting to look broken until the next background sync, which can be twelve hours
+                // off: someone turning it on with updates already waiting plainly means those ones.
+                // Same shape as unstableUpdate forcing a sync above. Switching it off has to stop a
+                // pass already queued or running, not merely prevent the next one, or a batch caught
+                // mid-download would go on to install anyway.
+                settingsRepository.get { autoUpdate }.drop(1).collect { enabled ->
+                    if (enabled) {
+                        AutoUpdateWorker.enqueue(applicationContext, settingsRepository)
+                    } else {
+                        AutoUpdateWorker.cancel(applicationContext)
                     }
                 }
             }

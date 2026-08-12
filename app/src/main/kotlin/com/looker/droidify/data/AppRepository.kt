@@ -199,6 +199,34 @@ data class SuggestedVersion(
     val signers: Set<String>,
 )
 
+/**
+ * Whether the catalogue offers an update worth installing for a package, given what is on the device.
+ *
+ * An update is hidden only when it provably can't be carried out: the newer version is signed by a
+ * different key than what's installed (Android refuses an in-place update across signers) *and* the
+ * installed app is a system app, which can't be uninstalled to clear the conflict. For a normal app the
+ * same conflict is resolvable by uninstalling then reinstalling, which the detail screen and the batch
+ * updater both offer, so the update still shows. When either signature is unknown we never hide a legitimate
+ * update.
+ *
+ * The single definition of that rule, shared by the Updates tab and the automatic update installer so
+ * the two can't disagree about what counts as updatable.
+ *
+ * [installedVersionCode] is null when the package isn't installed at all, and [suggested] is null when
+ * the catalogue has no device-compatible build of it. Neither is an update.
+ */
+fun hasCatalogueUpdate(
+    installedVersionCode: Long?,
+    installedSigner: String?,
+    isSystemApp: Boolean,
+    suggested: SuggestedVersion?,
+): Boolean {
+    if (installedVersionCode == null || suggested == null) return false
+    if (suggested.versionCode <= installedVersionCode) return false
+    // signerMismatch is the one shared definition of this comparison (see InstalledIdentityRepository).
+    return !(signerMismatch(installedSigner, suggested.signers) && isSystemApp)
+}
+
 /** Bumped whenever [com.looker.droidify.utility.apk.ApkResourceLocales]'s parsing logic changes in a
  *  way that changes its output for the same bytes (e.g. the library-noise filter added after this
  *  cache already had entries) — folded into the cache key so old rows, computed with the previous

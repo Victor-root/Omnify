@@ -21,6 +21,8 @@ import androidx.work.WorkerParameters
 import androidx.work.hasKeyWithValueOfType
 import com.looker.droidify.R
 import com.looker.droidify.data.RepoRepository
+import com.looker.droidify.datastore.SettingsRepository
+import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.sync.SyncState
 import com.looker.droidify.utility.common.createNotificationChannel
 import com.looker.droidify.utility.common.extension.exceptCancellation
@@ -40,6 +42,8 @@ class SyncWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
     private val repoRepository: RepoRepository,
+    private val externalRefresher: ExternalRefresher,
+    private val settingsRepository: SettingsRepository,
 ) : CoroutineWorker(context, workerParams) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val repoId = if (inputData.hasKeyWithValueOfType<Int>(KEY_REPO_ID)) {
@@ -75,6 +79,27 @@ class SyncWorker @AssistedInject constructor(
                 }
             } else {
                 repoRepository.syncAll()
+            }
+            // "Sync everything" means the external sources too, not just the catalogue repositories:
+            // they are the other half of the same Updates tab, and until this ran here they had no
+            // background check at all: a source only ever learned about a new release while a screen
+            // was open. Skipped when syncing one named repository, which is a catalogue-only action.
+            // Failures are contained: a provider being unreachable must not fail a catalogue sync that
+            // worked, and ExternalRefresher's own throttle decides whether this actually does anything.
+            if (repoId == null) {
+                try {
+                    externalRefresher.refresh()
+                } catch (t: Throwable) {
+                    t.exceptCancellation()
+                    Log.w(TAG, "External source refresh failed", t)
+                }
+                // Now that both halves have been re-checked, hand over to the automatic installer if the
+                // user asked for one. Only on the scheduled pass: a manual sync happens with the app in
+                // front of the user, where the Updates tab and its "Update all" button are right there,
+                // and starting installs out from under a deliberate tap on Sync would be a surprise.
+                if (inputData.getString(KEY_TRIGGER) == TRIGGER_PERIODIC) {
+                    AutoUpdateWorker.enqueue(applicationContext, settingsRepository)
+                }
             }
             if (success) {
                 Log.i(TAG, "Sync completed successfully (repoId=$repoId)")

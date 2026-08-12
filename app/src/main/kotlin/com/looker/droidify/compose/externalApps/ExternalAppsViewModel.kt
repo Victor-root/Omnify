@@ -3,7 +3,6 @@ package com.looker.droidify.compose.externalApps
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
@@ -28,6 +27,8 @@ import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
+import com.looker.droidify.external.ExternalInstaller
+import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.external.ExternalAccountRef
 import com.looker.droidify.external.Release
 import com.looker.droidify.external.ReleaseLookup
@@ -41,6 +42,8 @@ import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.external.parseAccountSource
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.external.prettifyRepoName
+import com.looker.droidify.external.publicHost
+import com.looker.droidify.external.releaseCacheFileName
 import com.looker.droidify.external.selectApkAsset
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.installers.shizuku.ShizukuState
@@ -75,7 +78,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -88,6 +90,8 @@ import javax.inject.Inject
 class ExternalAppsViewModel @Inject constructor(
     private val externalApi: ExternalApi,
     private val repository: ExternalAppRepository,
+    private val externalRefresher: ExternalRefresher,
+    private val externalInstaller: ExternalInstaller,
     private val downloader: Downloader,
     private val installManager: InstallManager,
     private val translationManager: TranslationManager,
@@ -191,7 +195,7 @@ class ExternalAppsViewModel @Inject constructor(
                     _scanningAccounts.update { it + account.key }
                     launch {
                         try {
-                            rescanAccountNow(account)
+                            externalRefresher.rescanAccountNow(account)
                         } finally {
                             _scanningAccounts.update { it - account.key }
                         }
@@ -223,7 +227,7 @@ class ExternalAppsViewModel @Inject constructor(
                 if (BuildConfig.DEBUG) Log.d(TAG, "installedVersions ${app.key}: no packageName on record")
                 return@mapNotNull null
             }
-            val version = installedVersionName(pkg)
+            val version = externalRefresher.installedVersionName(pkg)
             if (version == null) {
                 if (BuildConfig.DEBUG) {
                     Log.d(TAG, "installedVersions ${app.key}: pkg=$pkg but not found by the package manager")
@@ -1126,7 +1130,8 @@ class ExternalAppsViewModel @Inject constructor(
                     // Resolve the package id (repo build.gradle, else the release APK's own manifest) so an
                     // app that's already installed is matched and shows its real on-device name + icon right
                     // away, before the user installs it through us.
-                    val packageId = resolvePackageId(app, release.apkDownloadUrl(filter = app.apkFilter))
+                    val packageId = externalRefresher
+                        .resolvePackageId(app, release.apkDownloadUrl(filter = app.apkFilter))
                     // Pull the app's real launcher icon AND its real name from the repo (Obtainium-style),
                     // so the card shows both before anything is installed.
                     val meta = externalApi.fetchRepoMetadata(app)
@@ -1134,7 +1139,7 @@ class ExternalAppsViewModel @Inject constructor(
                     // installed, else the real name read from the repo manifest, else the repo name.
                     val resolvedLabel = when {
                         app.nameOverridden -> app.label
-                        else -> packageId?.let { installedLabel(it) } ?: meta?.appName ?: app.label
+                        else -> packageId?.let { externalRefresher.installedLabel(it) } ?: meta?.appName ?: app.label
                     }
                     val addApkSize = release.apkFileSize(filter = app.apkFilter)
                     if (BuildConfig.DEBUG) {
@@ -1261,7 +1266,7 @@ class ExternalAppsViewModel @Inject constructor(
                 // Don't absorb a repo the user already tracks as its own single-repo source (e.g. the
                 // built-in Omnify repo): leave it standalone.
                 val standaloneKeys = apps.value.filter { it.accountKey == null }.map { it.key }.toSet()
-                val discovered = discoverAccountApps(
+                val discovered = externalRefresher.discoverAccountApps(
                     account = account,
                     repos = repos,
                     skipKeys = standaloneKeys,
@@ -1291,61 +1296,6 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * For each repo of [account] not already tracked ([skipKeys]), keeps those that ship an installable
-     * APK release and builds an [ExternalApp] for them (with package id, icon, name and TV support read
-     * from the repo, like a single-repo source). Sequential to pace the provider's rate limit.
-     */
-    private suspend fun discoverAccountApps(
-        account: ExternalAccount,
-        repos: List<RepoRef>,
-        skipKeys: Set<String>,
-        includePrereleases: Boolean,
-        muteUpdates: Boolean,
-        apkFilter: String,
-        versionExcludeFilter: String,
-    ): List<ExternalApp> {
-        val filter = apkFilter.trim().ifEmpty { null }
-        val excludeFilter = versionExcludeFilter.trim().ifEmpty { null }
-        val result = mutableListOf<ExternalApp>()
-        for (ref in repos) {
-            val candidate = ExternalApp(
-                provider = account.provider,
-                host = account.host,
-                owner = ref.owner,
-                repo = ref.repo,
-                includePrereleases = includePrereleases,
-                muteUpdates = muteUpdates,
-                apkFilter = filter,
-                versionExcludeFilter = excludeFilter,
-                enabled = account.enabled,
-                accountKey = account.key,
-                label = prettifyRepoName(ref.repo),
-            )
-            if (candidate.key in skipKeys) continue
-            val release = externalApi.latestReleaseFor(candidate) ?: continue
-            val packageId =
-                resolvePackageId(candidate, release.apkDownloadUrl(filter = candidate.apkFilter))
-            val meta = externalApi.fetchRepoMetadata(candidate)
-            val resolvedLabel = packageId?.let { installedLabel(it) } ?: meta?.appName ?: candidate.label
-            result += candidate.copy(
-                packageName = packageId,
-                label = resolvedLabel,
-                repoIconUrl = meta?.iconCandidates?.firstOrNull(),
-                iconChecked = meta != null,
-                supportsTelevision = meta?.supportsTelevision ?: false,
-                tvChecked = meta != null,
-                latestTag = release.tag,
-                latestApkToken = release.apkVersionToken(filter = candidate.apkFilter),
-                latestApkName = release.apkFileName(filter = candidate.apkFilter),
-                latestApkSize = release.apkFileSize(filter = candidate.apkFilter),
-                latestApkUrl = release.apkDownloadUrl(filter = candidate.apkFilter),
-                latestReleaseAt = release.apkUpdatedAtMillis(filter = candidate.apkFilter),
-            )
-        }
-        return result
-    }
-
     /** Re-scans [account]'s repos to pick up newly published apps (existing ones are left untouched;
      *  the normal [refresh] keeps their releases current). Updates the account's last-scan time. This is
      *  the only way to look for new apps sooner than the once-a-day automatic pass (see [refresh]), so
@@ -1358,7 +1308,7 @@ class ExternalAppsViewModel @Inject constructor(
         _scanningAccounts.update { it + account.key }
         viewModelScope.launch {
             try {
-                val found = rescanAccountNow(account)
+                val found = externalRefresher.rescanAccountNow(account)
                 // A big account (many repos) can burn through the anonymous 60-requests/hour GitHub quota
                 // partway through, silently: every repo checked after that point looks exactly like one
                 // that genuinely has nothing installable (see ExternalApi.getText), so found == 0 alone
@@ -1382,45 +1332,6 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    /** Returns how many new apps were discovered, so [rescanAccount] can report it; the automatic
-     *  callers (the init watcher above, and [refresh]'s own once-a-day pass) ignore it, since only a
-     *  manual rescan needs to tell the user anything. */
-    private suspend fun rescanAccountNow(account: ExternalAccount): Int {
-        val host = account.host.ifEmpty { publicHost(account.provider) }
-        val repos = externalApi.listAccountRepos(
-            account.provider,
-            host,
-            account.owner,
-            account.includeForks,
-        )
-        // Bump the last-scan time even when the listing fails/empties, so a transient failure doesn't make
-        // every refresh hammer the API; a real new app shows up at the next daily scan.
-        var discoveredCount = 0
-        if (repos.isNotEmpty()) {
-            // Skip repos already tracked: this account's existing apps, plus any standalone single-repo
-            // source (so the account never absorbs e.g. the built-in Omnify repo).
-            val skipKeys = apps.value
-                .filter { it.accountKey == null || it.accountKey == account.key }
-                .map { it.key }
-                .toSet()
-            val discovered = discoverAccountApps(
-                account = account,
-                repos = repos,
-                skipKeys = skipKeys,
-                includePrereleases = false,
-                muteUpdates = false,
-                apkFilter = "",
-                versionExcludeFilter = "",
-            )
-            if (discovered.isNotEmpty()) {
-                repository.upsertApps(discovered)
-                discoveredCount = discovered.size
-            }
-        }
-        repository.upsertAccount(account.copy(lastScan = System.currentTimeMillis()))
-        return discoveredCount
-    }
-
     /** Enables/disables a whole account, cascading to all of its discovered apps. */
     fun setAccountEnabled(account: ExternalAccount, enabled: Boolean) {
         viewModelScope.launch {
@@ -1435,12 +1346,6 @@ class ExternalAppsViewModel @Inject constructor(
             repository.removeAppsByAccount(account.key)
             repository.removeAccount(account.key)
         }
-    }
-
-    private fun publicHost(provider: SourceProvider): String = when (provider) {
-        SourceProvider.GITHUB -> "github.com"
-        SourceProvider.GITLAB -> "gitlab.com"
-        SourceProvider.CODEBERG -> "codeberg.org"
     }
 
     /** Downloads the latest release's APK (with live progress) and installs it. */
@@ -1496,164 +1401,14 @@ class ExternalAppsViewModel @Inject constructor(
      *  [isRefreshing] while the other was still running. */
     private var refreshJob: Job? = null
 
-    /** Re-checks every app for a newer release tag (e.g. on opening the screen) and backfills icon/
-     *  name/TV-support metadata. The release check itself is enabled-only, like a disabled repository —
-     *  each one costs a GitHub API call, so a source nobody's opted into yet shouldn't burn the anonymous
-     *  60-requests/hour budget on updates nobody's watching for. The metadata backfill runs for every
-     *  tracked app regardless of enabled state, though: it's what the pre-install browsing UI (the
-     *  sources list, "Choix d'Omnify") shows *before* the user ever opts in, so a still-disabled source
-     *  deserves its real icon too — previously it was gated behind the same enabled-only filter as the
-     *  release check, so a source seeded disabled (the curated pack) never got its repoIconUrl backfilled
-     *  and stayed on the owner-avatar fallback (see ExternalAppIcon.kt) indefinitely, even after the
-     *  source had been sitting there for months. It's still genuinely one-time per repo either way (the
-     *  *Checked flags below), so this doesn't add ongoing cost, only a one-off scan the first time each
-     *  source is ever seen. Throttled: this fires on every screen entry.
-     *
-     *  The list is read straight from the repository, never from [apps]: that state flow is shared
-     *  `WhileSubscribed` and starts on its `emptyList()` placeholder, so at the moment this runs (from a
-     *  `LaunchedEffect` in the screen that has just composed) it hasn't emitted yet and the loop below
-     *  had nothing to iterate, silently skipping every source while arming the throttle all the same.
-     *  Entering a screen then never refreshed any source's latest* fields, which is what decides whether
-     *  an update exists, so a newly published release simply never became an available update. Only
-     *  adding or editing a source resolved them, leaving each one frozen on the release it shipped the
-     *  day it was added. The version list on the detail screen kept showing new releases correctly
-     *  throughout, since it queries the provider directly instead of reading those fields. */
+    /** Screen-entry (and refresh-button) trigger for [ExternalRefresher.refresh], which is where the
+     *  actual work and its throttle live so the scheduled background check can run the very same pass.
+     *  This only adds what the UI needs on top: [isRefreshing], and a guard against a forced pass
+     *  starting while one is already in flight. */
     fun refresh(force: Boolean = false) {
-        val now = SystemClock.elapsedRealtime()
-        // [force] is the user having asked, through the app list's refresh button. The throttle is there
-        // to stop merely walking into a screen from spending the provider's rate limit, not to refuse
-        // someone who pressed the button: without this, that button did visibly nothing for external
-        // sources within ten minutes of the last screen entry, which is most of the time.
-        if (!force && now - lastNetworkRefreshAt < REFRESH_THROTTLE_MS) return
         if (refreshJob?.isActive == true) return
-        lastNetworkRefreshAt = now
         _isRefreshing.value = true
-        val job = viewModelScope.launch {
-            val tracked = repository.getApps()
-            // No sources yet, so nothing was requested: give the throttle window back instead of sitting
-            // it out over a pass that cost nothing. This is a real first-launch case, since the seeded
-            // sources are still being written by MainComposeActivity while this screen composes.
-            if (tracked.isEmpty()) {
-                lastNetworkRefreshAt = 0L
-                return@launch
-            }
-            tracked.forEach { app ->
-                // A release may not exist yet (e.g. the seeded Omnify source has no published release),
-                // or the source may simply not be enabled yet — either way we still scan the repo below
-                // for its icon / name / TV support, which don't depend on a downloadable APK, and simply
-                // keep the existing release fields when there's none.
-                val release = if (app.enabled) externalApi.latestReleaseFor(app) else null
-                // Track the APK file's identity, not just the tag, so updates are detected from the
-                // actual APK (see ExternalApp.hasUpdate); keep its file name for the "latest APK" line.
-                val tag = release?.tag ?: app.latestTag
-                val token = release?.apkVersionToken(filter = app.apkFilter) ?: app.latestApkToken
-                val apkName = release?.apkFileName(filter = app.apkFilter) ?: app.latestApkName
-                val apkSize = release?.apkFileSize(filter = app.apkFilter) ?: app.latestApkSize
-                val apkUrl = release?.apkDownloadUrl(filter = app.apkFilter) ?: app.latestApkUrl
-                val releaseAt = release?.apkUpdatedAtMillis(filter = app.apkFilter) ?: app.latestReleaseAt
-                // Every field the update decision reads, on one line, plus the answer it produces:
-                // whether a source offers an update comes down to comparing these two halves (see
-                // ExternalApp.hasUpdateGiven), and without them a wrongly-offered update is guesswork
-                // from outside. Logged whether or not the lookup succeeded, since a source keeping its
-                // previous values because the provider couldn't be reached is itself worth seeing.
-                val onDevice = app.packageName?.let(::installedVersionName)
-                if (BuildConfig.DEBUG) {
-                    Log.d(
-                        TAG,
-                        "refresh ${app.key}: fetched=${release != null} | " +
-                            "latest tag=$tag apk=$apkName token=$token | " +
-                            "pkg=${app.packageName} isInstalled=${app.packageName?.let(::isInstalled)} | " +
-                            "installed tag=${app.installedTag} token=${app.installedApkToken} " +
-                            "version=${app.installedVersionName} onDevice=$onDevice | " +
-                            "update=${app.copy(
-                                latestTag = tag,
-                                latestApkToken = token,
-                                latestApkName = apkName,
-                            ).hasUpdateGiven(onDevice)}",
-                    )
-                }
-                // Backfill the package id (source build.gradle, else the release APK's own manifest) for
-                // sources added before this existed, so an installed app starts showing its real name +
-                // icon and is matched as installed even when it arrived via another channel; the existing
-                // label reconcile then fills in the on-device name. Never overwrites an id already learned.
-                val packageId = resolvePackageId(app, apkUrl)
-                // One-time backfill of the repo icon + real app name + TV support for sources added
-                // before these existed. Gated by the *Checked flags so a repo is scanned at most once
-                // (spares the API rate limit), and never overrides a user-picked icon or name.
-                val needsIcon = !app.iconChecked && !app.iconOverridden && app.repoIconUrl == null
-                val needsTv = !app.tvChecked
-                val needsMeta = needsIcon || needsTv
-                val meta = if (needsMeta) externalApi.fetchRepoMetadata(app) else null
-                // meta == null means the scan failed (couldn't read the tree); don't mark anything
-                // "checked" then, so it retries on a later refresh.
-                val scanned = meta != null
-                // Only adopt a repo icon when we were actually looking for one — don't clobber a set or
-                // user-picked icon just because we re-scanned for TV support.
-                val repoIcon = if (needsIcon) meta?.iconCandidates?.firstOrNull() ?: app.repoIconUrl else app.repoIconUrl
-                val supportsTv = if (needsTv) meta?.supportsTelevision ?: app.supportsTelevision else app.supportsTelevision
-                // Only replace the label while it's still an automatic default (never a user/on-device
-                // one): either the bare repo name from before prettifying it existed, or the prettified
-                // version of it.
-                val stillDefaultLabel = !app.nameOverridden &&
-                    app.packageName?.let { isInstalled(it) } != true &&
-                    (app.label == app.repo || app.label == prettifyRepoName(app.repo))
-                val resolvedLabel = when {
-                    !stillDefaultLabel -> app.label
-                    // The real, manifest-read name when one was found (e.g. on a repo backfilled
-                    // before this scan ever ran). Otherwise, a repo that ships no Android source at all
-                    // to read a name from (brave/brave-browser, which openly says as much in its own
-                    // README) never gets past this, however many times it is rescanned. The prettified
-                    // repo name is what it settles on instead of the raw slug.
-                    meta?.appName != null -> meta.appName
-                    else -> prettifyRepoName(app.repo)
-                }
-                if (tag != app.latestTag ||
-                    token != app.latestApkToken ||
-                    apkName != app.latestApkName ||
-                    apkSize != app.latestApkSize ||
-                    apkUrl != app.latestApkUrl ||
-                    packageId != app.packageName ||
-                    repoIcon != app.repoIconUrl ||
-                    resolvedLabel != app.label ||
-                    supportsTv != app.supportsTelevision ||
-                    (needsMeta && scanned)
-                ) {
-                    // Re-read the current record instead of copying from `app` (a snapshot taken before
-                    // this loop's network calls, which can take several seconds): if the user installed
-                    // or updated this very app while refresh() was still running, `app`'s installedTag/
-                    // installedApkToken/packageName/label are already stale, and copying from it here
-                    // would silently overwrite that fresh install state with the old pre-install values —
-                    // flashing the Update button back on right after it correctly switched to Launch.
-                    val current = repository.getApps().firstOrNull { it.key == app.key } ?: app
-                    repository.upsertApp(
-                        current.copy(
-                            packageName = current.packageName ?: packageId,
-                            label = if (resolvedLabel != app.label) resolvedLabel else current.label,
-                            latestTag = tag,
-                            latestApkToken = token,
-                            latestApkName = apkName,
-                            latestApkSize = apkSize,
-                            latestApkUrl = apkUrl,
-                            latestReleaseAt = releaseAt,
-                            repoIconUrl = repoIcon,
-                            iconChecked = current.iconChecked || (needsIcon && scanned),
-                            supportsTelevision = supportsTv,
-                            tvChecked = current.tvChecked || (needsTv && scanned),
-                        ),
-                    )
-                }
-            }
-            // Once a day, re-scan each enabled account for newly published apps (the apps it already
-            // found are refreshed by the per-app loop above). Disabled accounts and never-scanned ones
-            // (handled by the init watcher) are skipped, so this barely adds to the API cost.
-            repository.getAccounts()
-                .filter {
-                    it.enabled &&
-                        it.lastScan != 0L &&
-                        System.currentTimeMillis() - it.lastScan > ACCOUNT_RESCAN_INTERVAL_MS
-                }
-                .forEach { rescanAccountNow(it) }
-        }
+        val job = viewModelScope.launch { externalRefresher.refresh(force) }
         refreshJob = job
         job.invokeOnCompletion { _isRefreshing.value = false }
     }
@@ -1682,7 +1437,8 @@ class ExternalAppsViewModel @Inject constructor(
             val overridden = trimmedName.isNotEmpty()
             val label = when {
                 overridden -> trimmedName
-                app.packageName != null -> installedLabel(app.packageName) ?: prettifyRepoName(app.repo)
+                app.packageName != null -> externalRefresher.installedLabel(app.packageName)
+                    ?: prettifyRepoName(app.repo)
                 else -> prettifyRepoName(app.repo)
             }
             val trimmedFilter = apkFilter.trim().ifEmpty { null }
@@ -1747,7 +1503,7 @@ class ExternalAppsViewModel @Inject constructor(
                 apps.value.mapNotNull { app ->
                     if (app.nameOverridden) return@mapNotNull null
                     val pkg = app.packageName ?: return@mapNotNull null
-                    val realLabel = installedLabel(pkg) ?: return@mapNotNull null
+                    val realLabel = externalRefresher.installedLabel(pkg) ?: return@mapNotNull null
                     if (realLabel != app.label) app.copy(label = realLabel) else null
                 }
             }
@@ -1776,18 +1532,13 @@ class ExternalAppsViewModel @Inject constructor(
         val app = apps.value.firstOrNull { it.key == key } ?: return
         val stored = app.packageName
         // Already correct (stored id is on the device), or already attempted this session — nothing to do.
-        if (stored != null && isInstalled(stored)) return
+        if (stored != null && externalRefresher.isInstalled(stored)) return
         if (!packageIdResolved.add(key)) return
         viewModelScope.launch {
             val apkUrl = app.latestApkUrl
                 ?: (if (app.enabled) externalApi.latestReleaseFor(app) else null)
                     ?.apkDownloadUrl(filter = app.apkFilter)
-            val apkId = apkUrl?.let { url ->
-                runCatching {
-                    RemoteApkManifestReader.fetchManifestBytes(downloader, url)
-                        ?.let(ApkBinaryManifest::packageName)
-                }.getOrNull()
-            }
+            val apkId = apkUrl?.let { externalRefresher.readApkPackageId(it) }
             if (apkId == null) {
                 // Couldn't read the APK (transient network error, no release yet): let a later open retry.
                 packageIdResolved.remove(key)
@@ -1797,7 +1548,7 @@ class ExternalAppsViewModel @Inject constructor(
             // null stored id with it so a not-yet-installed app still gets its real id. Never overwrite an
             // existing non-null stored id with a different not-installed value.
             val resolved = when {
-                isInstalled(apkId) -> apkId
+                externalRefresher.isInstalled(apkId) -> apkId
                 stored == null -> apkId
                 else -> return@launch
             }
@@ -1853,8 +1604,7 @@ class ExternalAppsViewModel @Inject constructor(
                 toast(context.getString(R.string.external_no_apk, app.repo))
                 return
             }
-            val cacheFileName = "${app.provider.name}_${app.owner}_${app.repo}_${release.tag}.apk"
-                .replace(UNSAFE_FILE_CHARS, "_")
+            val cacheFileName = releaseCacheFileName(app, release.tag)
             val releaseFile = Cache.getReleaseFile(context, cacheFileName)
             val response = withContext(Dispatchers.IO) {
                 // Download to a partial file and promote it on success. The Downloader resumes by
@@ -1976,39 +1726,17 @@ class ExternalAppsViewModel @Inject constructor(
                 ),
             )
             // packageName and installedTag/installedApkToken/installedVersionName are only recorded once
-            // the system install actually reaches Installed, not right after merely enqueueing it above.
-            // Writing them optimistically used to leave a stale "installed" record (and a wrongly-hidden
-            // update, or a permanently wrong packageName) whenever the install silently failed after this
-            // function had already returned, e.g. exactly the signature conflict this same function now
-            // catches, or a cancelled/failed system install dialog. This runs as its own job so it isn't
-            // cut short by this function's own finally block below.
+            // the system install actually reaches Installed, not right after merely enqueueing it above
+            // (see ExternalInstaller.awaitAndRecordInstall, which is also what the automatic update
+            // pass records through, so the two can't write a source's install state differently. This
+            // runs as its own job so it isn't cut short by this function's own finally block below.
             viewModelScope.launch {
-                val terminal = installManager.state
-                    .map { it[PackageName(packageName)] }
-                    // Wait to actually see this install start (Pending/Installing) before accepting a
-                    // terminal value — otherwise a stale Installed/Failed already sitting in the map
-                    // from an earlier, unrelated attempt on the same package could be mistaken for this
-                    // one's result the instant this collector subscribes.
-                    .dropWhile { it != InstallState.Pending && it != InstallState.Installing }
-                    .first { it == InstallState.Installed || it == InstallState.Failed }
-                if (terminal == InstallState.Installed) {
-                    val current = repository.getApps().firstOrNull { it.key == app.key } ?: return@launch
-                    val versionName = installedVersionName(packageName)
-                    // What this install leaves on record. An update wrongly offered straight after one
-                    // is these three not lining up with the latest* half logged by refresh() above, and
-                    // the absence of this line means the record was never written at all.
-                    if (BuildConfig.DEBUG) {
-                        Log.d(TAG, "installed ${app.key}: tag=${release.tag} token=$token version=$versionName")
-                    }
-                    repository.upsertApp(
-                        current.copy(
-                            packageName = packageName,
-                            installedTag = release.tag,
-                            installedApkToken = token,
-                            installedVersionName = versionName,
-                        ),
-                    )
-                }
+                externalInstaller.awaitAndRecordInstall(
+                    key = app.key,
+                    packageName = packageName,
+                    tag = release.tag,
+                    token = token,
+                )
             }
         } catch (e: CancellationException) {
             throw e
@@ -2035,54 +1763,6 @@ class ExternalAppsViewModel @Inject constructor(
             .getOrNull()
             ?.takeIf { it.isNotBlank() }
     }
-
-    /**
-     * The package id [app] installs under. Already-known [ExternalApp.packageName] wins outright. Otherwise
-     * two independent sources are consulted — the source's `build.gradle` (cheap, a raw-file read) and the
-     * latest release APK's own `<manifest package>` (a range download, but the authoritative id the app
-     * really installs under) — and the winner is whichever one is actually installed on the device, so an
-     * app already present (from any channel) is matched even when `build.gradle` yields a wrong-but-plausible
-     * id (a `namespace`/test id) or nothing at all (a monorepo/Flutter layout the fixed paths don't cover).
-     * When neither candidate is installed, the APK's real id is preferred over the gradle guess. The APK read
-     * is skipped only when the gradle id already matches an installed package. Null when nothing yields an
-     * id. Never throws.
-     */
-    private suspend fun resolvePackageId(
-        app: ExternalApp,
-        apkUrl: String? = app.latestApkUrl,
-    ): String? {
-        app.packageName?.let { return it }
-        val gradleId = externalApi.fetchPackageId(app)
-        // Fast path: the source-tree id is already the installed one — no need to touch the APK.
-        if (gradleId != null && isInstalled(gradleId)) return gradleId
-        val apkId = apkUrl?.let { url ->
-            runCatching {
-                RemoteApkManifestReader.fetchManifestBytes(downloader, url)
-                    ?.let(ApkBinaryManifest::packageName)
-            }.getOrNull()
-        }
-        // Prefer whichever candidate is actually installed; else the APK's authoritative id; else the gradle
-        // guess as a last resort (it may be the right id for an app that simply isn't installed yet).
-        return listOfNotNull(apkId, gradleId).firstOrNull { isInstalled(it) }
-            ?: apkId
-            ?: gradleId
-    }
-
-    private fun isInstalled(packageName: String): Boolean = try {
-        context.packageManager.getPackageInfo(packageName, 0)
-        true
-    } catch (e: PackageManager.NameNotFoundException) {
-        false
-    }
-
-    private fun installedVersionName(packageName: String): String? = runCatching {
-        context.packageManager.getPackageInfo(packageName, 0).versionName
-    }.getOrNull()
-
-    private fun installedLabel(packageName: String): String? = runCatching {
-        val pm = context.packageManager
-        pm.getApplicationInfo(packageName, 0).loadLabel(pm).toString()
-    }.getOrNull()?.takeIf { it.isNotBlank() }
 
     private fun updateDownload(key: String, status: DownloadStatus) {
         _downloads.value = _downloads.value + (key to status)
@@ -2115,8 +1795,6 @@ class ExternalAppsViewModel @Inject constructor(
 /** State of an in-progress "add external source" action, driving the dialog's loading UI. */
 enum class AddSourceState { IDLE, LOADING, SUCCESS }
 
-private val UNSAFE_FILE_CHARS = Regex("[^A-Za-z0-9._-]")
-
 /** Max characters per translation request (keeps the Google endpoint's URL within limits). */
 private const val TAG = "ExternalAppsViewModel"
 
@@ -2144,21 +1822,6 @@ private const val SPEED_WINDOW_MS = 500L
 
 /** Minimum delay between progress UI updates, to avoid flooding recompositions. */
 private const val EMIT_INTERVAL_MS = 150L
-
-/** Minimum gap between automatic network refreshes of external sources (they fire on every screen
- *  entry and each enabled source is one GitHub API call, so this protects the rate-limit budget). */
-private const val REFRESH_THROTTLE_MS = 10 * 60 * 1000L
-
-/** When the last network refresh ran (elapsedRealtime), throttling the per-screen-entry refresh.
- *  Process-wide rather than per instance: this ViewModel is obtained with `hiltViewModel()` inside each
- *  navigation destination, so the app list and every detail screen get their own instance. A
- *  per-instance timer would start back at zero on every single screen open, and the throttle it exists
- *  to enforce would never actually apply to any of them. */
-private var lastNetworkRefreshAt = 0L
-
-/** How often an account source is re-scanned for newly published apps. Listing a whole account is
- *  several API calls, so it runs at most once a day rather than on every refresh. */
-private const val ACCOUNT_RESCAN_INTERVAL_MS = 24 * 60 * 60 * 1000L
 
 /** How long a cached README is considered fresh enough to skip a network refetch on re-open. A README
  *  changes on the order of days/weeks, so re-opening the same app's detail screen repeatedly within

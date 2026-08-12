@@ -114,13 +114,7 @@ data class ExternalApp(
 ) {
     /** The host actually called: [host] when set, otherwise the provider's public default. */
     val effectiveHost: String
-        get() = host.ifEmpty {
-            when (provider) {
-                SourceProvider.GITHUB -> "github.com"
-                SourceProvider.GITLAB -> "gitlab.com"
-                SourceProvider.CODEBERG -> "codeberg.org"
-            }
-        }
+        get() = host.ifEmpty { publicHost(provider) }
 
     /** Stable identity for lists / de-duplication (provider- and host-scoped, so the same owner/repo on
      *  two instances stays distinct). Keeps the old format for public sources so existing data matches. */
@@ -278,6 +272,21 @@ data class ExternalApp(
         if (latestVersion == null || installedVersion == null) return false
         return compareVersionStrings(latestVersion, installedVersion) > 0
     }
+
+    /**
+     * Whether this source is offering an update right now: [hasUpdateGiven], minus the two ways a source
+     * opts out of being counted as one. A disabled source is skipped like a disabled repository, and a
+     * "track only" source ([muteUpdates]) keeps following new releases but stays out of the Updates tab
+     * and its count.
+     *
+     * The single definition of that rule, so the Updates tab, its badge and the automatic update
+     * installer can't disagree about what counts, a disagreement that would either silently install
+     * something the user was never shown, or show an update nothing would ever act on. Note that an app
+     * that isn't actually installed can never satisfy this: [hasUpdateGiven] takes the on-device version
+     * and returns false without one.
+     */
+    fun isUpdatePending(currentInstalledVersionName: String?): Boolean =
+        enabled && !muteUpdates && hasUpdateGiven(currentInstalledVersionName)
 
     /** The latest release's version as a plain dotted number: from the APK file name when it carries
      *  one (usually more accurate than the tag, see [releaseVersionLabel]), from the release tag
