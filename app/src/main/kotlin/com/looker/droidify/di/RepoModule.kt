@@ -8,6 +8,7 @@ import com.looker.droidify.data.encryption.EncryptionStorage
 import com.looker.droidify.data.local.dao.ApkLocaleCacheDao
 import com.looker.droidify.data.local.dao.AppDao
 import com.looker.droidify.data.local.dao.AuthDao
+import com.looker.droidify.data.local.dao.ConfirmedInstallDao
 import com.looker.droidify.data.local.dao.IndexDao
 import com.looker.droidify.data.local.dao.InstalledDao
 import com.looker.droidify.data.local.dao.RepoDao
@@ -63,7 +64,9 @@ object RepoModule {
     @Provides
     fun provideInstalledRepository(
         installedDao: InstalledDao,
+        confirmedInstallDao: ConfirmedInstallDao,
     ): InstalledRepository = InstalledRepository(
         installedDao = installedDao,
+        confirmedInstallDao = confirmedInstallDao,
     )
 }

@@ -1082,14 +1082,21 @@ class AppDetailViewModel @Inject constructor(
         (flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
     }.getOrDefault(false)
 
-    private fun readInstalledInfo(currentState: AppDetailState): InstalledInfo? {
+    private suspend fun readInstalledInfo(currentState: AppDetailState): InstalledInfo? {
         val info = runCatching {
             context.packageManager.getPackageInfo(packageName, 0)
         }.getOrNull() ?: return null
+        val versionCode = info.versionCodeCompat
+        // Android's own installer-of-record can go blank for a package Omnify genuinely installed, once
+        // Omnify itself is later uninstalled and reinstalled, even though the package itself was never
+        // touched. installedRepository's confirmed-install record is Omnify's own memory of exactly this,
+        // used as a fallback only when it's still the version actually on the device right now, so a
+        // package later reinstalled by something else still shows its real source.
+        val knownInstalledByOmnify = installedRepository.confirmedInstallVersionCode(packageName) == versionCode
         return InstalledInfo(
             version = info.versionName.orEmpty(),
-            versionCode = info.versionCodeCompat,
-            source = context.installerSourceLabel(packageName),
+            versionCode = versionCode,
+            source = context.installerSourceLabel(packageName, knownInstalledByOmnify),
             signatureMismatch = isSignatureMismatch(currentState),
             isSystemApp = isSystemApp(packageName),
             looksLikeGenuineGoogleServices = isGoogleServicesProviderPackage(packageName) &&

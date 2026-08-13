@@ -6,6 +6,7 @@ import com.looker.droidify.data.local.DroidifyDatabase
 import com.looker.droidify.data.local.dao.ApkLocaleCacheDao
 import com.looker.droidify.data.local.dao.AppDao
 import com.looker.droidify.data.local.dao.AuthDao
+import com.looker.droidify.data.local.dao.ConfirmedInstallDao
 import com.looker.droidify.data.local.dao.DownloadStatsDao
 import com.looker.droidify.data.local.dao.IndexDao
 import com.looker.droidify.data.local.dao.InstalledDao
@@ -54,6 +55,12 @@ object DatabaseModule {
     fun provideInstallDao(
         db: DroidifyDatabase,
     ): InstalledDao = db.installedDao()
+
+    @Singleton
+    @Provides
+    fun provideConfirmedInstallDao(
+        db: DroidifyDatabase,
+    ): ConfirmedInstallDao = db.confirmedInstallDao()
 
     @Singleton
     @Provides

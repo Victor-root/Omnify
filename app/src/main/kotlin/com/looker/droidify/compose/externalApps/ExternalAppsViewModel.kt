@@ -249,9 +249,18 @@ class ExternalAppsViewModel @Inject constructor(
         repository.apps,
     ) { versions, apps ->
         val byKey = apps.associateBy { it.key }
-        versions.keys.mapNotNull { key ->
-            val pkg = byKey[key]?.packageName ?: return@mapNotNull null
-            key to context.installerSourceLabel(pkg)
+        versions.mapNotNull { (key, version) ->
+            val app = byKey[key] ?: return@mapNotNull null
+            val pkg = app.packageName ?: return@mapNotNull null
+            // Android can lose track of its own "who installed this" record for a package that was
+            // genuinely installed through Omnify. Observed after fully uninstalling and reinstalling
+            // Omnify itself, even though the tracked app was never touched. installedVersionName is only
+            // ever written once ExternalInstaller.awaitAndRecordInstall confirms a real install, so it
+            // matching the version actually on the device right now is Omnify's own proof of having put
+            // it there, used as a fallback rather than showing "unknown source" for an app it demonstrably
+            // installed.
+            val knownInstalledByOmnify = app.installedVersionName != null && app.installedVersionName == version
+            key to context.installerSourceLabel(pkg, knownInstalledByOmnify)
         }.toMap()
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
 

@@ -149,10 +149,21 @@ private fun Context.rawInstallerPackageName(packageName: String): String? = runC
  *  installer id, or a generic label for a sideloaded app with no recorded installer. Shared between
  *  the F-Droid catalogue and external-source detail pages, so both surface where an update would
  *  actually come from (useful to spot e.g. an app installed by a different client that can't be
- *  updated in place across a signing-key mismatch). */
-fun Context.installerSourceLabel(packageName: String): String {
+ *  updated in place across a signing-key mismatch).
+ *
+ *  [knownInstalledByOmnify] is the caller's own confirmation that Omnify itself installed the exact
+ *  version currently on the device, used only when Android reports no installer of its own: this has
+ *  been observed to happen for an app Omnify genuinely installed once Omnify itself is later fully
+ *  uninstalled and reinstalled, even though the app in question was never touched. Android's own
+ *  answer still wins whenever it names an actual installer (including a *different* one), since that
+ *  is real information that something else has since taken over the package name. */
+fun Context.installerSourceLabel(packageName: String, knownInstalledByOmnify: Boolean = false): String {
     return when (val installer = rawInstallerPackageName(packageName)) {
-        null, "" -> getString(R.string.installer_unknown)
+        null, "" -> if (knownInstalledByOmnify) {
+            getString(R.string.installer_self_name)
+        } else {
+            getString(R.string.installer_unknown)
+        }
         "com.android.vending" -> "Google Play"
         "org.fdroid.fdroid", "org.fdroid.basic" -> "F-Droid"
         this.packageName -> getString(R.string.installer_self_name)

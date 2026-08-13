@@ -11,6 +11,7 @@ import com.looker.droidify.data.local.converters.PermissionConverter
 import com.looker.droidify.data.local.dao.ApkLocaleCacheDao
 import com.looker.droidify.data.local.dao.AppDao
 import com.looker.droidify.data.local.dao.AuthDao
+import com.looker.droidify.data.local.dao.ConfirmedInstallDao
 import com.looker.droidify.data.local.dao.DownloadStatsDao
 import com.looker.droidify.data.local.dao.IndexDao
 import com.looker.droidify.data.local.dao.InstalledDao
@@ -26,6 +27,7 @@ import com.looker.droidify.data.local.model.AuthorEntity
 import com.looker.droidify.data.local.model.CategoryAppRelation
 import com.looker.droidify.data.local.model.CategoryEntity
 import com.looker.droidify.data.local.model.CategoryRepoRelation
+import com.looker.droidify.data.local.model.ConfirmedInstallEntity
 import com.looker.droidify.data.local.model.DonateEntity
 import com.looker.droidify.data.local.model.DownloadStats
 import com.looker.droidify.data.local.model.GraphicEntity
@@ -45,7 +47,7 @@ import com.looker.droidify.data.local.model.ScreenshotEntity
 import com.looker.droidify.data.local.model.VersionEntity
 
 @Database(
-    version = 4,
+    version = 5,
     exportSchema = true,
     entities = [
         AntiFeatureEntity::class,
@@ -58,6 +60,7 @@ import com.looker.droidify.data.local.model.VersionEntity
         CategoryEntity::class,
         CategoryAppRelation::class,
         CategoryRepoRelation::class,
+        ConfirmedInstallEntity::class,
         DonateEntity::class,
         GraphicEntity::class,
         InstalledEntity::class,
@@ -91,6 +94,7 @@ abstract class DroidifyDatabase : RoomDatabase() {
     abstract fun downloadStatsDao(): DownloadStatsDao
     abstract fun apkLocaleCacheDao(): ApkLocaleCacheDao
     abstract fun installedDao(): InstalledDao
+    abstract fun confirmedInstallDao(): ConfirmedInstallDao
 }
 
 fun droidifyDatabase(context: Context): DroidifyDatabase = Room

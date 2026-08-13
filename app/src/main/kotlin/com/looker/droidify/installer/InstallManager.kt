@@ -239,7 +239,15 @@ class InstallManager(
         // Record the new version straight away rather than waiting for the system's package broadcast
         // to tell us what we already know. Waiting for it is what left a freshly updated app sitting
         // in the Updates tab, whose condition reads this table.
-        installedRepository.syncInstalled(context.packageManager, item.packageName.name)
+        val installed = installedRepository.syncInstalled(context.packageManager, item.packageName.name)
+        // Separately, remember that this exact version was Omnify's own doing (see
+        // ConfirmedInstallEntity's doc comment), fed into installerSourceLabel's fallback for when
+        // Android's own installer-of-record for the package goes blank, which has been observed to
+        // happen for a package Omnify genuinely installed once Omnify itself is later uninstalled and
+        // reinstalled.
+        if (installed != null) {
+            installedRepository.recordConfirmedInstall(installed.packageName, installed.versionCode)
+        }
     }
 
     private fun CoroutineScope.uninstaller() = launch {
