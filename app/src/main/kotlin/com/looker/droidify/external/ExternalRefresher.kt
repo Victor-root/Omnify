@@ -140,14 +140,32 @@ class ExternalRefresher @Inject constructor(
         // limit), and never overrides a user-picked icon or name.
         val needsIcon = !app.iconChecked && !app.iconOverridden && app.repoIconUrl == null
         val needsTv = !app.tvChecked
-        val needsMeta = needsIcon || needsTv
-        val meta = if (needsMeta) externalApi.fetchRepoMetadata(app) else null
+        // Asked separately from needsIcon: a source scanned before adaptive icons were composed at all
+        // settled on a flat raster and marked itself checked, so gating on that flag would leave it on
+        // the wrong picture forever. Skipped once the user has picked their own icon.
+        val needsAdaptiveIcon = !app.adaptiveIconChecked && !app.iconOverridden
+        val needsMeta = needsIcon || needsTv || needsAdaptiveIcon
+        val meta = if (needsMeta) {
+            externalApi.fetchRepoMetadata(app, includeAdaptiveIcon = needsAdaptiveIcon)
+        } else {
+            null
+        }
         // meta == null means the scan failed (couldn't read the tree); don't mark anything "checked"
         // then, so it retries on a later refresh.
         val scanned = meta != null
         // Only adopt a repo icon when we were actually looking for one, so as not to clobber a set or
         // user-picked icon just because we re-scanned for TV support.
         val repoIcon = if (needsIcon) meta?.iconCandidates?.firstOrNull() ?: app.repoIconUrl else app.repoIconUrl
+        // The composed adaptive icon, when the repo has one, is what Android itself will draw once the
+        // app is installed, so it becomes this source's cached icon and takes precedence over the flat
+        // raster above (see ExternalIconCache). Not written while the app is installed: the cache then
+        // already holds the icon read straight out of its APK, which is the same picture from a more
+        // direct source and must not be replaced by a re-drawing of it.
+        val installedNow = app.packageName?.let(::isInstalled) == true
+        if (needsAdaptiveIcon && meta?.adaptiveIcon != null && !installedNow) {
+            if (BuildConfig.DEBUG) Log.d(TAG, "caching composed adaptive icon for ${app.key}")
+            ExternalIconCache.save(context, app.key, meta.adaptiveIcon)
+        }
         val supportsTv = if (needsTv) meta?.supportsTelevision ?: app.supportsTelevision else app.supportsTelevision
         // Only replace the label while it's still an automatic default (never a user/on-device one):
         // either the bare repo name from before prettifying it existed, or the prettified version of it.
@@ -194,6 +212,7 @@ class ExternalRefresher @Inject constructor(
                     latestReleaseAt = releaseAt,
                     repoIconUrl = repoIcon,
                     iconChecked = current.iconChecked || (needsIcon && scanned),
+                    adaptiveIconChecked = current.adaptiveIconChecked || (needsAdaptiveIcon && scanned),
                     supportsTelevision = supportsTv,
                     tvChecked = current.tvChecked || (needsTv && scanned),
                 ),
@@ -277,12 +296,17 @@ class ExternalRefresher @Inject constructor(
             val packageId =
                 resolvePackageId(candidate, release.apkDownloadUrl(filter = candidate.apkFilter))
             val meta = externalApi.fetchRepoMetadata(candidate)
+            // Same as the per-source refresh above: the composed adaptive icon is what the device will
+            // really draw, so a newly discovered account app gets it straight away rather than showing
+            // the stale flat raster until something else happens to refresh it.
+            meta?.adaptiveIcon?.let { ExternalIconCache.save(context, candidate.key, it) }
             val resolvedLabel = packageId?.let { installedLabel(it) } ?: meta?.appName ?: candidate.label
             result += candidate.copy(
                 packageName = packageId,
                 label = resolvedLabel,
                 repoIconUrl = meta?.iconCandidates?.firstOrNull(),
                 iconChecked = meta != null,
+                adaptiveIconChecked = meta != null,
                 supportsTelevision = meta?.supportsTelevision ?: false,
                 tvChecked = meta != null,
                 latestTag = release.tag,

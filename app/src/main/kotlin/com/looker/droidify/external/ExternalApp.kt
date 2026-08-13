@@ -91,6 +91,11 @@ data class ExternalApp(
     /** Whether the repo has already been scanned for an icon. Stops a repo that ships only vector/
      *  adaptive icons (so [repoIconUrl] stays null) from being re-scanned on every refresh. */
     val iconChecked: Boolean = false,
+    /** Whether the repo has already been scanned for an `<adaptive-icon>` to compose (see
+     *  [AdaptiveIconComposer]), which is a separate question from [iconChecked]: a source scanned before
+     *  that existed found a flat raster, marked itself checked, and would otherwise never look for the
+     *  real icon at all. Defaulting to false gives every already-tracked source exactly one more scan. */
+    val adaptiveIconChecked: Boolean = false,
     /** True when the source repo's manifest declares Android TV support (the leanback launcher /
      *  uses-feature), detected from the repo without downloading the APK. Drives the "Made for TV" row. */
     val supportsTelevision: Boolean = false,

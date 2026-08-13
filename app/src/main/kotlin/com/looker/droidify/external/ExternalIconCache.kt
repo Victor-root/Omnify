@@ -1,4 +1,4 @@
-package com.looker.droidify.compose.externalApps
+package com.looker.droidify.external
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -6,9 +6,10 @@ import java.io.File
 import java.io.FileOutputStream
 
 /**
- * Persistent cache of the *real* app icons extracted from external apps' APKs, keyed by
- * [com.looker.droidify.external.ExternalApp.key]. A release ships no icon metadata, so the only
- * reliable source is the APK itself (read once, then cached here as a PNG).
+ * Persistent cache of the *real* icon for each external app, keyed by [ExternalApp.key] and stored as
+ * a PNG. A release ships no icon metadata at all, so this holds whichever best answer has been worked
+ * out: the repository's adaptive icon composed as Android would draw it ([AdaptiveIconComposer]) before
+ * the app is installed, then the icon read straight out of the APK once it has been.
  */
 object ExternalIconCache {
 

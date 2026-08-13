@@ -27,6 +27,7 @@ import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
+import com.looker.droidify.external.ExternalIconCache
 import com.looker.droidify.external.ExternalInstaller
 import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.external.ExternalAccountRef
@@ -1135,6 +1136,10 @@ class ExternalAppsViewModel @Inject constructor(
                     // Pull the app's real launcher icon AND its real name from the repo (Obtainium-style),
                     // so the card shows both before anything is installed.
                     val meta = externalApi.fetchRepoMetadata(app)
+                    // When the repo ships an adaptive icon, that composed image is what Android itself
+                    // will draw once installed, so it becomes this source's icon from the moment it is
+                    // added (see ExternalIconCache) rather than the flat pre-Android-8 raster.
+                    meta?.adaptiveIcon?.let { ExternalIconCache.save(context, app.key, it) }
                     // Name priority: a name the user typed, else the on-device name if it's already
                     // installed, else the real name read from the repo manifest, else the repo name.
                     val resolvedLabel = when {
@@ -1158,6 +1163,7 @@ class ExternalAppsViewModel @Inject constructor(
                             // Only mark scanned when the repo was actually read, so a transient failure
                             // re-scans on a later refresh instead of caching an empty / non-TV result.
                             iconChecked = meta != null,
+                            adaptiveIconChecked = meta != null,
                             supportsTelevision = meta?.supportsTelevision ?: false,
                             tvChecked = meta != null,
                             latestTag = release.tag,

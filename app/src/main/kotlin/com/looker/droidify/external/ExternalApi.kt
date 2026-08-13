@@ -1,5 +1,6 @@
 package com.looker.droidify.external
 
+import android.graphics.Bitmap
 import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
@@ -233,17 +234,40 @@ class ExternalApi @Inject constructor(
      * and the app's real user-facing name. A single repo-tree request drives both (the name then needs
      * the manifest + string file). Works for every provider. Never throws.
      */
-    suspend fun fetchRepoMetadata(app: ExternalApp): RepoMetadata? = withContext(Dispatchers.IO) {
+    suspend fun fetchRepoMetadata(
+        app: ExternalApp,
+        // Composing it costs a few extra requests (the definition plus each of its layers), so a caller
+        // that already has this source's icon settled asks for the rest without it.
+        includeAdaptiveIcon: Boolean = true,
+    ): RepoMetadata? = withContext(Dispatchers.IO) {
         // Null (not an empty result) when the repo tree couldn't be read, so the caller can retry later
         // instead of caching "nothing found" / "not a TV app" from a transient failure.
         val paths = fetchTreePaths(app)
         if (paths.isEmpty()) return@withContext null
         RepoMetadata(
             iconCandidates = rankIconPaths(paths).map { app.readmeBaseUrl + it },
+            adaptiveIcon = if (includeAdaptiveIcon) composeAdaptiveIcon(app, paths) else null,
             appName = resolveAppName(app, paths),
             supportsTelevision = detectTelevisionSupport(app, paths),
         )
     }
+
+    /**
+     * The icon Android will really draw for [app], built from the `<adaptive-icon>` in its repository.
+     * Null when it has none, or on Android 7 and below where the flat raster genuinely is what the
+     * device uses. See [AdaptiveIconComposer] for why the raster alone isn't good enough.
+     */
+    private suspend fun composeAdaptiveIcon(app: ExternalApp, paths: List<String>): Bitmap? =
+        AdaptiveIconComposer(
+            readFile = { path -> getText(app.readmeBaseUrl + path) },
+            readBytes = { path -> fetchBytes(app.readmeBaseUrl + path) },
+        ).compose(paths)
+
+    /** Downloads a repo file as raw bytes, bounded like every other fetch here. Null on any failure. */
+    private suspend fun fetchBytes(url: String): ByteArray? = runCatching {
+        val response = httpClient.get(url)
+        if (response.status.isSuccess()) response.bodyBytesAtMost(MAX_INLINE_IMAGE_BYTES) else null
+    }.getOrNull()
 
     /**
      * The app's real supported languages, read directly from the source repo's Android resource
@@ -1207,8 +1231,15 @@ private fun storeIconOrder(path: String): Int {
  */
 private fun iconVariantRank(stem: String): Int? {
     // Adaptive backgrounds, monochrome/themed glyphs and unrelated assets aren't usable app icons.
+    // "source" excludes the master asset some projects keep next to the real icon for regenerating it
+    // (confirmed on Victor-root/OpenMessages: mipmap-xxxhdpi/icon_source.png, a 1024px near-white glyph
+    // with no background, sitting beside the real ic_launcher.png): "icon"-prefixed and otherwise
+    // unmarked, it tied the real icon on both rank and density and depended on tree-listing order to
+    // lose, which is exactly the kind of accidental win this list exists to close off deliberately
+    // instead of by luck.
     val excluded = listOf(
         "background", "monochrome", "notification", "splash", "banner", "feature", "badge", "store",
+        "source",
     )
     if (excluded.any { stem.contains(it) }) return null
     val launcherish = stem.startsWith("ic_launcher") || stem.startsWith("icon") ||
@@ -1536,6 +1567,10 @@ private fun extractAlertBlockquotes(markdown: String): Pair<String, Map<String, 
  *  the repo's manifest declares Android TV support. */
 data class RepoMetadata(
     val iconCandidates: List<String> = emptyList(),
+    /** The repository's adaptive launcher icon, already composed and masked the way Android will draw
+     *  it once installed. Null when the repo ships none, or below Android 8. Preferred over
+     *  [iconCandidates], whose flat raster is only the pre-Android-8 fallback and is often stale. */
+    val adaptiveIcon: Bitmap? = null,
     val appName: String? = null,
     val supportsTelevision: Boolean = false,
 )

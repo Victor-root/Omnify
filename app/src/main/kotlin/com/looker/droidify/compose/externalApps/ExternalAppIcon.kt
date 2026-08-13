@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -35,6 +36,7 @@ import coil3.request.allowHardware
 import com.looker.droidify.R
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.ExternalIconCache
 import com.looker.droidify.utility.common.extension.toSafeBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -139,6 +141,13 @@ fun ExternalAppIcon(
             .then(if (isTelevision) Modifier else Modifier.clip(shape))
         // Local copy so the null-check smart-casts (launcherIcon is a produceState delegate).
         val launcher = launcherIcon
+        // The repo icon is very often the small flat PNG a project keeps only for pre-Android-8 devices
+        // (its real icon being an adaptive one Android composes from a vector at whatever size it's
+        // drawn, with no fixed source resolution to run out of): confirmed on Victor-root/OpenMessages,
+        // whose only composed raster is a 192px legacy fallback next to a 108dp vector adaptive icon.
+        // Compose's default filter (FilterQuality.Low, a single-sample bilinear) is noticeably softer on
+        // that kind of upscale than it needs to be; High costs nothing extra for an icon-sized image and
+        // stops the pre-install icon from looking worse than the real one it's standing in for.
         when {
             launcher != null -> {
                 LaunchedEffect(launcher) { onIconBitmap?.invoke(launcher.asAndroidBitmap()) }
@@ -146,6 +155,7 @@ fun ExternalAppIcon(
                     bitmap = launcher,
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
+                    filterQuality = FilterQuality.High,
                     modifier = imageModifier,
                 )
             }
@@ -156,6 +166,7 @@ fun ExternalAppIcon(
                     bitmap = extractedIcon,
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
+                    filterQuality = FilterQuality.High,
                     modifier = imageModifier,
                 )
             }
@@ -170,6 +181,7 @@ fun ExternalAppIcon(
                 },
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
+                filterQuality = FilterQuality.High,
                 modifier = imageModifier,
             )
 
@@ -183,6 +195,7 @@ fun ExternalAppIcon(
                 },
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
+                filterQuality = FilterQuality.High,
                 modifier = imageModifier,
             )
 
