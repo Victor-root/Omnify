@@ -54,6 +54,7 @@ import com.looker.droidify.compose.settings.navigation.settings
 import com.looker.droidify.compose.theme.DroidifyTheme
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
+import com.looker.droidify.data.backup.BackupRepository
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApi
@@ -270,6 +271,7 @@ class MainComposeActivity : ComponentActivity() {
     @InstallIn(SingletonComponent::class)
     interface SettingsEntryPoint {
         fun settingsRepository(): SettingsRepository
+        fun backupRepository(): BackupRepository
     }
 
     private data class ThemeState(
@@ -288,6 +290,7 @@ class MainComposeActivity : ComponentActivity() {
         val entryPoint = EntryPointAccessors.fromApplication(this, SettingsEntryPoint::class.java)
         val themeFlow = entryPoint.settingsRepository()
             .get { ThemeState(theme, dynamicTheme, themeColor, edgeToEdge) }
+        val backupRepository = entryPoint.backupRepository()
         val initial = runBlocking { themeFlow.first() }
         setTheme(
             resources.configuration.getThemeRes(
@@ -296,7 +299,15 @@ class MainComposeActivity : ComponentActivity() {
             ),
         )
         lifecycleScope.launch {
-            themeFlow.drop(1).collect { recreate() }
+            themeFlow.drop(1).collect {
+                // A restore can rewrite these same fields as one step among several (repositories,
+                // external sources, …) still left to apply. Recreating right away would tear down (and,
+                // since the restoring ViewModel's state survives via the retained ViewModelStore, briefly
+                // re-show) whatever dialog is on screen mid-restore, so wait for the whole restore to
+                // finish and recreate once, after it settles.
+                backupRepository.restoreInProgress.first { restoring -> !restoring }
+                recreate()
+            }
         }
         return initial
     }

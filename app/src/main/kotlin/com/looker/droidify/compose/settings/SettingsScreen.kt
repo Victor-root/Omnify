@@ -201,6 +201,7 @@ fun SettingsScreen(
     }
 
     val pendingRestore by viewModel.pendingRestore.collectAsStateWithLifecycle()
+    val isRestoring by viewModel.isRestoring.collectAsStateWithLifecycle()
 
     // The category checkboxes are confirmed before the file even exists (CreateDocument creates it),
     // so the selection has to be held here until that picker returns a Uri to actually write to.
@@ -789,6 +790,7 @@ fun SettingsScreen(
             availableCategories = restoreInspection.availableCategories,
             onConfirm = { categories -> viewModel.confirmRestore(categories) },
             onDismiss = { viewModel.cancelRestore() },
+            isProcessing = isRestoring,
         )
     }
 }

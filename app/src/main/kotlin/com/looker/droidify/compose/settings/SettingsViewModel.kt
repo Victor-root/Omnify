@@ -77,6 +77,12 @@ class SettingsViewModel @Inject constructor(
     private val _pendingRestore = MutableStateFlow<BackupInspection?>(null)
     val pendingRestore: StateFlow<BackupInspection?> = _pendingRestore.asStateFlow()
 
+    /** True from the moment "Restaurer" is tapped until [BackupRepository.restoreBackup] returns, so the
+     *  dialog can disable its buttons instead of leaving a window where a second tap would start a
+     *  second, concurrent restore of the same archive. */
+    private val _isRestoring = MutableStateFlow(false)
+    val isRestoring: StateFlow<Boolean> = _isRestoring.asStateFlow()
+
     fun updateBackgroundAccessState(allowed: Boolean) {
         _isBackgroundAllowed.value = allowed
     }
@@ -346,20 +352,26 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /** Applies exactly [categories] from the archive [pendingRestore] currently holds, then clears it. */
+    /** Applies exactly [categories] from the archive [pendingRestore] currently holds, then clears it.
+     *  Ignored while a restore is already running, rather than starting a second one on top of it. */
     fun confirmRestore(categories: Set<BackupCategory>) {
         val inspection = _pendingRestore.value ?: return
+        if (_isRestoring.value) return
+        _isRestoring.value = true
         viewModelScope.launch {
             backupRepository.restoreBackup(inspection, categories).fold(
                 onSuccess = { showToast(R.string.restore_success) },
                 onFailure = { showToast(R.string.restore_failed) },
             )
+            _isRestoring.value = false
             _pendingRestore.value = null
         }
     }
 
-    /** Dismisses the pending restore dialog without applying anything. */
+    /** Dismisses the pending restore dialog without applying anything. Ignored while a restore is
+     *  already running: that choice was already made by tapping "Restaurer". */
     fun cancelRestore() {
+        if (_isRestoring.value) return
         _pendingRestore.value = null
     }
 

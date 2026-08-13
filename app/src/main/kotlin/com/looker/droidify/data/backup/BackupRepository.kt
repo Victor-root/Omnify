@@ -13,6 +13,9 @@ import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalAppRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
@@ -100,6 +103,15 @@ class BackupRepository @Inject constructor(
         encodeDefaults = true
         prettyPrint = true
     }
+
+    private val _restoreInProgress = MutableStateFlow(false)
+
+    /** True for the whole span of [restoreBackup], including a restored SETTINGS category's own theme
+     *  fields taking effect. [MainComposeActivity][com.looker.droidify.compose.MainComposeActivity]
+     *  recreates itself whenever the app's theme settings change (needed to reapply the activity's own
+     *  XML theme, not just the Compose one). Watched here so that recreation waits for a restore in
+     *  progress to fully finish, rather than tearing down whatever dialog is on screen mid-restore. */
+    val restoreInProgress: StateFlow<Boolean> = _restoreInProgress.asStateFlow()
 
     /** Writes a zip containing exactly [categories] to [target]. */
     suspend fun createBackup(target: Uri, categories: Set<BackupCategory>): Result<Unit> =
@@ -240,43 +252,54 @@ class BackupRepository @Inject constructor(
      *  doesn't actually have is silently skipped rather than crashing. */
     suspend fun restoreBackup(inspection: BackupInspection, categories: Set<BackupCategory>): Result<Unit> =
         withContext(ioDispatcher) {
-            runCatching {
-                val toRestore = categories intersect inspection.availableCategories
-                if (BackupCategory.SETTINGS in toRestore) {
-                    restoreSettings(json.decodeFromString(inspection.entries.getValue(ENTRY_SETTINGS)))
-                }
-                if (BackupCategory.GITHUB_TOKEN in toRestore) {
-                    val backup = json.decodeFromString<GithubTokenBackup>(
-                        inspection.entries.getValue(ENTRY_GITHUB_TOKEN),
-                    )
-                    restoreGithubToken(backup.token)
-                }
-                if (BackupCategory.FAVOURITES in toRestore) {
-                    val backup = json.decodeFromString<FavouritesBackup>(inspection.entries.getValue(ENTRY_FAVOURITES))
-                    restoreFavourites(backup.packageNames)
-                }
-                if (BackupCategory.HIDDEN_APPS in toRestore) {
-                    val backup =
-                        json.decodeFromString<HiddenAppsBackup>(inspection.entries.getValue(ENTRY_HIDDEN_APPS))
-                    restoreHiddenApps(backup.packageNames)
-                }
-                if (BackupCategory.REPOSITORIES in toRestore) {
-                    val backup =
-                        json.decodeFromString<RepositoriesBackup>(inspection.entries.getValue(ENTRY_REPOSITORIES))
-                    restoreRepositories(backup.repositories)
-                }
-                if (BackupCategory.EXTERNAL_SOURCES in toRestore) {
-                    val backup = json.decodeFromString<ExternalSourcesBackup>(
-                        inspection.entries.getValue(ENTRY_EXTERNAL_SOURCES),
-                    )
-                    restoreExternalSources(backup)
-                }
-                if (BackupCategory.CUSTOM_BUTTONS in toRestore) {
-                    val backup = json.decodeFromString<CustomButtonsBackup>(
-                        inspection.entries.getValue(ENTRY_CUSTOM_BUTTONS),
-                    )
-                    restoreCustomButtons(backup.buttons)
-                }
+            _restoreInProgress.value = true
+            try {
+                restoreBackupInternal(inspection, categories)
+            } finally {
+                _restoreInProgress.value = false
+            }
+        }
+
+    private suspend fun restoreBackupInternal(
+        inspection: BackupInspection,
+        categories: Set<BackupCategory>,
+    ): Result<Unit> =
+        runCatching {
+            val toRestore = categories intersect inspection.availableCategories
+            if (BackupCategory.SETTINGS in toRestore) {
+                restoreSettings(json.decodeFromString(inspection.entries.getValue(ENTRY_SETTINGS)))
+            }
+            if (BackupCategory.GITHUB_TOKEN in toRestore) {
+                val backup = json.decodeFromString<GithubTokenBackup>(
+                    inspection.entries.getValue(ENTRY_GITHUB_TOKEN),
+                )
+                restoreGithubToken(backup.token)
+            }
+            if (BackupCategory.FAVOURITES in toRestore) {
+                val backup = json.decodeFromString<FavouritesBackup>(inspection.entries.getValue(ENTRY_FAVOURITES))
+                restoreFavourites(backup.packageNames)
+            }
+            if (BackupCategory.HIDDEN_APPS in toRestore) {
+                val backup =
+                    json.decodeFromString<HiddenAppsBackup>(inspection.entries.getValue(ENTRY_HIDDEN_APPS))
+                restoreHiddenApps(backup.packageNames)
+            }
+            if (BackupCategory.REPOSITORIES in toRestore) {
+                val backup =
+                    json.decodeFromString<RepositoriesBackup>(inspection.entries.getValue(ENTRY_REPOSITORIES))
+                restoreRepositories(backup.repositories)
+            }
+            if (BackupCategory.EXTERNAL_SOURCES in toRestore) {
+                val backup = json.decodeFromString<ExternalSourcesBackup>(
+                    inspection.entries.getValue(ENTRY_EXTERNAL_SOURCES),
+                )
+                restoreExternalSources(backup)
+            }
+            if (BackupCategory.CUSTOM_BUTTONS in toRestore) {
+                val backup = json.decodeFromString<CustomButtonsBackup>(
+                    inspection.entries.getValue(ENTRY_CUSTOM_BUTTONS),
+                )
+                restoreCustomButtons(backup.buttons)
             }
         }
 

@@ -66,6 +66,11 @@ fun backupCategoryDescription(category: BackupCategory): String = stringResource
  * travels (a PC, a cloud drive, a chat) and an access token in it is usable by whoever ends up
  * holding the file. Including a credential is a decision worth taking deliberately, so it's offered
  * rather than assumed: one tap to add it, none to leave it out.
+ *
+ * [isProcessing] covers the restore flow, where [onConfirm] kicks off work that outlives the tap
+ * (applying an archive can take a moment, unlike writing one out which the caller dismisses this
+ * dialog for immediately). While true, both buttons are disabled and the dialog can't be dismissed,
+ * so there's no window where a second tap on "Restaurer" would start a second, concurrent restore.
  */
 @Composable
 fun BackupCategoryDialog(
@@ -74,6 +79,7 @@ fun BackupCategoryDialog(
     availableCategories: Set<BackupCategory>,
     onConfirm: (Set<BackupCategory>) -> Unit,
     onDismiss: () -> Unit,
+    isProcessing: Boolean = false,
 ) {
     val orderedCategories = remember(availableCategories) {
         BackupCategory.entries.filter { it in availableCategories }
@@ -83,7 +89,7 @@ fun BackupCategoryDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isProcessing) onDismiss() },
         title = { Text(text = title) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -97,13 +103,13 @@ fun BackupCategoryDialog(
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(selected) },
-                enabled = selected.isNotEmpty(),
+                enabled = selected.isNotEmpty() && !isProcessing,
             ) {
                 Text(text = confirmLabel)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !isProcessing) {
                 Text(text = stringResource(R.string.cancel))
             }
         },
