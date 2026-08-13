@@ -41,6 +41,8 @@ Device-to-device settings transfer, external-source update accuracy, a redesigne
 ### 🛡️ Security
 - 🔇 **Diagnostic logging no longer runs outside debug builds:** a sweep of every log statement in the app found a large number of development traces (TV focus tracking, remote APK parsing, database queries, update-decision dumps) that ran in release and beta too. They are now limited to debug builds. No credential was ever among them, which was checked specifically; genuine error logging is untouched.
 
+---
+
 ## 🚀 v1.0.2-beta.3 (2026-08-07)
 
 Reliability pass across translation, language detection and icon theming, a batch of dependency updates, and an automated watch for security advisories.
@@ -62,6 +64,8 @@ Reliability pass across translation, language detection and icon theming, a batc
 - 🌐 **Translation works in release and beta builds:** the code shrinker was stripping a constructor the on-device translation library needs to start up, so translation silently failed outside of debug builds.
 - 🗣️ **Reliable language detection:** sources that ship their translations as small per-language files, such as PPSSPP, are now read correctly instead of showing "English only".
 - 🎨 **No more all-white app pages:** the "match icon to app theme" option no longer turns a page all-white when an icon's background plate is more common than its logo colour.
+
+---
 
 ## 🚀 v1.0.1-beta.2 (2026-08-05)
 
@@ -86,6 +90,8 @@ Most of these came with the code inherited from Droid-ify rather than being intr
 ### 🔄 Changed
 - 📖 **Twice as much README shown before "Show more".**
 - ⏳ **The version list now says when it is still loading.**
+
+---
 
 ## v1.0.0-beta.1 (2026-08-02)
 
