@@ -107,10 +107,40 @@
       if (document.documentElement.classList.contains("mode-desktop")) {
         var qrTarget = document.getElementById("add-qr");
         if (qrTarget && window.qrcode) {
-          var qr = window.qrcode(0, "M");
+          /* High error correction rather than the library's default, since the mark below covers
+             part of the code: a QR can lose up to ~30% of itself to damage or, as here, decoration
+             and still read correctly at that level, well above what a centred mark this size costs. */
+          var qr = window.qrcode(0, "H");
           qr.addData(pageLink(project));
           qr.make();
           qrTarget.innerHTML = qr.createSvgTag({ scalable: true, alt: t("add.qrAlt") });
+
+          var svg = qrTarget.querySelector("svg");
+          if (svg) {
+            var size = svg.viewBox.baseVal.width;
+            var markSize = size * 0.22;
+            var pad = markSize * 0.16;
+            var offset = (size - markSize) / 2;
+            var svgNs = "http://www.w3.org/2000/svg";
+
+            var backing = document.createElementNS(svgNs, "rect");
+            backing.setAttribute("x", offset - pad);
+            backing.setAttribute("y", offset - pad);
+            backing.setAttribute("width", markSize + pad * 2);
+            backing.setAttribute("height", markSize + pad * 2);
+            backing.setAttribute("rx", pad * 2);
+            backing.setAttribute("fill", "#fff");
+            svg.appendChild(backing);
+
+            var mark = document.createElementNS(svgNs, "image");
+            mark.setAttributeNS("http://www.w3.org/1999/xlink", "href", "assets/omnify-logo.svg");
+            mark.setAttribute("href", "assets/omnify-logo.svg");
+            mark.setAttribute("x", offset);
+            mark.setAttribute("y", offset);
+            mark.setAttribute("width", markSize);
+            mark.setAttribute("height", markSize);
+            svg.appendChild(mark);
+          }
         }
       } else {
         var link = appLink(project);

@@ -1222,22 +1222,21 @@ a { color: inherit; }
 .mode-desktop .only-desktop { display: block; }
 .mode-desktop .only-mobile { display: none; }
 
-/* A fixed light card regardless of theme: a QR scanner expects dark modules on a light background,
-   and the library that draws them (see qrcode.js) already bakes in black-on-white for exactly that
-   reason, so the card around it stays light too rather than fighting its own content in dark mode. */
+/* No card around it: the library that draws it (see qrcode.js) already bakes its own white background
+   into the SVG, since a scanner expects dark modules on a light background regardless of theme, so
+   another one wrapped around it would only double up on white for no reason. Just enough of its own
+   corner rounding and lift to not look like a flat cutout pasted on the page. */
 .add-qr {
   display: flex;
   justify-content: center;
   margin: 20px 0 0;
-  padding: 16px;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 16px;
 }
 .add-qr svg {
   display: block;
   width: 176px;
   height: 176px;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .14);
 }
 
 /* The project a badge is asking to follow: its real icon where one could be guessed at (see add.js),
