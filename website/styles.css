@@ -1222,21 +1222,65 @@ a { color: inherit; }
 .mode-desktop .only-desktop { display: block; }
 .mode-desktop .only-mobile { display: none; }
 
+/* .doc-hero-inner caps itself to 64ch (see above), a sensible width for a single column of text but
+   far too narrow to ever hold this column next to a QR code beside it: the pair would never fit, so
+   flex-wrap below would always stack them regardless of how wide the actual screen was. Only this
+   section, only in desktop mode; the single-column phone layout and the maintainer-documentation
+   page both still want the narrower, reading-width cap. */
+.mode-desktop #open .doc-hero-inner {
+  max-width: 840px;
+}
+
+/* Side by side rather than the single narrow column mobile uses: a desktop visitor has width to
+   spare, and stacking text above the code the way the phone layout does would leave most of a wide
+   screen empty either side. flex-wrap rather than a fixed breakpoint number: the two sit side by
+   side whenever they actually both fit at their natural size, and fall back to stacked, same as
+   mobile, purely because there wasn't room, never because some guessed viewport width failed to
+   match a real window that plainly had the space. */
+.mode-desktop .open-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 40px 64px;
+}
+.mode-desktop .open-main {
+  flex: 1 1 380px;
+  max-width: 460px;
+}
+/* The title's own size (see .doc-hero h1) tracks viewport width, tuned for the single column mobile
+   layout, which grows with it edge to edge. This column keeps to a width of its own regardless of
+   viewport, so left alone the title would keep scaling past a comfortable fit for it specifically. */
+.mode-desktop .open-main h1 {
+  font-size: 2.5rem;
+}
+
+/* Hidden by default (an invalid link, or mobile, never populates it); shown and laid out only once
+   in desktop mode, rather than through the shared only-desktop toggle above, since this one needs
+   flex centring instead of that toggle's plain block. */
+.add-qr {
+  display: none;
+  justify-content: center;
+  margin: 20px 0 0;
+}
+.mode-desktop .add-qr {
+  display: flex;
+  margin: 0;
+}
 /* No card around it: the library that draws it (see qrcode.js) already bakes its own white background
    into the SVG, since a scanner expects dark modules on a light background regardless of theme, so
    another one wrapped around it would only double up on white for no reason. Just enough of its own
    corner rounding and lift to not look like a flat cutout pasted on the page. */
-.add-qr {
-  display: flex;
-  justify-content: center;
-  margin: 20px 0 0;
-}
 .add-qr svg {
   display: block;
   width: 176px;
   height: 176px;
   border-radius: 16px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, .14);
+}
+.mode-desktop .add-qr svg {
+  width: 220px;
+  height: 220px;
 }
 
 /* The project a badge is asking to follow: its real icon where one could be guessed at (see add.js),

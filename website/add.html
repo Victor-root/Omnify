@@ -118,64 +118,68 @@
     <span class="blob b2"></span>
   </div>
   <div class="wrap doc-hero-inner">
-    <h1 data-i18n-html="add.openTitle">Open this project <span class="grad">in Omnify</span>.</h1>
+    <div class="open-layout">
+      <div class="open-main">
+        <h1 data-i18n-html="add.openTitle">Open this project <span class="grad">in Omnify</span>.</h1>
 
-    <div id="add-ok">
-      <div class="add-target">
-        <span class="add-target-icon" id="add-target-icon" aria-hidden="true">
-          <img id="add-target-img" alt="">
-          <span id="add-target-initial"></span>
-        </span>
-        <p class="add-target-name" id="add-target-name"></p>
-      </div>
+        <div id="add-ok">
+          <div class="add-target">
+            <span class="add-target-icon" id="add-target-icon" aria-hidden="true">
+              <img id="add-target-img" alt="">
+              <span id="add-target-initial"></span>
+            </span>
+            <p class="add-target-name" id="add-target-name"></p>
+          </div>
 
-      <div class="only-mobile">
-        <p class="lede" data-i18n="add.openLede">Follow it in Omnify to install it now and get notified about every release after, no repository needed.</p>
+          <div class="only-mobile">
+            <p class="lede" data-i18n="add.openLede">Follow it in Omnify to install it now and get notified about every release after, no repository needed.</p>
 
-        <div class="hero-cta">
-          <a class="btn btn-primary btn-lg" id="add-open-btn" href="#">
-            <svg class="ico" viewBox="0 0 24 24"><use href="#i-device-mobile"/></svg>
-            <span data-i18n="add.openBtn">Open Omnify</span>
+            <div class="hero-cta">
+              <a class="btn btn-primary btn-lg" id="add-open-btn" href="#">
+                <svg class="ico" viewBox="0 0 24 24"><use href="#i-device-mobile"/></svg>
+                <span data-i18n="add.openBtn">Open Omnify</span>
+              </a>
+              <a class="btn btn-ghost" href="add.html">
+                <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
+                <span data-i18n="add.whatIs">What is this link?</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Omnify is Android only: a desktop visitor hands the project to a phone instead of
+               opening it here (see the mode-desktop check in <head> and the QR generation in add.js).
+               The code itself sits beside this column, not inside it (see #add-qr below). -->
+          <div class="only-desktop">
+            <p class="lede" data-i18n="add.qrLede">Omnify is an Android app. Scan this with your phone's camera to continue there.</p>
+
+            <div class="hero-cta">
+              <a class="btn btn-ghost" href="add.html">
+                <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
+                <span data-i18n="add.whatIs">What is this link?</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Revealed only if the app never came to the front, so a link that worked doesn't get
+             nagged at. Mobile only: the desktop flow has nothing here to fail at. -->
+        <div class="add-fallback only-mobile" id="add-fallback" hidden>
+          <h2><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-alert"/></svg> <span data-i18n="add.failTitle">Nothing opened?</span></h2>
+          <p data-i18n="add.failBody">Omnify has to be installed on this device for the link to reach it. Install it, come back here, and press the button again.</p>
+          <a class="btn btn-primary" href="index.html#download">
+            <svg class="ico" viewBox="0 0 24 24"><use href="#i-download"/></svg>
+            <span data-i18n="add.getOmnify">Get Omnify</span>
           </a>
-          <a class="btn btn-ghost" href="add.html">
-            <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
-            <span data-i18n="add.whatIs">What is this link?</span>
-          </a>
+        </div>
+
+        <!-- Shown instead of everything above when the link carries nothing usable. -->
+        <div class="add-fallback" id="add-invalid" hidden>
+          <h2><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-alert"/></svg> <span data-i18n="add.badTitle">There is no project in this link</span></h2>
+          <p data-i18n="add.badBody">It should carry the address of a project on GitHub, GitLab, Codeberg, or a self-hosted Gitea or Forgejo.</p>
         </div>
       </div>
 
-      <!-- Omnify is Android only: a desktop visitor hands the project to a phone instead of opening
-           it here (see the mode-desktop check in <head> and the QR generation in add.js). -->
-      <div class="only-desktop">
-        <p class="lede" data-i18n="add.qrLede">Omnify is an Android app. Scan this with your phone's camera to continue there.</p>
-
-        <div class="add-qr" id="add-qr" aria-hidden="true"></div>
-
-        <div class="hero-cta">
-          <a class="btn btn-ghost" href="add.html">
-            <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
-            <span data-i18n="add.whatIs">What is this link?</span>
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <!-- Revealed only if the app never came to the front, so a link that worked doesn't get nagged at.
-         Mobile only: the desktop flow above never attempts to open anything here, so there is nothing
-         for it to fail at. -->
-    <div class="add-fallback only-mobile" id="add-fallback" hidden>
-      <h2><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-alert"/></svg> <span data-i18n="add.failTitle">Nothing opened?</span></h2>
-      <p data-i18n="add.failBody">Omnify has to be installed on this device for the link to reach it. Install it, come back here, and press the button again.</p>
-      <a class="btn btn-primary" href="index.html#download">
-        <svg class="ico" viewBox="0 0 24 24"><use href="#i-download"/></svg>
-        <span data-i18n="add.getOmnify">Get Omnify</span>
-      </a>
-    </div>
-
-    <!-- Shown instead of everything above when the link carries nothing usable. -->
-    <div class="add-fallback" id="add-invalid" hidden>
-      <h2><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-alert"/></svg> <span data-i18n="add.badTitle">There is no project in this link</span></h2>
-      <p data-i18n="add.badBody">It should carry the address of a project on GitHub, GitLab, Codeberg, or a self-hosted Gitea or Forgejo.</p>
+      <div class="add-qr" id="add-qr" aria-hidden="true"></div>
     </div>
   </div>
 </section>
