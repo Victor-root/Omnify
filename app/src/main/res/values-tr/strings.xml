@@ -365,6 +365,8 @@
     <string name="github_token_help">Sınırı yükseltmek için github.com üzerinde bir token oluşturun:\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic), bir isim verin\n3. HİÇBİR kutuyu işaretlemeyin. Hiçbir kapsam (scope) seçilmediğinde, token hesabınızda kesinlikle hiçbir şeye izin vermez; yalnızca sizi tanımlar ve böylece sınır saatte 5000 isteğe yükselir\n4. Generate token\'a tıklayın, kopyalayın ve yukarıya yapıştırın</string>
     <string name="readme_javascript_title">README\'lerde JavaScript</string>
     <string name="readme_javascript_DESC">Yalnızca bir README bozuk görünüyorsa veya içerik eksikse açın.</string>
+    <string name="confirm_badge_add_title">Paylaşılan bir projeyi eklemeden önce onayla</string>
+    <string name="confirm_badge_add_DESC">\"Get it on Omnify\" rozetiyle açılan veya Omnify\'e paylaşılan bir projeyi hemen eklemek yerine, eklemeden önce sor.</string>
     <string name="translate">Çevir</string>
     <string name="show_original">Orijinali göster</string>
     <string name="translating">Çevriliyor…</string>

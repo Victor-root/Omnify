@@ -1073,9 +1073,16 @@ class ExternalAppsViewModel @Inject constructor(
         versionExcludeFilter: String = "",
     ) {
         _addError.value = null
+        // Shown inline by the dialog, and toasted too: addSource is also reachable with no dialog open
+        // (a "Get it on Omnify" badge tap with the confirmation prompt turned off in Settings), and
+        // that path has nothing else to surface a failure with.
+        fun fail(message: String, long: Boolean = false) {
+            _addError.value = message
+            toast(message, long)
+        }
         val ref = parseExternalSource(url)
         if (ref == null) {
-            _addError.value = context.getString(R.string.external_invalid_url)
+            fail(context.getString(R.string.external_invalid_url))
             return
         }
         val trimmedName = customName.trim()
@@ -1090,7 +1097,7 @@ class ExternalAppsViewModel @Inject constructor(
                     else -> null
                 }
                 if (provider == null) {
-                    _addError.value = context.getString(R.string.external_unsupported_host)
+                    fail(context.getString(R.string.external_unsupported_host))
                     return@launch
                 }
                 val app = ExternalApp(
@@ -1106,7 +1113,7 @@ class ExternalAppsViewModel @Inject constructor(
                     nameOverridden = trimmedName.isNotEmpty(),
                 )
                 if (apps.value.any { it.key == app.key }) {
-                    _addError.value = context.getString(R.string.external_already_added, app.path)
+                    fail(context.getString(R.string.external_already_added, app.path))
                     return@launch
                 }
                 withBusy(app.key) {
@@ -1117,23 +1124,22 @@ class ExternalAppsViewModel @Inject constructor(
                     val release = when (val lookup = externalApi.latestReleaseLookup(app)) {
                         is ReleaseLookup.Found -> lookup.release
                         ReleaseLookup.FetchFailed -> {
-                            _addError.value = githubFailureMessage(
+                            val (message, urgent) = githubFailureMessage(
                                 context.getString(R.string.external_no_release, app.path),
-                            ).first
+                            )
+                            fail(message, urgent)
                             return@withBusy
                         }
                         ReleaseLookup.OnlyPrereleasesExcluded -> {
-                            _addError.value =
-                                context.getString(R.string.external_only_prereleases, app.path)
+                            fail(context.getString(R.string.external_only_prereleases, app.path))
                             return@withBusy
                         }
                         ReleaseLookup.AllExcludedByFilter -> {
-                            _addError.value =
-                                context.getString(R.string.external_all_excluded_by_filter, app.path)
+                            fail(context.getString(R.string.external_all_excluded_by_filter, app.path))
                             return@withBusy
                         }
                         ReleaseLookup.NoCompatibleApk -> {
-                            _addError.value = context.getString(R.string.external_no_release, app.path)
+                            fail(context.getString(R.string.external_no_release, app.path))
                             return@withBusy
                         }
                     }

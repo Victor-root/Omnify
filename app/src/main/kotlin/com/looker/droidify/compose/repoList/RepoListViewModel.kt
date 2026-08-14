@@ -43,6 +43,11 @@ class RepoListViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.toggleRepoSectionCollapsed(sectionKey) }
     }
 
+    /** Whether a project handed to Omnify from outside it (a badge, a shared link) should open the
+     *  add dialog for a last look, rather than being added straight away. See Settings. */
+    val confirmBadgeAdd: StateFlow<Boolean> =
+        settingsRepository.get { confirmBadgeAdd }.asStateFlow(false)
+
     // A single-app repo's own declared icon is often unusable (many self-hosted repos never customise
     // it and fdroidserver defaults to a QR code of the repo address); its one app's real launcher icon
     // is always the better logo. Refetched whenever the catalogue changes, e.g. right after a repo's

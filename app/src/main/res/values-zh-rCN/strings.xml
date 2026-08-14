@@ -343,6 +343,8 @@
     <string name="github_token_help">如需提高限制，请在 github.com 上创建一个令牌：\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic)，为其命名\n3. 不要勾选任何选项。未勾选任何权限范围时，该令牌对您的账户不会授予任何权限，仅用于识别您的身份，从而将限制提升至每小时 5000 次请求\n4. 点击 Generate token，复制该令牌，然后粘贴到上方</string>
     <string name="readme_javascript_title">README 中的 JavaScript</string>
     <string name="readme_javascript_DESC">仅当 README 显示异常或内容缺失时启用。</string>
+    <string name="confirm_badge_add_title">添加共享项目前进行确认</string>
+    <string name="confirm_badge_add_DESC">通过\"Get it on Omnify\"徽章打开或分享到 Omnify 的项目，先询问后添加，而不是直接添加。</string>
     <string name="translate">翻译</string>
     <string name="show_original">显示原文</string>
     <string name="translating">翻译中…</string>

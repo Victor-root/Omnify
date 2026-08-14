@@ -105,6 +105,8 @@ interface SettingsRepository {
     suspend fun setSplitViewEnabled(enable: Boolean)
 
     suspend fun setAccentMatchesAppIcon(enable: Boolean)
+
+    suspend fun setConfirmBadgeAdd(enable: Boolean)
 }
 
 inline fun <T> SettingsRepository.get(crossinline block: suspend Settings.() -> T): Flow<T> {

@@ -129,16 +129,40 @@ fun RepoListScreen(
     // URL pre-filled into the add dialog when the screen was opened from a shared link. Held here so it
     // can seed whichever dialog we open.
     var prefillUrl by rememberSaveable { mutableStateOf("") }
-    // A link shared into the app (system "Share" sheet) waiting to be added. It's a one-shot: reading it
-    // opens the right dialog pre-filled, then we clear it so it can't reopen — the screen is rebuilt
-    // several times around the add, and anything persistent (a nav arg) would re-trigger every time.
+    // A link shared into the app (system "Share" sheet, or a "Get it on Omnify" badge) waiting to be
+    // added. It's a one-shot: reading it acts on it once, then we clear it so it can't act again. The
+    // screen is rebuilt several times around the add, and anything persistent (a nav arg) would
+    // re-trigger every time.
+    val confirmBadgeAdd by viewModel.confirmBadgeAdd.collectAsStateWithLifecycle()
     val pendingShare by PendingSharedSource.pending.collectAsStateWithLifecycle()
     LaunchedEffect(pendingShare) {
         val share = pendingShare ?: return@LaunchedEffect
-        prefillUrl = share.url
         // A whole-account link (owner only) opens the account dialog; a single repo link the source
         // dialog. The chooser is skipped: we already know which one from the URL shape.
+        prefillUrl = share.url
         if (share.isAccount) showAddAccount = true else showAddExternal = true
+        // Confirming leaves the dialog as an empty form for the user to fill in and submit, same as
+        // opening it by hand. Off (the default): the add starts right here with the dialog's own
+        // defaults, so the dialog the two lines above just opened has nothing to show yet but its own
+        // loading state, and closes itself the moment that finishes, same as it would after a manual
+        // submit. The form itself is only ever seen if the add needs the user's attention: a failure
+        // leaves the dialog on that same pre-filled form instead of just a toast, so there's still
+        // something to act on.
+        if (!confirmBadgeAdd) {
+            if (share.isAccount) {
+                externalViewModel.addAccount(
+                    url = share.url,
+                    customName = "",
+                    includeForks = false,
+                    includePrereleases = false,
+                    muteUpdates = false,
+                    apkFilter = "",
+                    versionExcludeFilter = "",
+                )
+            } else {
+                externalViewModel.addSource(url = share.url, includePrereleases = false)
+            }
+        }
         PendingSharedSource.clear()
     }
 

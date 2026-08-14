@@ -315,6 +315,8 @@
     <string name="github_token_help">上限を引き上げるには、github.com でトークンを作成してください:\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic) を選び、名前を付けます\n3. どの項目にもチェックを入れません。スコープを選択しなければ、トークンはアカウントに対して何の権限も持ちません。本人確認のためだけに使われ、上限が1時間あたり5000リクエストまで引き上げられます\n4. Generate token をクリックし、表示されたトークンをコピーして上の欄に貼り付けます</string>
     <string name="readme_javascript_title">README内のJavaScript</string>
     <string name="readme_javascript_DESC">READMEの表示が崩れていたり内容が欠けていたりする場合のみ有効にしてください。</string>
+    <string name="confirm_badge_add_title">共有されたプロジェクトを追加する前に確認する</string>
+    <string name="confirm_badge_add_DESC">\"Get it on Omnify\" バッジから開いた、またはOmnifyに共有されたプロジェクトを、すぐに追加せずに確認してから追加します。</string>
     <string name="translate">翻訳</string>
     <string name="show_original">原文を表示</string>
     <string name="translating">翻訳中…</string>

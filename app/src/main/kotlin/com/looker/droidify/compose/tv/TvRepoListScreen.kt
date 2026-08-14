@@ -116,13 +116,32 @@ fun TvRepoListScreen(
     var editingExternal by remember { mutableStateOf<ExternalApp?>(null) }
     var prefillUrl by rememberSaveable { mutableStateOf("") }
 
-    // A link shared into the app (system "Share" sheet) waiting to be added — one-shot, same handling as
-    // the phone screen: reading it opens the right dialog pre-filled, then we clear it.
+    // A link shared into the app (system "Share" sheet, or a "Get it on Omnify" badge) waiting to be
+    // added, one-shot, same handling as the phone screen: reading it acts on it once, then we clear it.
+    val confirmBadgeAdd by viewModel.confirmBadgeAdd.collectAsStateWithLifecycle()
     val pendingShare by PendingSharedSource.pending.collectAsStateWithLifecycle()
     LaunchedEffect(pendingShare) {
         val share = pendingShare ?: return@LaunchedEffect
         prefillUrl = share.url
         if (share.isAccount) showAddAccount = true else showAddExternal = true
+        // See RepoListScreen: confirming leaves the dialog open as an empty form; off (the default)
+        // starts the add right here, so the dialog just opened has nothing to show yet but its own
+        // loading state, and closes itself the moment that finishes.
+        if (!confirmBadgeAdd) {
+            if (share.isAccount) {
+                externalViewModel.addAccount(
+                    url = share.url,
+                    customName = "",
+                    includeForks = false,
+                    includePrereleases = false,
+                    muteUpdates = false,
+                    apkFilter = "",
+                    versionExcludeFilter = "",
+                )
+            } else {
+                externalViewModel.addSource(url = share.url, includePrereleases = false)
+            }
+        }
         PendingSharedSource.clear()
     }
 

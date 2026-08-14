@@ -330,6 +330,8 @@
     <string name="github_token_help">Om de limiet te verhogen, maak een token aan op github.com:\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic), geef het een naam\n3. Vink GEEN vakjes aan. Zonder gekozen bereik geeft het token strikt niets vrij op je account; het dient alleen om je te identificeren zodat de limiet naar 5000 aanvragen/uur gaat\n4. Generate token, kopieer het en plak het hierboven</string>
     <string name="readme_javascript_title">JavaScript in READMEs</string>
     <string name="readme_javascript_DESC">Schakel dit alleen in als een README er kapot uitziet of inhoud lijkt te missen.</string>
+    <string name="confirm_badge_add_title">Bevestigen voordat een gedeeld project wordt toegevoegd</string>
+    <string name="confirm_badge_add_DESC">Vraag bevestiging voordat een project dat via een \"Get it on Omnify\"-badge is geopend of met Omnify is gedeeld wordt toegevoegd, in plaats van het meteen toe te voegen.</string>
     <string name="translate">Vertalen</string>
     <string name="show_original">Origineel tonen</string>
     <string name="translating">Vertalen…</string>

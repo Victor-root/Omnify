@@ -382,6 +382,8 @@
     <string name="github_token_help">Pour augmenter la limite, créez un jeton sur github.com :\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic), donnez-lui un nom\n3. Ne cochez AUCUNE case. Sans aucune permission cochée, le jeton n\'autorise STRICTEMENT RIEN sur votre compte ; il sert uniquement à vous identifier pour passer à 5000 requêtes/heure\n4. Generate token, copiez-le et collez-le ci-dessus</string>
     <string name="readme_javascript_title">JavaScript dans les README</string>
     <string name="readme_javascript_DESC">Activez uniquement si un README s\'affiche mal ou incomplet.</string>
+    <string name="confirm_badge_add_title">Confirmer avant d\'ajouter un projet partagé</string>
+    <string name="confirm_badge_add_DESC">Demander confirmation avant d\'ajouter un projet ouvert via un badge \"Get it on Omnify\" ou partagé vers Omnify, plutôt que de l\'ajouter directement.</string>
     <string name="translate">Traduire</string>
     <string name="show_original">Voir l\'original</string>
     <string name="translating">Traduction…</string>

@@ -361,6 +361,8 @@
     <string name="github_token_help">Untuk menaikkan batas, buat token di github.com:\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic), beri nama\n3. JANGAN centang kotak apa pun. Tanpa scope yang dipilih, token ini SAMA SEKALI TIDAK memberi akses apa pun ke akun Anda; token hanya mengidentifikasi Anda agar batas naik menjadi 5000 permintaan/jam\n4. Generate token, salin, lalu tempel di atas</string>
     <string name="readme_javascript_title">JavaScript di README</string>
     <string name="readme_javascript_DESC">Aktifkan hanya jika README terlihat rusak atau kehilangan konten.</string>
+    <string name="confirm_badge_add_title">Konfirmasi sebelum menambahkan proyek yang dibagikan</string>
+    <string name="confirm_badge_add_DESC">Tanyakan sebelum menambahkan proyek yang dibuka melalui lencana \"Get it on Omnify\" atau dibagikan ke Omnify, alih-alih langsung menambahkannya.</string>
     <string name="translate">Terjemahkan</string>
     <string name="show_original">Tampilkan asli</string>
     <string name="translating">Menerjemahkan…</string>

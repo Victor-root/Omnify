@@ -103,6 +103,10 @@ data class Settings(
      *  instead of [themeColor], reverting everywhere else. Needs API 31+ (WallpaperColors.fromBitmap);
      *  harmless to leave on below that, it simply has no effect. */
     val accentMatchesAppIcon: Boolean = false,
+    /** Whether a project handed to Omnify from outside it (a "Get it on Omnify" badge, or a link
+     *  shared into the app) opens the add dialog for a last look before adding, rather than being
+     *  added straight away. Off by default: tapping a badge already said what it does. */
+    val confirmBadgeAdd: Boolean = false,
 )
 
 @OptIn(ExperimentalSerializationApi::class)

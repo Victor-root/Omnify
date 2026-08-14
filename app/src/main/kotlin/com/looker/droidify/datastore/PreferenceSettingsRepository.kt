@@ -252,6 +252,9 @@ class PreferenceSettingsRepository(
     override suspend fun setAccentMatchesAppIcon(enable: Boolean) =
         ACCENT_MATCHES_APP_ICON.update(enable)
 
+    override suspend fun setConfirmBadgeAdd(enable: Boolean) =
+        CONFIRM_BADGE_ADD.update(enable)
+
     private fun mapSettings(preferences: Preferences): Settings {
         val installerType =
             InstallerType.valueOf(preferences[INSTALLER_TYPE] ?: InstallerType.Default.name)
@@ -312,6 +315,7 @@ class PreferenceSettingsRepository(
         val splitViewEnabled = preferences[SPLIT_VIEW_ENABLED] ?: true
         val collapsedRepoSections = preferences[COLLAPSED_REPO_SECTIONS] ?: emptySet()
         val accentMatchesAppIcon = preferences[ACCENT_MATCHES_APP_ICON] ?: false
+        val confirmBadgeAdd = preferences[CONFIRM_BADGE_ADD] ?: false
 
         return Settings(
             language = language,
@@ -349,6 +353,7 @@ class PreferenceSettingsRepository(
             splitViewEnabled = splitViewEnabled,
             collapsedRepoSections = collapsedRepoSections,
             accentMatchesAppIcon = accentMatchesAppIcon,
+            confirmBadgeAdd = confirmBadgeAdd,
         )
     }
 
@@ -396,6 +401,7 @@ class PreferenceSettingsRepository(
         val SPLIT_VIEW_ENABLED = booleanPreferencesKey("key_split_view_enabled")
         val COLLAPSED_REPO_SECTIONS = stringSetPreferencesKey("key_collapsed_repo_sections")
         val ACCENT_MATCHES_APP_ICON = booleanPreferencesKey("key_accent_matches_app_icon")
+        val CONFIRM_BADGE_ADD = booleanPreferencesKey("key_confirm_badge_add")
 
         // Enums
         val THEME = stringPreferencesKey("key_theme")
@@ -465,6 +471,7 @@ class PreferenceSettingsRepository(
             set(SPLIT_VIEW_ENABLED, settings.splitViewEnabled)
             set(COLLAPSED_REPO_SECTIONS, settings.collapsedRepoSections)
             set(ACCENT_MATCHES_APP_ICON, settings.accentMatchesAppIcon)
+            set(CONFIRM_BADGE_ADD, settings.confirmBadgeAdd)
             return this.toPreferences()
         }
     }

@@ -368,6 +368,8 @@
     <string name="github_token_help">Per aumentare il limite, crea un token su github.com:\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic), dagli un nome\n3. Non spuntare NESSUNA casella. Senza alcun ambito selezionato, il token non concede assolutamente nulla sul tuo account: serve solo a identificarti, così il limite sale a 5000 richieste/ora\n4. Generate token, copialo e incollalo qui sopra</string>
     <string name="readme_javascript_title">JavaScript nei README</string>
     <string name="readme_javascript_DESC">Attivalo solo se un README appare non funzionante o con contenuti mancanti.</string>
+    <string name="confirm_badge_add_title">Conferma prima di aggiungere un progetto condiviso</string>
+    <string name="confirm_badge_add_DESC">Chiedi conferma prima di aggiungere un progetto aperto tramite un badge \"Get it on Omnify\" o condiviso con Omnify, invece di aggiungerlo subito.</string>
     <string name="translate">Traduci</string>
     <string name="show_original">Mostra originale</string>
     <string name="translating">Traduzione…</string>

@@ -371,6 +371,8 @@
     <string name="github_token_help">Чтобы увеличить лимит, создайте токен на github.com:\n1. Settings › Developer settings › Personal access tokens › Tokens (classic)\n2. Generate new token (classic), укажите название\n3. Не отмечайте НИ ОДНОГО пункта. Без выбранных прав токен не даёт абсолютно никакого доступа к вашему аккаунту; он лишь идентифицирует вас, поэтому лимит увеличивается до 5000 запросов в час\n4. Generate token, скопируйте его и вставьте выше</string>
     <string name="readme_javascript_title">JavaScript в README</string>
     <string name="readme_javascript_DESC">Включайте, только если README отображается некорректно или не хватает содержимого.</string>
+    <string name="confirm_badge_add_title">Подтверждать перед добавлением проекта по ссылке</string>
+    <string name="confirm_badge_add_DESC">Спрашивать перед добавлением проекта, открытого через значок \"Get it on Omnify\" или переданного в Omnify, вместо немедленного добавления.</string>
     <string name="translate">Перевести</string>
     <string name="show_original">Показать оригинал</string>
     <string name="translating">Перевод…</string>

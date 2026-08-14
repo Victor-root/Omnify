@@ -584,6 +584,16 @@ fun SettingsScreen(
             }
 
             item {
+                SwitchSettingItem(
+                    title = stringResource(R.string.confirm_badge_add_title),
+                    description = stringResource(R.string.confirm_badge_add_DESC),
+                    icon = painterResource(R.drawable.ic_tabler_link),
+                    checked = settings.confirmBadgeAdd,
+                    onCheckedChange = viewModel::setConfirmBadgeAdd,
+                )
+            }
+
+            item {
                 SettingHeader(title = stringResource(R.string.translation_section))
             }
 
