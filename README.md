@@ -106,6 +106,20 @@ time.
 - **Omnify's picks**: a curated list of noteworthy sources, disabled by
   default, one tap away.
 
+### 🏷️ A badge for your own project
+
+Maintain a project? Put a **Get it on Omnify** badge in your README and anyone
+reading it can follow your releases in one tap, without copying an address by
+hand. Paste your project's address on
+**[the badge page](https://victor-root.github.io/Omnify/add.html)** and copy the
+snippet it gives you.
+
+[<img src="website/assets/get-it-on-omnify.svg" alt="Get it on Omnify" height="56">](https://victor-root.github.io/Omnify/add.html)
+
+Tapping it opens Omnify on its add-a-source screen, already filled in. Nothing
+is installed without the reader saying so, and if they don't have Omnify yet the
+page points them at the download rather than leaving them on a dead link.
+
 ### 📺 Made for Android TV
 
 A proper 10-foot interface, not an afterthought: full D-pad navigation, a

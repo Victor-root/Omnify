@@ -74,6 +74,22 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
+            <!-- Omnify's own scheme, behind the "Get it on Omnify" badge a project puts in its README:
+                 omnify://add?url=<repo url> lands on the same pre-filled "Add external source" flow the
+                 share sheet above already uses. A private scheme rather than a verified https link on
+                 purpose: verification needs a file served from the root of a domain, and the site is a
+                 GitHub Pages project site living under a subpath. The badge therefore points at the
+                 site's add page, which opens this and tells the visitor where to get Omnify when
+                 nothing answers. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="omnify" />
+            </intent-filter>
+
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 

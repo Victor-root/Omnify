@@ -12,6 +12,7 @@ Device-to-device settings transfer, external-source update accuracy, a redesigne
 - 🌐 **Project website shown on external-source pages**, same as the F-Droid catalogue already does.
 - 🔄 **External sources are checked in the background too**, riding along with the twelve-hourly sync instead of only while the app is open.
 - ⚙️ **"Install updates automatically" now actually installs them:** the switch did nothing before. It now downloads and installs everything the Updates tab lists, catalogue and external alike, respecting your sync-network choice.
+- 🏷️ **A "Get it on Omnify" badge any project can use:** a badge in a README now opens Omnify straight on its add-a-source screen, filled in. Readers without Omnify land on a page pointing at the download instead of a dead link. Maintainers get their snippet from the site's new badge page.
 
 ### 🔄 Changed
 - 🔔 **"Notify about updates" now actually notifies.**

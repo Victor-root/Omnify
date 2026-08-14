@@ -380,6 +380,13 @@ class MainComposeActivity : ComponentActivity() {
                     is DeeplinkType.AppSearch -> navController.navigateToAppList()
                     // TODO: pre-fill the repo address once RepoEdit accepts one.
                     is DeeplinkType.AddRepository -> navController.navigateToRepoEdit()
+                    // A project's "Get it on Omnify" badge, through the site's add page.
+                    is DeeplinkType.AddExternalSource -> {
+                        openAddExternalSource(deeplink.url, navController)
+                        // Consume the launching intent so an activity recreation can't re-open the dialog.
+                        intent.action = null
+                        setIntent(intent)
+                    }
                     null -> Unit
                 }
 
@@ -389,20 +396,8 @@ class MainComposeActivity : ComponentActivity() {
                 }
 
                 // A link shared from another app (e.g. a browser's "Share" on a GitHub/GitLab page).
-                // Open the sources screen with the "Add external source" (or "Add account") dialog
-                // pre-filled, deciding which from the URL shape: owner/repo -> a single repo source;
-                // owner only -> a whole account.
                 Intent.ACTION_SEND -> {
-                    val sharedUrl = intent.sharedSourceUrl()
-                    if (sharedUrl != null) {
-                        val isAccount = parseExternalSource(sharedUrl) == null &&
-                            parseAccountSource(sharedUrl) != null
-                        // Hand the link to the sources screen as a one-shot (consumed on read), then open
-                        // that screen. It decides the dialog from the URL shape: owner/repo -> a single
-                        // repo; owner only -> a whole account.
-                        PendingSharedSource.set(sharedUrl, isAccount)
-                        navController.navigateToRepoList()
-                    }
+                    intent.sharedSourceUrl()?.let { openAddExternalSource(it, navController) }
                     // Consume the launching intent so an activity recreation can't re-run this branch.
                     intent.action = null
                     setIntent(intent)
@@ -411,6 +406,23 @@ class MainComposeActivity : ComponentActivity() {
         } catch (_: Exception) {
             // Malformed deeplink or nav graph not ready yet — ignore rather than crash.
         }
+    }
+
+    /**
+     * Opens the sources screen with the "Add external source" (or "Add account") dialog pre-filled for
+     * [url], deciding which from the URL shape: owner/repo gives a single repo source, an owner on its
+     * own gives a whole account.
+     *
+     * Shared by the two ways a project link reaches the app from outside it: the system share sheet,
+     * and a "Get it on Omnify" badge through `omnify://add`. Both therefore accept exactly the same
+     * shapes and land on the same dialog, rather than a link working from one entry point and being
+     * turned away by the other.
+     */
+    private fun openAddExternalSource(url: String, navController: NavController) {
+        val isAccount = parseExternalSource(url) == null && parseAccountSource(url) != null
+        // A one-shot, consumed by the sources screen on read, so it can't re-open on recomposition.
+        PendingSharedSource.set(url, isAccount)
+        navController.navigateToRepoList()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

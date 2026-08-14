@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="add.metaTitle">Open a project in Omnify</title>
+<meta name="description" data-i18n-attr="content:add.metaDesc" content="Follow a GitHub, GitLab, Codeberg, Gitea or Forgejo project in Omnify in one tap, and put the Get it on Omnify badge on your own project.">
+<meta name="theme-color" content="#080b09" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f7faf8" media="(prefers-color-scheme: light)">
+<link rel="icon" href="assets/omnify-logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="Open a project in Omnify">
+<meta property="og:description" content="Follow a project in Omnify in one tap, and put the Get it on Omnify badge on your own.">
+<meta property="og:type" content="website">
+<script>
+  /* Stamped before first paint so the page never flashes the half it isn't going to show. A link
+     carrying a project opens the prompt; the bare page is the documentation for maintainers. With
+     no JavaScript at all, the documentation is what shows, which is the useful default. */
+  if (new URLSearchParams(window.location.search).get("url")) {
+    document.documentElement.className += " mode-open";
+  }
+</script>
+</head>
+<body>
+
+<!-- Only the icons this page uses. The nav and footer are repeated here rather than shared: the site
+     is plain static HTML with no template step, so a third page repeats them the same way. -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="i-github"><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5"/></g>
+    <g id="i-copy"><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></g>
+    <g id="i-check"><path d="M5 12l5 5l10 -10"/></g>
+    <g id="i-sun"><path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></g>
+    <g id="i-moon"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"/></g>
+    <g id="i-menu"><path d="M4 6l16 0"/><path d="M4 12l16 0"/><path d="M4 18l16 0"/></g>
+    <g id="i-x"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></g>
+    <g id="i-arrow-right"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></g>
+    <g id="i-scale"><path d="M7 20l10 0"/><path d="M6 6l6 -1l6 1"/><path d="M12 3l0 17"/><path d="M9 12l-3 -6l-3 6a3 3 0 0 0 6 0"/><path d="M21 12l-3 -6l-3 6a3 3 0 0 0 6 0"/></g>
+    <g id="i-code"><path d="M7 8l-4 4l4 4"/><path d="M17 8l4 4l-4 4"/><path d="M14 4l-4 16"/></g>
+    <g id="i-alert"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0"/><path d="M12 16h.01"/></g>
+    <g id="i-puzzle"><path d="M4 7h3a1 1 0 0 0 1 -1v-1a2 2 0 0 1 4 0v1a1 1 0 0 0 1 1h3a1 1 0 0 1 1 1v3a1 1 0 0 0 1 1h1a2 2 0 0 1 0 4h-1a1 1 0 0 0 -1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1v-1a2 2 0 0 0 -4 0v1a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1h1a2 2 0 0 0 0 -4h-1a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1"/></g>
+    <g id="i-download"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></g>
+    <g id="i-device-mobile"><path d="M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14"/><path d="M11 4h2"/><path d="M12 17v.01"/></g>
+  </defs>
+</svg>
+
+<a class="skip" href="#main" data-i18n="nav.skip">Skip to content</a>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html" aria-label="Omnify">
+      <img src="assets/omnify-logo.svg" alt="" width="34" height="34">
+      <span>Omnify</span>
+    </a>
+    <nav class="nav-links" id="nav-links" aria-label="Main">
+      <a href="index.html#sources" data-i18n="nav.sources">External sources</a>
+      <a href="index.html#features" data-i18n="nav.features">Features</a>
+      <a href="index.html#opensource" data-i18n="nav.opensource">Open source</a>
+      <a href="index.html#tv" data-i18n="nav.tv">Android TV</a>
+      <a href="index.html#download" data-i18n="nav.download">Download</a>
+    </nav>
+    <div class="nav-actions">
+      <div class="accent-picker">
+        <button class="icon-btn accent-btn" id="accent-toggle" type="button"
+                data-i18n-attr="aria-label:nav.accentAria" aria-label="Change accent colour"
+                aria-expanded="false" aria-controls="accent-list">
+          <span class="accent-dot" aria-hidden="true"></span>
+        </button>
+        <div class="accent-list" id="accent-list" role="group"
+             data-i18n-attr="aria-label:nav.accentAria" aria-label="Change accent colour" hidden></div>
+      </div>
+      <div class="lang-picker">
+        <button class="icon-btn lang-btn" id="lang-toggle" type="button"
+                data-i18n-attr="aria-label:nav.langAria" aria-label="Change language"
+                aria-expanded="false" aria-controls="lang-list">
+          <span id="lang-label">EN</span>
+        </button>
+        <div class="lang-list" id="lang-list" role="group"
+             data-i18n-attr="aria-label:nav.langAria" aria-label="Change language" hidden></div>
+      </div>
+      <button class="icon-btn" id="theme-toggle" type="button" data-i18n-attr="aria-label:nav.themeAria" aria-label="Switch theme">
+        <svg class="ico ico-sun" viewBox="0 0 24 24"><use href="#i-sun"/></svg>
+        <svg class="ico ico-moon" viewBox="0 0 24 24"><use href="#i-moon"/></svg>
+      </button>
+      <a class="btn btn-ghost nav-gh" href="https://github.com/Victor-root/Omnify" target="_blank" rel="noopener">
+        <svg class="ico" viewBox="0 0 24 24"><use href="#i-github"/></svg>
+        <span>GitHub</span>
+      </a>
+      <button class="icon-btn nav-burger" id="nav-burger" type="button" data-i18n-attr="aria-label:nav.menuAria" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
+        <svg class="ico ico-open" viewBox="0 0 24 24"><use href="#i-menu"/></svg>
+        <svg class="ico ico-close" viewBox="0 0 24 24"><use href="#i-x"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ============ Someone tapped a badge: hand the project to the app ============ -->
+<section class="doc-hero only-open" id="open">
+  <div class="aurora" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+  </div>
+  <div class="wrap doc-hero-inner">
+    <h1 data-i18n-html="add.openTitle">Open this project <span class="grad">in Omnify</span>.</h1>
+
+    <div id="add-ok">
+      <div class="add-target">
+        <span class="add-target-icon" id="add-target-icon" aria-hidden="true">
+          <img id="add-target-img" alt="" hidden>
+          <span id="add-target-initial"></span>
+        </span>
+        <p class="add-target-name" id="add-target-name"></p>
+      </div>
+
+      <p class="lede" data-i18n="add.openLede">Follow it in Omnify to install it now and get notified about every release after, no repository needed.</p>
+
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" id="add-open-btn" href="#">
+          <svg class="ico" viewBox="0 0 24 24"><use href="#i-device-mobile"/></svg>
+          <span data-i18n="add.openBtn">Open Omnify</span>
+        </a>
+        <a class="btn btn-ghost" href="add.html">
+          <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
+          <span data-i18n="add.whatIs">What is this link?</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Revealed only if the app never came to the front, so a link that worked doesn't get nagged at. -->
+    <div class="add-fallback" id="add-fallback" hidden>
+      <h2><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-alert"/></svg> <span data-i18n="add.failTitle">Nothing opened?</span></h2>
+      <p data-i18n="add.failBody">Omnify has to be installed on this device for the link to reach it. Install it, come back here, and press the button again.</p>
+      <a class="btn btn-primary" href="index.html#download">
+        <svg class="ico" viewBox="0 0 24 24"><use href="#i-download"/></svg>
+        <span data-i18n="add.getOmnify">Get Omnify</span>
+      </a>
+    </div>
+
+    <!-- Shown instead of everything above when the link carries nothing usable. -->
+    <div class="add-fallback" id="add-invalid" hidden>
+      <h2><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-alert"/></svg> <span data-i18n="add.badTitle">There is no project in this link</span></h2>
+      <p data-i18n="add.badBody">It should carry the address of a project on GitHub, GitLab, Codeberg, or a self-hosted Gitea or Forgejo.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ The bare page: what the badge is, and how to get one ============ -->
+<section class="doc-hero only-doc" id="top">
+  <div class="aurora" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+  </div>
+  <div class="wrap doc-hero-inner">
+    <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg> <span data-i18n="add.docEyebrow">For maintainers</span></span>
+    <h1 data-i18n-html="add.docTitle">One tap from your README <span class="grad">to Omnify</span>.</h1>
+    <p class="lede" data-i18n="add.docLede">Put a badge on your project and anyone reading it can follow your releases in Omnify without copying an address by hand. It costs you two lines in a README and nothing at all in your build.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#generate">
+        <svg class="ico" viewBox="0 0 24 24"><use href="#i-arrow-right"/></svg>
+        <span data-i18n="add.docCta">Build my badge</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="section only-doc" id="generate">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2 data-i18n="add.genTitle">Build your badge</h2>
+      <p class="section-sub" data-i18n="add.genBody">Paste your project's address. Everything below updates as you type, and nothing you type leaves this page.</p>
+    </div>
+
+    <div class="add-gen reveal">
+      <label class="add-gen-label" for="gen-input" data-i18n="add.genLabel">Your project's address</label>
+      <input class="add-gen-input" id="gen-input" type="url" spellcheck="false" autocapitalize="off" autocorrect="off"
+             placeholder="https://github.com/owner/project">
+
+      <p class="add-gen-heading" data-i18n="add.genPreview">Preview</p>
+      <p class="add-gen-empty" id="gen-empty" data-i18n="add.genEmpty">Paste an address above and your badge appears here.</p>
+      <a class="add-gen-preview" id="gen-preview" href="#" hidden>
+        <img src="assets/get-it-on-omnify.svg" alt="Get it on Omnify" width="250" height="100">
+      </a>
+
+      <div id="gen-snippets" hidden>
+        <p class="add-gen-heading" data-i18n="add.genMd">Markdown, for a README</p>
+        <div class="cmd">
+          <pre><code id="gen-md"></code></pre>
+          <button class="icon-btn" type="button" data-copy data-i18n-attr="aria-label:dl.copyAria" aria-label="Copy">
+            <svg class="ico ico-copy" viewBox="0 0 24 24"><use href="#i-copy"/></svg>
+            <svg class="ico ico-done" viewBox="0 0 24 24"><use href="#i-check"/></svg>
+          </button>
+        </div>
+
+        <p class="add-gen-heading" data-i18n="add.genHtml">HTML</p>
+        <div class="cmd">
+          <pre><code id="gen-html"></code></pre>
+          <button class="icon-btn" type="button" data-copy data-i18n-attr="aria-label:dl.copyAria" aria-label="Copy">
+            <svg class="ico ico-copy" viewBox="0 0 24 24"><use href="#i-copy"/></svg>
+            <svg class="ico ico-done" viewBox="0 0 24 24"><use href="#i-check"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section only-doc" id="how">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2 data-i18n="add.howTitle">What happens when someone taps it</h2>
+    </div>
+    <ol class="steps">
+      <li class="reveal">
+        <span class="step-n" aria-hidden="true">1</span>
+        <div class="step-body">
+          <h3 data-i18n="add.how1Title">The badge opens this page</h3>
+          <p data-i18n="add.how1Body">It carries your project's address, and nothing else. No account, no tracking, no request to any server of ours.</p>
+        </div>
+      </li>
+      <li class="reveal">
+        <span class="step-n" aria-hidden="true">2</span>
+        <div class="step-body">
+          <h3 data-i18n="add.how2Title">The page hands it to Omnify</h3>
+          <p data-i18n="add.how2Body">Omnify opens on its add-a-source screen, already filled in. The reader decides whether to follow the project, and whether to install anything.</p>
+        </div>
+      </li>
+      <li class="reveal">
+        <span class="step-n" aria-hidden="true">3</span>
+        <div class="step-body">
+          <h3 data-i18n="add.how3Title">Or it offers to get Omnify first</h3>
+          <p data-i18n="add.how3Body">If nothing answers, the reader isn't left on a dead link: the page says Omnify isn't there yet and points at the download.</p>
+        </div>
+      </li>
+    </ol>
+
+    <div class="add-note reveal">
+      <h3 data-i18n="add.noteTitle">Whole accounts work too</h3>
+      <p data-i18n="add.noteBody">An address pointing at an account rather than a single project offers to follow all of its releasing projects at once. GitHub, GitLab, Codeberg and self-hosted Gitea or Forgejo are all understood.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-top">
+    <div class="footer-brand">
+      <a class="brand" href="index.html" aria-label="Omnify">
+        <img src="assets/omnify-logo.svg" alt="" width="34" height="34">
+        <span>Omnify</span>
+      </a>
+      <p data-i18n-html="footer.about">
+        Maintained by <a href="https://github.com/Victor-root" target="_blank" rel="noopener">Victor-root</a>.
+        Built on <a href="https://github.com/Droid-ify/client" target="_blank" rel="noopener">Droid-ify</a> by
+        LooKeR, which itself grew from
+        <a href="https://github.com/kitsunyan/foxy-droid" target="_blank" rel="noopener">Foxy-Droid</a> by
+        kitsunyan. Huge thanks to both.
+      </p>
+    </div>
+    <nav class="footer-links" aria-label="Footer">
+      <div>
+        <h4 data-i18n="footer.project">Project</h4>
+        <a href="https://github.com/Victor-root/Omnify" target="_blank" rel="noopener" data-i18n="footer.source">Source code</a>
+        <a href="https://github.com/Victor-root/Omnify/releases" target="_blank" rel="noopener" data-i18n="footer.releases">Releases</a>
+        <a href="https://github.com/Victor-root/Omnify/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" data-i18n="footer.contributing">Contributing</a>
+        <a href="building.html" data-i18n="footer.building">Building</a>
+      </div>
+      <div>
+        <h4 data-i18n="footer.help">Help</h4>
+        <a href="https://github.com/Victor-root/Omnify/issues" target="_blank" rel="noopener" data-i18n="footer.issues">Issues</a>
+        <a href="https://github.com/Victor-root/Omnify/issues/new" target="_blank" rel="noopener" data-i18n="footer.report">Report a bug</a>
+        <a href="add.html" data-i18n="footer.badge">Omnify badge</a>
+        <a href="index.html#download" data-i18n="footer.verify">Verify a build</a>
+      </div>
+    </nav>
+  </div>
+  <div class="wrap footer-legal">
+    <p>
+      <svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-scale"/></svg>
+      <span data-i18n="footer.license">Free software under the GNU General Public License v3.0 or later.</span>
+    </p>
+    <p data-i18n-html="footer.icons">Icons by <a href="https://tabler.io/icons" target="_blank" rel="noopener">Tabler</a>.</p>
+  </div>
+</footer>
+
+<script src="i18n.js"></script>
+<script src="accents.js"></script>
+<script src="script.js"></script>
+<script src="add.js"></script>
+</body>
+</html>

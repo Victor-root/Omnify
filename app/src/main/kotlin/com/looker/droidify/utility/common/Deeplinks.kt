@@ -60,6 +60,19 @@ fun Intent.deeplinkType(): DeeplinkType? {
             DeeplinkType.AppSearch(packageName)
         }
 
+        // omnify://add?url=<repo url>, behind the "Get it on Omnify" badge a project puts in its
+        // README (see the site's add page, which is what the badge actually links to). The url is
+        // handed on as text rather than parsed here: deciding whether it names a single repo or a
+        // whole account, and which provider serves it, is parseExternalSource/parseAccountSource's
+        // job, and the share-sheet route already calls exactly those. So a badge and a shared link
+        // reach the same dialog by the same rules, and a shape one accepts can never be one the
+        // other turns away.
+        "omnify" if data.host == "add" -> {
+            val sourceUrl = data["url"]?.nullIfEmpty()
+                ?: invalidDeeplink("No source url: $data")
+            DeeplinkType.AddExternalSource(sourceUrl)
+        }
+
         in httpScheme -> {
             when (data.host) {
                 PERSONAL_HOST,
@@ -115,4 +128,9 @@ sealed interface DeeplinkType {
     class AppDetail(val packageName: String, val repoAddress: String? = null) : DeeplinkType
 
     class AppSearch(val query: String) : DeeplinkType
+
+    /** A GitHub/GitLab/Codeberg/self-hosted project [url] to follow as an external source, from an
+     *  `omnify://add` link. Whether it names a single repo or a whole account is decided where it's
+     *  acted on, by the same functions the share sheet's own route uses. */
+    class AddExternalSource(val url: String) : DeeplinkType
 }

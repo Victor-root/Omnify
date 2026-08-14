@@ -1185,6 +1185,152 @@ a { color: inherit; }
 
 .faq { margin-top: 46px; }
 
+/* ---------- Add page ---------- */
+
+/* The page behind a project's "Get it on Omnify" badge shows one of two halves, never both: the
+   hand-off prompt when the link names a project, the maintainer documentation when it doesn't. The
+   choice is stamped on <html> before first paint (see add.html's head) rather than applied by script
+   afterwards, so neither half is ever briefly visible before the other replaces it. Written so the
+   documentation is what a browser with no JavaScript shows, which is the half that still works
+   without it. */
+.only-open { display: none; }
+.mode-open .only-open { display: block; }
+.mode-open .only-doc { display: none; }
+
+/* The redirect half is a single-purpose landing page a phone lands on straight from a badge tap, not
+   a page anyone browses from: the nav's site links, colour/language pickers and burger menu have
+   nothing to do here and only cost the screen height a phone has the least of. Trimmed to the brand
+   mark and the theme toggle, which is still a real choice on this page. The hero above it loses the
+   tall padding sized for a page with a full header above it, and the eyebrow tag markup is dropped
+   from add.html entirely rather than hidden, for the same reason. */
+.mode-open .nav-links,
+.mode-open .accent-picker,
+.mode-open .lang-picker,
+.mode-open .nav-gh,
+.mode-open .nav-burger { display: none; }
+.mode-open .nav-inner { height: 56px; }
+.mode-open #open.doc-hero { padding: clamp(10px, 3vh, 28px) 0 clamp(28px, 5vh, 56px); }
+.mode-open #open .doc-hero-inner h1 { margin-top: 4px; }
+.mode-open #open .lede { margin-top: 16px; }
+.mode-open #open .hero-cta { margin-top: 22px; }
+
+/* The project a badge is asking to follow: its real icon where one could be guessed at (see add.js),
+   and the repo name, never the raw address. A URL never made a reader understand what this handed
+   off at a glance the way a name next to a real (or plausible-looking) icon does. */
+.add-target {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 20px 0 0;
+  padding: 12px 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.add-target-icon {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 13px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+}
+.add-target-icon img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#add-target-initial {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--on-brand);
+}
+.add-target-name {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 650;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* Held back until the app has had its chance to answer, so a link that worked is never followed by
+   a message telling its reader it failed. */
+.add-fallback {
+  margin: 26px 0 0;
+  padding: 22px 24px;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: var(--surface-2);
+  max-width: 58ch;
+  scroll-margin-top: 76px;
+}
+.add-fallback h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 19px;
+  font-weight: 650;
+}
+.add-fallback h2 .ico { color: var(--brand-2-on); }
+.add-fallback p { margin: 10px 0 20px; color: var(--dim); }
+
+/* The snippet builder. */
+.add-gen {
+  margin-top: 34px;
+  padding: 26px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+}
+.add-gen-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dim);
+}
+.add-gen-input {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+.add-gen-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.add-gen-heading {
+  margin: 26px 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dim);
+}
+.add-gen-empty { margin: 0; color: var(--dim); font-size: 14.5px; }
+.add-gen-preview { display: inline-block; line-height: 0; }
+.add-gen-preview img { max-width: 100%; height: auto; }
+
+.add-note {
+  margin-top: 40px;
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  max-width: 74ch;
+}
+.add-note h3 { margin: 0; font-size: 17px; font-weight: 650; }
+.add-note p { margin: 8px 0 0; color: var(--dim); }
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 980px) {

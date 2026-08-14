@@ -196,6 +196,45 @@ window.OMNIFY_I18N = {
     "build.verify.body": "You do not have to compile it to know what you installed. Every release carries the same certificate, and checking the one on your phone against the published fingerprint takes a few seconds.",
     "build.verify.cta": "Check a build",
 
+    "add.metaTitle": "Open a project in Omnify",
+    "add.metaDesc": "Follow a GitHub, GitLab, Codeberg, Gitea or Forgejo project in Omnify in one tap, and put the Get it on Omnify badge on your own project.",
+
+    "add.openTitle": "Open this project <span class=\"grad\">in Omnify</span>.",
+    "add.openLede": "Follow it in Omnify to install it now and get notified about every release after, no repository needed.",
+    "add.openBtn": "Open Omnify",
+    "add.whatIs": "What is this link?",
+
+    "add.failTitle": "Nothing opened?",
+    "add.failBody": "Omnify has to be installed on this device for the link to reach it. Install it, come back here, and press the button again.",
+    "add.getOmnify": "Get Omnify",
+
+    "add.badTitle": "There is no project in this link",
+    "add.badBody": "It should carry the address of a project on GitHub, GitLab, Codeberg, or a self-hosted Gitea or Forgejo.",
+
+    "add.docEyebrow": "For maintainers",
+    "add.docTitle": "One tap from your README <span class=\"grad\">to Omnify</span>.",
+    "add.docLede": "Put a badge on your project and anyone reading it can follow your releases in Omnify without copying an address by hand. It costs you two lines in a README and nothing at all in your build.",
+    "add.docCta": "Build my badge",
+
+    "add.genTitle": "Build your badge",
+    "add.genBody": "Paste your project's address. Everything below updates as you type, and nothing you type leaves this page.",
+    "add.genLabel": "Your project's address",
+    "add.genPreview": "Preview",
+    "add.genEmpty": "Paste an address above and your badge appears here.",
+    "add.genMd": "Markdown, for a README",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "What happens when someone taps it",
+    "add.how1Title": "The badge opens this page",
+    "add.how1Body": "It carries your project's address, and nothing else. No account, no tracking, no request to any server of ours.",
+    "add.how2Title": "The page hands it to Omnify",
+    "add.how2Body": "Omnify opens on its add-a-source screen, already filled in. The reader decides whether to follow the project, and whether to install anything.",
+    "add.how3Title": "Or it offers to get Omnify first",
+    "add.how3Body": "If nothing answers, the reader isn't left on a dead link: the page says Omnify isn't there yet and points at the download.",
+
+    "add.noteTitle": "Whole accounts work too",
+    "add.noteBody": "An address pointing at an account rather than a single project offers to follow all of its releasing projects at once. GitHub, GitLab, Codeberg and self-hosted Gitea or Forgejo are all understood.",
+
     "footer.about": "Maintained by <a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a>. Built on <a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a> by LooKeR, which itself grew from <a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a> by kitsunyan. Huge thanks to both.",
     "footer.project": "Project",
     "footer.source": "Source code",
@@ -205,6 +244,7 @@ window.OMNIFY_I18N = {
     "footer.help": "Help",
     "footer.issues": "Issues",
     "footer.report": "Report a bug",
+    "footer.badge": "Omnify badge",
     "footer.verify": "Verify a build",
     "footer.license": "Free software under the GNU General Public License v3.0 or later.",
     "footer.icons": "Icons by <a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>."
@@ -393,6 +433,45 @@ window.OMNIFY_I18N = {
     "build.verify.body": "Vous n'avez pas besoin de compiler pour savoir ce que vous avez installé. Chaque version porte le même certificat, et comparer celui de votre téléphone à l'empreinte publiée prend quelques secondes.",
     "build.verify.cta": "Vérifier une version",
 
+    "add.metaTitle": "Ouvrir un projet dans Omnify",
+    "add.metaDesc": "Suivez un projet GitHub, GitLab, Codeberg, Gitea ou Forgejo dans Omnify en une seule pression, et ajoutez le badge Get it on Omnify à votre propre projet.",
+
+    "add.openTitle": "Ouvrir ce projet <span class=\"grad\">dans Omnify</span>.",
+    "add.openLede": "Suivez-le dans Omnify pour l'installer maintenant et être prévenu à chaque nouvelle publication, sans besoin de dépôt.",
+    "add.openBtn": "Ouvrir Omnify",
+    "add.whatIs": "C'est quoi, ce lien ?",
+
+    "add.failTitle": "Rien ne s'est ouvert ?",
+    "add.failBody": "Omnify doit être installé sur cet appareil pour que le lien lui parvienne. Installez-le, revenez ici, puis appuyez à nouveau sur le bouton.",
+    "add.getOmnify": "Installer Omnify",
+
+    "add.badTitle": "Ce lien ne contient aucun projet",
+    "add.badBody": "Il devrait porter l'adresse d'un projet sur GitHub, GitLab, Codeberg, ou sur une instance Gitea ou Forgejo auto-hébergée.",
+
+    "add.docEyebrow": "Pour les mainteneurs",
+    "add.docTitle": "De votre README <span class=\"grad\">à Omnify</span>, en une pression.",
+    "add.docLede": "Ajoutez un badge à votre projet et quiconque le lit peut suivre vos publications dans Omnify sans recopier d'adresse à la main. Cela vous coûte deux lignes dans un README, et rien du tout dans votre build.",
+    "add.docCta": "Créer mon badge",
+
+    "add.genTitle": "Créez votre badge",
+    "add.genBody": "Collez l'adresse de votre projet. Tout ce qui suit se met à jour au fur et à mesure, et rien de ce que vous saisissez ne quitte cette page.",
+    "add.genLabel": "L'adresse de votre projet",
+    "add.genPreview": "Aperçu",
+    "add.genEmpty": "Collez une adresse ci-dessus, votre badge apparaîtra ici.",
+    "add.genMd": "Markdown, pour un README",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "Ce qui se passe quand quelqu'un appuie dessus",
+    "add.how1Title": "Le badge ouvre cette page",
+    "add.how1Body": "Elle transporte l'adresse de votre projet, et rien d'autre. Aucun compte, aucun suivi, aucune requête vers un serveur qui nous appartienne.",
+    "add.how2Title": "La page la transmet à Omnify",
+    "add.how2Body": "Omnify s'ouvre sur son écran d'ajout de source, déjà renseigné. C'est le lecteur qui décide de suivre le projet, et d'installer quoi que ce soit.",
+    "add.how3Title": "Ou elle propose d'abord d'installer Omnify",
+    "add.how3Body": "Si rien ne répond, le lecteur ne reste pas sur un lien mort : la page lui indique qu'Omnify n'est pas encore là et lui montre où le télécharger.",
+
+    "add.noteTitle": "Les comptes entiers fonctionnent aussi",
+    "add.noteBody": "Une adresse qui pointe vers un compte plutôt que vers un seul projet propose de suivre d'un coup tous ses projets qui publient des versions. GitHub, GitLab, Codeberg ainsi que les instances Gitea ou Forgejo auto-hébergées sont tous reconnus.",
+
     "footer.about": "Maintenue par <a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a>. Basée sur <a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a> de LooKeR, elle-même issue de <a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a> de kitsunyan. Un grand merci aux deux projets.",
     "footer.project": "Projet",
     "footer.source": "Code source",
@@ -402,6 +481,7 @@ window.OMNIFY_I18N = {
     "footer.help": "Aide",
     "footer.issues": "Tickets",
     "footer.report": "Signaler un bug",
+    "footer.badge": "Badge Omnify",
     "footer.verify": "Vérifier une version",
     "footer.license": "Logiciel libre sous licence GNU General Public License v3.0 ou ultérieure.",
     "footer.icons": "Icônes par <a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>."
@@ -526,6 +606,45 @@ window.OMNIFY_I18N = {
     "dl.copyAria": "Fingerabdruck kopieren",
     "dl.copiedAria": "Fingerabdruck kopiert",
 
+    "add.metaTitle": "Ein Projekt in Omnify öffnen",
+    "add.metaDesc": "Folgen Sie einem Projekt auf GitHub, GitLab, Codeberg, Gitea oder Forgejo mit einem Tippen in Omnify, und setzen Sie das Get-it-on-Omnify-Abzeichen auf Ihr eigenes Projekt.",
+
+    "add.openTitle": "Dieses Projekt <span class=\"grad\">in Omnify öffnen</span>.",
+    "add.openLede": "Folgen Sie ihm in Omnify, um es jetzt zu installieren und bei jedem weiteren Release benachrichtigt zu werden, kein Repository nötig.",
+    "add.openBtn": "Omnify öffnen",
+    "add.whatIs": "Was ist dieser Link?",
+
+    "add.failTitle": "Es hat sich nichts geöffnet?",
+    "add.failBody": "Omnify muss auf diesem Gerät installiert sein, damit der Link ankommt. Installieren Sie es, kommen Sie hierher zurück und tippen Sie erneut auf die Schaltfläche.",
+    "add.getOmnify": "Omnify holen",
+
+    "add.badTitle": "In diesem Link steckt kein Projekt",
+    "add.badBody": "Er sollte die Adresse eines Projekts auf GitHub, GitLab, Codeberg oder einer selbst gehosteten Gitea- oder Forgejo-Instanz enthalten.",
+
+    "add.docEyebrow": "Für Betreuende",
+    "add.docTitle": "Von Ihrer README <span class=\"grad\">zu Omnify</span>, mit einem Tippen.",
+    "add.docLede": "Setzen Sie ein Abzeichen auf Ihr Projekt, und wer es liest, kann Ihren Releases in Omnify folgen, ohne eine Adresse abzutippen. Das kostet Sie zwei Zeilen in einer README und gar nichts in Ihrem Build.",
+    "add.docCta": "Mein Abzeichen erstellen",
+
+    "add.genTitle": "Ihr Abzeichen erstellen",
+    "add.genBody": "Fügen Sie die Adresse Ihres Projekts ein. Alles Folgende aktualisiert sich beim Tippen, und nichts davon verlässt diese Seite.",
+    "add.genLabel": "Die Adresse Ihres Projekts",
+    "add.genPreview": "Vorschau",
+    "add.genEmpty": "Fügen Sie oben eine Adresse ein, dann erscheint hier Ihr Abzeichen.",
+    "add.genMd": "Markdown, für eine README",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "Was passiert, wenn jemand darauf tippt",
+    "add.how1Title": "Das Abzeichen öffnet diese Seite",
+    "add.how1Body": "Sie trägt die Adresse Ihres Projekts, sonst nichts. Kein Konto, keine Verfolgung, keine Anfrage an irgendeinen Server von uns.",
+    "add.how2Title": "Die Seite übergibt sie an Omnify",
+    "add.how2Body": "Omnify öffnet sich auf dem Bildschirm zum Hinzufügen einer Quelle, bereits ausgefüllt. Ob dem Projekt gefolgt und ob etwas installiert wird, entscheidet die lesende Person.",
+    "add.how3Title": "Oder sie bietet zuerst Omnify an",
+    "add.how3Body": "Antwortet nichts, bleibt niemand auf einem toten Link sitzen: Die Seite sagt, dass Omnify noch nicht da ist, und zeigt auf den Download.",
+
+    "add.noteTitle": "Ganze Konten gehen auch",
+    "add.noteBody": "Eine Adresse, die auf ein Konto statt auf ein einzelnes Projekt zeigt, bietet an, allen seinen veröffentlichenden Projekten auf einmal zu folgen. GitHub, GitLab, Codeberg sowie selbst gehostete Gitea- oder Forgejo-Instanzen werden alle verstanden.",
+
     "footer.about": "Gepflegt von <a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a>. Aufgebaut auf <a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a> von LooKeR, das selbst aus <a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a> von kitsunyan hervorgegangen ist. Herzlichen Dank an beide.",
     "footer.project": "Projekt",
     "footer.source": "Quellcode",
@@ -535,6 +654,7 @@ window.OMNIFY_I18N = {
     "footer.help": "Hilfe",
     "footer.issues": "Issues",
     "footer.report": "Fehler melden",
+    "footer.badge": "Omnify-Abzeichen",
     "footer.verify": "Build verifizieren",
     "footer.license": "Freie Software unter der GNU General Public License v3.0 oder später.",
     "footer.icons": "Icons von <a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>."
@@ -659,6 +779,45 @@ window.OMNIFY_I18N = {
     "dl.copyAria": "Скопировать отпечаток",
     "dl.copiedAria": "Отпечаток скопирован",
 
+    "add.metaTitle": "Открыть проект в Omnify",
+    "add.metaDesc": "Следите за проектом на GitHub, GitLab, Codeberg, Gitea или Forgejo в Omnify одним нажатием и разместите значок Get it on Omnify в своём проекте.",
+
+    "add.openTitle": "Открыть этот проект <span class=\"grad\">в Omnify</span>.",
+    "add.openLede": "Подпишитесь на него в Omnify, чтобы установить прямо сейчас и получать уведомления о каждом новом релизе, без репозитория.",
+    "add.openBtn": "Открыть Omnify",
+    "add.whatIs": "Что это за ссылка?",
+
+    "add.failTitle": "Ничего не открылось?",
+    "add.failBody": "Чтобы ссылка сработала, Omnify должен быть установлен на этом устройстве. Установите его, вернитесь сюда и нажмите кнопку ещё раз.",
+    "add.getOmnify": "Установить Omnify",
+
+    "add.badTitle": "В этой ссылке нет проекта",
+    "add.badBody": "В ней должен быть адрес проекта на GitHub, GitLab, Codeberg либо на самостоятельно размещённых Gitea или Forgejo.",
+
+    "add.docEyebrow": "Для сопровождающих",
+    "add.docTitle": "Из вашего README <span class=\"grad\">в Omnify</span>, одним нажатием.",
+    "add.docLede": "Разместите значок в проекте, и любой читатель сможет следить за вашими релизами в Omnify, не копируя адрес вручную. Это стоит двух строк в README и ничего не стоит сборке.",
+    "add.docCta": "Создать значок",
+
+    "add.genTitle": "Создайте свой значок",
+    "add.genBody": "Вставьте адрес проекта. Всё ниже обновляется по мере ввода, и ничего из введённого не покидает эту страницу.",
+    "add.genLabel": "Адрес вашего проекта",
+    "add.genPreview": "Предпросмотр",
+    "add.genEmpty": "Вставьте адрес выше, и значок появится здесь.",
+    "add.genMd": "Markdown, для README",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "Что происходит при нажатии",
+    "add.how1Title": "Значок открывает эту страницу",
+    "add.how1Body": "Она несёт адрес вашего проекта и больше ничего. Ни учётных записей, ни слежки, ни запросов к нашим серверам.",
+    "add.how2Title": "Страница передаёт его в Omnify",
+    "add.how2Body": "Omnify открывается на экране добавления источника, уже заполненном. Следить ли за проектом и устанавливать ли что-либо, решает читатель.",
+    "add.how3Title": "Или сначала предложит установить Omnify",
+    "add.how3Body": "Если ничего не ответило, читатель не останется с мёртвой ссылкой: страница скажет, что Omnify ещё нет, и покажет, где его скачать.",
+
+    "add.noteTitle": "Учётные записи целиком тоже работают",
+    "add.noteBody": "Адрес, указывающий на учётную запись, а не на отдельный проект, предложит подписаться сразу на все её проекты с релизами. Понимаются GitHub, GitLab, Codeberg, а также самостоятельно размещённые Gitea и Forgejo.",
+
     "footer.about": "Поддерживается <a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a>. Основано на <a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a> авторства LooKeR, который сам вырос из <a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a> авторства kitsunyan. Огромное спасибо обоим.",
     "footer.project": "Проект",
     "footer.source": "Исходный код",
@@ -668,6 +827,7 @@ window.OMNIFY_I18N = {
     "footer.help": "Помощь",
     "footer.issues": "Задачи",
     "footer.report": "Сообщить об ошибке",
+    "footer.badge": "Значок Omnify",
     "footer.verify": "Проверить сборку",
     "footer.license": "Свободное программное обеспечение по лицензии GNU General Public License v3.0 или более поздней.",
     "footer.icons": "Иконки от <a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>."
@@ -792,6 +952,45 @@ window.OMNIFY_I18N = {
     "dl.copyAria": "复制指纹",
     "dl.copiedAria": "指纹已复制",
 
+    "add.metaTitle": "在 Omnify 中打开项目",
+    "add.metaDesc": "一键在 Omnify 中关注 GitHub、GitLab、Codeberg、Gitea 或 Forgejo 上的项目，并为自己的项目加上 Get it on Omnify 徽章。",
+
+    "add.openTitle": "<span class=\"grad\">在 Omnify 中</span>打开此项目。",
+    "add.openLede": "在 Omnify 中关注它，立即安装，并在此后每次发布新版本时收到通知，无需仓库。",
+    "add.openBtn": "打开 Omnify",
+    "add.whatIs": "这是什么链接？",
+
+    "add.failTitle": "没有任何反应？",
+    "add.failBody": "此设备需已安装 Omnify，链接才能送达。请先安装，然后返回此页面并再次点击按钮。",
+    "add.getOmnify": "获取 Omnify",
+
+    "add.badTitle": "此链接中没有项目",
+    "add.badBody": "它应当包含 GitHub、GitLab、Codeberg，或自建 Gitea、Forgejo 上某个项目的地址。",
+
+    "add.docEyebrow": "面向维护者",
+    "add.docTitle": "从您的 README <span class=\"grad\">一键到 Omnify</span>。",
+    "add.docLede": "为项目加上徽章，读者便可在 Omnify 中关注您的发布版，无需手动复制地址。这只需 README 中的两行，对您的构建毫无影响。",
+    "add.docCta": "生成我的徽章",
+
+    "add.genTitle": "生成您的徽章",
+    "add.genBody": "粘贴您项目的地址。下方内容会随输入实时更新，且您输入的一切都不会离开此页面。",
+    "add.genLabel": "您项目的地址",
+    "add.genPreview": "预览",
+    "add.genEmpty": "在上方粘贴地址，徽章将显示在这里。",
+    "add.genMd": "Markdown，用于 README",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "读者点击后会发生什么",
+    "add.how1Title": "徽章打开此页面",
+    "add.how1Body": "它只携带您项目的地址，别无其他。没有账号、没有追踪，也不会向我们的任何服务器发出请求。",
+    "add.how2Title": "页面将其交给 Omnify",
+    "add.how2Body": "Omnify 打开添加来源界面，内容已填好。是否关注该项目、是否安装，由读者决定。",
+    "add.how3Title": "或先提示获取 Omnify",
+    "add.how3Body": "若无响应，读者也不会停在失效链接上：页面会说明尚未安装 Omnify，并指向下载位置。",
+
+    "add.noteTitle": "整个账号同样适用",
+    "add.noteBody": "若地址指向的是账号而非单个项目，则会提示一次性关注该账号下所有发布版本的项目。GitHub、GitLab、Codeberg 以及自建的 Gitea 或 Forgejo 均可识别。",
+
     "footer.about": "由 <a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a> 维护。构建于 LooKeR 开发的 <a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a> 之上，而 Droid-ify 本身又源自 kitsunyan 开发的 <a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a>。向两位致以衷心感谢。",
     "footer.project": "项目",
     "footer.source": "源代码",
@@ -801,6 +1000,7 @@ window.OMNIFY_I18N = {
     "footer.help": "帮助",
     "footer.issues": "问题反馈",
     "footer.report": "报告问题",
+    "footer.badge": "Omnify 徽章",
     "footer.verify": "验证构建",
     "footer.license": "自由软件，采用 GNU 通用公共许可证 v3.0 或更高版本授权。",
     "footer.icons": "图标来自 <a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>。"
@@ -925,6 +1125,45 @@ window.OMNIFY_I18N = {
     "dl.copyAria": "Kopiuj odcisk",
     "dl.copiedAria": "Odcisk skopiowany",
 
+    "add.metaTitle": "Otwórz projekt w Omnify",
+    "add.metaDesc": "Śledź projekt z GitHuba, GitLaba, Codeberga, Gitei lub Forgejo w Omnify jednym dotknięciem i dodaj odznakę Get it on Omnify do własnego projektu.",
+
+    "add.openTitle": "Otwórz ten projekt <span class=\"grad\">w Omnify</span>.",
+    "add.openLede": "Zacznij śledzić go w Omnify, aby zainstalować teraz i dostawać powiadomienia o każdym kolejnym wydaniu, bez potrzeby repozytorium.",
+    "add.openBtn": "Otwórz Omnify",
+    "add.whatIs": "Czym jest ten odnośnik?",
+
+    "add.failTitle": "Nic się nie otworzyło?",
+    "add.failBody": "Aby odnośnik zadziałał, Omnify musi być zainstalowane na tym urządzeniu. Zainstaluj je, wróć tutaj i naciśnij przycisk ponownie.",
+    "add.getOmnify": "Pobierz Omnify",
+
+    "add.badTitle": "W tym odnośniku nie ma projektu",
+    "add.badBody": "Powinien zawierać adres projektu na GitHubie, GitLabie, Codebergu albo na własnej instancji Gitei lub Forgejo.",
+
+    "add.docEyebrow": "Dla opiekunów projektów",
+    "add.docTitle": "Z twojego README <span class=\"grad\">do Omnify</span>, jednym dotknięciem.",
+    "add.docLede": "Dodaj odznakę do projektu, a każdy czytelnik będzie mógł śledzić twoje wydania w Omnify bez ręcznego kopiowania adresu. Kosztuje to dwie linijki w README i zupełnie nic w twojej kompilacji.",
+    "add.docCta": "Utwórz moją odznakę",
+
+    "add.genTitle": "Utwórz swoją odznakę",
+    "add.genBody": "Wklej adres swojego projektu. Wszystko poniżej aktualizuje się w trakcie pisania, a nic z tego nie opuszcza tej strony.",
+    "add.genLabel": "Adres twojego projektu",
+    "add.genPreview": "Podgląd",
+    "add.genEmpty": "Wklej adres powyżej, a odznaka pojawi się tutaj.",
+    "add.genMd": "Markdown, do README",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "Co się dzieje, gdy ktoś ją dotknie",
+    "add.how1Title": "Odznaka otwiera tę stronę",
+    "add.how1Body": "Niesie adres twojego projektu i nic więcej. Żadnych kont, żadnego śledzenia, żadnych zapytań do naszych serwerów.",
+    "add.how2Title": "Strona przekazuje go do Omnify",
+    "add.how2Body": "Omnify otwiera się na ekranie dodawania źródła, już wypełnionym. To czytelnik decyduje, czy śledzić projekt i czy cokolwiek instalować.",
+    "add.how3Title": "Albo najpierw proponuje pobranie Omnify",
+    "add.how3Body": "Jeśli nic nie odpowie, czytelnik nie zostanie z martwym odnośnikiem: strona powie, że Omnify jeszcze nie ma, i wskaże, skąd je pobrać.",
+
+    "add.noteTitle": "Całe konta też działają",
+    "add.noteBody": "Adres wskazujący na konto, a nie na pojedynczy projekt, zaproponuje śledzenie od razu wszystkich jego projektów z wydaniami. Rozpoznawane są GitHub, GitLab, Codeberg oraz własne instancje Gitei i Forgejo.",
+
     "footer.about": "Utrzymywane przez <a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a>. Zbudowane na bazie <a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a> autorstwa LooKeR, który sam wyrósł z <a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a> autorstwa kitsunyan. Ogromne podziękowania dla obu projektów.",
     "footer.project": "Projekt",
     "footer.source": "Kod źródłowy",
@@ -934,6 +1173,7 @@ window.OMNIFY_I18N = {
     "footer.help": "Pomoc",
     "footer.issues": "Zgłoszenia",
     "footer.report": "Zgłoś błąd",
+    "footer.badge": "Odznaka Omnify",
     "footer.verify": "Zweryfikuj kompilację",
     "footer.license": "Wolne oprogramowanie na licencji GNU General Public License v3.0 lub nowszej.",
     "footer.icons": "Ikony autorstwa <a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>."
@@ -1058,6 +1298,45 @@ window.OMNIFY_I18N = {
     "dl.copyAria": "Copiar impressão digital",
     "dl.copiedAria": "Impressão digital copiada",
 
+    "add.metaTitle": "Abrir um projeto no Omnify",
+    "add.metaDesc": "Acompanhe um projeto do GitHub, GitLab, Codeberg, Gitea ou Forgejo no Omnify com um toque, e coloque o selo Get it on Omnify no seu próprio projeto.",
+
+    "add.openTitle": "Abrir este projeto <span class=\"grad\">no Omnify</span>.",
+    "add.openLede": "Acompanhe-o no Omnify para instalar agora e ser avisado a cada novo lançamento depois, sem precisar de repositório.",
+    "add.openBtn": "Abrir o Omnify",
+    "add.whatIs": "O que é este link?",
+
+    "add.failTitle": "Nada abriu?",
+    "add.failBody": "O Omnify precisa estar instalado neste aparelho para o link chegar até ele. Instale, volte aqui e toque no botão de novo.",
+    "add.getOmnify": "Baixar o Omnify",
+
+    "add.badTitle": "Não há nenhum projeto neste link",
+    "add.badBody": "Ele deveria trazer o endereço de um projeto no GitHub, GitLab, Codeberg, ou numa instância própria do Gitea ou Forgejo.",
+
+    "add.docEyebrow": "Para quem mantém projetos",
+    "add.docTitle": "Do seu README <span class=\"grad\">ao Omnify</span>, num toque.",
+    "add.docLede": "Coloque um selo no seu projeto e quem o ler pode acompanhar seus lançamentos no Omnify sem copiar endereço à mão. Custa duas linhas num README e nada na sua compilação.",
+    "add.docCta": "Criar meu selo",
+
+    "add.genTitle": "Crie o seu selo",
+    "add.genBody": "Cole o endereço do seu projeto. Tudo abaixo se atualiza enquanto você digita, e nada do que você digita sai desta página.",
+    "add.genLabel": "O endereço do seu projeto",
+    "add.genPreview": "Prévia",
+    "add.genEmpty": "Cole um endereço acima e o seu selo aparece aqui.",
+    "add.genMd": "Markdown, para um README",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "O que acontece quando alguém toca nele",
+    "add.how1Title": "O selo abre esta página",
+    "add.how1Body": "Ela carrega o endereço do seu projeto, e mais nada. Sem conta, sem rastreamento, sem requisição a nenhum servidor nosso.",
+    "add.how2Title": "A página entrega ao Omnify",
+    "add.how2Body": "O Omnify abre na tela de adicionar fonte, já preenchida. Quem lê é que decide se vai acompanhar o projeto e se vai instalar algo.",
+    "add.how3Title": "Ou oferece baixar o Omnify antes",
+    "add.how3Body": "Se nada responder, ninguém fica num link morto: a página avisa que o Omnify ainda não está ali e aponta o download.",
+
+    "add.noteTitle": "Contas inteiras também funcionam",
+    "add.noteBody": "Um endereço que aponta para uma conta, em vez de um único projeto, oferece acompanhar de uma vez todos os projetos dela que publicam lançamentos. GitHub, GitLab, Codeberg e instâncias próprias do Gitea ou Forgejo são todos entendidos.",
+
     "footer.about": "Mantido por <a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a>. Construído sobre o <a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a> de LooKeR, que por sua vez nasceu do <a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a> de kitsunyan. Um grande obrigado aos dois.",
     "footer.project": "Projeto",
     "footer.source": "Código-fonte",
@@ -1067,6 +1346,7 @@ window.OMNIFY_I18N = {
     "footer.help": "Ajuda",
     "footer.issues": "Problemas",
     "footer.report": "Relatar um problema",
+    "footer.badge": "Selo do Omnify",
     "footer.verify": "Verificar uma compilação",
     "footer.license": "Software livre sob a licença GNU General Public License v3.0 ou posterior.",
     "footer.icons": "Ícones por <a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>."
@@ -1191,6 +1471,45 @@ window.OMNIFY_I18N = {
     "dl.copyAria": "Copiar huella",
     "dl.copiedAria": "Huella copiada",
 
+    "add.metaTitle": "Abrir un proyecto en Omnify",
+    "add.metaDesc": "Sigue un proyecto de GitHub, GitLab, Codeberg, Gitea o Forgejo en Omnify con un toque, y pon la insignia Get it on Omnify en tu propio proyecto.",
+
+    "add.openTitle": "Abrir este proyecto <span class=\"grad\">en Omnify</span>.",
+    "add.openLede": "Síguelo en Omnify para instalarlo ahora y que te avise de cada publicación posterior, sin necesitar repositorio.",
+    "add.openBtn": "Abrir Omnify",
+    "add.whatIs": "¿Qué es este enlace?",
+
+    "add.failTitle": "¿No se ha abierto nada?",
+    "add.failBody": "Omnify tiene que estar instalado en este dispositivo para que el enlace le llegue. Instálalo, vuelve aquí y pulsa el botón otra vez.",
+    "add.getOmnify": "Conseguir Omnify",
+
+    "add.badTitle": "En este enlace no hay ningún proyecto",
+    "add.badBody": "Debería llevar la dirección de un proyecto en GitHub, GitLab, Codeberg, o en una instancia propia de Gitea o Forgejo.",
+
+    "add.docEyebrow": "Para quien mantiene proyectos",
+    "add.docTitle": "De tu README <span class=\"grad\">a Omnify</span>, en un toque.",
+    "add.docLede": "Pon una insignia en tu proyecto y quien lo lea podrá seguir tus publicaciones en Omnify sin copiar una dirección a mano. Te cuesta dos líneas en un README y nada en tu compilación.",
+    "add.docCta": "Crear mi insignia",
+
+    "add.genTitle": "Crea tu insignia",
+    "add.genBody": "Pega la dirección de tu proyecto. Todo lo de abajo se actualiza mientras escribes, y nada de lo que escribes sale de esta página.",
+    "add.genLabel": "La dirección de tu proyecto",
+    "add.genPreview": "Vista previa",
+    "add.genEmpty": "Pega una dirección arriba y tu insignia aparecerá aquí.",
+    "add.genMd": "Markdown, para un README",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "Qué pasa cuando alguien la toca",
+    "add.how1Title": "La insignia abre esta página",
+    "add.how1Body": "Lleva la dirección de tu proyecto y nada más. Sin cuenta, sin seguimiento, sin ninguna petición a un servidor nuestro.",
+    "add.how2Title": "La página se la pasa a Omnify",
+    "add.how2Body": "Omnify se abre en su pantalla de añadir fuente, ya rellenada. Quien lee decide si sigue el proyecto y si instala algo.",
+    "add.how3Title": "O propone conseguir Omnify primero",
+    "add.how3Body": "Si no responde nada, nadie se queda en un enlace muerto: la página avisa de que Omnify aún no está y señala la descarga.",
+
+    "add.noteTitle": "Las cuentas enteras también valen",
+    "add.noteBody": "Una dirección que apunta a una cuenta, en lugar de a un solo proyecto, propone seguir de golpe todos sus proyectos que publican versiones. Se entienden GitHub, GitLab, Codeberg e instancias propias de Gitea o Forgejo.",
+
     "footer.about": "Mantenido por <a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a>. Construido sobre <a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a> de LooKeR, que a su vez surgió de <a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a> de kitsunyan. Un enorme agradecimiento a ambos.",
     "footer.project": "Proyecto",
     "footer.source": "Código fuente",
@@ -1200,6 +1519,7 @@ window.OMNIFY_I18N = {
     "footer.help": "Ayuda",
     "footer.issues": "Incidencias",
     "footer.report": "Reportar un error",
+    "footer.badge": "Insignia de Omnify",
     "footer.verify": "Verificar una compilación",
     "footer.license": "Software libre bajo la licencia GNU General Public License v3.0 o posterior.",
     "footer.icons": "Íconos de <a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>."
@@ -1324,6 +1644,45 @@ window.OMNIFY_I18N = {
     "dl.copyAria": "Salin fingerprint",
     "dl.copiedAria": "Fingerprint disalin",
 
+    "add.metaTitle": "Buka proyek di Omnify",
+    "add.metaDesc": "Ikuti proyek GitHub, GitLab, Codeberg, Gitea, atau Forgejo di Omnify dengan sekali ketuk, dan pasang lencana Get it on Omnify pada proyek Anda sendiri.",
+
+    "add.openTitle": "Buka proyek ini <span class=\"grad\">di Omnify</span>.",
+    "add.openLede": "Ikuti proyek ini di Omnify untuk memasangnya sekarang dan mendapat notifikasi setiap rilis berikutnya, tanpa perlu repositori.",
+    "add.openBtn": "Buka Omnify",
+    "add.whatIs": "Tautan apa ini?",
+
+    "add.failTitle": "Tidak ada yang terbuka?",
+    "add.failBody": "Omnify harus terpasang di perangkat ini agar tautannya sampai. Pasang terlebih dahulu, kembali ke sini, lalu tekan tombolnya lagi.",
+    "add.getOmnify": "Dapatkan Omnify",
+
+    "add.badTitle": "Tidak ada proyek dalam tautan ini",
+    "add.badBody": "Tautan ini seharusnya memuat alamat proyek di GitHub, GitLab, Codeberg, atau instansi Gitea maupun Forgejo yang dihosting sendiri.",
+
+    "add.docEyebrow": "Untuk para pengelola",
+    "add.docTitle": "Dari README Anda <span class=\"grad\">ke Omnify</span>, sekali ketuk.",
+    "add.docLede": "Pasang lencana pada proyek Anda, dan siapa pun yang membacanya dapat mengikuti rilis Anda di Omnify tanpa menyalin alamat secara manual. Biayanya dua baris dalam README, dan tidak sama sekali pada proses build Anda.",
+    "add.docCta": "Buat lencana saya",
+
+    "add.genTitle": "Buat lencana Anda",
+    "add.genBody": "Tempelkan alamat proyek Anda. Semua di bawah ini diperbarui seiring Anda mengetik, dan tidak ada yang Anda ketik meninggalkan halaman ini.",
+    "add.genLabel": "Alamat proyek Anda",
+    "add.genPreview": "Pratinjau",
+    "add.genEmpty": "Tempelkan alamat di atas, lencana Anda akan muncul di sini.",
+    "add.genMd": "Markdown, untuk README",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "Apa yang terjadi saat seseorang mengetuknya",
+    "add.how1Title": "Lencana membuka halaman ini",
+    "add.how1Body": "Halaman ini membawa alamat proyek Anda, dan tidak lebih. Tanpa akun, tanpa pelacakan, tanpa permintaan ke server mana pun milik kami.",
+    "add.how2Title": "Halaman menyerahkannya ke Omnify",
+    "add.how2Body": "Omnify terbuka pada layar penambahan sumber yang sudah terisi. Pembacalah yang memutuskan apakah akan mengikuti proyek tersebut dan memasang sesuatu.",
+    "add.how3Title": "Atau menawarkan Omnify lebih dulu",
+    "add.how3Body": "Jika tidak ada yang menjawab, pembaca tidak ditinggalkan pada tautan mati: halaman ini menyatakan Omnify belum ada dan menunjukkan tempat mengunduhnya.",
+
+    "add.noteTitle": "Seluruh akun juga bisa",
+    "add.noteBody": "Alamat yang menunjuk ke sebuah akun, bukan satu proyek, menawarkan untuk mengikuti sekaligus semua proyeknya yang menerbitkan rilis. GitHub, GitLab, Codeberg, serta instansi Gitea atau Forgejo yang dihosting sendiri semuanya dikenali.",
+
     "footer.about": "Dikelola oleh <a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a>. Dibangun di atas <a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a> oleh LooKeR, yang sendiri tumbuh dari <a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a> oleh kitsunyan. Terima kasih banyak untuk keduanya.",
     "footer.project": "Proyek",
     "footer.source": "Kode sumber",
@@ -1333,6 +1692,7 @@ window.OMNIFY_I18N = {
     "footer.help": "Bantuan",
     "footer.issues": "Masalah",
     "footer.report": "Laporkan bug",
+    "footer.badge": "Lencana Omnify",
     "footer.verify": "Verifikasi build",
     "footer.license": "Perangkat lunak bebas berlisensi GNU General Public License v3.0 atau yang lebih baru.",
     "footer.icons": "Ikon oleh <a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>."
@@ -1457,6 +1817,45 @@ window.OMNIFY_I18N = {
     "dl.copyAria": "Parmak izini kopyala",
     "dl.copiedAria": "Parmak izi kopyalandı",
 
+    "add.metaTitle": "Bir projeyi Omnify'da açın",
+    "add.metaDesc": "GitHub, GitLab, Codeberg, Gitea veya Forgejo üzerindeki bir projeyi tek dokunuşla Omnify'da takip edin ve Get it on Omnify rozetini kendi projenize ekleyin.",
+
+    "add.openTitle": "Bu projeyi <span class=\"grad\">Omnify'da açın</span>.",
+    "add.openLede": "Şimdi kurmak ve sonraki her sürümde bildirim almak için Omnify'da takip edin, depo gerekmez.",
+    "add.openBtn": "Omnify'ı aç",
+    "add.whatIs": "Bu bağlantı nedir?",
+
+    "add.failTitle": "Hiçbir şey açılmadı mı?",
+    "add.failBody": "Bağlantının ulaşabilmesi için Omnify'ın bu cihazda kurulu olması gerekir. Kurun, buraya dönün ve düğmeye tekrar basın.",
+    "add.getOmnify": "Omnify'ı edinin",
+
+    "add.badTitle": "Bu bağlantıda proje yok",
+    "add.badBody": "GitHub, GitLab, Codeberg ya da kendi barındırdığınız Gitea veya Forgejo üzerindeki bir projenin adresini taşımalıdır.",
+
+    "add.docEyebrow": "Proje yürütücüleri için",
+    "add.docTitle": "README'nizden <span class=\"grad\">Omnify'a</span>, tek dokunuşla.",
+    "add.docLede": "Projenize bir rozet ekleyin; okuyan herkes adresi elle kopyalamadan sürümlerinizi Omnify'da takip edebilsin. Size bir README'de iki satıra mal olur, derlemenizde ise hiçbir şeye.",
+    "add.docCta": "Rozetimi oluştur",
+
+    "add.genTitle": "Rozetinizi oluşturun",
+    "add.genBody": "Projenizin adresini yapıştırın. Aşağıdaki her şey siz yazdıkça güncellenir ve yazdıklarınızın hiçbiri bu sayfadan ayrılmaz.",
+    "add.genLabel": "Projenizin adresi",
+    "add.genPreview": "Önizleme",
+    "add.genEmpty": "Yukarıya bir adres yapıştırın, rozetiniz burada belirsin.",
+    "add.genMd": "Markdown, README için",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "Birisi dokunduğunda ne olur",
+    "add.how1Title": "Rozet bu sayfayı açar",
+    "add.how1Body": "Bu sayfa yalnızca projenizin adresini taşır, başka hiçbir şeyi. Hesap yok, izleme yok, bize ait hiçbir sunucuya istek yok.",
+    "add.how2Title": "Sayfa adresi Omnify'a devreder",
+    "add.how2Body": "Omnify, önceden doldurulmuş kaynak ekleme ekranında açılır. Projeyi takip edip etmeyeceğine ve bir şey yükleyip yüklemeyeceğine okuyan kişi karar verir.",
+    "add.how3Title": "Ya da önce Omnify'ı edinmeyi önerir",
+    "add.how3Body": "Yanıt veren olmazsa okuyan kişi ölü bir bağlantıyla baş başa kalmaz: sayfa, Omnify'ın henüz orada olmadığını söyler ve indirme adresini gösterir.",
+
+    "add.noteTitle": "Hesapların tamamı da olur",
+    "add.noteBody": "Tek bir proje yerine bir hesabı gösteren adres, o hesabın sürüm yayımlayan tüm projelerini tek seferde takip etmeyi önerir. GitHub, GitLab, Codeberg ile kendi barındırdığınız Gitea veya Forgejo'nun hepsi anlaşılır.",
+
     "footer.about": "<a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a> tarafından geliştiriliyor. LooKeR'ın <a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a> projesi üzerine inşa edildi; o da kitsunyan'ın <a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a> projesinden büyüdü. İkisine de çok teşekkürler.",
     "footer.project": "Proje",
     "footer.source": "Kaynak kodu",
@@ -1466,6 +1865,7 @@ window.OMNIFY_I18N = {
     "footer.help": "Yardım",
     "footer.issues": "Sorunlar",
     "footer.report": "Bir sorun bildirin",
+    "footer.badge": "Omnify rozeti",
     "footer.verify": "Bir derlemeyi doğrulayın",
     "footer.license": "GNU General Public License v3.0 veya sonraki bir sürüm altında özgür yazılım.",
     "footer.icons": "Simgeler: <a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>."
@@ -1590,6 +1990,45 @@ window.OMNIFY_I18N = {
     "dl.copyAria": "Copia l'impronta",
     "dl.copiedAria": "Impronta copiata",
 
+    "add.metaTitle": "Aprire un progetto in Omnify",
+    "add.metaDesc": "Segui un progetto GitHub, GitLab, Codeberg, Gitea o Forgejo in Omnify con un tocco, e metti il badge Get it on Omnify sul tuo progetto.",
+
+    "add.openTitle": "Apri questo progetto <span class=\"grad\">in Omnify</span>.",
+    "add.openLede": "Seguilo in Omnify per installarlo ora ed essere avvisato a ogni release successiva, senza bisogno di un repository.",
+    "add.openBtn": "Apri Omnify",
+    "add.whatIs": "Cos'è questo link?",
+
+    "add.failTitle": "Non si è aperto nulla?",
+    "add.failBody": "Omnify deve essere installato su questo dispositivo perché il link possa raggiungerlo. Installalo, torna qui e premi di nuovo il pulsante.",
+    "add.getOmnify": "Ottieni Omnify",
+
+    "add.badTitle": "In questo link non c'è nessun progetto",
+    "add.badBody": "Dovrebbe contenere l'indirizzo di un progetto su GitHub, GitLab, Codeberg, o su un'istanza auto-ospitata di Gitea o Forgejo.",
+
+    "add.docEyebrow": "Per chi mantiene progetti",
+    "add.docTitle": "Dal tuo README <span class=\"grad\">a Omnify</span>, con un tocco.",
+    "add.docLede": "Metti un badge sul tuo progetto e chi lo legge potrà seguire le tue release in Omnify senza copiare un indirizzo a mano. Ti costa due righe in un README e nulla nella tua build.",
+    "add.docCta": "Crea il mio badge",
+
+    "add.genTitle": "Crea il tuo badge",
+    "add.genBody": "Incolla l'indirizzo del tuo progetto. Tutto quello che segue si aggiorna mentre scrivi, e nulla di ciò che scrivi lascia questa pagina.",
+    "add.genLabel": "L'indirizzo del tuo progetto",
+    "add.genPreview": "Anteprima",
+    "add.genEmpty": "Incolla un indirizzo qui sopra e il tuo badge comparirà qui.",
+    "add.genMd": "Markdown, per un README",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "Cosa succede quando qualcuno lo tocca",
+    "add.how1Title": "Il badge apre questa pagina",
+    "add.how1Body": "Porta con sé l'indirizzo del tuo progetto, e nient'altro. Nessun account, nessun tracciamento, nessuna richiesta a un nostro server.",
+    "add.how2Title": "La pagina lo passa a Omnify",
+    "add.how2Body": "Omnify si apre sulla schermata di aggiunta sorgente, già compilata. Chi legge decide se seguire il progetto e se installare qualcosa.",
+    "add.how3Title": "Oppure propone prima di ottenere Omnify",
+    "add.how3Body": "Se non risponde nulla, nessuno resta su un link morto: la pagina dice che Omnify non c'è ancora e indica dove scaricarlo.",
+
+    "add.noteTitle": "Funzionano anche gli account interi",
+    "add.noteBody": "Un indirizzo che punta a un account invece che a un singolo progetto propone di seguire in un colpo solo tutti i suoi progetti che pubblicano release. GitHub, GitLab, Codeberg e istanze auto-ospitate di Gitea o Forgejo sono tutti riconosciuti.",
+
     "footer.about": "Mantenuta da <a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a>. Costruita su <a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a> di LooKeR, a sua volta nato da <a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a> di kitsunyan. Un grande grazie a entrambi.",
     "footer.project": "Progetto",
     "footer.source": "Codice sorgente",
@@ -1599,6 +2038,7 @@ window.OMNIFY_I18N = {
     "footer.help": "Aiuto",
     "footer.issues": "Problemi",
     "footer.report": "Segnala un bug",
+    "footer.badge": "Badge Omnify",
     "footer.verify": "Verifica una build",
     "footer.license": "Software libero con licenza GNU General Public License v3.0 o successiva.",
     "footer.icons": "Icone di <a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>."
@@ -1723,6 +2163,45 @@ window.OMNIFY_I18N = {
     "dl.copyAria": "Vingerafdruk kopiëren",
     "dl.copiedAria": "Vingerafdruk gekopieerd",
 
+    "add.metaTitle": "Een project openen in Omnify",
+    "add.metaDesc": "Volg een project op GitHub, GitLab, Codeberg, Gitea of Forgejo in Omnify met één tik, en zet de Get it on Omnify-badge op je eigen project.",
+
+    "add.openTitle": "Open dit project <span class=\"grad\">in Omnify</span>.",
+    "add.openLede": "Volg het in Omnify om het nu te installeren en bij elke volgende release een melding te krijgen, geen bron nodig.",
+    "add.openBtn": "Omnify openen",
+    "add.whatIs": "Wat is deze link?",
+
+    "add.failTitle": "Er ging niets open?",
+    "add.failBody": "Omnify moet op dit apparaat geïnstalleerd zijn om de link te kunnen ontvangen. Installeer het, kom hier terug en druk nogmaals op de knop.",
+    "add.getOmnify": "Omnify halen",
+
+    "add.badTitle": "Er zit geen project in deze link",
+    "add.badBody": "Hij hoort het adres te bevatten van een project op GitHub, GitLab, Codeberg, of een zelf gehoste Gitea- of Forgejo-instantie.",
+
+    "add.docEyebrow": "Voor beheerders",
+    "add.docTitle": "Van je README <span class=\"grad\">naar Omnify</span>, met één tik.",
+    "add.docLede": "Zet een badge op je project en iedereen die het leest kan je releases in Omnify volgen zonder een adres over te typen. Het kost je twee regels in een README en helemaal niets in je build.",
+    "add.docCta": "Mijn badge maken",
+
+    "add.genTitle": "Maak je badge",
+    "add.genBody": "Plak het adres van je project. Alles hieronder werkt bij terwijl je typt, en niets van wat je typt verlaat deze pagina.",
+    "add.genLabel": "Het adres van je project",
+    "add.genPreview": "Voorbeeld",
+    "add.genEmpty": "Plak hierboven een adres, dan verschijnt je badge hier.",
+    "add.genMd": "Markdown, voor een README",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "Wat er gebeurt als iemand erop tikt",
+    "add.how1Title": "De badge opent deze pagina",
+    "add.how1Body": "Die draagt het adres van je project, en verder niets. Geen account, geen tracking, geen verzoek aan welke server van ons dan ook.",
+    "add.how2Title": "De pagina geeft het door aan Omnify",
+    "add.how2Body": "Omnify opent op het scherm om een bron toe te voegen, al ingevuld. De lezer beslist of het project gevolgd wordt en of er iets geïnstalleerd wordt.",
+    "add.how3Title": "Of biedt eerst aan om Omnify te halen",
+    "add.how3Body": "Antwoordt er niets, dan blijft de lezer niet op een dode link achter: de pagina zegt dat Omnify er nog niet is en wijst naar de download.",
+
+    "add.noteTitle": "Hele accounts kunnen ook",
+    "add.noteBody": "Een adres dat naar een account wijst in plaats van naar één project biedt aan om in één keer al zijn projecten met releases te volgen. GitHub, GitLab, Codeberg en zelf gehoste Gitea- of Forgejo-instanties worden allemaal begrepen.",
+
     "footer.about": "Onderhouden door <a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a>. Gebouwd op <a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a> van LooKeR, dat op zijn beurt groeide uit <a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a> van kitsunyan. Grote dank aan beiden.",
     "footer.project": "Project",
     "footer.source": "Broncode",
@@ -1732,6 +2211,7 @@ window.OMNIFY_I18N = {
     "footer.help": "Hulp",
     "footer.issues": "Issues",
     "footer.report": "Meld een bug",
+    "footer.badge": "Omnify-badge",
     "footer.verify": "Verifieer een build",
     "footer.license": "Vrije software onder de GNU General Public License v3.0 of later.",
     "footer.icons": "Iconen door <a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>."
@@ -1856,6 +2336,45 @@ window.OMNIFY_I18N = {
     "dl.copyAria": "フィンガープリントをコピー",
     "dl.copiedAria": "フィンガープリントをコピーしました",
 
+    "add.metaTitle": "Omnifyでプロジェクトを開く",
+    "add.metaDesc": "GitHub、GitLab、Codeberg、GiteaまたはForgejoのプロジェクトを、ワンタップでOmnifyから追跡できます。自分のプロジェクトにGet it on Omnifyバッジを設置することもできます。",
+
+    "add.openTitle": "このプロジェクトを<span class=\"grad\">Omnifyで開く</span>。",
+    "add.openLede": "Omnifyでこのプロジェクトを追跡すると、今すぐインストールでき、その後の新しいリリースのたびに通知が届きます。リポジトリは不要です。",
+    "add.openBtn": "Omnifyを開く",
+    "add.whatIs": "このリンクは何ですか",
+
+    "add.failTitle": "何も開きませんでしたか",
+    "add.failBody": "リンクが届くには、この端末にOmnifyがインストールされている必要があります。インストールしてからこのページに戻り、もう一度ボタンを押してください。",
+    "add.getOmnify": "Omnifyを入手",
+
+    "add.badTitle": "このリンクにはプロジェクトが含まれていません",
+    "add.badBody": "GitHub、GitLab、Codeberg、または自前ホストのGiteaやForgejo上にあるプロジェクトのアドレスが必要です。",
+
+    "add.docEyebrow": "メンテナーの方へ",
+    "add.docTitle": "READMEから<span class=\"grad\">Omnifyへ</span>、ワンタップで。",
+    "add.docLede": "プロジェクトにバッジを設置すれば、読んだ人はアドレスを手で写すことなくOmnifyでリリースを追跡できます。READMEの2行だけで済み、ビルドには何の影響もありません。",
+    "add.docCta": "バッジを作る",
+
+    "add.genTitle": "バッジを作成",
+    "add.genBody": "プロジェクトのアドレスを貼り付けてください。以下は入力に合わせて更新され、入力した内容がこのページの外に出ることはありません。",
+    "add.genLabel": "プロジェクトのアドレス",
+    "add.genPreview": "プレビュー",
+    "add.genEmpty": "上にアドレスを貼り付けると、ここにバッジが表示されます。",
+    "add.genMd": "Markdown（README用）",
+    "add.genHtml": "HTML",
+
+    "add.howTitle": "タップされたときに起きること",
+    "add.how1Title": "バッジがこのページを開きます",
+    "add.how1Body": "このページが運ぶのはプロジェクトのアドレスだけです。アカウントも追跡もなく、こちらのサーバーへの通信も一切ありません。",
+    "add.how2Title": "ページがOmnifyに引き渡します",
+    "add.how2Body": "入力済みのソース追加画面でOmnifyが開きます。プロジェクトを追跡するか、何かをインストールするかは読んだ人が決めます。",
+    "add.how3Title": "または先にOmnifyの入手を案内します",
+    "add.how3Body": "応答がない場合でも、リンク切れのまま放置されることはありません。Omnifyがまだ入っていないことを伝え、ダウンロード先を案内します。",
+
+    "add.noteTitle": "アカウント全体にも対応",
+    "add.noteBody": "単一のプロジェクトではなくアカウントを指すアドレスの場合、そのアカウントでリリースを公開している全プロジェクトをまとめて追跡するよう提案します。GitHub、GitLab、Codeberg、そして自前ホストのGiteaやForgejoのいずれにも対応しています。",
+
     "footer.about": "<a href=\"https://github.com/Victor-root\" target=\"_blank\" rel=\"noopener\">Victor-root</a>によってメンテナンスされています。LooKeR氏による<a href=\"https://github.com/Droid-ify/client\" target=\"_blank\" rel=\"noopener\">Droid-ify</a>を基盤としており、Droid-ify自体はkitsunyan氏による<a href=\"https://github.com/kitsunyan/foxy-droid\" target=\"_blank\" rel=\"noopener\">Foxy-Droid</a>から発展したものです。お二人に心から感謝します。",
     "footer.project": "プロジェクト",
     "footer.source": "ソースコード",
@@ -1865,6 +2384,7 @@ window.OMNIFY_I18N = {
     "footer.help": "ヘルプ",
     "footer.issues": "イシュー",
     "footer.report": "不具合を報告",
+    "footer.badge": "Omnifyバッジ",
     "footer.verify": "ビルドを検証",
     "footer.license": "GNU General Public License v3.0以降の下で公開されている自由ソフトウェアです。",
     "footer.icons": "アイコン：<a href=\"https://tabler.io/icons\" target=\"_blank\" rel=\"noopener\">Tabler</a>"
