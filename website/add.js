@@ -49,22 +49,6 @@
     return project ? project.owner + "/" + project.repo : "";
   }
 
-  /* A couple of guesses at the project's real launcher icon, tried in order by the caller. Limited to
-     GitHub, and to the one path every Android Studio template writes regardless of whether the app
-     also ships an adaptive icon (see AdaptiveIconComposer on the app side for what a *reliable* read
-     of one takes: parsing XML layers and rendering paths, well beyond what belongs in a static page).
-     This is a best-effort decoration, not a claim of completeness. GitLab, Codeberg and self-hosted
-     Gitea/Forgejo raw-file URLs vary too much by branch-naming convention to guess safely, and a
-     wrong image would be worse than the plain initial tile every candidate here can safely fall back
-     to. */
-  function iconCandidates(target) {
-    var parsed = parseProject(target);
-    if (!parsed || (parsed.host && parsed.host !== "github.com")) return [];
-    var base = "https://raw.githubusercontent.com/" + parsed.owner + "/" + parsed.repo +
-      "/HEAD/app/src/main/res/mipmap-";
-    return [base + "xxxhdpi/ic_launcher.png", base + "xxhdpi/ic_launcher.png"];
-  }
-
   /* ---------- Someone tapped a badge ---------- */
 
   if (project) {
@@ -78,23 +62,29 @@
     } else {
       document.getElementById("add-target-name").textContent = parsed.repo;
 
-      /* The initial shows immediately so the tile is never empty; a real icon (see iconCandidates)
-         quietly replaces it if and when one loads, so a slow or failing fetch is never something the
-         reader is left waiting on or staring at a broken image for. */
+      /* The initial shows immediately so the tile is never empty; the real icon (see icon.js, loaded
+         before this) quietly replaces it if and when composing one succeeds, so neither a slow attempt
+         nor a project this can't read anything from is ever something the reader waits on or sees
+         half-drawn. The tile pulses for exactly as long as that attempt is in flight (see styles.css)
+         so the wait itself looks intentional instead of like nothing is happening. */
+      var iconEl = document.getElementById("add-target-icon");
       var initialEl = document.getElementById("add-target-initial");
       var imgEl = document.getElementById("add-target-img");
       initialEl.textContent = parsed.repo.charAt(0).toUpperCase();
-      (function tryNextIcon(candidates, index) {
-        if (index >= candidates.length) return;
-        imgEl.onerror = function () {
-          tryNextIcon(candidates, index + 1);
-        };
-        imgEl.onload = function () {
-          imgEl.hidden = false;
-          initialEl.hidden = true;
-        };
-        imgEl.src = candidates[index];
-      })(iconCandidates(project), 0);
+      if (window.OmnifyComposeIcon) {
+        iconEl.classList.add("is-loading");
+        window.OmnifyComposeIcon(parsed.owner, parsed.repo).then(function (dataUrl) {
+          if (!dataUrl) {
+            iconEl.classList.remove("is-loading");
+            return;
+          }
+          imgEl.onload = function () {
+            iconEl.classList.remove("is-loading");
+            iconEl.classList.add("icon-ready");
+          };
+          imgEl.src = dataUrl;
+        });
+      }
 
       var link = appLink(project);
       var button = document.getElementById("add-open-btn");

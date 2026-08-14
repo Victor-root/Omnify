@@ -9,6 +9,10 @@
 <meta name="theme-color" content="#f7faf8" media="(prefers-color-scheme: light)">
 <link rel="icon" href="assets/omnify-logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
+<!-- The real icon (see icon.js) reads both these hosts; starting the connection now instead of on
+     its first fetch overlaps the handshake with the rest of the page loading. -->
+<link rel="preconnect" href="https://api.github.com" crossorigin>
+<link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
 <meta property="og:title" content="Open a project in Omnify">
 <meta property="og:description" content="Follow a project in Omnify in one tap, and put the Get it on Omnify badge on your own.">
 <meta property="og:type" content="website">
@@ -108,7 +112,7 @@
     <div id="add-ok">
       <div class="add-target">
         <span class="add-target-icon" id="add-target-icon" aria-hidden="true">
-          <img id="add-target-img" alt="" hidden>
+          <img id="add-target-img" alt="">
           <span id="add-target-initial"></span>
         </span>
         <p class="add-target-name" id="add-target-name"></p>
@@ -288,6 +292,7 @@
 <script src="i18n.js"></script>
 <script src="accents.js"></script>
 <script src="script.js"></script>
+<script src="icon.js"></script>
 <script src="add.js"></script>
 </body>
 </html>
