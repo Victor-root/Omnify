@@ -22,6 +22,17 @@
      no JavaScript at all, the documentation is what shows, which is the useful default. */
   if (new URLSearchParams(window.location.search).get("url")) {
     document.documentElement.className += " mode-open";
+    /* Omnify is Android only, so the prompt itself only makes sense on a phone: a badge is usually
+       tapped from a README, and a README is read on a computer at least as often as on a phone. A
+       desktop visitor gets a QR code to continue there instead (see add.js); anything this can't
+       confidently place as one or the other stays on the phone flow, which is what already ships
+       today and fails safely (a button that quietly does nothing until the "nothing opened?" card
+       explains why), rather than risk showing a QR code to the one visitor this page most has to
+       serve right on their phone. */
+    var ua = navigator.userAgent || "";
+    var isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+    var isDesktop = !isMobile && /Windows|Macintosh|Linux/i.test(ua);
+    if (isDesktop) document.documentElement.className += " mode-desktop";
   }
 </script>
 </head>
@@ -118,22 +129,41 @@
         <p class="add-target-name" id="add-target-name"></p>
       </div>
 
-      <p class="lede" data-i18n="add.openLede">Follow it in Omnify to install it now and get notified about every release after, no repository needed.</p>
+      <div class="only-mobile">
+        <p class="lede" data-i18n="add.openLede">Follow it in Omnify to install it now and get notified about every release after, no repository needed.</p>
 
-      <div class="hero-cta">
-        <a class="btn btn-primary btn-lg" id="add-open-btn" href="#">
-          <svg class="ico" viewBox="0 0 24 24"><use href="#i-device-mobile"/></svg>
-          <span data-i18n="add.openBtn">Open Omnify</span>
-        </a>
-        <a class="btn btn-ghost" href="add.html">
-          <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
-          <span data-i18n="add.whatIs">What is this link?</span>
-        </a>
+        <div class="hero-cta">
+          <a class="btn btn-primary btn-lg" id="add-open-btn" href="#">
+            <svg class="ico" viewBox="0 0 24 24"><use href="#i-device-mobile"/></svg>
+            <span data-i18n="add.openBtn">Open Omnify</span>
+          </a>
+          <a class="btn btn-ghost" href="add.html">
+            <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
+            <span data-i18n="add.whatIs">What is this link?</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Omnify is Android only: a desktop visitor hands the project to a phone instead of opening
+           it here (see the mode-desktop check in <head> and the QR generation in add.js). -->
+      <div class="only-desktop">
+        <p class="lede" data-i18n="add.qrLede">Omnify is an Android app. Scan this with your phone's camera to continue there.</p>
+
+        <div class="add-qr" id="add-qr" aria-hidden="true"></div>
+
+        <div class="hero-cta">
+          <a class="btn btn-ghost" href="add.html">
+            <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
+            <span data-i18n="add.whatIs">What is this link?</span>
+          </a>
+        </div>
       </div>
     </div>
 
-    <!-- Revealed only if the app never came to the front, so a link that worked doesn't get nagged at. -->
-    <div class="add-fallback" id="add-fallback" hidden>
+    <!-- Revealed only if the app never came to the front, so a link that worked doesn't get nagged at.
+         Mobile only: the desktop flow above never attempts to open anything here, so there is nothing
+         for it to fail at. -->
+    <div class="add-fallback only-mobile" id="add-fallback" hidden>
       <h2><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-alert"/></svg> <span data-i18n="add.failTitle">Nothing opened?</span></h2>
       <p data-i18n="add.failBody">Omnify has to be installed on this device for the link to reach it. Install it, come back here, and press the button again.</p>
       <a class="btn btn-primary" href="index.html#download">
@@ -293,6 +323,7 @@
 <script src="accents.js"></script>
 <script src="script.js"></script>
 <script src="icon.js"></script>
+<script src="qrcode.js"></script>
 <script src="add.js"></script>
 </body>
 </html>

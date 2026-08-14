@@ -49,6 +49,20 @@
     return project ? project.owner + "/" + project.repo : "";
   }
 
+  /* Reads a string already picked by script.js (see its own translate()), for the one piece of copy
+     generated here that needs one: the QR code's accessible description. Not worth exposing script.js's
+     own lookup for a single caller; this mirrors it against the same dictionary and the same lang
+     attribute script.js already sets on <html> once it has run, which it has by the time this file
+     loads (see add.html's script order). */
+  function t(key) {
+    var lang = document.documentElement.getAttribute("lang") || "en";
+    var dict = window.OMNIFY_I18N || {};
+    var table = dict[lang] || {};
+    if (typeof table[key] === "string") return table[key];
+    var fallback = dict.en || {};
+    return typeof fallback[key] === "string" ? fallback[key] : "";
+  }
+
   /* ---------- Someone tapped a badge ---------- */
 
   if (project) {
@@ -86,75 +100,89 @@
         });
       }
 
-      var link = appLink(project);
-      var button = document.getElementById("add-open-btn");
-      var fallback = document.getElementById("add-fallback");
+      /* Omnify is Android only (see the mode-desktop check in add.html's head): on a phone, the
+         block below tries to open it directly; on a desktop, there is nothing to open, so a QR code
+         hands the same address to whatever the reader scans it with, landing them on this exact page
+         again but on their phone, where this same block runs and takes it from there. */
+      if (document.documentElement.classList.contains("mode-desktop")) {
+        var qrTarget = document.getElementById("add-qr");
+        if (qrTarget && window.qrcode) {
+          var qr = window.qrcode(0, "M");
+          qr.addData(pageLink(project));
+          qr.make();
+          qrTarget.innerHTML = qr.createSvgTag({ scalable: true, alt: t("add.qrAlt") });
+        }
+      } else {
+        var link = appLink(project);
+        var button = document.getElementById("add-open-btn");
+        var fallback = document.getElementById("add-fallback");
 
-      /* A real href rather than a click handler, so opening the app is an ordinary navigation the
-         reader asked for. That is the one form a browser never second-guesses, and it keeps working
-         with this script disabled entirely. */
-      button.href = link;
+        /* A real href rather than a click handler, so opening the app is an ordinary navigation the
+           reader asked for. That is the one form a browser never second-guesses, and it keeps working
+           with this script disabled entirely. */
+        button.href = link;
 
-      /* The app coming to the front puts this page in the background. Watched so a link that worked
-         is never followed by a message telling its reader it didn't.
+        /* The app coming to the front puts this page in the background. Watched so a link that worked
+           is never followed by a message telling its reader it didn't.
 
-         Deliberately only the two signals that mean this page genuinely stopped being on screen. A
-         plain window blur was tried and dropped: it also fires for things that are none of this
-         page's business, and every false positive here silently withholds the download link from
-         someone who does not have the app, which is the one reader this page has to serve. */
-      var opened = false;
-      function markOpened() {
-        opened = true;
-      }
-      document.addEventListener("visibilitychange", function () {
-        if (document.hidden) markOpened();
-      });
-      window.addEventListener("pagehide", markOpened);
+           Deliberately only the two signals that mean this page genuinely stopped being on screen. A
+           plain window blur was tried and dropped: it also fires for things that are none of this
+           page's business, and every false positive here silently withholds the download link from
+           someone who does not have the app, which is the one reader this page has to serve. */
+        var opened = false;
+        function markOpened() {
+          opened = true;
+        }
+        document.addEventListener("visibilitychange", function () {
+          if (document.hidden) markOpened();
+        });
+        window.addEventListener("pagehide", markOpened);
 
-      /* Tried once unasked, since tapping the badge already said what the reader wants, but through
-         a throwaway frame rather than by navigating this page. Sending the page itself to a scheme
-         nothing answers can strand it on a browser error, which would take away the very fallback
-         below that this page exists to offer. A frame can only fail quietly, and where the browser
-         declines to act on it at all, the button is unaffected. */
-      try {
-        var probe = document.createElement("iframe");
-        probe.hidden = true;
-        probe.setAttribute("aria-hidden", "true");
-        probe.style.display = "none";
-        probe.src = link;
-        document.body.appendChild(probe);
-        window.setTimeout(function () {
-          if (probe.parentNode) probe.parentNode.removeChild(probe);
-        }, 1500);
-      } catch (ignored) {
-        /* No frame, no attempt: the button below is the reliable path either way. */
-      }
+        /* Tried once unasked, since tapping the badge already said what the reader wants, but through
+           a throwaway frame rather than by navigating this page. Sending the page itself to a scheme
+           nothing answers can strand it on a browser error, which would take away the very fallback
+           below that this page exists to offer. A frame can only fail quietly, and where the browser
+           declines to act on it at all, the button is unaffected. */
+        try {
+          var probe = document.createElement("iframe");
+          probe.hidden = true;
+          probe.setAttribute("aria-hidden", "true");
+          probe.style.display = "none";
+          probe.src = link;
+          document.body.appendChild(probe);
+          window.setTimeout(function () {
+            if (probe.parentNode) probe.parentNode.removeChild(probe);
+          }, 1500);
+        } catch (ignored) {
+          /* No frame, no attempt: the button below is the reliable path either way. */
+        }
 
-      /* Worded as a question rather than a verdict, because a browser that quietly refused the
-         attempt above is indistinguishable here from one where the app simply isn't installed.
-         Either way, where to get Omnify is the useful thing to show. Held back while the reader may
-         still be looking at the app, and pushed back again whenever they ask to open it.
+        /* Worded as a question rather than a verdict, because a browser that quietly refused the
+           attempt above is indistinguishable here from one where the app simply isn't installed.
+           Either way, where to get Omnify is the useful thing to show. Held back while the reader may
+           still be looking at the app, and pushed back again whenever they ask to open it.
 
-         The page is trimmed to fit a phone screen without scrolling (see styles.css), which means
-         this card, appearing later, lands below the fold more often than not. Scrolled into view
-         itself rather than left for the reader to go hunting for, since a fallback nobody sees is no
-         fallback at all. */
-      var reveal;
-      function armFallback() {
-        window.clearTimeout(reveal);
-        reveal = window.setTimeout(function () {
-          if (!opened && !document.hidden) {
-            fallback.hidden = false;
-            fallback.scrollIntoView({ behavior: "smooth", block: "start" });
-          }
-        }, 2500);
-      }
-      button.addEventListener("click", function () {
-        opened = false;
-        fallback.hidden = true;
+           The page is trimmed to fit a phone screen without scrolling (see styles.css), which means
+           this card, appearing later, lands below the fold more often than not. Scrolled into view
+           itself rather than left for the reader to go hunting for, since a fallback nobody sees is no
+           fallback at all. */
+        var reveal;
+        function armFallback() {
+          window.clearTimeout(reveal);
+          reveal = window.setTimeout(function () {
+            if (!opened && !document.hidden) {
+              fallback.hidden = false;
+              fallback.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }, 2500);
+        }
+        button.addEventListener("click", function () {
+          opened = false;
+          fallback.hidden = true;
+          armFallback();
+        });
         armFallback();
-      });
-      armFallback();
+      }
     }
   }
 

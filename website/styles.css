@@ -1214,6 +1214,32 @@ a { color: inherit; }
 .mode-open #open .lede { margin-top: 16px; }
 .mode-open #open .hero-cta { margin-top: 22px; }
 
+/* Which half of the prompt a reader gets: Omnify only runs on Android, so the hand-off itself only
+   works on a phone. Desktop is detected once, before paint, the same way mode-open is (see add.html's
+   head); anything the check can't confidently place stays on the phone half below, since that already
+   ships today and fails safely, unlike a QR code shown to a reader already on their phone. */
+.only-desktop { display: none; }
+.mode-desktop .only-desktop { display: block; }
+.mode-desktop .only-mobile { display: none; }
+
+/* A fixed light card regardless of theme: a QR scanner expects dark modules on a light background,
+   and the library that draws them (see qrcode.js) already bakes in black-on-white for exactly that
+   reason, so the card around it stays light too rather than fighting its own content in dark mode. */
+.add-qr {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0 0;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.add-qr svg {
+  display: block;
+  width: 176px;
+  height: 176px;
+}
+
 /* The project a badge is asking to follow: its real icon where one could be guessed at (see add.js),
    and the repo name, never the raw address. A URL never made a reader understand what this handed
    off at a glance the way a name next to a real (or plausible-looking) icon does. */

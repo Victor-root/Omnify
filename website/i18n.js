@@ -202,6 +202,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "Open this project <span class=\"grad\">in Omnify</span>.",
     "add.openLede": "Follow it in Omnify to install it now and get notified about every release after, no repository needed.",
     "add.openBtn": "Open Omnify",
+    "add.qrLede": "Omnify is an Android app. Scan this with your phone's camera to continue there.",
+    "add.qrAlt": "QR code that opens this project in Omnify on your phone.",
     "add.whatIs": "What is this link?",
 
     "add.failTitle": "Nothing opened?",
@@ -439,6 +441,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "Ouvrir ce projet <span class=\"grad\">dans Omnify</span>.",
     "add.openLede": "Suivez-le dans Omnify pour l'installer maintenant et être prévenu à chaque nouvelle publication, sans besoin de dépôt.",
     "add.openBtn": "Ouvrir Omnify",
+    "add.qrLede": "Omnify est une application Android. Scannez ce code avec l'appareil photo de votre téléphone pour continuer là-bas.",
+    "add.qrAlt": "Code QR qui ouvre ce projet dans Omnify sur votre téléphone.",
     "add.whatIs": "C'est quoi, ce lien ?",
 
     "add.failTitle": "Rien ne s'est ouvert ?",
@@ -612,6 +616,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "Dieses Projekt <span class=\"grad\">in Omnify öffnen</span>.",
     "add.openLede": "Folgen Sie ihm in Omnify, um es jetzt zu installieren und bei jedem weiteren Release benachrichtigt zu werden, kein Repository nötig.",
     "add.openBtn": "Omnify öffnen",
+    "add.qrLede": "Omnify ist eine Android-App. Scannen Sie diesen Code mit der Kamera Ihres Smartphones, um dort fortzufahren.",
+    "add.qrAlt": "QR-Code, der dieses Projekt auf Ihrem Smartphone in Omnify öffnet.",
     "add.whatIs": "Was ist dieser Link?",
 
     "add.failTitle": "Es hat sich nichts geöffnet?",
@@ -785,6 +791,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "Открыть этот проект <span class=\"grad\">в Omnify</span>.",
     "add.openLede": "Подпишитесь на него в Omnify, чтобы установить прямо сейчас и получать уведомления о каждом новом релизе, без репозитория.",
     "add.openBtn": "Открыть Omnify",
+    "add.qrLede": "Omnify работает на Android. Отсканируйте этот код камерой телефона, чтобы продолжить там.",
+    "add.qrAlt": "QR-код, открывающий этот проект в Omnify на вашем телефоне.",
     "add.whatIs": "Что это за ссылка?",
 
     "add.failTitle": "Ничего не открылось?",
@@ -958,6 +966,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "<span class=\"grad\">在 Omnify 中</span>打开此项目。",
     "add.openLede": "在 Omnify 中关注它，立即安装，并在此后每次发布新版本时收到通知，无需仓库。",
     "add.openBtn": "打开 Omnify",
+    "add.qrLede": "Omnify 是一款 Android 应用。用手机相机扫描这个二维码以继续。",
+    "add.qrAlt": "用于在手机上通过 Omnify 打开此项目的二维码。",
     "add.whatIs": "这是什么链接？",
 
     "add.failTitle": "没有任何反应？",
@@ -1131,6 +1141,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "Otwórz ten projekt <span class=\"grad\">w Omnify</span>.",
     "add.openLede": "Zacznij śledzić go w Omnify, aby zainstalować teraz i dostawać powiadomienia o każdym kolejnym wydaniu, bez potrzeby repozytorium.",
     "add.openBtn": "Otwórz Omnify",
+    "add.qrLede": "Omnify to aplikacja na Androida. Zeskanuj ten kod aparatem telefonu, aby kontynuować tam.",
+    "add.qrAlt": "Kod QR, który otwiera ten projekt w Omnify na Twoim telefonie.",
     "add.whatIs": "Czym jest ten odnośnik?",
 
     "add.failTitle": "Nic się nie otworzyło?",
@@ -1304,6 +1316,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "Abrir este projeto <span class=\"grad\">no Omnify</span>.",
     "add.openLede": "Acompanhe-o no Omnify para instalar agora e ser avisado a cada novo lançamento depois, sem precisar de repositório.",
     "add.openBtn": "Abrir o Omnify",
+    "add.qrLede": "O Omnify é um aplicativo Android. Escaneie este código com a câmera do seu celular para continuar por lá.",
+    "add.qrAlt": "Código QR que abre este projeto no Omnify no seu celular.",
     "add.whatIs": "O que é este link?",
 
     "add.failTitle": "Nada abriu?",
@@ -1477,6 +1491,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "Abrir este proyecto <span class=\"grad\">en Omnify</span>.",
     "add.openLede": "Síguelo en Omnify para instalarlo ahora y que te avise de cada publicación posterior, sin necesitar repositorio.",
     "add.openBtn": "Abrir Omnify",
+    "add.qrLede": "Omnify es una aplicación de Android. Escanea este código con la cámara de tu teléfono para continuar allí.",
+    "add.qrAlt": "Código QR que abre este proyecto en Omnify en tu teléfono.",
     "add.whatIs": "¿Qué es este enlace?",
 
     "add.failTitle": "¿No se ha abierto nada?",
@@ -1650,6 +1666,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "Buka proyek ini <span class=\"grad\">di Omnify</span>.",
     "add.openLede": "Ikuti proyek ini di Omnify untuk memasangnya sekarang dan mendapat notifikasi setiap rilis berikutnya, tanpa perlu repositori.",
     "add.openBtn": "Buka Omnify",
+    "add.qrLede": "Omnify adalah aplikasi Android. Pindai kode ini dengan kamera ponsel Anda untuk melanjutkan di sana.",
+    "add.qrAlt": "Kode QR yang membuka proyek ini di Omnify pada ponsel Anda.",
     "add.whatIs": "Tautan apa ini?",
 
     "add.failTitle": "Tidak ada yang terbuka?",
@@ -1823,6 +1841,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "Bu projeyi <span class=\"grad\">Omnify'da açın</span>.",
     "add.openLede": "Şimdi kurmak ve sonraki her sürümde bildirim almak için Omnify'da takip edin, depo gerekmez.",
     "add.openBtn": "Omnify'ı aç",
+    "add.qrLede": "Omnify bir Android uygulamasıdır. Orada devam etmek için bu kodu telefonunuzun kamerasıyla tarayın.",
+    "add.qrAlt": "Bu projeyi telefonunuzda Omnify ile açan QR kodu.",
     "add.whatIs": "Bu bağlantı nedir?",
 
     "add.failTitle": "Hiçbir şey açılmadı mı?",
@@ -1996,6 +2016,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "Apri questo progetto <span class=\"grad\">in Omnify</span>.",
     "add.openLede": "Seguilo in Omnify per installarlo ora ed essere avvisato a ogni release successiva, senza bisogno di un repository.",
     "add.openBtn": "Apri Omnify",
+    "add.qrLede": "Omnify è un'app Android. Scansiona questo codice con la fotocamera del telefono per continuare lì.",
+    "add.qrAlt": "Codice QR che apre questo progetto in Omnify sul tuo telefono.",
     "add.whatIs": "Cos'è questo link?",
 
     "add.failTitle": "Non si è aperto nulla?",
@@ -2169,6 +2191,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "Open dit project <span class=\"grad\">in Omnify</span>.",
     "add.openLede": "Volg het in Omnify om het nu te installeren en bij elke volgende release een melding te krijgen, geen bron nodig.",
     "add.openBtn": "Omnify openen",
+    "add.qrLede": "Omnify is een Android-app. Scan deze code met de camera van je telefoon om daar verder te gaan.",
+    "add.qrAlt": "QR-code die dit project op je telefoon in Omnify opent.",
     "add.whatIs": "Wat is deze link?",
 
     "add.failTitle": "Er ging niets open?",
@@ -2342,6 +2366,8 @@ window.OMNIFY_I18N = {
     "add.openTitle": "このプロジェクトを<span class=\"grad\">Omnifyで開く</span>。",
     "add.openLede": "Omnifyでこのプロジェクトを追跡すると、今すぐインストールでき、その後の新しいリリースのたびに通知が届きます。リポジトリは不要です。",
     "add.openBtn": "Omnifyを開く",
+    "add.qrLede": "OmnifyはAndroidアプリです。スマートフォンのカメラでこのコードを読み取ると、そちらで続けられます。",
+    "add.qrAlt": "スマートフォンでOmnifyを開き、このプロジェクトを表示するQRコードです。",
     "add.whatIs": "このリンクは何ですか",
 
     "add.failTitle": "何も開きませんでしたか",

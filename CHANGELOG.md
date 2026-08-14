@@ -14,6 +14,7 @@ Device-to-device settings transfer, external-source update accuracy, a redesigne
 - ⚙️ **"Install updates automatically" now actually installs them:** the switch did nothing before. It now downloads and installs everything the Updates tab lists, catalogue and external alike, respecting your sync-network choice.
 - 🏷️ **A "Get it on Omnify" badge any project can use:** a badge in a README now opens Omnify straight on its add-a-source screen, filled in, and adds it right away. Readers without Omnify land on a page showing the project's real icon, pointing at the download instead of a dead link. Maintainers get their snippet from the site's new badge page.
 - ⚙️ **A setting to confirm before adding a shared or badge-linked project**, for anyone who'd rather check the details first: off by default, in Settings › External sources.
+- 📱 **A badge tapped from a computer now hands the project to a phone:** Omnify only runs on Android, so a desktop visitor gets a QR code instead of a button that would do nothing. Scanning it opens the same page on their phone, where it works as it already does today.
 
 ### 🔄 Changed
 - 🔔 **"Notify about updates" now actually notifies.**
