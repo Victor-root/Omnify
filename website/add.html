@@ -124,16 +124,20 @@
 
         <div id="add-ok">
           <div class="add-target">
-            <span class="add-target-icon" id="add-target-icon" aria-hidden="true">
-              <img id="add-target-img" alt="">
-              <span id="add-target-initial"></span>
-            </span>
-            <p class="add-target-name" id="add-target-name"></p>
+            <div class="add-target-head">
+              <span class="add-target-icon" id="add-target-icon" aria-hidden="true">
+                <img id="add-target-img" alt="">
+                <span id="add-target-initial"></span>
+              </span>
+              <p class="add-target-name" id="add-target-name"></p>
+            </div>
+            <!-- Mobile only: what following it means belongs with what it is, one card, rather than
+                 read as two unrelated things stacked on the page. The desktop equivalent (below,
+                 add.qrLede) stays outside the card, next to the QR code it is actually about. -->
+            <p class="lede only-mobile" data-i18n="add.openLede">Follow it in Omnify to install it now and get notified about every release after, no repository needed.</p>
           </div>
 
           <div class="only-mobile">
-            <p class="lede" data-i18n="add.openLede">Follow it in Omnify to install it now and get notified about every release after, no repository needed.</p>
-
             <div class="hero-cta">
               <a class="btn btn-primary btn-lg" id="add-open-btn" href="#">
                 <svg class="ico" viewBox="0 0 24 24"><use href="#i-device-mobile"/></svg>

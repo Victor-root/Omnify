@@ -1285,16 +1285,32 @@ a { color: inherit; }
 
 /* The project a badge is asking to follow: its real icon where one could be guessed at (see add.js),
    and the repo name, never the raw address. A URL never made a reader understand what this handed
-   off at a glance the way a name next to a real (or plausible-looking) icon does. */
+   off at a glance the way a name next to a real (or plausible-looking) icon does. On mobile, what
+   following it actually means (see .lede below) reads as part of the same thought, so it lives in
+   this card too, rather than as separate text loose on the page underneath it. */
 .add-target {
   display: flex;
-  align-items: center;
-  gap: 15px;
+  flex-direction: column;
+  gap: 12px;
   margin: 20px 0 0;
-  padding: 12px 18px;
+  padding: 14px 18px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--surface);
+}
+.add-target-head {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+/* Overrides .lede's own top margin and the extra one #open adds on top of it (see the mode-open rule
+   near the top of this file, #open .lede { margin-top: 16px }), matched here on specificity via the
+   .only-mobile it also carries, rather than relying on this rule simply coming later. Both assume a
+   lede sitting on its own further down the page, spaced away from whatever came before it. In here,
+   the card's own gap already does that job. */
+#open .add-target > .lede.only-mobile {
+  margin-top: 0;
+  max-width: none;
 }
 .add-target-icon {
   position: relative;
