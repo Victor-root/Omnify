@@ -160,20 +160,12 @@
         /* Worded as a question rather than a verdict, because a browser that quietly refused the
            attempt above is indistinguishable here from one where the app simply isn't installed.
            Either way, where to get Omnify is the useful thing to show. Held back while the reader may
-           still be looking at the app, and pushed back again whenever they ask to open it.
-
-           The page is trimmed to fit a phone screen without scrolling (see styles.css), which means
-           this card, appearing later, lands below the fold more often than not. Scrolled into view
-           itself rather than left for the reader to go hunting for, since a fallback nobody sees is no
-           fallback at all. */
+           still be looking at the app, and pushed back again whenever they ask to open it. */
         var reveal;
         function armFallback() {
           window.clearTimeout(reveal);
           reveal = window.setTimeout(function () {
-            if (!opened && !document.hidden) {
-              fallback.hidden = false;
-              fallback.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
+            if (!opened && !document.hidden) fallback.hidden = false;
           }, 2500);
         }
         button.addEventListener("click", function () {

@@ -1313,7 +1313,6 @@ a { color: inherit; }
   border-radius: 18px;
   background: var(--surface-2);
   max-width: 58ch;
-  scroll-margin-top: 76px;
 }
 .add-fallback h2 {
   display: flex;
