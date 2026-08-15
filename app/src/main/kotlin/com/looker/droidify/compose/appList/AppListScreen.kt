@@ -984,6 +984,7 @@ fun AppListScreen(
                         isUpdating = isUpdatingAll,
                         batch = batchUpdate,
                         onClick = viewModel::updateAll,
+                        onCancel = viewModel::cancelUpdateAll,
                     )
                 }
             }
@@ -1344,8 +1345,13 @@ private fun EmptyTabMessage(tab: AppTab) {
 
 /**
  * Full-width "Update all" button at the top of the Updates tab. Downloads and installs every listed
- * catalogue update in one tap. While a batch is running it shows a spinner and is disabled, so a
- * second tap can't queue the same work twice.
+ * catalogue update in one tap.
+ *
+ * While a batch is running it shows its progress and becomes the way to stop it, rather than sitting
+ * disabled. A run can genuinely get stuck with nothing else on screen able to end it: an install
+ * waiting on a system confirmation the user walked away from is never answered, so it holds the queue
+ * behind it until a ten-minute safety timeout, with this button greyed out for the whole of it. A
+ * second tap meaning "stop" is both the obvious reading of a progress button and the only way out.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -1358,10 +1364,10 @@ private fun UpdateAllButton(
     // which is why isUpdating stays the separate source of truth for "a batch is happening".
     batch: BatchUpdateProgress.State?,
     onClick: () -> Unit,
+    onCancel: () -> Unit,
 ) {
     FilledTonalButton(
-        onClick = onClick,
-        enabled = !isUpdating,
+        onClick = if (isUpdating) onCancel else onClick,
         modifier = Modifier
             .fillMaxWidth()
             // TV only: an accent outline around the focused button (no-op on touch); a full-width row
@@ -1386,14 +1392,17 @@ private fun UpdateAllButton(
         Spacer(Modifier.width(8.dp))
         Text(
             text = when {
-                // "Updating 2/7 · 34 %": which app of how many, and how far the whole batch has come.
-                // Built from the label already translated for this state plus plain numbers, so no
-                // new string has to be written and translated for every locale.
+                // "Updating 2/7 · 34 % · Cancel": which app of how many, how far the whole batch has
+                // come, and that tapping stops it. Built from labels already translated for these
+                // states plus plain numbers, so no new string has to be written for every locale.
                 isUpdating && batch != null ->
                     "${stringResource(R.string.updating_all)}  " +
-                        "${batch.position}/${batch.count}  ·  ${batch.overallPercent} %"
+                        "${batch.position}/${batch.count}  ·  ${batch.overallPercent} %  ·  " +
+                        stringResource(R.string.cancel)
 
-                isUpdating -> stringResource(R.string.updating_all)
+                isUpdating ->
+                    "${stringResource(R.string.updating_all)}  ·  ${stringResource(R.string.cancel)}"
+
                 else -> stringResource(R.string.update_all_FORMAT, count)
             },
         )

@@ -18,6 +18,7 @@ import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.extension.asStateFlow
@@ -76,6 +77,7 @@ class AppListViewModel @Inject constructor(
     installedIdentityRepository: InstalledIdentityRepository,
     private val settingsRepository: SettingsRepository,
     batchProgress: BatchUpdateProgress,
+    private val installManager: InstallManager,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -375,6 +377,20 @@ class AppListViewModel @Inject constructor(
         if (isUpdatingAll.value) return
         val packages = updatableApps.value.map { it.packageName.name }
         UpdateAllWorker.updateAll(context, packages)
+    }
+
+    /**
+     * Stops a running batch update: the downloads, and the installs already handed to the queue.
+     *
+     * Both halves matter. Cancelling the worker alone leaves whatever it already queued still going,
+     * and an install waiting on a system confirmation the user never answered (they left the prompt,
+     * so Android reports nothing back) holds every install behind it until the queue's own ten-minute
+     * safety timeout. That is a batch that looks frozen with nothing on screen able to end it, which
+     * is exactly what this offers a way out of.
+     */
+    fun cancelUpdateAll() {
+        UpdateAllWorker.cancel(context)
+        installManager.cancelAll()
     }
 
     /** Every catalogue app the user has favourited (the heart on its own detail screen), feeding both

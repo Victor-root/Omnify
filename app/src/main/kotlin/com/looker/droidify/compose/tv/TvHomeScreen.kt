@@ -339,6 +339,7 @@ fun TvHomeScreen(
                     installedPackages = installedPackages,
                     isUpdatingAll = isUpdatingAll,
                     onUpdateAll = viewModel::updateAll,
+                    onCancelUpdateAll = viewModel::cancelUpdateAll,
                     onAppClick = openApp,
                     restoreFocusId = restoreFocusId,
                     restoreRequester = restoreRequester,
@@ -786,6 +787,7 @@ private fun TvUpdates(
     installedPackages: Set<String>,
     isUpdatingAll: Boolean,
     onUpdateAll: () -> Unit,
+    onCancelUpdateAll: () -> Unit,
     onAppClick: (String) -> Unit,
     restoreFocusId: String? = null,
     restoreRequester: FocusRequester = remember { FocusRequester() },
@@ -799,12 +801,21 @@ private fun TvUpdates(
         restoreRequester = restoreRequester,
         header = {
             if (apps.isNotEmpty()) {
+                // Becomes the way to stop a running batch rather than sitting disabled, same as the
+                // phone screen's own button and for the same reason (see UpdateAllButton): a run can
+                // wedge on a system confirmation nobody answered, and a disabled button leaves a TV
+                // with no way at all to get out of it.
                 Button(
-                    onClick = onUpdateAll,
-                    enabled = !isUpdatingAll,
+                    onClick = if (isUpdatingAll) onCancelUpdateAll else onUpdateAll,
                     modifier = Modifier.tvBringIntoViewOnFocus(),
                 ) {
-                    Text(stringResource(R.string.update_all))
+                    Text(
+                        text = if (isUpdatingAll) {
+                            stringResource(R.string.cancel)
+                        } else {
+                            stringResource(R.string.update_all)
+                        },
+                    )
                 }
             }
         },

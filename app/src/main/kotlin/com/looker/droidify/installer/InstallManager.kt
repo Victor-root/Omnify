@@ -118,6 +118,7 @@ class InstallManager(
 
     infix fun remove(packageName: PackageName) {
         updateState { remove(packageName) }
+        releaseInFlight(packageName, "removed")
     }
 
     /**
@@ -138,6 +139,49 @@ class InstallManager(
 
     infix fun setFailed(packageName: PackageName) {
         updateState { put(packageName, InstallState.Failed) }
+        releaseInFlight(packageName, "reported failed")
+    }
+
+    /**
+     * Cancels every install this manager is holding, running or merely queued. The escape hatch behind
+     * stopping a batch update (see UpdateAllWorker.cancel, which stops the downloads but has no reach
+     * into the queue those downloads feed): stopping the batch has to actually stop, including the
+     * install it already handed over.
+     */
+    fun cancelAll() {
+        log("Cancel all requested", LIFECYCLE_TAG, Log.INFO)
+        installJobs.values.toList().forEach {
+            it.cancel(CancellationException("All installs cancelled"))
+        }
+        // Only what hasn't finished: an install that already succeeded stays Installed, and one still
+        // sitting in the queue is marked here so it is skipped rather than started when its turn comes
+        // (see processItem, which only proceeds on a package still Pending).
+        updateState {
+            val unfinished = filterValues {
+                it == InstallState.Pending || it == InstallState.Installing
+            }.keys.toList()
+            unfinished.forEach { put(it, InstallState.Failed) }
+        }
+    }
+
+    /**
+     * Lets go of [packageName]'s install if one is still running.
+     *
+     * The system's own install result (see SessionInstallerReceiver) is the definitive word on an
+     * install, and it arrives by broadcast rather than through the installer backend that started it.
+     * The backend may still be waiting on a session callback that will now never come, and since
+     * installs run strictly one after another, waiting on it holds every other install behind it for
+     * the whole of [INSTALL_TIMEOUT]. Knowing the outcome and sitting on it for ten more minutes is
+     * what left a batch update looking permanently frozen after a system prompt went unanswered.
+     *
+     * The cancellation is what actually ends the wait; the terminal state itself has already been set
+     * by the caller, and processItem's own cleanup respects it (it only writes a result for a package
+     * still being tracked).
+     */
+    private fun releaseInFlight(packageName: PackageName, reason: String) {
+        val runningJob = installJobs[packageName.name] ?: return
+        log("Release in-flight ($reason): ${packageName.name}", LIFECYCLE_TAG, Log.INFO)
+        runningJob.cancel(CancellationException("Install $reason"))
     }
 
     private fun CoroutineScope.setupInstaller() = launch {

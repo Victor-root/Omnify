@@ -40,6 +40,7 @@ Device-to-device settings transfer, external-source update accuracy, a redesigne
 - 📺 **Focus comes back where you left it on Android TV.**
 - 🔁 **The restore dialog no longer flashes closed and open mid-restore**, and its buttons disable while it works.
 - 🏷️ **An app no longer loses its "Installed via Omnify" tag as easily**, catalogue and external alike. Omnify now keeps its own record of what it installed instead of trusting Android to remember, which it can forget after Omnify itself is reinstalled.
+- 🧊 **"Update all" no longer freezes when you leave Android's install prompt.** Walking away from that prompt (pressing Home, say) means Android answers nothing, and installs run one at a time: the rest of the batch waited behind it for a ten-minute timeout, with the button greyed out the whole time and no way to get out. Omnify now lets go the moment Android does report a result, and while a batch runs the button stops it instead of being disabled, on phone and on Android TV.
 
 ### 🛡️ Security
 - 🔇 **Diagnostic logging no longer runs outside debug builds:** a sweep of every log statement in the app found a large number of development traces (TV focus tracking, remote APK parsing, database queries, update-decision dumps) that ran in release and beta too. They are now limited to debug builds. No credential was ever among them, which was checked specifically; genuine error logging is untouched.
