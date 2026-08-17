@@ -1,8 +1,8 @@
 # 📋 Changelog
 
-## 🚀 v1.0.3-beta.4 (2026-08-11)
+## 🚀 v1.0.3-beta.4 (2026-08-18)
 
-Device-to-device settings transfer, external-source update accuracy, a redesigned sync indicator, and Android TV catching up with favourites and a real sync button.
+Device-to-device settings transfer, a "Get it on Omnify" badge any project can put in its README, four settings that finally do what they say, external-source update accuracy, and Android TV catching up with favourites and a real sync button.
 
 ### ➕ Added
 - 📲 **Send your settings to another device:** Settings › Backup and restore gains "Send my data" / "Receive data", code-paired over the local network, no file needed.
@@ -21,6 +21,7 @@ Device-to-device settings transfer, external-source update accuracy, a redesigne
 - 📶 **"Sync repositories automatically" respects the connection you chose** instead of always syncing on any connection.
 - 🧩 **"Incompatible versions" now shows them**, marked as such, instead of silently hiding them.
 - 🔔 **Install notification says "Updating" instead of "Installing" for an update.**
+- ⏱️ **The "installed" notification stays up ten seconds instead of five**, now that updates can install on their own, with nobody necessarily watching when it appears.
 - 🎬 **Sync indicator moved into the header** instead of a separate banner.
 - 🔀 **Favourites carousel follows your sort order** instead of always grouping catalogue before external.
 - 🔁 **"Rescan" on a whole-account source now shows what it found**, spinner included.
