@@ -175,6 +175,15 @@
         <li data-i18n="sources.t4">Track a whole publisher account at once instead of adding one project at a time.</li>
         <li data-i18n="sources.t5">Per-source settings: custom name, pre-releases, version filters, mute. All included in your backup.</li>
       </ul>
+      <!-- The other side of this section: everything above is what a reader gets out of external
+           sources, this is how someone who publishes an app puts theirs one tap away (see add.html,
+           which was otherwise only reachable from a footer link). -->
+      <div class="copy-cta">
+        <a class="btn btn-ghost" href="add.html">
+          <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
+          <span data-i18n="sources.badge">Add a badge to your own project</span>
+        </a>
+      </div>
     </div>
     <div class="split-visual reveal">
       <div class="card-stack">
@@ -257,7 +266,7 @@
           app is public, anyone can read it, build it, fork it or check that the
           release they installed matches the code they can see.
         </p>
-        <div class="oss-cta">
+        <div class="copy-cta">
           <a class="btn btn-ghost" href="https://github.com/Victor-root/Omnify" target="_blank" rel="noopener">
             <svg class="ico" viewBox="0 0 24 24"><use href="#i-github"/></svg>
             <span data-i18n="oss.browse">Browse the code</span>
@@ -497,6 +506,7 @@
         <h4 data-i18n="footer.help">Help</h4>
         <a href="https://github.com/Victor-root/Omnify/issues" target="_blank" rel="noopener" data-i18n="footer.issues">Issues</a>
         <a href="https://github.com/Victor-root/Omnify/issues/new" target="_blank" rel="noopener" data-i18n="footer.report">Report a bug</a>
+        <a href="add.html" data-i18n="footer.badge">Omnify badge</a>
         <a href="#download" data-i18n="footer.verify">Verify a build</a>
       </div>
     </nav>
