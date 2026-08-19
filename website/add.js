@@ -231,11 +231,11 @@
       var badge = badgeLink();
 
       markdown.textContent = "[![Get it on Omnify](" + badge + ")](" + page + ")";
-      /* Sized in the HTML form because Markdown has nowhere to put a height, and the badge's own
-         400x160 is larger than most READMEs want inline. */
+      /* Neither form carries a size: the badge asset's own width and height are already the size a
+         README wants, so both snippets land at 140x56. Markdown has nowhere to put a height, so any
+         sizing here would only make the two forms disagree. */
       html.textContent =
-        '<a href="' + page + '"><img src="' + badge +
-        '" alt="Get it on Omnify" height="56"></a>';
+        '<a href="' + page + '"><img src="' + badge + '" alt="Get it on Omnify"></a>';
       preview.href = page;
     };
 
