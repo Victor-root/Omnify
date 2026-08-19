@@ -247,6 +247,14 @@ fun AppListScreen(
     LaunchedEffect(selectedTab, searchExpanded) {
         scrollBehavior.state.heightOffset = 0f
     }
+    // An intent asking for a particular tab (the "updates available" notification), read once and
+    // cleared. Goes through selectTab exactly as tapping that tab does, so it lands in the same state.
+    val requestedTab by PendingAppListTab.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(requestedTab) {
+        val tab = requestedTab ?: return@LaunchedEffect
+        viewModel.selectTab(tab)
+        PendingAppListTab.clear()
+    }
 
     // Slide the grid in when the tab changes (by swipe or by tapping a tab), so switching pages feels
     // animated like the rest of the app instead of an instant swap. The new page starts off-screen on

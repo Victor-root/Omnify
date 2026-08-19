@@ -31,6 +31,8 @@ import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.navigation.appDetail
 import com.looker.droidify.compose.appDetail.navigation.navigateToAppDetail
+import com.looker.droidify.compose.appList.AppTab
+import com.looker.droidify.compose.appList.PendingAppListTab
 import com.looker.droidify.compose.appList.navigation.AppList
 import com.looker.droidify.compose.appList.navigation.appList
 import com.looker.droidify.compose.appList.navigation.navigateToAppList
@@ -373,7 +375,18 @@ class MainComposeActivity : ComponentActivity() {
     private fun handleDeeplink(intent: Intent, navController: NavController) {
         try {
             when (intent.action) {
-                ACTION_UPDATES -> navController.navigateToAppList()
+                // The "updates available" notification. Naming the tab as well as the screen: the
+                // notification is about the updates specifically, so landing on Explore (the home
+                // screen's own default tab) leaves the reader to go and find what they were just
+                // told about.
+                ACTION_UPDATES -> {
+                    PendingAppListTab.request(AppTab.UPDATES)
+                    navController.navigateToAppList()
+                    // Consume the launching intent, so an activity recreation (a theme change, say)
+                    // can't pull the reader back to Updates long after they moved on.
+                    intent.action = null
+                    setIntent(intent)
+                }
 
                 Intent.ACTION_VIEW -> when (val deeplink = intent.deeplinkType()) {
                     is DeeplinkType.AppDetail -> navController.navigateToAppDetail(deeplink.packageName)

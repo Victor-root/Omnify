@@ -41,6 +41,7 @@ Device-to-device settings transfer, a "Get it on Omnify" badge any project can p
 - 📺 **Focus comes back where you left it on Android TV.**
 - 🔁 **The restore dialog no longer flashes closed and open mid-restore**, and its buttons disable while it works.
 - 🏷️ **An app no longer loses its "Installed via Omnify" tag as easily**, catalogue and external alike. Omnify now keeps its own record of what it installed instead of trusting Android to remember, which it can forget after Omnify itself is reinstalled.
+- 🔔 **Tapping the "updates available" notification now opens the Updates tab**, instead of the home screen's usual Explore tab, leaving you to go and find what you were just told about.
 - 🧊 **"Update all" no longer freezes when you leave Android's install prompt.** Walking away from that prompt (pressing Home, say) means Android answers nothing, and installs run one at a time: the rest of the batch waited behind it for a ten-minute timeout, with the button greyed out the whole time and no way to get out. Omnify now lets go the moment Android does report a result, and while a batch runs the button stops it instead of being disabled, on phone and on Android TV.
 
 ### 🛡️ Security

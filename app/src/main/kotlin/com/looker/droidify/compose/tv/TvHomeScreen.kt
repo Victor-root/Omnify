@@ -75,6 +75,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appList.AppListViewModel
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appList.AppTab
+import com.looker.droidify.compose.appList.PendingAppListTab
 import com.looker.droidify.compose.appList.restoreFocusTarget
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
@@ -202,6 +203,21 @@ fun TvHomeScreen(
     // (not a plain captured val) specifically so that wait can observe it actually settle rather than
     // the single stale snapshot a suspended coroutine would otherwise see for the rest of its run.
     val hasFavourites = favouriteApps.isNotEmpty() || favouriteExternalApps.isNotEmpty()
+    // An intent asking for a particular tab (the "updates available" notification), read once and
+    // cleared, same as the phone screen does. Clears the focus-restore target for the same reason the
+    // rail does when it switches section: the card being restored belongs to the section being left.
+    val requestedTab by PendingAppListTab.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(requestedTab) {
+        val tab = requestedTab ?: return@LaunchedEffect
+        restoreFocusId = null
+        section = when (tab) {
+            AppTab.AVAILABLE -> TvSection.EXPLORE
+            AppTab.INSTALLED -> TvSection.INSTALLED
+            AppTab.UPDATES -> TvSection.UPDATES
+            AppTab.EXTERNAL -> TvSection.EXTERNAL
+        }
+        PendingAppListTab.clear()
+    }
     // Entering a section hands focus to its content (the rail keeps the section highlighted), so the
     // remote lands on a card instead of nowhere. During the cold-start loader the content has nothing
     // focusable, so focus is parked on the rail instead — Android TV must always have a focused element
