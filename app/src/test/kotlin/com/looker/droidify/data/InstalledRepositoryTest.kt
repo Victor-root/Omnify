@@ -1,6 +1,7 @@
 package com.looker.droidify.data
 
 import app.cash.turbine.test
+import com.looker.droidify.data.local.dao.ConfirmedInstallDao
 import com.looker.droidify.data.local.dao.InstalledDao
 import com.looker.droidify.data.local.model.InstalledEntity
 import com.looker.droidify.model.InstalledItem
@@ -18,12 +19,14 @@ import org.junit.jupiter.api.Test
 class InstalledRepositoryTest {
 
     private lateinit var installedDao: InstalledDao
+    private lateinit var confirmedInstallDao: ConfirmedInstallDao
     private lateinit var repository: InstalledRepository
 
     @BeforeEach
     fun setup() {
         installedDao = mockk(relaxed = true)
-        repository = InstalledRepository(installedDao)
+        confirmedInstallDao = mockk(relaxed = true)
+        repository = InstalledRepository(installedDao, confirmedInstallDao)
     }
 
     private fun testEntity(
@@ -141,5 +144,36 @@ class InstalledRepositoryTest {
 
         assertEquals(1, result)
         coVerify { installedDao.delete("com.example.app") }
+    }
+
+    @Test
+    fun `delete also clears the confirmed install`() = runTest {
+        coEvery { installedDao.delete("com.example.app") } returns 1
+
+        repository.delete("com.example.app")
+
+        coVerify { confirmedInstallDao.delete("com.example.app") }
+    }
+
+    @Test
+    fun `recordConfirmedInstall stores the package and version code`() = runTest {
+        repository.recordConfirmedInstall("com.example.app", 200)
+
+        coVerify {
+            confirmedInstallDao.put(
+                match {
+                    it.packageName == "com.example.app" && it.versionCode == 200L
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `confirmedInstallVersionCode returns what the dao holds`() = runTest {
+        coEvery { confirmedInstallDao.versionCodeOf("com.example.app") } returns 200
+        coEvery { confirmedInstallDao.versionCodeOf("com.example.other") } returns null
+
+        assertEquals(200L, repository.confirmedInstallVersionCode("com.example.app"))
+        assertNull(repository.confirmedInstallVersionCode("com.example.other"))
     }
 }
