@@ -56,6 +56,7 @@
     <g id="i-puzzle"><path d="M4 7h3a1 1 0 0 0 1 -1v-1a2 2 0 0 1 4 0v1a1 1 0 0 0 1 1h3a1 1 0 0 1 1 1v3a1 1 0 0 0 1 1h1a2 2 0 0 1 0 4h-1a1 1 0 0 0 -1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1v-1a2 2 0 0 0 -4 0v1a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1h1a2 2 0 0 0 0 -4h-1a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1"/></g>
     <g id="i-download"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></g>
     <g id="i-device-mobile"><path d="M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14"/><path d="M11 4h2"/><path d="M12 17v.01"/></g>
+    <g id="i-info"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/></g>
   </defs>
 </svg>
 
@@ -143,6 +144,15 @@
                 <svg class="ico" viewBox="0 0 24 24"><use href="#i-device-mobile"/></svg>
                 <span data-i18n="add.openBtn">Open Omnify</span>
               </a>
+              <!-- A badge is usually the first time someone hears the name at all, so the way out of
+                   this page is two questions, not one: what the app is (the home page) and what the
+                   link does (this page's own documentation, further down). Both stay quiet behind
+                   the one green button a phone has; the desktop copy below has no such button, so
+                   the first question carries the accent there instead. -->
+              <a class="btn btn-ghost" href="index.html">
+                <svg class="ico" viewBox="0 0 24 24"><use href="#i-info"/></svg>
+                <span data-i18n="add.whatIsOmnify">What is Omnify?</span>
+              </a>
               <a class="btn btn-ghost" href="add.html">
                 <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
                 <span data-i18n="add.whatIs">What is this link?</span>
@@ -157,6 +167,10 @@
             <p class="lede" data-i18n="add.qrLede">Omnify is an Android app. Scan this with your phone's camera to continue there.</p>
 
             <div class="hero-cta">
+              <a class="btn btn-primary" href="index.html">
+                <svg class="ico" viewBox="0 0 24 24"><use href="#i-info"/></svg>
+                <span data-i18n="add.whatIsOmnify">What is Omnify?</span>
+              </a>
               <a class="btn btn-ghost" href="add.html">
                 <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
                 <span data-i18n="add.whatIs">What is this link?</span>
@@ -176,10 +190,15 @@
           </a>
         </div>
 
-        <!-- Shown instead of everything above when the link carries nothing usable. -->
+        <!-- Shown instead of everything above when the link carries nothing usable, which takes the
+             buttons above with it, so this one carries its own way out. -->
         <div class="add-fallback" id="add-invalid" hidden>
           <h2><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-alert"/></svg> <span data-i18n="add.badTitle">There is no project in this link</span></h2>
           <p data-i18n="add.badBody">It should carry the address of a project on GitHub, GitLab, Codeberg, or a self-hosted Gitea or Forgejo.</p>
+          <a class="btn btn-primary" href="index.html">
+            <svg class="ico" viewBox="0 0 24 24"><use href="#i-info"/></svg>
+            <span data-i18n="add.whatIsOmnify">What is Omnify?</span>
+          </a>
         </div>
       </div>
 

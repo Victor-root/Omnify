@@ -206,6 +206,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "Omnify is an Android app. Scan this with your phone's camera to continue there.",
     "add.qrAlt": "QR code that opens this project in Omnify on your phone.",
     "add.whatIs": "What is this link?",
+    "add.whatIsOmnify": "What is Omnify?",
 
     "add.failTitle": "Nothing opened?",
     "add.failBody": "Omnify has to be installed on this device for the link to reach it. Install it, come back here, and press the button again.",
@@ -446,6 +447,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "Omnify est une application Android. Scannez ce code avec l'appareil photo de votre téléphone pour continuer là-bas.",
     "add.qrAlt": "Code QR qui ouvre ce projet dans Omnify sur votre téléphone.",
     "add.whatIs": "C'est quoi, ce lien ?",
+    "add.whatIsOmnify": "C'est quoi, Omnify ?",
 
     "add.failTitle": "Rien ne s'est ouvert ?",
     "add.failBody": "Omnify doit être installé sur cet appareil pour que le lien lui parvienne. Installez-le, revenez ici, puis appuyez à nouveau sur le bouton.",
@@ -622,6 +624,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "Omnify ist eine Android-App. Scannen Sie diesen Code mit der Kamera Ihres Smartphones, um dort fortzufahren.",
     "add.qrAlt": "QR-Code, der dieses Projekt auf Ihrem Smartphone in Omnify öffnet.",
     "add.whatIs": "Was ist dieser Link?",
+    "add.whatIsOmnify": "Was ist Omnify?",
 
     "add.failTitle": "Es hat sich nichts geöffnet?",
     "add.failBody": "Omnify muss auf diesem Gerät installiert sein, damit der Link ankommt. Installieren Sie es, kommen Sie hierher zurück und tippen Sie erneut auf die Schaltfläche.",
@@ -798,6 +801,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "Omnify работает на Android. Отсканируйте этот код камерой телефона, чтобы продолжить там.",
     "add.qrAlt": "QR-код, открывающий этот проект в Omnify на вашем телефоне.",
     "add.whatIs": "Что это за ссылка?",
+    "add.whatIsOmnify": "Что такое Omnify?",
 
     "add.failTitle": "Ничего не открылось?",
     "add.failBody": "Чтобы ссылка сработала, Omnify должен быть установлен на этом устройстве. Установите его, вернитесь сюда и нажмите кнопку ещё раз.",
@@ -974,6 +978,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "Omnify 是一款 Android 应用。用手机相机扫描这个二维码以继续。",
     "add.qrAlt": "用于在手机上通过 Omnify 打开此项目的二维码。",
     "add.whatIs": "这是什么链接？",
+    "add.whatIsOmnify": "Omnify 是什么？",
 
     "add.failTitle": "没有任何反应？",
     "add.failBody": "此设备需已安装 Omnify，链接才能送达。请先安装，然后返回此页面并再次点击按钮。",
@@ -1150,6 +1155,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "Omnify to aplikacja na Androida. Zeskanuj ten kod aparatem telefonu, aby kontynuować tam.",
     "add.qrAlt": "Kod QR, który otwiera ten projekt w Omnify na Twoim telefonie.",
     "add.whatIs": "Czym jest ten odnośnik?",
+    "add.whatIsOmnify": "Czym jest Omnify?",
 
     "add.failTitle": "Nic się nie otworzyło?",
     "add.failBody": "Aby odnośnik zadziałał, Omnify musi być zainstalowane na tym urządzeniu. Zainstaluj je, wróć tutaj i naciśnij przycisk ponownie.",
@@ -1326,6 +1332,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "O Omnify é um aplicativo Android. Escaneie este código com a câmera do seu celular para continuar por lá.",
     "add.qrAlt": "Código QR que abre este projeto no Omnify no seu celular.",
     "add.whatIs": "O que é este link?",
+    "add.whatIsOmnify": "O que é o Omnify?",
 
     "add.failTitle": "Nada abriu?",
     "add.failBody": "O Omnify precisa estar instalado neste aparelho para o link chegar até ele. Instale, volte aqui e toque no botão de novo.",
@@ -1502,6 +1509,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "Omnify es una aplicación de Android. Escanea este código con la cámara de tu teléfono para continuar allí.",
     "add.qrAlt": "Código QR que abre este proyecto en Omnify en tu teléfono.",
     "add.whatIs": "¿Qué es este enlace?",
+    "add.whatIsOmnify": "¿Qué es Omnify?",
 
     "add.failTitle": "¿No se ha abierto nada?",
     "add.failBody": "Omnify tiene que estar instalado en este dispositivo para que el enlace le llegue. Instálalo, vuelve aquí y pulsa el botón otra vez.",
@@ -1678,6 +1686,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "Omnify adalah aplikasi Android. Pindai kode ini dengan kamera ponsel Anda untuk melanjutkan di sana.",
     "add.qrAlt": "Kode QR yang membuka proyek ini di Omnify pada ponsel Anda.",
     "add.whatIs": "Tautan apa ini?",
+    "add.whatIsOmnify": "Apa itu Omnify?",
 
     "add.failTitle": "Tidak ada yang terbuka?",
     "add.failBody": "Omnify harus terpasang di perangkat ini agar tautannya sampai. Pasang terlebih dahulu, kembali ke sini, lalu tekan tombolnya lagi.",
@@ -1854,6 +1863,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "Omnify bir Android uygulamasıdır. Orada devam etmek için bu kodu telefonunuzun kamerasıyla tarayın.",
     "add.qrAlt": "Bu projeyi telefonunuzda Omnify ile açan QR kodu.",
     "add.whatIs": "Bu bağlantı nedir?",
+    "add.whatIsOmnify": "Omnify nedir?",
 
     "add.failTitle": "Hiçbir şey açılmadı mı?",
     "add.failBody": "Bağlantının ulaşabilmesi için Omnify'ın bu cihazda kurulu olması gerekir. Kurun, buraya dönün ve düğmeye tekrar basın.",
@@ -2030,6 +2040,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "Omnify è un'app Android. Scansiona questo codice con la fotocamera del telefono per continuare lì.",
     "add.qrAlt": "Codice QR che apre questo progetto in Omnify sul tuo telefono.",
     "add.whatIs": "Cos'è questo link?",
+    "add.whatIsOmnify": "Cos'è Omnify?",
 
     "add.failTitle": "Non si è aperto nulla?",
     "add.failBody": "Omnify deve essere installato su questo dispositivo perché il link possa raggiungerlo. Installalo, torna qui e premi di nuovo il pulsante.",
@@ -2206,6 +2217,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "Omnify is een Android-app. Scan deze code met de camera van je telefoon om daar verder te gaan.",
     "add.qrAlt": "QR-code die dit project op je telefoon in Omnify opent.",
     "add.whatIs": "Wat is deze link?",
+    "add.whatIsOmnify": "Wat is Omnify?",
 
     "add.failTitle": "Er ging niets open?",
     "add.failBody": "Omnify moet op dit apparaat geïnstalleerd zijn om de link te kunnen ontvangen. Installeer het, kom hier terug en druk nogmaals op de knop.",
@@ -2382,6 +2394,7 @@ window.OMNIFY_I18N = {
     "add.qrLede": "OmnifyはAndroidアプリです。スマートフォンのカメラでこのコードを読み取ると、そちらで続けられます。",
     "add.qrAlt": "スマートフォンでOmnifyを開き、このプロジェクトを表示するQRコードです。",
     "add.whatIs": "このリンクは何ですか",
+    "add.whatIsOmnify": "Omnifyとは何ですか",
 
     "add.failTitle": "何も開きませんでしたか",
     "add.failBody": "リンクが届くには、この端末にOmnifyがインストールされている必要があります。インストールしてからこのページに戻り、もう一度ボタンを押してください。",
