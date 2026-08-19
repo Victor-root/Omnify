@@ -194,15 +194,46 @@
     <span class="blob b1"></span>
     <span class="blob b2"></span>
   </div>
-  <div class="wrap doc-hero-inner">
-    <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg> <span data-i18n="add.docEyebrow">For maintainers</span></span>
-    <h1 data-i18n-html="add.docTitle">One tap from your README <span class="grad">to Omnify</span>.</h1>
-    <p class="lede" data-i18n="add.docLede">Put a badge on your project and anyone reading it can follow your releases in Omnify without copying an address by hand. It costs you two lines in a README and nothing at all in your build.</p>
-    <div class="hero-cta">
-      <a class="btn btn-primary" href="#generate">
-        <svg class="ico" viewBox="0 0 24 24"><use href="#i-arrow-right"/></svg>
-        <span data-i18n="add.docCta">Build my badge</span>
-      </a>
+  <div class="wrap doc-hero-inner split">
+    <div class="split-copy">
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg> <span data-i18n="add.docEyebrow">For maintainers</span></span>
+      <h1 data-i18n-html="add.docTitle">One tap from your README <span class="grad">to Omnify</span>.</h1>
+      <p class="lede" data-i18n="add.docLede">Put a badge on your project and anyone reading it can follow your releases in Omnify without copying an address by hand. It costs you two lines in a README and nothing at all in your build.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#generate">
+          <svg class="ico" viewBox="0 0 24 24"><use href="#i-arrow-right"/></svg>
+          <span data-i18n="add.docCta">Build my badge</span>
+        </a>
+      </div>
+    </div>
+    <!-- The badge where it actually ends up. This page asks a maintainer to paste two lines into a
+         README, so showing that README is worth more than a decorative shape, and it gives the copy
+         beside it something to sit next to instead of a column alone in the middle of a wide screen.
+         Same card kit as the home page's own sections (see index.html). -->
+    <div class="split-visual reveal">
+      <div class="card-stack">
+        <div class="fake-card">
+          <div class="fake-head">
+            <span class="fake-icon" style="--c:var(--brand);--c-on:var(--brand-on)">
+              <svg class="ico" viewBox="0 0 24 24"><use href="#i-github"/></svg>
+            </span>
+            <div>
+              <strong>owner / project</strong>
+              <span>README.md</span>
+            </div>
+          </div>
+          <div class="readme-mock" aria-hidden="true">
+            <span class="readme-line readme-line-title"></span>
+            <span class="readme-line"></span>
+            <span class="readme-line readme-line-short"></span>
+            <img class="readme-badge" src="assets/get-it-on-omnify.svg" alt="" width="400" height="160">
+            <span class="readme-line"></span>
+            <span class="readme-line readme-line-short"></span>
+          </div>
+        </div>
+        <div class="fake-card fake-card-behind"></div>
+        <div class="fake-card fake-card-behind2"></div>
+      </div>
     </div>
   </div>
 </section>

@@ -1199,6 +1199,21 @@ a { color: inherit; }
 .mode-open .only-open { display: block; }
 .mode-open .only-doc { display: none; }
 
+/* The maintainer half's hero runs two columns, copy beside the README visual, so .doc-hero-inner's
+   reading-width cap (right for a page that is only prose) has to give way: with it, the pair sat as
+   one narrow column stranded in the middle of a wide screen. Back to the site's own width rather than
+   off altogether, since this element carries .wrap too and would otherwise span the whole viewport.
+   .split handles the rest, including collapsing to a single column on a narrow screen. */
+#top.doc-hero .doc-hero-inner { max-width: var(--wrap); }
+
+/* A README with the badge in it, as that hero's visual. Lines rather than lorem ipsum: nothing here
+   is meant to be read, only to place the badge in something recognisable as the file it goes in. */
+.readme-mock { display: grid; gap: 12px; margin-top: 24px; }
+.readme-line { height: 10px; border-radius: 999px; background: var(--border); }
+.readme-line-title { height: 16px; width: 52%; background: var(--border-strong); margin-bottom: 4px; }
+.readme-line-short { width: 74%; }
+.readme-badge { width: 172px; height: auto; margin: 8px 0; }
+
 /* The redirect half is a single-purpose landing page a phone lands on straight from a badge tap, not
    a page anyone browses from: the nav's site links, colour/language pickers and burger menu have
    nothing to do here and only cost the screen height a phone has the least of. Trimmed to the brand
