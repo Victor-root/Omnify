@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import com.google.android.material.color.DynamicColors
+import com.google.android.material.color.MaterialColors
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
 import com.looker.droidify.utility.common.IconAccent
 import com.looker.droidify.utility.common.device.isTelevision
@@ -239,6 +241,44 @@ private fun ColorScheme.withVividAccent(argb: Int, overrideAccentRoles: Boolean 
     )
 }
 
+/**
+ * Derives the container/secondary/tertiary roles from [argb] for a device whose activity theme was
+ * never recoloured in the first place.
+ *
+ * The accent reaches the classic View screens (and, through [toComposeColorScheme], every role Compose
+ * reads back) by recolouring the activity's theme at runtime, which
+ * [com.google.android.material.color.DynamicColors] refuses to do below Android 12: it returns without
+ * touching the activity, leaving the theme exactly as styles.xml declares it. `primary` never showed
+ * that, because [withVividAccent] overwrites it with the accent regardless. Every other accent role
+ * did: on Android 11 a page's buttons, badges and progress tracks stayed the green of the theme this
+ * app inherited from Droid-ify, whatever accent the user had chosen, while the same page on Android 12
+ * followed it. Confirmed on an Android 11 Shield against an Android TV 16 emulator.
+ *
+ * So on those devices the roles are derived here instead, from the same accent, using Material's own
+ * tone mapping. Nothing changes where the theme was genuinely recoloured: [DynamicColors]' own
+ * availability check decides which case applies, so this is exactly the set of devices its recolouring
+ * skipped.
+ */
+private fun ColorScheme.withDerivedAccentRoles(argb: Int, dark: Boolean): ColorScheme {
+    val roles = MaterialColors.getColorRoles(argb, !dark)
+    val accent = Color(roles.accent)
+    val onAccent = Color(roles.onAccent)
+    val container = Color(roles.accentContainer)
+    val onContainer = Color(roles.onAccentContainer)
+    return copy(
+        primaryContainer = container,
+        onPrimaryContainer = onContainer,
+        secondary = accent,
+        onSecondary = onAccent,
+        secondaryContainer = container,
+        onSecondaryContainer = onContainer,
+        tertiary = accent,
+        onTertiary = onAccent,
+        tertiaryContainer = container,
+        onTertiaryContainer = onContainer,
+    )
+}
+
 /** The two accents a black-and-white icon can wear, picked by which one the theme leaves visible. */
 private const val BLACK_ARGB = 0xFF000000.toInt()
 private const val WHITE_ARGB = 0xFFFFFFFF.toInt()
@@ -348,8 +388,14 @@ fun DroidifyTheme(
         // MainComposeActivity.applyAccentColor); read it back for the surface/container roles, but use
         // the accent RAW (vivid) for primary instead of the muted tone-40 Material You derives from it
         // — that washed-out tone is what made the colours look dull. Mirrors the MaterialFiles fork.
+        // Below Android 12 that recolouring never happens and the roles read back are styles.xml's
+        // own, so they are derived from the accent here instead (see withDerivedAccentRoles).
         else -> context.toComposeColorScheme(if (darkTheme) darkScheme else lightScheme)
             .withVividAccent(accentColor)
+            .let {
+                if (DynamicColors.isDynamicColorAvailable()) it
+                else it.withDerivedAccentRoles(accentColor, darkTheme)
+            }
     }.withNeutralSurfaces(darkTheme, amoled)
 
     // The header and system bars use one fixed accent red in BOTH light and dark mode. Material 3
