@@ -1,5 +1,18 @@
 # 📋 Changelog
 
+## 🚀 v1.0.4-beta.5 (2026-08-21)
+
+Android's install prompt no longer goes missing when you leave the app mid-update, and the badge page now tells a first-time reader what Omnify actually is.
+
+### ➕ Added
+- 🌐 **The badge page says what Omnify is:** someone arriving from a "Get it on Omnify" badge has usually never heard the name, and the page only explained what the link does. A second button next to it opens the home page, from a phone and from a computer alike.
+
+### 🐛 Fixed
+- 📥 **The install prompt no longer disappears when you leave Omnify mid-update.** Android hands the confirmation screen over to Omnify to display, and since Android 10 an app that isn't on screen isn't allowed to open one, silently: press Home while an update installs and the prompt was thrown away without a trace, leaving "updating" on screen for the ten minutes of its timeout, and nothing reappeared when you came back. The prompt is now kept instead: a notification offers it while you're elsewhere, and it comes back on its own the moment you return to Omnify.
+- 🏷️ **The "Get it on Omnify" badge is the same size in both snippets**, Markdown and HTML.
+
+---
+
 ## 🚀 v1.0.3-beta.4 (2026-08-18)
 
 Device-to-device settings transfer, a "Get it on Omnify" badge any project can put in its README, four settings that finally do what they say, external-source update accuracy, and Android TV catching up with favourites and a real sync button.

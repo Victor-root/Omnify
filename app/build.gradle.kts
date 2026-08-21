@@ -29,7 +29,7 @@ val hasReleaseSigning = keystorePropertiesFile.exists()
 // Bump this on every published build, and specifically its dotted part: an external source's update
 // check reads the version out of the release tag / APK name and stops at the first hyphen, so a new
 // "-beta.N" on its own reads as the same version and no update is offered.
-val latestVersionName = "1.0.3"
+val latestVersionName = "1.0.4"
 
 android {
     namespace = "com.looker.droidify"
@@ -53,7 +53,7 @@ android {
         // Android's own ordering, invisible to the user: it refuses to install over a build whose
         // versionCode isn't lower, so this has to rise on every published build regardless of what
         // versionName says.
-        versionCode = 1004
+        versionCode = 1005
 
         testInstrumentationRunner = "com.looker.droidify.TestRunner"
     }
@@ -109,7 +109,7 @@ android {
         create("beta") {
             initWith(getByName("release"))
             applicationIdSuffix = ".beta"
-            versionNameSuffix = "-beta.4"
+            versionNameSuffix = "-beta.5"
         }
         debug {
             applicationIdSuffix = ".debug"
