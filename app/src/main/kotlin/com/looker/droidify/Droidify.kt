@@ -22,6 +22,7 @@ import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.installer.InstallManager
+import com.looker.droidify.installer.InstallPrompt
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.receivers.InstalledAppReceiver
 import com.looker.droidify.utility.common.cache.Cache
@@ -61,6 +62,9 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
     lateinit var installer: InstallManager
 
     @Inject
+    lateinit var installPrompt: InstallPrompt
+
+    @Inject
     lateinit var httpClient: HttpClient
 
     @Inject
@@ -71,6 +75,7 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
 
         // A fresh install seeds + syncs its default repos from MainComposeActivity, so there's no
         // legacy "database created -> full sync" step here any more.
+        installPrompt.attach(this)
         listenApplications()
         checkLanguage()
         updatePreference()

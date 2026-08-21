@@ -2,13 +2,16 @@ package com.looker.droidify.utility.notifications
 
 import android.app.Notification
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.graphics.Color
 import androidx.core.app.NotificationCompat
 import com.looker.droidify.R
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_CHANNEL_INSTALL
+import com.looker.droidify.utility.common.Constants.NOTIFICATION_CHANNEL_INSTALL_CONFIRM
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_ID_INSTALL
+import com.looker.droidify.utility.common.Constants.NOTIFICATION_ID_INSTALL_CONFIRM
 
 fun NotificationManager.installNotification(
     packageName: String,
@@ -27,7 +30,28 @@ fun NotificationManager.removeInstallNotification(
     cancel(installTag(packageName), NOTIFICATION_ID_INSTALL)
 }
 
-private fun installTag(name: String): String = "install-${name.trim().replace(' ', '_')}"
+fun NotificationManager.installConfirmationNotification(
+    packageName: String,
+    notification: Notification,
+) {
+    notify(
+        confirmationTag(packageName),
+        NOTIFICATION_ID_INSTALL_CONFIRM,
+        notification,
+    )
+}
+
+fun NotificationManager.removeInstallConfirmationNotification(
+    packageName: String,
+) {
+    cancel(confirmationTag(packageName), NOTIFICATION_ID_INSTALL_CONFIRM)
+}
+
+private fun installTag(name: String): String = "install-${tagName(name)}"
+
+private fun confirmationTag(name: String): String = "install-confirm-${tagName(name)}"
+
+private fun tagName(name: String): String = name.trim().replace(' ', '_')
 
 /** How long a "done" notification (installed, updated, uninstalled) stays before Android clears it on
  *  its own. Long enough to be read by someone who wasn't watching when it appeared, which is the normal
@@ -94,5 +118,37 @@ fun Context.createInstallNotification(
             setContentText(text)
             block()
         }
+        .build()
+}
+
+/**
+ * The way back to an install confirmation Omnify was not allowed to put on screen itself (see
+ * InstallPrompt). Tapping it is what starts the confirmation, since a start the system performs on a
+ * notification tap is allowed where one from a background app is not.
+ *
+ * @param isUpdate as in [createInstallNotification]: only the wording changes.
+ */
+fun Context.createInstallConfirmationNotification(
+    appName: String,
+    contentIntent: PendingIntent,
+    isUpdate: Boolean,
+): Notification {
+    return NotificationCompat
+        .Builder(this, NOTIFICATION_CHANNEL_INSTALL_CONFIRM)
+        .setSmallIcon(R.drawable.ic_download)
+        .setColor(Color.GREEN)
+        .setContentTitle(getString(R.string.confirm_install_title))
+        .setContentText(
+            getString(
+                if (isUpdate) R.string.confirm_update_DESC else R.string.confirm_install_DESC,
+                appName,
+            ),
+        )
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setCategory(NotificationCompat.CATEGORY_STATUS)
+        .setContentIntent(contentIntent)
+        .setAutoCancel(true)
+        .setOngoing(false)
+        .setOnlyAlertOnce(true)
         .build()
 }

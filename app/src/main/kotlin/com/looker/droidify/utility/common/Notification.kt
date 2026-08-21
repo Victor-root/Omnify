@@ -14,12 +14,13 @@ fun Context.createNotificationChannel(
     name: String,
     description: String? = null,
     showBadge: Boolean = false,
+    importance: Int = NotificationManager.IMPORTANCE_LOW,
 ) {
     sdkAbove(Build.VERSION_CODES.O) {
         val channel = NotificationChannel(
             id,
             name,
-            NotificationManager.IMPORTANCE_LOW,
+            importance,
         ).apply {
             setDescription(description)
             setShowBadge(showBadge)

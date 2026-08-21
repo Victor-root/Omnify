@@ -49,6 +49,7 @@ class InstallManager(
     private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val installedRepository: InstalledRepository,
+    private val installPrompt: InstallPrompt,
 ) {
 
     private val installItems = Channel<InstallItem>()
@@ -262,6 +263,9 @@ class InstallManager(
             // Run under NonCancellable so the terminal state is always recorded, even when this
             // install was cancelled mid-flight.
             withContext(NonCancellable) {
+                // Whatever ended this install ends any confirmation still waiting on it: the session
+                // it belonged to is gone, so the screen it offers no longer leads anywhere.
+                installPrompt.clear(name)
                 notificationManager?.removeInstallNotification(name)
                 // Only update if the package is still tracked, so an explicit remove() is respected.
                 updateState { if (containsKey(item.packageName)) put(item.packageName, result) }

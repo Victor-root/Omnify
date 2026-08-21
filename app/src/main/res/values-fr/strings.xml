@@ -567,4 +567,9 @@
     <string name="installed_signature_mismatch">La version installée (%1$s, depuis %2$s) n\'a pas été signée par cette source. Android ne permet pas de la mettre à jour directement dans ce cas : il faudra désinstaller l\'application avant d\'installer celle-ci.</string>
     <string name="installed_signature_mismatch_system">La version installée (%1$s, depuis %2$s) n\'a pas été signée par cette source. C\'est une application système : elle ne peut pas être désinstallée ni remplacée par cette version.</string>
     <string name="installed_signature_mismatch_google_services">La version installée (%1$s) correspond aux vrais services Google Play, pas à cette application : elle ne peut donc pas être remplacée par cette version.</string>
+    <string name="confirm_install_channel">Confirmations d\'installation</string>
+    <string name="confirm_install_channel_DESC">S\'affiche quand Android attend votre accord pour installer ou mettre à jour une application et qu\'Omnify n\'est pas à l\'écran.</string>
+    <string name="confirm_install_title">Confirmation nécessaire</string>
+    <string name="confirm_install_DESC">Appuyez pour terminer l\'installation de %1$s</string>
+    <string name="confirm_update_DESC">Appuyez pour terminer la mise à jour de %1$s</string>
 </resources>

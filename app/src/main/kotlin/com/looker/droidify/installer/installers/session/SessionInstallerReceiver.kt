@@ -11,6 +11,7 @@ import androidx.core.content.IntentCompat
 import com.looker.droidify.R
 import com.looker.droidify.data.model.toPackageName
 import com.looker.droidify.installer.InstallManager
+import com.looker.droidify.installer.InstallPrompt
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_CHANNEL_INSTALL
 import com.looker.droidify.utility.common.createNotificationChannel
@@ -31,13 +32,16 @@ class SessionInstallerReceiver : BroadcastReceiver() {
     @Inject
     lateinit var installManager: InstallManager
 
+    @Inject
+    lateinit var installPrompt: InstallPrompt
+
     override fun onReceive(context: Context, intent: Intent) {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)
 
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
             // Android is asking the user to confirm this install and has handed us the screen to
-            // show. Put it in front of them as-is. FLAG_ACTIVITY_NEW_TASK is required: this runs in
-            // a receiver, which has no task of its own to start an activity in.
+            // show. It is passed on as-is, to InstallPrompt, which knows whether Omnify is in a
+            // position to show it right now and holds on to it when it isn't.
             //
             // Nothing is added to it. This used to attach EXTRA_NOT_UNKNOWN_SOURCE and an
             // EXTRA_INSTALLER_PACKAGE_NAME of "com.android.vending", claiming the install came from
@@ -52,8 +56,7 @@ class SessionInstallerReceiver : BroadcastReceiver() {
                 IntentCompat.getParcelableExtra(intent, Intent.EXTRA_INTENT, Intent::class.java)
 
             promptIntent?.let {
-                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(it)
+                installPrompt.offer(intent.confirmingPackageName(context), it)
             }
         } else {
             notifyStatus(intent, context)
@@ -148,6 +151,23 @@ class SessionInstallerReceiver : BroadcastReceiver() {
 
         private const val TAG = "SessionInstaller"
     }
+}
+
+/**
+ * Which package this status broadcast is about.
+ *
+ * The status carries the name itself in all but one case: a confirmation reported before the session
+ * has been read far enough to know what it holds. The session is still named in the broadcast though,
+ * and asking PackageInstaller about it covers that case, so a confirmation can be held under a name
+ * rather than only offered once.
+ */
+private fun Intent.confirmingPackageName(context: Context): String? {
+    getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME)?.let { return it }
+    val sessionId = getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
+    if (sessionId == -1) return null
+    return runCatching {
+        context.packageManager.packageInstaller.getSessionInfo(sessionId)?.appPackageName
+    }.getOrNull()
 }
 
 /**
