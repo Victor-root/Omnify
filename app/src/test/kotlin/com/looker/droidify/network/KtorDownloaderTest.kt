@@ -7,7 +7,9 @@ import io.ktor.client.engine.mock.respondError
 import io.ktor.client.engine.mock.respondOk
 import io.ktor.client.plugins.ConnectTimeoutException
 import io.ktor.client.plugins.SocketTimeoutException
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -119,4 +121,63 @@ class KtorDownloaderTest {
             )
             assertIs<NetworkResponse.Error.Http>(response)
         }
+
+    @Test
+    fun `a host that refuses suffix ranges is only asked once`() = runTest(dispatcher) {
+        val ranges = mutableListOf<String>()
+        val downloader = suffixRefusingDownloader(ranges)
+        // Two different files on the same host: whether suffix ranges work is the host's property.
+        repeat(2) { index ->
+            val result = downloader.getRange("https://refuses.com/app$index.apk") {
+                inRangeSuffix(TAIL)
+            }
+            assertIs<RangeResult.Success>(result)
+        }
+        assertEquals(1, ranges.count { it.startsWith("bytes=-") })
+    }
+
+    @Test
+    fun `a url's size is learned once and reused`() = runTest(dispatcher) {
+        val ranges = mutableListOf<String>()
+        val downloader = suffixRefusingDownloader(ranges)
+        repeat(2) {
+            val result = downloader.getRange("https://refuses.com/app.apk") { inRangeSuffix(TAIL) }
+            assertIs<RangeResult.Success>(result)
+        }
+        assertEquals(1, ranges.count { it == "bytes=0-0" })
+        // Second read is the explicit range alone: no suffix attempt, no size probe.
+        assertEquals(4, ranges.size)
+    }
+
+    /** A host shaped like GitHub's release downloads: suffix ranges refused outright, explicit ones
+     *  served. Records every Range header it is asked for into [ranges]. */
+    private fun suffixRefusingDownloader(ranges: MutableList<String>): KtorDownloader {
+        val engine = MockEngine { request ->
+            val range = request.headers[HttpHeaders.Range].orEmpty()
+            ranges += range
+            when {
+                range.startsWith("bytes=-") -> respondError(HttpStatusCode.Companion.NotImplemented)
+                range == "bytes=0-0" -> respond(
+                    content = "x",
+                    status = HttpStatusCode.Companion.PartialContent,
+                    headers = headersOf(HttpHeaders.ContentRange, "bytes 0-0/$TOTAL"),
+                )
+
+                else -> respond(
+                    content = "tail",
+                    status = HttpStatusCode.Companion.PartialContent,
+                    headers = headersOf(
+                        HttpHeaders.ContentRange,
+                        "bytes ${TOTAL - TAIL}-${TOTAL - 1}/$TOTAL",
+                    ),
+                )
+            }
+        }
+        return KtorDownloader(HttpClient(engine), dispatcher)
+    }
+
+    private companion object {
+        const val TOTAL = 100L
+        const val TAIL = 10L
+    }
 }

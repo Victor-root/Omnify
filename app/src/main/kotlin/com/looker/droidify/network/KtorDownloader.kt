@@ -29,12 +29,27 @@ import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 
 internal class KtorDownloader(
     private val client: HttpClient,
     private val dispatcher: CoroutineDispatcher,
 ) : Downloader {
+
+    /**
+     * Hosts that answered a suffix range (`bytes=-N`) with a refusal. Whether a host takes that form is
+     * a property of the host, not of the file, so one refusal answers for every URL it serves. Written
+     * and read from whichever coroutines happen to be reading APK tails, hence concurrent.
+     */
+    private val suffixRangeUnsupportedHosts = ConcurrentHashMap.newKeySet<String>()
+
+    /**
+     * Total size per URL, learned from a `Content-Range` and kept so the readers that follow the first
+     * one on the same APK can go straight to an explicit range. Only ever grows, which is fine for what
+     * it holds: a URL and a long, for each remote APK this session actually looked inside.
+     */
+    private val totalSizeByUrl = ConcurrentHashMap<String, Long>()
 
     private companion object {
         const val TAG = "KtorDownloader"
@@ -186,34 +201,76 @@ internal class KtorDownloader(
         )
     }
 
+    /**
+     * Fetches a byte range, working around a host that rejects the suffix form and remembering what it
+     * learns so the next caller doesn't pay to find out the same thing again.
+     *
+     * Confirmed on GitHub's own release "download" URLs (a flat 501): a *suffix* Range (`bytes=-N`,
+     * "the last N bytes" — the only way to read the tail of a file whose total size isn't known yet,
+     * see RemoteApkManifestReader/ApkSigningBlockReader) can be rejected outright by a host that
+     * supports Range fine in the explicit bytes=start-end form. Recovering from that takes two more
+     * requests: one to learn the size, one to ask again by explicit range.
+     *
+     * Both answers used to be thrown away the moment they were found. Four separate readers (signing
+     * block, manifest, icon, locales) each read the tail of the *same* APK URL, so a single app cost
+     * twelve requests where five would do, a third of them sent only to be refused — and every tracked
+     * app's every listed version goes through this. That whole storm lands on the same host an APK
+     * download comes from, which is what made a download that started while it was still running crawl
+     * while the same download a few seconds later ran at full speed.
+     *
+     * So a host that refuses suffix ranges is remembered and never asked again, and a URL's total size
+     * is remembered once learned, leaving one request for every reader after the first.
+     */
     override suspend fun getRange(
         url: String,
         headers: HeadersBuilder.() -> Unit,
     ): RangeResult = withContext(dispatcher) {
         val rangeRequest = request(url, headers = headers)
         val suffixLength = rangeRequest.headers[HttpHeaders.Range]?.let(::parseSuffixRangeLength)
+        if (suffixLength != null && rangeRequest.url.host in suffixRangeUnsupportedHosts) {
+            return@withContext explicitTailRange(url, headers, suffixLength)
+                ?: RangeResult.Failed(NetworkResponse.Error.Http(HttpStatusCode.NotImplemented.value))
+        }
         val result = executeRange(rangeRequest)
+        if (result is RangeResult.Success) {
+            result.totalSize?.let { totalSizeByUrl[url] = it }
+            return@withContext result
+        }
         if (result is RangeResult.Failed && BuildConfig.DEBUG) {
             Log.d(TAG, "$url: range request failed (${result.error})")
         }
-        if (result is RangeResult.Success || suffixLength == null) return@withContext result
-        // Confirmed on GitHub's own release "download" URLs (a flat 501): a *suffix* Range
-        // (`bytes=-N`, "the last N bytes" — the only way to read the tail of a file whose total size
-        // isn't known yet, see RemoteApkManifestReader/ApkSigningBlockReader) can be rejected outright
-        // by a host that genuinely supports Range fine for the explicit bytes=start-end form. Learn the
-        // real size and retry as an explicit range instead of giving up on a host that actually
-        // supports what we need.
-        val totalSize = contentLength(url, headers)
-        if (totalSize == null || totalSize <= 0) return@withContext result
+        // Only a refusal teaches anything: a host that answers 200 ignores the Range header outright,
+        // and would ignore an explicit one just the same.
+        if (suffixLength == null || result !is RangeResult.Failed) return@withContext result
+        suffixRangeUnsupportedHosts += rangeRequest.url.host
+        explicitTailRange(url, headers, suffixLength) ?: result
+    }
+
+    /** The last [suffixLength] bytes of [url] asked for as an explicit range, for a host that won't
+     *  take the suffix form. Null when the size can't be learned or the range comes back refused —
+     *  in which case a remembered size is dropped, since a stale one is the one way this can fail
+     *  where a fresh request would have worked. */
+    private suspend fun explicitTailRange(
+        url: String,
+        headers: HeadersBuilder.() -> Unit,
+        suffixLength: Long,
+    ): RangeResult? {
+        val totalSize = totalSizeByUrl[url]
+            ?: contentLength(url, headers)?.also { totalSizeByUrl[url] = it }
+        if (totalSize == null || totalSize <= 0) return null
         val start = (totalSize - suffixLength).coerceAtLeast(0)
         if (BuildConfig.DEBUG) {
-            Log.d(TAG, "$url: suffix range unsupported, retrying as explicit bytes=$start-${totalSize - 1}")
+            Log.d(TAG, "$url: suffix range unsupported, asking for bytes=$start-${totalSize - 1}")
         }
         val explicitRequest = request(url, headers = headers)
         explicitRequest.headers.remove(HttpHeaders.Range)
         explicitRequest.headers.append(HttpHeaders.Range, "bytes=$start-${totalSize - 1}")
         val explicitResult = executeRange(explicitRequest)
-        if (explicitResult is RangeResult.Success) explicitResult else result
+        if (explicitResult !is RangeResult.Success) {
+            totalSizeByUrl.remove(url)
+            return null
+        }
+        return explicitResult
     }
 
     private suspend fun executeRange(rangeRequest: HttpRequestBuilder): RangeResult = try {
