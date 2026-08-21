@@ -69,6 +69,7 @@ import com.looker.droidify.compose.appDetail.PrimaryActions
 import com.looker.droidify.compose.appDetail.ScreenshotsRow
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appDetail.components.PackageItem
+import com.looker.droidify.compose.components.InstallConflictDialog
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
@@ -111,6 +112,7 @@ fun TvAppDetailScreen(
     val isHidden by viewModel.isHidden.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
+    val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
     // Set once the hero icon actually loads (see the AppMinimalIcon call below); reset per screen
     // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
     // Seeded from IconAccentCache so revisiting the same app doesn't wait for the icon to decode
@@ -241,6 +243,19 @@ fun TvAppDetailScreen(
                         versionToInstall = null
                     },
                     onDismiss = { versionToInstall = null },
+                )
+            }
+
+            // An update Android won't apply in place (a differently-signed copy on the device). The
+            // phone screen and the TV external-source screen both showed this; this one never did, so
+            // updating such an app here did nothing at all and left the button offering the same
+            // update again, with no way to find out why.
+            signatureConflict?.let { conflict ->
+                InstallConflictDialog(
+                    conflict = conflict,
+                    appName = app.metadata.name,
+                    onUninstall = viewModel::confirmSignatureConflictUninstall,
+                    onDismiss = viewModel::dismissSignatureConflict,
                 )
             }
 

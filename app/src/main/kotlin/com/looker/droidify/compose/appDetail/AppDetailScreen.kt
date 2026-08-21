@@ -42,7 +42,6 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -56,7 +55,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -121,6 +119,7 @@ import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.HideAppAction
+import com.looker.droidify.compose.components.InstallConflictDialog
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.LinkRow
@@ -281,41 +280,12 @@ fun AppDetailScreen(
     }
 
     signatureConflict?.let { conflict ->
-        val conflictAppName = (state as? AppDetailState.Success)?.app?.metadata?.name
-            ?: viewModel.packageName
-        val titleRes = if (conflict.isSystemApp) {
-            R.string.signature_conflict_system_title
-        } else {
-            R.string.signature_conflict_title
-        }
-        val messageRes = if (conflict.isSystemApp) {
-            R.string.signature_conflict_system_app
-        } else {
-            R.string.install_failed_signature_mismatch
-        }
-        AlertDialog(
-            onDismissRequest = viewModel::dismissSignatureConflict,
-            title = { Text(stringResource(titleRes)) },
-            text = { Text(stringResource(messageRes, conflictAppName)) },
-            confirmButton = {
-                if (conflict.isSystemApp) {
-                    // A system app can't be uninstalled — nothing to do but acknowledge.
-                    TextButton(onClick = viewModel::dismissSignatureConflict) {
-                        Text(stringResource(android.R.string.ok))
-                    }
-                } else {
-                    TextButton(
-                        onClick = viewModel::confirmSignatureConflictUninstall,
-                    ) { Text(stringResource(R.string.uninstall)) }
-                }
-            },
-            dismissButton = {
-                if (!conflict.isSystemApp) {
-                    TextButton(onClick = viewModel::dismissSignatureConflict) {
-                        Text(stringResource(R.string.cancel))
-                    }
-                }
-            },
+        InstallConflictDialog(
+            conflict = conflict,
+            appName = (state as? AppDetailState.Success)?.app?.metadata?.name
+                ?: viewModel.packageName,
+            onUninstall = viewModel::confirmSignatureConflictUninstall,
+            onDismiss = viewModel::dismissSignatureConflict,
         )
     }
 

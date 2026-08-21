@@ -24,7 +24,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -34,7 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -78,7 +76,6 @@ import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.appDetail.GoogleServiceDependency
 import com.looker.droidify.compose.appDetail.GoogleServicesCard
-import com.looker.droidify.compose.appDetail.InstallConflictReason
 import com.looker.droidify.compose.appDetail.isGoogleServicesProviderPackage
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.DescriptionTranslation
@@ -87,6 +84,7 @@ import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.HideAppAction
+import com.looker.droidify.compose.components.InstallConflictDialog
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.LoadingBar
@@ -222,41 +220,11 @@ fun ExternalAppDetailScreen(
     val expectedSigners = app?.latestApkUrl?.let { expectedSignersByApkUrl[it] }
 
     installConflict?.let { conflict ->
-        val conflictAppName = app?.label ?: appKey
-        val titleRes = if (conflict.isSystemApp) {
-            R.string.signature_conflict_system_title
-        } else {
-            R.string.signature_conflict_title
-        }
-        val messageRes = when {
-            conflict.isSystemApp -> R.string.signature_conflict_system_app
-            conflict.reason == InstallConflictReason.VERSION_DOWNGRADE ->
-                R.string.install_failed_version_downgrade
-            else -> R.string.install_failed_signature_mismatch
-        }
-        AlertDialog(
-            onDismissRequest = viewModel::dismissInstallConflict,
-            title = { Text(stringResource(titleRes)) },
-            text = { Text(stringResource(messageRes, conflictAppName)) },
-            confirmButton = {
-                if (conflict.isSystemApp) {
-                    // A system app can't be uninstalled — nothing to do but acknowledge.
-                    TextButton(onClick = viewModel::dismissInstallConflict) {
-                        Text(stringResource(android.R.string.ok))
-                    }
-                } else {
-                    TextButton(
-                        onClick = viewModel::confirmInstallConflictUninstall,
-                    ) { Text(stringResource(R.string.uninstall)) }
-                }
-            },
-            dismissButton = {
-                if (!conflict.isSystemApp) {
-                    TextButton(onClick = viewModel::dismissInstallConflict) {
-                        Text(stringResource(R.string.cancel))
-                    }
-                }
-            },
+        InstallConflictDialog(
+            conflict = conflict,
+            appName = app?.label ?: appKey,
+            onUninstall = viewModel::confirmInstallConflictUninstall,
+            onDismiss = viewModel::dismissInstallConflict,
         )
     }
 
