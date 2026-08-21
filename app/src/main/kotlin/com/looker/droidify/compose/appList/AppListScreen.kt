@@ -201,6 +201,7 @@ fun AppListScreen(
     val updatingPackage by viewModel.updatingPackage.collectAsStateWithLifecycle()
     val batchUpdate by viewModel.batchUpdate.collectAsStateWithLifecycle()
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
+    val externallyInstalled by viewModel.externallyInstalledPackages.collectAsStateWithLifecycle()
     val homeScreenSwiping by viewModel.homeScreenSwiping.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
     val edgeToEdge = LocalEdgeToEdge.current
@@ -501,6 +502,17 @@ fun AppListScreen(
     val openExternalApp: (String) -> Unit = { key ->
         restoreFocusId = "ext:$key"
         onExternalAppClick(key)
+    }
+    // The Installed tab lists what is on the device, so a package installed from a tracked source
+    // rather than from the catalogue opens that source's page (see externallyInstalledPackages).
+    // Only here: elsewhere a catalogue tile is the catalogue's own entry, and tapping it should open
+    // exactly that.
+    val openInstalledApp: (String) -> Unit = { packageName ->
+        // The tile that was opened is this tab's own catalogue tile whichever page it leads to, so that
+        // is what focus comes back to (TV).
+        restoreFocusId = "app:$packageName"
+        val externalKey = externallyInstalled[packageName]
+        if (externalKey != null) onExternalAppClick(externalKey) else onAppClick(packageName)
     }
     if (isTelevision) {
         // Land focus on (re)entry, retrying briefly because the target isn't attached until the
@@ -1106,7 +1118,13 @@ fun AppListScreen(
                         updateFraction = batchUpdate
                             ?.takeIf { it.packageName == app.packageName.name }
                             ?.download?.fraction,
-                        onClick = { openApp(app.packageName.name) },
+                        onClick = {
+                            if (selectedTab == AppTab.INSTALLED) {
+                                openInstalledApp(app.packageName.name)
+                            } else {
+                                openApp(app.packageName.name)
+                            }
+                        },
                         modifier = Modifier.restoreFocusTarget(
                             isTelevision && restoreFocusId == "app:${app.packageName.name}",
                             restoreRequester,

@@ -132,6 +132,7 @@ fun TvHomeScreen(
     val isUpdatingAll by viewModel.isUpdatingAll.collectAsStateWithLifecycle()
     val displayedApps by viewModel.displayedApps.collectAsStateWithLifecycle()
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
+    val externallyInstalled by viewModel.externallyInstalledPackages.collectAsStateWithLifecycle()
 
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
     val hiddenExternalApps by externalViewModel.hidden.collectAsStateWithLifecycle()
@@ -193,6 +194,16 @@ fun TvHomeScreen(
     val restoreRequester = remember { FocusRequester() }
     val openApp: (String) -> Unit = { pkg -> restoreFocusId = "app:$pkg"; onAppClick(pkg) }
     val openExternal: (String) -> Unit = { key -> restoreFocusId = "ext:$key"; onExternalAppClick(key) }
+    // The Installed section lists what is on the device, so a package installed from a tracked source
+    // rather than from the catalogue opens that source's page (see externallyInstalledPackages). Only
+    // there: everywhere else a catalogue tile is the catalogue's own entry, and opens exactly that.
+    val openInstalled: (String) -> Unit = { pkg ->
+        // The tile that was opened is this section's own catalogue tile whichever page it leads to, so
+        // that is what focus comes back to.
+        restoreFocusId = "app:$pkg"
+        val externalKey = externallyInstalled[pkg]
+        if (externalKey != null) onExternalAppClick(externalKey) else onAppClick(pkg)
+    }
 
     val railFocus = remember { FocusRequester() }
     // Whether Explore currently leads with the favourites carousel (see TvExplore) instead of "Made for
@@ -345,7 +356,7 @@ fun TvHomeScreen(
                     title = stringResource(R.string.installed),
                     apps = installedApps,
                     installedPackages = installedPackages,
-                    onAppClick = openApp,
+                    onAppClick = openInstalled,
                     restoreFocusId = restoreFocusId,
                     restoreRequester = restoreRequester,
                 )

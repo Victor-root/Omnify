@@ -11,6 +11,7 @@ import com.looker.droidify.data.InstalledIdentityRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.SuggestedVersion
 import com.looker.droidify.data.hasCatalogueUpdate
+import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.data.model.excludingHidden
@@ -18,6 +19,7 @@ import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.utility.common.device.isTelevision
@@ -75,6 +77,7 @@ class AppListViewModel @Inject constructor(
     private val appRepository: AppRepository,
     private val installedRepository: InstalledRepository,
     installedIdentityRepository: InstalledIdentityRepository,
+    externalAppRepository: ExternalAppRepository,
     private val settingsRepository: SettingsRepository,
     batchProgress: BatchUpdateProgress,
     private val installManager: InstallManager,
@@ -295,6 +298,42 @@ class AppListViewModel @Inject constructor(
         .map { it.size }
         .distinctUntilChanged()
         .asStateFlow(0)
+
+    /**
+     * Installed packages the Installed tab should open on a tracked external source's page rather than
+     * on the catalogue entry that happens to share their package name, mapped to that source's
+     * [ExternalApp.key].
+     *
+     * A package name is not an identity: a fork keeps the name of the app it forked, so a fork followed
+     * as an external source and the original in the F-Droid catalogue are, to this app, the same
+     * package. The Installed tab lists what is on the device, and it built that list from the catalogue
+     * alone, so a fork installed from its own source opened the original's page: the wrong version, the
+     * wrong changelog, and an update button offering a build that isn't a newer version of what is
+     * actually installed. Reported for an AdAway fork against F-Droid's own AdAway.
+     *
+     * What settles it is the signing key, the one thing that does identify a build: an installed copy
+     * the catalogue's own signers don't account for did not come from the catalogue, so a tracked source
+     * carrying that package name is the page that describes it. A copy that does match the catalogue is
+     * left alone, even when a source happens to track the same package, since the catalogue entry then
+     * genuinely describes what is installed.
+     */
+    val externallyInstalledPackages: StateFlow<Map<String, String>> = combine(
+        externalAppRepository.apps,
+        installedInfo,
+        suggestedVersions,
+    ) { externalApps, installed, suggested ->
+        externalApps.mapNotNull { app ->
+            val pkg = app.packageName ?: return@mapNotNull null
+            if (pkg !in installed.versions) return@mapNotNull null
+            // signerMismatch is the one shared definition of this comparison, and it answers false
+            // whenever either side is unknown, so an unsynced catalogue or an unreadable signature
+            // leaves the catalogue entry in place rather than rerouting on a guess.
+            if (!signerMismatch(installed.signatures[pkg], suggested[pkg]?.signers.orEmpty())) {
+                return@mapNotNull null
+            }
+            pkg to app.key
+        }.toMap()
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
 
     /** Whether [app] has a newer catalogue version worth offering. The rule itself lives in
      *  [hasCatalogueUpdate], shared with the automatic update installer, which has no ViewModel to read
