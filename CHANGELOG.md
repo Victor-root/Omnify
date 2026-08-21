@@ -7,6 +7,9 @@ Android's install prompt no longer goes missing when you leave the app mid-updat
 ### ➕ Added
 - 🌐 **The badge page says what Omnify is:** someone arriving from a "Get it on Omnify" badge has usually never heard the name, and the page only explained what the link does. A second button next to it opens the home page, from a phone and from a computer alike.
 
+### 🔄 Changed
+- ⚡ **Downloads carry a lot less weight.** Every download in Omnify went through an extra full copy of itself, in 4 KB steps, and reached the disk unbuffered: on a 100 MB app that meant tens of thousands of needless round trips inside the app. It now reads straight into a 64 KB buffer. Downloads also stopped queueing behind app icons: they shared a limit of five simultaneous requests per site with the image loader, so starting a download while a list was loading its icons put it in line behind them.
+
 ### 🐛 Fixed
 - 📥 **The install prompt no longer disappears when you leave Omnify mid-update.** Android hands the confirmation screen over to Omnify to display, and since Android 10 an app that isn't on screen isn't allowed to open one, silently: press Home while an update installs and the prompt was thrown away without a trace, leaving "updating" on screen for the ten minutes of its timeout, and nothing reappeared when you came back. The prompt is now kept instead: a notification offers it while you're elsewhere, and it comes back on its own the moment you return to Omnify.
 - 🎨 **Your accent colour is followed everywhere on Android 11 and older.** Buttons, count badges and progress tracks stayed green whatever accent was set, because the colour only reaches them through a system feature Android didn't gain until 12. They now follow the accent on every version, exactly as they already did on Android 12 and up.

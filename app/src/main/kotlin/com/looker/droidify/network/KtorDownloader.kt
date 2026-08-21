@@ -8,7 +8,6 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.network.sockets.SocketTimeoutException
-import io.ktor.client.plugins.onDownload
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.head
 import io.ktor.client.request.headers
@@ -22,10 +21,11 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.etag
 import io.ktor.http.isSuccess
 import io.ktor.http.lastModified
-import io.ktor.utils.io.jvm.javaio.copyTo
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -38,6 +38,11 @@ internal class KtorDownloader(
 
     private companion object {
         const val TAG = "KtorDownloader"
+
+        /** Read and write buffer for a download. Large enough that the per-chunk costs (a channel
+         *  round trip, a progress callback, a write syscall) stop mattering next to the transfer
+         *  itself, small enough to be nothing on any device that runs this app. */
+        const val DOWNLOAD_BUFFER = 64 * 1024
     }
 
     override suspend fun headCall(
@@ -48,23 +53,33 @@ internal class KtorDownloader(
         return client.head(headRequest).asNetworkResponse()
     }
 
+    /**
+     * Streams [url] into [target], resuming by Range from whatever is already there, and reports
+     * progress as it goes.
+     *
+     * The body is read and written here, in one loop over a [DOWNLOAD_BUFFER]-sized buffer, rather
+     * than handed to Ktor's own copy with an `onDownload` listener attached. That listener is not the
+     * cheap callback it reads as: it makes Ktor interpose a whole extra stage between the engine and
+     * this code, a dedicated coroutine that re-copies the entire body through a second channel **4096
+     * bytes at a time**, suspending on the listener at every one of those steps (verified in Ktor
+     * 3.5.2's own bytecode). A 100 MB APK went through 25 600 of those round trips and a full extra
+     * copy of itself, and the writes underneath reached the file unbuffered, one syscall per 8 KB
+     * segment. Reading straight from the response channel keeps one copy, one coroutine, and roughly
+     * a sixteenth of the round trips, and buffering the sink turns those syscalls into one per buffer.
+     */
     override suspend fun downloadToFile(
         url: String,
         target: File,
         headers: HeadersBuilder.() -> Unit,
         block: ProgressListener?,
     ): NetworkResponse = withContext(dispatcher) {
-        var output: FileOutputStream? = null
         try {
             val fileSize = target.length()
-            val request = request(
-                url = url,
-                fileSize = fileSize,
-                block = block,
-            ) {
+            val request = request(url) {
                 if (fileSize > 0) inRange(fileSize)
                 headers()
             }
+            val startedAt = System.nanoTime()
             client.prepareGet(request).execute { response ->
                 val networkResponse = response.asNetworkResponse()
                 if (networkResponse !is NetworkResponse.Success) {
@@ -75,10 +90,21 @@ internal class KtorDownloader(
                 // byte 0 instead of just the missing tail, so start the file over instead of
                 // appending that after the stale bytes already on disk from a previous attempt.
                 val appending = fileSize > 0 && response.status == HttpStatusCode.PartialContent
-                val stream = FileOutputStream(target, appending)
-                output = stream
-                response.bodyAsChannel().copyTo(stream)
-                stream.flush()
+                val alreadyOnDisk = if (appending) fileSize else 0L
+                // Content-Length is what's still to come, which is the whole file on a 200 and only
+                // the missing tail on a 206; callers show a total, so add back what's already there.
+                val total = response.headers[HttpHeaders.ContentLength]
+                    ?.toLongOrNull()
+                    ?.let { DataSize(it + alreadyOnDisk) }
+                val transfer = streamToFile(
+                    channel = response.bodyAsChannel(),
+                    target = target,
+                    appending = appending,
+                    alreadyOnDisk = alreadyOnDisk,
+                    total = total,
+                    block = block,
+                )
+                logTransfer(url, response, startedAt, transfer)
                 networkResponse
             }
         } catch (e: SocketTimeoutException) {
@@ -91,12 +117,73 @@ internal class KtorDownloader(
             throw e
         } catch (e: Exception) {
             NetworkResponse.Error.Unknown(e)
-        } finally {
-            withContext(NonCancellable) {
-                output?.close()
-                output?.flush()
-            }
         }
+    }
+
+    /**
+     * Reads [channel] to its end into [target], appending when the host honoured our Range, and hands
+     * each buffer's worth to [block] as it lands.
+     */
+    private suspend fun streamToFile(
+        channel: ByteReadChannel,
+        target: File,
+        appending: Boolean,
+        alreadyOnDisk: Long,
+        total: DataSize?,
+        block: ProgressListener?,
+    ): Transfer {
+        var received = alreadyOnDisk
+        var firstByteAt = 0L
+        BufferedOutputStream(FileOutputStream(target, appending), DOWNLOAD_BUFFER).use { sink ->
+            val buffer = ByteArray(DOWNLOAD_BUFFER)
+            block?.invoke(DataSize(received), total)
+            // readAvailable answers -1 at the end of the body, and otherwise suspends until it has
+            // something; a zero-length read is inert on every line below rather than a case to skip.
+            while (true) {
+                val read = channel.readAvailable(buffer)
+                if (read < 0) break
+                if (firstByteAt == 0L) firstByteAt = System.nanoTime()
+                sink.write(buffer, 0, read)
+                received += read
+                block?.invoke(DataSize(received), total)
+            }
+            sink.flush()
+        }
+        return Transfer(bytes = received - alreadyOnDisk, firstByteAt = firstByteAt)
+    }
+
+    /** What one [streamToFile] actually moved, for [logTransfer]. */
+    private data class Transfer(val bytes: Long, val firstByteAt: Long)
+
+    /**
+     * One line per finished transfer, in debug builds only: what protocol was actually negotiated, how
+     * long the host took to answer, and the throughput that came out of it.
+     *
+     * Here because a download that is sometimes fast and sometimes not, on the same file and the same
+     * network, is not something the code can tell you on its own — every candidate (the host, a CDN
+     * redirect, HTTP/2 sharing one connection with everything else the app is fetching, a slow first
+     * byte) looks identical from the inside once the bytes are in. These four numbers separate them:
+     * a slow first byte with fast throughput is the host, slow throughput on HTTP/2 with a fast first
+     * byte is contention on the shared connection, and a different host from the one requested is a
+     * redirect to a mirror.
+     */
+    private fun logTransfer(
+        url: String,
+        response: HttpResponse,
+        startedAt: Long,
+        transfer: Transfer,
+    ) {
+        if (!BuildConfig.DEBUG || transfer.bytes <= 0 || transfer.firstByteAt == 0L) return
+        val now = System.nanoTime()
+        val ttfbMs = (transfer.firstByteAt - startedAt) / 1_000_000
+        val transferMs = (now - transfer.firstByteAt) / 1_000_000
+        val kbPerSecond = if (transferMs > 0) transfer.bytes / transferMs else -1
+        Log.d(
+            TAG,
+            "${response.call.request.url.host} ${response.version} status=${response.status.value} " +
+                "bytes=${transfer.bytes} ttfb=${ttfbMs}ms transfer=${transferMs}ms " +
+                "${kbPerSecond}KB/s ($url)",
+        )
     }
 
     override suspend fun getRange(
@@ -171,20 +258,10 @@ internal class KtorDownloader(
 
     private fun request(
         url: String,
-        fileSize: Long = 0L,
-        block: ProgressListener? = null,
         headers: HeadersBuilder.() -> Unit,
     ) = request {
         url(url)
         headers { KtorHeadersBuilder(this).headers() }
-        if (block != null) {
-            onDownload { read, total ->
-                block(
-                    DataSize(read + fileSize),
-                    total?.let { DataSize(total + fileSize) },
-                )
-            }
-        }
     }
 }
 
