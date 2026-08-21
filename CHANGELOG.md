@@ -2,13 +2,16 @@
 
 ## 🚀 v1.0.4-beta.5 (2026-08-21)
 
-Android's install prompt no longer goes missing when you leave the app mid-update, and the badge page now tells a first-time reader what Omnify actually is.
+Android's install prompt no longer goes missing when you leave the app mid-update, a batch of Android TV fixes (accent colours, a blocked update that said nothing), and the Installed tab now opens the source an app really came from.
 
 ### ➕ Added
 - 🌐 **The badge page says what Omnify is:** someone arriving from a "Get it on Omnify" badge has usually never heard the name, and the page only explained what the link does. A second button next to it opens the home page, from a phone and from a computer alike.
 
 ### 🐛 Fixed
 - 📥 **The install prompt no longer disappears when you leave Omnify mid-update.** Android hands the confirmation screen over to Omnify to display, and since Android 10 an app that isn't on screen isn't allowed to open one, silently: press Home while an update installs and the prompt was thrown away without a trace, leaving "updating" on screen for the ten minutes of its timeout, and nothing reappeared when you came back. The prompt is now kept instead: a notification offers it while you're elsewhere, and it comes back on its own the moment you return to Omnify.
+- 🎨 **Your accent colour is followed everywhere on Android 11 and older.** Buttons, count badges and progress tracks stayed green whatever accent was set, because the colour only reaches them through a system feature Android didn't gain until 12. They now follow the accent on every version, exactly as they already did on Android 12 and up.
+- 📺 **Android TV explains an update Android refuses to apply.** Updating a catalogue app whose installed copy is signed by a different key did nothing at all: the button just went back to offering the same update. It now says so and offers to uninstall the existing copy first, the same as the phone and as an external source's own page already did.
+- 📲 **The Installed tab opens the source an app really came from.** An app followed from its own source (a fork, say) shares its package name with the catalogue entry it forked, so opening it from Installed showed the catalogue's page: the wrong version, the wrong changelog, and an update that wasn't one. Omnify now tells the two apart by their signing key.
 - 🏷️ **The "Get it on Omnify" badge is the same size in both snippets**, Markdown and HTML.
 
 ---
