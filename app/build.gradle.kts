@@ -106,6 +106,30 @@ android {
         // "Omnify Beta" everywhere the app name is shown (see src/beta/res/values/strings.xml) — the
         // only difference from release on purpose, so this build is otherwise trustworthy to distribute
         // and gather feedback on.
+        //
+        // READ THIS BEFORE PUBLISHING THE FIRST STABLE RELEASE. The applicationIdSuffix below is what
+        // makes this a separate app, and Android identifies an app by nothing else: to it,
+        // com.omnify.vroot.beta and com.omnify.vroot are two unrelated apps. So the first stable APK
+        // will NOT update a beta install — it installs beside it. That is not fixable from here: only
+        // an app store can hand one app's identity to another. The APK's file name is irrelevant.
+        //
+        // What makes this worse than a one-off inconvenience is that Omnify ships its own repo as a
+        // built-in, enabled-by-default update source (see MainComposeActivity.omnifyUpdateSource), and
+        // that source decides an update exists by the release TAG changing (ExternalApp.hasUpdate). So
+        // a stable release under any new tag is offered to every beta install as a normal update:
+        //   - accepted, it installs a SECOND Omnify instead of replacing the first;
+        //   - the beta's own applicationId never changes, so it keeps offering that same update forever;
+        //   - with "install updates automatically" on, all of that happens with nobody pressing anything.
+        // Publishing the stable under the same dotted version doesn't avoid it either: the tag still
+        // changes, which is what the check actually reads.
+        //
+        // The break can only be made once, and the plan is to take it at the stable launch rather than
+        // earlier (decided deliberately, with the beta already in people's hands). That launch therefore
+        // has to be prepared rather than just published — at minimum a final beta that warns, and
+        // ideally one that stops the built-in source from offering the stable as an update to a beta
+        // install. The user-side migration itself is easy: export (Settings > Backup and restore covers
+        // repositories, external sources, favourites, settings and the GitHub token), install the
+        // stable, import, uninstall "Omnify Beta". Signing is the same key on both.
         create("beta") {
             initWith(getByName("release"))
             applicationIdSuffix = ".beta"
