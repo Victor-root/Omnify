@@ -54,6 +54,7 @@ import com.looker.droidify.compose.settings.hiddenApps.navigation.navigateToHidd
 import com.looker.droidify.compose.settings.navigation.navigateToSettings
 import com.looker.droidify.compose.settings.navigation.settings
 import com.looker.droidify.compose.theme.DroidifyTheme
+import com.looker.droidify.migration.MigrationPrompt
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.backup.BackupRepository
@@ -653,6 +654,10 @@ class MainComposeActivity : ComponentActivity() {
                     addOnNewIntentListener(listener)
                     onDispose { removeOnNewIntentListener(listener) }
                 }
+                // Above every screen, since it is about the app itself having moved channels rather
+                // than about anything on screen. Shows at most once per install, and only during the
+                // switch from the beta build to the stable one (see MigrationViewModel).
+                MigrationPrompt()
                 // Each destination has its own Scaffold + TopAppBar that handle system-bar
                 // insets, so this outer Scaffold must NOT add its own (it would double the
                 // top inset and leave a large empty gap above every screen's title).

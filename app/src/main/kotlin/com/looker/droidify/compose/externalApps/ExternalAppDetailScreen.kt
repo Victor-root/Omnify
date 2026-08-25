@@ -9,6 +9,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -85,6 +86,7 @@ import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.HideAppAction
 import com.looker.droidify.compose.components.InstallConflictDialog
+import com.looker.droidify.migration.ChannelSwitchBanner
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.LoadingBar
@@ -635,18 +637,27 @@ fun ExternalAppDetailScreen(
                     )
                 },
                 actions = {
-                    ExternalLifecycleActions(
-                        app = app,
-                        downloadStatus = downloads[appKey],
-                        installState = installStates[appKey],
-                        isInstalled = isInstalled,
-                        onInstallOrUpdate = { viewModel.installOrUpdate(app) },
-                        onLaunch = { viewModel.launch(app) },
-                        onUninstall = { viewModel.uninstall(app) },
-                        onCancel = { viewModel.cancel(app) },
-                        installedVersionName = installedVersion,
-                        primaryActionFocusRequester = primaryActionFocusRequester,
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // The built-in Omnify source offering the other release channel: an install,
+                        // not an update, and the button below deliberately no longer offers it.
+                        if (app.offersStableSwitch) {
+                            ChannelSwitchBanner(
+                                onInstallStable = { viewModel.installOrUpdate(app) },
+                            )
+                        }
+                        ExternalLifecycleActions(
+                            app = app,
+                            downloadStatus = downloads[appKey],
+                            installState = installStates[appKey],
+                            isInstalled = isInstalled,
+                            onInstallOrUpdate = { viewModel.installOrUpdate(app) },
+                            onLaunch = { viewModel.launch(app) },
+                            onUninstall = { viewModel.uninstall(app) },
+                            onCancel = { viewModel.cancel(app) },
+                            installedVersionName = installedVersion,
+                            primaryActionFocusRequester = primaryActionFocusRequester,
+                        )
+                    }
                 },
                 footer = heroFooter(
                     infoText = footerText,

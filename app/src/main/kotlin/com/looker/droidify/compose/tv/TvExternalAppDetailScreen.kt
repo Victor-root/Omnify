@@ -23,6 +23,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import com.looker.droidify.compose.components.InstallConflictDialog
+import com.looker.droidify.migration.ChannelSwitchBanner
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.externalApps.ReleaseVersionItem
 import com.looker.droidify.external.apkDownloadUrl
@@ -331,6 +332,11 @@ fun TvExternalAppDetailScreen(
                 }
             }
 
+            // The built-in Omnify source offering the other release channel: an install, not an update,
+            // and the action row below deliberately no longer offers it.
+            if (app.offersStableSwitch) {
+                ChannelSwitchBanner(onInstallStable = { viewModel.installOrUpdate(app) })
+            }
             // Action buttons with the favourite alongside, sized to content and centred as one group
             // (same treatment as the catalogue detail screen) so the favourite reads as a peer, not an
             // outlier.

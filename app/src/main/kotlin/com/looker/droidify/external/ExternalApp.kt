@@ -1,5 +1,6 @@
 package com.looker.droidify.external
 
+import com.looker.droidify.BuildConfig
 import kotlinx.serialization.Serializable
 
 /**
@@ -291,7 +292,52 @@ data class ExternalApp(
      * and returns false without one.
      */
     fun isUpdatePending(currentInstalledVersionName: String?): Boolean =
-        enabled && !muteUpdates && hasUpdateGiven(currentInstalledVersionName)
+        !offersOtherReleaseChannel && enabled && !muteUpdates &&
+            hasUpdateGiven(currentInstalledVersionName)
+
+    /**
+     * True when this is Omnify's own built-in source and the release it currently offers belongs to
+     * the other release channel: a stable build published while a beta is running, or the reverse.
+     *
+     * Such a release is not an update, and installing it would not behave like one. Android identifies
+     * an app by its applicationId alone, and the beta channel carries a ".beta" suffix, so the two
+     * builds are unrelated apps to it: installing one over the other puts a SECOND Omnify on the device
+     * instead of replacing the first, leaving the original behind with its data and still offering that
+     * same "update" forever — and with automatic updates on, all of it without anyone pressing
+     * anything. So this keeps the release out of [isUpdatePending], which is the single definition the
+     * Updates tab, its badge and the automatic installer all read, and the migration prompt takes over
+     * from there (see MigrationState).
+     *
+     * The channel is read off the published release's own APK file name and tag, both of which Gradle
+     * derives from the build's versionName, so it follows the build rather than any naming done by
+     * hand. Either naming the release a beta is enough to call it one: when the two disagree, treating
+     * it as a beta is the reading that leaves an actual beta-to-beta update working normally. When
+     * neither is known yet, nothing is blocked — an update is never withheld on a guess.
+     */
+    /**
+     * Whether to actively offer the switch, as opposed to merely refusing to treat it as an update.
+     *
+     * Only ever from a beta. [offersOtherReleaseChannel] is symmetric because the danger is: installing
+     * either channel over the other puts a second Omnify on the device, so both sides have to be kept
+     * from doing it by mistake. Inviting is not symmetric. A beta is a stop on the way to the stable
+     * build and its user is meant to move on; someone on the stable build is where they belong, and
+     * pushing a beta at them is neither wanted nor this feature's business — the more so once betas are
+     * published as pre-releases, which most sources are set to ignore anyway.
+     */
+    val offersStableSwitch: Boolean
+        get() = RUNNING_BUILD_IS_BETA && offersOtherReleaseChannel
+
+    val offersOtherReleaseChannel: Boolean
+        get() {
+            if (key != OMNIFY_REPO_KEY) return false
+            // Walking the switch through without publishing a release to trigger it (see the build
+            // file). Never true in a release build, whatever is passed to the build.
+            if (BuildConfig.SIMULATE_CHANNEL_SWITCH) return true
+            val published = listOfNotNull(latestApkName, latestTag)
+            if (published.isEmpty()) return false
+            val publishedIsBeta = published.any { it.contains(BETA_CHANNEL_MARKER, ignoreCase = true) }
+            return publishedIsBeta != RUNNING_BUILD_IS_BETA
+        }
 
     /** The latest release's version as a plain dotted number: from the APK file name when it carries
      *  one (usually more accurate than the tag, see [releaseVersionLabel]), from the release tag
@@ -303,6 +349,24 @@ data class ExternalApp(
         /** Key of the built-in Omnify repo source (github.com/Victor-root/Omnify). Pinned to the top of
          *  the sources list and only toggleable (no edit/remove) since it's the app's own channel. */
         const val OMNIFY_REPO_KEY = "GITHUB/Victor-root/Omnify"
+
+        /** What marks a build, a tag or an APK file name as belonging to the beta channel. Gradle puts
+         *  it there itself (the build type's versionNameSuffix, which the APK file name is derived
+         *  from), so it is never typed by hand at release time. */
+        private const val BETA_CHANNEL_MARKER = "beta"
+
+        /**
+         * Whether the running build is the beta channel, i.e. carries the ".beta" applicationId suffix
+         * its build type appends. See [offersOtherReleaseChannel].
+         *
+         * A debug build walking through the channel switch (see the build file) counts as one too:
+         * that walkthrough is of a beta about to become the stable build, and a debug build carries
+         * ".debug" rather than ".beta", so without this it would be shown the opposite direction —
+         * the one case the simulation is not there to look at.
+         */
+        val RUNNING_BUILD_IS_BETA: Boolean =
+            BuildConfig.APPLICATION_ID.endsWith(".$BETA_CHANNEL_MARKER") ||
+                BuildConfig.SIMULATE_CHANNEL_SWITCH
     }
 }
 

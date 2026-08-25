@@ -5,6 +5,7 @@
 Android's install prompt no longer goes missing when you leave the app mid-update, a batch of Android TV fixes (accent colours, a blocked update that said nothing), and the Installed tab now opens the source an app really came from.
 
 ### ➕ Added
+- 🚚 **Moving from the beta to the stable version keeps everything.** The two are separate apps as far as Android is concerned, so the stable one can't simply install over the beta: it would land beside it, leaving you with two Omnify and your data stranded in the old one. Omnify now handles the switch itself. The beta stops offering the stable build as an ordinary update and explains what it is instead, and once the stable version is installed it collects your repositories, sources, favourites and settings from the beta, then offers to remove it.
 - 🌐 **The badge page says what Omnify is:** someone arriving from a "Get it on Omnify" badge has usually never heard the name, and the page only explained what the link does. A second button next to it opens the home page, from a phone and from a computer alike.
 
 ### 🔄 Changed

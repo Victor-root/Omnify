@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+
+        <!--
+          Beta only. The beta is the channel users migrate away from when the first stable build ships,
+          and Android treats the two as unrelated apps (see the beta build type's applicationIdSuffix),
+          so the stable build has to come and collect this install's data rather than inherit it. The
+          stable app has nobody to hand anything to, so it never declares this at all.
+
+          exported: the caller is a different app by definition — that is the entire point. Every call
+          is refused unless the caller carries this app's own signature, checked against the calling UID
+          the kernel reports (see MigrationProvider), which is what makes an exported component holding
+          repository passwords and a GitHub token safe here.
+        -->
+        <provider
+            android:name=".migration.MigrationProvider"
+            android:authorities="${applicationId}.migration"
+            android:exported="true" />
+
+    </application>
+
+</manifest>

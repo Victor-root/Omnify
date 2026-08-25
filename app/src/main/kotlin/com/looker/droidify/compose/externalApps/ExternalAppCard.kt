@@ -125,7 +125,13 @@ fun ExternalLifecycleActions(
                     modifier = primaryButtonModifier,
                 ) { Text(stringResource(R.string.install)) }
 
-                app.hasUpdateGiven(installedVersionName) -> Button(
+                // offersOtherReleaseChannel: what the built-in Omnify source is offering is the other
+                // release channel, which is a separate app to Android and cannot update this one (see
+                // ChannelMigration). isUpdatePending already keeps it out of the Updates tab and the
+                // automatic installer, but this button reads hasUpdateGiven directly, so without this
+                // it would still say "Update" and go ahead and install a second Omnify. The switch is
+                // offered by ChannelSwitchBanner instead, which says what it actually does.
+                app.hasUpdateGiven(installedVersionName) && !app.offersOtherReleaseChannel -> Button(
                     onClick = onInstallOrUpdate,
                     modifier = primaryButtonModifier,
                 ) { Text(stringResource(R.string.update)) }

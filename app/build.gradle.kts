@@ -31,6 +31,11 @@ val hasReleaseSigning = keystorePropertiesFile.exists()
 // "-beta.N" on its own reads as the same version and no update is offered.
 val latestVersionName = "1.0.4"
 
+/** See the SIMULATE_CHANNEL_SWITCH build config field below. Read as a Gradle property rather than
+ *  written into this file, so trying it out leaves nothing behind to remember to switch back off. */
+val simulateChannelSwitch: Boolean =
+    providers.gradleProperty("omnify.simulateChannelSwitch").orNull.toBoolean()
+
 android {
     namespace = "com.looker.droidify"
     compileSdk {
@@ -124,12 +129,17 @@ android {
         // changes, which is what the check actually reads.
         //
         // The break can only be made once, and the plan is to take it at the stable launch rather than
-        // earlier (decided deliberately, with the beta already in people's hands). That launch therefore
-        // has to be prepared rather than just published — at minimum a final beta that warns, and
-        // ideally one that stops the built-in source from offering the stable as an update to a beta
-        // install. The user-side migration itself is easy: export (Settings > Backup and restore covers
-        // repositories, external sources, favourites, settings and the GitHub token), install the
-        // stable, import, uninstall "Omnify Beta". Signing is the same key on both.
+        // earlier (decided deliberately, with the beta already in people's hands). That launch is
+        // therefore carried by the app itself rather than by release notes: see ChannelMigration. The
+        // beta stops treating the stable build as an update and offers the switch instead, and the
+        // stable build collects the beta's data on first run and offers to remove it.
+        //
+        // What is left to get right at launch is the timing, which no code can cover: that machinery
+        // only helps someone whose beta is recent enough to have it, so it has to have been published,
+        // and given time to be installed, before the first stable release goes out. Anyone still on an
+        // older beta than that gets the two-apps outcome, and their way out is the manual one — export
+        // (Settings > Backup and restore covers repositories, external sources, favourites, settings
+        // and the GitHub token), install the stable, import, uninstall "Omnify Beta".
         create("beta") {
             initWith(getByName("release"))
             applicationIdSuffix = ".beta"
@@ -153,6 +163,20 @@ android {
                 type = "String",
                 name = "VERSION_NAME",
                 value = "\"v$latestVersionName$suffix\"",
+            )
+            // Makes this build behave as a beta that has just seen the stable build published, so the
+            // move between the two (see ChannelMigration) can be walked through end to end without
+            // publishing a real release to trigger it. Off unless asked for, by uncommenting the line
+            // in gradle.properties (Android Studio picks it up on a Gradle sync) or passing
+            // -Pomnify.simulateChannelSwitch=true.
+            //
+            // Debug builds only, deliberately. This is the one build that never reaches anyone, so
+            // leaving it on by accident cannot ship: beta, canary and release ignore it outright rather
+            // than trusting whoever runs the build to remember to turn it back off.
+            buildConfigField(
+                type = "boolean",
+                name = "SIMULATE_CHANNEL_SWITCH",
+                value = (simulateChannelSwitch && name == "debug").toString(),
             )
         }
     }
