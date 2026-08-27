@@ -240,6 +240,24 @@ data class ExternalApp(
         }
 
     /**
+     * Whether the copy of [packageName] sitting on the device right now is the one this source put
+     * there: an install was recorded, and the version that install left behind is still the version the
+     * package manager reports ([currentInstalledVersionName], read live rather than trusted from the
+     * record). Anything else means the record has drifted from reality: installed before the source
+     * was tracked, an install that never really landed, or the app since replaced from somewhere else.
+     *
+     * Says nothing about whether the source is [enabled] or [muteUpdates]d. This is a statement about
+     * where the installed copy came from, and turning a source off doesn't change that; what it decides
+     * is which side owns the app's updates (see [com.looker.droidify.data.hasCatalogueUpdate]), and
+     * handing an app back to the catalogue because its source was muted is how a "newer" version that
+     * is really an older one gets offered.
+     */
+    fun ownsInstalled(currentInstalledVersionName: String?): Boolean =
+        (installedApkToken != null || installedTag != null) &&
+            currentInstalledVersionName != null &&
+            currentInstalledVersionName == installedVersionName
+
+    /**
      * Same as [hasUpdate], but also catches a record that doesn't actually reflect what's on the
      * device right now — either because it was installed before its source was tracked (or before
      * APK-token tracking existed), or because the recorded install never really landed (e.g. a system
@@ -266,9 +284,7 @@ data class ExternalApp(
         ) {
             return false
         }
-        val recordMatchesReality = currentInstalledVersionName != null &&
-            currentInstalledVersionName == installedVersionName
-        if ((installedApkToken != null || installedTag != null) && recordMatchesReality) {
+        if (ownsInstalled(currentInstalledVersionName)) {
             return hasUpdate
         }
         // Both sides have to be real version numbers to be worth comparing. They used to fall back to

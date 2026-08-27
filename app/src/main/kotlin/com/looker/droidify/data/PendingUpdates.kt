@@ -40,11 +40,15 @@ class PendingUpdates @Inject constructor(
      * offered version so a caller can list them to the user without querying again.
      *
      * Apps the user hid are left out, so this matches the Updates tab rather than quietly acting on
-     * something that was deliberately taken off every listing.
+     * something that was deliberately taken off every listing. So are apps an external source installed
+     * and still accounts for, for the same reason and rather more urgently: what the Updates tab merely
+     * shows, this installs on its own, and a version code that means one thing to the catalogue and
+     * another to the source it really came from is how that becomes a silent downgrade.
      */
     suspend fun catalogueApps(): List<AppMinimal> {
         val hidden = settingsRepository.get { hiddenApps }.first()
         val suggested = appRepository.suggestedVersions()
+        val externallyOwned = externallyOwnedPackages()
         val updatable = installedRepository.getAllStream().first()
             .filter { installed ->
                 installed.packageName !in hidden &&
@@ -52,6 +56,7 @@ class PendingUpdates @Inject constructor(
                         installedVersionCode = installed.versionCode,
                         installedSigner = installed.signature,
                         isSystemApp = isSystemApp(installed.packageName),
+                        installedFromExternalSource = installed.packageName in externallyOwned,
                         suggested = suggested[installed.packageName],
                     )
             }
@@ -62,6 +67,17 @@ class PendingUpdates @Inject constructor(
         return appRepository.apps(sortOrder = SortOrder.NAME)
             .filter { it.packageName.name in updatable }
     }
+
+    /**
+     * Packages a tracked external source put on the device and still accounts for, by the same rule the
+     * Updates tab reads ([ExternalApp.ownsInstalled]): a recorded install whose version is still the one
+     * the package manager reports. Disabled and muted sources count too, since turning a source off says
+     * nothing about where the copy on the device came from.
+     */
+    private suspend fun externallyOwnedPackages(): Set<String> = externalAppRepository.getApps()
+        .mapNotNullTo(mutableSetOf()) { app ->
+            app.packageName?.takeIf { app.ownsInstalled(externalRefresher.installedVersionName(it)) }
+        }
 
     /**
      * External sources with a newer release than the copy actually on the device.

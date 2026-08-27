@@ -170,4 +170,42 @@ class ExternalAppUpdateTest {
 
         assertTrue(normal.isUpdatePending("1.93.130"), "Missed a plain, ordinary update")
     }
+
+    @Test
+    fun `a source owns the copy it installed while that copy is still there`() {
+        val installed = source(installedTag = "v1.93.130", installedVersionName = "1.93.130")
+
+        assertTrue(installed.ownsInstalled("1.93.130"))
+    }
+
+    @Test
+    fun `a source stops owning a copy that was replaced from somewhere else`() {
+        // What the record says and what the device reports have parted ways, so the record speaks for
+        // a copy that is no longer there. Deciding anything from it would be deciding it about the
+        // wrong build.
+        val replaced = source(installedTag = "v1.93.130", installedVersionName = "1.93.130")
+
+        assertFalse(replaced.ownsInstalled("1.94.0"))
+        assertFalse(replaced.ownsInstalled(null), "Claimed a copy that isn't installed at all")
+    }
+
+    @Test
+    fun `a source that never installed anything owns nothing`() {
+        // Following a project is not installing it: without an install of our own on record there is
+        // nothing to say about whatever is occupying that package name.
+        val followedOnly = source(latestTag = "v1.94.0")
+
+        assertFalse(followedOnly.ownsInstalled("1.93.130"))
+    }
+
+    @Test
+    fun `a disabled or muted source still owns what it installed`() {
+        // Turning a source off says nothing about where the copy on the device came from, and handing
+        // the app back to the catalogue on that basis is how a version code from another numbering
+        // gets read as an upgrade.
+        val off = source(installedTag = "v1.93.130", installedVersionName = "1.93.130")
+            .copy(enabled = false, muteUpdates = true)
+
+        assertTrue(off.ownsInstalled("1.93.130"))
+    }
 }

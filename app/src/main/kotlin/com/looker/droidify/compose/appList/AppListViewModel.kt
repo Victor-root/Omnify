@@ -250,6 +250,27 @@ class AppListViewModel @Inject constructor(
         .asStateFlow(emptyMap())
 
     /**
+     * Installed packages a tracked external source put on the device and still accounts for, mapped to
+     * that source's [ExternalApp.key]. The rule is [ExternalApp.ownsInstalled]: an install this app
+     * recorded, whose version is still the version the device reports.
+     *
+     * Two things read this, for the same reason. The Installed tab opens such an app on its source's own
+     * page ([externallyInstalledPackages]), and the catalogue stands aside from updating it
+     * ([com.looker.droidify.data.hasCatalogueUpdate]), both because the catalogue entry sharing that
+     * package name describes a different build, made somewhere else, numbered on its own terms.
+     */
+    private val externallyOwnedPackages: StateFlow<Map<String, String>> = combine(
+        externalAppRepository.apps,
+        installedVersionNames,
+    ) { externalApps, installedNames ->
+        externalApps.mapNotNull { app ->
+            val pkg = app.packageName ?: return@mapNotNull null
+            if (!app.ownsInstalled(installedNames[pkg])) return@mapNotNull null
+            pkg to app.key
+        }.toMap()
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
+
+    /**
      * The Installed tab's list, kept precomputed in the background (recomputed only when the catalogue
      * or the installed set changes, NOT when the tab is selected). Switching to the tab then just reads
      * this — no filtering happens on the switch, so it's instant instead of lagging while it filters.
@@ -269,8 +290,9 @@ class AppListViewModel @Inject constructor(
         appsState,
         installedInfo,
         suggestedVersions,
-    ) { apps, installed, suggested ->
-        apps.filter { hasUpdate(it, installed, suggested) }
+        externallyOwnedPackages,
+    ) { apps, installed, suggested, externallyOwned ->
+        apps.filter { hasUpdate(it, installed, suggested, externallyOwned.keys) }
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
 
     /**
@@ -311,18 +333,25 @@ class AppListViewModel @Inject constructor(
      * wrong changelog, and an update button offering a build that isn't a newer version of what is
      * actually installed. Reported for an AdAway fork against F-Droid's own AdAway.
      *
-     * What settles it is the signing key, the one thing that does identify a build: an installed copy
-     * the catalogue's own signers don't account for did not come from the catalogue, so a tracked source
-     * carrying that package name is the page that describes it. A copy that does match the catalogue is
-     * left alone, even when a source happens to track the same package, since the catalogue entry then
-     * genuinely describes what is installed.
+     * Two things settle it, and either alone is enough. This app's own record of having installed the
+     * copy that is still there ([externallyOwnedPackages]) is the direct answer where it exists. Failing
+     * that, the signing key, the one thing that identifies a build on its own: an installed copy the
+     * catalogue's own signers don't account for did not come from the catalogue, so a tracked source
+     * carrying that package name is the page that describes it. That second half is what covers a copy
+     * installed before its source was tracked, or through another client entirely, which no record of
+     * ours could speak for.
+     *
+     * A copy that matches the catalogue and that no source claims is left alone, even when a source
+     * happens to track the same package, since the catalogue entry then genuinely describes what is
+     * installed.
      */
     val externallyInstalledPackages: StateFlow<Map<String, String>> = combine(
         externalAppRepository.apps,
         installedInfo,
         suggestedVersions,
-    ) { externalApps, installed, suggested ->
-        externalApps.mapNotNull { app ->
+        externallyOwnedPackages,
+    ) { externalApps, installed, suggested, owned ->
+        owned + externalApps.mapNotNull { app ->
             val pkg = app.packageName ?: return@mapNotNull null
             if (pkg !in installed.versions) return@mapNotNull null
             // signerMismatch is the one shared definition of this comparison, and it answers false
@@ -342,12 +371,14 @@ class AppListViewModel @Inject constructor(
         app: AppMinimal,
         installed: InstalledInfo,
         suggested: Map<String, SuggestedVersion>,
+        externallyOwned: Set<String>,
     ): Boolean {
         val pkg = app.packageName.name
         return hasCatalogueUpdate(
             installedVersionCode = installed.versions[pkg],
             installedSigner = installed.signatures[pkg],
             isSystemApp = pkg in installed.systemApps,
+            installedFromExternalSource = pkg in externallyOwned,
             suggested = suggested[pkg],
         )
     }

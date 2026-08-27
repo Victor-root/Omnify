@@ -209,6 +209,15 @@ data class SuggestedVersion(
  * updater both offer, so the update still shows. When either signature is unknown we never hide a legitimate
  * update.
  *
+ * Or when the copy on the device came from a tracked external source and is still that copy
+ * ([installedFromExternalSource], see [com.looker.droidify.external.ExternalApp.ownsInstalled]): a
+ * version code only orders builds from one place, and two places number them however they like. F-Droid
+ * builds Every Door with `%c*10+<abi>`, so its 6.0.0 carries 553 while the developer's own 7.1.0 carries
+ * 60, and the Updates tab offered 553 as an upgrade over a version a year newer. Whoever installed the
+ * app is who knows what a newer build of it looks like, so the catalogue stands aside for that package
+ * rather than guessing across a numbering it doesn't share. Switching back to the catalogue's build
+ * stays available from the app's own page, which is where a deliberate change of source belongs.
+ *
  * The single definition of that rule, shared by the Updates tab and the automatic update installer so
  * the two can't disagree about what counts as updatable.
  *
@@ -219,9 +228,11 @@ fun hasCatalogueUpdate(
     installedVersionCode: Long?,
     installedSigner: String?,
     isSystemApp: Boolean,
+    installedFromExternalSource: Boolean,
     suggested: SuggestedVersion?,
 ): Boolean {
     if (installedVersionCode == null || suggested == null) return false
+    if (installedFromExternalSource) return false
     if (suggested.versionCode <= installedVersionCode) return false
     // signerMismatch is the one shared definition of this comparison (see InstalledIdentityRepository).
     return !(signerMismatch(installedSigner, suggested.signers) && isSystemApp)
