@@ -18,6 +18,7 @@ Android's install prompt no longer goes missing when you leave the app mid-updat
 - 📺 **Android TV explains an update Android refuses to apply.** Updating a catalogue app whose installed copy is signed by a different key did nothing at all: the button just went back to offering the same update. It now says so and offers to uninstall the existing copy first, the same as the phone and as an external source's own page already did.
 - 📲 **The Installed tab opens the source an app really came from.** An app followed from its own source (a fork, say) shares its package name with the catalogue entry it forked, so opening it from Installed showed the catalogue's page: the wrong version, the wrong changelog, and an update that wasn't one. Omnify now tells the two apart by their signing key.
 - 🏷️ **The "Get it on Omnify" badge is the same size in both snippets**, Markdown and HTML.
+- 🖼️ **An external source keeps its name and its icon even when the project decides them at build time.** An app whose name changes with the build (beta, canary) doesn't write it in its source: it leaves a marker there that only a build replaces, and its page showed that raw marker where the name belongs. Its icon was drawn with a colour written in shorthand that Omnify couldn't read, which left it as a flat coloured square. Omnify now reads the real name from the project's own build file, understands the shorthand colours, and falls back to the project's plain icon when it genuinely can't draw the real one instead of showing an empty square.
 
 ---
 

@@ -114,7 +114,7 @@ internal class AdaptiveIconComposer(
         for (path in colourFiles) {
             val text = readFile(path) ?: continue
             val match = pattern.find(text) ?: continue
-            return runCatching { Color.parseColor(match.groupValues[1]) }.getOrNull()
+            return parseColourLiteral(match.groupValues[1])
         }
         return null
     }
@@ -209,8 +209,8 @@ private fun Bitmap.isFullyTransparent(): Boolean {
  * Android can only inflate a VectorDrawable from a compiled resource, never from XML text fetched at
  * runtime, so the small subset an adaptive-icon layer actually uses is drawn here instead: the
  * viewport, nested `<group>` transforms, and each `<path>`'s fill. Strokes and gradient fills are not
- * drawn; a layer relying on those simply comes out empty and is rejected by the caller's own check,
- * falling back to the raster rather than showing something half-drawn.
+ * drawn; a layer relying on only those comes out blank, which is returned as null rather than as an
+ * empty image, so the caller falls back to the raster instead of showing something half-drawn.
  */
 private fun renderVector(xml: String, sizePx: Int): Bitmap? {
     val viewportWidth = xml.attr("android:viewportWidth")?.toFloatOrNull() ?: return null
@@ -260,7 +260,7 @@ private fun renderVector(xml: String, sizePx: Int): Bitmap? {
                 // A theme/resource reference resolves to nothing here; skipping keeps a wrong colour off
                 // the canvas rather than guessing one.
                 if (fill.startsWith("@") || fill.startsWith("?")) continue
-                val colour = runCatching { Color.parseColor(fill) }.getOrNull() ?: continue
+                val colour = parseColourLiteral(fill) ?: continue
                 val alpha = attributes.attr("android:fillAlpha")?.toFloatOrNull() ?: 1f
                 val path = runCatching { PathParser.createPathFromPathData(data) }.getOrNull() ?: continue
                 if (attributes.attr("android:fillType").equals("evenOdd", ignoreCase = true)) {
@@ -273,7 +273,29 @@ private fun renderVector(xml: String, sizePx: Int): Bitmap? {
         }
     }
     while (depth > 0) { canvas.restore(); depth-- }
-    return bitmap
+    // Nothing drawn means nothing this could read: without this the blank result would be composed
+    // over the background as if it were the artwork, and the icon would come out a flat coloured square.
+    return bitmap.takeUnless { it.isFullyTransparent() }
+}
+
+/**
+ * Reads a colour literal from a resource file, the short `#RGB` / `#ARGB` forms included.
+ *
+ * [Color.parseColor] handles only `#RRGGBB` and `#AARRGGBB` and throws on the short forms, which the
+ * resource compiler expands when the app is built, so repositories write them freely: an
+ * `android:fillColor="#fff"` (confirmed on fluxerapp/flutter_client) left every path of the foreground
+ * undrawn, and its icon came out as its bare background colour. Null when the value is neither a
+ * colour literal nor one of the names [Color.parseColor] knows.
+ */
+private fun parseColourLiteral(value: String): Int? {
+    val text = value.trim()
+    val expanded = if (text.startsWith("#") && (text.length == 4 || text.length == 5)) {
+        // Each digit stands for a doubled pair: #f80 is #ff8800, #8f80 is #88ff8800.
+        text.drop(1).fold(StringBuilder("#")) { out, digit -> out.append(digit).append(digit) }.toString()
+    } else {
+        text
+    }
+    return runCatching { Color.parseColor(expanded) }.getOrNull()
 }
 
 /** Drops `<!-- ... -->` blocks. Every scan below reads tags with a regex, and repositories routinely

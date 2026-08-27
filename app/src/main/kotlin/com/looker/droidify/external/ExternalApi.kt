@@ -534,22 +534,50 @@ class ExternalApi @Inject constructor(
     /**
      * Resolves the app's user-facing name from its manifest's `<application android:label>` — the same
      * value the launcher shows. A literal label is used as-is; an `@string/name` reference is resolved
-     * from the module's `res/values` string files (split files included). Tries the manifests most
-     * likely to be the app module first, skipping library modules that carry no application label.
-     * Returns null when it can't be determined (the UI then keeps the repo name).
+     * from the module's `res/values` string files (split files included); a `${'$'}{placeholder}` from the
+     * module's build file. Tries the manifests most likely to be the app module first, skipping library
+     * modules that carry no application label. Returns null when it can't be determined (the UI then
+     * keeps the repo name).
      */
     private suspend fun resolveAppName(app: ExternalApp, paths: List<String>): String? {
         for (manifestPath in pickManifestPaths(paths)) {
             val xml = fetchRaw(app, manifestPath) ?: continue
             val label = extractApplicationLabel(xml) ?: continue
+            val moduleRoot = manifestPath.removeSuffix("/src/main/AndroidManifest.xml")
             val stringName = label.removePrefix("@string/").takeIf { it != label }
             if (stringName == null) {
-                return unescapeAndroidString(label).takeIf { it.isNotBlank() }
+                val literal = resolveManifestPlaceholders(app, moduleRoot, label) ?: continue
+                return unescapeAndroidString(literal).takeIf { it.isNotBlank() }
             }
-            val moduleRoot = manifestPath.removeSuffix("/src/main/AndroidManifest.xml")
             resolveStringResource(app, paths, moduleRoot, stringName)?.let { return it }
         }
         return null
+    }
+
+    /**
+     * Fills in a manifest label's `${'$'}{name}` build-time placeholders from the `manifestPlaceholders`
+     * entries in the module's own build file, the way the manifest merger does when the app is built.
+     * A label with no placeholder is returned untouched.
+     *
+     * Needed because a placeholder is the only part of a manifest that has no value until a build runs,
+     * so reading the file alone gives the raw `${'$'}{appLabel}`, which is what an app whose name is chosen
+     * per build type ends up called on its own page (confirmed on fluxerapp/flutter_client, shown as
+     * literally "${'$'}{appLabel}"). Null when the value can't be found, so the caller falls back to the repo
+     * name rather than showing the placeholder itself.
+     *
+     * The first value in the file wins: a build file sets the default in `defaultConfig` and then
+     * overrides it per build type, in that order, so the first is the one the release build keeps while
+     * the later ones are the "… Beta"/"… Canary" variants of the same name.
+     */
+    private suspend fun resolveManifestPlaceholders(
+        app: ExternalApp,
+        moduleRoot: String,
+        label: String,
+    ): String? {
+        if (!MANIFEST_PLACEHOLDER_REGEX.containsMatchIn(label)) return label
+        val prefix = if (moduleRoot.isEmpty()) "" else "$moduleRoot/"
+        val buildFile = BUILD_FILE_NAMES.firstNotNullOfOrNull { fetchRaw(app, prefix + it) } ?: return null
+        return substituteManifestPlaceholders(label) { manifestPlaceholderValue(buildFile, it) }
     }
 
     /** Finds the `<string name="[name]">` value in the module's default `res/values` string files. */
@@ -1123,14 +1151,12 @@ class ExternalApi @Inject constructor(
          *  validate a token (see [verifyGithubToken]). */
         const val GITHUB_RATE_LIMIT_URL = "https://api.github.com/rate_limit"
 
-        /** Where an Android app's `applicationId` usually lives, most likely first. */
-        val BUILD_GRADLE_PATHS = listOf(
-            "app/build.gradle.kts",
-            "app/build.gradle",
-            "android/app/build.gradle.kts",
-            "android/app/build.gradle",
-            "src/app/build.gradle",
-        )
+        /** The two spellings of a Gradle module's build file, Kotlin DSL first (today's default). */
+        val BUILD_FILE_NAMES = listOf("build.gradle.kts", "build.gradle")
+
+        /** Where an Android app's `applicationId` usually lives, most likely module first. */
+        val BUILD_GRADLE_PATHS = listOf("app", "android/app", "src/app")
+            .flatMap { module -> BUILD_FILE_NAMES.map { "$module/$it" } }
 
         /** `applicationId`, else `namespace`, in either Groovy or Kotlin-DSL form. */
         val PACKAGE_ID_REGEXES = listOf(
@@ -1668,6 +1694,52 @@ private fun extractApplicationLabel(xml: String): String? {
     val applicationTag = Regex("""<application\b[^>]*>""").find(xml)?.value ?: return null
     return Regex("""\bandroid:label\s*=\s*"([^"]+)"""")
         .find(applicationTag)
+        ?.groupValues
+        ?.get(1)
+}
+
+/** A manifest's build-time `${'$'}{name}` placeholder, capturing the name the build file gives a value to.
+ *
+ *  The closing brace has to be escaped. Android's regex engine is ICU, not the JVM's own: the JVM reads a
+ *  lone `}` as a literal, ICU rejects the whole pattern as a dangling interval. This is a top-level
+ *  property, so the failure took the entire file's initialisation down with it and every external source
+ *  stopped answering, on a pattern that compiles and passes its tests on a desktop JVM. */
+private val MANIFEST_PLACEHOLDER_REGEX = Regex("""\${'$'}\{([^}]+)\}""")
+
+/**
+ * Replaces every `${'$'}{name}` in a manifest value with what [valueOf] gives that name, as the manifest
+ * merger does at build time. A value with no placeholder comes back untouched; one placeholder without
+ * a value gives up on the whole thing and returns null, since half a name is worse than none.
+ */
+internal fun substituteManifestPlaceholders(value: String, valueOf: (String) -> String?): String? {
+    var resolved = value
+    for (match in MANIFEST_PLACEHOLDER_REGEX.findAll(value)) {
+        val replacement = valueOf(match.groupValues[1]) ?: return null
+        resolved = resolved.replace(match.value, replacement)
+    }
+    return resolved
+}
+
+/**
+ * The value a build file gives one `manifestPlaceholders` entry, in the spellings both Gradle DSLs
+ * offer: `manifestPlaceholders["k"] = "v"` and `.put("k", "v")`, Groovy's `manifestPlaceholders.k = "v"`,
+ * and the map form (`= [k: "v"]` / `+= mapOf("k" to "v")`). Earliest in the file wins whichever spelling
+ * found it, so a `defaultConfig` entry beats the per-build-type overrides written after it.
+ *
+ * A value that isn't a plain string literal (a variable, a version-catalog lookup) matches nothing and
+ * comes back null, which the caller reads as "can't tell" rather than risking a wrong name.
+ */
+internal fun manifestPlaceholderValue(buildFile: String, name: String): String? {
+    val key = Regex.escape(name)
+    // The value itself, in either quote style: the one part every spelling below ends with.
+    val quoted = """["']([^"']*)["']"""
+    return listOf(
+        Regex("""manifestPlaceholders\s*(?:\[\s*|\.put\s*\(\s*)["']$key["']\s*(?:\]\s*=|,)\s*$quoted"""),
+        Regex("""manifestPlaceholders\s*\.\s*$key\s*=\s*$quoted"""),
+        Regex("""manifestPlaceholders\s*\+?=\s*(?:mapOf\s*)?[\[(][^\])]*?["']?$key["']?\s*(?:to|:)\s*$quoted"""),
+    )
+        .mapNotNull { it.find(buildFile) }
+        .minByOrNull { it.range.first }
         ?.groupValues
         ?.get(1)
 }
