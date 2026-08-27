@@ -6,6 +6,7 @@ import android.util.Base64
 import android.util.Log
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.utility.common.LanguageDetector
+import com.looker.droidify.utility.common.withoutNonLocalePrefix
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -1399,7 +1400,7 @@ private val I18N_FILE_LOCALE_REGEX = Regex(
  *  ish folder, whose own name carries the locale. Deliberately gated on the directory hint (not run
  *  against every .json/.yaml in the repo) to avoid matching unrelated config files. Returns a BCP47 code
  *  ("fr", "pt-BR") or null when [path] doesn't look like one of these translation files. */
-private fun localeFromI18nAssetPath(path: String): String? {
+internal fun localeFromI18nAssetPath(path: String): String? {
     if (!I18N_DIR_HINT_REGEX.containsMatchIn(path.substringBeforeLast('/'))) return null
     val fileName = path.substringAfterLast('/')
     // Rust's own reserved module-file names ("mod.rs" declares the directory as a module, "lib.rs"/
@@ -1409,9 +1410,15 @@ private fun localeFromI18nAssetPath(path: String): String? {
         return null
     }
     val match = I18N_FILE_LOCALE_REGEX.find(fileName) ?: return null
-    val language = match.groupValues[1]
-    val region = match.groupValues[2]
-    return if (region.isNotEmpty()) "$language-${region.uppercase()}" else language.lowercase()
+    // A three-letter word in front of the locale ("app_fr.arb") is short enough to sit exactly where a
+    // language belongs, which left the real language holding the region's place. See
+    // [withoutNonLocalePrefix].
+    val code = withoutNonLocalePrefix(
+        match.groupValues.drop(1).filter { it.isNotEmpty() }.joinToString("-"),
+    )
+    val language = code.substringBefore('-')
+    val region = code.substringAfter('-', "")
+    return if (region.isEmpty()) language.lowercase() else "${language.lowercase()}-${region.uppercase()}"
 }
 
 private val RUST_RESERVED_FILE_NAMES = setOf("mod", "lib", "main")

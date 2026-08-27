@@ -95,6 +95,20 @@ class AssetLocaleDetectionTest {
     }
 
     @Test
+    fun `a set named after its string table reports the language, not the table`() {
+        // Flutter's own gen-l10n names every file after the template rather than the locale, so the
+        // word in front is not part of the code. Read as one, it takes the language's place and leaves
+        // the language standing in the region's, which is how an app came to list "App (France)".
+        val found = detect(
+            "assets/translations/app_en.json",
+            "assets/translations/app_fr.json",
+            "assets/translations/app_pt_BR.json",
+        )
+
+        assertEquals(listOf("en", "fr", "pt-BR"), found)
+    }
+
+    @Test
     fun `a Chromium locale bundle is still found`() {
         val found = detect(
             "assets/locales/en-US.pak",

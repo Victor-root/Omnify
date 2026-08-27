@@ -5,6 +5,7 @@ import com.looker.droidify.BuildConfig
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.RangeResult
 import com.looker.droidify.network.header.HeadersBuilder
+import com.looker.droidify.utility.common.withoutNonLocalePrefix
 import java.util.zip.Inflater
 
 /**
@@ -276,7 +277,11 @@ object RemoteApkLocaleReader {
             val codes = siblings.mapNotNull { ASSET_LOCALE_FILE_REGEX.matchEntire(it)?.groupValues?.get(1) }
             if (holdsTranslations(codes.size, siblings.size)) codes else emptyList()
         }
-        .map { it.replace('_', '-') }
+        // The prefix pass first: a set named after its string table rather than its locale
+        // ("app_fr.json") puts a non-locale word where the language belongs. See
+        // [withoutNonLocalePrefix]. Everything else it returns untouched, separator included, which the
+        // normalisation below then settles as before.
+        .map { withoutNonLocalePrefix(it).replace('_', '-') }
 
     private suspend fun fetchBytes(
         downloader: Downloader,
