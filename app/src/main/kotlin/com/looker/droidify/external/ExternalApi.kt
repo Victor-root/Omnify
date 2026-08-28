@@ -691,7 +691,7 @@ class ExternalApi @Inject constructor(
      * this is always null there. Null when the field is empty/absent or the check itself fails.
      */
     suspend fun fetchWebsiteUrl(app: ExternalApp): String? = withContext(Dispatchers.IO) {
-        fetchRepoInfo(app)?.websiteUrl
+        runCatching { fetchRepoInfo(app)?.websiteUrl }.getOrNull()
     }
 
     /** Shared cache for [fetchRepoInfo], keyed and bounded exactly like [treeCache]: asking about a
