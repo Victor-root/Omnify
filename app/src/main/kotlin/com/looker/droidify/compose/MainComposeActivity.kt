@@ -461,20 +461,27 @@ class MainComposeActivity : ComponentActivity() {
         // start-up frame is already busy — doing DB work here would jank the UI (and starve the
         // WorkManager scheduler that has to dispatch the sync).
         lifecycleScope.launch(Dispatchers.Default) {
+            // Seeding the default repos does not switch any of them on: whether a repo is enabled lives
+            // in the settings, not in the repo table. The ones meant to be on out of the box are enabled
+            // (and therefore synced) right here, where they are created, so a fresh install fills its
+            // catalog instead of showing an empty list.
+            //
+            // Both halves belong to that first run only. Enabling on every start, which is what this used
+            // to do, silently turned a default repo the user had disabled back on at the next cold start:
+            // once the repos exist, "disabled by the user" and "not switched on yet" are the same state,
+            // and nothing here could tell them apart.
             if (repository.repos.first().isEmpty()) {
                 Repository.defaultRepositories.forEach {
                     repository.insertRepo(it.address, it.fingerprint, null, null, it.name, it.description)
                 }
+                val enabledByDefault = Repository.defaultRepositories
+                    .filter { it.enabled }
+                    .map { it.address }
+                    .toSet()
+                repository.repos.first()
+                    .filter { it.address in enabledByDefault }
+                    .forEach { repository.enableRepository(it, enable = true) }
             }
-            // Enable (and therefore sync) the repos that are enabled by default but aren't yet, so a
-            // fresh install fills its catalog automatically instead of showing an empty list.
-            val enabledByDefault = Repository.defaultRepositories
-                .filter { it.enabled }
-                .map { it.address }
-                .toSet()
-            repository.repos.first()
-                .filter { it.address in enabledByDefault && !it.enabled }
-                .forEach { repository.enableRepository(it, enable = true) }
 
             // One-time: seed Omnify's own repo as the active update channel, plus the developer's whole
             // GitHub account as a separate, opt-in (disabled) source. Guarded by a flag (not by "is the

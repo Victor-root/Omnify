@@ -9,6 +9,7 @@ Android's install prompt no longer goes missing when you leave the app mid-updat
 - 🚦 **Far fewer requests behind the scenes.** Omnify stopped re-asking every site what it had already been told, which is what made one download crawl while the next ran at full speed.
 
 ### 🐛 Fixed
+- 🗂️ **A repository you switch off stays off.** F-Droid and IzzyOnDroid came back on by themselves every time Omnify was started from cold.
 - 📴 **Opening an app's page with no connection no longer closes Omnify.**
 - 🎨 **The changelog and README pages colour the status and navigation bars like their own header**, instead of a darker shade of it.
 - 📥 **The install prompt no longer disappears when you leave Omnify mid-update.** A notification offers it while you're elsewhere, and it comes back on its own when you return.
