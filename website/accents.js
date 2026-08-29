@@ -22,6 +22,8 @@
  *   shots    the three hero screenshots, in the order they are stacked:
  *            left (tilted back), centre (in front), right (tilted forward)
  *   tvShot   the Android TV screenshot further down the page
+ *   chrome   the phone's status, app and navigation bars, lifted off the shots
+ *            above and laid over the card the security section draws
  */
 
 window.OMNIFY_ACCENTS = [
@@ -35,7 +37,8 @@ window.OMNIFY_ACCENTS = [
       "assets/screenshots/green-2.webp",
       "assets/screenshots/green-3.webp"
     ],
-    tvShot: "assets/screenshots/tv-green.webp"
+    tvShot: "assets/screenshots/tv-green.webp",
+    chrome: "assets/screenshots/device-chrome-green.webp"
   },
   {
     id: "red",
@@ -47,7 +50,8 @@ window.OMNIFY_ACCENTS = [
       "assets/screenshots/red-2.webp",
       "assets/screenshots/red-3.webp"
     ],
-    tvShot: "assets/screenshots/tv-red.webp"
+    tvShot: "assets/screenshots/tv-red.webp",
+    chrome: "assets/screenshots/device-chrome-red.webp"
   },
   {
     id: "purple",
@@ -59,6 +63,7 @@ window.OMNIFY_ACCENTS = [
       "assets/screenshots/purple-2.webp",
       "assets/screenshots/purple-3.webp"
     ],
-    tvShot: "assets/screenshots/tv-purple.webp"
+    tvShot: "assets/screenshots/tv-purple.webp",
+    chrome: "assets/screenshots/device-chrome-purple.webp"
   }
 ];

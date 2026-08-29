@@ -25,6 +25,12 @@
   --brand-on: color-mix(in oklab, var(--brand) 62%, white);
   --brand-2-on: color-mix(in oklab, var(--brand-2) 62%, white);
   --accent: var(--brand-on);
+  /* microG coverage, drawn on the Google-services card. Deliberately outside the accent
+     pair: the app takes these from Material's error role, which doesn't repaint with the
+     accent either, and a "not covered by microG" pill turning green under a green accent
+     would read as the opposite of what it says. */
+  --danger: #e5484d;
+  --danger-on: color-mix(in oklab, var(--danger) 62%, white);
   /* Text drawn on top of a full-strength accent. Set per colour in accents.js,
      since a light accent needs dark text and a dark one needs white. */
   --on-brand: #ffffff;
@@ -69,6 +75,7 @@
     --brand-on: color-mix(in oklab, var(--brand) 65%, #04150d);
     --brand-2-on: color-mix(in oklab, var(--brand-2) 65%, #04150d);
     --accent: var(--brand-on);
+    --danger-on: color-mix(in oklab, var(--danger) 72%, #150404);
     --shadow: 0 24px 60px -24px rgba(9, 26, 17, 0.25);
     --aurora-strength: 0.55;
     --scroll-track: color-mix(in srgb, var(--brand) 16%, transparent);
@@ -92,6 +99,7 @@
   --brand-on: color-mix(in oklab, var(--brand) 65%, #04150d);
   --brand-2-on: color-mix(in oklab, var(--brand-2) 65%, #04150d);
   --accent: var(--brand-on);
+  --danger-on: color-mix(in oklab, var(--danger) 72%, #150404);
   --shadow: 0 24px 60px -24px rgba(9, 26, 17, 0.25);
   --aurora-strength: 0.55;
   --scroll-track: color-mix(in srgb, var(--brand) 16%, transparent);
@@ -734,11 +742,254 @@ a { color: inherit; }
   padding: 5px 11px;
   border-radius: 999px;
   font-size: 12.5px;
+  /* Without this the page's own line spacing makes the box taller than it is wide on a one-character
+     label, drawing the count beside the certificate row as an upright oval where the app's is flat. */
+  line-height: 1;
   font-weight: 650;
 }
 .chip-ok {
   color: var(--on-brand);
   background: var(--brand);
+}
+
+/* The three microG-coverage pills, in the app's own order of severity: covered reads as the
+   accent, partial as the warm second colour, not covered as the danger one. Tinted rather than
+   filled, like the app's own container roles, so three of them stacked don't shout. */
+.chip-full {
+  color: var(--brand-on);
+  background: color-mix(in srgb, var(--brand) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand) 34%, transparent);
+}
+.chip-partial {
+  color: var(--brand-2-on);
+  background: color-mix(in srgb, var(--brand-2) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-2) 34%, transparent);
+}
+.chip-none {
+  color: var(--danger-on);
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 36%, transparent);
+}
+
+/* One detected capability: its name, its coverage pill under it, and what breaks without it. The pill
+   sits on its own line rather than beside the name: this only ever runs at the width of the phone
+   screen below, where a flex row squeezed the longest name down to a couple of characters per line.
+   Line height set on the row, not only on the name inside it: once the name wraps onto a second line,
+   the line box is sized by the block's own strut, so leaving that at the page's 1.65 spread a two-line
+   capability name far wider apart than the same name reads on the phone. */
+.gms-row-head { line-height: 1.35; }
+.gms-row-head strong { font-size: 14.5px; font-weight: 600; }
+.gms-row-head .chip {
+  display: flex;
+  width: fit-content;
+  margin: 8px 0 0;
+}
+.gms-row > p {
+  margin: 5px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+/* The security cards drawn inside a phone. They are what Omnify shows on someone else's app page,
+   and on Omnify's own site a card headed "Depends on Google services" reads as a confession unless
+   something says whose screen it is. A label above them was too easy to skip; a frame is not read,
+   it is recognised. Drawn rather than screenshotted so it stays in the reader's language and follows
+   the accent they picked. */
+.device {
+  margin: 0;
+  width: 100%;
+  max-width: 400px;
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+}
+/* The frame image sizes this box; the screen is laid into it as a share of that size, so the two
+   stay registered at any width without a single fixed pixel. Every number below is measured off the
+   frame itself (see make-device-frame.py): the glass starts 4.076% in and 1.768% down, and is
+   91.304% by 96.175% of the image. */
+.device-body {
+  position: relative;
+  width: 100%;
+  /* Everything drawn on the glass is sized in cqw against this, so the phone's furniture keeps its
+     proportions whether the frame is 400px wide or 340. */
+  container-type: inline-size;
+  /* Follows the frame's own alpha rather than boxing a rectangle around it, the same reason the
+     hero shots use a drop-shadow. */
+  filter: drop-shadow(0 26px 44px rgba(0, 0, 0, 0.34));
+}
+.device-shell {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: auto;
+  /* Above the screen so the bezel does the clipping and the camera falls on the content, and inert
+     so a click still lands on whatever is underneath. */
+  pointer-events: none;
+}
+.device-screen {
+  position: absolute;
+  z-index: 1;
+  left: 4.076%;
+  top: 1.768%;
+  width: 91.304%;
+  height: 96.175%;
+  overflow: hidden;
+  /* The glass's own corner, 166px across a 1344px-wide by 2992px-tall screen. Belt and braces: the
+     bezel already covers the corners, this only keeps a background from squaring them off at a
+     fractional scale. */
+  border-radius: 12.35% / 5.55%;
+  background: var(--bg-2);
+}
+
+/* The phone's bars, laid over the glass at its own size: the image is the whole screen with only
+   those bands kept, so it needs no offsets of its own and cannot drift out of step with the card
+   under it. Above the card so the navigation bar covers its foot the way a real one does, and inert
+   so nothing here swallows a click. */
+.device-chrome {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* The app bar's contents, laid over the bar image (see make-device-chrome.py) rather than baked into
+   it: the name has to change language, and the buttons have to sit beside it wherever it ends. Every
+   number is measured off the shots the bar comes from, on a 1344 by 2992 screen where one cqw is 14.72
+   of those pixels: the title's ink starts 173px in, the back arrow's ink is centred on 242px down, and
+   the row is centred on that same line. The left edge is 10px short of the title's ink so the first
+   letter's own side bearing lands it there. */
+.device-appbar {
+  position: absolute;
+  z-index: 3;
+  left: 11.05cqw;
+  right: 5.22cqw;
+  top: 16.4cqw;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2.5cqw;
+  /* The bar under this is a photograph of a phone, not a themed surface: it has to match the white the
+     clock and the back arrow in that image are drawn in, so it can't come from the palette. */
+  color: #fff;
+  pointer-events: none;
+}
+.device-title {
+  flex: 1;
+  min-width: 0;
+  /* One line, cut with an ellipsis, exactly as the app's own bar treats a name too long for it. */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 4.2cqw;
+  font-weight: 500;
+  line-height: 1;
+}
+/* The gap is what is left of a button's own width once the glyph inside it is taken out, so the three
+   sit at the pitch the app's bar puts them at. */
+.device-actions { display: flex; align-items: center; flex: none; gap: 7.25cqw; }
+.device-action { width: 4.9cqw; height: 4.9cqw; flex: none; }
+
+/* Measured off the shots the bars come from: the top band is 327px of a 2992px screen, the
+   navigation bar 144px. In cqw, not per cent: a vertical padding in per cent resolves against the
+   width, which put the card's own heading behind the app bar. 1% of the screen's height is 2.032cqw,
+   so 10.93% is 22.2 and 4.81% is 9.8. The extra 4 at the top is the gap the app leaves under its own
+   app bar, and the 3.6 at the foot the same margin the sides carry: without them the card is welded to
+   the header and the certificate row sits on the navigation bar. */
+.screen-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  overflow: hidden;
+  padding: 26.2cqw 3.6cqw 13.4cqw;
+  /* A column so whatever the page does not fill can be put somewhere deliberate: see the cards' own
+     flex rules below. How much that is depends on the language, since the same card runs a third
+     longer in German than in English. The gap is the app's own 8dp between the pieces of its page,
+     and it is set here rather than on each of them so all three are spaced alike. */
+  display: flex;
+  flex-direction: column;
+  gap: 2.43cqw;
+}
+/* The header card, blank: the app's icon, the two lines naming it and its author, and the button that
+   installs it. The blanks tint off the text colour rather than the palette, so they stay neutral in
+   both themes; the button keeps the accent, since a screen whose only coloured thing is a warning
+   reads as one. It takes three quarters of whatever the page does not fill, since a header card with
+   room around its icon is where that space costs nothing, and the card below only takes what is left
+   over: spread evenly, the same space opened gaps between that card's paragraphs wide enough to read
+   as a fault. Bounded all the same, so the shortest language does not turn it into an empty panel. */
+.hero-card {
+  display: flex;
+  align-items: center;
+  gap: 3.2cqw;
+  flex: 3 1 auto;
+  max-height: 36cqw;
+}
+.ph-icon, .ph-bar { background: color-mix(in srgb, currentColor 13%, transparent); }
+.ph-icon { width: 12cqw; height: 12cqw; border-radius: 3cqw; flex: none; }
+.ph-lines { display: grid; gap: 2.2cqw; flex: 1; min-width: 0; }
+.ph-bar { height: 2.6cqw; border-radius: 1.3cqw; }
+.ph-bar-short { width: 55%; }
+.ph-action { width: 15cqw; height: 6.4cqw; border-radius: 3.2cqw; flex: none; background: var(--brand); }
+
+/* The cards sit on a screen now, not on the page: no shadow of their own, tighter padding, and text
+   at the size a phone draws it, or they read as desktop cards that happen to be in a frame.
+   Every number is a share of the phone rather than a pixel count, so the screen holds the same thing
+   whatever the frame is drawn at, exactly as the real screenshots beside it do; in pixels it fitted at
+   one width and ran off the bottom at every narrower one. The scale itself is set by the longest of
+   the thirteen languages this page is in, not by English: German, Dutch and Russian run about a third
+   longer here, and a size that fitted English pushed the certificate check below the navigation bar in
+   all three. It is set with room to spare on top of that, since the page is drawn in whatever the
+   reader's system font is and the wrapping moves with it. */
+.device-screen .fake-card {
+  padding: 3.2cqw 2.95cqw;
+  border-radius: 4.5cqw;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.device-screen .fake-head { gap: 2.43cqw; }
+.device-screen .fake-head strong { font-size: 3.44cqw; }
+.device-screen .fake-head > div > span { font-size: 2.95cqw; }
+.device-screen .fake-icon { width: 9.37cqw; height: 9.37cqw; border-radius: 2.95cqw; }
+.device-screen .fake-icon .ico { width: 4.69cqw; height: 4.69cqw; }
+/* The card takes what the header card's own bound leaves over, and spreads it between its heading and
+   its rows rather than leaving it in one lump: the same card runs a third longer in German than in
+   Chinese, and that difference has to go somewhere. Spread, it reads as a roomier card; pooled at the
+   foot of the screen it read as a page that failed to load. */
+.device-screen .gms-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1 1 auto;
+  gap: 3.2cqw;
+}
+.device-screen .gms-row-head strong { font-size: 3.38cqw; }
+.device-screen .gms-row-head .chip { margin-top: 1.96cqw; }
+.device-screen .gms-row > p { font-size: 3.09cqw; margin-top: 1.24cqw; }
+.device-screen .chip { font-size: 2.73cqw; padding: 1cqw 1.96cqw; }
+
+/* The certificate check, drawn the way the app draws it on an app's page: a row rather than a card,
+   folded shut over the two fingerprints its count stands for. Same head as the card above it, with
+   the icon tile replaced by a bare tick and the subtitle carrying the verdict, so it takes the
+   verdict's colour instead of the muted one. Top-aligned because the subtitle is a sentence and wraps;
+   centred, the tick drifted to the middle of it. */
+.cert-row {
+  align-items: flex-start;
+  padding: 1cqw 0.54cqw;
+}
+.cert-row > .ico { width: 4.5cqw; height: 4.5cqw; flex: none; color: var(--brand); }
+.cert-row > div > span { color: var(--brand); }
+.cert-chevron { width: 4.5cqw; height: 4.5cqw; flex: none; margin-left: 1.96cqw; color: var(--dim); }
+
+/* Names the screen under it, so the framing is stated as well as drawn, and stated first: as a badge
+   below the phone it was read after the card it was there to frame, correcting an impression that had
+   already been made. Plain text rather than a badge for the same reason: it is a caption, not a
+   control, and one that draws the eye competes with the screen it introduces. */
+.visual-label {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dim);
 }
 
 .fake-rows { display: grid; gap: 2px; margin-top: 20px; }
@@ -753,12 +1004,6 @@ a { color: inherit; }
 }
 .fake-row:nth-child(odd) { background: var(--surface); }
 .fake-row .ico { width: 18px; height: 18px; color: var(--accent); }
-.fake-mono { justify-content: space-between; }
-.fake-mono code {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 12.5px;
-  color: var(--text);
-}
 
 /* ---------- Feature grid ---------- */
 

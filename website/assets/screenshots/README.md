@@ -84,3 +84,36 @@ colour picker, so a set of six can happily show six different colours.
 - No drop shadow baked in. The site adds one that follows the frame's own shape.
 - Export as large as the tool gives you. `optimise.py` handles the resizing, and
   keeping the big original means a future redesign can re-derive from it.
+
+## The empty frame
+
+`device-frame.png` is not a screenshot: it is one of the phones above with its
+glass punched out, so the security section can put a card it draws in HTML
+inside the same device the rest of the page shows. The card has to stay HTML
+there, or it would stop being translated into the thirteen languages the page is
+in, and a real screenshot would freeze it in one.
+
+    python3 make-device-frame.py    # green-2.png -> device-frame.png
+    python3 optimise.py             # -> device-frame.webp, like any other
+
+Re-run both if the mockup ever changes device. The script finds the glass by
+following the bezel rather than by a fixed rectangle, so a new phone needs no
+numbers changed here, but `styles.css` positions the screen as a percentage of
+the frame and those four numbers do have to be re-read from the new one. The
+script prints nothing about them: measure the transparent area of the output.
+
+## The phone's bars
+
+`device-chrome-<accent>.png` is the status bar, the app bar and Android's
+buttons, lifted off `<accent>-1.png` with everything between them made
+transparent. The security section lays it over the card it draws in HTML, inside
+the empty frame above, so the bars are the real ones while the card stays
+translatable.
+
+    python3 make-device-chrome.py   # <accent>-1.png -> device-chrome-<accent>.png
+    python3 optimise.py             # -> .webp
+
+One per accent, since the bars carry the accent colour, and `accents.js` points
+at them by name the same way it points at the hero shots. The app's own name is
+painted out of the app bar: the shots say "New apps", which is not the page that
+card belongs to. The back arrow stays.

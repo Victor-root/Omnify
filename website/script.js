@@ -235,6 +235,11 @@
     var tv = document.querySelector(".tv-shot img");
     if (tv && accent.tvShot) swapShot(tv, accent.tvShot);
 
+    /* The phone in the security section: its bars carry the accent, so they change with it exactly
+       as the hero's screenshots do, through the same decode-then-assign swap. */
+    var chrome = document.querySelector(".device-chrome");
+    if (chrome && accent.chrome) swapShot(chrome, accent.chrome);
+
     if (accentList) {
       var buttons = accentList.querySelectorAll(".accent-swatch");
       for (var j = 0; j < buttons.length; j++) {
@@ -285,7 +290,7 @@
        is instant rather than showing a gap while the new set loads. */
     var preload = function () {
       ACCENTS.forEach(function (accent) {
-        (accent.shots || []).concat(accent.tvShot || []).forEach(warm);
+        (accent.shots || []).concat(accent.tvShot || [], accent.chrome || []).forEach(warm);
       });
     };
     if (window.requestIdleCallback) {
