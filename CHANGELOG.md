@@ -5,7 +5,8 @@
 A follow-up to the downgrade fix in v1.0.4-beta.5, which turned out not to cover every device it was reported from.
 
 ### 🐛 Fixed
-- **An app installed from its own project is no longer offered an older build from the catalogue, even when Omnify has no record of having installed it.** The previous fix only covered a copy Omnify installed itself and still recognised, which left the offer coming back on a device where that record had drifted. The signing key settles it now, since a build the catalogue did not sign never came from the catalogue. ([#1](https://github.com/Victor-root/Omnify/issues/1))
+- **Omnify never offers a version older than the one you have, whatever the build numbers say.** Two publishers of the same app number their builds however they like, and comparing those numbers across them can say the exact opposite of the truth. The versions you actually see (7.1.0 against 6.0.0) are now checked as well, which also covers an app installed from a shop Omnify knows nothing about.
+- **An app installed from its own project is no longer offered an older build from the catalogue, on the app's own page as well as in the Updates tab.** The previous fix covered the lists but not the page itself, and only recognised a copy Omnify had installed and still had a record of, so the offer came back both from the catalogue entry's page and on a device where that record had drifted. The signing key settles it now, everywhere the question is asked, since a build the catalogue did not sign never came from the catalogue. Installing the catalogue's build on purpose is still available under "Show all versions". ([#1](https://github.com/Victor-root/Omnify/issues/1))
 
 ---
 

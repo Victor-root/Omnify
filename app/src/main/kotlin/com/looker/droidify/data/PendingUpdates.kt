@@ -48,12 +48,17 @@ class PendingUpdates @Inject constructor(
     suspend fun catalogueApps(): List<AppMinimal> {
         val hidden = settingsRepository.get { hiddenApps }.first()
         val suggested = appRepository.suggestedVersions()
-        val externallyOwned = externallyOwnedPackages()
-        val updatable = installedRepository.getAllStream().first()
+        val installedApps = installedRepository.getAllStream().first()
+        val externallyOwned = externallySourcedPackages(
+            installedSigners = installedApps.associate { it.packageName to it.signature },
+            suggested = suggested,
+        )
+        val updatable = installedApps
             .filter { installed ->
                 installed.packageName !in hidden &&
                     hasCatalogueUpdate(
                         installedVersionCode = installed.versionCode,
+                        installedVersionName = installed.version,
                         installedSigner = installed.signature,
                         isSystemApp = isSystemApp(installed.packageName),
                         installedFromExternalSource = installed.packageName in externallyOwned,
@@ -69,14 +74,26 @@ class PendingUpdates @Inject constructor(
     }
 
     /**
-     * Packages a tracked external source put on the device and still accounts for, by the same rule the
-     * Updates tab reads ([ExternalApp.ownsInstalled]): a recorded install whose version is still the one
-     * the package manager reports. Disabled and muted sources count too, since turning a source off says
-     * nothing about where the copy on the device came from.
+     * Installed packages a tracked external source, not the catalogue, is responsible for, by the same
+     * rule the Updates tab reads ([externalSourceOwns]).
+     *
+     * Disabled and muted sources count too, since turning a source off says nothing about where the copy
+     * on the device came from. The installed version is read live from the package manager rather than
+     * trusted from the source's own record, for the reason [externalApps] gives below.
      */
-    private suspend fun externallyOwnedPackages(): Set<String> = externalAppRepository.getApps()
+    private suspend fun externallySourcedPackages(
+        installedSigners: Map<String, String>,
+        suggested: Map<String, SuggestedVersion>,
+    ): Set<String> = externalAppRepository.getApps()
         .mapNotNullTo(mutableSetOf()) { app ->
-            app.packageName?.takeIf { app.ownsInstalled(externalRefresher.installedVersionName(it)) }
+            val pkg = app.packageName ?: return@mapNotNullTo null
+            if (pkg !in installedSigners) return@mapNotNullTo null
+            val owns = externalSourceOwns(
+                ownsInstalled = app.ownsInstalled(externalRefresher.installedVersionName(pkg)),
+                installedSigner = installedSigners[pkg],
+                catalogueSigners = suggested[pkg]?.signers.orEmpty(),
+            )
+            pkg.takeIf { owns }
         }
 
     /**

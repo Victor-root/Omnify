@@ -144,6 +144,7 @@ import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
+import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.FilePath
@@ -208,6 +209,7 @@ fun AppDetailScreen(
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
     val isHidden by viewModel.isHidden.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
+    val externallySourced by viewModel.externallySourced.collectAsStateWithLifecycle()
     val remoteIcon by viewModel.remoteIcon.collectAsStateWithLifecycle()
     val pushCapabilityConfirmedAbsent by viewModel.pushCapabilityConfirmedAbsent.collectAsStateWithLifecycle()
     val descriptionTranslation by viewModel.descriptionTranslation.collectAsStateWithLifecycle()
@@ -508,6 +510,7 @@ fun AppDetailScreen(
                     downloadStatus = downloadStatus,
                     downloadTargetVersionCode = downloadTargetVersionCode,
                     installedInfo = installedInfo,
+                    externallySourced = externallySourced,
                     remoteIcon = remoteIcon,
                     pushCapabilityConfirmedAbsent = pushCapabilityConfirmedAbsent,
                     isFavourite = isFavourite,
@@ -698,6 +701,7 @@ private fun AppDetail(
     downloadStatus: DownloadStatus?,
     downloadTargetVersionCode: Long?,
     installedInfo: InstalledInfo?,
+    externallySourced: Boolean,
     remoteIcon: File?,
     pushCapabilityConfirmedAbsent: Boolean,
     isFavourite: Boolean,
@@ -783,7 +787,14 @@ private fun AppDetail(
     // installed from a different channel that's ahead of this repo, Google Play shipping a build newer
     // than the repo's own top release, say, has no matching entry in [packages] at all, which used to
     // make this (and isInstalled below) wrongly report "not installed".
-    val updateAvailable = installedInfo != null && installablePackage != null &&
+    // externallySourced: a copy a tracked external source is responsible for is not this catalogue
+    // entry's to update, and the two number their builds on unrelated terms, so the comparison below
+    // says nothing at all about which is newer. See the ViewModel's own property for the whole story.
+    // catalogueBuildIsOlder is the backstop for a copy nothing here can account for at all, installed
+    // from a shop Omnify knows nothing about: it refuses a plain step backwards on the version each
+    // publisher wrote, since that is the one number both sides are counting the same thing with.
+    val updateAvailable = !externallySourced && installedInfo != null && installablePackage != null &&
+        !catalogueBuildIsOlder(installedInfo.version, installablePackage.manifest.versionName) &&
         installedInfo.versionCode < installablePackage.manifest.versionCode
     val isTelevision = LocalIsTelevision.current
     val context = LocalContext.current

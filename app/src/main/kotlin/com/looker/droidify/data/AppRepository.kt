@@ -14,6 +14,8 @@ import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
+import com.looker.droidify.external.compareVersionStrings
+import com.looker.droidify.external.dottedVersionOrNull
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.sync.v2.model.Tag
 import kotlinx.coroutines.Dispatchers
@@ -80,7 +82,7 @@ class AppRepository @Inject constructor(
             sdk = Build.VERSION.SDK_INT,
             abis = Build.SUPPORTED_ABIS.toList(),
         ).associate { row ->
-            row.packageName to SuggestedVersion(row.versionCode, row.signer.toSet())
+            row.packageName to SuggestedVersion(row.versionCode, row.versionName, row.signer.toSet())
         }
     }
 
@@ -196,8 +198,68 @@ class AppRepository @Inject constructor(
  */
 data class SuggestedVersion(
     val versionCode: Long,
+    val versionName: String,
     val signers: Set<String>,
 )
+
+/**
+ * Whether the build the catalogue would install is plainly an older release than what is on the device,
+ * going by the version each publisher wrote rather than by the code it numbered its own builds with.
+ *
+ * A version code only orders builds from one place. When the copy on the device came from somewhere
+ * else, comparing codes across the two is meaningless, and it can say the exact opposite of the truth:
+ * F-Droid rebuilds Every Door with `%c*10+<abi>`, so its 6.0.0 carries 553 while the developer's own
+ * 7.1.0 carries 60. The version names, on the other hand, are the same thing being counted on both
+ * sides, because they are what the project itself calls its releases.
+ *
+ * The last line of defence rather than the first: [externalSourceOwns] answers this properly wherever
+ * it can, and this catches what it cannot see at all, an app installed from a shop Omnify knows nothing
+ * about and that no tracked source claims. So it only ever refuses, never offers, and it refuses only a
+ * plain step backwards. Equal names change nothing and leave the version code to decide, since a
+ * project can perfectly well ship two builds under one name.
+ *
+ * Both sides have to carry a recognisable dotted number, or there is nothing being compared: version
+ * names are a free-text field, and plenty are dates, channels, or nothing at all.
+ */
+fun catalogueBuildIsOlder(installedVersionName: String?, catalogueVersionName: String?): Boolean {
+    val installed = installedVersionName?.let(::dottedVersionOrNull) ?: return false
+    val catalogue = catalogueVersionName?.let(::dottedVersionOrNull) ?: return false
+    return compareVersionStrings(catalogue, installed) < 0
+}
+
+/**
+ * Whether a tracked external source, rather than the catalogue entry that happens to share the package
+ * name, is responsible for the copy of that package on the device. Only ever asked about an installed
+ * package that a source actually tracks.
+ *
+ * Two things settle it, and either alone is enough. [ownsInstalled] is this app's own record of having
+ * installed the copy that is still there (see [com.looker.droidify.external.ExternalApp.ownsInstalled]),
+ * the direct answer wherever it exists. Failing that, the signing key, the one thing that identifies a
+ * build on its own: a copy the catalogue's own signers don't account for did not come from the
+ * catalogue.
+ *
+ * That second half is what covers a copy installed before its source was tracked, or through another
+ * client entirely, which no record of ours could ever speak for. It was missing from the update rule
+ * while the Installed tab already had it, so the two answered differently on the same app: Every Door
+ * installed from the project's own releases opened on its source's page, and was offered F-Droid's
+ * year-old build at the same time.
+ *
+ * Read by both questions that turn on it so they cannot drift apart again: which page an installed app
+ * belongs to, and whether the catalogue may update it ([hasCatalogueUpdate]).
+ */
+fun externalSourceOwns(
+    ownsInstalled: Boolean,
+    installedSigner: String?,
+    catalogueSigners: Collection<String>,
+): Boolean = externalSourceOwns(ownsInstalled, signerMismatch(installedSigner, catalogueSigners))
+
+/**
+ * [externalSourceOwns] where the caller has already compared the signatures, because it compares them
+ * against a wider set than a package listing can: an app's own page knows every version this catalogue
+ * entry has ever declared, and being a build of any of them is what makes a copy the catalogue's.
+ */
+fun externalSourceOwns(ownsInstalled: Boolean, catalogueDidNotSignIt: Boolean): Boolean =
+    ownsInstalled || catalogueDidNotSignIt
 
 /**
  * Whether the catalogue offers an update worth installing for a package, given what is on the device.
@@ -209,8 +271,8 @@ data class SuggestedVersion(
  * updater both offer, so the update still shows. When either signature is unknown we never hide a legitimate
  * update.
  *
- * Or when the copy on the device came from a tracked external source and is still that copy
- * ([installedFromExternalSource], see [com.looker.droidify.external.ExternalApp.ownsInstalled]): a
+ * Or when a tracked external source, not the catalogue, is responsible for the copy on the device
+ * ([installedFromExternalSource], decided by [externalSourceOwns]): a
  * version code only orders builds from one place, and two places number them however they like. F-Droid
  * builds Every Door with `%c*10+<abi>`, so its 6.0.0 carries 553 while the developer's own 7.1.0 carries
  * 60, and the Updates tab offered 553 as an upgrade over a version a year newer. Whoever installed the
@@ -226,6 +288,7 @@ data class SuggestedVersion(
  */
 fun hasCatalogueUpdate(
     installedVersionCode: Long?,
+    installedVersionName: String?,
     installedSigner: String?,
     isSystemApp: Boolean,
     installedFromExternalSource: Boolean,
@@ -233,6 +296,7 @@ fun hasCatalogueUpdate(
 ): Boolean {
     if (installedVersionCode == null || suggested == null) return false
     if (installedFromExternalSource) return false
+    if (catalogueBuildIsOlder(installedVersionName, suggested.versionName)) return false
     if (suggested.versionCode <= installedVersionCode) return false
     // signerMismatch is the one shared definition of this comparison (see InstalledIdentityRepository).
     return !(signerMismatch(installedSigner, suggested.signers) && isSystemApp)

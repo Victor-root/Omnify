@@ -10,8 +10,8 @@ import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledIdentityRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.SuggestedVersion
+import com.looker.droidify.data.externalSourceOwns
 import com.looker.droidify.data.hasCatalogueUpdate
-import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.data.model.excludingHidden
@@ -207,14 +207,15 @@ class AppListViewModel @Inject constructor(
         _selectedTab.value = tab
     }
 
-    // A single snapshot of the installed apps — versionCode, signing fingerprint and system-app
-    // status — reactive to install/uninstall. Everything the Installed/Updates tabs need, derived
-    // from one package-table subscription.
+    // A single snapshot of the installed apps (versionCode, versionName, signing fingerprint and
+    // system-app status), reactive to install/uninstall. Everything the Installed/Updates tabs need,
+    // derived from one package-table subscription.
     private val installedInfo: StateFlow<InstalledInfo> = installedRepository
         .getAllStream()
         .map { items ->
             InstalledInfo(
                 versions = items.associate { it.packageName to it.versionCode },
+                names = items.associate { it.packageName to it.version },
                 signatures = items.associate { it.packageName to it.signature },
                 systemApps = items.mapNotNullTo(mutableSetOf()) {
                     it.packageName.takeIf { pkg -> isSystemApp(pkg) }
@@ -250,22 +251,39 @@ class AppListViewModel @Inject constructor(
         .asStateFlow(emptyMap())
 
     /**
-     * Installed packages a tracked external source put on the device and still accounts for, mapped to
-     * that source's [ExternalApp.key]. The rule is [ExternalApp.ownsInstalled]: an install this app
-     * recorded, whose version is still the version the device reports.
+     * Installed packages a tracked external source, not the catalogue, is responsible for, mapped to
+     * that source's [ExternalApp.key]. The rule is [externalSourceOwns], and it is that function's own
+     * doc comment that explains what settles it.
      *
-     * Two things read this, for the same reason. The Installed tab opens such an app on its source's own
-     * page ([externallyInstalledPackages]), and the catalogue stands aside from updating it
-     * ([com.looker.droidify.data.hasCatalogueUpdate]), both because the catalogue entry sharing that
-     * package name describes a different build, made somewhere else, numbered on its own terms.
+     * A package name is not an identity: a fork keeps the name of the app it forked, so a fork followed
+     * as an external source and the original in the F-Droid catalogue are, to this app, the same
+     * package. Two things read this, for that one reason. The Installed tab lists what is on the device,
+     * and it built that list from the catalogue alone, so a fork installed from its own source opened
+     * the original's page: the wrong version, the wrong changelog, and an update button offering a build
+     * that isn't a newer version of what is actually installed (reported for an AdAway fork against
+     * F-Droid's own AdAway). And the catalogue stands aside from updating such a package
+     * ([com.looker.droidify.data.hasCatalogueUpdate]), since its entry describes a different build, made
+     * somewhere else, numbered on its own terms.
+     *
+     * A copy that matches the catalogue and that no source claims is left alone, even when a source
+     * happens to track the same package, since the catalogue entry then genuinely describes what is
+     * installed.
      */
-    private val externallyOwnedPackages: StateFlow<Map<String, String>> = combine(
+    val externallyInstalledPackages: StateFlow<Map<String, String>> = combine(
         externalAppRepository.apps,
+        installedInfo,
         installedVersionNames,
-    ) { externalApps, installedNames ->
+        suggestedVersions,
+    ) { externalApps, installed, installedNames, suggested ->
         externalApps.mapNotNull { app ->
             val pkg = app.packageName ?: return@mapNotNull null
-            if (!app.ownsInstalled(installedNames[pkg])) return@mapNotNull null
+            if (pkg !in installed.versions) return@mapNotNull null
+            val owns = externalSourceOwns(
+                ownsInstalled = app.ownsInstalled(installedNames[pkg]),
+                installedSigner = installed.signatures[pkg],
+                catalogueSigners = suggested[pkg]?.signers.orEmpty(),
+            )
+            if (!owns) return@mapNotNull null
             pkg to app.key
         }.toMap()
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
@@ -290,7 +308,7 @@ class AppListViewModel @Inject constructor(
         appsState,
         installedInfo,
         suggestedVersions,
-        externallyOwnedPackages,
+        externallyInstalledPackages,
     ) { apps, installed, suggested, externallyOwned ->
         apps.filter { hasUpdate(it, installed, suggested, externallyOwned.keys) }
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
@@ -321,49 +339,6 @@ class AppListViewModel @Inject constructor(
         .distinctUntilChanged()
         .asStateFlow(0)
 
-    /**
-     * Installed packages the Installed tab should open on a tracked external source's page rather than
-     * on the catalogue entry that happens to share their package name, mapped to that source's
-     * [ExternalApp.key].
-     *
-     * A package name is not an identity: a fork keeps the name of the app it forked, so a fork followed
-     * as an external source and the original in the F-Droid catalogue are, to this app, the same
-     * package. The Installed tab lists what is on the device, and it built that list from the catalogue
-     * alone, so a fork installed from its own source opened the original's page: the wrong version, the
-     * wrong changelog, and an update button offering a build that isn't a newer version of what is
-     * actually installed. Reported for an AdAway fork against F-Droid's own AdAway.
-     *
-     * Two things settle it, and either alone is enough. This app's own record of having installed the
-     * copy that is still there ([externallyOwnedPackages]) is the direct answer where it exists. Failing
-     * that, the signing key, the one thing that identifies a build on its own: an installed copy the
-     * catalogue's own signers don't account for did not come from the catalogue, so a tracked source
-     * carrying that package name is the page that describes it. That second half is what covers a copy
-     * installed before its source was tracked, or through another client entirely, which no record of
-     * ours could speak for.
-     *
-     * A copy that matches the catalogue and that no source claims is left alone, even when a source
-     * happens to track the same package, since the catalogue entry then genuinely describes what is
-     * installed.
-     */
-    val externallyInstalledPackages: StateFlow<Map<String, String>> = combine(
-        externalAppRepository.apps,
-        installedInfo,
-        suggestedVersions,
-        externallyOwnedPackages,
-    ) { externalApps, installed, suggested, owned ->
-        owned + externalApps.mapNotNull { app ->
-            val pkg = app.packageName ?: return@mapNotNull null
-            if (pkg !in installed.versions) return@mapNotNull null
-            // signerMismatch is the one shared definition of this comparison, and it answers false
-            // whenever either side is unknown, so an unsynced catalogue or an unreadable signature
-            // leaves the catalogue entry in place rather than rerouting on a guess.
-            if (!signerMismatch(installed.signatures[pkg], suggested[pkg]?.signers.orEmpty())) {
-                return@mapNotNull null
-            }
-            pkg to app.key
-        }.toMap()
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
-
     /** Whether [app] has a newer catalogue version worth offering. The rule itself lives in
      *  [hasCatalogueUpdate], shared with the automatic update installer, which has no ViewModel to read
      *  it from; this only unpacks [installed] for it. */
@@ -376,6 +351,7 @@ class AppListViewModel @Inject constructor(
         val pkg = app.packageName.name
         return hasCatalogueUpdate(
             installedVersionCode = installed.versions[pkg],
+            installedVersionName = installed.names[pkg],
             installedSigner = installed.signatures[pkg],
             isSystemApp = pkg in installed.systemApps,
             installedFromExternalSource = pkg in externallyOwned,
@@ -729,6 +705,10 @@ private data class AppQuery(
  */
 private data class InstalledInfo(
     val versions: Map<String, Long> = emptyMap(),
+    // The version as its publisher writes it, alongside the code Android orders builds by: the two
+    // answer different questions once a package can come from more than one place. See
+    // [com.looker.droidify.data.catalogueBuildIsOlder].
+    val names: Map<String, String> = emptyMap(),
     val signatures: Map<String, String> = emptyMap(),
     val systemApps: Set<String> = emptySet(),
 )

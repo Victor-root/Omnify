@@ -71,6 +71,7 @@ import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appDetail.components.PackageItem
 import com.looker.droidify.compose.components.InstallConflictDialog
 import com.looker.droidify.compose.components.InstallVersionDialog
+import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import androidx.compose.foundation.layout.Arrangement
@@ -111,6 +112,7 @@ fun TvAppDetailScreen(
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
     val isHidden by viewModel.isHidden.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
+    val externallySourced by viewModel.externallySourced.collectAsStateWithLifecycle()
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
     val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
     // Set once the hero icon actually loads (see the AppMinimalIcon call below); reset per screen
@@ -167,7 +169,12 @@ fun TvAppDetailScreen(
             // update to, known the moment the catalogue is synced, whether or not the app is installed
             // yet, unlike [installedSignerRaw].
             val expectedSigners = installablePackage?.manifest?.signer
-            val updateAvailable = installedVersionCode != null && installablePackage != null &&
+            // externallySourced: mirrors the phone screen, see AppDetailViewModel's own property. A copy
+            // a tracked external source is responsible for is not this catalogue entry's to update, and
+            // the comparison below says nothing about which build is newer across two numberings.
+            val updateAvailable = !externallySourced && installedVersionCode != null &&
+                installablePackage != null &&
+                !catalogueBuildIsOlder(installedInfo?.version, installablePackage.manifest.versionName) &&
                 installedVersionCode < installablePackage.manifest.versionCode
             // Mirrors the phone screen: the OS reports Installed before the app's own installed-packages
             // table catches up, so hold the "installing" look until the confirmed version matches.

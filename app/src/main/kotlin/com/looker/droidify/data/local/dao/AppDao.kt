@@ -509,6 +509,11 @@ interface AppDao {
     data class AppVersionCodeRow(
         val packageName: String,
         val versionCode: Long,
+        // The version as its publisher writes it ("7.1.0"), read from the same row as the versionCode
+        // above. Two publishers of one app number their builds however they like, so a version code
+        // only orders builds from one of them; this is the part a human wrote and can be compared
+        // across both. See com.looker.droidify.data.catalogueBuildIsOlder.
+        val versionName: String,
         // Signing-certificate fingerprint(s) of that exact version (lowercase hex SHA-256), in the
         // same format as the installed app's stored signature so the two can be compared directly.
         val signer: List<String>,
@@ -554,7 +559,7 @@ interface AppDao {
         }
         val query = SimpleSQLiteQuery(
             "SELECT app.packageName AS packageName, MAX(version.versionCode) AS versionCode, " +
-                "version.signer AS signer FROM version " +
+                "version.versionName AS versionName, version.signer AS signer FROM version " +
                 "JOIN app ON app.id = version.appId " +
                 "WHERE version.minSdkVersion <= ? AND $compatible GROUP BY app.packageName",
             (listOf<Any>(sdk) + abis).toTypedArray(),

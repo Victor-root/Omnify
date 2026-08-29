@@ -14,6 +14,7 @@ import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.RepoRepository
+import com.looker.droidify.data.externalSourceOwns
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.compose.components.DescriptionTranslation
@@ -37,6 +38,7 @@ import com.looker.droidify.network.percentBy
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.translation.TranslationManager
@@ -91,6 +93,7 @@ class AppDetailViewModel @Inject constructor(
     private val downloader: Downloader,
     private val translationManager: TranslationManager,
     private val externalApi: ExternalApi,
+    private val externalAppRepository: ExternalAppRepository,
     private val batchProgress: BatchUpdateProgress,
     @param:ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle,
@@ -278,6 +281,35 @@ class AppDetailViewModel @Inject constructor(
             .map { readInstalledInfo(it) }
             .flowOn(Dispatchers.Default)
             .asStateFlow(null)
+
+    /**
+     * Whether a tracked external source, not this catalogue entry, is responsible for the copy of this
+     * app on the device. The rule is [externalSourceOwns], shared with the Updates tab and the automatic
+     * installer, and its own doc comment explains what settles it. The signature half is
+     * [InstalledInfo.signatureMismatch], which this screen already computes against every version this
+     * entry has ever declared rather than just the one it would install.
+     *
+     * The catalogue's build is then not an update, whatever the version codes say: they belong to two
+     * numberings that were never meant to be compared. F-Droid rebuilds Every Door with its own
+     * per-architecture recipe, so its 6.0.0 carries a higher code than the developer's own 7.1.0, and
+     * this page offered it as one.
+     *
+     * Only the page's headline action changes. The version list below is untouched, so installing the
+     * catalogue's build on purpose is still there for whoever wants it, which is where a deliberate
+     * change of source belongs.
+     */
+    val externallySourced: StateFlow<Boolean> = combine(
+        externalAppRepository.apps,
+        installedInfo,
+    ) { externalApps, installed ->
+        installed != null && externalApps.any { app ->
+            app.packageName == packageName &&
+                externalSourceOwns(
+                    ownsInstalled = app.ownsInstalled(installed.version),
+                    catalogueDidNotSignIt = installed.signatureMismatch,
+                )
+        }
+    }.flowOn(Dispatchers.Default).asStateFlow(false)
 
     /** Whether this app is in the user's favourites. */
     val isFavourite: StateFlow<Boolean> = settingsRepository.get { favouriteApps }
