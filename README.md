@@ -2,7 +2,7 @@
 
 [![Latest release](https://img.shields.io/github/v/release/Victor-root/Omnify?style=for-the-badge&logo=github&label=release&include_prereleases)](https://github.com/Victor-root/Omnify/releases/latest)
 [![Last update](https://img.shields.io/github/last-commit/Victor-root/Omnify/main?style=for-the-badge&logo=git&label=last%20update)](https://github.com/Victor-root/Omnify/commits/main)
-[![Beta](https://img.shields.io/badge/status-beta-orange?style=for-the-badge&logo=testinglibrary&logoColor=white)](https://github.com/Victor-root/Omnify#beta)
+[![Downloads](https://img.shields.io/github/downloads/Victor-root/Omnify/total?style=for-the-badge&logo=github&label=downloads)](https://github.com/Victor-root/Omnify/releases)
 
 [![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Victor-root/Omnify/releases/latest)
 [![Android TV](https://img.shields.io/badge/Android%20TV-supported-3DDC84?style=for-the-badge&logo=androidtv&logoColor=white)](https://github.com/Victor-root/Omnify#-made-for-android-tv)
