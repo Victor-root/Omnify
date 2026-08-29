@@ -69,6 +69,39 @@ class ReadmeHtmlSanitizerTest {
     }
 
     @Test
+    fun `a real link survives the same cleaning that unmasks a disguised one`() {
+        // Stripping whitespace and control characters before reading the scheme has two jobs, and the
+        // tests above only covered one. It unmasks "java\tscript:", and it must also leave an ordinary
+        // link alone: markdown tooling wraps long lines, so a leading space or a newline inside an href
+        // is ordinary, and reading " https" as the scheme would refuse the project's own links.
+        assertTrue("href" in sanitize("""<a href="  https://example.org">x</a>"""))
+        assertTrue("href" in sanitize("<a href=\"\nhttps://example.org\">x</a>"))
+        assertTrue("href" in sanitize("<a href=\"https://example.org/a\tb\">x</a>"))
+        assertTrue(ReadmeHtmlSanitizer.isFollowableUrl(" https://example.org"))
+    }
+
+    @Test
+    fun `a scheme shouted in capitals is the same scheme`() {
+        // HTTPS://EXAMPLE.ORG is a link like any other, and refusing it would quietly drop real ones.
+        assertTrue("href" in sanitize("""<a href="HTTPS://example.org">x</a>"""))
+        assertTrue(ReadmeHtmlSanitizer.isFollowableUrl("HTTPS://example.org"))
+        assertTrue(ReadmeHtmlSanitizer.isFollowableUrl("MailTo:someone@example.org"))
+        // And the refusals are not case-sensitive either way round.
+        assertFalse(ReadmeHtmlSanitizer.isFollowableUrl("JavaScript:alert(1)"))
+    }
+
+    @Test
+    fun `a colon belonging to a query or an anchor is not a scheme`() {
+        // "?q=a:b" and "#a:b" are relative links with no scheme at all. The existing case carried a
+        // slash before the colon, which is a second, independent reason to read it as relative, so it
+        // held even with the query and anchor rules removed.
+        assertTrue(ReadmeHtmlSanitizer.isFollowableUrl("?q=a:b"))
+        assertTrue(ReadmeHtmlSanitizer.isFollowableUrl("#section:one"))
+        val html = """<a href="?q=a:b">a</a><a href="#section:one">b</a>"""
+        assertEquals(html, sanitize(html))
+    }
+
+    @Test
     fun `schemes that reach off the page or into the device are refused`() {
         listOf("intent://x#Intent;end", "file:///data/data/x", "content://x/y", "vbscript:x")
             .forEach { url ->

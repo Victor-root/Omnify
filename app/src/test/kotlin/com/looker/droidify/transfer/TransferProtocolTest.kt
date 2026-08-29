@@ -148,6 +148,60 @@ class TransferProtocolTest {
         assertNull(decryptTransfer(key, transcript, block.copyOfRange(0, 8)))
     }
 
+    // Framing. Nothing here has been through the key exchange yet: these are the bytes any device on
+    // the same network can send, and the length is a number that arrives before anything is trusted.
+
+    @Test
+    fun `a block claiming more than the caller expects is refused before it is allocated`() {
+        // The block really is there to be read, which is the whole point: a stream too short to
+        // deliver what it claimed is refused anyway, by the read that fails, so a test built on one
+        // would pass with the limit deleted. Only an oversized block that could be read proves the
+        // limit is what refused it.
+        assertNull(framed(size = 2048, payload = ByteArray(2048)).readBlock(limit = 1024))
+        assertNull(framed(size = 1025, payload = ByteArray(1025)).readBlock(limit = 1024))
+        // Just inside it still goes through, so the line above is about the limit and not about
+        // refusing everything.
+        assertNotNull(framed(size = 1024, payload = ByteArray(1024)).readBlock(limit = 1024))
+        // And a length nobody could ever satisfy is refused without reaching for a buffer for it.
+        assertNull(framed(size = Int.MAX_VALUE, payload = ByteArray(4)).readBlock(limit = 1024))
+    }
+
+    @Test
+    fun `an empty or negative length is refused`() {
+        // A zero-length block is not a message, and a negative one is a length that was never written
+        // by this protocol at all.
+        assertNull(framed(size = 0, payload = ByteArray(0)).readBlock())
+        assertNull(framed(size = -1, payload = ByteArray(4)).readBlock())
+        assertNull(framed(size = Int.MIN_VALUE, payload = ByteArray(4)).readBlock())
+    }
+
+    @Test
+    fun `a block that ends early is refused rather than half read`() {
+        assertNull(framed(size = 32, payload = ByteArray(4)).readBlock())
+        assertNull(java.io.ByteArrayInputStream(ByteArray(2)).readBlock())
+        assertNull(java.io.ByteArrayInputStream(ByteArray(0)).readBlock())
+    }
+
+    @Test
+    fun `what was written is what comes back`() {
+        for (payload in listOf(ByteArray(1), ByteArray(1000) { it.toByte() }, "hello".toByteArray())) {
+            val out = java.io.ByteArrayOutputStream()
+            out.writeBlock(payload)
+            assertContentEquals(payload, java.io.ByteArrayInputStream(out.toByteArray()).readBlock())
+        }
+    }
+
+    /** A length header followed by [payload], so a claimed size can be tested apart from a real one. */
+    private fun framed(size: Int, payload: ByteArray): java.io.InputStream {
+        val header = byteArrayOf(
+            ((size ushr 24) and 0xFF).toByte(),
+            ((size ushr 16) and 0xFF).toByte(),
+            ((size ushr 8) and 0xFF).toByte(),
+            (size and 0xFF).toByte(),
+        )
+        return java.io.ByteArrayInputStream(header + payload)
+    }
+
     @Test
     fun `each encryption uses a fresh nonce`() {
         // Reusing a nonce under one key is the single thing GCM does not survive, and one session

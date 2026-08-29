@@ -65,6 +65,10 @@ class AssetLocaleDetectionTest {
         // A single match is as likely to be a coincidence as a translation, and an app shipping
         // exactly one language has nothing to add: that language is whatever it was written in.
         assertEquals(emptyList(), detect("assets/i18n/fr.json", "assets/i18n/schema.js"))
+        // And with nothing beside it either: the case above is also refused by the majority rule, so on
+        // its own it would still pass with the minimum lowered to one. This is the minimum itself.
+        assertEquals(emptyList(), detect("assets/i18n/fr.json"))
+        assertEquals(emptyList(), detect("assets/lang/de.ini"))
     }
 
     @Test
