@@ -28,6 +28,41 @@ internal fun withoutNonLocalePrefix(code: String): String {
     return parts.drop(1).joinToString("-")
 }
 
+/**
+ * [withoutNonLocalePrefix] applied to every code read from one directory at once, which settles a case
+ * no single code can.
+ *
+ * "app_DE" on its own is genuinely ambiguous. A region in second place normally means the first subtag
+ * really is the language, which is the reading [withoutNonLocalePrefix] keeps, and "app" is a real
+ * language code besides. Seen beside its siblings it stops being ambiguous: a word that repeats
+ * unchanged across a whole translation set while the subtag after it changes is the name of the set,
+ * not a language, because no directory holds one language in several regions and nothing else.
+ *
+ * So the prefix is dropped from the set only when it is the same in every name, is not itself a known
+ * language, and every subtag behind it is one, with at least two different ones. `pt_BR`/`pt_PT` keeps
+ * its "pt" on the second condition, `ceb_ID`/`ceb_PH` its "ceb" on the third. Anything the set as a
+ * whole cannot settle falls back to reading each name on its own, exactly as before.
+ *
+ * The language is lowercased on the way out, since it was written where a region belongs and carries
+ * that spelling with it.
+ */
+internal fun withoutNonLocalePrefixes(codes: List<String>): List<String> {
+    val parts = codes.map { it.split('-', '_') }
+    val prefixes = parts.mapTo(mutableSetOf()) { it.firstOrNull()?.lowercase().orEmpty() }
+    val seconds = parts.map { it.getOrNull(1) }
+    val sharedPrefix = prefixes.singleOrNull()?.takeIf { it.isNotEmpty() && !it.isKnownLanguage() }
+    val everySecondIsALanguage = seconds.all { it != null && it.isKnownLanguage() }
+    val distinctSeconds = seconds.filterNotNull().mapTo(mutableSetOf()) { it.lowercase() }.size
+    if (sharedPrefix == null || !everySecondIsALanguage || distinctSeconds < 2) {
+        return codes.map(::withoutNonLocalePrefix)
+    }
+    return parts.map { code ->
+        code.drop(1)
+            .mapIndexed { index, part -> if (index == 0) part.lowercase() else part }
+            .joinToString("-")
+    }
+}
+
 /** A region subtag is two uppercase letters or three digits, a script four letters. Any of those in
  *  second place means the first subtag really is the language and nothing should be dropped. */
 private fun String.isRegionOrScriptShaped(): Boolean = when (length) {

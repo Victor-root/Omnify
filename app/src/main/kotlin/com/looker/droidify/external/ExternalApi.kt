@@ -7,6 +7,7 @@ import android.util.Log
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.utility.common.LanguageDetector
 import com.looker.droidify.utility.common.withoutNonLocalePrefix
+import com.looker.droidify.utility.common.withoutNonLocalePrefixes
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -295,7 +296,10 @@ class ExternalApi @Inject constructor(
         // are its own asset files, not Android resources — so this is tried too, whether or not the
         // first found anything, and the two are merged (a project can plausibly use both for different
         // parts of the app).
-        val i18nLocales = paths.mapNotNull { localeFromI18nAssetPath(it) }
+        // Read together, not one by one: a name like "app_DE.arb" reads as the language "app" in the
+        // region "DE" on its own, and only gives itself away beside the siblings that repeat the same
+        // word. See [withoutNonLocalePrefixes], which leaves anything the set cannot settle alone.
+        val i18nLocales = withoutNonLocalePrefixes(paths.mapNotNull { localeFromI18nAssetPath(it) })
         // A Kotlin Multiplatform app using moko-resources (see localeFromMokoResourcesPath) — its own,
         // third convention, tried unconditionally like the other two.
         val mokoLocales = paths.mapNotNull { localeFromMokoResourcesPath(it) }

@@ -72,6 +72,58 @@ class AssetLocaleDetectionTest {
     }
 
     @Test
+    fun `a string-table name is dropped even when the language is written in capitals`() {
+        // "app_DE" alone is genuinely ambiguous: a capitalised subtag in second place normally means
+        // the first one is the language, and "app" is a real language code besides. Beside its
+        // siblings it is not ambiguous at all, since no directory holds one language in several
+        // regions and nothing else.
+        val found = detect(
+            "assets/translations/app_DE.json",
+            "assets/translations/app_FR.json",
+            "assets/translations/app_IT.json",
+        )
+        assertEquals(listOf("de", "fr", "it"), found)
+    }
+
+    @Test
+    fun `a language in several regions keeps its language`() {
+        // The other side of the rule above, and the reason it is not simply "drop a repeated word":
+        // here the repeated subtag really is the language.
+        assertEquals(
+            listOf("pt-BR", "pt-PT"),
+            detect("assets/translations/pt_BR.json", "assets/translations/pt_PT.json"),
+        )
+        // And where the second subtag is no language at all, nothing is dropped either: "ceb" is the
+        // language, "PH" and "ID" are where it is spoken.
+        assertEquals(
+            listOf("ceb-ID", "ceb-PH"),
+            detect("assets/lang/ceb_ID.ini", "assets/lang/ceb_PH.ini"),
+        )
+    }
+
+    @Test
+    fun `a repeated word only gives itself away when the language behind it varies`() {
+        // Two files of one language in two formats. The word repeats, but so does everything after it,
+        // so nothing here says which of the two is the language: "fil" is a language, and dropping it
+        // would report Indonesian for a set of Filipino translations.
+        assertEquals(
+            listOf("fil-ID"),
+            detect("assets/lang/fil_ID.json", "assets/lang/fil_ID.po"),
+        )
+    }
+
+    @Test
+    fun `words that differ from one file to the next are not string-table names`() {
+        // The rule reads a word that repeats across the whole set. Where each name starts with
+        // something different, there is no such word, and these are two ordinary locale codes that
+        // happen not to be two-letter ones.
+        assertEquals(
+            listOf("fil-ID", "pt-BR"),
+            detect("assets/lang/fil_ID.json", "assets/lang/pt_BR.json"),
+        )
+    }
+
+    @Test
     fun `translations still win when a few odd files sit beside them`() {
         // The rule is a majority, not purity: a real translation directory routinely carries a README,
         // an index, or a template alongside the translations themselves.
