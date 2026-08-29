@@ -1,5 +1,14 @@
 # 📋 Changelog
 
+## 🚀 v1.0.5-beta.6 (2026-08-29)
+
+A follow-up to the downgrade fix in v1.0.4-beta.5, which turned out not to cover every device it was reported from.
+
+### 🐛 Fixed
+- **An app installed from its own project is no longer offered an older build from the catalogue, even when Omnify has no record of having installed it.** The previous fix only covered a copy Omnify installed itself and still recognised, which left the offer coming back on a device where that record had drifted. The signing key settles it now, since a build the catalogue did not sign never came from the catalogue. ([#1](https://github.com/Victor-root/Omnify/issues/1))
+
+---
+
 ## 🚀 v1.0.4-beta.5 (2026-08-29)
 
 The first fixes to come straight from the issue tracker (a repository you switch off stays off, and an app installed from GitHub is no longer offered an older build from the catalogue), no more crash when opening an app's page with no connection, Android's install prompt no longer going missing when you leave the app mid-update, lighter downloads, and a batch of Android TV fixes.
