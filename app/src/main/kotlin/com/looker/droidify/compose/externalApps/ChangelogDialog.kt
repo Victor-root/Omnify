@@ -20,7 +20,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,26 +28,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
-import androidx.core.view.WindowCompat
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.AccentNavigationBarOverlay
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.DialogSystemBarIcons
+import com.looker.droidify.compose.components.FullScreenDialogProperties
 import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
-import com.looker.droidify.compose.theme.LocalAccentBarColor
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import kotlinx.coroutines.delay
@@ -71,23 +66,8 @@ fun ChangelogDialog(
     webUrl: String,
     onDismiss: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        // A Dialog opens its own separate Android Window, which doesn't inherit the Activity's
-        // edge-to-edge status/navigation bar styling — left alone, it shows the app theme's default
-        // (accent red) instead of the current screen's own accent (e.g. green for a per-app colour),
-        // and mismatches the Activity behind it entirely once it's dismissed. Match this dialog's own
-        // window to the same accent bar colour the top bar uses.
-        val barColor = LocalAccentBarColor.current
-        val view = LocalView.current
-        SideEffect {
-            val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
-            applyDialogBarColor(window, barColor.toArgb())
-            val lightIcons = barColor.luminance() > 0.5f
-            WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = lightIcons
-                isAppearanceLightNavigationBars = lightIcons
-            }
-        }
+    Dialog(onDismissRequest = onDismiss, properties = FullScreenDialogProperties) {
+        DialogSystemBarIcons()
         val isTelevision = LocalIsTelevision.current
         // Android TV: this dialog opens its own window with nothing else focused. The WebView content is
         // deliberately non-focusable (see ReadmeWebView), so without this the D-pad would have nowhere to
@@ -110,141 +90,131 @@ fun ChangelogDialog(
             }
         }
         Surface(modifier = Modifier.fillMaxSize()) {
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        colors = accentTopAppBarColors(),
-                        expandedHeight = AccentBarHeight,
-                        modifier = if (isTelevision) {
-                            Modifier.tvDpadDownTo(contentFocusRequester, debugLabel = "changelog-topappbar")
-                        } else {
-                            Modifier
-                        },
-                        title = { Text(stringResource(R.string.changelog)) },
-                        navigationIcon = {
-                            BackButton(
-                                onDismiss,
-                                modifier = if (isTelevision) {
-                                    Modifier.focusRequester(backFocusRequester)
-                                } else {
-                                    Modifier
-                                },
-                            )
-                        },
-                    )
-                },
-            ) { contentPadding ->
-                when {
-                    html != null && !rendererGone -> {
-                        val scrollState = rememberScrollState()
-                        val density = LocalDensity.current
-                        var heightPx by remember { mutableStateOf(0) }
-                        var viewportPx by remember { mutableStateOf(0) }
-                        Box(
-                            modifier = Modifier
-                                .padding(contentPadding)
-                                .fillMaxWidth()
-                                .onSizeChanged { viewportPx = it.height }
-                                .then(
-                                    if (isTelevision) {
-                                        Modifier
-                                            .focusRequester(contentFocusRequester)
-                                            .tvPageScroll(
-                                                scrollState,
-                                                (viewportPx * 0.85f).toInt(),
-                                                debugLabel = "changelog-content",
-                                            )
+            Box(modifier = Modifier.fillMaxSize()) {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            colors = accentTopAppBarColors(),
+                            expandedHeight = AccentBarHeight,
+                            modifier = if (isTelevision) {
+                                Modifier.tvDpadDownTo(contentFocusRequester, debugLabel = "changelog-topappbar")
+                            } else {
+                                Modifier
+                            },
+                            title = { Text(stringResource(R.string.changelog)) },
+                            navigationIcon = {
+                                BackButton(
+                                    onDismiss,
+                                    modifier = if (isTelevision) {
+                                        Modifier.focusRequester(backFocusRequester)
                                     } else {
                                         Modifier
                                     },
                                 )
-                                // overscrollEffect = null: this container hosts a hardware-accelerated
-                                // WebView, and Android 12+'s stretch overscroll deterministically
-                                // crashes RenderThread when it redraws that WebView at the scroll
-                                // boundary — see the same parameter in ExternalAppDetailScreen for the
-                                // full story.
-                                .verticalScroll(scrollState, overscrollEffect = null),
-                        ) {
-                            ReadmeWebView(
-                                html = html,
-                                baseUrl = baseUrl,
-                                javaScriptEnabled = javaScriptEnabled,
-                                onContentHeight = { heightPx = it },
-                                scrollState = scrollState,
-                                // See ReadmeWebView's forceSoftwareLayer doc comment: its software layer
-                                // can only draw roughly one screen's worth of pixels — a changelog with
-                                // several releases' worth of notes can easily run taller than that, and
-                                // without this the WebView would silently render nothing at all past a
-                                // short one.
-                                forceSoftwareLayer = viewportPx <= 0 || heightPx <= viewportPx,
-                                onRendererGone = { rendererGone = true },
+                            },
+                        )
+                    },
+                ) { contentPadding ->
+                    when {
+                        html != null && !rendererGone -> {
+                            val scrollState = rememberScrollState()
+                            val density = LocalDensity.current
+                            var heightPx by remember { mutableStateOf(0) }
+                            var viewportPx by remember { mutableStateOf(0) }
+                            Box(
                                 modifier = Modifier
+                                    .padding(contentPadding)
                                     .fillMaxWidth()
-                                    .height(
-                                        if (heightPx > 0) {
-                                            with(density) { heightPx.toDp() }
+                                    .onSizeChanged { viewportPx = it.height }
+                                    .then(
+                                        if (isTelevision) {
+                                            Modifier
+                                                .focusRequester(contentFocusRequester)
+                                                .tvPageScroll(
+                                                    scrollState,
+                                                    (viewportPx * 0.85f).toInt(),
+                                                    debugLabel = "changelog-content",
+                                                )
                                         } else {
-                                            600.dp
+                                            Modifier
                                         },
-                                    ),
+                                    )
+                                    // overscrollEffect = null: this container hosts a hardware-accelerated
+                                    // WebView, and Android 12+'s stretch overscroll deterministically
+                                    // crashes RenderThread when it redraws that WebView at the scroll
+                                    // boundary — see the same parameter in ExternalAppDetailScreen for the
+                                    // full story.
+                                    .verticalScroll(scrollState, overscrollEffect = null),
+                            ) {
+                                ReadmeWebView(
+                                    html = html,
+                                    baseUrl = baseUrl,
+                                    javaScriptEnabled = javaScriptEnabled,
+                                    onContentHeight = { heightPx = it },
+                                    scrollState = scrollState,
+                                    // See ReadmeWebView's forceSoftwareLayer doc comment: its software layer
+                                    // can only draw roughly one screen's worth of pixels — a changelog with
+                                    // several releases' worth of notes can easily run taller than that, and
+                                    // without this the WebView would silently render nothing at all past a
+                                    // short one.
+                                    forceSoftwareLayer = viewportPx <= 0 || heightPx <= viewportPx,
+                                    onRendererGone = { rendererGone = true },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(
+                                            if (heightPx > 0) {
+                                                with(density) { heightPx.toDp() }
+                                            } else {
+                                                600.dp
+                                            },
+                                        ),
+                                )
+                            }
+                        }
+
+                        rendererGone -> Column(
+                            modifier = Modifier
+                                .padding(contentPadding)
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.readme_render_failed),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Button(onClick = { runCatching { uriHandler.openUri(webUrl) } }) {
+                                Text(stringResource(R.string.source_code))
+                            }
+                        }
+
+                        unavailable -> Box(
+                            modifier = Modifier
+                                .padding(contentPadding)
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.external_no_changelog),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                    }
 
-                    rendererGone -> Column(
-                        modifier = Modifier
-                            .padding(contentPadding)
-                            .fillMaxSize()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.readme_render_failed),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Button(onClick = { runCatching { uriHandler.openUri(webUrl) } }) {
-                            Text(stringResource(R.string.source_code))
+                        else -> Box(
+                            modifier = Modifier.padding(contentPadding).fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            LoadingSpinner(modifier = Modifier.size(36.dp))
                         }
                     }
-
-                    unavailable -> Box(
-                        modifier = Modifier
-                            .padding(contentPadding)
-                            .fillMaxSize()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.external_no_changelog),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-
-                    else -> Box(
-                        modifier = Modifier.padding(contentPadding).fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        LoadingSpinner(modifier = Modifier.size(36.dp))
-                    }
                 }
+                AccentNavigationBarOverlay(modifier = Modifier.align(Alignment.BottomCenter))
             }
         }
     }
-}
-
-/**
- * Sets this dialog window's status/navigation bar background to [argb]. No modern replacement covers
- * this: WindowCompat/WindowInsetsControllerCompat only manage bar icon appearance and visibility, never
- * an explicit background colour, so matching the dialog's own separate window to the current screen's
- * accent (see the call site's own doc comment) still has to go through these deprecated
- * [android.view.Window] properties directly.
- */
-@Suppress("DEPRECATION")
-private fun applyDialogBarColor(window: android.view.Window, argb: Int) {
-    window.statusBarColor = argb
-    window.navigationBarColor = argb
 }

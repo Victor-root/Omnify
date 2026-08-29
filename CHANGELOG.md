@@ -10,6 +10,7 @@ Android's install prompt no longer goes missing when you leave the app mid-updat
 
 ### 🐛 Fixed
 - 📴 **Opening an app's page with no connection no longer closes Omnify.**
+- 🎨 **The changelog and README pages colour the status and navigation bars like their own header**, instead of a darker shade of it.
 - 📥 **The install prompt no longer disappears when you leave Omnify mid-update.** A notification offers it while you're elsewhere, and it comes back on its own when you return.
 - 🎨 **Your accent colour is followed everywhere on Android 11 and older**, instead of buttons, badges and progress bars staying green.
 - 📺 **Android TV explains an update Android refuses to apply** and offers to uninstall the existing copy first, as the phone already did.
