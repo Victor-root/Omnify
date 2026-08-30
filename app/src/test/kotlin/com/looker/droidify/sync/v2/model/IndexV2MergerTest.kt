@@ -9,6 +9,7 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import java.io.File
+import java.io.FilterInputStream
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -537,6 +538,27 @@ class IndexV2MergerTest {
         assertEquals(2000, savedIndex.repo.timestamp, "Changes should be auto-saved on close")
     }
 
+    @Test
+    @DisplayName("Should close the diff stream it was handed")
+    fun `the diff stream is closed`() {
+        // Every caller so far opened a file for this and left it open. On a system that lets an open
+        // file be deleted the leak is invisible until descriptors run out; on one that does not, it is
+        // this very test class failing to delete its own temporary directory.
+        testIndexFile.writeText("""{"repo":{"timestamp":1000}}""")
+        testDiffFile.writeText("""{"repo":{"timestamp":2000}}""")
+        var closed = false
+        val stream = object : FilterInputStream(testDiffFile.inputStream()) {
+            override fun close() {
+                closed = true
+                super.close()
+            }
+        }
+
+        IndexV2Merger(testIndexFile).use { merger -> merger.processDiff(stream) }
+
+        assertTrue(closed, "processDiff left the stream it was given open")
+    }
+
     private fun performMergeTest(initialIndex: String, diff: String, expectedResult: String) {
         testIndexFile.writeText(initialIndex)
         testDiffFile.writeText(diff)
@@ -555,7 +577,7 @@ class IndexV2MergerTest {
     }
 
     private fun loadResourceFile(resourcePath: String): String {
-        return this::class.java.classLoader.getResourceAsStream(resourcePath)?.use { inputStream ->
+        return this::class.java.classLoader?.getResourceAsStream(resourcePath)?.use { inputStream ->
             inputStream.bufferedReader().readText()
         } ?: throw IllegalArgumentException("Resource file not found: $resourcePath")
     }

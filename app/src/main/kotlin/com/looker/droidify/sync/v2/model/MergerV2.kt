@@ -26,15 +26,25 @@ class IndexV2Merger(private val baseFile: File) : AutoCloseable {
         explicitNulls = true
     }
 
-    fun getCurrentIndex(): IndexV2? = json.decodeFromStream(baseFile.inputStream())
+    // use, like every other read in this file: the stream was left open, so the handle lived until the
+    // garbage collector happened to get to it. A reader that keeps a file open holds it on Windows,
+    // where this showed up as a test unable to delete its own temporary directory, and leaks a
+    // descriptor per call everywhere else.
+    fun getCurrentIndex(): IndexV2? = baseFile.inputStream().use { json.decodeFromStream(it) }
 
+    /**
+     * Applies [diffStream] to the base index, and closes it. Reading it to the end is the whole of
+     * what this does with it, so it owns it: both call sites handed it a freshly opened file and left
+     * it open, the sync path included, which is two out of two and says the other arrangement is the
+     * one that invites the mistake.
+     */
     fun processDiff(
         diffStream: InputStream,
-    ): Boolean {
+    ): Boolean = diffStream.use { diff ->
         val tempFile = File.createTempFile("merged_", ".json")
 
         try {
-            val hasChanged = merge(baseFile, diffStream, tempFile)
+            val hasChanged = merge(baseFile, diff, tempFile)
 
             if (hasChanged) {
                 // Save the merged result
@@ -49,7 +59,7 @@ class IndexV2Merger(private val baseFile: File) : AutoCloseable {
             if (BuildConfig.DEBUG) {
                 Log.d("IndexV2Merger", "Merged a diff JSON into the base: $hasChanged")
             }
-            return hasChanged
+            hasChanged
         } finally {
             tempFile.delete()
         }

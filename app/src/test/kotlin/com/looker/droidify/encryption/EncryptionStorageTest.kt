@@ -14,6 +14,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.condition.DisabledOnOs
+import org.junit.jupiter.api.condition.OS
 import java.io.File
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -32,7 +34,14 @@ import kotlin.test.assertNull
  * stands in for it. What these tests are actually about is the decision-making around it: which key
  * gets picked up, what gets written back, and what happens when wrapping isn't available or the
  * wrapped key can't be opened any more.
+ *
+ * Not run on Windows, where three of these fail on the library rather than on anything they cover.
+ * DataStore saves by writing a scratch file and renaming it over the real one, and a rename onto an
+ * existing file is refused there while it simply replaces on every system this app ships to. Any test
+ * here that writes twice therefore fails on the second write, whatever it was testing. They run in CI,
+ * which is Linux, like the devices the code runs on.
  */
+@DisabledOnOs(OS.WINDOWS)
 class EncryptionStorageTest {
 
     /** Reversible stand-in for the device key store, with both directions independently breakable to
