@@ -814,6 +814,15 @@ a { color: inherit; }
 .device-body {
   position: relative;
   width: 100%;
+  /* Sized by the room below as well as beside. The frame is 760 by 1606, so 400 across puts it 845
+     down, taller than a laptop window with a browser's own chrome in it has left, and it came off the
+     bottom of the screen. Its own ratio turns whatever height is left into a width, so it is whole at
+     any window and gives up size only where there is none to be had. 130px covers the sticky header,
+     the caption and a little air.
+
+     On the frame rather than on the figure around it, or the caption would be squeezed to the same
+     width, wrap onto three lines, and take back the height this just freed. */
+  max-width: min(100%, calc((100svh - 130px) * 0.4732));
   /* Everything drawn on the glass is sized in cqw against this, so the phone's furniture keeps its
      proportions whether the frame is 400px wide or 340. */
   container-type: inline-size;
@@ -1709,7 +1718,12 @@ a { color: inherit; }
      its content, and every screenshot in here is absolutely positioned, so that
      content measures zero: the box collapsed to 0 wide and left a tall gap. */
   .hero-shots { width: 100%; height: min(78vw, 440px); max-width: 560px; margin-inline: auto; }
-  .split, .footer-inner { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr), not 1fr: a bare 1fr is minmax(auto, 1fr), and auto means "never narrower than
+     what is inside". One unbreakable row in the external-sources card (an icon, a repo name and a
+     chip side by side) therefore set the column's width and pushed the whole page 8px past the
+     screen at 360, which is a sideways scroll on every section, not just that one. The two-column
+     rule above already says minmax(0, 1fr) for the same reason. */
+  .split, .footer-inner { grid-template-columns: minmax(0, 1fr); }
   .split-reverse .split-visual { order: 0; }
   .split-visual { max-width: 520px; margin-inline: auto; width: 100%; }
 }
@@ -1772,6 +1786,10 @@ a { color: inherit; }
   .gallery { padding-inline: 18px; }
   .footer-links { gap: 34px; }
   .hero-cta .btn { flex: 1 1 100%; }
+  /* Buttons hold their label on one line everywhere else, which is right for the short ones and
+     wrong for "Add a badge to your own project": at 360 it was wider than the screen and took the
+     whole page sideways with it. Two lines centred beats a scrollbar. */
+  .btn { white-space: normal; text-align: center; }
   /* The command name is as wide as the description it labels at this size, so it reads as a heading
      above it rather than a column beside it. */
   .variants li { flex-direction: column; gap: 12px; }
