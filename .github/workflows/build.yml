@@ -1,7 +1,10 @@
 name: Build
 
-# Builds the app and runs its unit tests on every pull request, so a change is known to compile
-# before it is merged rather than after.
+# Builds the app and runs its unit tests on every push and every pull request, so a change is known
+# to compile and to pass before it is merged rather than after.
+#
+# Every branch, not just main: work happens on a branch for days before it reaches main, and a break
+# found there is found while the change that caused it is still one commit rather than thirty.
 #
 # This is what gives Dependabot's security pull requests a verdict. Dependabot only knows how to
 # raise the version number; it cannot tell whether the new release still fits this project, and most
@@ -13,8 +16,6 @@ name: Build
 on:
   pull_request:
   push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
