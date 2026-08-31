@@ -365,7 +365,9 @@ fun TvHomeScreen(
                     apps = updatableApps,
                     installedPackages = installedPackages,
                     isUpdatingAll = isUpdatingAll,
-                    onUpdateAll = viewModel::updateAll,
+                    // No external half here: this screen lists catalogue updates only, so the button
+                    // covers exactly what is above it, as it does on the phone.
+                    onUpdateAll = { viewModel.updateAll(externalKeys = emptyList()) },
                     onCancelUpdateAll = viewModel::cancelUpdateAll,
                     onAppClick = openApp,
                     restoreFocusId = restoreFocusId,

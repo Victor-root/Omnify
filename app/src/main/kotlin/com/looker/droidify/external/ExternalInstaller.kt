@@ -9,6 +9,7 @@ import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
+import com.looker.droidify.network.ProgressListener
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
 import com.looker.droidify.utility.common.extension.isVersionDowngrade
@@ -76,8 +77,14 @@ class ExternalInstaller @Inject constructor(
      * Deliberately uses the `latest*` fields the refresher already resolved instead of asking the
      * provider again: the pass that decided this app has an update has just run, and re-fetching would
      * spend another API call to learn the same thing.
+     *
+     * [onDownload] is how a caller with something on screen follows the bytes, since this downloads
+     * outside any screen of its own. Left out by a caller with nothing to show.
      */
-    suspend fun installLatest(app: ExternalApp): ExternalInstallOutcome {
+    suspend fun installLatest(
+        app: ExternalApp,
+        onDownload: ProgressListener? = null,
+    ): ExternalInstallOutcome {
         val url = app.latestApkUrl ?: return ExternalInstallOutcome.NO_RELEASE
         val cacheFileName = releaseCacheFileName(app, app.latestTag)
         val releaseFile = Cache.getReleaseFile(context, cacheFileName)
@@ -86,7 +93,7 @@ class ExternalInstaller @Inject constructor(
         // HTTP 416 -> failure. Start each download fresh (asset URLs are one-shot CDN links anyway).
         val partial = Cache.getPartialReleaseFile(context, cacheFileName)
         partial.delete()
-        val response = downloader.downloadToFile(url = url, target = partial)
+        val response = downloader.downloadToFile(url = url, target = partial, block = onDownload)
         if (response !is NetworkResponse.Success) {
             partial.delete()
             Log.w(TAG, "Download failed for ${app.key}")

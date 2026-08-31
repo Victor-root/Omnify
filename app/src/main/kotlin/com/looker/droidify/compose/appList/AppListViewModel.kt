@@ -414,15 +414,17 @@ class AppListViewModel @Inject constructor(
     val batchUpdate: StateFlow<BatchUpdateProgress.State?> = batchProgress.state
 
     /**
-     * Downloads and installs every app currently listed on the Updates tab. The list is already
-     * filtered to installable updates ([updatableApps]); the worker resolves and installs each, one
-     * after another, skipping any that can't update in place (a different signer). No-op when nothing
-     * is pending or a batch is already running.
+     * Downloads and installs every app currently listed on the Updates tab. The catalogue half is
+     * [updatableApps], already filtered to installable updates; [externalKeys] is the external half,
+     * which the screen resolves (it owns that list) and hands in so the button covers the whole list
+     * it sits above rather than only the part this view model happens to hold. The worker resolves and
+     * installs each in turn, skipping any that can't update in place (a different signer). No-op when
+     * nothing is pending or a batch is already running.
      */
-    fun updateAll() {
+    fun updateAll(externalKeys: List<String>) {
         if (isUpdatingAll.value) return
         val packages = updatableApps.value.map { it.packageName.name }
-        UpdateAllWorker.updateAll(context, packages)
+        UpdateAllWorker.updateAll(context, packages, externalKeys)
     }
 
     /**

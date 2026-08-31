@@ -10,9 +10,6 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.looker.droidify.data.PendingUpdates
 import com.looker.droidify.datastore.SettingsRepository
-import com.looker.droidify.external.ExternalInstallOutcome
-import com.looker.droidify.external.ExternalInstaller
-import com.looker.droidify.utility.common.extension.exceptCancellation
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -26,10 +23,9 @@ import kotlinx.coroutines.withContext
  * it, so turning it on changed no behaviour. This is what it now runs.
  *
  * Catalogue apps and external sources are both covered, which is the whole point: an app followed from
- * GitHub should behave like one from a repository, not need hand-holding the other doesn't. The two
- * halves install through different paths only because they resolve their APKs differently: the
- * catalogue's is handed to [UpdateAllWorker], the same batch updater the Updates tab's "Update all"
- * button already uses, while external sources go through [ExternalInstaller].
+ * GitHub should behave like one from a repository, not need hand-holding the other doesn't. Both are
+ * handed to [UpdateAllWorker], the same batch updater the Updates tab's "Update all" button uses, so
+ * pressing that button and leaving this to run carry out one and the same job.
  *
  * This never decides *what* is updatable on its own: [PendingUpdates] answers that with the very same
  * rules the Updates tab shows on screen, so this can only ever install something the user could see
@@ -43,7 +39,6 @@ class AutoUpdateWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
     private val pendingUpdates: PendingUpdates,
-    private val externalInstaller: ExternalInstaller,
     private val settingsRepository: SettingsRepository,
 ) : CoroutineWorker(context, workerParams) {
 
@@ -56,31 +51,13 @@ class AutoUpdateWorker @AssistedInject constructor(
         }
 
         val cataloguePackages = pendingUpdates.catalogueApps().map { it.packageName.name }
-        if (cataloguePackages.isNotEmpty()) {
-            Log.i(TAG, "Auto-updating ${cataloguePackages.size} catalogue app(s)")
-            UpdateAllWorker.updateAll(applicationContext, cataloguePackages)
-        }
-
-        val external = pendingUpdates.externalApps()
-        if (external.isNotEmpty()) {
-            Log.i(TAG, "Auto-updating ${external.size} external app(s)")
-        }
-        // One at a time: each is a full APK download, and InstallManager installs serially anyway, so
-        // running them together would only compete for bandwidth. A source that can't be updated on its
-        // own (a signature change needing a confirmed uninstall, a release that turns out to be a
-        // different package) is skipped rather than aborting the rest. It stays listed in the Updates
-        // tab, where the user can carry it out themselves.
-        external.forEach { app ->
-            try {
-                val outcome = externalInstaller.installLatest(app)
-                if (outcome != ExternalInstallOutcome.STARTED) {
-                    Log.i(TAG, "Skipped ${app.key}: $outcome")
-                }
-            } catch (t: Throwable) {
-                t.exceptCancellation()
-                Log.w(TAG, "Auto-update failed for ${app.key}", t)
-            }
-        }
+        val externalKeys = pendingUpdates.externalApps().map { it.key }
+        Log.i(
+            TAG,
+            "Auto-updating ${cataloguePackages.size} catalogue app(s) " +
+                "and ${externalKeys.size} external source(s)",
+        )
+        UpdateAllWorker.updateAll(applicationContext, cataloguePackages, externalKeys)
         Result.success()
     }
 

@@ -995,15 +995,18 @@ fun AppListScreen(
                     EmptyTabMessage(tab = selectedTab)
                 }
             }
-            // "Update all" on the Updates tab: one tap to download and install every listed catalogue
-            // update, instead of opening each app. Shown only when there are catalogue updates to apply.
-            if (selectedTab == AppTab.UPDATES && apps.isNotEmpty()) {
+            // "Update all" on the Updates tab: one tap to download and install everything listed
+            // below it, instead of opening each app. Both halves of the list, catalogue and external
+            // sources, so the count on the button is the count on the tab and the button does what it
+            // says. It counted and updated only the catalogue half before, which showed up as a
+            // "(3)" sitting above four apps.
+            if (selectedTab == AppTab.UPDATES && (apps.isNotEmpty() || externalUpdates.isNotEmpty())) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "update-all") {
                     UpdateAllButton(
-                        count = apps.size,
+                        count = apps.size + externalUpdates.size,
                         isUpdating = isUpdatingAll,
                         batch = batchUpdate,
-                        onClick = viewModel::updateAll,
+                        onClick = { viewModel.updateAll(externalUpdates.map { it.key }) },
                         onCancel = viewModel::cancelUpdateAll,
                     )
                 }
@@ -1142,6 +1145,13 @@ fun AppListScreen(
                     ExternalAppTile(
                         app = app,
                         isInstalled = app.key in externalInstalledKeys,
+                        // The same live ring a catalogue tile gets, now that a batch covers these
+                        // too. A batch names an external source by its own key, never by the package
+                        // it installs under (see UpdateAllWorker).
+                        isUpdating = app.key == updatingPackage,
+                        updateFraction = batchUpdate
+                            ?.takeIf { it.packageName == app.key }
+                            ?.download?.fraction,
                         onClick = { openExternalApp(app.key) },
                         modifier = Modifier.restoreFocusTarget(
                             isTelevision && restoreFocusId == "ext:${app.key}",

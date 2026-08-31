@@ -40,6 +40,10 @@ fun ExternalAppTile(
     isInstalled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // Both passed straight through to [AppTile], which draws the ring: a batch update covers external
+    // sources as well as catalogue apps, so their tiles show it the same way.
+    isUpdating: Boolean = false,
+    updateFraction: Float? = null,
 ) {
     val iconSize = if (LocalIsTelevision.current) TvTileIconSize else TileIconSize
     AppTile(
@@ -47,6 +51,8 @@ fun ExternalAppTile(
         isInstalled = isInstalled,
         onClick = onClick,
         modifier = modifier,
+        isUpdating = isUpdating,
+        updateFraction = updateFraction,
     ) {
         ExternalAppIcon(app = app, isInstalled = isInstalled, size = iconSize)
     }

@@ -18,6 +18,10 @@ import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.data.signerMismatch
+import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.ExternalAppRepository
+import com.looker.droidify.external.ExternalInstallOutcome
+import com.looker.droidify.external.ExternalInstaller
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.network.Downloader
@@ -41,16 +45,24 @@ import java.util.concurrent.TimeUnit
  * Downloads and installs every pending update in one go, so the Updates tab can offer a single
  * "Update all" instead of making the user tap each app.
  *
- * The set of packages to update is decided by the UI (the Updates tab already computes exactly which
- * installed apps have an installable update) and handed in as [KEY_PACKAGES]; this worker just carries
- * out the downloads. For each package it resolves the best release this device can run
- * ([selectForDevice]), downloads + hash-verifies it with the shared [Downloader], and hands it to
- * [InstallManager] — which queues the installs one after another and shows a per-app notification.
+ * Both halves of that tab, catalogue apps ([KEY_PACKAGES]) and tracked external sources
+ * ([KEY_EXTERNAL_KEYS]), in that order and in one batch, so the button covers the list it sits above
+ * rather than part of it. They take different routes only because they resolve their APKs
+ * differently, not because they mean different things to the user.
+ *
+ * What to update is decided by the caller (the Updates tab already computes exactly what it lists);
+ * this worker just carries it out. For a catalogue package it resolves the best release this device
+ * can run ([selectForDevice]), downloads + hash-verifies it with the shared [Downloader], and hands it
+ * to [InstallManager], which queues the installs one after another and shows a per-app notification.
+ * An external source goes through [ExternalInstaller], which does the same for a release APK the
+ * refresher has already resolved.
  *
  * A package whose newer release is signed by a different key than the installed copy can't be updated
  * in place, so it goes through [InstallManager.reinstall]: the old copy is uninstalled (the system
  * asks the user to confirm) and the new version installs automatically once it's gone — the same flow
- * the app's own page offers, so a batch update isn't cut short by a signature change.
+ * the app's own page offers, so a batch update isn't cut short by a signature change. The equivalent
+ * for an external source is [ExternalInstallOutcome.NEEDS_USER], which is skipped rather than
+ * uninstalled behind the user's back and stays listed for them to carry out.
  */
 @HiltWorker
 class UpdateAllWorker @AssistedInject constructor(
@@ -61,22 +73,41 @@ class UpdateAllWorker @AssistedInject constructor(
     private val repoRepository: RepoRepository,
     private val downloader: Downloader,
     private val batchProgress: BatchUpdateProgress,
+    private val externalAppRepository: ExternalAppRepository,
+    private val externalInstaller: ExternalInstaller,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val packages = inputData.getStringArray(KEY_PACKAGES)?.toList().orEmpty()
-        if (packages.isEmpty()) return@withContext Result.success()
+        val externalKeys = inputData.getStringArray(KEY_EXTERNAL_KEYS)?.toList().orEmpty()
+        if (packages.isEmpty() && externalKeys.isEmpty()) return@withContext Result.success()
 
-        Log.i(TAG, "Updating ${packages.size} app(s)")
+        // Resolved here rather than carried in the input: a source's latest release is what the
+        // refresher records, and the record is what ExternalInstaller reads. Keys are all that has to
+        // survive the trip. Kept in the order asked for, so the batch counts up the way the list reads.
+        val tracked = externalAppRepository.getApps().associateBy { it.key }
+        val external = externalKeys.mapNotNull(tracked::get)
+        val total = packages.size + external.size
+
+        Log.i(TAG, "Updating ${packages.size} catalogue app(s) and ${external.size} external source(s)")
         try {
             packages.forEachIndexed { index, packageName ->
                 // Publish which app is being handled right now, so the Updates tab can show a live
                 // spinner on that tile and move to the next as the batch progresses.
                 setProgress(Data.Builder().putString(KEY_CURRENT_PACKAGE, packageName).build())
                 // The same, plus the byte counts, for anything on screen: see BatchUpdateProgress.
-                batchProgress.startPackage(packageName, index + 1, packages.size)
+                batchProgress.startPackage(packageName, index + 1, total)
                 runCatching { updateOne(packageName) }
                     .onFailure { Log.w(TAG, "Update failed for $packageName", it) }
+            }
+            external.forEachIndexed { index, app ->
+                // The source's own key, never the package id it installs under: the tiles this marks
+                // are keyed that way, and a catalogue tile must not light up for a source that happens
+                // to install the same package.
+                setProgress(Data.Builder().putString(KEY_CURRENT_PACKAGE, app.key).build())
+                batchProgress.startPackage(app.key, packages.size + index + 1, total)
+                runCatching { updateOneExternal(app) }
+                    .onFailure { Log.w(TAG, "Update failed for ${app.key}", it) }
             }
         } finally {
             // In a finally so a cancelled batch (the user leaving, the system stopping the work)
@@ -84,6 +115,20 @@ class UpdateAllWorker @AssistedInject constructor(
             batchProgress.clear()
         }
         Result.success()
+    }
+
+    /**
+     * One external source. Anything but [ExternalInstallOutcome.STARTED] is a source that cannot be
+     * updated on its own (a signature change or a downgrade needing a confirmed uninstall, a release
+     * that turns out to be a different package, nothing installed to update); it is skipped rather
+     * than aborting the rest, and stays listed for the user to carry out from its own page.
+     */
+    private suspend fun updateOneExternal(app: ExternalApp) {
+        val outcome = externalInstaller.installLatest(app) { read, total ->
+            batchProgress.reportDownload(read.value, total?.value)
+        }
+        batchProgress.finishDownload()
+        if (outcome != ExternalInstallOutcome.STARTED) Log.i(TAG, "Skipped ${app.key}: $outcome")
     }
 
     private suspend fun updateOne(packageName: String) {
@@ -179,13 +224,18 @@ class UpdateAllWorker @AssistedInject constructor(
     companion object {
         private const val TAG = "UpdateAllWorker"
         private const val KEY_PACKAGES = "packages"
+        private const val KEY_EXTERNAL_KEYS = "external_keys"
         private const val KEY_CURRENT_PACKAGE = "current_package"
 
-        /** Enqueues a one-shot update of [packageNames]; a second tap replaces a queued run. */
-        fun updateAll(context: Context, packageNames: List<String>) {
-            if (packageNames.isEmpty()) return
+        /**
+         * Enqueues a one-shot update of [packageNames] (catalogue) and [externalKeys] (tracked
+         * sources); a second tap replaces a queued run.
+         */
+        fun updateAll(context: Context, packageNames: List<String>, externalKeys: List<String>) {
+            if (packageNames.isEmpty() && externalKeys.isEmpty()) return
             val data = Data.Builder()
                 .putStringArray(KEY_PACKAGES, packageNames.toTypedArray())
+                .putStringArray(KEY_EXTERNAL_KEYS, externalKeys.toTypedArray())
                 .build()
             val request = OneTimeWorkRequestBuilder<UpdateAllWorker>()
                 .setInputData(data)
@@ -197,7 +247,11 @@ class UpdateAllWorker @AssistedInject constructor(
                 existingWorkPolicy = ExistingWorkPolicy.REPLACE,
                 request = request,
             )
-            Log.i(TAG, "Update-all enqueued for ${packageNames.size} app(s)")
+            Log.i(
+                TAG,
+                "Update-all enqueued for ${packageNames.size} app(s) " +
+                    "and ${externalKeys.size} source(s)",
+            )
         }
 
         /**
