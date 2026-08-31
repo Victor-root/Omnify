@@ -7,12 +7,8 @@
 [![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Victor-root/Omnify/releases/latest)
 [![Android TV](https://img.shields.io/badge/Android%20TV-supported-3DDC84?style=for-the-badge&logo=androidtv&logoColor=white)](https://github.com/Victor-root/Omnify#-made-for-android-tv)
 [![F-Droid repositories](https://img.shields.io/badge/F--Droid-repositories-1976D2?style=for-the-badge&logo=fdroid&logoColor=white)](https://github.com/Victor-root/Omnify#-highlights)
-[![External sources](https://img.shields.io/badge/External-sources-8A2BE2?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
 
-[![GitHub](https://img.shields.io/badge/GitHub-supported-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
-[![GitLab](https://img.shields.io/badge/GitLab-supported-FC6D26?style=for-the-badge&logo=gitlab&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
-[![Codeberg](https://img.shields.io/badge/Codeberg-supported-2185D0?style=for-the-badge&logo=codeberg&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
-[![Forgejo](https://img.shields.io/badge/Forgejo-supported-FB923C?style=for-the-badge&logo=forgejo&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
+[![External sources](https://img.shields.io/badge/External%20sources-GitHub%20%C2%B7%20GitLab%20%C2%B7%20Codeberg%20%C2%B7%20Forgejo-8A2BE2?style=for-the-badge&logo=git&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
 
 [![Automatic updates](https://img.shields.io/badge/External%20apps-auto--updated-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
 [![Material You](https://img.shields.io/badge/Material%20You-Material%203-6750A4?style=for-the-badge&logo=materialdesign&logoColor=white)](https://github.com/Victor-root/Omnify#-modern-material-you-interface)

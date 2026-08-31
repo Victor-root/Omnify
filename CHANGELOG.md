@@ -15,7 +15,6 @@ A follow-up to the downgrade fix in v1.0.4-beta.5, which turned out not to cover
 - **Android TV announces updates from projects you follow.** Its Updates screen and the badge beside it counted repository apps only, so an update from GitHub or GitLab showed up nowhere: the only way to find it was to open the source's own page. Both halves are listed there now, exactly as on the phone.
 - **A language list no longer turns into the app's own name** when a project names its translation files after itself, such as `app_DE.json`.
 - **Syncing a repository no longer leaves files open** after reading its index or applying an update to it.
-- **The phone screenshot on the website stays whole on a short or narrow screen** instead of running off the bottom of the page.
 
 ---
 
