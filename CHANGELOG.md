@@ -1,12 +1,19 @@
 # 📋 Changelog
 
-## 🚀 v1.0.5-beta.6 (2026-08-29)
+## 🚀 v1.0.5-beta.6 (2026-08-31)
 
-A follow-up to the downgrade fix in v1.0.4-beta.5, which turned out not to cover every device it was reported from.
+A follow-up to the downgrade fix in v1.0.4-beta.5, which turned out not to cover every device it was reported from, and a large cut in the requests external sources spend.
+
+### 🔄 Changed
+- **External sources use a fraction of the requests they used to.** Omnify now remembers each answer and simply asks whether anything has changed since, which costs nothing against GitHub's hourly limit when nothing has. Checking a project that hasn't published is effectively free, and opening an app's page no longer asks the same question three times over.
+- **The website follows your system's light or dark setting**, and its theme button cycles system, light and dark instead of locking onto one for good.
 
 ### 🐛 Fixed
-- **Omnify never offers a version older than the one you have, whatever the build numbers say.** Two publishers of the same app number their builds however they like, and comparing those numbers across them can say the exact opposite of the truth. The versions you actually see (7.1.0 against 6.0.0) are now checked as well, which also covers an app installed from a shop Omnify knows nothing about.
-- **An app installed from its own project is no longer offered an older build from the catalogue, on the app's own page as well as in the Updates tab.** The previous fix covered the lists but not the page itself, and only recognised a copy Omnify had installed and still had a record of, so the offer came back both from the catalogue entry's page and on a device where that record had drifted. The signing key settles it now, everywhere the question is asked, since a build the catalogue did not sign never came from the catalogue. Installing the catalogue's build on purpose is still available under "Show all versions". ([#1](https://github.com/Victor-root/Omnify/issues/1))
+- **Omnify never offers a version older than the one you have, whatever the build numbers say.** Two publishers of the same app number their builds on unrelated terms, so the version names you actually see (7.1.0 against 6.0.0) are now compared as well.
+- **An app installed from its own project is no longer offered an older build from the catalogue**, on the app's own page as well as in the Updates tab. The signing key settles who an app belongs to now, since a build the catalogue never signed never came from it. Installing the catalogue's build on purpose is still available under "Show all versions". ([#1](https://github.com/Victor-root/Omnify/issues/1))
+- **A language list no longer turns into the app's own name** when a project names its translation files after itself, such as `app_DE.json`.
+- **Syncing a repository no longer leaves files open** after reading its index or applying an update to it.
+- **The phone screenshot on the website stays whole on a short or narrow screen** instead of running off the bottom of the page.
 
 ---
 

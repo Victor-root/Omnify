@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.utility.common.LanguageDetector
 import com.looker.droidify.utility.common.withoutNonLocalePrefix
@@ -13,6 +14,8 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +47,7 @@ import javax.inject.Singleton
 class ExternalApi @Inject constructor(
     private val httpClient: HttpClient,
     private val settingsRepository: SettingsRepository,
+    private val responseCache: ConditionalGetCache,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -101,10 +105,14 @@ class ExternalApi @Inject constructor(
      * and (unlike almost every other GitHub REST call) it doesn't itself count against the very quota
      * it reports. Never throws, so a caller with no network right now (e.g. mid-restore, where the
      * rest of a backup must still apply regardless) is never blocked or failed by this.
+     *
+     * The one caller that asks [getText] to revalidate: this is about the credentials, not the body,
+     * and a token replaced moments after the previous check would otherwise be judged on the answer
+     * the old one got.
      */
     suspend fun verifyGithubToken() = withContext(Dispatchers.IO) {
         repeat(TOKEN_INVALID_STREAK) {
-            runCatching { getText(GITHUB_RATE_LIMIT_URL, github = true) }
+            runCatching { getText(GITHUB_RATE_LIMIT_URL, github = true, revalidate = true) }
         }
     }
 
@@ -1051,7 +1059,18 @@ class ExternalApi @Inject constructor(
             }
     }
 
-    private suspend fun getText(url: String, github: Boolean = false): String? {
+    /**
+     * The one request every lookup here goes through. [github] adds the api.github.com headers and the
+     * rate-limit accounting below; [revalidate] refuses [responseCache]'s fresh window and asks the
+     * server for real, which only the token check needs (see [verifyGithubToken]).
+     */
+    private suspend fun getText(
+        url: String,
+        github: Boolean = false,
+        revalidate: Boolean = false,
+    ): String? {
+        val cached = responseCache.load(url)
+        if (!revalidate && cached != null && responseCache.isFresh(cached)) return cached.body
         val response = try {
             httpClient.get(url) {
                 if (github) {
@@ -1059,6 +1078,10 @@ class ExternalApi @Inject constructor(
                     header("X-GitHub-Api-Version", "2022-11-28")
                     githubAuthToken()?.let { header("Authorization", "Bearer $it") }
                 }
+                // Makes the request conditional: the server answers 304 with no body when what we
+                // already hold is still current, and GitHub doesn't count a 304 against the rate limit
+                // at all, which is what makes checking a source that hasn't published free.
+                cached?.etag?.let { header(HttpHeaders.IfNoneMatch, it) }
             }
         } catch (e: Exception) {
             // Every caller wraps this in runCatching and silently falls back to null/empty on failure
@@ -1083,13 +1106,21 @@ class ExternalApi @Inject constructor(
                     unauthorizedStreak++
                     if (unauthorizedStreak >= TOKEN_INVALID_STREAK) _githubTokenInvalid.value = true
                 }
-                response.status.isSuccess() -> {
+                // 304 alongside the 2xx family: GitHub answers it only after accepting the request,
+                // credentials included, so it clears the streak exactly as a 200 does. Left out, a
+                // source whose releases never change would stop confirming a working token.
+                response.status.isSuccess() || status == HttpStatusCode.NotModified.value -> {
                     unauthorizedStreak = 0
                     _githubTokenInvalid.value = false
                 }
                 // Any other outcome (404, 500, the 403/429 rate limit above, …) says nothing about
                 // whether the token itself is valid, so it neither builds the streak nor clears it.
             }
+        }
+        if (response.status == HttpStatusCode.NotModified && cached != null) {
+            responseCache.markStillFresh(url)
+            if (BuildConfig.DEBUG) Log.d(TAG, "GET $url -> 304, unchanged (no quota spent)")
+            return cached.body
         }
         if (!response.status.isSuccess()) {
             Log.w(TAG, "GET $url -> HTTP ${response.status.value}")
@@ -1100,7 +1131,11 @@ class ExternalApi @Inject constructor(
         // no ceiling means such a host can end the app by answering a release listing with gigabytes.
         // Null reads as "this call failed", which every caller already handles.
         val body = response.bodyTextAtMost(MAX_RESPONSE_BYTES)
-        if (body == null) Log.w(TAG, "GET $url -> response larger than $MAX_RESPONSE_BYTES bytes, dropped")
+        if (body == null) {
+            Log.w(TAG, "GET $url -> response larger than $MAX_RESPONSE_BYTES bytes, dropped")
+        } else {
+            responseCache.save(url, response.headers[HttpHeaders.ETag], body)
+        }
         return body
     }
 

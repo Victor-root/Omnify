@@ -1,16 +1,19 @@
 package com.looker.droidify.di
 
+import android.content.Context
 import com.looker.droidify.BuildConfig.BUILD_TYPE
 import com.looker.droidify.BuildConfig.VERSION_NAME
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.model.ProxyPreference
 import com.looker.droidify.datastore.model.ProxyType
+import com.looker.droidify.external.ConditionalGetCache
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.KtorDownloader
 import com.looker.droidify.utility.common.log
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -19,6 +22,7 @@ import io.ktor.client.plugins.UserAgent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import okhttp3.Dispatcher
+import java.io.File
 import java.net.InetSocketAddress
 import java.net.Proxy
 import javax.inject.Singleton
@@ -63,6 +67,14 @@ object NetworkModule {
             }
         }
     }
+
+    /** Backs the external-source API's conditional requests. In the cache directory rather than the
+     *  data one: it holds nothing that isn't one request away, so Android is welcome to reclaim it. */
+    @Singleton
+    @Provides
+    fun provideConditionalGetCache(
+        @ApplicationContext context: Context,
+    ): ConditionalGetCache = ConditionalGetCache(File(context.cacheDir, "external_api"))
 
     @Singleton
     @Provides

@@ -7,6 +7,8 @@ import io.ktor.client.engine.mock.MockEngine
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.io.TempDir
+import java.io.File
 import java.net.UnknownHostException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -28,10 +30,18 @@ class OfflineApiTest {
         coEvery { it.getInitial() } returns Settings()
     }
 
-    private val api = ExternalApi(
-        httpClient = HttpClient(MockEngine { throw UnknownHostException("No address associated with hostname") }),
-        settingsRepository = settingsRepository,
-    )
+    @TempDir
+    lateinit var cacheDir: File
+
+    private val api by lazy {
+        ExternalApi(
+            httpClient = HttpClient(
+                MockEngine { throw UnknownHostException("No address associated with hostname") },
+            ),
+            settingsRepository = settingsRepository,
+            responseCache = ConditionalGetCache(cacheDir),
+        )
+    }
 
     private val app = ExternalApp(owner = "Zverik", repo = "every_door")
 
