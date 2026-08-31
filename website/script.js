@@ -111,6 +111,7 @@
     }
 
     renderAccentSwatches();
+    syncThemeButton();
     if (latestTag) showLatestTag(latestTag);
   }
 
@@ -306,11 +307,20 @@
 
   var darkQuery = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
 
-  /* What the page is actually showing: an explicit choice from the toggle when there is one, the
-     system's own preference otherwise. Dark when neither says anything, matching the CSS default. */
+  /* Three modes, cycled in this order by the button in the header. "auto" is the default and means
+     the system decides, which the stylesheet already does on its own, so a first visit is right
+     before this file has run and stays right when the system flips later on. */
+  var THEME_MODES = ["auto", "light", "dark"];
+  var THEME_LABEL_KEYS = {
+    auto: "nav.themeAuto",
+    light: "nav.themeLight",
+    dark: "nav.themeDark"
+  };
+  var themeMode = "auto";
+
+  /* What the page is actually showing. Dark when the system says nothing, matching the CSS default. */
   function isDark() {
-    var chosen = root.getAttribute("data-theme");
-    if (chosen) return chosen === "dark";
+    if (themeMode !== "auto") return themeMode === "dark";
     return darkQuery ? darkQuery.matches : true;
   }
 
@@ -326,24 +336,46 @@
     });
   }
 
-  var savedTheme = read("omnify-theme");
-  if (savedTheme === "light" || savedTheme === "dark") {
-    root.setAttribute("data-theme", savedTheme);
+  /* The button says which mode is on rather than what clicking would do, so its label changes with
+     the mode and with the language both. Also called from applyLocale, which can run before the
+     button has been looked up. */
+  function syncThemeButton() {
+    if (!themeBtn) return;
+    var label = translate(THEME_LABEL_KEYS[themeMode], currentLocale);
+    if (label === null) return;
+    themeBtn.setAttribute("aria-label", label);
+    themeBtn.title = label;
   }
-  applyShotTheme();
+
+  function applyThemeMode(mode) {
+    themeMode = THEME_MODES.indexOf(mode) >= 0 ? mode : "auto";
+    root.setAttribute("data-theme-mode", themeMode);
+    /* data-theme forces a palette, so in auto it has to be absent: the light rules are written as
+       :root:not([data-theme="dark"]) inside a prefers-color-scheme query, and leaving anything there
+       would pin the page to one side. */
+    if (themeMode === "auto") {
+      root.removeAttribute("data-theme");
+    } else {
+      root.setAttribute("data-theme", themeMode);
+    }
+    syncThemeButton();
+    applyShotTheme();
+  }
 
   var themeBtn = document.getElementById("theme-toggle");
+
+  applyThemeMode(read("omnify-theme"));
+
   if (themeBtn) {
     themeBtn.addEventListener("click", function () {
-      var next = isDark() ? "light" : "dark";
-      root.setAttribute("data-theme", next);
+      var next = THEME_MODES[(THEME_MODES.indexOf(themeMode) + 1) % THEME_MODES.length];
+      applyThemeMode(next);
       store("omnify-theme", next);
-      applyShotTheme();
     });
   }
 
-  /* The system can flip on its own, e.g. at sunset. Only matters while no explicit choice is stored,
-     which isDark() already accounts for. */
+  /* The system can flip on its own, e.g. at sunset. Only matters in auto, which isDark() already
+     accounts for; the palette itself is the stylesheet's business. */
   if (darkQuery && darkQuery.addEventListener) {
     darkQuery.addEventListener("change", applyShotTheme);
   }

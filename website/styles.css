@@ -265,13 +265,18 @@ a { color: inherit; }
 .icon-btn:active { transform: scale(0.94); }
 .icon-btn > .ico { grid-area: 1 / 1; }
 
-.ico-moon, .ico-close, .ico-done { display: none; }
-:root[data-theme="light"] .ico-sun { display: none; }
-:root[data-theme="light"] .ico-moon { display: block; }
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .ico-sun { display: none; }
-  :root:not([data-theme="dark"]) .ico-moon { display: block; }
-}
+/* The theme button's three glyphs sit in the same grid cell and one of them is shown: the one for
+   the mode that is on, not the one you would get by clicking. Keyed on data-theme-mode, which is the
+   choice, and not on data-theme, which is only the palette that choice forces: in system mode there
+   is no forced palette, so no attribute, which is also what lets the page follow the system with no
+   script at all. Absent means system, so that is what shows until script.js has read the stored
+   choice. */
+.ico-sun, .ico-moon, .ico-close, .ico-done { display: none; }
+.ico-auto { display: block; }
+:root[data-theme-mode="light"] .ico-auto { display: none; }
+:root[data-theme-mode="light"] .ico-sun { display: block; }
+:root[data-theme-mode="dark"] .ico-auto { display: none; }
+:root[data-theme-mode="dark"] .ico-moon { display: block; }
 
 .nav-burger { display: none; }
 

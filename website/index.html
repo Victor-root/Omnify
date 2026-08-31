@@ -39,6 +39,8 @@
     <g id="i-translate" fill="currentColor" stroke="none"><path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></g>
     <g id="i-sun"><path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></g>
     <g id="i-moon"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"/></g>
+    <!-- Half filled circle: the usual glyph for "whatever the system is set to". -->
+    <g id="i-contrast"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></g>
     <g id="i-menu"><path d="M4 6l16 0"/><path d="M4 12l16 0"/><path d="M4 18l16 0"/></g>
     <g id="i-x"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></g>
     <g id="i-world"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M3.6 9h16.8"/><path d="M3.6 15h16.8"/><path d="M11.5 3a17 17 0 0 0 0 18"/><path d="M12.5 3a17 17 0 0 1 0 18"/></g>
@@ -92,7 +94,10 @@
         <div class="lang-list" id="lang-list" role="group"
              data-i18n-attr="aria-label:nav.langAria" aria-label="Change language" hidden></div>
       </div>
-      <button class="icon-btn" id="theme-toggle" type="button" data-i18n-attr="aria-label:nav.themeAria" aria-label="Switch theme">
+      <!-- Cycles system, light, dark, and shows which of the three is on. The label says so too, and
+           is written by script.js because it changes with the mode as well as with the language. -->
+      <button class="icon-btn" id="theme-toggle" type="button" aria-label="Theme: system">
+        <svg class="ico ico-auto" viewBox="0 0 24 24"><use href="#i-contrast"/></svg>
         <svg class="ico ico-sun" viewBox="0 0 24 24"><use href="#i-sun"/></svg>
         <svg class="ico ico-moon" viewBox="0 0 24 24"><use href="#i-moon"/></svg>
       </button>

@@ -24,6 +24,8 @@
     <g id="i-check"><path d="M5 12l5 5l10 -10"/></g>
     <g id="i-sun"><path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></g>
     <g id="i-moon"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"/></g>
+    <!-- Half filled circle: the usual glyph for "whatever the system is set to". -->
+    <g id="i-contrast"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></g>
     <g id="i-menu"><path d="M4 6l16 0"/><path d="M4 12l16 0"/><path d="M4 18l16 0"/></g>
     <g id="i-x"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></g>
     <g id="i-git"><path d="M16 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 8m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 15v-6"/><path d="M15 11l-2 -2"/><path d="M11 7l-1.9 -1.9"/><path d="M13.446 2.6l7.955 7.954a2.045 2.045 0 0 1 0 2.892l-7.955 7.955a2.045 2.045 0 0 1 -2.892 0l-7.955 -7.955a2.045 2.045 0 0 1 0 -2.892l7.955 -7.955a2.045 2.045 0 0 1 2.892 0"/></g>
@@ -77,7 +79,10 @@
         <div class="lang-list" id="lang-list" role="group"
              data-i18n-attr="aria-label:nav.langAria" aria-label="Change language" hidden></div>
       </div>
-      <button class="icon-btn" id="theme-toggle" type="button" data-i18n-attr="aria-label:nav.themeAria" aria-label="Switch theme">
+      <!-- Cycles system, light, dark, and shows which of the three is on. The label says so too, and
+           is written by script.js because it changes with the mode as well as with the language. -->
+      <button class="icon-btn" id="theme-toggle" type="button" aria-label="Theme: system">
+        <svg class="ico ico-auto" viewBox="0 0 24 24"><use href="#i-contrast"/></svg>
         <svg class="ico ico-sun" viewBox="0 0 24 24"><use href="#i-sun"/></svg>
         <svg class="ico ico-moon" viewBox="0 0 24 24"><use href="#i-moon"/></svg>
       </button>
