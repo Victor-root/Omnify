@@ -86,9 +86,12 @@ import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.datastore.model.Theme
+import com.looker.droidify.utility.common.SYSTEM_LANGUAGE
 import com.looker.droidify.utility.common.SdkCheck
+import com.looker.droidify.utility.common.applicationLocale
 import com.looker.droidify.utility.common.extension.openLink
 import com.looker.droidify.utility.common.isIgnoreBatteryEnabled
+import com.looker.droidify.utility.common.localeOfCode
 import com.looker.droidify.utility.common.requestBatteryFreedom
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
@@ -946,7 +949,11 @@ private fun LanguageSetting(
     if (SdkCheck.isTiramisu) {
         ActionSettingItem(
             title = stringResource(R.string.prefs_language_title),
-            description = context.translateLocale(context.getLocaleOfCode(selectedLanguage)),
+            // Read from Android, not from the stored setting. This row opens the system's own per-app
+            // language screen, and a choice made there comes back through no picker of ours, so the
+            // setting could still read "system" while the app was plainly running in English. A locale
+            // change recreates the activity, so this is re-read the moment one happens.
+            description = context.translateLocale(context.applicationLocale()),
             icon = icon,
             onClick = {
                 val uri = "package:${context.packageName}".toUri()
@@ -1145,6 +1152,8 @@ private fun Context.getInstallerOptions(): List<LegacyInstallerComponent> {
     }
 }
 
+/** A stored language code as the locale to name on screen: null for "system", which [translateLocale]
+ *  renders as the word rather than a language, and the device's own when the code is missing. */
 @Suppress("DEPRECATION")
 private fun Context.getLocaleOfCode(localeCode: String): Locale? = when {
     localeCode.isEmpty() -> if (SdkCheck.isNougat) {
@@ -1153,10 +1162,8 @@ private fun Context.getLocaleOfCode(localeCode: String): Locale? = when {
         resources.configuration.locale
     }
 
-    localeCode.contains("-r") -> Locale(localeCode.substring(0, 2), localeCode.substring(4))
-    localeCode.contains("_") -> Locale(localeCode.substring(0, 2), localeCode.substring(3))
-    localeCode == "system" -> null
-    else -> Locale(localeCode)
+    localeCode == SYSTEM_LANGUAGE -> null
+    else -> localeOfCode(localeCode)
 }
 
 private fun Context.translateLocale(locale: Locale?): String {

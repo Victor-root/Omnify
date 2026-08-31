@@ -3,7 +3,6 @@ package com.looker.droidify
 import android.app.Application
 import android.content.Intent
 import android.content.IntentFilter
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import coil3.ImageLoader
@@ -18,6 +17,7 @@ import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.ImageResult
 import coil3.request.SuccessResult
 import coil3.request.crossfade
+import com.looker.droidify.compose.settings.SettingsViewModel
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.AutoSync
@@ -25,9 +25,12 @@ import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.InstallPrompt
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.receivers.InstalledAppReceiver
+import com.looker.droidify.utility.common.SdkCheck
+import com.looker.droidify.utility.common.applicationLocale
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.getDrawableCompat
 import com.looker.droidify.utility.common.extension.getInstalledPackagesCompat
+import com.looker.droidify.utility.common.localeCodeForTag
 import com.looker.droidify.utility.extension.toInstalledItem
 import com.looker.droidify.work.AutoUpdateWorker
 import com.looker.droidify.work.CleanUpWorker
@@ -108,12 +111,32 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
         }
     }
 
+    /**
+     * Brings the stored language back in step with the locale Android runs this app under.
+     *
+     * Only from Android 13, where the language is chosen in the system's own per-app screen and so
+     * nothing inside the app writes the setting when it changes. Below that there is no per-app locale
+     * to read: the stored setting is the only record of the choice, and overwriting it from a system
+     * that has nothing to say would simply erase it.
+     *
+     * Two things kept this from ever running before. It asked AppCompat rather than the framework, and
+     * AppCompat answers out of its own set of activities, which this app has none of (see
+     * [applicationLocale]), so the answer was always "nothing is set". And it then refused to write
+     * whenever the setting still read "system", which is exactly what it reads until the in-app picker
+     * has been used at all, so the ordinary case could not have reconciled even with a real answer.
+     *
+     * Stored the way the picker spells it (a resource-directory code, or "system"), never the raw
+     * language tag, since that is the vocabulary everything reading it back expects.
+     */
     private fun checkLanguage() {
+        if (!SdkCheck.isTiramisu) return
         appScope.launch {
-            val lastSetLanguage = settingsRepository.getInitial().language
-            val systemSetLanguage = AppCompatDelegate.getApplicationLocales().toLanguageTags()
-            if (systemSetLanguage != lastSetLanguage && lastSetLanguage != "system") {
-                settingsRepository.setLanguage(systemSetLanguage)
+            val applied = localeCodeForTag(
+                tag = applicationLocale()?.toLanguageTag(),
+                available = SettingsViewModel.localeCodesList,
+            )
+            if (applied != settingsRepository.getInitial().language) {
+                settingsRepository.setLanguage(applied)
             }
         }
     }

@@ -79,3 +79,62 @@ private fun String.isRegionOrScriptShaped(): Boolean = when (length) {
 private val ISO_LANGUAGES: Set<String> = Locale.getISOLanguages().toSet()
 
 private fun String.isKnownLanguage(): Boolean = lowercase() in ISO_LANGUAGES
+
+/** The stored language meaning "whatever the device is set to", rather than one the user picked. */
+internal const val SYSTEM_LANGUAGE = "system"
+
+/**
+ * A resource-directory locale code as a [Locale]. Three spellings reach this: the plain language
+ * ("fr"), Android's own resource form ("pt-rBR"), and the underscored one older settings were stored
+ * with ("pt_BR").
+ *
+ * One parser, where the settings view model and the settings screen had each written their own and
+ * [localeCodeForTag] below would have made a third. Three readings of one format is three chances
+ * for them to disagree.
+ *
+ * Split, where both of those sliced at fixed offsets. A three-letter language with a region beside it
+ * came out of that as its first two letters, a language that exists nowhere, and this app already
+ * ships four three-letter languages (ckb, got, jbo, ryu) that a region could land next to.
+ */
+// Locale.of(...), the suggested replacement, needs Java 19 and isn't backported by this project's core
+// library desugaring: calling it would crash below that on this app's minSdk 23 devices.
+@Suppress("DEPRECATION")
+internal fun localeOfCode(code: String): Locale {
+    val parts = code.split('-', '_')
+    // "rBR" is the resource spelling of the region "BR"; the underscored form already reads "BR". A
+    // region is uppercase in both, so dropping a leading lowercase r can never eat a real letter.
+    val region = parts.getOrNull(1)?.removePrefix("r").orEmpty()
+    return Locale(parts[0], region)
+}
+
+/**
+ * Which of the [available] codes the language tag [tag] means, or [SYSTEM_LANGUAGE] when nothing is
+ * set and when the app ships nothing for it.
+ *
+ * Android names a locale with a language tag ("pt-BR") while this list is spelled the way the
+ * resource directories are ("pt-rBR"), so the two are compared as [Locale]s and not as text. That is
+ * also what settles the two languages Java still spells its own way internally, Indonesian and
+ * Hebrew: as plain strings, Android's "id" and this app's "in" would never match at all.
+ *
+ * The region is preferred when the app ships it, then the plain language, then any other region of
+ * it: a device set to Portuguese (Portugal) is better served the Brazilian Portuguese this app does
+ * have than the English it would otherwise fall back to.
+ */
+internal fun localeCodeForTag(tag: String?, available: List<String>): String {
+    // A tag that is missing, blank, or not a language at all parses to no language, and nothing the
+    // app ships has none either, so it matches nothing and the device is left to decide. That covers
+    // [SYSTEM_LANGUAGE] itself, which sits in this list and is a word rather than a locale.
+    val wanted = Locale.forLanguageTag(tag.orEmpty().replace('_', '-'))
+    return available
+        .map { it to localeOfCode(it) }
+        .filter { (_, locale) -> locale.language == wanted.language }
+        .minByOrNull { (_, locale) ->
+            when {
+                locale.country == wanted.country -> 0
+                locale.country.isEmpty() -> 1
+                else -> 2
+            }
+        }
+        ?.first
+        ?: SYSTEM_LANGUAGE
+}

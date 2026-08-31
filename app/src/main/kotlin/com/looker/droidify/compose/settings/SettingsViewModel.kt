@@ -31,8 +31,10 @@ import com.looker.droidify.installer.installers.isShizukuAlive
 import com.looker.droidify.installer.installers.isShizukuGranted
 import com.looker.droidify.installer.installers.isShizukuInstalled
 import com.looker.droidify.installer.installers.requestPermissionListener
+import com.looker.droidify.utility.common.SYSTEM_LANGUAGE
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.utility.common.extension.updateAsMutable
+import com.looker.droidify.utility.common.localeOfCode
 import com.looker.droidify.work.CleanUpWorker
 import com.looker.droidify.work.DownloadStatsWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,7 +45,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.*
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
@@ -93,7 +94,15 @@ class SettingsViewModel @Inject constructor(
 
     fun setLanguage(language: String) {
         viewModelScope.launch {
-            val appLocale = LocaleListCompat.create(language.toLocale())
+            // "System" is an empty locale list, which is how Android is told to go back to following
+            // the device. Handed to Locale() instead, as it used to be, it became a request for a
+            // language named "system": choosing it left the app pinned to a locale that exists
+            // nowhere rather than releasing it.
+            val appLocale = if (language == SYSTEM_LANGUAGE) {
+                LocaleListCompat.getEmptyLocaleList()
+            } else {
+                LocaleListCompat.create(localeOfCode(language))
+            }
             AppCompatDelegate.setApplicationLocales(appLocale)
             settingsRepository.setLanguage(language)
         }
@@ -411,16 +420,6 @@ class SettingsViewModel @Inject constructor(
 
         val localeCodesList: List<String> = BuildConfig.DETECTED_LOCALES
             .toList()
-            .updateAsMutable { add(0, "system") }
+            .updateAsMutable { add(0, SYSTEM_LANGUAGE) }
     }
-}
-
-// Locale.of(...) (the suggested replacement) needs Java 19 and isn't backported by this project's core
-// library desugaring — calling it would crash below that on this app's minSdk 23 devices, so the
-// deprecated constructors stay.
-@Suppress("DEPRECATION")
-private fun String.toLocale(): Locale = when {
-    contains("-r") -> Locale(substring(0, 2), substring(4))
-    contains("_") -> Locale(substring(0, 2), substring(3))
-    else -> Locale(this)
 }
