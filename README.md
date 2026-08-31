@@ -107,10 +107,10 @@ time.
 Maintain a project? Put a **Get it on Omnify** badge in your README and anyone
 reading it can follow your releases in one tap, without copying an address by
 hand. Paste your project's address on
-**[the badge page](https://victor-root.github.io/Omnify/add.html)** and copy the
+**[the badge page](https://victor-root.github.io/Omnify/add)** and copy the
 snippet it gives you.
 
-[![Get it on Omnify](website/assets/get-it-on-omnify.svg)](https://victor-root.github.io/Omnify/add.html)
+[![Get it on Omnify](website/assets/get-it-on-omnify.svg)](https://victor-root.github.io/Omnify/add)
 
 Tapping it opens Omnify on its add-a-source screen, already filled in. Nothing
 is installed without the reader saying so, and if they don't have Omnify yet the
