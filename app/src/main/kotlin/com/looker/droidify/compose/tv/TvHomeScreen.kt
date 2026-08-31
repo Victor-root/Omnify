@@ -140,6 +140,7 @@ fun TvHomeScreen(
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val isRefreshingExternal by externalViewModel.isRefreshing.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
+    val externalInstalledVersions by externalViewModel.installedVersions.collectAsStateWithLifecycle()
     val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
     val githubRateLimitRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
@@ -179,6 +180,17 @@ fun TvHomeScreen(
     }
 
     val installedPackages = remember(installedVersionNames) { installedVersionNames.keys }
+
+    // Tracked sources with a newer release than the copy on the device, by the phone Updates tab's own
+    // rule: switched on, not individually hidden, and pending against the version really installed
+    // rather than the source's own record (see ExternalApp.isUpdatePending). The External grid below
+    // keeps showing switched-off sources so they can be switched back on; an update check is
+    // enabled-only, exactly as the background refresh is.
+    val externalUpdates = remember(externalApps, hiddenExternalApps, externalInstalledVersions) {
+        externalApps
+            .filter { it.enabled && it.key !in hiddenExternalApps }
+            .filter { it.isUpdatePending(externalInstalledVersions[it.key]) }
+    }
 
     // rememberSaveable (not remember) so the section survives leaving the composition — navigating into
     // a detail screen and back would otherwise reset the home to Explore instead of the tab you left.
@@ -281,7 +293,8 @@ fun TvHomeScreen(
     Row(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TvNavRail(
             section = section,
-            updatesCount = updatesCount,
+            // Both halves of the Updates grid, so the badge counts what that grid lists.
+            updatesCount = updatesCount + externalUpdates.size,
             syncing = tvSyncing,
             tvOnly = tvOnly,
             onToggleTvOnly = viewModel::toggleTvOnly,
@@ -364,10 +377,11 @@ fun TvHomeScreen(
                 TvSection.UPDATES -> TvUpdates(
                     apps = updatableApps,
                     installedPackages = installedPackages,
+                    externalApps = externalUpdates,
+                    externalInstalledKeys = externalInstalledKeys,
+                    onExternalAppClick = openExternal,
                     isUpdatingAll = isUpdatingAll,
-                    // No external half here: this screen lists catalogue updates only, so the button
-                    // covers exactly what is above it, as it does on the phone.
-                    onUpdateAll = { viewModel.updateAll(externalKeys = emptyList()) },
+                    onUpdateAll = { viewModel.updateAll(externalUpdates.map { it.key }) },
                     onCancelUpdateAll = viewModel::cancelUpdateAll,
                     onAppClick = openApp,
                     restoreFocusId = restoreFocusId,
@@ -769,6 +783,12 @@ private fun TvAppGrid(
     installedPackages: Set<String>,
     onAppClick: (String) -> Unit,
     header: (@Composable () -> Unit)? = null,
+    // Optional external (GitHub/GitLab) apps laid out after the catalogue ones in the same grid, the
+    // way [TvCarousel] already appends them to a row. Used by the Updates grid, whose two halves are
+    // one list to the user.
+    externalApps: List<ExternalApp> = emptyList(),
+    externalInstalledKeys: Set<String> = emptySet(),
+    onExternalAppClick: (String) -> Unit = {},
     restoreFocusId: String? = null,
     restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
@@ -783,7 +803,7 @@ private fun TvAppGrid(
             Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             header?.invoke()
         }
-        if (apps.isEmpty()) {
+        if (apps.isEmpty() && externalApps.isEmpty()) {
             TvEmpty(stringResource(R.string.no_applications_available))
         } else {
             LazyVerticalGrid(
@@ -805,6 +825,21 @@ private fun TvAppGrid(
                         )
                     }
                 }
+                gridItems(externalApps, key = { "ext-${it.key}" }, contentType = { "tv-ext" }) { app ->
+                    TvAppCard(
+                        name = app.label,
+                        onClick = { onExternalAppClick(app.key) },
+                        modifier = Modifier.restoreFocusTarget(restoreFocusId == "ext:${app.key}", restoreRequester),
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            ExternalAppIcon(
+                                app = app,
+                                isInstalled = app.key in externalInstalledKeys,
+                                size = TileSize - 20.dp,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -814,6 +849,13 @@ private fun TvAppGrid(
 private fun TvUpdates(
     apps: List<AppMinimal>,
     installedPackages: Set<String>,
+    // Tracked sources with an update, listed after the catalogue ones exactly as the phone's Updates
+    // tab does. Left out, an app followed from a project simply never announced its update here: not
+    // in this grid, not on the rail's badge, and the only place left to notice it was the source's own
+    // page in the External section.
+    externalApps: List<ExternalApp>,
+    externalInstalledKeys: Set<String>,
+    onExternalAppClick: (String) -> Unit,
     isUpdatingAll: Boolean,
     onUpdateAll: () -> Unit,
     onCancelUpdateAll: () -> Unit,
@@ -826,10 +868,13 @@ private fun TvUpdates(
         apps = apps,
         installedPackages = installedPackages,
         onAppClick = onAppClick,
+        externalApps = externalApps,
+        externalInstalledKeys = externalInstalledKeys,
+        onExternalAppClick = onExternalAppClick,
         restoreFocusId = restoreFocusId,
         restoreRequester = restoreRequester,
         header = {
-            if (apps.isNotEmpty()) {
+            if (apps.isNotEmpty() || externalApps.isNotEmpty()) {
                 // Becomes the way to stop a running batch rather than sitting disabled, same as the
                 // phone screen's own button and for the same reason (see UpdateAllButton): a run can
                 // wedge on a system confirmation nobody answered, and a disabled button leaves a TV
