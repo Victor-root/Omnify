@@ -59,15 +59,21 @@ class ExternalAppRepository @Inject constructor(
         return _accounts.value
     }
 
-    /** Adds [app] unless an entry with the same key is already tracked. */
-    suspend fun addApp(app: ExternalApp) {
-        mutex.withLock {
-            ensureLoadedInternal()
-            if (_apps.value.any { it.key == app.key }) return@withLock
-            val updated = _apps.value + app
-            saveToFile(updated)
-            _apps.value = updated
-        }
+    /**
+     * Adds [app] unless an entry with the same key is already tracked, and says which of the two
+     * happened.
+     *
+     * The answer is the point: this used to skip a duplicate in silence, and the one caller that tells
+     * the user anything went on to say "Added" either way. A seeding pass that means to skip quietly
+     * simply ignores it.
+     */
+    suspend fun addApp(app: ExternalApp): Boolean = mutex.withLock {
+        ensureLoadedInternal()
+        if (_apps.value.any { it.key == app.key }) return@withLock false
+        val updated = _apps.value + app
+        saveToFile(updated)
+        _apps.value = updated
+        true
     }
 
     /** Replaces the tracked app sharing [ExternalApp.key], or adds it when absent. */

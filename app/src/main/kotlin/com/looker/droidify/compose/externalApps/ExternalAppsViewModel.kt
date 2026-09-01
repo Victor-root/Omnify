@@ -1112,7 +1112,11 @@ class ExternalAppsViewModel @Inject constructor(
                     label = trimmedName.ifEmpty { prettifyRepoName(ref.repo) },
                     nameOverridden = trimmedName.isNotEmpty(),
                 )
-                if (apps.value.any { it.key == app.key }) {
+                // Asked of the repository rather than of [apps]. That flow holds a real list only while
+                // a screen is collecting it and starts out empty, so an add arriving from a badge link,
+                // before any list has been on screen, was checked against nothing at all and no
+                // duplicate was ever found.
+                if (repository.getApps().any { it.key == app.key }) {
                     fail(context.getString(R.string.external_already_added, app.path))
                     return@launch
                 }
@@ -1170,7 +1174,7 @@ class ExternalAppsViewModel @Inject constructor(
                                 "size=$addApkSize rawAssetSizes=${release.assets.map { it.name to it.size }}",
                         )
                     }
-                    repository.addApp(
+                    val stored = repository.addApp(
                         app.copy(
                             packageName = packageId,
                             label = resolvedLabel,
@@ -1189,6 +1193,13 @@ class ExternalAppsViewModel @Inject constructor(
                             latestReleaseAt = release.apkUpdatedAtMillis(filter = app.apkFilter),
                         ),
                     )
+                    // The list can gain this key while the lookups above are running: an account scan
+                    // finishing, another add, a restore. Saying "Added" on a write that did not happen
+                    // is worse than saying it was already there, which it now is either way.
+                    if (!stored) {
+                        fail(context.getString(R.string.external_already_added, app.path))
+                        return@withBusy
+                    }
                     toast(context.getString(R.string.external_added, resolvedLabel))
                     added = true
                 }
@@ -1280,13 +1291,19 @@ class ExternalAppsViewModel @Inject constructor(
                     includeForks = includeForks,
                     lastScan = System.currentTimeMillis(),
                 )
-                if (accounts.value.any { it.key == account.key }) {
+                // Both lists asked of the repository rather than of [accounts]/[apps], for the reason
+                // the single-source add above gives: those flows are empty until a screen collects
+                // them, so an add arriving from a link compared against nothing.
+                if (repository.getAccounts().any { it.key == account.key }) {
                     toast(context.getString(R.string.external_account_already_added, account.label))
                     return@launch
                 }
                 // Don't absorb a repo the user already tracks as its own single-repo source (e.g. the
                 // built-in Omnify repo): leave it standalone.
-                val standaloneKeys = apps.value.filter { it.accountKey == null }.map { it.key }.toSet()
+                val standaloneKeys = repository.getApps()
+                    .filter { it.accountKey == null }
+                    .map { it.key }
+                    .toSet()
                 val discovered = externalRefresher.discoverAccountApps(
                     account = account,
                     repos = repos,
