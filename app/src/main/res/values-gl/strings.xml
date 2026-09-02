@@ -79,7 +79,6 @@
     <string name="signature_FORMAT">Sinatura %s</string>
     <string name="signed_using_unsafe_algorithm">Asinado mediante un algoritmo non seguro</string>
     <string name="size">Tamaño</string>
-    <string name="skip">Saltar</string>
     <string name="socks_proxy">Proxy SOCKS</string>
     <string name="suggested">Suxerido</string>
     <string name="sync_repositories">Sincronizar repositorios</string>

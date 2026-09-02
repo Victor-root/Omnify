@@ -134,7 +134,6 @@
     <string name="show_more">Näita rohkem</string>
     <string name="signature_FORMAT">Allkiri %s</string>
     <string name="signed_using_unsafe_algorithm">Allkirjastatud kasutades ebaturvalist algoritmi</string>
-    <string name="skip">Jäta vahele</string>
     <string name="special_credits">Eriline tänu</string>
     <string name="suggested">Soovitatud</string>
     <string name="sync_repositories">Sünkrooni hoidlad</string>

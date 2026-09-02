@@ -133,7 +133,6 @@
     <string name="share">Del</string>
     <string name="signed_using_unsafe_algorithm">Signeret med en usikker algoritme</string>
     <string name="size">Størrelse</string>
-    <string name="skip">Spring over</string>
     <string name="sorting_order">Sortér efter</string>
     <string name="source_code">Kildekode</string>
     <string name="source_code_no_longer_available">Kildekode er ikke længere tilgængelig</string>

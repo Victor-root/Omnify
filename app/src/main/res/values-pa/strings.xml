@@ -133,7 +133,6 @@
     <string name="signature_FORMAT">ਹਸਤਾਖ਼ਰ %s</string>
     <string name="signed_using_unsafe_algorithm">ਅਸੁਰੱਖਿਅਤ ਐਲਗੋਰਿਦਮ ਦੀ ਵਰਤੋਂ ਕਰਕੇ ਦਸਤਖਤ ਕੀਤੇ</string>
     <string name="size">ਆਕਾਰ</string>
-    <string name="skip">ਛੱਡੋ</string>
     <string name="socks_proxy">SOCKS ਪ੍ਰੌਕਸੀ</string>
     <string name="sorting_order">ਛਾਂਟੀ ਦਾ ਕ੍ਰਮ</string>
     <string name="source_code_no_longer_available">ਸਰੋਤ ਕੋਡ ਹੁਣ ਉਪਲਬਧ ਨਹੀਂ ਹੈ</string>

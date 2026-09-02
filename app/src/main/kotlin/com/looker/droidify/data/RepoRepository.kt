@@ -2,6 +2,7 @@ package com.looker.droidify.data
 
 import android.content.Context
 import android.util.Log
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.data.encryption.EncryptionStorage
 import com.looker.droidify.data.local.dao.AppDao
 import com.looker.droidify.data.local.dao.AuthDao
@@ -142,6 +143,7 @@ class RepoRepository @Inject constructor(
         .get { enabledRepoIds }
         .map { ids -> ids.mapNotNull { repoId -> getRepo(repoId) } }
 
+    /** Adds the repository and answers with the id of the row it went into. */
     suspend fun insertRepo(
         address: String,
         fingerprint: String?,
@@ -149,7 +151,7 @@ class RepoRepository @Inject constructor(
         password: String?,
         name: String? = null,
         description: String? = null,
-    ) {
+    ): Int {
         val id = indexDao.insertRepo(
             RepoEntity(
                 address = address,
@@ -169,8 +171,11 @@ class RepoRepository @Inject constructor(
                 listOf(LocalizedRepoDescriptionEntity(id.toInt(), "en-US", description)),
             )
         }
+        if (BuildConfig.DEBUG) Log.d(TRACE_TAG, "insertRepo: $address stored as row $id")
         if (password != null && username != null) {
+            if (BuildConfig.DEBUG) Log.d(TRACE_TAG, "insertRepo: resolving the encryption key")
             val key = keyStream.first()
+            if (BuildConfig.DEBUG) Log.d(TRACE_TAG, "insertRepo: key resolved, encrypting the password")
             val (encrypted, iv) = key.encrypt(password)
             val authEntity = AuthenticationEntity(
                 password = encrypted,
@@ -179,7 +184,9 @@ class RepoRepository @Inject constructor(
                 repoId = id.toInt(),
             )
             authDao.insert(authEntity)
+            if (BuildConfig.DEBUG) Log.d(TRACE_TAG, "insertRepo: credentials stored for row $id")
         }
+        return id.toInt()
     }
 
     suspend fun enableRepository(repo: Repo, enable: Boolean) {
@@ -284,5 +291,10 @@ class RepoRepository @Inject constructor(
 
     private companion object {
         private const val TAG = "RepoRepository"
+
+        /** Temporary: the add-a-repository trail's tag, shared with the screen so one Logcat filter
+         *  covers the whole path from the form down to the write. Debug builds only, and it goes away
+         *  with the rest of that trail. */
+        private const val TRACE_TAG = "OmnifyRepo"
     }
 }

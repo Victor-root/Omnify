@@ -119,7 +119,6 @@
     <string name="signature_FORMAT">Podpis %s</string>
     <string name="signed_using_unsafe_algorithm">Podepsáno za použití nebezpečného algoritmu</string>
     <string name="size">Velikost</string>
-    <string name="skip">Přeskočit</string>
     <string name="socks_proxy">Proxy SOCKS</string>
     <string name="sorting_order">Pořadí řazení</string>
     <string name="source_code">Zdrojový kód</string>

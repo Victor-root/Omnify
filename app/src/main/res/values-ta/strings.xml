@@ -173,7 +173,6 @@
     <string name="signature_FORMAT">கையொப்பம் %s</string>
     <string name="signed_using_unsafe_algorithm">பாதுகாப்பற்ற வழிமுறையைப் பயன்படுத்தி கையொப்பமிடப்பட்டது</string>
     <string name="size">அளவு</string>
-    <string name="skip">தவிர்</string>
     <string name="socks_proxy">சாக்ச் பதிலாள்</string>
     <string name="sorting_order">வரிசைப்படுத்துதல் ஒழுங்கு</string>
     <string name="source_code">மூலக் குறியீடு</string>

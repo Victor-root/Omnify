@@ -149,7 +149,6 @@
     <string name="show_older_versions">Arată versiuni vechi</string>
     <string name="signed_using_unsafe_algorithm">Semnat folosind un algoritm nesigur</string>
     <string name="size">Mărime</string>
-    <string name="skip">Treci peste</string>
     <string name="sorting_order">Ordinea de sortare</string>
     <string name="source_code">Codul sursă</string>
     <string name="source_code_no_longer_available">Codul sursă nu mai este disponibil</string>

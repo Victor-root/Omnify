@@ -121,7 +121,6 @@
     <string name="show_older_versions">Régebbi verziók megjelenítése</string>
     <string name="signature_FORMAT">%s aláírás</string>
     <string name="signed_using_unsafe_algorithm">Nem biztonságos algoritmussal került aláírásra</string>
-    <string name="skip">Kihagyás</string>
     <string name="socks_proxy">SOCKS proxy</string>
     <string name="sorting_order">Rendezési sorrend</string>
     <string name="source_code">Forráskód</string>

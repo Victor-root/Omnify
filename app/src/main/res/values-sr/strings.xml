@@ -108,7 +108,6 @@
     <string name="processing_FORMAT">Обрада %1$s…</string>
     <string name="shizuku_installer">Програм за инсталацију „Shizuku/Sui“</string>
     <string name="uninstall">Деинсталирај</string>
-    <string name="skip">Прескочи</string>
     <string name="downloaded_FORMAT">Преузета је апликација %s</string>
     <string name="cant_edit_sync_DESC">Није могуће изменити репозиторијум, јер се тренутно синхронизује.</string>
     <string name="proxy_port_error_not_int">Порт проксија може бити само цео број</string>

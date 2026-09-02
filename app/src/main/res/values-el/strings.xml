@@ -114,7 +114,6 @@
     <string name="show_older_versions">Εμφάνιση παλαιοτέρων εκδόσεων</string>
     <string name="signature_FORMAT">Υπογραφή %s</string>
     <string name="size">Μέγεθος</string>
-    <string name="skip">Παράβλεψη</string>
     <string name="sorting_order">Σειρά ταξινόμησης</string>
     <string name="source_code">Πηγαίος κώδικας</string>
     <string name="source_code_no_longer_available">Ο πηγαίος κώδικας δεν είναι πλέον διαθέσιμος</string>

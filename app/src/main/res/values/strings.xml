@@ -262,6 +262,7 @@
     <string name="uninstalled_application_DESC">%s has been uninstalled</string>
     <string name="integrity_check_error_DESC">Couldn\'t check integrity</string>
     <string name="invalid_address">Invalid address</string>
+    <string name="address_single_line">This is more than one line. Keep only the address itself.</string>
     <string name="invalid_fingerprint_format">Invalid fingerprint format</string>
     <string name="invalid_metadata_error_DESC">Invalid metadata</string>
     <string name="invalid_permissions_error_DESC">Invalid permissions</string>
@@ -339,6 +340,8 @@
     <string name="installing_all">Installing…</string>
     <string name="repository">Repository</string>
     <string name="repository_not_found">The repository wasn\'t found</string>
+    <string name="repository_save_failed">The repository couldn\'t be saved</string>
+    <string name="add_without_checking">Add without checking</string>
     <string name="repository_unsigned_DESC">No signature found. Couldn\'t verify the app list</string>
     <string name="repository_unreachable">Repository unreachable</string>
     <string name="requires_FORMAT">Requires %s</string>
@@ -357,7 +360,6 @@
     <string name="signature_FORMAT">Signature %s</string>
     <string name="signed_using_unsafe_algorithm">Signed using an unsafe algorithm</string>
     <string name="size">Size</string>
-    <string name="skip">Skip</string>
     <string name="socks_proxy">SOCKS proxy</string>
     <string name="sorting_order">Sorting order</string>
     <string name="source_code">Source code</string>

@@ -126,7 +126,6 @@
     <string name="signature_FORMAT">署名 %s</string>
     <string name="signed_using_unsafe_algorithm">安全でないアルゴリズムを使用して署名されています</string>
     <string name="size">サイズ</string>
-    <string name="skip">スキップ</string>
     <string name="socks_proxy">SOCKS プロキシ</string>
     <string name="sorting_order">並べ替え</string>
     <string name="source_code">ソースコード</string>

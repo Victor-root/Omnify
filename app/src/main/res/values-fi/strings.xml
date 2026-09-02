@@ -132,7 +132,6 @@
     <string name="signature_FORMAT">Allekirjoitus %s</string>
     <string name="signed_using_unsafe_algorithm">Allekirjoitettu turvattomalla algoritmilla</string>
     <string name="size">Koko</string>
-    <string name="skip">Ohita</string>
     <string name="socks_proxy">SOCKS-välityspalvelin</string>
     <string name="sorting_order">Lajittelujärjestys</string>
     <string name="source_code">Lähdekoodi</string>

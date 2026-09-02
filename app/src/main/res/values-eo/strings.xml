@@ -106,7 +106,6 @@
     <string name="processing_FORMAT">Prilaboranta %1$s…</string>
     <string name="shizuku_installer">Shizuku Instalilo</string>
     <string name="uninstall">Malinstali</string>
-    <string name="skip">Preterpasi</string>
     <string name="downloaded_FORMAT">Elŝutis %s</string>
     <string name="cant_edit_sync_DESC">Ne povas redakti deponejon ĉar ĝi nun sinkronigas.</string>
     <string name="proxy_port_error_not_int">Prokura haveno povas nur esti Entjero</string>

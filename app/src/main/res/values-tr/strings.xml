@@ -126,7 +126,6 @@
     <string name="signature_FORMAT">İmza %s</string>
     <string name="signed_using_unsafe_algorithm">Güvenli olmayan bir algoritma ile imzalanmış</string>
     <string name="size">Boyut</string>
-    <string name="skip">Atla</string>
     <string name="socks_proxy">SOCKS proxy\'si</string>
     <string name="sorting_order">Sıralama düzeni</string>
     <string name="source_code">Kaynak kodu</string>

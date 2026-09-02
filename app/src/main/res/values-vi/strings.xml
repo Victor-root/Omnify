@@ -58,7 +58,6 @@
     <string name="select_mirror">Chọn một mirror</string>
     <string name="signature_FORMAT">Chữ kí %s</string>
     <string name="signed_using_unsafe_algorithm">Đã ký bằng thuật toán không an toàn</string>
-    <string name="skip">Bỏ qua</string>
     <string name="sorting_order">Xếp theo</string>
     <string name="source_code_no_longer_available">Mã nguồn không khả dụng nữa</string>
     <string name="suggested">Gợi ý</string>

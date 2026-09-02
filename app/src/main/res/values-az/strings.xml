@@ -152,7 +152,6 @@
     <string name="signature_FORMAT">İmza %s</string>
     <string name="signed_using_unsafe_algorithm">Təhlükəsiz alqoritmdən istifadə edərək imzalanıb</string>
     <string name="size">Ölçü</string>
-    <string name="skip">Keç</string>
     <string name="socks_proxy">SOCKS proksi</string>
     <string name="sorting_order">Çeşidləmə qaydası</string>
     <string name="source_code">Mənbə kodu</string>

@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -68,7 +70,17 @@ fun RepoEditScreen(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val errorState by viewModel.errorState.collectAsStateWithLifecycle()
     val authEnabled by viewModel.authEnabled.collectAsStateWithLifecycle()
+    val saved by viewModel.saved.collectAsStateWithLifecycle()
     val isFormValid by remember { derivedStateOf { !errorState.hasError } }
+
+    // The screen's job is done the moment the repository is in the database, so it steps aside. It used
+    // to stay open on a save that had worked, which reads exactly like one that hadn't.
+    LaunchedEffect(saved) {
+        if (saved) {
+            viewModel.consumeSaved()
+            onBackClick()
+        }
+    }
 
     // TV / D-pad: the top bar doesn't release focus downward on its own, so "down" on the back arrow
     // would leave the user stuck in the header. This points at the first field; the key handler below
@@ -135,10 +147,16 @@ fun RepoEditScreen(
             if (!isTelevision) FloatingAppCardsBackground(
                 Modifier.padding(paddingValues.forFloatingBackground()),
             )
+            // The keyboard covers the form otherwise, with nothing to scroll: the window is drawn
+            // edge-to-edge, so it no longer resizes itself around the keyboard and the fields underneath
+            // it simply stay there, out of reach. consumeWindowInsets says the bars are already paid for
+            // just above, so what imePadding adds is the keyboard alone rather than the two stacked.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
+                    .padding(paddingValues)
+                    .consumeWindowInsets(paddingValues)
+                    .imePadding(),
             ) {
                 Column(
                     modifier = Modifier
@@ -152,7 +170,7 @@ fun RepoEditScreen(
                         onValueChange = { viewModel.addressState.edit { replace(0, length, it) } },
                         label = { Text(stringResource(R.string.address)) },
                         isError = hasAddressError,
-                        supportingText = { errorState.addressError?.let { Text(it) } },
+                        supportingText = { errorState.addressError?.let { Text(stringResource(it)) } },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -167,7 +185,7 @@ fun RepoEditScreen(
                         onValueChange = { viewModel.fingerprintState.edit { replace(0, length, it) } },
                         label = { Text(stringResource(R.string.fingerprint)) },
                         isError = hasFingerprintError,
-                        supportingText = { errorState.fingerprintError?.let { Text(it) } },
+                        supportingText = { errorState.fingerprintError?.let { Text(stringResource(it)) } },
                         modifier = Modifier.fillMaxWidth(),
                     )
 
@@ -195,7 +213,7 @@ fun RepoEditScreen(
                                 onValueChange = { viewModel.usernameState.edit { replace(0, length, it) } },
                                 label = { Text(stringResource(R.string.username)) },
                                 isError = hasUsernameError,
-                                supportingText = { errorState.usernameError?.let { Text(it) } },
+                                supportingText = { errorState.usernameError?.let { Text(stringResource(it)) } },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                             )
@@ -208,7 +226,7 @@ fun RepoEditScreen(
                                 onValueChange = { viewModel.passwordState.edit { replace(0, length, it) } },
                                 label = { Text(stringResource(R.string.password)) },
                                 isError = hasPasswordError,
-                                supportingText = { errorState.passwordError?.let { Text(it) } },
+                                supportingText = { errorState.passwordError?.let { Text(stringResource(it)) } },
                                 visualTransformation = PasswordVisualTransformation(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                                 singleLine = true,
@@ -219,13 +237,16 @@ fun RepoEditScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Skip check button
+                    // Saves without asking the server anything first, for a repository that can't answer
+                    // right now: it's offline, it's behind a VPN that isn't up yet, or it doesn't publish
+                    // the index file the check looks for. Without it those are all turned away as "the
+                    // repository wasn't found". "Skip" said none of that.
                     Button(
                         onClick = { viewModel.saveRepository(skipCheck = true) },
                         enabled = isFormValid || isLoading,
                         modifier = Modifier.align(Alignment.End).tvFocusScale(),
                     ) {
-                        Text(stringResource(R.string.skip))
+                        Text(stringResource(R.string.add_without_checking))
                     }
                 }
 

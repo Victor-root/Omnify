@@ -96,7 +96,6 @@
     <string name="show_more">Mostrar més</string>
     <string name="signature_FORMAT">Signatura %s</string>
     <string name="signed_using_unsafe_algorithm">Signat utilitzant un algoritme insegur</string>
-    <string name="skip">Omet</string>
     <string name="socks_proxy">Proxy SOCKS</string>
     <string name="sorting_order">Ordenant ordre</string>
     <string name="source_code">Codi de font</string>

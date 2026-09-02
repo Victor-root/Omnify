@@ -36,7 +36,6 @@
     <string name="signature_FORMAT">Potpis %s</string>
     <string name="signed_using_unsafe_algorithm">Potpisano nesigurnosnim algoritmom</string>
     <string name="size">Veličina</string>
-    <string name="skip">Preskoči</string>
     <string name="sorting_order">Način sortiranja</string>
     <string name="syncing_FORMAT">Sinkronizacija %s…</string>
     <string name="themes">Teme</string>

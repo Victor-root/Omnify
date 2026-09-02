@@ -360,8 +360,9 @@ class BackupRepository @Inject constructor(
                 description = repo.description.ifEmpty { null },
             )
         }
-        // Re-query and enable by address (insertRepo doesn't return a usable id) — same approach the
-        // default-repo seeding at first run already uses.
+        // Enabled by address rather than by the ids just inserted: the loop above skips the repositories
+        // already present, and those have to be switched on too when the backup says they were. Same
+        // approach the default-repo seeding at first run already uses.
         val enabledAddresses = imported.filter { it.enabled }.map { it.address.normalizeRepoAddress() }.toSet()
         repoRepository.repos.first()
             .filter { it.address.normalizeRepoAddress() in enabledAddresses && !it.enabled }

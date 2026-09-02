@@ -183,7 +183,6 @@
     <string name="sync_repositories">I-sync ang mga repository</string>
     <string name="sync_repositories_automatically">Awtomatikong i-sync ang mga repositoryo</string>
     <string name="size">Sukat</string>
-    <string name="skip">Laktawan</string>
     <string name="socks_proxy">proxy na SOCKS</string>
     <string name="themes">Mga tema</string>
     <string name="waiting_to_start_download">Naghihintay upang simulan ang pag-download…</string>

@@ -127,7 +127,6 @@
     <string name="signature_FORMAT">Assinatura %s</string>
     <string name="signed_using_unsafe_algorithm">Assinado usando um algoritmo inseguro</string>
     <string name="size">Tamanho</string>
-    <string name="skip">Pular</string>
     <string name="socks_proxy">proxy SOCKS</string>
     <string name="sorting_order">Ordenar por</string>
     <string name="source_code">Código fonte</string>

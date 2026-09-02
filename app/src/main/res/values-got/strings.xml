@@ -93,7 +93,6 @@
     <string name="share">𐌳𐌰𐌹𐌻𐌾𐌰𐌽</string>
     <string name="show_more">𐌼𐌰𐌹𐍃 𐌱𐌰𐌽𐌳𐍅𐌾𐌰𐌽</string>
     <string name="size">𐌼𐌹𐌺𐌹𐌻𐌴𐌹</string>
-    <string name="skip">𐍄𐍂𐌹𐍀𐍀𐍉𐌽</string>
     <string name="upstream_source_code_is_not_free">𐌿𐍆𐌰𐍂𐍃𐍄𐍂𐌰𐌿𐌼𐌹𐍃 𐌱𐍂𐌿𐌽𐌽𐌹𐌽𐍃 𐌺𐍉𐌳𐌿𐍃 𐍆𐍂𐌴𐌹𐍃 𐌽𐌹𐍃𐍄</string>
     <string name="prefs_personalization">𐍀𐌰𐌹𐍂𐍃𐍉𐌽𐌰𐌻𐌹𐍃𐌰𐍄𐍃𐌾𐍉</string>
     <string name="label_sdk_version">𐌼𐌿𐌽𐌳𐍂𐌴𐌹𐌽𐍃: 𐌰𐌽𐌳𐍂𐌰𐌿𐌳 %1$s | 𐌼𐌹𐌽𐌽𐌹𐍃𐍄: 𐌰𐌽𐌳𐍂𐌰𐌿𐌳 %2$s</string>

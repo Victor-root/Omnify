@@ -141,7 +141,6 @@
     <string name="signed_using_unsafe_algorithm">സുരക്ഷിതമല്ലാത്ത അൽഗോരിതം ഉപയോഗിച്ചാണ് ഒപ്പിട്ടത്</string>
     <string name="select_mirror">ഒരു കണ്ണാടി തിരഞ്ഞെടുക്കുക</string>
     <string name="show_older_versions">പഴയ പതിപ്പുകൾ കാണിക്കുക</string>
-    <string name="skip">ഒഴിവാക്കുക</string>
     <string name="source_code_no_longer_available">ഉറവിട കോഡ് ഇനി ലഭ്യമല്ല</string>
     <string name="sync_repositories">റിപ്പോസിറ്ററികൾ സമന്വയിപ്പിക്കുക</string>
     <string name="syncing_FORMAT">%s സമന്വയിപ്പിക്കുന്നു…</string>

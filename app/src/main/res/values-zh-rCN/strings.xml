@@ -125,7 +125,6 @@
     <string name="signature_FORMAT">签名 %s</string>
     <string name="signed_using_unsafe_algorithm">使用不安全的算法签名</string>
     <string name="size">大小</string>
-    <string name="skip">跳过</string>
     <string name="socks_proxy">SOCKS 代理</string>
     <string name="sorting_order">排序依据</string>
     <string name="source_code">源代码</string>

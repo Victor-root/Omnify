@@ -153,7 +153,6 @@
     <string name="size">যায়গা</string>
     <string name="socks_proxy">SOCKS প্রক্সি</string>
     <string name="signed_using_unsafe_algorithm">অনিরাপদ উপায়ে স্বাক্ষর করা হয়েছে</string>
-    <string name="skip">এড়িয়ে যান</string>
     <string name="sorting_order">সাজানোর ক্রম</string>
     <string name="source_code">সোর্স কোড</string>
     <string name="source_code_no_longer_available">সোর্স কোড আর উপলব্ধ নেই</string>

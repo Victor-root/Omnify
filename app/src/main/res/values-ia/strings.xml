@@ -114,7 +114,6 @@
     <string name="socks_proxy">Proxy SOCKS</string>
     <string name="only_compatible_with_FORMAT">Solmente compatibile con %s</string>
     <string name="ok">OK</string>
-    <string name="skip">Ignorar</string>
     <string name="saving_details">Salvante detalios…</string>
     <string name="no_proxy">Necun proxy</string>
     <string name="install_types">Typos de installation</string>

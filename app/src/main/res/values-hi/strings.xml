@@ -64,7 +64,6 @@
     <string name="open_DESC_FORMAT">%s को खोले\?</string>
     <string name="save">सहेजें</string>
     <string name="saving_details">ब्यौरा सहेजा जा रहा है…</string>
-    <string name="skip">छोड़ें</string>
     <string name="syncing">सिंक्रनाइज़ किए जा रहे</string>
     <string name="syncing_FORMAT">%s समन्वयित किया जा रहा है…</string>
     <string name="system">व्यवस्था</string>

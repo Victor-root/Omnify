@@ -87,6 +87,7 @@ import com.looker.droidify.compose.externalApps.PendingSharedSource
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.model.Repository
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
@@ -203,8 +204,14 @@ fun RepoListScreen(
         sortedExternalApps.filter { it.curated && it.curatedTv }
             .sortedBy { it.label.trim().lowercase() }
     }
+    // A repository the user added themselves comes first: it's the one they went looking for and the
+    // one they'll come back to, and sorted purely by name it would sit lost among the several dozen
+    // Omnify already ships with. Everything else stays alphabetical below it.
     val sortedRepos = remember(repos) {
-        repos.sortedBy { it.name.trim().lowercase() }
+        repos.sortedWith(
+            compareBy<Repo> { it.address.trimEnd('/') in DEFAULT_REPO_ADDRESSES }
+                .thenBy { it.name.trim().lowercase() },
+        )
     }
 
     // TV / D-pad: the top bar doesn't release focus downward on its own; this lets "down" drop from the
@@ -685,6 +692,11 @@ private fun TvPackSubHeader() {
 private const val SECTION_KEY_EXTERNAL = "external"
 private const val SECTION_KEY_FDROID = "fdroid"
 private const val SECTION_KEY_OMNIFY_PICKS = "omnify_picks"
+
+/** The addresses Omnify seeds itself with, so a repository the user added by hand can be told apart
+ *  from one that was always in the list. Trailing slash trimmed, like [defaultRepoName] keys it. */
+private val DEFAULT_REPO_ADDRESSES: Set<String> =
+    Repository.defaultRepositories.mapTo(mutableSetOf()) { it.address.trimEnd('/') }
 
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

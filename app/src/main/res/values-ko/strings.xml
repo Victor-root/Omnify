@@ -113,7 +113,6 @@
     <string name="installing">설치 중</string>
     <string name="only_compatible_with_FORMAT">%s와만 호환 가능</string>
     <string name="only_on_wifi">Wi-Fi에서만</string>
-    <string name="skip">건너뛰기</string>
     <string name="source_code">소스 코드</string>
     <string name="source_code_no_longer_available">더 이상 사용할 수 없는 소스 코드</string>
     <string name="suggested">제안</string>

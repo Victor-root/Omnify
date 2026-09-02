@@ -68,6 +68,7 @@
     <string name="license_FORMAT">Licence %s</string>
     <string name="launch">Lancer</string>
     <string name="invalid_address">Adresse invalide</string>
+    <string name="address_single_line">Il y a plus d\'une ligne ici. Ne gardez que l\'adresse.</string>
     <string name="install">Installer</string>
     <string name="install_version_FORMAT">Installer la version %s ?</string>
     <string name="install_version_downgrade_DESC">Une version plus récente est installée. Android ne peut pas revenir en arrière sur place : il faut d\'abord désinstaller la version actuelle (vous perdrez ses données). Désinstallez-la, puis appuyez de nouveau sur cette version pour l\'installer.</string>
@@ -102,7 +103,6 @@
     <string name="source_code">Code source</string>
     <string name="readme_render_failed">L\'aperçu du README n\'a pas pu s\'afficher — vous pouvez tout de même le consulter sur la page du projet</string>
     <string name="size">Taille</string>
-    <string name="skip">Ignorer</string>
     <string name="search">Chercher</string>
     <string name="select_mirror">Sélectionnez un miroir</string>
     <string name="share">Partager</string>
@@ -317,6 +317,8 @@
     <string name="home_screen_swiping">Balayage de page</string>
     <string name="home_screen_swiping_DESC">Balayer à gauche ou à droite pour changer de page</string>
     <string name="repository_not_found">Le dépôt n\'a pas été trouvé</string>
+    <string name="repository_save_failed">Le dépôt n\'a pas pu être enregistré</string>
+    <string name="add_without_checking">Ajouter sans vérifier</string>
     <string name="proxy_port_error_not_int">Le port du proxy doit être un entier</string>
     <string name="import_export">Sauvegarder et restaurer</string>
     <string name="backup_title">Sauvegarder</string>

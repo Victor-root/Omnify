@@ -84,7 +84,6 @@
     <string name="signature_FORMAT">امضاء %s</string>
     <string name="signed_using_unsafe_algorithm">با الگوریتم ناامن امضاء شده</string>
     <string name="size">حجم</string>
-    <string name="skip">بیخیال</string>
     <string name="socks_proxy">پروکسی socks</string>
     <string name="source_code">کد منبع‎</string>
     <string name="suggested">پیشنهادات</string>

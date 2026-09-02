@@ -140,7 +140,6 @@
     <string name="signature_FORMAT">التوقيع %s</string>
     <string name="signed_using_unsafe_algorithm">مُوَقع باستخدام خوارزمية غير آمنة</string>
     <string name="size">الحجم</string>
-    <string name="skip">تخطَّ</string>
     <string name="socks_proxy">وسيط SOCKS</string>
     <string name="sorting_order">ترتيب الفرز</string>
     <string name="source_code">المصدر البرمجي</string>

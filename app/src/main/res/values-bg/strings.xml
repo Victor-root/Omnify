@@ -89,7 +89,6 @@
     <string name="signature_FORMAT">Подпис %s</string>
     <string name="signed_using_unsafe_algorithm">Подписано с несигурен алгоритъм</string>
     <string name="size">Размер</string>
-    <string name="skip">Пропусни</string>
     <string name="socks_proxy">SOCKS прокси</string>
     <string name="sorting_order">Ред на сортиране</string>
     <string name="suggested">Предложено</string>

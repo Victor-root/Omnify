@@ -103,7 +103,6 @@
     <string name="show_older_versions">Показати старіші версії</string>
     <string name="signed_using_unsafe_algorithm">Підписаний за допомогою небезпечного алгоритму</string>
     <string name="size">Розмір</string>
-    <string name="skip">Пропустити</string>
     <string name="socks_proxy">SOCKS проксі</string>
     <string name="sorting_order">Порядок сортування</string>
     <string name="source_code">Вихідний код</string>

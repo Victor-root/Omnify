@@ -53,7 +53,6 @@
     <string name="source_code">Kod źródłowy</string>
     <string name="sorting_order">Porządek sortowania</string>
     <string name="socks_proxy">Proxy SOCKS</string>
-    <string name="skip">Pomiń</string>
     <string name="sync_repositories">Synchronizacja repozytoriów</string>
     <string name="invalid_signature_error_DESC">Nieprawidłowa sygnatura</string>
     <string name="incompatible_version">Niezgodna wersja</string>
