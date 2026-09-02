@@ -7,6 +7,9 @@ A follow-up to the downgrade fix in v1.0.4-beta.5, which turned out not to cover
 ### 🔄 Changed
 - **External sources use a fraction of the requests they used to.** Omnify now remembers each answer and simply asks whether anything has changed since, which costs nothing against GitHub's hourly limit when nothing has. Checking a project that hasn't published is effectively free, and opening an app's page no longer asks the same question three times over.
 - **The website follows your system's light or dark setting**, and its theme button cycles system, light and dark instead of locking onto one for good.
+- **A repository you added yourself now sits at the top of the F-Droid list**, above the several dozen Omnify ships with.
+- **Adding a repository switches it on and syncs it**, so it shows its real name right away instead of the address you typed.
+- **"Skip" on the add-a-repository screen now reads "Add without checking"**, which is what it does: it saves a repository that can't answer right now, such as one that is offline or behind a VPN.
 
 ### 🐛 Fixed
 - **Omnify never offers a version older than the one you have, whatever the build numbers say.** Two publishers of the same app number their builds on unrelated terms, so the version names you actually see (7.1.0 against 6.0.0) are now compared as well.
@@ -15,6 +18,10 @@ A follow-up to the downgrade fix in v1.0.4-beta.5, which turned out not to cover
 - **Android TV announces updates from projects you follow.** Its Updates screen and the badge beside it counted repository apps only, so an update from GitHub or GitLab showed up nowhere: the only way to find it was to open the source's own page. Both halves are listed there now, exactly as on the phone.
 - **A repository address is no longer refused over a character you cannot see.** A byte order mark, a stray space, a line ending left on a paste: any one of them meant "invalid address", with both save buttons greyed out and nothing on screen saying why.
 - **An address pasted with a second line is refused, and says which problem it is.** The two lines used to be welded into one address nobody had typed, which was then looked for on a server that had never heard of it. The field shows a single line whatever it holds, so nothing on screen gave the second one away.
+- **Adding a repository actually adds it.** The address was accepted and the check passed, then nothing: the screen stayed open and no repository appeared. It closes on success now, and says so when a save fails.
+- **The keyboard no longer covers the add-a-repository form**, leaving the fields underneath it out of reach with nothing to scroll.
+- **A repository behind a password shows its logo, its apps' icons and their screenshots.** All of them were fetched without the login and refused, so nothing was ever shown.
+- **The same repository can no longer be added twice** under its two spellings, with and without `/fdroid/repo`.
 - **Adding a source you already follow says so, instead of claiming it was added.** A badge link for a project already in your list reported "Added" and added nothing, because the check ran before the list had been read.
 - **Settings shows the language the app is really in.** It still read "System" after a language was chosen in Android's own per-app language screen, which is where Omnify sends you on Android 13 and up. Choosing "System" on older Android now really hands the app back to the device instead of asking for a language called "system".
 - **A language list no longer turns into the app's own name** when a project names its translation files after itself, such as `app_DE.json`.

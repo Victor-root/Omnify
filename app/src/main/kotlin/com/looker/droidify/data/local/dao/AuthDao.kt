@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.looker.droidify.data.local.model.AuthenticationEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AuthDao {
@@ -13,4 +14,8 @@ interface AuthDao {
 
     @Query("SELECT * FROM authentication WHERE repoId = :repoId")
     suspend fun authFor(repoId: Int): AuthenticationEntity?
+
+    /** Every stored login, re-read whenever one is added, changed or removed. */
+    @Query("SELECT * FROM authentication")
+    fun stream(): Flow<List<AuthenticationEntity>>
 }

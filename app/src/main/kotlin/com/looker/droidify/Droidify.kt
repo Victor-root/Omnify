@@ -13,11 +13,15 @@ import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.intercept.Interceptor
 import coil3.memory.MemoryCache
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.ImageResult
 import coil3.request.SuccessResult
 import coil3.request.crossfade
 import com.looker.droidify.compose.settings.SettingsViewModel
+import com.looker.droidify.data.RepoRepository
+import com.looker.droidify.data.authorizationFor
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.AutoSync
@@ -38,12 +42,18 @@ import com.looker.droidify.work.DownloadStatsWorker
 import com.looker.droidify.work.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import io.ktor.client.HttpClient
+import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectIndexed
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.INFINITE
@@ -69,6 +79,9 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
 
     @Inject
     lateinit var httpClient: HttpClient
+
+    @Inject
+    lateinit var repoRepository: RepoRepository
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
@@ -241,9 +254,48 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
             .crossfade(false)
             .components {
                 add(KtorNetworkFetcherFactory(httpClient = { httpClient }))
+                add(RepoAuthInterceptor(repoAuthorizations()))
                 add(FallbackIconInterceptor())
             }
             .build()
+    }
+
+    /**
+     * The repository logins, kept in memory from the first image onwards.
+     *
+     * Collected here rather than at launch: the image loader is built when the first image is asked
+     * for, which is also the first moment any of this matters. Starts as null, which
+     * [RepoAuthInterceptor] waits on, so an image asked for in that same instant isn't sent off
+     * without the login it needs.
+     */
+    private fun repoAuthorizations(): StateFlow<Map<String, String>?> = repoRepository
+        .authorizations
+        .stateIn(appScope, SharingStarted.Eagerly, null)
+}
+
+/**
+ * Puts a repository's login on the requests for that repository's own images.
+ *
+ * The image loader knows nothing about repositories, so everything a password-protected one holds was
+ * fetched with no credentials and answered 401: its logo, every one of its apps' icons, every
+ * screenshot. Nothing was shown and nothing said why. See [authorizationFor] for which URLs a login
+ * is given to, which is narrower than the server it sits on.
+ */
+private class RepoAuthInterceptor(
+    private val authorizations: StateFlow<Map<String, String>?>,
+) : Interceptor {
+    override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
+        val url = chain.request.data as? String ?: return chain.proceed()
+        val authorization = authorizations.filterNotNull().first().authorizationFor(url)
+            ?: return chain.proceed()
+        val authorized = chain.request.newBuilder()
+            .httpHeaders(
+                NetworkHeaders.Builder()
+                    .apply { this[HttpHeaders.Authorization] = authorization }
+                    .build(),
+            )
+            .build()
+        return chain.withRequest(authorized).proceed()
     }
 }
 

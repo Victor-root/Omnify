@@ -20,6 +20,7 @@ import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.di.IoDispatcher
 import com.looker.droidify.network.Downloader
+import com.looker.droidify.network.header.basicAuthorization
 import com.looker.droidify.sync.SyncState
 import com.looker.droidify.sync.v1.V1Syncable
 import com.looker.droidify.sync.v2.EntrySyncable
@@ -130,6 +131,28 @@ class RepoRepository @Inject constructor(
             )
         }
     }.distinctUntilChanged().flowOn(Dispatchers.Default)
+
+    /**
+     * What each repository holding a login expects in an `Authorization` header, by the address it
+     * answers on. Kept live, so adding, editing or removing one is followed.
+     *
+     * Read from the credentials rather than from the repositories: nearly every repository has none,
+     * and this table changes only when a login does, unlike the repository table which is written on
+     * every sync.
+     */
+    val authorizations: Flow<Map<String, String>>
+        get() = combine(
+            authDao.stream(),
+            keyStream,
+        ) { credentials, key ->
+            if (credentials.isEmpty()) return@combine emptyMap<String, String>()
+            val addresses = repoDao.getAddressByIds(credentials.map { it.repoId })
+            credentials.mapNotNull { entity ->
+                val address = addresses[entity.repoId] ?: return@mapNotNull null
+                val authentication = entity.toAuthentication(key) ?: return@mapNotNull null
+                address to basicAuthorization(authentication.username, authentication.password)
+            }.toMap()
+        }.distinctUntilChanged().flowOn(Dispatchers.Default)
 
     val addresses: Flow<Set<String>>
         get() = combine(

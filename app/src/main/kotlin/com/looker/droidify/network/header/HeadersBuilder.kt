@@ -1,6 +1,11 @@
 package com.looker.droidify.network.header
 
 import java.util.Date
+import kotlin.io.encoding.Base64
+
+/** What an `Authorization` header carries for HTTP basic authentication. */
+fun basicAuthorization(username: String, password: String): String =
+    "Basic ${Base64.encode("$username:$password".encodeToByteArray())}"
 
 interface HeadersBuilder {
 

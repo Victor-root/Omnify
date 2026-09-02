@@ -3,7 +3,6 @@ package com.looker.droidify.network.header
 import io.ktor.http.HttpHeaders
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.io.encoding.Base64
 
 internal class KtorHeadersBuilder(
     private val builder: io.ktor.http.HeadersBuilder,
@@ -29,7 +28,7 @@ internal class KtorHeadersBuilder(
     }
 
     override fun authentication(username: String, password: String) {
-        HttpHeaders.Authorization headsWith "Basic ${Base64.encode("$username:$password".encodeToByteArray())}"
+        HttpHeaders.Authorization headsWith basicAuthorization(username, password)
     }
 
     override fun authentication(base64: String) {
