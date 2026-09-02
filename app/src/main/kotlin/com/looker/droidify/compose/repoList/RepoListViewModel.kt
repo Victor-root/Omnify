@@ -48,10 +48,9 @@ class RepoListViewModel @Inject constructor(
     val confirmBadgeAdd: StateFlow<Boolean> =
         settingsRepository.get { confirmBadgeAdd }.asStateFlow(false)
 
-    // A single-app repo's own declared icon is often unusable (many self-hosted repos never customise
-    // it and fdroidserver defaults to a QR code of the repo address); its one app's real launcher icon
-    // is always the better logo. Refetched whenever the catalogue changes, e.g. right after a repo's
-    // first sync populates its app.
+    // The one app's real launcher icon, which stands in for the logo of a repo that serves a single
+    // app and declares none of its own. Refetched whenever the catalogue changes, e.g. right after a
+    // repo's first sync populates its app.
     private val singleAppIcons = appRepository.catalogChanges
         .mapLatest { appRepository.singleAppRepoIcons() }
         .flowOn(Dispatchers.Default)
@@ -59,12 +58,16 @@ class RepoListViewModel @Inject constructor(
 
     val stream: StateFlow<List<Repo>> = combine(repository.repos, singleAppIcons) { repos, icons ->
         repos.map { repo ->
-            // Never touch a repo that already has a curated logo: some of those (e.g. Cromite) are
-            // curated precisely because the repo itself is unreachable to a non-browser client for
-            // anything under its /repo path, including its apps' own icons — so a single-app override
-            // there could replace a working hand-picked logo with a URL that fails to load.
-            val hasCuratedIcon = defaultRepoIcon(repo.address) != null || defaultRepoIconRes(repo.address) != null
-            val withIcon = if (hasCuratedIcon) repo else icons[repo.id]?.let { repo.copy(icon = it) } ?: repo
+            // A logo the repository declares itself is kept, whatever else it holds: someone chose it,
+            // and standing its single app's icon in front of it overrules them. Same for a curated
+            // logo: some of those (e.g. Cromite) are curated precisely because the repo is unreachable
+            // to a non-browser client for anything under its /repo path, including its apps' own
+            // icons, so an override there would replace a working logo with a URL that fails to load.
+            // What is left is a repository with no logo at all, where its one app's icon beats a blank.
+            val keepsOwnIcon = repo.icon != null ||
+                defaultRepoIcon(repo.address) != null ||
+                defaultRepoIconRes(repo.address) != null
+            val withIcon = if (keepsOwnIcon) repo else icons[repo.id]?.let { repo.copy(icon = it) } ?: repo
             // Same idea for the name: a repo's own self-declared index name can be confusing (Patched
             // Apps' index names itself "langis", the maintainer's handle) — the curated name, once set,
             // must never regress back to that the moment the repo is synced.

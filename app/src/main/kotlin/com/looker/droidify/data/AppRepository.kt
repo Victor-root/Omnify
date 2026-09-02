@@ -132,9 +132,9 @@ class AppRepository @Inject constructor(
 
     /**
      * The real app icon for every repo that serves exactly one app, keyed by repo id (see
-     * [AppDao.singleAppRepoIcons]) — lets the repositories list show that app's actual icon instead of a
-     * single-app repo's own often-unusable declared icon (many small repos never customise it and
-     * fdroidserver defaults to a QR code of the repo address).
+     * [AppDao.singleAppRepoIcons]). Stands in as that repository's logo in the repositories list when
+     * it declares none of its own, which is better than the blank that would otherwise sit there.
+     * A repository that does declare a logo keeps it: see the repositories list for that rule.
      */
     suspend fun singleAppRepoIcons(): Map<Int, FilePath> = withContext(Dispatchers.Default) {
         val currentLocale = localeStream.first()
