@@ -97,6 +97,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.text.font.FontWeight
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.Repo
+import com.looker.droidify.data.trailRepoIcon
 import com.looker.droidify.utility.text.toAnnotatedString
 import kotlinx.coroutines.delay
 import java.util.*
@@ -233,19 +234,28 @@ fun RepoDetailScreen(
                         .focusRequester(contentFocusRequester)
                         .focusGroup(),
                 ) {
-                    // A single-app repo's own declared icon is often unusable (many small self-hosted
-                    // repos never customise it, and fdroidserver defaults to a QR code of the repo
-                    // address); its one app's real launcher icon is always the better logo. Skipped for a
-                    // repo that already has a curated logo (e.g. Cromite): some of those are curated
-                    // precisely because the repo is unreachable to a non-browser client for anything
-                    // under its /repo path, including its own app's icon, so overriding could replace a
-                    // working hand-picked logo with a URL that fails to load. Only affects the Info tab's
-                    // display, not the repo object used elsewhere on this screen.
-                    val hasCuratedIcon = defaultRepoIcon(currentRepo.address) != null ||
+                    // A logo the repository declares itself is kept, whatever else it holds: someone
+                    // chose it, and standing its single app's icon in front of it overrules them. Same
+                    // for a curated logo (e.g. Cromite): some of those are curated precisely because
+                    // the repo is unreachable to a non-browser client for anything under its /repo
+                    // path, including its own app's icon, so an override there would replace a working
+                    // logo with a URL that fails to load. What is left is a repository with no logo at
+                    // all, where its one app's icon beats a blank. Same rule as the repositories list.
+                    // Only affects the Info tab's display, not the repo object used elsewhere here.
+                    val keepsOwnIcon = currentRepo.icon != null ||
+                        defaultRepoIcon(currentRepo.address) != null ||
                         defaultRepoIconRes(currentRepo.address) != null
-                    val singleAppIcon = if (hasCuratedIcon) null else apps.singleOrNull()?.icon
+                    val singleAppIcon = if (keepsOwnIcon) null else apps.singleOrNull()?.icon
                     val infoRepo = remember(currentRepo, singleAppIcon) {
                         singleAppIcon?.let { currentRepo.copy(icon = it) } ?: currentRepo
+                    }
+                    LaunchedEffect(infoRepo, apps.size) {
+                        trailRepoIcon {
+                            "screen: repo ${currentRepo.id} declares=[${currentRepo.icon?.path}] " +
+                                "keepsOwn=$keepsOwnIcon apps=${apps.size} " +
+                                "itsOneApp=[${apps.singleOrNull()?.icon?.path}] " +
+                                "showing=[${infoRepo.icon?.path}]"
+                        }
                     }
                     when (selectedTab) {
                         RepoDetailTab.INFO -> RepoInfoTab(
@@ -325,6 +335,7 @@ private fun RepoInfoTab(
             name = repo.name,
             modifier = Modifier.size(64.dp),
             fallbackRes = defaultRepoIconRes(repo.address),
+            version = repo.versionInfo?.timestamp,
         )
 
         Spacer(modifier = Modifier.height(8.dp))

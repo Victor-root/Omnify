@@ -73,6 +73,7 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
@@ -85,6 +86,7 @@ import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.PendingSharedSource
 import com.looker.droidify.data.model.Repo
+import com.looker.droidify.data.trailRepoIcon
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.model.Repository
@@ -532,6 +534,7 @@ internal fun RepoIcon(
     name: String,
     modifier: Modifier = Modifier,
     fallbackRes: Int? = null,
+    version: Long? = null,
 ) {
     val shape = MaterialTheme.shapes.large
     // Prefer our curated logo when we have one: those default repos were hand-picked precisely because
@@ -542,6 +545,23 @@ internal fun RepoIcon(
     // on/off state, and most default repos are disabled, so dimming them all made the list look faded.
     val url = fallbackUrl?.takeIf { it.isNotBlank() } ?: iconUrl
     var failed by remember(url) { mutableStateOf(false) }
+    // Cached under the repository's index timestamp as well as its URL, when there is one. A logo
+    // replaced on the server keeps its file name, so nothing about the address changes and the copy
+    // already on disk went on being served: the old picture stayed on screen for as long as that copy
+    // survived, with nothing anywhere saying why. A new index means a new key, so the logo is fetched
+    // again and follows the repository it belongs to.
+    val context = LocalContext.current
+    val request = remember(url, version, context) {
+        ImageRequest.Builder(context)
+            .data(url)
+            .apply {
+                version?.let {
+                    memoryCacheKey("$url@$it")
+                    diskCacheKey("$url@$it")
+                }
+            }
+            .build()
+    }
     Box(
         modifier = modifier.clip(shape),
         contentAlignment = Alignment.Center,
@@ -566,9 +586,21 @@ internal fun RepoIcon(
             }
 
             !url.isNullOrBlank() && !failed -> AsyncImage(
-                model = url,
+                model = request,
                 contentDescription = null,
-                onError = { failed = true },
+                // What was drawn, not what was asked for: an image that failed is quietly swapped for
+                // the icon.png beside it (see FallbackIconInterceptor), so the two can differ and only
+                // the second one is on screen.
+                onSuccess = {
+                    trailRepoIcon {
+                        "load: $name asked [$url] and drew [${it.result.request.data}] " +
+                            "from ${it.result.dataSource}"
+                    }
+                },
+                onError = {
+                    failed = true
+                    trailRepoIcon { "load: $name failed on [$url]: ${it.result.throwable}" }
+                },
                 modifier = Modifier.fillMaxSize(),
             )
 
@@ -748,6 +780,7 @@ private fun RepoItem(
                     name = repo.name,
                     modifier = Modifier.size(48.dp),
                     fallbackRes = defaultRepoIconRes(repo.address),
+                    version = repo.versionInfo?.timestamp,
                 )
                 Spacer(modifier = Modifier.size(16.dp))
                 Column(modifier = Modifier.weight(1F)) {

@@ -16,12 +16,14 @@ import coil3.memory.MemoryCache
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.network.ktor3.KtorNetworkFetcherFactory
+import coil3.request.ErrorResult
 import coil3.request.ImageResult
 import coil3.request.SuccessResult
 import coil3.request.crossfade
 import com.looker.droidify.compose.settings.SettingsViewModel
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.authorizationFor
+import com.looker.droidify.data.trailRepoIcon
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.AutoSync
@@ -309,6 +311,14 @@ private class FallbackIconInterceptor : Interceptor {
         val fallbackIconUrl = request.newBuilder()
             .data((request.data as String).replaceAfterLast('/', "icon.png"))
             .build()
+        // Temporary: this stands one image in for another, silently, so a logo that simply failed to
+        // load comes back as whatever icon.png holds beside it — on an fdroidserver repository that
+        // is the QR code of the repo address. Which one it was, and what the first one failed with,
+        // is the whole difference between a wrong logo and an unreachable one.
+        trailRepoIcon {
+            "fallback: [${request.data}] failed with ${(result as? ErrorResult)?.throwable}, " +
+                "asking for [${fallbackIconUrl.data}] instead"
+        }
         return chain.withRequest(fallbackIconUrl).proceed()
     }
 }

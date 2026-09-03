@@ -77,7 +77,7 @@ class RepoRepository @Inject constructor(
         val name = repoDao.name(id, currentLocale) ?: repoEntity.address
         val description = repoDao.description(id, currentLocale) ?: ""
         val icon = repoDao.icon(id, currentLocale)?.icon?.name
-        return repoEntity.toRepo(
+        val repo = repoEntity.toRepo(
             mirrors = mirrors,
             enabled = enabled,
             authentication = auth,
@@ -85,6 +85,12 @@ class RepoRepository @Inject constructor(
             description = description,
             icon = icon,
         )
+        trailRepoIcon {
+            "read: repo $id (${repoEntity.address}) locale=$currentLocale " +
+                "stored=${repoDao.allIcons(id).joinToString { "${it.locale}:${it.icon.name}" }} " +
+                "chosen=[$icon] url=[${repo.icon?.path}]"
+        }
+        return repo
     }
 
     fun repo(id: Int): Flow<Repo?> = combine(
@@ -98,6 +104,11 @@ class RepoRepository @Inject constructor(
         val name = repoDao.name(id, currentLocale) ?: repo?.address ?: "Unknown"
         val description = repoDao.description(id, currentLocale) ?: ""
         val icon = repoDao.icon(id, currentLocale)?.icon?.name
+        trailRepoIcon {
+            "stream: repo $id (${repo?.address}) locale=$currentLocale " +
+                "stored=${repoDao.allIcons(id).joinToString { "${it.locale}:${it.icon.name}" }} " +
+                "chosen=[$icon]"
+        }
         repo?.toRepo(
             mirrors = mirrors,
             enabled = repo.id in enabled,
@@ -262,6 +273,7 @@ class RepoRepository @Inject constructor(
             // this fallback those repos silently failed to sync forever, and their catalogue stayed
             // empty no matter how many times the user retried.
             Log.i(TAG, "V2 sync unavailable for ${repo.name} (id=${repo.id}); falling back to v1 index")
+            trailRepoIcon { "sync: repo ${repo.id} has no v2 index, reading the v1 one" }
             v1Syncable.sync(repo, handleState)
         }
         val fingerprint = parsedFingerprint
@@ -269,6 +281,13 @@ class RepoRepository @Inject constructor(
         if (index != null && fingerprint != null) {
             try {
                 Log.i(TAG, "Saving index for ${repo.name} (id=${repo.id}): ${index.packages.size} packages")
+                // What the repository says its own logo is, straight out of the index and before
+                // anything here has touched it: the first place the answer can differ from what the
+                // owner expects, and the only one nothing in the app can put right.
+                trailRepoIcon {
+                    "sync: repo ${repo.id} index declares icon=${index.repo.icon} " +
+                        "name=${index.repo.name} address=${index.repo.address}"
+                }
                 indexDao.insertIndex(
                     fingerprint = fingerprint,
                     index = index,

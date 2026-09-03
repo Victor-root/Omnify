@@ -82,4 +82,9 @@ interface RepoDao {
 
     @Query("SELECT * FROM localized_repo_icon WHERE repoId = :id AND (locale = :locale OR locale = \'en-US\')")
     suspend fun icon(id: Int, locale: String): LocalizedRepoIconEntity?
+
+    /** Every icon row a repo holds, whatever its locale, so a logo that isn't the one expected can be
+     *  compared against what a sync actually stored. Debug trail only (see trailRepoIcon). */
+    @Query("SELECT * FROM localized_repo_icon WHERE repoId = :id")
+    suspend fun allIcons(id: Int): List<LocalizedRepoIconEntity>
 }
