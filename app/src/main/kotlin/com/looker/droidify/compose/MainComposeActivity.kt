@@ -41,6 +41,7 @@ import com.looker.droidify.compose.easterEgg.navigation.easterEgg
 import com.looker.droidify.compose.easterEgg.navigation.navigateToEasterEgg
 import com.looker.droidify.compose.repoDetail.navigation.navigateToRepoDetail
 import com.looker.droidify.compose.repoDetail.navigation.repoDetail
+import com.looker.droidify.compose.repoEdit.PendingRepoLink
 import com.looker.droidify.compose.repoEdit.navigation.navigateToRepoEdit
 import com.looker.droidify.compose.repoEdit.navigation.repoEdit
 import com.looker.droidify.compose.externalApps.navigation.externalAccountDetail
@@ -392,8 +393,17 @@ class MainComposeActivity : ComponentActivity() {
                 Intent.ACTION_VIEW -> when (val deeplink = intent.deeplinkType()) {
                     is DeeplinkType.AppDetail -> navController.navigateToAppDetail(deeplink.packageName)
                     is DeeplinkType.AppSearch -> navController.navigateToAppList()
-                    // TODO: pre-fill the repo address once RepoEdit accepts one.
-                    is DeeplinkType.AddRepository -> navController.navigateToRepoEdit()
+                    // A repository someone was sent, as an fdroidrepo:// link or an fdroid.link page.
+                    // The address is handed over whole rather than picked apart here: what a link
+                    // carries beyond the address (a fingerprint, a login) is the add screen's own
+                    // business, and it fills in whichever of those the link happens to hold.
+                    is DeeplinkType.AddRepository -> {
+                        PendingRepoLink.set(deeplink.address)
+                        navController.navigateToRepoEdit()
+                        // Consume the launching intent so an activity recreation can't re-open this.
+                        intent.action = null
+                        setIntent(intent)
+                    }
                     // A project's "Get it on Omnify" badge, through the site's add page.
                     is DeeplinkType.AddExternalSource -> {
                         openAddExternalSource(deeplink.url, navController)

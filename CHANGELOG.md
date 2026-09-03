@@ -7,6 +7,7 @@ A follow-up to the downgrade fix in v1.0.4-beta.5, which turned out not to cover
 ### 🔄 Changed
 - **External sources use a fraction of the requests they used to.** Omnify now remembers each answer and simply asks whether anything has changed since, which costs nothing against GitHub's hourly limit when nothing has. Checking a project that hasn't published is effectively free, and opening an app's page no longer asks the same question three times over.
 - **The website follows your system's light or dark setting**, and its theme button cycles system, light and dark instead of locking onto one for good.
+- **A repository link opens the add screen already filled in.** Send someone an `fdroidrepos://` link (or an fdroid.link page) and Omnify fills in whatever it carries: the address, the fingerprint, and the username too if the link names one, leaving them the password to type and nothing else. A link that says less just leaves more of the form to fill in. Omnify already answered these links; it opened an empty form.
 - **A repository you added yourself now sits at the top of the F-Droid list**, above the several dozen Omnify ships with.
 - **A repository keeps the logo it declares.** One serving a single app had that app's icon put in its place; this now only happens for a repository that declares no logo at all.
 - **Adding a repository switches it on and syncs it**, so it shows its real name right away instead of the address you typed.

@@ -2,6 +2,7 @@ package com.looker.droidify.compose.repoEdit
 
 import java.net.URI
 import java.net.URISyntaxException
+import java.net.URLDecoder
 
 /** The path endings a repository address conventionally carries, longest first where it matters. */
 internal val REPO_ADDRESS_SUFFIXES = listOf("fdroid/repo", "repo")
@@ -54,6 +55,99 @@ internal fun normalizeRepoAddress(address: String): String? {
         null
     }
 }
+
+/**
+ * What a shared repository link was carrying. Only [address] is ever there: a link names the
+ * fingerprint, the login, both or neither, and each field is filled in only when the link holds it,
+ * so one that says less simply leaves more of the form to type.
+ */
+internal data class RepoLink(
+    val address: String,
+    val fingerprint: String? = null,
+    val username: String? = null,
+    val password: String? = null,
+)
+
+/**
+ * The repository a shared link points at, or null when it points at none.
+ *
+ * Reads the shapes a repository gets passed around in: the `fdroidrepo://` and `fdroidrepos://`
+ * schemes F-Droid clients answer to, a plain https address, and an fdroid.link page, which is a
+ * redirector carrying the real address in its fragment. The fingerprint travels as a query
+ * parameter, as it does everywhere else, and a login as the userinfo any HTTP URL has always been
+ * able to carry: `user@host`, or `user:password@host`.
+ *
+ * The login is taken out of the address rather than left sitting in it: it belongs in the screen's
+ * own username and password fields, which is where a repository's stored credentials are read from
+ * and where the user can see and change them.
+ */
+internal fun parseRepoLink(link: String): RepoLink? {
+    val text = singleAddressLine(link)?.visibleCharactersOnly()?.asHttpUrl() ?: return null
+    val given = try {
+        URI(text)
+    } catch (_: URISyntaxException) {
+        return null
+    }
+    val uri = given.followFdroidLink() ?: return null
+    val host = uri.host ?: return null
+    val bare = try {
+        URI(uri.scheme, null, host, uri.port, uri.path, null, null)
+    } catch (_: URISyntaxException) {
+        return null
+    }
+    val (username, password) = uri.userInfo.asCredentials()
+    return RepoLink(
+        address = normalizeRepoAddress(bare.toString()) ?: return null,
+        fingerprint = uri.rawQuery.queryValue("fingerprint") ?: uri.rawQuery.queryValue("FINGERPRINT"),
+        username = username,
+        password = password,
+    )
+}
+
+/**
+ * The address behind an fdroid.link page, or [this] when it isn't one.
+ *
+ * That page exists because `fdroidrepos://` isn't a link anywhere text is merely text: it is an
+ * ordinary https page whose fragment holds the address it stands for. Followed once and no further,
+ * so a fragment naming another one can't send this round in circles.
+ */
+private fun URI.followFdroidLink(): URI? {
+    if (!isFdroidLink()) return this
+    val fragment = rawFragment?.takeIf { it.isNotEmpty() } ?: return null
+    val target = try {
+        URI(URLDecoder.decode(fragment, "UTF-8").visibleCharactersOnly().asHttpUrl())
+    } catch (_: Exception) {
+        return null
+    }
+    // Whatever it leads to, it is not the redirector again: that page is never a repository, so one
+    // pointing at another is a link with no repository at the end of it rather than a hop to take.
+    return target.takeUnless { it.isFdroidLink() }
+}
+
+private fun URI.isFdroidLink(): Boolean = host?.endsWith("fdroid.link") == true
+
+/** The scheme F-Droid clients register, read as the https address it stands for. */
+private fun String.asHttpUrl(): String = when {
+    startsWith("fdroidrepos://") -> "https://" + removePrefix("fdroidrepos://")
+    startsWith("fdroidrepo://") -> "https://" + removePrefix("fdroidrepo://")
+    else -> this
+}
+
+/** The username and password a `user:password@host` address carries, each null when absent. */
+private fun String?.asCredentials(): Pair<String?, String?> {
+    val userInfo = this?.takeIf { it.isNotEmpty() } ?: return null to null
+    val username = userInfo.substringBefore(':').takeIf { it.isNotEmpty() }
+    val password = userInfo.substringAfter(':', missingDelimiterValue = "").takeIf { it.isNotEmpty() }
+    return username to password
+}
+
+/** The value [name] holds in a raw query string, decoded, or null when the query doesn't hold it. */
+private fun String?.queryValue(name: String): String? = this
+    ?.split('&')
+    ?.firstOrNull { it.substringBefore('=') == name }
+    ?.substringAfter('=', missingDelimiterValue = "")
+    ?.takeIf { it.isNotEmpty() }
+    ?.let { runCatching { URLDecoder.decode(it, "UTF-8") }.getOrNull() }
 
 /**
  * [address] without the repository path ending it may carry, so that the two spellings of one

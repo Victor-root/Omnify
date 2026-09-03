@@ -103,6 +103,16 @@ fun RepoEditScreen(
         repoId?.let { viewModel.loadRepo(it) }
     }
 
+    // A repository someone was sent, opened from a message: the form starts filled in with whatever
+    // the link named. Read once and dropped, so coming back to this screen later never refills a form
+    // the user has since cleared on purpose, and never over a repository being edited.
+    val pendingLink by PendingRepoLink.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingLink) {
+        val link = pendingLink ?: return@LaunchedEffect
+        if (repoId == null) viewModel.setFromLink(link)
+        PendingRepoLink.clear()
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
     if (isTelevision) TvAccentBackground()
     Scaffold(

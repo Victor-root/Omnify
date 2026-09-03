@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.snapshotFlow
-import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.BuildConfig
@@ -24,8 +23,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.URL
-import java.net.URLDecoder
 import javax.inject.Inject
 
 @HiltViewModel
@@ -114,33 +111,22 @@ class RepoEditViewModel @Inject constructor(
         }
     }
 
-    fun parseAndSetUrl(text: String) {
-        val (address, fingerprint) = parseRepoUrl(text)
-        address?.let { addressState.edit { replace(0, length, it) } }
-        fingerprint?.let { fingerprintState.edit { replace(0, length, formatFingerprint(it)) } }
-    }
-
-    private fun parseRepoUrl(text: String): Pair<String?, String?> {
-        return try {
-            val uri = URL(text).toString().toUri()
-            val repoUri = if (uri.host?.contains("fdroid.link") == true && uri.fragment != null) {
-                val decodedFragment = URLDecoder.decode(uri.fragment, "UTF-8")
-                URL(decodedFragment).toString().toUri()
-            } else {
-                uri
-            }
-            val fingerprint = repoUri.getQueryParameter("fingerprint")?.takeIf { it.isNotEmpty() }
-                ?: repoUri.getQueryParameter("FINGERPRINT")?.takeIf { it.isNotEmpty() }
-            val address = repoUri.buildUpon()
-                .path(repoUri.path?.removeSuffix("/"))
-                .query(null)
-                .fragment(null)
-                .build()
-                .toString()
-            Pair(address, fingerprint)
-        } catch (_: Exception) {
-            Pair(null, null)
-        }
+    /**
+     * Fills the form in from a link someone was sent, with whatever that link carries.
+     *
+     * Only the address is ever required. A link naming the fingerprint saves copying sixty-four
+     * characters across; one naming the username saves a field more; one naming the password leaves
+     * nothing to type at all. Anything it doesn't name is simply left for the user to fill in, so a
+     * plainer link costs typing rather than failing.
+     */
+    fun setFromLink(link: String) {
+        val parsed = parseRepoLink(link) ?: return
+        addressState.edit { replace(0, length, parsed.address) }
+        parsed.fingerprint?.let { fingerprintState.edit { replace(0, length, formatFingerprint(it)) } }
+        if (parsed.username == null && parsed.password == null) return
+        _authEnabled.value = true
+        parsed.username?.let { usernameState.edit { replace(0, length, it) } }
+        parsed.password?.let { passwordState.edit { replace(0, length, it) } }
     }
 
     fun saveRepository(skipCheck: Boolean = false) {
