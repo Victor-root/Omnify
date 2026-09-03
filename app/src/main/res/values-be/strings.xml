@@ -233,4 +233,8 @@
     <string name="always_choose">Заўсёды выбіраць</string>
     <string name="select_installer">Выбраць усталёўшчык</string>
     <string name="label_unknown_sdk">Невядомая (%d)</string>
+    <string name="repository_save_failed">Не ўдалося захаваць рэпазіторый</string>
+    <string name="add_without_checking">Дадаць без праверкі</string>
+    <string name="address_single_line">Тут больш за адзін радок. Пакіньце толькі адрас.</string>
+    <string name="last_updated">Апошняе абнаўленне:</string>
 </resources>

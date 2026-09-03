@@ -189,4 +189,8 @@
     <string name="material_you">ವಸ್ತು ನೀವು</string>
     <string name="material_you_desc">ವಸ್ತು ನೀವು ಬಣ್ಣದ ಥೀಮ್ ಬಳಸಿ</string>
     <string name="repository_unreachable">ರೆಪೊಸಿಟರಿಯನ್ನು ತಲುಪಲಾಗುವುದಿಲ್ಲ</string>
+    <string name="repository_save_failed">ಭಂಡಾರವನ್ನು ಉಳಿಸಲಾಗಲಿಲ್ಲ</string>
+    <string name="add_without_checking">ಪರಿಶೀಲಿಸದೆ ಸೇರಿಸಿ</string>
+    <string name="address_single_line">ಇಲ್ಲಿ ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಸಾಲುಗಳಿವೆ. ವಿಳಾಸವನ್ನು ಮಾತ್ರ ಉಳಿಸಿಕೊಳ್ಳಿ.</string>
+    <string name="last_updated">ಕೊನೆಯ ನವೀಕರಣ:</string>
 </resources>

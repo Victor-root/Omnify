@@ -221,4 +221,8 @@
     <string name="open_shizuku">Shizuku ਖੋਲ੍ਹੋ</string>
     <string name="switch_to_default_installer">ਡਿਫ਼ਾਲਟ \'ਤੇ ਸਵਿਚ ਕਰੋ</string>
     <string name="label_unknown_sdk">ਅਗਿਆਤ (%d)</string>
+    <string name="repository_save_failed">ਰਿਪੋਜ਼ਟਰੀ ਸੰਭਾਲੀ ਨਹੀਂ ਜਾ ਸਕੀ</string>
+    <string name="add_without_checking">ਜਾਂਚ ਕੀਤੇ ਬਿਨਾਂ ਜੋੜੋ</string>
+    <string name="address_single_line">ਇੱਥੇ ਇੱਕ ਤੋਂ ਵੱਧ ਲਾਈਨਾਂ ਹਨ। ਸਿਰਫ਼ ਪਤਾ ਰੱਖੋ।</string>
+    <string name="last_updated">ਆਖਰੀ ਅੱਪਡੇਟ:</string>
 </resources>

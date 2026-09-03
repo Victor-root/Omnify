@@ -1,3 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="repository_save_failed">Repositori ora bisa disimpen</string>
+    <string name="add_without_checking">Tambahake tanpa mriksa</string>
+    <string name="address_single_line">Iki luwih saka sabaris. Sing ditinggal mung alamate.</string>
+    <string name="last_updated">Pungkasan dianyari:</string>
 </resources>

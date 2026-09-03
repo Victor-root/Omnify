@@ -259,4 +259,8 @@
     <string name="rb_info">Jos build on uudelleenluotava, se tarkoittaa, että kyseisen apk:n build on kyseisestä lähteestä</string>
     <string name="custom_buttons_section">Sovelluksen lisätietojen linkit</string>
     <string name="custom_button_label">Merkki</string>
+    <string name="repository_save_failed">Ohjelmavarastoa ei voitu tallentaa</string>
+    <string name="add_without_checking">Lisää tarkistamatta</string>
+    <string name="address_single_line">Tässä on useampi kuin yksi rivi. Jätä vain osoite.</string>
+    <string name="last_updated">Viimeksi päivitetty:</string>
 </resources>

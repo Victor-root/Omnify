@@ -265,4 +265,8 @@
     <string name="custom_button_templates">Predlošci</string>
     <string name="custom_button_icon">Ikona</string>
     <string name="custom_button_delete_confirmation">Izbrisati gumb „%1$s”?</string>
+    <string name="repository_save_failed">Repozitorij nije bilo moguće spremiti</string>
+    <string name="add_without_checking">Dodaj bez provjere</string>
+    <string name="address_single_line">Ovdje je više od jednog retka. Ostavi samo adresu.</string>
+    <string name="last_updated">Zadnje ažuriranje:</string>
 </resources>

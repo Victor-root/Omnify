@@ -195,4 +195,8 @@
     <string name="waiting_to_start_installation">Čakanje na začetek namestitve …</string>
     <string name="auto_update">Samodejno posodobite aplikacije</string>
     <string name="auto_update_apps">Poskusite samodejno namestiti posodobitve</string>
+    <string name="repository_save_failed">Skladišča ni bilo mogoče shraniti</string>
+    <string name="add_without_checking">Dodaj brez preverjanja</string>
+    <string name="address_single_line">Tu je več kot ena vrstica. Pustite samo naslov.</string>
+    <string name="last_updated">Nazadnje posodobljeno:</string>
 </resources>

@@ -261,4 +261,8 @@
     <string name="custom_button_icon">Ikoon</string>
     <string name="custom_button_templates">Mallid</string>
     <string name="custom_button_delete_confirmation">Kas kustutada nupp \"%1$s\"?</string>
+    <string name="repository_save_failed">Hoidlat ei õnnestunud salvestada</string>
+    <string name="add_without_checking">Lisa ilma kontrollimata</string>
+    <string name="address_single_line">Siin on rohkem kui üks rida. Jäta alles ainult aadress.</string>
+    <string name="last_updated">Viimati uuendatud:</string>
 </resources>

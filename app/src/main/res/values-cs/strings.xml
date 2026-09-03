@@ -265,4 +265,8 @@
     <string name="custom_button_icon">Ikona</string>
     <string name="custom_button_delete_confirmation">Odstranit tlačítko „%1$s“?</string>
     <string name="copied_to_clipboard">Zkopírováno</string>
+    <string name="repository_save_failed">Repozitář se nepodařilo uložit</string>
+    <string name="add_without_checking">Přidat bez ověření</string>
+    <string name="address_single_line">Je zde více než jeden řádek. Ponechte pouze adresu.</string>
+    <string name="last_updated">Naposledy aktualizováno:</string>
 </resources>

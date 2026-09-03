@@ -559,4 +559,8 @@
     <string name="installed_signature_mismatch">Die installierte Version (%1$s, von %2$s) wurde nicht von dieser Quelle signiert. Android kann sie in diesem Fall nicht direkt aktualisieren: Du musst sie zuerst deinstallieren und dann diese hier installieren.</string>
     <string name="installed_signature_mismatch_system">Die installierte Version (%1$s, von %2$s) wurde nicht von dieser Quelle signiert. Es handelt sich um eine System-App, die daher nicht deinstalliert oder durch diese Version ersetzt werden kann.</string>
     <string name="installed_signature_mismatch_google_services">Bei der installierten Version (%1$s) handelt es sich um Googles eigene Play-Dienste und nicht um diese App, weshalb sie nicht durch diese Version ersetzt werden kann.</string>
+    <string name="repository_save_failed">Die Paketquelle konnte nicht gespeichert werden</string>
+    <string name="add_without_checking">Ohne Prüfung hinzufügen</string>
+    <string name="address_single_line">Hier steht mehr als eine Zeile. Behalten Sie nur die Adresse.</string>
+    <string name="last_updated">Zuletzt aktualisiert:</string>
 </resources>

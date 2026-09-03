@@ -21,6 +21,7 @@ A follow-up to the downgrade fix in v1.0.4-beta.5, which turned out not to cover
 - **An address pasted with a second line is refused, and says which problem it is.** The two lines used to be welded into one address nobody had typed, which was then looked for on a server that had never heard of it. The field shows a single line whatever it holds, so nothing on screen gave the second one away.
 - **Adding a repository actually adds it.** The address was accepted and the check passed, then nothing: the screen stayed open and no repository appeared. It closes on success now, and says so when a save fails.
 - **The keyboard no longer covers the add-a-repository form**, leaving the fields underneath it out of reach with nothing to scroll.
+- **"Last updated" on a repository's page is translated** like the rest of that screen.
 - **A repository behind a password shows its logo, its apps' icons and their screenshots.** All of them were fetched without the login and refused, so nothing was ever shown.
 - **The same repository can no longer be added twice** under its two spellings, with and without `/fdroid/repo`.
 - **Adding a source you already follow says so, instead of claiming it was added.** A badge link for a project already in your list reported "Added" and added nothing, because the check ran before the list had been read.

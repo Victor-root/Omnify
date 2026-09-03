@@ -221,4 +221,8 @@
     <string name="repository_not_found">এই ভাণ্ডারগুলো পাওয়া যায়নি</string>
     <string name="switch_to_default_installer">সহজাতে পরিবর্তন করো</string>
     <string name="label_unknown_sdk">অজানা (%d)</string>
+    <string name="repository_save_failed">ভান্ডারটি সংরক্ষণ করা যায়নি</string>
+    <string name="add_without_checking">যাচাই না করে যোগ করুন</string>
+    <string name="address_single_line">এখানে একাধিক লাইন রয়েছে। শুধু ঠিকানাটি রাখুন।</string>
+    <string name="last_updated">সর্বশেষ হালনাগাদ:</string>
 </resources>

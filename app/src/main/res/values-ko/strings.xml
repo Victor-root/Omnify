@@ -219,4 +219,8 @@
     <string name="switch_to_default_installer">기본 설치 관리자로 전환</string>
     <string name="label_open_video">동영상</string>
     <string name="shizuku_legacy_installer">Shizuku 레거시 설치관리자</string>
+    <string name="repository_save_failed">저장소를 저장하지 못했습니다</string>
+    <string name="add_without_checking">확인 없이 추가</string>
+    <string name="address_single_line">여기에 두 줄 이상이 있습니다. 주소만 남기세요.</string>
+    <string name="last_updated">마지막 업데이트:</string>
 </resources>

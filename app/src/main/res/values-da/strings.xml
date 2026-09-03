@@ -226,4 +226,8 @@
     <string name="unspecified">Uspecificeret</string>
     <string name="label_sdk_version">Mål: Android %1$s | Minimum: Android %2$s</string>
     <string name="shizuku_legacy_installer">Shizuku/Sui ældre installatør</string>
+    <string name="repository_save_failed">Repositoriet kunne ikke gemmes</string>
+    <string name="add_without_checking">Tilføj uden kontrol</string>
+    <string name="address_single_line">Der er mere end én linje her. Behold kun adressen.</string>
+    <string name="last_updated">Sidst opdateret:</string>
 </resources>

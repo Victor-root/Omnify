@@ -224,4 +224,8 @@
     <string name="label_sdk_version">Targét: Android %1$s | minimal: Android %2$s</string>
     <string name="always_choose">Salawasna milih</string>
     <string name="select_installer">Pilih pamasang</string>
+    <string name="repository_save_failed">Repositori teu bisa disimpen</string>
+    <string name="add_without_checking">Tambahkeun tanpa mariksa</string>
+    <string name="address_single_line">Ieu leuwih ti sabaris. Ngan simpen alamatna.</string>
+    <string name="last_updated">Panungtungan diropéa:</string>
 </resources>

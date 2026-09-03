@@ -209,4 +209,8 @@
     <string name="show_less">குறைவாகக் காட்டு</string>
     <string name="update_all">அனைத்தையும் புதுப்பிக்கவும்</string>
     <string name="contains_nsfw">வேலை உள்ளடக்கத்திற்கு பாதுகாப்பாக இல்லை</string>
+    <string name="repository_save_failed">களஞ்சியத்தைச் சேமிக்க முடியவில்லை</string>
+    <string name="add_without_checking">சரிபார்க்காமல் சேர்க்கவும்</string>
+    <string name="address_single_line">இங்கே ஒன்றுக்கு மேற்பட்ட வரிகள் உள்ளன. முகவரியை மட்டும் வைத்திருங்கள்.</string>
+    <string name="last_updated">கடைசியாகப் புதுப்பிக்கப்பட்டது:</string>
 </resources>

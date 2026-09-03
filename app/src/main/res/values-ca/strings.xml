@@ -196,4 +196,8 @@
     <string name="import_export">Importa/Exporta</string>
     <string name="cannot_open_link">No es pot obrir l\'enllaç</string>
     <string name="home_screen_swiping">Lliscar la pantalla d\'inici</string>
+    <string name="repository_save_failed">No s\'ha pogut desar el repositori</string>
+    <string name="add_without_checking">Afegeix sense comprovar</string>
+    <string name="address_single_line">Aquí hi ha més d\'una línia. Deixa-hi només l\'adreça.</string>
+    <string name="last_updated">Darrera actualització:</string>
 </resources>

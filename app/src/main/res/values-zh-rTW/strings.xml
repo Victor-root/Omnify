@@ -259,4 +259,8 @@
     <string name="custom_button_templates">模板</string>
     <string name="custom_button_icon">圖示</string>
     <string name="custom_button_delete_confirmation">刪除按鈕「%1$s」？</string>
+    <string name="repository_save_failed">無法儲存儲存庫</string>
+    <string name="add_without_checking">不檢查直接新增</string>
+    <string name="address_single_line">這裡不只一行。只保留位址。</string>
+    <string name="last_updated">最後更新：</string>
 </resources>

@@ -262,4 +262,8 @@
     <string name="custom_button_icon">Ikon</string>
     <string name="custom_button_delete_confirmation">Törli a következő gombot: „%1$s”?</string>
     <string name="copied_to_clipboard">Másolva</string>
+    <string name="repository_save_failed">A tárolót nem sikerült menteni</string>
+    <string name="add_without_checking">Hozzáadás ellenőrzés nélkül</string>
+    <string name="address_single_line">Ez több mint egy sor. Csak a címet hagyja meg.</string>
+    <string name="last_updated">Utolsó frissítés:</string>
 </resources>

@@ -48,4 +48,8 @@
     <string name="edit_repository">ترمیم کریں</string>
     <string name="error_shizuku_service_unavailable">شِزُوکو/سُوئی سروس چل نہیں رہی</string>
     <string name="error_shizuku_not_running_DESC">شِزُوکو/سُوئی سروس چل نہیں رہی</string>
+    <string name="repository_save_failed">ذخیرہ محفوظ نہیں کیا جا سکا</string>
+    <string name="add_without_checking">جانچ کیے بغیر شامل کریں</string>
+    <string name="address_single_line">یہاں ایک سے زیادہ سطریں ہیں۔ صرف پتہ رکھیں۔</string>
+    <string name="last_updated">آخری تازہ کاری:</string>
 </resources>

@@ -262,4 +262,8 @@
     <string name="custom_button_templates">Шаблони</string>
     <string name="custom_button_icon">Икона</string>
     <string name="custom_button_delete_confirmation">Да се изтрие ли бутонът „%1$s“?</string>
+    <string name="repository_save_failed">Хранилището не можа да бъде запазено</string>
+    <string name="add_without_checking">Добавяне без проверка</string>
+    <string name="address_single_line">Това е повече от един ред. Оставете само адреса.</string>
+    <string name="last_updated">Последно обновяване:</string>
 </resources>

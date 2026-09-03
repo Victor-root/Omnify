@@ -194,4 +194,8 @@
     <string name="shizuku_not_installed">Shizuku er ikkje lagt inn</string>
     <string name="contains_nsfw">Har vakse innhald</string>
     <string name="connection_error_DESC">Greidde ikkje å binda saman med tenaren</string>
+    <string name="repository_save_failed">Samlinga kunne ikkje lagrast</string>
+    <string name="add_without_checking">Legg til utan kontroll</string>
+    <string name="address_single_line">Her er det meir enn éi linje. Behald berre adressa.</string>
+    <string name="last_updated">Sist oppdatert:</string>
 </resources>

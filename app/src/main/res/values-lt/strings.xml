@@ -206,4 +206,8 @@
     <string name="special_credits">Specialūs kreditai</string>
     <string name="cannot_open_link">Negalima atidaryti nuorodos</string>
     <string name="import_export">Importuoti/eksportuoti</string>
+    <string name="repository_save_failed">Nepavyko įrašyti repozitorijos</string>
+    <string name="add_without_checking">Pridėti netikrinant</string>
+    <string name="address_single_line">Čia yra daugiau nei viena eilutė. Palikite tik adresą.</string>
+    <string name="last_updated">Paskutinį kartą atnaujinta:</string>
 </resources>

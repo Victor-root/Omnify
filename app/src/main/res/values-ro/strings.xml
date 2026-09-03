@@ -246,4 +246,8 @@
     <string name="monthly">Lunare</string>
     <string name="downloading_rb_logs">Descărcați jurnalele pentru reproductibilitate</string>
     <string name="downloading_download_stats">Descărcați statisticile pentru descărcări</string>
+    <string name="repository_save_failed">Depozitul nu a putut fi salvat</string>
+    <string name="add_without_checking">Adaugă fără verificare</string>
+    <string name="address_single_line">Aici este mai mult de un rând. Păstrează doar adresa.</string>
+    <string name="last_updated">Ultima actualizare:</string>
 </resources>

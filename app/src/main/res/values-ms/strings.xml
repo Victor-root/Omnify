@@ -200,4 +200,8 @@
     <string name="prefs_personalization">Pemperibadian</string>
     <string name="show_less">Tunjukkan Kurang</string>
     <string name="update_all">Kemaskini semua</string>
+    <string name="repository_save_failed">Repositori tidak dapat disimpan</string>
+    <string name="add_without_checking">Tambah tanpa memeriksa</string>
+    <string name="address_single_line">Ini lebih daripada satu baris. Simpan alamat sahaja.</string>
+    <string name="last_updated">Kemas kini terakhir:</string>
 </resources>

@@ -234,4 +234,8 @@
     <string name="action_enable_repo">Aktivera</string>
     <string name="copy_error_details">Kopiera felmeddelandet till urklipp</string>
     <string name="copied_to_clipboard">Kopierad</string>
+    <string name="repository_save_failed">Arkivet kunde inte sparas</string>
+    <string name="add_without_checking">Lägg till utan kontroll</string>
+    <string name="address_single_line">Här finns mer än en rad. Behåll bara adressen.</string>
+    <string name="last_updated">Senast uppdaterad:</string>
 </resources>

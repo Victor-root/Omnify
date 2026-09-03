@@ -230,4 +230,8 @@
     <string name="always_choose">Увек изабери</string>
     <string name="select_installer">Избор програма за инсталацију</string>
     <string name="label_sdk_version">Циља: Android %1$s | Минимум: Android %2$s</string>
+    <string name="repository_save_failed">Репозиторијум није могуће сачувати</string>
+    <string name="add_without_checking">Додај без провере</string>
+    <string name="address_single_line">Овде има више од једног реда. Оставите само адресу.</string>
+    <string name="last_updated">Последње ажурирање:</string>
 </resources>

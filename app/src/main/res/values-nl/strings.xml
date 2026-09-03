@@ -559,4 +559,8 @@
     <string name="installed_signature_mismatch">De geïnstalleerde versie (%1$s, van %2$s) is niet door deze bron ondertekend. Android kan de app in dat geval niet rechtstreeks bijwerken: je moet deze eerst verwijderen en daarna deze installeren.</string>
     <string name="installed_signature_mismatch_system">De geïnstalleerde versie (%1$s, van %2$s) is niet door deze bron ondertekend. Dit is een systeemapp, dus kan deze niet worden verwijderd of vervangen door deze versie.</string>
     <string name="installed_signature_mismatch_google_services">De geïnstalleerde versie (%1$s) is de echte Play Services van Google, niet deze app, dus kan deze niet worden vervangen door deze versie.</string>
+    <string name="repository_save_failed">De bron kon niet worden opgeslagen</string>
+    <string name="add_without_checking">Toevoegen zonder controle</string>
+    <string name="address_single_line">Dit is meer dan één regel. Bewaar alleen het adres.</string>
+    <string name="last_updated">Laatst bijgewerkt:</string>
 </resources>

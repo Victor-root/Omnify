@@ -244,4 +244,8 @@
     <string name="monthly">חודשי</string>
     <string name="downloading_rb_logs">מוריד יומני שחזור בנייה</string>
     <string name="downloading_download_stats">מוריד סטטיסטיקות הורדות</string>
+    <string name="repository_save_failed">לא ניתן היה לשמור את המאגר</string>
+    <string name="add_without_checking">הוספה ללא בדיקה</string>
+    <string name="address_single_line">יש כאן יותר משורה אחת. השאירו רק את הכתובת.</string>
+    <string name="last_updated">עודכן לאחרונה:</string>
 </resources>

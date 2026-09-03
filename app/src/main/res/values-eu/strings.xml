@@ -62,4 +62,8 @@
         <item quantity="other">ordu</item>
     </plurals>
     <string name="cant_edit_sync_DESC">Ezin da biltegia editatu, unean sinkronizatzen ari delako.</string>
+    <string name="repository_save_failed">Ezin izan da biltegia gorde</string>
+    <string name="add_without_checking">Gehitu egiaztatu gabe</string>
+    <string name="address_single_line">Hemen lerro bat baino gehiago dago. Utzi helbidea besterik ez.</string>
+    <string name="last_updated">Azken eguneratzea:</string>
 </resources>

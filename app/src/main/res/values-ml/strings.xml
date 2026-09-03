@@ -189,4 +189,8 @@
     <string name="no_matching_applications_found">അത്തരം അപ്ലിക്കേഷനുകൾ കണ്ടെത്താൻ കഴിഞ്ഞില്ല</string>
     <string name="number_of_applications">അപ്ലിക്കേഷനുകളുടെ എണ്ണം</string>
     <string name="password">പാസ്വേഡ്</string>
+    <string name="repository_save_failed">സംഭരണി സൂക്ഷിക്കാനായില്ല</string>
+    <string name="add_without_checking">പരിശോധിക്കാതെ ചേർക്കുക</string>
+    <string name="address_single_line">ഇവിടെ ഒന്നിലധികം വരികളുണ്ട്. വിലാസം മാത്രം നിലനിർത്തുക.</string>
+    <string name="last_updated">അവസാനം പുതുക്കിയത്:</string>
 </resources>

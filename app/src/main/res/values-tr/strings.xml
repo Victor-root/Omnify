@@ -559,4 +559,8 @@
     <string name="installed_signature_mismatch">Kurulu kopya (%1$s, %2$s\'den) bu kaynak tarafından imzalanmamış. Bu durumda Android onu doğrudan güncelleyemez: önce kaldırmanız, ardından bunu kurmanız gerekir.</string>
     <string name="installed_signature_mismatch_system">Kurulu kopya (%1$s, %2$s\'den) bu kaynak tarafından imzalanmamış. Bu bir sistem uygulaması, bu yüzden bu sürümle kaldırılamaz veya değiştirilemez.</string>
     <string name="installed_signature_mismatch_google_services">Kurulu kopya (%1$s) bu uygulama değil, Google\'ın kendi Play Hizmetleri, bu yüzden bu sürümle değiştirilemez.</string>
+    <string name="repository_save_failed">Depo kaydedilemedi</string>
+    <string name="add_without_checking">Denetlemeden ekle</string>
+    <string name="address_single_line">Burada birden fazla satır var. Yalnızca adresi bırakın.</string>
+    <string name="last_updated">Son güncelleme:</string>
 </resources>

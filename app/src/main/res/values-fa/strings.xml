@@ -227,4 +227,8 @@
     <string name="label_sdk_version">هدف: اندروید %1$s | حداقل: اندروید %2$s</string>
     <string name="always_choose">همیشه بپرس</string>
     <string name="select_installer">انتخاب نصاب</string>
+    <string name="repository_save_failed">ذخیرهٔ مخزن ممکن نشد</string>
+    <string name="add_without_checking">افزودن بدون بررسی</string>
+    <string name="address_single_line">این بیش از یک خط است. فقط نشانی را نگه دارید.</string>
+    <string name="last_updated">آخرین به‌روزرسانی:</string>
 </resources>

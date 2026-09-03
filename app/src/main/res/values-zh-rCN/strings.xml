@@ -554,4 +554,8 @@
     <string name="installed_signature_mismatch">已安装的副本（%1$s，来自 %2$s）并非由此来源签名。在这种情况下，Android 无法直接更新它：您需要先卸载它，然后再安装此版本。</string>
     <string name="installed_signature_mismatch_system">已安装的副本（%1$s，来自 %2$s）并非由此来源签名。它是系统应用，因此无法被卸载或被此版本替换。</string>
     <string name="installed_signature_mismatch_google_services">已安装的副本（%1$s）是 Google 官方的 Google Play 服务，并非此应用，因此无法被此版本替换。</string>
+    <string name="repository_save_failed">无法保存存储库</string>
+    <string name="add_without_checking">不检查直接添加</string>
+    <string name="address_single_line">这里不止一行。只保留地址。</string>
+    <string name="last_updated">最后更新：</string>
 </resources>

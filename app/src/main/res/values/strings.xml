@@ -256,6 +256,8 @@
     <string name="installing">Installing</string>
     <string name="updating">Updating</string>
     <string name="updated">Updated</string>
+    <!-- Followed by the date itself, which is set apart in a monospace font. -->
+    <string name="last_updated">Last updated:</string>
     <string name="installation_failed">Installation failed</string>
     <string name="installation_failed_DESC">Failed to install %s</string>
     <string name="uninstalled_application">Uninstalled</string>

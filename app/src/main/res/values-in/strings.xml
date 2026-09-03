@@ -554,4 +554,8 @@
     <string name="installed_signature_mismatch">Salinan yang terpasang (%1$s, dari %2$s) tidak ditandatangani oleh sumber ini. Dalam kasus ini, Android tidak dapat memperbaruinya secara langsung: Anda perlu mencopotnya dahulu, lalu memasang yang ini.</string>
     <string name="installed_signature_mismatch_system">Salinan yang terpasang (%1$s, dari %2$s) tidak ditandatangani oleh sumber ini. Ini adalah aplikasi sistem, sehingga tidak dapat dicopot atau diganti oleh versi ini.</string>
     <string name="installed_signature_mismatch_google_services">Salinan yang terpasang (%1$s) adalah Google Play Services milik Google sendiri, bukan aplikasi ini, sehingga tidak dapat diganti oleh versi ini.</string>
+    <string name="repository_save_failed">Repositori tidak dapat disimpan</string>
+    <string name="add_without_checking">Tambahkan tanpa memeriksa</string>
+    <string name="address_single_line">Ini lebih dari satu baris. Simpan hanya alamatnya.</string>
+    <string name="last_updated">Terakhir diperbarui:</string>
 </resources>

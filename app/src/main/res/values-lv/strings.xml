@@ -230,4 +230,8 @@
     <string name="select_installer">Atlasīt uzstādītāju</string>
     <string name="label_sdk_version">Mērķa SDK versija: Android %1$s | Minimālā SDK versija: Android %2$s</string>
     <string name="legacyInstallerComponent">Novecojušais uzstādītāja komponents</string>
+    <string name="repository_save_failed">Repozitoriju neizdevās saglabāt</string>
+    <string name="add_without_checking">Pievienot bez pārbaudes</string>
+    <string name="address_single_line">Šeit ir vairāk nekā viena rinda. Atstājiet tikai adresi.</string>
+    <string name="last_updated">Pēdējoreiz atjaunināts:</string>
 </resources>

@@ -569,4 +569,8 @@
     <string name="installed_signature_mismatch">Установленная копия (%1$s, из %2$s) не была подписана этим источником. В этом случае Android не может обновить её напрямую: сначала нужно удалить её, затем установить эту.</string>
     <string name="installed_signature_mismatch_system">Установленная копия (%1$s, из %2$s) не была подписана этим источником. Это системное приложение, поэтому его нельзя удалить или заменить этой версией.</string>
     <string name="installed_signature_mismatch_google_services">Установленная копия (%1$s) представляет собой официальный Google Play Services, а не это приложение, поэтому её нельзя заменить этой версией.</string>
+    <string name="repository_save_failed">Не удалось сохранить репозиторий</string>
+    <string name="add_without_checking">Добавить без проверки</string>
+    <string name="address_single_line">Здесь больше одной строки. Оставьте только адрес.</string>
+    <string name="last_updated">Последнее обновление:</string>
 </resources>

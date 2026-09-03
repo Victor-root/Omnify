@@ -254,4 +254,8 @@
     <string name="requires_authentication">Потребує автентифікацію?</string>
     <string name="force_sync_repositories">Примусова синхронізація репозиторіїв</string>
     <string name="copy_error_details">Копіювати деталі помилки</string>
+    <string name="repository_save_failed">Не вдалося зберегти репозиторій</string>
+    <string name="add_without_checking">Додати без перевірки</string>
+    <string name="address_single_line">Тут більше ніж один рядок. Залиште лише адресу.</string>
+    <string name="last_updated">Останнє оновлення:</string>
 </resources>

@@ -39,4 +39,8 @@
     <string name="error_shizuku_not_granted_DESC">Shizuku/Sui рұқсаты берілген жоқ</string>
     <string name="error_shizuku_not_installed">Shizuku/Sui орнатылмаған</string>
     <string name="error_shizuku_not_installed_DESC">Shizuku/Sui орнатылған жоқ</string>
+    <string name="repository_save_failed">Репозиторийді сақтау мүмкін болмады</string>
+    <string name="add_without_checking">Тексерусіз қосу</string>
+    <string name="address_single_line">Мұнда бір жолдан көп. Тек мекенжайды қалдырыңыз.</string>
+    <string name="last_updated">Соңғы жаңарту:</string>
 </resources>

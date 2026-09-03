@@ -554,4 +554,8 @@
     <string name="installed_signature_mismatch">インストール済みのアプリ (%1$s、提供元: %2$s) はこのソースによって署名されていません。この場合、Androidは直接更新できないため、先にアンインストールしてからこちらをインストールする必要があります。</string>
     <string name="installed_signature_mismatch_system">インストール済みのアプリ (%1$s、提供元: %2$s) はこのソースによって署名されていません。システムアプリのため、アンインストールやこのバージョンへの置き換えはできません。</string>
     <string name="installed_signature_mismatch_google_services">インストール済みのもの (%1$s) はこのアプリではなくGoogle純正のPlay Servicesのため、このバージョンに置き換えることはできません。</string>
+    <string name="repository_save_failed">リポジトリを保存できませんでした</string>
+    <string name="add_without_checking">確認せずに追加</string>
+    <string name="address_single_line">複数行あります。アドレスだけを残してください。</string>
+    <string name="last_updated">最終更新:</string>
 </resources>

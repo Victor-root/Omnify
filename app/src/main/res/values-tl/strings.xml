@@ -189,4 +189,8 @@
     <string name="whats_new">Anong bago</string>
     <string name="update_all">Update lahat</string>
     <string name="suggested">Iminungkahi</string>
+    <string name="repository_save_failed">Hindi na-save ang repositoryo</string>
+    <string name="add_without_checking">Idagdag nang hindi sinusuri</string>
+    <string name="address_single_line">Higit sa isang linya ito. Panatilihin lamang ang address.</string>
+    <string name="last_updated">Huling na-update:</string>
 </resources>

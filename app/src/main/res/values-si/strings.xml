@@ -1,2 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources></resources>
+<resources>
+    <string name="repository_save_failed">ගබඩාව සුරැකීමට නොහැකි විය</string>
+    <string name="add_without_checking">පරීක්ෂා නොකර එක් කරන්න</string>
+    <string name="address_single_line">මෙහි එක් පේළියකට වඩා තිබේ. ලිපිනය පමණක් තබා ගන්න.</string>
+    <string name="last_updated">අවසන් යාවත්කාලීනය:</string>
+</resources>

@@ -227,4 +227,8 @@
     <string name="has_non_free_components">Ten compoñentes non libres</string>
     <string name="shizuku_not_installed">Shizuku non está instalado</string>
     <string name="label_sdk_version">Obxectivo: Android %1$s | Mínimo: Android %2$s</string>
+    <string name="repository_save_failed">Non se puido gardar o repositorio</string>
+    <string name="add_without_checking">Engadir sen comprobar</string>
+    <string name="address_single_line">Aquí hai máis dunha liña. Deixa só o enderezo.</string>
+    <string name="last_updated">Última actualización:</string>
 </resources>

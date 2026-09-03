@@ -209,4 +209,8 @@
     <string name="has_tethered_network">Ligita al certa retservo</string>
     <string name="require_background_access">Postuli fonan aliron</string>
     <string name="require_background_access_DESC">Fona aliro estas bezonata por ĝuste fari fonan sinkronigon</string>
+    <string name="repository_save_failed">Ne eblis konservi la deponejon</string>
+    <string name="add_without_checking">Aldoni sen kontrolo</string>
+    <string name="address_single_line">Ĉi tie estas pli ol unu linio. Konservu nur la adreson.</string>
+    <string name="last_updated">Laste ĝisdatigita:</string>
 </resources>

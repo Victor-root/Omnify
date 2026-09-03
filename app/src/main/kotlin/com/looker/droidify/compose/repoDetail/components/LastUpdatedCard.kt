@@ -20,11 +20,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.looker.droidify.R
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -33,9 +35,13 @@ fun LastUpdatedCard(
     timestamp: Long?,
     modifier: Modifier = Modifier,
 ) {
-    val lastUpdated = remember(timestamp) {
+    // The label and the date are appended separately rather than formatted into one string: only the
+    // date is set in monospace, so the two have to stay tellable apart.
+    val label = stringResource(R.string.last_updated)
+    val lastUpdated = remember(timestamp, label) {
         buildAnnotatedString {
-            append("Last updated: ")
+            append(label)
+            append(' ')
             withStyle(SpanStyle(fontFamily = FontFamily.Monospace)) {
                 timestamp?.let { append(formatDate(it)) }
             }

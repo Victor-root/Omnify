@@ -564,4 +564,8 @@
     <string name="installed_signature_mismatch">La copia instalada (%1$s, de %2$s) no fue firmada por esta fuente. En ese caso, Android no puede actualizarla directamente: tendrás que desinstalarla primero y luego instalar esta.</string>
     <string name="installed_signature_mismatch_system">La copia instalada (%1$s, de %2$s) no fue firmada por esta fuente. Es una app del sistema, por lo que no se puede desinstalar ni reemplazar por esta versión.</string>
     <string name="installed_signature_mismatch_google_services">La copia instalada (%1$s) es el propio Google Play Services, no esta app, por lo que no se puede reemplazar por esta versión.</string>
+    <string name="repository_save_failed">No se ha podido guardar el repositorio</string>
+    <string name="add_without_checking">Añadir sin comprobar</string>
+    <string name="address_single_line">Aquí hay más de una línea. Deja solo la dirección.</string>
+    <string name="last_updated">Última actualización:</string>
 </resources>

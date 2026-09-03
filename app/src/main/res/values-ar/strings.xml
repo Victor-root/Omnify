@@ -274,4 +274,8 @@
     <string name="custom_button_icon">أيقونة</string>
     <string name="custom_button_delete_confirmation">حذف الزر \"%1$s\"؟</string>
     <string name="copied_to_clipboard">نُسخ</string>
+    <string name="repository_save_failed">تعذّر حفظ المستودع</string>
+    <string name="add_without_checking">إضافة دون تحقّق</string>
+    <string name="address_single_line">هذا أكثر من سطر واحد. أبقِ العنوان وحده.</string>
+    <string name="last_updated">آخر تحديث:</string>
 </resources>

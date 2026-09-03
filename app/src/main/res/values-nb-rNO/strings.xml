@@ -200,4 +200,8 @@
     <string name="repository_not_found">Følgende pakkebrønner ble funnet</string>
     <string name="special_credits">Spesiell takk til</string>
     <string name="shizuku_not_installed">Shizuku er ikke installert</string>
+    <string name="repository_save_failed">Pakkebrønnen kunne ikke lagres</string>
+    <string name="add_without_checking">Legg til uten kontroll</string>
+    <string name="address_single_line">Her er det mer enn én linje. Behold bare adressen.</string>
+    <string name="last_updated">Sist oppdatert:</string>
 </resources>

@@ -214,4 +214,8 @@
     <string name="insufficient_storage_DESC">इस एप्लिकेशन को इंस्टॉल करने के लिए डिवाइस पर पर्याप्त खाली जगह नहीं है। कुछ जगह खाली करने का प्रयास करें</string>
     <string name="switch_to_default_installer">डिफ़ॉल्ट पर स्विच करें</string>
     <string name="label_open_video">वीडियो</string>
+    <string name="repository_save_failed">रिपॉजिटरी सहेजी नहीं जा सकी</string>
+    <string name="add_without_checking">बिना जाँच किए जोड़ें</string>
+    <string name="address_single_line">यहाँ एक से अधिक पंक्तियाँ हैं। केवल पता रखें।</string>
+    <string name="last_updated">अंतिम अद्यतन:</string>
 </resources>

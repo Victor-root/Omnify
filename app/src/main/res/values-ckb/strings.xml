@@ -5,4 +5,8 @@
     <string name="dark">تاریک</string>
     <string name="address">ناونیشان</string>
     <string name="always">هەمووکات</string>
+    <string name="repository_save_failed">نەتوانرا کۆگاکە پاشەکەوت بکرێت</string>
+    <string name="add_without_checking">زیادکردن بەبێ پشکنین</string>
+    <string name="address_single_line">ئەمە زیاتر لە یەک دێڕە. تەنها ناونیشانەکە بهێڵەوە.</string>
+    <string name="last_updated">دوایین نوێکردنەوە:</string>
 </resources>
