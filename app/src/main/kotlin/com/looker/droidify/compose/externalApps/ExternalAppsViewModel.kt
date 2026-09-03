@@ -69,6 +69,8 @@ import com.looker.droidify.utility.common.extension.installedWithDifferentSignat
 import com.looker.droidify.utility.common.extension.installerSourceLabel
 import com.looker.droidify.utility.common.extension.isVersionDowngrade
 import com.looker.droidify.utility.common.extension.singleSignature
+import com.looker.droidify.work.BatchUpdateProgress
+import com.looker.droidify.work.UpdateAllWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -101,6 +103,9 @@ class ExternalAppsViewModel @Inject constructor(
     // The F-Droid catalogue's repository, reused here only for its generic (provider-agnostic)
     // APK-locale cache — see loadSupportedLanguages().
     private val appRepository: AppRepository,
+    // Where a running "update all" reports what it is downloading, so a source's own page shows
+    // that download too rather than offering to start it again.
+    private val batchProgress: BatchUpdateProgress,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -417,9 +422,38 @@ class ExternalAppsViewModel @Inject constructor(
         }.toMap()
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
 
-    /** Live download progress per app (drives the per-card progress bar). */
     private val _downloads = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
-    val downloads: StateFlow<Map<String, DownloadStatus>> = _downloads
+
+    /**
+     * The tracked source a step of a running "update all" is on, or null when no batch is running or
+     * the step is a catalogue app: the batch names a source by its key (see UpdateAllWorker) and a
+     * catalogue app by its package name, which is no source's key.
+     */
+    private fun List<ExternalApp>.sourceOf(batch: BatchUpdateProgress.State?): ExternalApp? =
+        batch?.let { state -> firstOrNull { it.key == state.packageName } }
+
+    /**
+     * Live download progress per app (drives the per-card progress bar).
+     *
+     * Two sources, because a download of a source can be started from two places: this view model,
+     * and a batch "update all" running in the background ([BatchUpdateProgress]). Starting an update
+     * from the Updates tab and then opening that source's own page showed an idle screen, offering to
+     * update an app that was already downloading, since only the first source was read here. The
+     * catalogue's own detail screen was given both a while ago; this is its external counterpart.
+     *
+     * Downloads started here win, being the ones the user is watching.
+     */
+    val downloads: StateFlow<Map<String, DownloadStatus>> =
+        combine(_downloads, batchProgress.state, apps) { own, batch, tracked ->
+            val source = tracked.sourceOf(batch)
+            val status = batch?.download
+            val fromBatch = if (source != null && status != null) {
+                mapOf(source.key to status)
+            } else {
+                emptyMap()
+            }
+            fromBatch + own
+        }.asStateFlow(emptyMap())
 
     /**
      * Release tag (app.key -> tag) that [downloads]/[installStates] currently applies to for that app —
@@ -428,9 +462,22 @@ class ExternalAppsViewModel @Inject constructor(
      * read together with that app's download/install actually being active). Lets the version list show
      * progress on the specific row the user tapped instead of only in the hero card, which stays out of
      * view once the user has scrolled down to the list.
+     *
+     * Same two sources as [downloads], for the same reason: the batch always fetches a source's newest
+     * release, so its row is the one to mark while the batch is on that source.
      */
     private val _downloadTargetTag = MutableStateFlow<Map<String, String>>(emptyMap())
-    val downloadTargetTag: StateFlow<Map<String, String>> = _downloadTargetTag
+    val downloadTargetTag: StateFlow<Map<String, String>> =
+        combine(_downloadTargetTag, batchProgress.state, apps) { own, batch, tracked ->
+            val source = tracked.sourceOf(batch)
+            val tag = source?.latestTag
+            val fromBatch = if (source != null && tag != null) {
+                mapOf(source.key to tag)
+            } else {
+                emptyMap()
+            }
+            fromBatch + own
+        }.asStateFlow(emptyMap())
 
     /** Keys with a non-download network op in flight (add / update check). */
     private val _busy = MutableStateFlow<Set<String>>(emptySet())
@@ -1420,10 +1467,14 @@ class ExternalAppsViewModel @Inject constructor(
     /** Cancels an in-progress download or system install for [app]. */
     fun cancel(app: ExternalApp) {
         val job = downloadJobs[app.key]
-        if (job?.isActive == true) {
-            job.cancel()
-        } else {
-            app.packageName?.let { installManager.cancel(PackageName(it)) }
+        when {
+            job?.isActive == true -> job.cancel()
+            // The progress on screen belongs to a running "update all", which owns that download: there
+            // is no local job to cancel, and cancelling the install queue does nothing for a download
+            // that hasn't reached it. Stopping the batch is what makes the button do what it says. It
+            // stops the whole run, not just this source: see UpdateAllWorker.cancel.
+            batchProgress.state.value?.packageName == app.key -> UpdateAllWorker.cancel(context)
+            else -> app.packageName?.let { installManager.cancel(PackageName(it)) }
         }
     }
 
