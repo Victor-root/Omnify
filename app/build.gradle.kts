@@ -2,6 +2,7 @@ import com.android.build.api.variant.impl.VariantOutputImpl
 import com.android.build.gradle.internal.tasks.factory.dependsOn
 import io.gitlab.arturbosch.detekt.Detekt
 import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
+import java.io.File
 import java.io.FileInputStream
 import java.util.Properties
 
@@ -15,16 +16,72 @@ plugins {
     alias(libs.plugins.detekt)
 }
 
-// Release signing is read from a keystore.properties file at the project root (gitignored, never
-// committed). When it's absent — e.g. on CI or an F-Droid/IzzyOnDroid build server that signs the
-// APK itself — the release build is simply left unsigned instead of failing.
-val keystorePropertiesFile = rootProject.file("keystore.properties")
+// Release signing is read from a keystore.properties file (gitignored, never committed), looked for
+// in two places, in this order:
+//
+//   1. The folder this project's author keeps one set of keys in, shared by every checkout on those
+//      machines. Named here so no copy has to be dropped into each project root, and so a copy left
+//      behind in one can't quietly shadow it: two files under one name is exactly how the stale one
+//      goes on being read while the other is being edited.
+//   2. keystore.properties at the project root, for anyone else.
+//
+// The first is one person's own path and means nothing on any other machine, which costs nothing: a
+// folder that isn't there is skipped. With neither present — CI, or an F-Droid/IzzyOnDroid server
+// that signs the APK itself — the release build is simply left unsigned instead of failing.
+val keystorePropertiesFile = listOf(
+    File("D:/NextCloud/Victor/Documents/AndroidStudio-KEYS/keystore.properties"),
+    rootProject.file("keystore.properties"),
+).firstOrNull { it.isFile }
+
 val keystoreProperties = Properties().apply {
-    if (keystorePropertiesFile.exists()) {
+    if (keystorePropertiesFile != null) {
         FileInputStream(keystorePropertiesFile).use { load(it) }
     }
 }
-val hasReleaseSigning = keystorePropertiesFile.exists()
+
+// Trimmed, unlike the passwords below: a .properties value keeps the spaces around it, a file path
+// never ends in one, and a stray space at the end of the line turns the whole path into a file
+// nobody can find while looking exactly right in an editor.
+//
+// A relative storeFile is read from wherever keystore.properties itself sits, so a shared one can
+// name its key beside it (storeFile=victor-release-key) and stay true from any project. That is the
+// same folder as before for a keystore.properties at the project root, so nothing moves for it.
+val releaseKeystore = keystoreProperties
+    .getProperty("storeFile")
+    ?.trim()
+    ?.let { path -> File(path).takeIf { it.isAbsolute } ?: File(keystorePropertiesFile?.parentFile, path) }
+val hasReleaseSigning = keystorePropertiesFile != null
+
+// A keystore.properties on the machine means "sign with this key", so the build never quietly signs
+// with another one: it stops right here instead, and says what it looked for. Every build is
+// affected, the plain Run button included, since debug builds carry this key too.
+//
+// It also says what the folder actually holds, because the answer is nearly always in that listing
+// and nowhere else: Windows hides known file extensions, so a key saved as victor-release-key.jks
+// shows up in Explorer as victor-release-key and a storeFile copied from what is on screen names a
+// file that does not exist.
+if (hasReleaseSigning && releaseKeystore?.isFile != true) {
+    error(
+        buildString {
+            appendLine("The signing key named in keystore.properties isn't there.")
+            // Which of the two files was read: with more than one place to look, that is half the
+            // answer on its own.
+            appendLine("  read from:  ${keystorePropertiesFile?.absolutePath}")
+            // In brackets, so anything invisible sitting at either end of the line shows up.
+            appendLine("  storeFile:  [${keystoreProperties.getProperty("storeFile")}]")
+            appendLine("  looked at:  ${releaseKeystore?.absolutePath}")
+            val folder = releaseKeystore?.parentFile
+            val contents = folder?.takeIf { it.isDirectory }?.list()?.sorted()
+            when {
+                contents == null -> appendLine("  the folder isn't there either: ${folder?.absolutePath}")
+                contents.isEmpty() -> appendLine("  that folder is empty.")
+                else -> appendLine("  that folder holds: ${contents.joinToString()}")
+            }
+            append("Point storeFile at the exact file name above, or remove keystore.properties to ")
+            append("build unsigned.")
+        },
+    )
+}
 
 // Bump this on every published build, and specifically its dotted part: an external source's update
 // check reads the version out of the release tag / APK name and stops at the first hyphen, so a new
@@ -73,7 +130,7 @@ android {
     signingConfigs {
         if (hasReleaseSigning) {
             create("release") {
-                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storeFile = releaseKeystore
                 storePassword = keystoreProperties.getProperty("storePassword")
                 keyAlias = keystoreProperties.getProperty("keyAlias")
                 keyPassword = keystoreProperties.getProperty("keyPassword")
