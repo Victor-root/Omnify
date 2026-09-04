@@ -45,7 +45,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class InstallPrompt @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
 
     /**
