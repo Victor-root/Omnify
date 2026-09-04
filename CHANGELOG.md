@@ -1,6 +1,6 @@
 # 📋 Changelog
 
-## 🚀 v1.0.5-beta.6 (2026-08-31)
+## 🚀 v1.0.5-beta.6 (2026-09-04)
 
 A follow-up to the downgrade fix in v1.0.4-beta.5, which turned out not to cover every device it was reported from, and a large cut in the requests external sources spend.
 
