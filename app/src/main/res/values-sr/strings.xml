@@ -234,4 +234,7 @@
     <string name="add_without_checking">Додај без провере</string>
     <string name="address_single_line">Овде има више од једног реда. Оставите само адресу.</string>
     <string name="last_updated">Последње ажурирање:</string>
+    <string name="no_connection_title">Нема интернет везе</string>
+    <string name="no_connection_hint">Каталог ће се сам учитати чим се веза врати.</string>
+    <string name="no_connection_DESC">Преузимања и синхронизација неће радити док се веза не врати.</string>
 </resources>

@@ -266,4 +266,7 @@
     <string name="add_without_checking">Hozzáadás ellenőrzés nélkül</string>
     <string name="address_single_line">Ez több mint egy sor. Csak a címet hagyja meg.</string>
     <string name="last_updated">Utolsó frissítés:</string>
+    <string name="no_connection_title">Nincs internetkapcsolat</string>
+    <string name="no_connection_hint">A katalógus magától betöltődik, amint helyreáll a kapcsolat.</string>
+    <string name="no_connection_DESC">A letöltések és a szinkronizálás nem működnek, amíg vissza nem áll a kapcsolat.</string>
 </resources>

@@ -200,4 +200,7 @@
     <string name="add_without_checking">Afegeix sense comprovar</string>
     <string name="address_single_line">Aquí hi ha més d\'una línia. Deixa-hi només l\'adreça.</string>
     <string name="last_updated">Darrera actualització:</string>
+    <string name="no_connection_title">Sense connexió a Internet</string>
+    <string name="no_connection_hint">El catàleg es carregarà tot sol tan bon punt torni la connexió.</string>
+    <string name="no_connection_DESC">Les baixades i la sincronització no funcionaran fins que torni la connexió.</string>
 </resources>

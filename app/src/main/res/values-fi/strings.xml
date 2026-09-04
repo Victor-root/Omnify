@@ -263,4 +263,7 @@
     <string name="add_without_checking">Lisää tarkistamatta</string>
     <string name="address_single_line">Tässä on useampi kuin yksi rivi. Jätä vain osoite.</string>
     <string name="last_updated">Viimeksi päivitetty:</string>
+    <string name="no_connection_title">Ei internetyhteyttä</string>
+    <string name="no_connection_hint">Luettelo latautuu itsestään heti, kun yhteys palaa.</string>
+    <string name="no_connection_DESC">Lataukset ja synkronointi eivät toimi, ennen kuin yhteys palaa.</string>
 </resources>

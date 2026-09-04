@@ -228,4 +228,7 @@
     <string name="add_without_checking">Thêm mà không kiểm tra</string>
     <string name="address_single_line">Ở đây có nhiều hơn một dòng. Chỉ giữ lại địa chỉ.</string>
     <string name="last_updated">Cập nhật lần cuối:</string>
+    <string name="no_connection_title">Không có kết nối internet</string>
+    <string name="no_connection_hint">Danh mục sẽ tự tải ngay khi có lại kết nối.</string>
+    <string name="no_connection_DESC">Tải xuống và đồng bộ sẽ không hoạt động cho tới khi có lại kết nối.</string>
 </resources>

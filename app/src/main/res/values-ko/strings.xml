@@ -223,4 +223,7 @@
     <string name="add_without_checking">확인 없이 추가</string>
     <string name="address_single_line">여기에 두 줄 이상이 있습니다. 주소만 남기세요.</string>
     <string name="last_updated">마지막 업데이트:</string>
+    <string name="no_connection_title">인터넷에 연결되어 있지 않습니다</string>
+    <string name="no_connection_hint">연결이 돌아오는 대로 카탈로그가 저절로 불러와집니다.</string>
+    <string name="no_connection_DESC">연결이 돌아올 때까지 다운로드와 동기화는 작동하지 않습니다.</string>
 </resources>

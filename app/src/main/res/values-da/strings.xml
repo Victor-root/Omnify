@@ -230,4 +230,7 @@
     <string name="add_without_checking">Tilføj uden kontrol</string>
     <string name="address_single_line">Der er mere end én linje her. Behold kun adressen.</string>
     <string name="last_updated">Sidst opdateret:</string>
+    <string name="no_connection_title">Ingen internetforbindelse</string>
+    <string name="no_connection_hint">Kataloget indlæses af sig selv, så snart forbindelsen er tilbage.</string>
+    <string name="no_connection_DESC">Downloads og synkronisering virker ikke, før forbindelsen er tilbage.</string>
 </resources>

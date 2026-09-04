@@ -419,6 +419,9 @@
     <string name="copied_to_clipboard">Disalin</string>
     <string name="fetching_repositories">Mengambil repositori aplikasi…</string>
     <string name="first_sync_hint">Saat aplikasi pertama kali dijalankan, proses ini bisa memakan beberapa menit karena katalog sedang diunduh. Harap tunggu dan jangan tutup aplikasi.</string>
+    <string name="no_connection_title">Tidak ada koneksi internet</string>
+    <string name="no_connection_hint">Katalog akan dimuat dengan sendirinya begitu koneksi kembali.</string>
+    <string name="no_connection_DESC">Unduhan dan sinkronisasi tidak akan berfungsi sampai koneksi kembali.</string>
     <string name="tap_to_resume_updates">Buka aplikasi untuk melanjutkan pembaruan</string>
     <string name="manage">Kelola</string>
     <string name="tab_updates_short">Pembaruan</string>

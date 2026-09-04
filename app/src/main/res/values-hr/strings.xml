@@ -269,4 +269,7 @@
     <string name="add_without_checking">Dodaj bez provjere</string>
     <string name="address_single_line">Ovdje je više od jednog retka. Ostavi samo adresu.</string>
     <string name="last_updated">Zadnje ažuriranje:</string>
+    <string name="no_connection_title">Nema internetske veze</string>
+    <string name="no_connection_hint">Katalog će se učitati sam čim se veza vrati.</string>
+    <string name="no_connection_DESC">Preuzimanja i sinkronizacija neće raditi dok se veza ne vrati.</string>
 </resources>

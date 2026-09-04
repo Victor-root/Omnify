@@ -266,4 +266,7 @@
     <string name="add_without_checking">Добавяне без проверка</string>
     <string name="address_single_line">Това е повече от един ред. Оставете само адреса.</string>
     <string name="last_updated">Последно обновяване:</string>
+    <string name="no_connection_title">Няма връзка с интернет</string>
+    <string name="no_connection_hint">Каталогът ще се зареди сам веднага щом връзката се възстанови.</string>
+    <string name="no_connection_DESC">Изтеглянията и синхронизирането няма да работят, докато връзката не се възстанови.</string>
 </resources>

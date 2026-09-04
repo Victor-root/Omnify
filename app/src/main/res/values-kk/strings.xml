@@ -43,4 +43,7 @@
     <string name="add_without_checking">Тексерусіз қосу</string>
     <string name="address_single_line">Мұнда бір жолдан көп. Тек мекенжайды қалдырыңыз.</string>
     <string name="last_updated">Соңғы жаңарту:</string>
+    <string name="no_connection_title">Интернет байланысы жоқ</string>
+    <string name="no_connection_hint">Байланыс қалпына келген бойда каталог өздігінен жүктеледі.</string>
+    <string name="no_connection_DESC">Байланыс қалпына келгенше жүктеулер мен синхрондау жұмыс істемейді.</string>
 </resources>

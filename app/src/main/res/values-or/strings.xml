@@ -215,4 +215,7 @@
     <string name="add_without_checking">ଯାଞ୍ଚ ନକରି ଯୋଡ଼ନ୍ତୁ</string>
     <string name="address_single_line">ଏଠାରେ ଏକାଧିକ ଧାଡ଼ି ଅଛି। କେବଳ ଠିକଣା ରଖନ୍ତୁ।</string>
     <string name="last_updated">ଶେଷ ଅଦ୍ୟତନ:</string>
+    <string name="no_connection_title">ଇଣ୍ଟରନେଟ୍ ସଂଯୋଗ ନାହିଁ</string>
+    <string name="no_connection_hint">ସଂଯୋଗ ଫେରିଆସିବା ମାତ୍ରେ କାଟାଲଗ୍ ନିଜେ ଲୋଡ୍ ହୋଇଯିବ।</string>
+    <string name="no_connection_DESC">ସଂଯୋଗ ଫେରି ନ ଆସିବା ପର୍ଯ୍ୟନ୍ତ ଡାଉନଲୋଡ୍ ଓ ସିଙ୍କ କାମ କରିବ ନାହିଁ।</string>
 </resources>

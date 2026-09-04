@@ -225,4 +225,7 @@
     <string name="add_without_checking">যাচাই না করে যোগ করুন</string>
     <string name="address_single_line">এখানে একাধিক লাইন রয়েছে। শুধু ঠিকানাটি রাখুন।</string>
     <string name="last_updated">সর্বশেষ হালনাগাদ:</string>
+    <string name="no_connection_title">ইন্টারনেট সংযোগ নেই</string>
+    <string name="no_connection_hint">সংযোগ ফিরে এলেই ক্যাটালগ নিজে থেকে লোড হবে।</string>
+    <string name="no_connection_DESC">সংযোগ ফিরে না আসা পর্যন্ত ডাউনলোড ও সিঙ্ক কাজ করবে না।</string>
 </resources>

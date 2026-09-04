@@ -422,6 +422,9 @@
     <string name="follow_on_github">GitHub\'da takip et</string>
     <string name="fetching_repositories">Uygulama depoları alınıyor…</string>
     <string name="first_sync_hint">İlk açılış, katalog indirilirken birkaç dakika sürebilir. Lütfen bekleyin ve uygulamayı kapatmayın.</string>
+    <string name="no_connection_title">İnternet bağlantısı yok</string>
+    <string name="no_connection_hint">Bağlantı geri geldiği anda katalog kendiliğinden yüklenecek.</string>
+    <string name="no_connection_DESC">Bağlantı geri gelene kadar indirmeler ve eşitleme çalışmayacak.</string>
     <string name="tap_to_resume_updates">Güncellemelere devam etmek için uygulamayı aç</string>
     <string name="manage">Yönet</string>
     <string name="tab_updates_short">Güncelleme</string>

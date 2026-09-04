@@ -148,6 +148,7 @@ import com.looker.droidify.compose.settings.components.InfoBanner
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.compose.components.AccentTabRow
+import com.looker.droidify.compose.components.CatalogOfflineState
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.ScrollToTopFab
@@ -178,6 +179,9 @@ fun AppListScreen(
 ) {
     val apps by viewModel.displayedApps.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+    val isSyncScheduled by viewModel.isSyncScheduled.collectAsStateWithLifecycle()
+    val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
+    val catalogEmpty by viewModel.catalogEmpty.collectAsStateWithLifecycle()
     val newApps by viewModel.newApps.collectAsStateWithLifecycle()
     val recentlyUpdatedApps by viewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val mostDownloadedApps by viewModel.mostDownloadedApps.collectAsStateWithLifecycle()
@@ -432,8 +436,10 @@ fun AppListScreen(
     var overflowExpanded by remember { mutableStateOf(false) }
 
     // First launch: show a full-screen "fetching" state (like F-Droid) instead of an empty grid.
-    // `newApps` is empty exactly when the catalogue has no apps, so it doubles as the "nothing loaded
-    // yet" signal. The External tab has its own content, so it's excluded.
+    // [catalogEmpty] answers whether the catalogue holds anything, and is null until the database has
+    // said: a list not read yet is not an empty catalogue, and treating it as one made every launch
+    // flash a first-launch state for as long as the read took. The External tab has its own content,
+    // so it's excluded.
     //
     // Touch keeps the original progressive behaviour: the loader shows only until the first apps trickle
     // in, then the grid fills as the sync continues.
@@ -449,24 +455,32 @@ fun AppListScreen(
     var catalogReady by rememberSaveable { mutableStateOf(false) }
     var firstSyncFromEmpty by rememberSaveable { mutableStateOf(false) }
     if (isTelevision) {
-        LaunchedEffect(isSyncing, newApps.isEmpty()) {
+        LaunchedEffect(isSyncing, catalogEmpty) {
             if (catalogReady) return@LaunchedEffect
-            val catalogEmpty = newApps.isEmpty()
-            if (isSyncing && catalogEmpty) firstSyncFromEmpty = true
+            if (isSyncing && catalogEmpty == true) firstSyncFromEmpty = true
             if (firstSyncFromEmpty) {
                 // Genuine first sync: stay on the loader until it has apps AND the sync has finished.
-                if (!isSyncing && !catalogEmpty) catalogReady = true
-            } else if (!catalogEmpty) {
+                if (!isSyncing && catalogEmpty == false) catalogReady = true
+            } else if (catalogEmpty == false) {
                 // Later launch (or background sync): the catalogue already has apps, show it now.
                 catalogReady = true
             }
         }
     }
+    // The catalogue is known to have nothing to show on a tab that comes from it. The External tab has
+    // content of its own and is never part of this.
+    val catalogTabEmpty = catalogEmpty == true && selectedTab != AppTab.EXTERNAL
     val catalogLoading = if (isTelevision) {
         !catalogReady && selectedTab != AppTab.EXTERNAL
     } else {
-        isSyncing && newApps.isEmpty() && selectedTab != AppTab.EXTERNAL
+        // A sync still to run counts as much as one already running: on a first launch most of the
+        // wait is spent held back by the network constraint or on a retry delay, and reading only
+        // "running" is what left the screen blank and silent for the whole of it.
+        (isSyncing || isSyncScheduled) && catalogTabEmpty
     }
+    // Nothing to list and no connection to fetch it with. Shown ahead of the loader: a sync that
+    // cannot run yet is not a wait to watch a spinner over, it is one to explain.
+    val catalogOffline = isOffline && catalogTabEmpty
     val headerSyncing = (isSyncing || isRefreshingExternal) && !catalogLoading
     // TEMP DEBUG, remove once the header title flicker is diagnosed: logs every change to the three
     // signals headerSyncing is built from, to catch it dropping true mid-sync and see which one did it.
@@ -683,13 +697,25 @@ fun AppListScreen(
                             Modifier
                         },
                     )
-                    // Glued directly under the tabs (not inside the grid below, whose own content
-                    // padding leaves a small gap meant for tile breathing room, wrong for a banner that
-                    // should read as part of the header). A token GitHub is actively rejecting silently
-                    // stops every GitHub-backed source from refreshing (see ExternalAppsViewModel.refresh),
-                    // with nothing else on this tab otherwise showing anything is wrong. Priority over the
-                    // no-token hint below: a rejected token is the more actionable problem, and the two
-                    // states can't both be true anyway (rejection requires a token to be set).
+                    // Banners are glued directly under the tabs (not inside the grid below, whose own
+                    // content padding leaves a small gap meant for tile breathing room, wrong for a
+                    // banner that should read as part of the header).
+                    //
+                    // Offline with a catalogue already on the device: the lists work, so there is no
+                    // empty page to explain (CatalogOfflineState covers that), but nothing else would
+                    // say why syncing or installing is about to get nowhere. Every tab, since none of
+                    // them can fetch anything.
+                    if (isOffline && !catalogOffline) {
+                        InfoBanner(
+                            title = stringResource(R.string.no_connection_title),
+                            description = stringResource(R.string.no_connection_DESC),
+                        )
+                    }
+                    // A token GitHub is actively rejecting silently stops every GitHub-backed source
+                    // from refreshing (see ExternalAppsViewModel.refresh), with nothing else on this tab
+                    // otherwise showing anything is wrong. Priority over the no-token hint below: a
+                    // rejected token is the more actionable problem, and the two states can't both be
+                    // true anyway (rejection requires a token to be set).
                     if (selectedTab == AppTab.EXTERNAL) {
                         when {
                             githubTokenInvalid -> WarningBanner(
@@ -715,6 +741,10 @@ fun AppListScreen(
         },
     ) { contentPadding ->
         FloatingAppCardsBackground(Modifier.padding(contentPadding.forFloatingBackground()))
+        if (catalogOffline) {
+            CatalogOfflineState(modifier = Modifier.padding(contentPadding))
+            return@Scaffold
+        }
         if (catalogLoading) {
             RepoFetchingState(modifier = Modifier.padding(contentPadding))
             return@Scaffold

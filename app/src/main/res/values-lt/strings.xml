@@ -210,4 +210,7 @@
     <string name="add_without_checking">Pridėti netikrinant</string>
     <string name="address_single_line">Čia yra daugiau nei viena eilutė. Palikite tik adresą.</string>
     <string name="last_updated">Paskutinį kartą atnaujinta:</string>
+    <string name="no_connection_title">Nėra interneto ryšio</string>
+    <string name="no_connection_hint">Katalogas įsikels pats, kai tik ryšys atsinaujins.</string>
+    <string name="no_connection_DESC">Atsisiuntimai ir sinchronizavimas neveiks, kol neatsinaujins ryšys.</string>
 </resources>

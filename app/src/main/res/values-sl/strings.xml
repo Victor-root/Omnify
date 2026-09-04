@@ -199,4 +199,7 @@
     <string name="add_without_checking">Dodaj brez preverjanja</string>
     <string name="address_single_line">Tu je več kot ena vrstica. Pustite samo naslov.</string>
     <string name="last_updated">Nazadnje posodobljeno:</string>
+    <string name="no_connection_title">Ni internetne povezave</string>
+    <string name="no_connection_hint">Katalog se bo naložil sam, takoj ko bo povezava spet na voljo.</string>
+    <string name="no_connection_DESC">Prenosi in usklajevanje ne bodo delovali, dokler povezava ne bo spet na voljo.</string>
 </resources>

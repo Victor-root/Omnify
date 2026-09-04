@@ -193,4 +193,7 @@
     <string name="add_without_checking">പരിശോധിക്കാതെ ചേർക്കുക</string>
     <string name="address_single_line">ഇവിടെ ഒന്നിലധികം വരികളുണ്ട്. വിലാസം മാത്രം നിലനിർത്തുക.</string>
     <string name="last_updated">അവസാനം പുതുക്കിയത്:</string>
+    <string name="no_connection_title">ഇന്റർനെറ്റ് കണക്ഷൻ ഇല്ല</string>
+    <string name="no_connection_hint">കണക്ഷൻ തിരികെ വരുമ്പോൾ കാറ്റലോഗ് സ്വയം ലോഡ് ചെയ്യും.</string>
+    <string name="no_connection_DESC">കണക്ഷൻ തിരികെ വരുന്നതുവരെ ഡൗൺലോഡുകളും സമന്വയവും പ്രവർത്തിക്കില്ല.</string>
 </resources>

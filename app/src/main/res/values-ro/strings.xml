@@ -250,4 +250,7 @@
     <string name="add_without_checking">Adaugă fără verificare</string>
     <string name="address_single_line">Aici este mai mult de un rând. Păstrează doar adresa.</string>
     <string name="last_updated">Ultima actualizare:</string>
+    <string name="no_connection_title">Nicio conexiune la internet</string>
+    <string name="no_connection_hint">Catalogul se va încărca singur imediat ce revine conexiunea.</string>
+    <string name="no_connection_DESC">Descărcările și sincronizarea nu vor funcționa până când nu revine conexiunea.</string>
 </resources>

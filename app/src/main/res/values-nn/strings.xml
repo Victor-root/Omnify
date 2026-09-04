@@ -198,4 +198,7 @@
     <string name="add_without_checking">Legg til utan kontroll</string>
     <string name="address_single_line">Her er det meir enn éi linje. Behald berre adressa.</string>
     <string name="last_updated">Sist oppdatert:</string>
+    <string name="no_connection_title">Inga internettilkopling</string>
+    <string name="no_connection_hint">Katalogen blir lasta inn av seg sjølv så snart tilkoplinga er tilbake.</string>
+    <string name="no_connection_DESC">Nedlastingar og synkronisering verkar ikkje før tilkoplinga er tilbake.</string>
 </resources>

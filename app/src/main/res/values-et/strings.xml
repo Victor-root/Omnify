@@ -265,4 +265,7 @@
     <string name="add_without_checking">Lisa ilma kontrollimata</string>
     <string name="address_single_line">Siin on rohkem kui üks rida. Jäta alles ainult aadress.</string>
     <string name="last_updated">Viimati uuendatud:</string>
+    <string name="no_connection_title">Internetiühendus puudub</string>
+    <string name="no_connection_hint">Kataloog laaditakse ise, niipea kui ühendus taastub.</string>
+    <string name="no_connection_DESC">Allalaadimised ja sünkroonimine ei tööta enne, kui ühendus taastub.</string>
 </resources>

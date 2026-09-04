@@ -264,4 +264,7 @@
     <string name="add_without_checking">Adicionar sem verificar</string>
     <string name="address_single_line">Aqui há mais do que uma linha. Mantenha apenas o endereço.</string>
     <string name="last_updated">Última atualização:</string>
+    <string name="no_connection_title">Sem ligação à Internet</string>
+    <string name="no_connection_hint">O catálogo será carregado sozinho assim que a ligação voltar.</string>
+    <string name="no_connection_DESC">As transferências e a sincronização não funcionarão até a ligação voltar.</string>
 </resources>

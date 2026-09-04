@@ -428,6 +428,9 @@
     <string name="follow_on_github">Obserwuj na GitHub</string>
     <string name="fetching_repositories">Pobieranie repozytoriów aplikacji…</string>
     <string name="first_sync_hint">Pierwsze uruchomienie może potrwać kilka minut, ponieważ w tym czasie pobierany jest katalog. Poczekaj i nie zamykaj aplikacji.</string>
+    <string name="no_connection_title">Brak połączenia z internetem</string>
+    <string name="no_connection_hint">Katalog wczyta się sam, gdy tylko połączenie wróci.</string>
+    <string name="no_connection_DESC">Pobieranie i synchronizacja nie zadziałają, dopóki połączenie nie wróci.</string>
     <string name="tap_to_resume_updates">Otwórz aplikację, aby wznowić aktualizacje</string>
     <string name="manage">Zarządzaj</string>
     <string name="tab_updates_short">Aktual.</string>

@@ -193,4 +193,7 @@
     <string name="add_without_checking">Idagdag nang hindi sinusuri</string>
     <string name="address_single_line">Higit sa isang linya ito. Panatilihin lamang ang address.</string>
     <string name="last_updated">Huling na-update:</string>
+    <string name="no_connection_title">Walang koneksyon sa internet</string>
+    <string name="no_connection_hint">Kusang mag-lo-load ang katalogo sa oras na bumalik ang koneksyon.</string>
+    <string name="no_connection_DESC">Hindi gagana ang mga pag-download at pag-sync hangga\'t hindi bumabalik ang koneksyon.</string>
 </resources>

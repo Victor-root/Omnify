@@ -77,6 +77,7 @@ import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appList.AppTab
 import com.looker.droidify.compose.appList.PendingAppListTab
 import com.looker.droidify.compose.appList.restoreFocusTarget
+import com.looker.droidify.compose.components.CatalogOfflineState
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
@@ -154,22 +155,28 @@ fun TvHomeScreen(
     // latches once the first sync has finished with apps present — on later launches the catalogue is
     // already populated so it latches immediately and the loader never shows. [firstSyncFromEmpty] tells a
     // genuine cold start (empty when the sync began) apart from a routine background sync on a later
-    // launch, which must show the populated catalogue rather than the loader. Mirrors the phone screen.
+    // launch, which must show the populated catalogue rather than the loader. Mirrors the phone screen,
+    // [catalogEmpty] included: it is null until the database has answered, so a catalogue merely not
+    // read yet is never mistaken for an empty one.
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+    val catalogEmpty by viewModel.catalogEmpty.collectAsStateWithLifecycle()
     var catalogReady by rememberSaveable { mutableStateOf(false) }
     var firstSyncFromEmpty by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(isSyncing, newApps.isEmpty()) {
+    LaunchedEffect(isSyncing, catalogEmpty) {
         if (catalogReady) return@LaunchedEffect
-        val catalogEmpty = newApps.isEmpty()
-        if (isSyncing && catalogEmpty) firstSyncFromEmpty = true
+        if (isSyncing && catalogEmpty == true) firstSyncFromEmpty = true
         if (firstSyncFromEmpty) {
-            if (!isSyncing && !catalogEmpty) catalogReady = true
-        } else if (!catalogEmpty) {
+            if (!isSyncing && catalogEmpty == false) catalogReady = true
+        } else if (catalogEmpty == false) {
             catalogReady = true
         }
     }
     // The External tab loads its own data (not the F-Droid catalogue), so it's never behind this loader.
-    val catalogLoading = !catalogReady && newApps.isEmpty()
+    val catalogLoading = !catalogReady && catalogEmpty != false
+    // Nothing to list and no connection to fetch it with: the loader above would otherwise spin for as
+    // long as the network stayed off, promising something that cannot arrive. Same answer as the phone.
+    val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
+    val catalogOffline = isOffline && catalogEmpty == true
     // Drives the sync rail button's own text-or-progress-bar swap (see TvRailButton's labelContent
     // below), same signal and same suppression during the cold-start loader as the phone header's.
     val tvSyncing = (isSyncing || isRefreshingExternal) && !catalogLoading
@@ -331,6 +338,10 @@ fun TvHomeScreen(
             // The TV accent wash behind the content (light & dark).
             TvAccentBackground()
             when {
+                // Cold start with no network: say so rather than spin (see CatalogOfflineState).
+                catalogOffline && section != TvSection.EXTERNAL ->
+                    CatalogOfflineState(Modifier.padding(horizontal = TvOverscan))
+
                 // Cold start: show a loader instead of empty carousels while the first sync runs.
                 catalogLoading && section != TvSection.EXTERNAL -> TvLoading()
 

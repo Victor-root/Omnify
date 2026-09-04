@@ -18,7 +18,9 @@ import com.looker.droidify.compose.components.tvFocusOutline
 private fun Banner(
     title: String,
     description: String,
-    onClick: () -> Unit,
+    // Null for a banner that only tells the user something, with nothing in the app to go and do about
+    // it: it is then plain text rather than a tap that ripples and leads nowhere.
+    onClick: (() -> Unit)?,
     containerColor: Color,
     contentColor: Color,
     modifier: Modifier = Modifier,
@@ -30,7 +32,7 @@ private fun Banner(
             // TV only: an accent outline around the focused banner (no-op on touch); a full-width block
             // can't scale without overflowing the screen.
             .tvFocusOutline(RectangleShape)
-            .clickable(onClick = onClick)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Text(
@@ -71,7 +73,7 @@ fun WarningBanner(
 fun InfoBanner(
     title: String,
     description: String,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Banner(

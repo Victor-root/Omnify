@@ -204,4 +204,7 @@
     <string name="add_without_checking">Legg til uten kontroll</string>
     <string name="address_single_line">Her er det mer enn én linje. Behold bare adressen.</string>
     <string name="last_updated">Sist oppdatert:</string>
+    <string name="no_connection_title">Ingen internettforbindelse</string>
+    <string name="no_connection_hint">Katalogen lastes inn av seg selv så snart forbindelsen er tilbake.</string>
+    <string name="no_connection_DESC">Nedlastinger og synkronisering virker ikke før forbindelsen er tilbake.</string>
 </resources>

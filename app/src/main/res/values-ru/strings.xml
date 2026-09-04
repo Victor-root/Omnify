@@ -428,6 +428,9 @@
     <string name="follow_on_github">Подписаться на GitHub</string>
     <string name="fetching_repositories">Получение репозиториев приложений…</string>
     <string name="first_sync_hint">Первый запуск может занять несколько минут, пока скачивается каталог. Пожалуйста, подождите и не закрывайте приложение.</string>
+    <string name="no_connection_title">Нет подключения к интернету</string>
+    <string name="no_connection_hint">Каталог загрузится сам, как только связь восстановится.</string>
+    <string name="no_connection_DESC">Загрузки и синхронизация не будут работать, пока связь не восстановится.</string>
     <string name="tap_to_resume_updates">Откройте приложение, чтобы возобновить обновления</string>
     <string name="manage">Управлять</string>
     <string name="tab_updates_short">Обновления</string>

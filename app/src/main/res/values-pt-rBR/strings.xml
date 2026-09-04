@@ -400,6 +400,9 @@
     <string name="copied_to_clipboard">Copiado</string>
     <string name="fetching_repositories">Buscando repositórios de aplicativos…</string>
     <string name="first_sync_hint">A primeira abertura pode levar alguns minutos enquanto o catálogo é baixado. Aguarde e não feche o app.</string>
+    <string name="no_connection_title">Sem conexão com a internet</string>
+    <string name="no_connection_hint">O catálogo será carregado sozinho assim que a conexão voltar.</string>
+    <string name="no_connection_DESC">Os downloads e a sincronização não funcionarão até a conexão voltar.</string>
     <string name="tap_to_resume_updates">Abra o app para retomar as atualizações</string>
     <string name="manage">Gerenciar</string>
     <string name="tab_updates_short">Atualizações</string>

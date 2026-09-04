@@ -278,4 +278,7 @@
     <string name="add_without_checking">إضافة دون تحقّق</string>
     <string name="address_single_line">هذا أكثر من سطر واحد. أبقِ العنوان وحده.</string>
     <string name="last_updated">آخر تحديث:</string>
+    <string name="no_connection_title">لا يوجد اتصال بالإنترنت</string>
+    <string name="no_connection_hint">سيتم تحميل الفهرس تلقائيًا بمجرد عودة الاتصال.</string>
+    <string name="no_connection_DESC">لن تعمل التنزيلات ولا المزامنة حتى يعود الاتصال.</string>
 </resources>

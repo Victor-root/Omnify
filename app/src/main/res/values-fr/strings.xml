@@ -238,6 +238,9 @@
     <string name="syncing_FORMAT">Synchronisation de %s en cours…</string>
     <string name="fetching_repositories">Récupération des dépôts d\'applications…</string>
     <string name="first_sync_hint">Le premier démarrage peut prendre quelques minutes, le temps de télécharger le catalogue. Patientez, ne fermez pas l\'application.</string>
+    <string name="no_connection_title">Pas de connexion Internet</string>
+    <string name="no_connection_hint">Le catalogue se chargera tout seul dès que la connexion sera revenue.</string>
+    <string name="no_connection_DESC">Les téléchargements et la synchronisation ne fonctionneront pas tant que la connexion ne sera pas revenue.</string>
     <string name="unstable_updates">Mises à jour instables</string>
     <string name="upstream_source_code_is_not_free">Le code source en amont n’est pas libre</string>
     <string name="username">Nom d’utilisateur</string>

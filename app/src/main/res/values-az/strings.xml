@@ -231,4 +231,7 @@
     <string name="add_without_checking">Yoxlamadan əlavə et</string>
     <string name="address_single_line">Bu bir sətirdən çoxdur. Yalnız ünvanı saxlayın.</string>
     <string name="last_updated">Son yenilənmə:</string>
+    <string name="no_connection_title">İnternet bağlantısı yoxdur</string>
+    <string name="no_connection_hint">Bağlantı bərpa olunan kimi kataloq öz-özünə yüklənəcək.</string>
+    <string name="no_connection_DESC">Bağlantı bərpa olunana qədər yükləmələr və sinxronizasiya işləməyəcək.</string>
 </resources>

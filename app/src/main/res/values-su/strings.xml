@@ -228,4 +228,7 @@
     <string name="add_without_checking">Tambahkeun tanpa mariksa</string>
     <string name="address_single_line">Ieu leuwih ti sabaris. Ngan simpen alamatna.</string>
     <string name="last_updated">Panungtungan diropéa:</string>
+    <string name="no_connection_title">Teu aya sambungan internét</string>
+    <string name="no_connection_hint">Katalog bakal dimuat sorangan sanggeus sambungan balik deui.</string>
+    <string name="no_connection_DESC">Undeuran jeung sinkronisasi moal jalan nepi ka sambungan balik deui.</string>
 </resources>

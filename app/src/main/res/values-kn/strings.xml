@@ -193,4 +193,7 @@
     <string name="add_without_checking">ಪರಿಶೀಲಿಸದೆ ಸೇರಿಸಿ</string>
     <string name="address_single_line">ಇಲ್ಲಿ ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಸಾಲುಗಳಿವೆ. ವಿಳಾಸವನ್ನು ಮಾತ್ರ ಉಳಿಸಿಕೊಳ್ಳಿ.</string>
     <string name="last_updated">ಕೊನೆಯ ನವೀಕರಣ:</string>
+    <string name="no_connection_title">ಇಂಟರ್ನೆಟ್ ಸಂಪರ್ಕವಿಲ್ಲ</string>
+    <string name="no_connection_hint">ಸಂಪರ್ಕ ಮರಳಿದ ತಕ್ಷಣ ಕ್ಯಾಟಲಾಗ್ ತಾನಾಗಿಯೇ ಲೋಡ್ ಆಗುತ್ತದೆ.</string>
+    <string name="no_connection_DESC">ಸಂಪರ್ಕ ಮರಳುವವರೆಗೆ ಡೌನ್‌ಲೋಡ್‌ಗಳು ಮತ್ತು ಸಿಂಕ್ ಕೆಲಸ ಮಾಡುವುದಿಲ್ಲ.</string>
 </resources>

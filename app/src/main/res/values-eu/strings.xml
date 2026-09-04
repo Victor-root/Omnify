@@ -66,4 +66,7 @@
     <string name="add_without_checking">Gehitu egiaztatu gabe</string>
     <string name="address_single_line">Hemen lerro bat baino gehiago dago. Utzi helbidea besterik ez.</string>
     <string name="last_updated">Azken eguneratzea:</string>
+    <string name="no_connection_title">Ez dago Interneteko konexiorik</string>
+    <string name="no_connection_hint">Katalogoa bere kabuz kargatuko da konexioa itzultzen den bezain laster.</string>
+    <string name="no_connection_DESC">Deskargek eta sinkronizazioak ez dute funtzionatuko konexioa itzuli arte.</string>
 </resources>

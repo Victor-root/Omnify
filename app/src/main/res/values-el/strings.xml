@@ -231,4 +231,7 @@
     <string name="add_without_checking">Προσθήκη χωρίς έλεγχο</string>
     <string name="address_single_line">Εδώ υπάρχουν περισσότερες από μία γραμμές. Κρατήστε μόνο τη διεύθυνση.</string>
     <string name="last_updated">Τελευταία ενημέρωση:</string>
+    <string name="no_connection_title">Δεν υπάρχει σύνδεση στο διαδίκτυο</string>
+    <string name="no_connection_hint">Ο κατάλογος θα φορτωθεί από μόνος του μόλις επανέλθει η σύνδεση.</string>
+    <string name="no_connection_DESC">Οι λήψεις και ο συγχρονισμός δεν θα λειτουργήσουν μέχρι να επανέλθει η σύνδεση.</string>
 </resources>

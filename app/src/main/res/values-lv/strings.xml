@@ -234,4 +234,7 @@
     <string name="add_without_checking">Pievienot bez pārbaudes</string>
     <string name="address_single_line">Šeit ir vairāk nekā viena rinda. Atstājiet tikai adresi.</string>
     <string name="last_updated">Pēdējoreiz atjaunināts:</string>
+    <string name="no_connection_title">Nav interneta savienojuma</string>
+    <string name="no_connection_hint">Katalogs ielādēsies pats, tiklīdz savienojums atjaunosies.</string>
+    <string name="no_connection_DESC">Lejupielādes un sinhronizācija nedarbosies, kamēr savienojums neatjaunosies.</string>
 </resources>

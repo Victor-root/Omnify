@@ -204,4 +204,7 @@
     <string name="add_without_checking">Tambah tanpa memeriksa</string>
     <string name="address_single_line">Ini lebih daripada satu baris. Simpan alamat sahaja.</string>
     <string name="last_updated">Kemas kini terakhir:</string>
+    <string name="no_connection_title">Tiada sambungan internet</string>
+    <string name="no_connection_hint">Katalog akan dimuatkan dengan sendirinya sebaik sahaja sambungan kembali.</string>
+    <string name="no_connection_DESC">Muat turun dan penyegerakan tidak akan berfungsi sehingga sambungan kembali.</string>
 </resources>

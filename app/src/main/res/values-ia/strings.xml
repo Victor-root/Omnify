@@ -217,4 +217,7 @@
     <string name="add_without_checking">Adder sin verificar</string>
     <string name="address_single_line">Isto es plus que un linea. Retene solmente le adresse.</string>
     <string name="last_updated">Ultime actualisation:</string>
+    <string name="no_connection_title">Nulle connexion a internet</string>
+    <string name="no_connection_hint">Le catalogo se cargara automaticamente tosto que le connexion retorna.</string>
+    <string name="no_connection_DESC">Le discargamentos e le synchronisation non functionara usque le connexion retorna.</string>
 </resources>

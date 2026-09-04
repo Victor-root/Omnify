@@ -397,6 +397,9 @@
     <string name="copied_to_clipboard">Gekopieerd</string>
     <string name="fetching_repositories">Bronnen van apps ophalen…</string>
     <string name="first_sync_hint">De eerste keer opstarten kan enkele minuten duren terwijl de catalogus wordt gedownload. Even geduld, en sluit de app niet af.</string>
+    <string name="no_connection_title">Geen internetverbinding</string>
+    <string name="no_connection_hint">De catalogus wordt vanzelf geladen zodra de verbinding terug is.</string>
+    <string name="no_connection_DESC">Downloads en synchronisatie werken pas weer als de verbinding terug is.</string>
     <string name="tap_to_resume_updates">Open de app om updates te hervatten</string>
     <string name="manage">Beheren</string>
     <string name="tab_updates_short">Updates</string>

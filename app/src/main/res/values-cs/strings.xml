@@ -269,4 +269,7 @@
     <string name="add_without_checking">Přidat bez ověření</string>
     <string name="address_single_line">Je zde více než jeden řádek. Ponechte pouze adresu.</string>
     <string name="last_updated">Naposledy aktualizováno:</string>
+    <string name="no_connection_title">Žádné připojení k internetu</string>
+    <string name="no_connection_hint">Katalog se načte sám, jakmile bude připojení zpět.</string>
+    <string name="no_connection_DESC">Stahování ani synchronizace nebudou fungovat, dokud se připojení nevrátí.</string>
 </resources>

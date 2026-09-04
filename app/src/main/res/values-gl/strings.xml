@@ -231,4 +231,7 @@
     <string name="add_without_checking">Engadir sen comprobar</string>
     <string name="address_single_line">Aquí hai máis dunha liña. Deixa só o enderezo.</string>
     <string name="last_updated">Última actualización:</string>
+    <string name="no_connection_title">Sen conexión a Internet</string>
+    <string name="no_connection_hint">O catálogo cargarase só en canto volva a conexión.</string>
+    <string name="no_connection_DESC">As descargas e a sincronización non funcionarán ata que volva a conexión.</string>
 </resources>

@@ -218,4 +218,7 @@
     <string name="add_without_checking">बिना जाँच किए जोड़ें</string>
     <string name="address_single_line">यहाँ एक से अधिक पंक्तियाँ हैं। केवल पता रखें।</string>
     <string name="last_updated">अंतिम अद्यतन:</string>
+    <string name="no_connection_title">कोई इंटरनेट कनेक्शन नहीं</string>
+    <string name="no_connection_hint">कनेक्शन वापस आते ही कैटलॉग अपने आप लोड हो जाएगा।</string>
+    <string name="no_connection_DESC">कनेक्शन वापस आने तक डाउनलोड और सिंक काम नहीं करेंगे।</string>
 </resources>

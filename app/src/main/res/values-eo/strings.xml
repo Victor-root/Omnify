@@ -213,4 +213,7 @@
     <string name="add_without_checking">Aldoni sen kontrolo</string>
     <string name="address_single_line">Ĉi tie estas pli ol unu linio. Konservu nur la adreson.</string>
     <string name="last_updated">Laste ĝisdatigita:</string>
+    <string name="no_connection_title">Neniu interreta konekto</string>
+    <string name="no_connection_hint">La katalogo ŝargiĝos aŭtomate tuj kiam la konekto revenos.</string>
+    <string name="no_connection_DESC">Elŝutoj kaj sinkronigo ne funkcios ĝis la konekto revenos.</string>
 </resources>

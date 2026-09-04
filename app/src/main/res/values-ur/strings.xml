@@ -52,4 +52,7 @@
     <string name="add_without_checking">جانچ کیے بغیر شامل کریں</string>
     <string name="address_single_line">یہاں ایک سے زیادہ سطریں ہیں۔ صرف پتہ رکھیں۔</string>
     <string name="last_updated">آخری تازہ کاری:</string>
+    <string name="no_connection_title">انٹرنیٹ کنکشن نہیں ہے</string>
+    <string name="no_connection_hint">کنکشن واپس آتے ہی فہرست خود بخود لوڈ ہو جائے گی۔</string>
+    <string name="no_connection_DESC">کنکشن واپس آنے تک ڈاؤن لوڈ اور ہم آہنگی کام نہیں کریں گے۔</string>
 </resources>

@@ -13,6 +13,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
@@ -195,19 +196,23 @@ class SyncWorker @AssistedInject constructor(
         private const val TRIGGER_USER = "user"
         private const val TRIGGER_PERIODIC = "periodic"
 
+        /** The one queue every sync the user is waiting on goes through, so they run one after another
+         *  rather than several large indexes at once. */
+        private const val USER_WORK_NAME = "$TAG.user"
+
         /** For a sync the user asked for: any connection will do, since they are waiting on it. The
          *  scheduled one goes by their auto-sync choice instead (see [workConstraints]). */
         private val userSyncConstraints: Constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
-        fun enqueueUserSync(context: Context, repoId: Int? = null) {
+        private fun userSyncRequest(repoId: Int?): OneTimeWorkRequest {
             val data = Data.Builder()
                 .putString(KEY_TRIGGER, TRIGGER_USER)
                 .apply { if (repoId != null) putInt(KEY_REPO_ID, repoId) }
                 .build()
 
-            val request = OneTimeWorkRequestBuilder<SyncWorker>()
+            return OneTimeWorkRequestBuilder<SyncWorker>()
                 .setInputData(data)
                 .setConstraints(userSyncConstraints)
                 .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS)
@@ -217,7 +222,9 @@ class SyncWorker @AssistedInject constructor(
                 // repo's sync apart from any other queued/running one.
                 .apply { if (repoId != null) addTag(repoSyncTag(repoId)) }
                 .build()
+        }
 
+        fun enqueueUserSync(context: Context, repoId: Int? = null) {
             // APPEND_OR_REPLACE, not KEEP: enabling several repos in quick succession enqueues one sync
             // each under the same unique name. KEEP dropped every sync after the first (only some repos
             // synced, the rest needed a manual re-sync). Appending chains them so all enabled repos are
@@ -227,11 +234,36 @@ class SyncWorker @AssistedInject constructor(
             WorkManager
                 .getInstance(context)
                 .enqueueUniqueWork(
-                    uniqueWorkName = "$TAG.user",
+                    uniqueWorkName = USER_WORK_NAME,
                     existingWorkPolicy = ExistingWorkPolicy.APPEND_OR_REPLACE,
-                    request = request,
+                    request = userSyncRequest(repoId),
                 )
             Log.i(TAG, "User sync enqueued (repoId=$repoId)")
+        }
+
+        /**
+         * Starts the catalogue's first sync again, right now.
+         *
+         * For the cold start whose sync is still waiting: held back by the network constraint on a
+         * launch with no connection, or serving out a retry delay after failing for want of one. Both
+         * leave the moment of the next attempt to WorkManager, which on a device that has just joined a
+         * network can be minutes of a screen with nothing on it. Called when the connection comes back
+         * with the catalogue still empty (see AppListViewModel), so the wait is the connection's, not a
+         * timer's.
+         *
+         * REPLACE, where [enqueueUserSync] appends: the catalogue being empty means nothing has ever
+         * been synced, so a full sync covers everything the queued one would have, and appending would
+         * merely run the same work twice over.
+         */
+        fun restartUserSync(context: Context) {
+            WorkManager
+                .getInstance(context)
+                .enqueueUniqueWork(
+                    uniqueWorkName = USER_WORK_NAME,
+                    existingWorkPolicy = ExistingWorkPolicy.REPLACE,
+                    request = userSyncRequest(repoId = null),
+                )
+            Log.i(TAG, "User sync restarted")
         }
 
         fun syncRepo(context: Context, repoId: Int) {
@@ -281,6 +313,22 @@ class SyncWorker @AssistedInject constructor(
             WorkManager.getInstance(context)
                 .getWorkInfosByTagFlow(TAG)
                 .map { infos -> infos.any { it.state == WorkInfo.State.RUNNING } }
+
+        /**
+         * Emits `true` while a sync the user is waiting on is running *or* still to run: held back by
+         * the network constraint, queued behind another repository, or serving out a retry delay.
+         *
+         * [isSyncing] answers for a sync that is actually running, which is what a progress bar needs.
+         * A first launch spends most of its time in the states it leaves out, and answering "nothing is
+         * happening" there is what left the catalogue screen blank and silent with no explanation.
+         *
+         * Only this queue, never the periodic sync: that one is permanently scheduled and so would
+         * answer `true` for ever.
+         */
+        fun isSyncScheduled(context: Context): Flow<Boolean> =
+            WorkManager.getInstance(context)
+                .getWorkInfosForUniqueWorkFlow(USER_WORK_NAME)
+                .map { infos -> infos.any { !it.state.isFinished } }
 
         private fun repoSyncTag(repoId: Int): String = "$TAG.repo.$repoId"
 

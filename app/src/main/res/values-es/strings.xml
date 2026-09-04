@@ -425,6 +425,9 @@
     <string name="follow_on_github">Seguir en GitHub</string>
     <string name="fetching_repositories">Obteniendo repositorios de aplicaciones…</string>
     <string name="first_sync_hint">El primer inicio puede tardar unos minutos mientras se descarga el catálogo. Espera y no cierres la app.</string>
+    <string name="no_connection_title">Sin conexión a Internet</string>
+    <string name="no_connection_hint">El catálogo se cargará solo en cuanto vuelva la conexión.</string>
+    <string name="no_connection_DESC">Las descargas y la sincronización no funcionarán hasta que vuelva la conexión.</string>
     <string name="tap_to_resume_updates">Abre la app para reanudar las actualizaciones</string>
     <string name="manage">Gestionar</string>
     <string name="tab_updates_short">Actualiz.</string>

@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
+import android.net.ConnectivityManager
 import android.os.PowerManager
 import android.util.Log
 import android.view.inputmethod.InputMethodManager
@@ -22,6 +23,9 @@ import com.looker.droidify.R
 import com.looker.droidify.utility.common.log
 
 inline val Context.clipboardManager: ClipboardManager?
+    get() = getSystemService()
+
+inline val Context.connectivityManager: ConnectivityManager?
     get() = getSystemService()
 
 inline val Context.inputManager: InputMethodManager?

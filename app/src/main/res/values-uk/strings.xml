@@ -258,4 +258,7 @@
     <string name="add_without_checking">Додати без перевірки</string>
     <string name="address_single_line">Тут більше ніж один рядок. Залиште лише адресу.</string>
     <string name="last_updated">Останнє оновлення:</string>
+    <string name="no_connection_title">Немає підключення до інтернету</string>
+    <string name="no_connection_hint">Каталог завантажиться сам, щойно з’явиться зв’язок.</string>
+    <string name="no_connection_DESC">Завантаження та синхронізація не працюватимуть, доки не відновиться зв’язок.</string>
 </resources>

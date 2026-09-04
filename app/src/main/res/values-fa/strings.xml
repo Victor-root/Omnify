@@ -231,4 +231,7 @@
     <string name="add_without_checking">افزودن بدون بررسی</string>
     <string name="address_single_line">این بیش از یک خط است. فقط نشانی را نگه دارید.</string>
     <string name="last_updated">آخرین به‌روزرسانی:</string>
+    <string name="no_connection_title">اتصال اینترنتی وجود ندارد</string>
+    <string name="no_connection_hint">به محض بازگشت اتصال، فهرست به‌طور خودکار بارگذاری می‌شود.</string>
+    <string name="no_connection_DESC">تا بازگشت اتصال، بارگیری‌ها و همگام‌سازی کار نمی‌کنند.</string>
 </resources>

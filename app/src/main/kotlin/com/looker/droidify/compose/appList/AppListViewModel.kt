@@ -21,6 +21,7 @@ import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.installer.InstallManager
+import com.looker.droidify.network.NetworkMonitor
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.extension.asStateFlow
@@ -35,11 +36,14 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectIndexed
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
@@ -81,6 +85,7 @@ class AppListViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     batchProgress: BatchUpdateProgress,
     private val installManager: InstallManager,
+    private val networkMonitor: NetworkMonitor,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -397,6 +402,50 @@ class AppListViewModel @Inject constructor(
     /** True while any sync runs (first launch, manual, repo-enable, periodic) — drives the bar. */
     val isSyncing: StateFlow<Boolean> = SyncWorker.isSyncing(context).asStateFlow(false)
 
+    /** True while the sync the user is waiting on is running or still to run (see
+     *  [SyncWorker.isSyncScheduled]): tells a catalogue that is still on its way apart from one that
+     *  has nothing coming. */
+    val isSyncScheduled: StateFlow<Boolean> = SyncWorker.isSyncScheduled(context).asStateFlow(false)
+
+    /**
+     * True while the device has no connection that reaches the internet, so a screen with nothing on
+     * it can say why instead of looking broken.
+     *
+     * Watched from the moment this view model exists rather than only while something is on screen:
+     * [resumeFirstSyncWhenBackOnline] below has to hear the connection come back while the app is in
+     * the background, which is exactly where the user is when they go and turn Wi-Fi on.
+     */
+    val isOffline: StateFlow<Boolean> = networkMonitor.online
+        .map { !it }
+        .asStateFlow(false, started = SharingStarted.Eagerly)
+
+    init {
+        resumeFirstSyncWhenBackOnline()
+    }
+
+    /**
+     * Starts the catalogue's first sync the moment the connection comes back.
+     *
+     * Launching with no network leaves that sync waiting on WorkManager, which on a device that has
+     * just joined a Wi-Fi can take minutes to notice, and minutes longer again if the attempt that ran
+     * without a connection is serving out its retry delay. The user meanwhile is looking at an app that
+     * appears to be doing nothing at all.
+     *
+     * Only on a real change (never the first reading, which is the connection the app started with),
+     * only while the catalogue is still empty, and only when nothing is syncing already: a sync in
+     * flight is filling that catalogue and must not be replaced by this one.
+     */
+    private fun resumeFirstSyncWhenBackOnline() {
+        viewModelScope.launch {
+            isOffline.collectIndexed { index, offline ->
+                if (index == 0 || offline) return@collectIndexed
+                if (appRepository.appCount() > 0) return@collectIndexed
+                if (SyncWorker.isSyncing(context).first()) return@collectIndexed
+                SyncWorker.restartUserSync(context)
+            }
+        }
+    }
+
     /** True while a batch "update all" is downloading its apps — locks the button and shows progress. */
     val isUpdatingAll: StateFlow<Boolean> = UpdateAllWorker.isUpdating(context).asStateFlow(false)
 
@@ -483,6 +532,19 @@ class AppListViewModel @Inject constructor(
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyMap())
+
+    /**
+     * Whether the catalogue holds no app at all, or null while the database has yet to answer.
+     *
+     * A list that has not been read yet and one that is genuinely empty look identical (both empty),
+     * so a screen that says something about being empty said it for the second or two every launch
+     * spends reading the catalogue: a full catalogue opened with the network off flashed "no
+     * connection" before the apps appeared. Nothing is claimed while this is null.
+     */
+    val catalogEmpty: StateFlow<Boolean?> = appRepository.catalogChanges
+        .map { it == 0 }
+        .distinctUntilChanged()
+        .asStateFlow(null)
 
     /** "What's new" carousel on the Discover home — the most recently added apps. */
     val newApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }

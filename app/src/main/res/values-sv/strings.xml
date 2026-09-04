@@ -238,4 +238,7 @@
     <string name="add_without_checking">Lägg till utan kontroll</string>
     <string name="address_single_line">Här finns mer än en rad. Behåll bara adressen.</string>
     <string name="last_updated">Senast uppdaterad:</string>
+    <string name="no_connection_title">Ingen internetanslutning</string>
+    <string name="no_connection_hint">Katalogen laddas av sig själv så snart anslutningen är tillbaka.</string>
+    <string name="no_connection_DESC">Nedladdningar och synkronisering fungerar inte förrän anslutningen är tillbaka.</string>
 </resources>

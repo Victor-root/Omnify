@@ -422,6 +422,9 @@
     <string name="follow_on_github">Auf GitHub folgen</string>
     <string name="fetching_repositories">App-Paketquellen werden abgerufen …</string>
     <string name="first_sync_hint">Der erste Start kann ein paar Minuten dauern, während der Katalog heruntergeladen wird. Bitte warte und schließe die App nicht.</string>
+    <string name="no_connection_title">Keine Internetverbindung</string>
+    <string name="no_connection_hint">Der Katalog wird von selbst geladen, sobald die Verbindung wieder da ist.</string>
+    <string name="no_connection_DESC">Downloads und Synchronisierung funktionieren erst wieder, wenn die Verbindung zurück ist.</string>
     <string name="tap_to_resume_updates">Öffne die App, um die Updates fortzusetzen</string>
     <string name="manage">Verwalten</string>
     <string name="tab_updates_short">Updates</string>

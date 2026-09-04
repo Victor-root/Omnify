@@ -4,4 +4,7 @@
     <string name="add_without_checking">පරීක්ෂා නොකර එක් කරන්න</string>
     <string name="address_single_line">මෙහි එක් පේළියකට වඩා තිබේ. ලිපිනය පමණක් තබා ගන්න.</string>
     <string name="last_updated">අවසන් යාවත්කාලීනය:</string>
+    <string name="no_connection_title">අන්තර්ජාල සම්බන්ධතාවක් නැත</string>
+    <string name="no_connection_hint">සම්බන්ධතාව නැවත ලැබුණු විගස නාමාවලිය තනිවම පූරණය වේ.</string>
+    <string name="no_connection_DESC">සම්බන්ධතාව නැවත ලැබෙන තෙක් බාගැනීම් සහ සමමුහූර්තකරණය ක්‍රියා නොකරයි.</string>
 </resources>

@@ -248,4 +248,7 @@
     <string name="add_without_checking">הוספה ללא בדיקה</string>
     <string name="address_single_line">יש כאן יותר משורה אחת. השאירו רק את הכתובת.</string>
     <string name="last_updated">עודכן לאחרונה:</string>
+    <string name="no_connection_title">אין חיבור לאינטרנט</string>
+    <string name="no_connection_hint">הקטלוג ייטען מעצמו ברגע שהחיבור יחזור.</string>
+    <string name="no_connection_DESC">הורדות וסנכרון לא יפעלו עד שהחיבור יחזור.</string>
 </resources>

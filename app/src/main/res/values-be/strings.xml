@@ -237,4 +237,7 @@
     <string name="add_without_checking">Дадаць без праверкі</string>
     <string name="address_single_line">Тут больш за адзін радок. Пакіньце толькі адрас.</string>
     <string name="last_updated">Апошняе абнаўленне:</string>
+    <string name="no_connection_title">Няма злучэння з інтэрнэтам</string>
+    <string name="no_connection_hint">Каталог загрузіцца сам, як толькі з’явіцца злучэнне.</string>
+    <string name="no_connection_DESC">Спампоўкі і сінхранізацыя не будуць працаваць, пакуль не адновіцца злучэнне.</string>
 </resources>

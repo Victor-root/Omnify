@@ -9,4 +9,7 @@
     <string name="add_without_checking">زیادکردن بەبێ پشکنین</string>
     <string name="address_single_line">ئەمە زیاتر لە یەک دێڕە. تەنها ناونیشانەکە بهێڵەوە.</string>
     <string name="last_updated">دوایین نوێکردنەوە:</string>
+    <string name="no_connection_title">پەیوەندی ئینتەرنێت نییە</string>
+    <string name="no_connection_hint">کاتالۆگ خۆی بار دەبێت هەرکە پەیوەندی گەڕایەوە.</string>
+    <string name="no_connection_DESC">داگرتن و هاوکاتکردن کار ناکەن هەتا پەیوەندی نەگەڕێتەوە.</string>
 </resources>

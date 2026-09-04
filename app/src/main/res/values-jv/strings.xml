@@ -4,4 +4,7 @@
     <string name="add_without_checking">Tambahake tanpa mriksa</string>
     <string name="address_single_line">Iki luwih saka sabaris. Sing ditinggal mung alamate.</string>
     <string name="last_updated">Pungkasan dianyari:</string>
+    <string name="no_connection_title">Ora ana sambungan internet</string>
+    <string name="no_connection_hint">Katalog bakal dimuat dhewe sanalika sambungan bali.</string>
+    <string name="no_connection_DESC">Undhuhan lan sinkronisasi ora bakal mlaku nganti sambungan bali.</string>
 </resources>

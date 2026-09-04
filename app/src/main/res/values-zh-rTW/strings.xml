@@ -263,4 +263,7 @@
     <string name="add_without_checking">不檢查直接新增</string>
     <string name="address_single_line">這裡不只一行。只保留位址。</string>
     <string name="last_updated">最後更新：</string>
+    <string name="no_connection_title">沒有網際網路連線</string>
+    <string name="no_connection_hint">連線恢復後目錄會自動載入。</string>
+    <string name="no_connection_DESC">連線恢復前，下載和同步都無法進行。</string>
 </resources>
