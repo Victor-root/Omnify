@@ -3,32 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title data-i18n="add.metaTitle">Open a project in Omnify</title>
-<meta name="description" data-i18n-attr="content:add.metaDesc" content="Follow a GitHub, GitLab, Codeberg, Gitea or Forgejo project in Omnify in one tap, and put the Get it on Omnify badge on your own project.">
+<title data-i18n="repolink.metaTitle">Add a repository to Omnify</title>
+<meta name="description" data-i18n-attr="content:repolink.metaDesc" content="Open an F-Droid repository in Omnify with its address, fingerprint and username already filled in, and build a link to share your own.">
 <meta name="theme-color" content="#080b09" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f7faf8" media="(prefers-color-scheme: light)">
 <link rel="icon" href="assets/omnify-logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
-<!-- The real icon (see icon.js) reads both these hosts; starting the connection now instead of on
-     its first fetch overlaps the handshake with the rest of the page loading. -->
-<link rel="preconnect" href="https://api.github.com" crossorigin>
-<link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
-<meta property="og:title" content="Open a project in Omnify">
-<meta property="og:description" content="Follow a project in Omnify in one tap, and put the Get it on Omnify badge on your own.">
+<meta property="og:title" content="Add a repository to Omnify">
+<meta property="og:description" content="Open an F-Droid repository in Omnify with its details already filled in.">
 <meta property="og:type" content="website">
 <script>
   /* Stamped before first paint so the page never flashes the half it isn't going to show. A link
-     carrying a project opens the prompt; the bare page is the documentation for maintainers. With
-     no JavaScript at all, the documentation is what shows, which is the useful default. */
-  if (new URLSearchParams(window.location.search).get("url")) {
+     carrying a repository opens the prompt; the bare page is the documentation for whoever runs one.
+     With no JavaScript at all, the documentation is what shows, which is the useful default.
+
+     The repository rides in the fragment, not the query, and that is the whole point: everything
+     after the # is kept by the browser and never sent to any server, so an address and a username
+     travel to the phone that was sent them without passing through GitHub's logs on the way. */
+  if (window.location.hash.length > 1) {
     document.documentElement.className += " mode-open";
-    /* Omnify is Android only, so the prompt itself only makes sense on a phone: a badge is usually
-       tapped from a README, and a README is read on a computer at least as often as on a phone. A
-       desktop visitor gets a QR code to continue there instead (see add.js); anything this can't
-       confidently place as one or the other stays on the phone flow, which is what already ships
-       today and fails safely (a button that quietly does nothing until the "nothing opened?" card
-       explains why), rather than risk showing a QR code to the one visitor this page most has to
-       serve right on their phone. */
+    /* Omnify is Android only, so the prompt itself only makes sense on a phone. A desktop visitor
+       gets a QR code to continue there instead (see repo.js); anything this can't confidently place
+       as one or the other stays on the phone flow, which fails safely (a button that quietly does
+       nothing until the "nothing opened?" card explains why). Same reasoning as the add page. */
     var ua = navigator.userAgent || "";
     var isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
     var isDesktop = !isMobile && /Windows|Macintosh|Linux/i.test(ua);
@@ -39,7 +36,7 @@
 <body>
 
 <!-- Only the icons this page uses. The nav and footer are repeated here rather than shared: the site
-     is plain static HTML with no template step, so a third page repeats them the same way. -->
+     is plain static HTML with no template step, so a fourth page repeats them the same way. -->
 <svg class="sprite" aria-hidden="true" focusable="false">
   <defs>
     <g id="i-github"><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5"/></g>
@@ -55,10 +52,10 @@
     <g id="i-scale"><path d="M7 20l10 0"/><path d="M6 6l6 -1l6 1"/><path d="M12 3l0 17"/><path d="M9 12l-3 -6l-3 6a3 3 0 0 0 6 0"/><path d="M21 12l-3 -6l-3 6a3 3 0 0 0 6 0"/></g>
     <g id="i-code"><path d="M7 8l-4 4l4 4"/><path d="M17 8l4 4l-4 4"/><path d="M14 4l-4 16"/></g>
     <g id="i-alert"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0"/><path d="M12 16h.01"/></g>
-    <g id="i-puzzle"><path d="M4 7h3a1 1 0 0 0 1 -1v-1a2 2 0 0 1 4 0v1a1 1 0 0 0 1 1h3a1 1 0 0 1 1 1v3a1 1 0 0 0 1 1h1a2 2 0 0 1 0 4h-1a1 1 0 0 0 -1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1v-1a2 2 0 0 0 -4 0v1a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1h1a2 2 0 0 0 0 -4h-1a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1"/></g>
     <g id="i-download"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></g>
     <g id="i-device-mobile"><path d="M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14"/><path d="M11 4h2"/><path d="M12 17v.01"/></g>
     <g id="i-info"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/></g>
+    <g id="i-server"><path d="M3 4m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v1a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z"/><path d="M3 12m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v1a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z"/><path d="M7 8v.01"/><path d="M7 16v.01"/></g>
   </defs>
 </svg>
 
@@ -117,7 +114,7 @@
 
 <main id="main">
 
-<!-- ============ Someone tapped a badge: hand the project to the app ============ -->
+<!-- ============ Someone was sent a repository: hand it to the app ============ -->
 <section class="doc-hero only-open" id="open">
   <div class="aurora" aria-hidden="true">
     <span class="blob b1"></span>
@@ -126,59 +123,54 @@
   <div class="wrap doc-hero-inner">
     <div class="open-layout">
       <div class="open-main">
-        <h1 data-i18n-html="add.openTitle">Open this project <span class="grad">in Omnify</span>.</h1>
+        <h1 data-i18n-html="repolink.openTitle">Add this repository <span class="grad">to Omnify</span>.</h1>
 
-        <div id="add-ok">
+        <div id="repo-ok">
           <div class="add-target">
             <div class="add-target-head">
-              <span class="add-target-icon" id="add-target-icon" aria-hidden="true">
-                <img id="add-target-img" alt="">
-                <span id="add-target-initial"></span>
+              <span class="add-target-icon icon-ready" aria-hidden="true">
+                <svg class="ico" viewBox="0 0 24 24"><use href="#i-server"/></svg>
               </span>
-              <p class="add-target-name" id="add-target-name"></p>
+              <p class="add-target-name" id="repo-host"></p>
             </div>
-            <!-- Mobile only: what following it means belongs with what it is, one card, rather than
-                 read as two unrelated things stacked on the page. The desktop equivalent (below,
-                 add.qrLede) stays outside the card, next to the QR code it is actually about. -->
-            <p class="lede only-mobile" data-i18n="add.openLede">Follow it in Omnify to install it now and get notified about every release after, no repository needed.</p>
+            <!-- What the link carries, so the reader knows what they are about to add before they add
+                 it: a repository address is where APKs will come from, which is worth reading. A
+                 password, if the sender put one in, is never shown, only acknowledged. -->
+            <dl class="repo-facts" id="repo-facts"></dl>
+            <p class="lede only-mobile" data-i18n="repolink.openLede">Omnify opens on its add-a-repository screen with these details already in place. Nothing is added until you say so.</p>
           </div>
 
           <div class="only-mobile">
             <div class="hero-cta">
-              <a class="btn btn-primary btn-lg" id="add-open-btn" href="#">
+              <a class="btn btn-primary btn-lg" id="repo-open-btn" href="#">
                 <svg class="ico" viewBox="0 0 24 24"><use href="#i-device-mobile"/></svg>
-                <span data-i18n="add.openBtn">Open Omnify</span>
+                <span data-i18n="repolink.openBtn">Open Omnify</span>
               </a>
-              <!-- A badge is usually the first time someone hears the name at all, so the way out of
-                   this page is two questions, not one: what the app is (the home page) and what the
-                   link does (this page's own documentation, further down). Both stay quiet behind
-                   the one green button a phone has; the desktop copy below has no such button, so
-                   the first question carries the accent there instead. -->
               <a class="btn btn-ghost" href="index.html">
                 <svg class="ico" viewBox="0 0 24 24"><use href="#i-info"/></svg>
-                <span data-i18n="add.whatIsOmnify">What is Omnify?</span>
+                <span data-i18n="repolink.whatIsOmnify">What is Omnify?</span>
               </a>
-              <a class="btn btn-ghost" href="add.html">
+              <a class="btn btn-ghost" href="repo.html">
                 <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
-                <span data-i18n="add.whatIs">What is this link?</span>
+                <span data-i18n="repolink.whatIs">What is this link?</span>
               </a>
             </div>
           </div>
 
-          <!-- Omnify is Android only: a desktop visitor hands the project to a phone instead of
-               opening it here (see the mode-desktop check in <head> and the QR generation in add.js).
-               The code itself sits beside this column, not inside it (see #add-qr below). -->
+          <!-- Omnify is Android only: a desktop visitor hands the repository to a phone instead of
+               opening it here (see the mode-desktop check in <head> and the QR generation in repo.js).
+               The code itself sits beside this column, not inside it (see #repo-qr below). -->
           <div class="only-desktop">
-            <p class="lede" data-i18n="add.qrLede">Omnify is an Android app. Scan this with your phone's camera to continue there.</p>
+            <p class="lede" data-i18n="repolink.qrLede">Omnify is an Android app. Scan this with your phone's camera to continue there.</p>
 
             <div class="hero-cta">
               <a class="btn btn-primary" href="index.html">
                 <svg class="ico" viewBox="0 0 24 24"><use href="#i-info"/></svg>
-                <span data-i18n="add.whatIsOmnify">What is Omnify?</span>
+                <span data-i18n="repolink.whatIsOmnify">What is Omnify?</span>
               </a>
-              <a class="btn btn-ghost" href="add.html">
+              <a class="btn btn-ghost" href="repo.html">
                 <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
-                <span data-i18n="add.whatIs">What is this link?</span>
+                <span data-i18n="repolink.whatIs">What is this link?</span>
               </a>
             </div>
           </div>
@@ -186,33 +178,33 @@
 
         <!-- Revealed only if the app never came to the front, so a link that worked doesn't get
              nagged at. Mobile only: the desktop flow has nothing here to fail at. -->
-        <div class="add-fallback only-mobile" id="add-fallback" hidden>
-          <h2><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-alert"/></svg> <span data-i18n="add.failTitle">Nothing opened?</span></h2>
-          <p data-i18n="add.failBody">Omnify has to be installed on this device for the link to reach it. Install it, come back here, and press the button again.</p>
+        <div class="add-fallback only-mobile" id="repo-fallback" hidden>
+          <h2><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-alert"/></svg> <span data-i18n="repolink.failTitle">Nothing opened?</span></h2>
+          <p data-i18n="repolink.failBody">Omnify has to be installed on this device for the link to reach it. Install it, come back here, and press the button again.</p>
           <a class="btn btn-primary" href="index.html#download">
             <svg class="ico" viewBox="0 0 24 24"><use href="#i-download"/></svg>
-            <span data-i18n="add.getOmnify">Get Omnify</span>
+            <span data-i18n="repolink.getOmnify">Get Omnify</span>
           </a>
         </div>
 
         <!-- Shown instead of everything above when the link carries nothing usable, which takes the
              buttons above with it, so this one carries its own way out. -->
-        <div class="add-fallback" id="add-invalid" hidden>
-          <h2><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-alert"/></svg> <span data-i18n="add.badTitle">There is no project in this link</span></h2>
-          <p data-i18n="add.badBody">It should carry the address of a project on GitHub, GitLab, Codeberg, or a self-hosted Gitea or Forgejo.</p>
-          <a class="btn btn-primary" href="index.html">
-            <svg class="ico" viewBox="0 0 24 24"><use href="#i-info"/></svg>
-            <span data-i18n="add.whatIsOmnify">What is Omnify?</span>
+        <div class="add-fallback" id="repo-invalid" hidden>
+          <h2><svg class="ico ico-xs" viewBox="0 0 24 24"><use href="#i-alert"/></svg> <span data-i18n="repolink.badTitle">There is no repository in this link</span></h2>
+          <p data-i18n="repolink.badBody">It should carry the address of an F-Droid repository, and may carry its fingerprint and a username with it.</p>
+          <a class="btn btn-primary" href="repo.html">
+            <svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg>
+            <span data-i18n="repolink.buildOne">Build a link</span>
           </a>
         </div>
       </div>
 
-      <div class="add-qr" id="add-qr" aria-hidden="true"></div>
+      <div class="add-qr" id="repo-qr" aria-hidden="true"></div>
     </div>
   </div>
 </section>
 
-<!-- ============ The bare page: what the badge is, and how to get one ============ -->
+<!-- ============ The bare page: what the link is, and how to build one ============ -->
 <section class="doc-hero only-doc" id="top">
   <div class="aurora" aria-hidden="true">
     <span class="blob b1"></span>
@@ -220,37 +212,35 @@
   </div>
   <div class="wrap doc-hero-inner split">
     <div class="split-copy">
-      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-code"/></svg> <span data-i18n="add.docEyebrow">For maintainers</span></span>
-      <h1 data-i18n-html="add.docTitle">One tap from your README <span class="grad">to Omnify</span>.</h1>
-      <p class="lede" data-i18n="add.docLede">Put a badge on your project and anyone reading it can follow your releases in Omnify without copying an address by hand. It costs you two lines in a README and nothing at all in your build.</p>
+      <span class="eyebrow"><svg class="ico" viewBox="0 0 24 24"><use href="#i-server"/></svg> <span data-i18n="repolink.docEyebrow">For repository owners</span></span>
+      <h1 data-i18n-html="repolink.docTitle">Share your repository <span class="grad">in one link</span>.</h1>
+      <p class="lede" data-i18n="repolink.docLede">Adding an F-Droid repository by hand means copying an address, a sixty-four character fingerprint and a username across without a typo. Send this link instead and Omnify opens with all of it already filled in.</p>
       <div class="hero-cta">
         <a class="btn btn-primary" href="#generate">
           <svg class="ico" viewBox="0 0 24 24"><use href="#i-arrow-right"/></svg>
-          <span data-i18n="add.docCta">Build my badge</span>
+          <span data-i18n="repolink.docCta">Build my link</span>
         </a>
       </div>
     </div>
-    <!-- The badge where it actually ends up. This page asks a maintainer to paste two lines into a
-         README, so showing that README is worth more than a decorative shape, and it gives the copy
-         beside it something to sit next to instead of a column alone in the middle of a wide screen.
-         Same card kit as the home page's own sections (see index.html). -->
+    <!-- The add screen as it arrives, filled in: this page asks someone to trust a link with their
+         repository's details, so showing where those details land is worth more than a decorative
+         shape. Same card kit as the home page's own sections (see index.html). -->
     <div class="split-visual reveal">
       <div class="card-stack">
         <div class="fake-card">
           <div class="fake-head">
             <span class="fake-icon" style="--c:var(--brand);--c-on:var(--brand-on)">
-              <svg class="ico" viewBox="0 0 24 24"><use href="#i-github"/></svg>
+              <svg class="ico" viewBox="0 0 24 24"><use href="#i-server"/></svg>
             </span>
             <div>
-              <strong>owner / project</strong>
-              <span>README.md</span>
+              <strong data-i18n="repolink.mockTitle">Add repository</strong>
+              <span data-i18n="repolink.mockSub">Already filled in</span>
             </div>
           </div>
           <div class="readme-mock" aria-hidden="true">
             <span class="readme-line readme-line-title"></span>
             <span class="readme-line"></span>
             <span class="readme-line readme-line-short"></span>
-            <img class="readme-badge" src="assets/get-it-on-omnify.svg" alt="" width="140" height="56">
             <span class="readme-line"></span>
             <span class="readme-line readme-line-short"></span>
           </div>
@@ -265,34 +255,28 @@
 <section class="section only-doc" id="generate">
   <div class="wrap">
     <div class="section-head reveal">
-      <h2 data-i18n="add.genTitle">Build your badge</h2>
-      <p class="section-sub" data-i18n="add.genBody">Paste your project's address. Everything below updates as you type, and nothing you type leaves this page.</p>
+      <h2 data-i18n="repolink.genTitle">Build your link</h2>
+      <p class="section-sub" data-i18n="repolink.genBody">Fill in what you want the link to carry. Everything updates as you type, and nothing you type leaves this page.</p>
     </div>
 
     <div class="add-gen reveal">
-      <label class="add-gen-label" for="gen-input" data-i18n="add.genLabel">Your project's address</label>
-      <input class="add-gen-input" id="gen-input" type="url" spellcheck="false" autocapitalize="off" autocorrect="off"
-             placeholder="https://github.com/owner/project">
+      <label class="add-gen-label" for="gen-address" data-i18n="repolink.genAddress">Repository address</label>
+      <input class="add-gen-input" id="gen-address" type="url" spellcheck="false" autocapitalize="off" autocorrect="off"
+             placeholder="https://example.org/fdroid/repo">
 
-      <p class="add-gen-heading" data-i18n="add.genPreview">Preview</p>
-      <p class="add-gen-empty" id="gen-empty" data-i18n="add.genEmpty">Paste an address above and your badge appears here.</p>
-      <a class="add-gen-preview" id="gen-preview" href="#" hidden>
-        <img src="assets/get-it-on-omnify.svg" alt="Get it on Omnify" width="140" height="56">
-      </a>
+      <label class="add-gen-label" for="gen-fingerprint" data-i18n="repolink.genFingerprint">Fingerprint (optional)</label>
+      <input class="add-gen-input" id="gen-fingerprint" type="text" spellcheck="false" autocapitalize="characters" autocorrect="off"
+             placeholder="0123456789ABCDEF…">
 
-      <div id="gen-snippets" hidden>
-        <p class="add-gen-heading" data-i18n="add.genMd">Markdown, for a README</p>
+      <label class="add-gen-label" for="gen-username" data-i18n="repolink.genUsername">Username (optional)</label>
+      <input class="add-gen-input" id="gen-username" type="text" spellcheck="false" autocapitalize="off" autocorrect="off"
+             data-i18n-attr="placeholder:repolink.genUsernameExample" placeholder="someone">
+
+      <p class="add-gen-heading" data-i18n="repolink.genResult">Your link</p>
+      <p class="add-gen-empty" id="gen-empty" data-i18n="repolink.genEmpty">Fill in an address above and your link appears here.</p>
+      <div id="gen-out" hidden>
         <div class="cmd">
-          <pre><code id="gen-md"></code></pre>
-          <button class="icon-btn" type="button" data-copy data-i18n-attr="aria-label:dl.copyAria" aria-label="Copy">
-            <svg class="ico ico-copy" viewBox="0 0 24 24"><use href="#i-copy"/></svg>
-            <svg class="ico ico-done" viewBox="0 0 24 24"><use href="#i-check"/></svg>
-          </button>
-        </div>
-
-        <p class="add-gen-heading" data-i18n="add.genHtml">HTML</p>
-        <div class="cmd">
-          <pre><code id="gen-html"></code></pre>
+          <pre><code id="gen-link"></code></pre>
           <button class="icon-btn" type="button" data-copy data-i18n-attr="aria-label:dl.copyAria" aria-label="Copy">
             <svg class="ico ico-copy" viewBox="0 0 24 24"><use href="#i-copy"/></svg>
             <svg class="ico ico-done" viewBox="0 0 24 24"><use href="#i-check"/></svg>
@@ -306,35 +290,40 @@
 <section class="section only-doc" id="how">
   <div class="wrap">
     <div class="section-head reveal">
-      <h2 data-i18n="add.howTitle">What happens when someone taps it</h2>
+      <h2 data-i18n="repolink.howTitle">What happens when someone opens it</h2>
     </div>
     <ol class="steps">
       <li class="reveal">
         <span class="step-n" aria-hidden="true">1</span>
         <div class="step-body">
-          <h3 data-i18n="add.how1Title">The badge opens this page</h3>
-          <p data-i18n="add.how1Body">It carries your project's address, and nothing else. No account, no tracking, no request to any server of ours.</p>
+          <h3 data-i18n="repolink.how1Title">The link opens this page</h3>
+          <p data-i18n="repolink.how1Body">It carries your repository's details, and nothing else. No account, no tracking, no request to any server of ours.</p>
         </div>
       </li>
       <li class="reveal">
         <span class="step-n" aria-hidden="true">2</span>
         <div class="step-body">
-          <h3 data-i18n="add.how2Title">The page hands it to Omnify</h3>
-          <p data-i18n="add.how2Body">Omnify opens on its add-a-source screen, already filled in. The reader decides whether to follow the project, and whether to install anything.</p>
+          <h3 data-i18n="repolink.how2Title">The page hands it to Omnify</h3>
+          <p data-i18n="repolink.how2Body">Omnify opens on its add-a-repository screen with the address, the fingerprint and the username in place. Nothing is added until the reader says so.</p>
         </div>
       </li>
       <li class="reveal">
         <span class="step-n" aria-hidden="true">3</span>
         <div class="step-body">
-          <h3 data-i18n="add.how3Title">Or it offers to get Omnify first</h3>
-          <p data-i18n="add.how3Body">If nothing answers, the reader isn't left on a dead link: the page says Omnify isn't there yet and points at the download.</p>
+          <h3 data-i18n="repolink.how3Title">Or it offers to get Omnify first</h3>
+          <p data-i18n="repolink.how3Body">If nothing answers, the reader isn't left on a dead link: the page says Omnify isn't there yet and points at the download.</p>
         </div>
       </li>
     </ol>
 
     <div class="add-note reveal">
-      <h3 data-i18n="add.noteTitle">Whole accounts work too</h3>
-      <p data-i18n="add.noteBody">An address pointing at an account rather than a single project offers to follow all of its releasing projects at once. GitHub, GitLab, Codeberg and self-hosted Gitea or Forgejo are all understood.</p>
+      <h3 data-i18n="repolink.privacyTitle">Why the link looks the way it does</h3>
+      <p data-i18n="repolink.privacyBody">Everything after the # in the link is kept by the browser and never sent to any web server, this one included. That is where your repository's details sit, so they travel from you to the person you sent them to and nowhere else.</p>
+    </div>
+
+    <div class="add-note reveal">
+      <h3 data-i18n="repolink.passwordTitle">Leave the password out</h3>
+      <p data-i18n="repolink.passwordBody">A password in a link is a password in someone's message history, on both phones, for good. Send the username in the link and the password another way; the person opening it has one field left to fill in rather than four.</p>
     </div>
   </div>
 </section>
@@ -386,8 +375,7 @@
 <script src="i18n.js"></script>
 <script src="accents.js"></script>
 <script src="script.js"></script>
-<script src="icon.js"></script>
 <script src="qrcode.js"></script>
-<script src="add.js"></script>
+<script src="repo.js"></script>
 </body>
 </html>

@@ -1377,6 +1377,10 @@ a { color: inherit; }
   white-space: pre;
 }
 .cmd .icon-btn { flex: none; }
+/* The one code box on the site meant to be read rather than run: a link someone is about to send is
+   worth checking before they send it, and a repository link with a fingerprint in it is far too long
+   to take in through a sideways scroll. */
+#gen-link { white-space: pre-wrap; overflow-wrap: anywhere; }
 .cmd-note { margin: 14px 0 0; color: var(--dim); font-size: 14px; max-width: 68ch; }
 
 /* Code named inside a sentence, as opposed to a command standing on its own above. */
@@ -1641,6 +1645,33 @@ a { color: inherit; }
   color: var(--text);
   overflow-wrap: anywhere;
   min-width: 0;
+}
+
+/* What a shared repository link carries, spelled out inside the same card as the host it belongs to
+   (see repo.html). A repository address decides where APKs come from, so it is read before it is
+   added, not after: label above value, values allowed to wrap anywhere, since a fingerprint is
+   sixty-four characters and a path can be long. The label column is dropped below 30em rather than
+   squeezed, so neither half ends up one character wide on a narrow phone. */
+.repo-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 16px;
+  margin: 2px 0 0;
+  font-size: 14.5px;
+}
+.repo-facts dt {
+  color: var(--dim);
+  white-space: nowrap;
+}
+.repo-facts dd {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.repo-facts dd + dt { margin-top: 2px; }
+@media (max-width: 30em) {
+  .repo-facts { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .repo-facts dd { margin-bottom: 8px; }
 }
 
 /* Held back until the app has had its chance to answer, so a link that worked is never followed by
