@@ -9,7 +9,6 @@ import com.looker.droidify.data.local.model.toApp
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
-import com.looker.droidify.data.model.CategorySource
 import com.looker.droidify.data.model.FilePath
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.datastore.SettingsRepository
@@ -164,30 +163,16 @@ class AppRepository @Inject constructor(
      * collection; changing it recreates the activity anyway.
      *
      * A private repository's own category otherwise sat alphabetically among the dozens the shipped
-     * repositories bring, which is exactly where its owner would not think to look for it. Same
-     * reasoning, and the same test, as the repositories list itself (see RepoListScreen).
+     * repositories bring, which is exactly where its owner would not think to look for it. The query
+     * decides that from the addresses Omnify ships with, the same test the repositories list uses.
      */
     val categories: Flow<List<CatalogCategory>>
         get() = flow {
             val prefix = languagePrefix(localeStream.first())
             emitAll(
-                combine(
-                    repoDao.categoriesLocalized(prefix),
-                    repoDao.categorySources(),
-                ) { categories, sources -> categories.ownFirst(sources) },
+                repoDao.categoriesLocalized(prefix, Repository.defaultAddresses.toList()),
             )
         }
-
-    private fun List<CatalogCategory>.ownFirst(sources: List<CategorySource>): List<CatalogCategory> {
-        val own = sources.asSequence()
-            .filter { it.address.trimEnd('/') !in Repository.defaultAddresses }
-            .mapTo(mutableSetOf()) { it.defaultName }
-        if (own.isEmpty()) return this
-        return sortedWith(
-            compareBy<CatalogCategory> { it.defaultName !in own }
-                .thenBy { it.name.lowercase() },
-        )
-    }
 
     /** A SQL LIKE pattern (e.g. "fr%") for the user's language, so any region variant matches. */
     private fun languagePrefix(language: String): String {

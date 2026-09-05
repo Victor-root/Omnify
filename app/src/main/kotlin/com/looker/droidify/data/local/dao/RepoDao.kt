@@ -8,7 +8,6 @@ import com.looker.droidify.data.local.model.LocalizedRepoIconEntity
 import com.looker.droidify.data.local.model.MirrorEntity
 import com.looker.droidify.data.local.model.RepoEntity
 import com.looker.droidify.data.model.CatalogCategory
-import com.looker.droidify.data.model.CategorySource
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -39,6 +38,11 @@ interface RepoDao {
      * Only categories some app is actually in. A category is never deleted from this table (nothing
      * ties it to the repository that declared it), so one a repository has stopped declaring, or that
      * left with the repository itself, would otherwise sit in the list for ever and open on nothing.
+     *
+     * [CatalogCategory.ownRepo] is true for a category declared by a repository whose address is not
+     * one of [shippedAddresses] (Omnify's own, trailing slash trimmed, which is how the repositories
+     * list tells the two apart as well), and those come first: the user's own repository brings one
+     * category among a hundred, and it is the one they went looking for.
      */
     @Query(
         """
@@ -48,27 +52,23 @@ interface RepoDao {
                 MAX(CASE WHEN locale = 'en-US' THEN name END),
                 MAX(CASE WHEN locale LIKE 'en%' THEN name END),
                 MAX(name)
-            ) AS name
+            ) AS name,
+            EXISTS (
+                SELECT 1 FROM category_repo_relation
+                JOIN repository ON repository.id = category_repo_relation.id
+                WHERE category_repo_relation.defaultName = category.defaultName
+                    AND RTRIM(repository.address, '/') NOT IN (:shippedAddresses)
+            ) AS ownRepo
         FROM category
         WHERE EXISTS (
             SELECT 1 FROM category_app_relation
             WHERE category_app_relation.defaultName = category.defaultName
         )
         GROUP BY category.defaultName
-        ORDER BY name COLLATE NOCASE
+        ORDER BY ownRepo DESC, name COLLATE NOCASE
         """,
     )
-    fun categoriesLocalized(langPrefix: String): Flow<List<CatalogCategory>>
-
-    /** Which repository each category was declared by, as its address (see [CategorySource]). */
-    @Query(
-        """
-        SELECT category_repo_relation.defaultName AS defaultName, repository.address AS address
-        FROM category_repo_relation
-        JOIN repository ON repository.id = category_repo_relation.id
-        """,
-    )
-    fun categorySources(): Flow<List<CategorySource>>
+    fun categoriesLocalized(langPrefix: String, shippedAddresses: List<String>): Flow<List<CatalogCategory>>
 
     @Query(
         """

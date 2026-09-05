@@ -1,0 +1,56 @@
+<!-- A category one of the user's own repositories brings: Tabler's "box" with Tabler's filled "user"
+     as a badge. The box is drawn a little smaller and towards the top left so the badge gets a corner
+     of its own instead of sitting on the cube's own edges, which at 24dp reads as one shape. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:tint="?attr/colorControlNormal"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:scaleX="0.78"
+        android:scaleY="0.78"
+        android:translateX="-2.4"
+        android:translateY="-2.4">
+        <path
+            android:pathData="M12,3l8,4.5l0,9l-8,4.5l-8,-4.5l0,-9l8,-4.5"
+            android:strokeColor="@android:color/white"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M12,12l8,-4.5"
+            android:strokeColor="@android:color/white"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M12,12l0,9"
+            android:strokeColor="@android:color/white"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M12,12l-8,-4.5"
+            android:strokeColor="@android:color/white"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:scaleX="0.5"
+        android:scaleY="0.5"
+        android:translateX="6"
+        android:translateY="6">
+        <path
+            android:pathData="M12,2a5,5 0 1 1 -5,5l0.005,-0.217a5,5 0 0 1 4.995,-4.783z"
+            android:fillColor="@android:color/white" />
+        <path
+            android:pathData="M14,14a5,5 0 0 1 5,5v1a2,2 0 0 1 -2,2h-10a2,2 0 0 1 -2,-2v-1a5,5 0 0 1 5,-5h4z"
+            android:fillColor="@android:color/white" />
+    </group>
+</vector>
