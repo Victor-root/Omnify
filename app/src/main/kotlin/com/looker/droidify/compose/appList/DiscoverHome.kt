@@ -209,7 +209,7 @@ fun CategoryRow(
     name: String,
     defaultName: String,
     expanded: Boolean = false,
-    // A category one of the user's own repositories brings, which is drawn with a badge of its own
+    // A category one of the user's own repositories brings, which is drawn with an icon of its own
     // rather than the neutral tag every unmapped category falls back to: its name is whatever that
     // repository decided to call it, so nothing else on the row says whose it is.
     ownRepo: Boolean = false,

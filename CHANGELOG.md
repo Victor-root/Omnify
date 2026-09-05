@@ -5,7 +5,7 @@
 Tidier categories on the Explore tab: the ones your own repositories bring come first, and ones holding nothing at all stop showing.
 
 ### 🔄 Changed
-- **A category from a repository you added yourself now leads the categories list**, instead of sitting alphabetically among the dozens the shipped repositories bring, and carries an icon of its own (a box with a person on it) rather than the neutral tag every unrecognised category falls back to. The same order the repositories list already uses.
+- **A category from a repository you added yourself now leads the categories list**, instead of sitting alphabetically among the dozens the shipped repositories bring, and carries an icon of its own (a box with a plus on it) rather than the neutral tag every unrecognised category falls back to. The same order the repositories list already uses.
 
 ### 🐛 Fixed
 - **A category with no apps in it no longer shows.** Nothing ever removed a category once it had been seen, so one a repository stopped declaring, or that left along with the repository itself, stayed in the list for good and opened on nothing.
