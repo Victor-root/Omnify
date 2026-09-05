@@ -394,6 +394,13 @@ data class Repository(
             ),
         )
 
+        /** The addresses of [defaultRepositories], without their trailing slash, which is how a
+         *  repository the user added themselves is told from one Omnify ships with: the two are
+         *  the same kind of row otherwise, and the user's own belongs first wherever they are
+         *  listed. */
+        val defaultAddresses: Set<String> =
+            defaultRepositories.mapTo(mutableSetOf()) { it.address.trimEnd('/') }
+
         fun newRepos(): List<Repository> = listOf()
 
         fun addressesToRemove(): List<String> = listOf(
