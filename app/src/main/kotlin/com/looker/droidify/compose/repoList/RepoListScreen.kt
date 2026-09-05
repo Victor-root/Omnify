@@ -211,7 +211,7 @@ fun RepoListScreen(
     // Omnify already ships with. Everything else stays alphabetical below it.
     val sortedRepos = remember(repos) {
         repos.sortedWith(
-            compareBy<Repo> { it.address.trimEnd('/') in DEFAULT_REPO_ADDRESSES }
+            compareBy<Repo> { it.address.trimEnd('/') in Repository.defaultAddresses }
                 .thenBy { it.name.trim().lowercase() },
         )
     }
@@ -724,12 +724,6 @@ private fun TvPackSubHeader() {
 private const val SECTION_KEY_EXTERNAL = "external"
 private const val SECTION_KEY_FDROID = "fdroid"
 private const val SECTION_KEY_OMNIFY_PICKS = "omnify_picks"
-
-/** The addresses Omnify seeds itself with, so a repository the user added by hand can be told apart
- *  from one that was always in the list. Trailing slash trimmed, like [defaultRepoName] keys it. */
-private val DEFAULT_REPO_ADDRESSES: Set<String> =
-    Repository.defaultRepositories.mapTo(mutableSetOf()) { it.address.trimEnd('/') }
-
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

@@ -8,6 +8,7 @@ import com.looker.droidify.data.local.model.LocalizedRepoIconEntity
 import com.looker.droidify.data.local.model.MirrorEntity
 import com.looker.droidify.data.local.model.RepoEntity
 import com.looker.droidify.data.model.CatalogCategory
+import com.looker.droidify.data.model.CategorySource
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -34,6 +35,10 @@ interface RepoDao {
      * One row per category with its localized display name: the name whose locale matches the user's
      * language ([langPrefix], e.g. "fr%"), else the en-US name, else any English name, else any name.
      * [CatalogCategory.defaultName] stays the English key used for filtering and the icon mapping.
+     *
+     * Only categories some app is actually in. A category is never deleted from this table (nothing
+     * ties it to the repository that declared it), so one a repository has stopped declaring, or that
+     * left with the repository itself, would otherwise sit in the list for ever and open on nothing.
      */
     @Query(
         """
@@ -45,11 +50,25 @@ interface RepoDao {
                 MAX(name)
             ) AS name
         FROM category
+        WHERE EXISTS (
+            SELECT 1 FROM category_app_relation
+            WHERE category_app_relation.defaultName = category.defaultName
+        )
         GROUP BY category.defaultName
         ORDER BY name COLLATE NOCASE
         """,
     )
     fun categoriesLocalized(langPrefix: String): Flow<List<CatalogCategory>>
+
+    /** Which repository each category was declared by, as its address (see [CategorySource]). */
+    @Query(
+        """
+        SELECT category_repo_relation.defaultName AS defaultName, repository.address AS address
+        FROM category_repo_relation
+        JOIN repository ON repository.id = category_repo_relation.id
+        """,
+    )
+    fun categorySources(): Flow<List<CategorySource>>
 
     @Query(
         """
