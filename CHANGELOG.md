@@ -1,5 +1,17 @@
 # 📋 Changelog
 
+## 🚀 v1.0.6-beta.7 (2026-09-05)
+
+Tidier categories on the Explore tab: the ones your own repositories bring come first, and ones holding nothing at all stop showing.
+
+### 🔄 Changed
+- **A category from a repository you added yourself now leads the categories list**, instead of sitting alphabetically among the dozens the shipped repositories bring. The same order the repositories list already uses.
+
+### 🐛 Fixed
+- **A category with no apps in it no longer shows.** Nothing ever removed a category once it had been seen, so one a repository stopped declaring, or that left along with the repository itself, stayed in the list for good and opened on nothing.
+
+---
+
 ## 🚀 v1.0.5-beta.6 (2026-09-04)
 
 A follow-up to the downgrade fix in v1.0.4-beta.5, which turned out not to cover every device it was reported from, and a large cut in the requests external sources spend.

@@ -86,7 +86,7 @@ if (hasReleaseSigning && releaseKeystore?.isFile != true) {
 // Bump this on every published build, and specifically its dotted part: an external source's update
 // check reads the version out of the release tag / APK name and stops at the first hyphen, so a new
 // "-beta.N" on its own reads as the same version and no update is offered.
-val latestVersionName = "1.0.5"
+val latestVersionName = "1.0.6"
 
 /** See the SIMULATE_CHANNEL_SWITCH build config field below. Read as a Gradle property rather than
  *  written into this file, so trying it out leaves nothing behind to remember to switch back off. */
@@ -115,7 +115,7 @@ android {
         // Android's own ordering, invisible to the user: it refuses to install over a build whose
         // versionCode isn't lower, so this has to rise on every published build regardless of what
         // versionName says.
-        versionCode = 1006
+        versionCode = 1007
 
         testInstrumentationRunner = "com.looker.droidify.TestRunner"
     }
@@ -200,7 +200,7 @@ android {
         create("beta") {
             initWith(getByName("release"))
             applicationIdSuffix = ".beta"
-            versionNameSuffix = "-beta.6"
+            versionNameSuffix = "-beta.7"
         }
         debug {
             applicationIdSuffix = ".debug"
