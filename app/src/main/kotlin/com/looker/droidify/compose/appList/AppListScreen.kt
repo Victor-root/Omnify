@@ -1000,6 +1000,7 @@ fun AppListScreen(
                                 name = category.name,
                                 defaultName = category.defaultName,
                                 expanded = category.defaultName in expandedSections,
+                                ownRepo = category.ownRepo,
                                 onClick = { viewModel.toggleSection(category.defaultName) },
                             )
                         }

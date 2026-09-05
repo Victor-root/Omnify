@@ -10,16 +10,8 @@ import com.looker.droidify.sync.v2.model.DefaultName
 data class CatalogCategory(
     val defaultName: DefaultName,
     val name: String,
-)
-
-/**
- * One row per category and repository declaring it (a category can come from several at once).
- *
- * The address is the whole point: it is what tells a category declared by a repository the user
- * added themselves from one of the several dozen Omnify ships with, which decides where it sits in
- * the categories list.
- */
-data class CategorySource(
-    val defaultName: DefaultName,
-    val address: String,
+    /** True when a repository the user added themselves declares this category, as opposed to one of
+     *  the several dozen Omnify ships with. It leads the list then, and is drawn with a badge of its
+     *  own, since among a hundred catalogue categories theirs is the one they came for. */
+    val ownRepo: Boolean,
 )

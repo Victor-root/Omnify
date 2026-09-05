@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -208,6 +209,10 @@ fun CategoryRow(
     name: String,
     defaultName: String,
     expanded: Boolean = false,
+    // A category one of the user's own repositories brings, which is drawn with a badge of its own
+    // rather than the neutral tag every unmapped category falls back to: its name is whatever that
+    // repository decided to call it, so nothing else on the row says whose it is.
+    ownRepo: Boolean = false,
     onClick: () -> Unit,
 ) {
     Row(
@@ -229,7 +234,11 @@ fun CategoryRow(
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
         ) {
             Icon(
-                imageVector = categoryIcon(defaultName),
+                painter = if (ownRepo) {
+                    painterResource(R.drawable.ic_category_own_repo)
+                } else {
+                    rememberVectorPainter(categoryIcon(defaultName))
+                },
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp),
