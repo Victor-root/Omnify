@@ -1,5 +1,7 @@
 <div align="center">
 
+**A clutter-free F-Droid client that also installs apps from anywhere.**
+
 [![Visit the website](https://img.shields.io/badge/Visit%20the%20website-victor--root.github.io-3DDC84?style=for-the-badge&logo=googlechrome&logoColor=white)](https://victor-root.github.io/Omnify/)
 
 [![Latest release](https://img.shields.io/github/v/release/Victor-root/Omnify?style=for-the-badge&logo=github&label=release&include_prereleases)](https://github.com/Victor-root/Omnify/releases/latest)
@@ -27,14 +29,6 @@ private repository by link or badge your own project. Thirteen languages, light 
 > **Free and Open-Source Android is under threat.**
 > Google plans to make Android more locked-down, restricting your freedom to install the apps of your choice.
 > Make your voice heard: [**Keep Android Open**](https://keepandroidopen.org/).
-
-<div align="center">
-
-<img src="metadata/en-US/images/featureGraphic.png" alt="Omnify" width="100%">
-
-**A clutter-free F-Droid client that also installs apps from anywhere.**
-
-</div>
 
 ---
 
