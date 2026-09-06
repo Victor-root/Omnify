@@ -1,5 +1,7 @@
 <div align="center">
 
+[![Visit the website](https://img.shields.io/badge/Visit%20the%20website-victor--root.github.io-3DDC84?style=for-the-badge&logo=googlechrome&logoColor=white)](https://victor-root.github.io/Omnify/)
+
 [![Latest release](https://img.shields.io/github/v/release/Victor-root/Omnify?style=for-the-badge&logo=github&label=release&include_prereleases)](https://github.com/Victor-root/Omnify/releases/latest)
 [![Last update](https://img.shields.io/github/last-commit/Victor-root/Omnify/main?style=for-the-badge&logo=git&label=last%20update)](https://github.com/Victor-root/Omnify/commits/main)
 [![Downloads](https://img.shields.io/github/downloads/Victor-root/Omnify/total?style=for-the-badge&logo=github&label=downloads)](https://github.com/Victor-root/Omnify/releases)
@@ -12,6 +14,12 @@
 
 [![Automatic updates](https://img.shields.io/badge/External%20apps-auto--updated-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Victor-root/Omnify#-install-apps-from-anywhere-external-sources)
 [![Material You](https://img.shields.io/badge/Material%20You-Material%203-6750A4?style=for-the-badge&logo=materialdesign&logoColor=white)](https://github.com/Victor-root/Omnify#-modern-material-you-interface)
+
+<a href="https://victor-root.github.io/Omnify/"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/website-dark.webp"><img width="820" alt="The Omnify website: the full feature list with real screenshots, the download link, and the tools to share a repository or badge a project" src=".github/assets/website-light.webp" /></picture></a>
+
+**[victor-root.github.io/Omnify](https://victor-root.github.io/Omnify/)** has the full
+feature list with real screenshots, the download link, and the tools to share a
+private repository by link or badge your own project. Thirteen languages, light and dark.
 
 </div>
 
