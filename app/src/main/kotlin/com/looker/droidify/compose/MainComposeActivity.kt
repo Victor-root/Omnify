@@ -375,6 +375,7 @@ class MainComposeActivity : ComponentActivity() {
 
     /** Routes an incoming deeplink/intent to the matching Compose destination. */
     private fun handleDeeplink(intent: Intent, navController: NavController) {
+        trailUpdatesNav { "handleDeeplink action=${intent.action}" }
         try {
             when (intent.action) {
                 // The "updates available" notification. Naming the tab as well as the screen: the
@@ -383,7 +384,13 @@ class MainComposeActivity : ComponentActivity() {
                 // told about.
                 ACTION_UPDATES -> {
                     PendingAppListTab.request(AppTab.UPDATES)
+                    trailUpdatesNav { "ACTION_UPDATES: requested UPDATES tab, navigating to app list" }
                     navController.navigateToAppList()
+                    trailUpdatesNav {
+                        "ACTION_UPDATES: back stack now ${
+                            navController.currentBackStack.value.map { it.destination.route }
+                        }"
+                    }
                     // Consume the launching intent, so an activity recreation (a theme change, say)
                     // can't pull the reader back to Updates long after they moved on.
                     intent.action = null
@@ -427,8 +434,9 @@ class MainComposeActivity : ComponentActivity() {
                     setIntent(intent)
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Malformed deeplink or nav graph not ready yet — ignore rather than crash.
+            trailUpdatesNav { "handleDeeplink threw for action=${intent.action}: $e" }
         }
     }
 
@@ -662,10 +670,12 @@ class MainComposeActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 // Handle the launching deeplink, then any that arrive while we're running.
                 LaunchedEffect(navController) {
+                    trailUpdatesNav { "onCreate/recomposition path" }
                     handleDeeplink(intent, navController)
                 }
                 DisposableEffect(navController) {
                     val listener = Consumer<Intent> { newIntent ->
+                        trailUpdatesNav { "onNewIntent path" }
                         handleDeeplink(newIntent, navController)
                     }
                     addOnNewIntentListener(listener)

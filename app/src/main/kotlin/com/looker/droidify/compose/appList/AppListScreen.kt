@@ -142,6 +142,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
+import com.looker.droidify.compose.trailUpdatesNav
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.settings.components.InfoBanner
@@ -256,6 +257,7 @@ fun AppListScreen(
     // cleared. Goes through selectTab exactly as tapping that tab does, so it lands in the same state.
     val requestedTab by PendingAppListTab.pending.collectAsStateWithLifecycle()
     LaunchedEffect(requestedTab) {
+        trailUpdatesNav { "AppListScreen composed, requestedTab=$requestedTab" }
         val tab = requestedTab ?: return@LaunchedEffect
         viewModel.selectTab(tab)
         PendingAppListTab.clear()
