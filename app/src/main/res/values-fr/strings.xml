@@ -146,6 +146,7 @@
     <string name="tv_apps_only">Afficher uniquement les applications conçues pour la TV</string>
     <string name="discover_shizuku">Compatibles Shizuku</string>
     <string name="discover_root">Pour appareils rootés</string>
+    <string name="discover_recommended_victor">Recommandés par Victor-root</string>
     <string name="no_installed_apps">Aucune application installée</string>
     <string name="everything_up_to_date">Tout est à jour</string>
     <string name="delete_repository">Supprimer le dépôt</string>

@@ -132,6 +132,16 @@ class AppRepository @Inject constructor(
     }
 
     /**
+     * Catalogue apps matching [packageNames], for the Discover home's "Recommended by Victor-root"
+     * row (see [AppDao.byPackageNames]). Guarded like [rootApps]/[mostDownloadedApps]: a query issue
+     * simply yields no apps rather than crashing the home screen.
+     */
+    suspend fun appsByPackageNames(packageNames: List<String>): List<AppMinimal> = withContext(Dispatchers.Default) {
+        val currentLocale = localeStream.first()
+        runCatching { appDao.byPackageNames(packageNames, currentLocale) }.getOrDefault(emptyList())
+    }
+
+    /**
      * The real app icon for every repo that serves exactly one app, keyed by repo id (see
      * [AppDao.singleAppRepoIcons]). Stands in as that repository's logo in the repositories list when
      * it declares none of its own, which is better than the blank that would otherwise sit there.

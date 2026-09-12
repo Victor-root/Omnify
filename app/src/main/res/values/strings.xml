@@ -433,6 +433,7 @@
     <string name="tv_apps_only">Show only apps made for TV</string>
     <string name="discover_shizuku">Works with Shizuku</string>
     <string name="discover_root">For rooted devices</string>
+    <string name="discover_recommended_victor">Recommended by Victor-root</string>
     <string name="no_installed_apps">No installed apps found</string>
     <string name="everything_up_to_date">Everything is up to date</string>
     <string name="delete_repository">Delete repository</string>

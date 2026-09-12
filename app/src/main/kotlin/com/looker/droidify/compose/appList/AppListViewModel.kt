@@ -20,6 +20,7 @@ import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
+import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.network.NetworkMonitor
 import com.looker.droidify.sync.v2.model.DefaultName
@@ -74,6 +75,46 @@ sealed interface FavouriteApp {
  *  carousel follows the same choice (see AppListScreen's sortedFavourites), so picking an order on
  *  the full page is reflected there too instead of the carousel keeping some order of its own. */
 enum class FavouritesSortOrder { NAME, FAVOURITED_AT, INSTALLED_AT }
+
+/** One entry of [RECOMMENDED_BY_VICTOR]: either a regular F-Droid catalogue package, or one of the
+ *  developer's own apps, tracked as an external source under his "Victor-root" GitHub account and
+ *  identified by its repo name there (see [ExternalApp.repo]). */
+private sealed interface RecommendedEntry {
+    data class Catalogue(val packageName: String) : RecommendedEntry
+    data class External(val repo: String) : RecommendedEntry
+}
+
+/** GitHub account the [RecommendedEntry.External] entries below are tracked under (see
+ *  MainComposeActivity's victorAccount). */
+private const val VICTOR_ROOT_OWNER = "Victor-root"
+
+/**
+ * The developer's own hand-picked list for the Discover home's "Recommended by Victor-root" row, in
+ * the order it's shown. Hardcoded on purpose: this is a personal recommendation list, not something
+ * derived from any catalogue data.
+ */
+private val RECOMMENDED_BY_VICTOR: List<RecommendedEntry> = listOf(
+    RecommendedEntry.Catalogue("net.thunderbird.android"), // Thunderbird
+    RecommendedEntry.Catalogue("org.videolan.vlc"), // VLC
+    RecommendedEntry.Catalogue("helium314.keyboard"), // HeliBoard
+    RecommendedEntry.External("OpenMessages"),
+    RecommendedEntry.Catalogue("com.gitlab.mudlej.MjPdfReader"), // mjpdf
+    RecommendedEntry.Catalogue("com.topjohnwu.magisk"), // Magisk
+    RecommendedEntry.Catalogue("org.localsend.localsend_app"), // LocalSend
+    RecommendedEntry.Catalogue("com.brave.browser"), // Brave
+    RecommendedEntry.Catalogue("com.cbouvat.android.saracroche"), // Saracroche
+    RecommendedEntry.Catalogue("de.markusfisch.android.binaryeye"), // Binary Eye
+    RecommendedEntry.Catalogue("org.breezyweather"), // Breezy Weather
+    RecommendedEntry.Catalogue("com.aurora.store"), // Aurora Store
+    RecommendedEntry.Catalogue("org.fossify.phone"), // Fossify Phone
+    RecommendedEntry.Catalogue("org.fossify.contacts"), // Fossify Contacts
+    RecommendedEntry.Catalogue("org.fossify.gallery"), // Fossify Gallery
+    RecommendedEntry.External("AdAway-Community"),
+    RecommendedEntry.External("VFiles"),
+)
+
+private val RECOMMENDED_CATALOGUE_PACKAGES: List<String> =
+    RECOMMENDED_BY_VICTOR.filterIsInstance<RecommendedEntry.Catalogue>().map { it.packageName }
 
 @HiltViewModel
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
@@ -599,6 +640,41 @@ class AppListViewModel @Inject constructor(
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
+
+    /**
+     * "Recommended by Victor-root": a plain vertical list (not a carousel) on the Discover home, of
+     * apps the developer personally recommends. A fixed, hand-picked list rather than one built from
+     * catalogue filters, mixing regular F-Droid catalogue apps with three of the developer's own apps
+     * tracked as external sources under his "Victor-root" GitHub account (see MainComposeActivity's
+     * victorAccount and ExternalAccount.OMNIFY_KEY).
+     *
+     * A catalogue entry disappears on its own once its repo is disabled (a disabled repo's rows are
+     * deleted, see AppRepository.appsByPackageNames / AppDao.deleteByRepoId), and an external entry
+     * disappears once the user disables the Victor-root account or its own tracked app, exactly like
+     * every other repository/source in Omnify, nothing extra to check here beyond the same [enabled]
+     * flag every other external-source check already reads (e.g. [externallyInstalledPackages]).
+     */
+    val recommendedByVictorApps: StateFlow<List<FavouriteApp>> =
+        combine(catalogChanges, hiddenApps, externalAppRepository.apps) { _, hidden, externalApps ->
+            hidden to externalApps
+        }
+            .mapLatest { (hidden, externalApps) ->
+                val catalogueApps = appRepository.appsByPackageNames(RECOMMENDED_CATALOGUE_PACKAGES)
+                    .excludingHidden(hidden)
+                    .associateBy { it.packageName.name }
+                val externalByRepo = externalApps
+                    .filter { it.provider == SourceProvider.GITHUB && it.owner == VICTOR_ROOT_OWNER && it.enabled }
+                    .associateBy { it.repo }
+                RECOMMENDED_BY_VICTOR.mapNotNull { entry ->
+                    when (entry) {
+                        is RecommendedEntry.Catalogue -> catalogueApps[entry.packageName]?.let(FavouriteApp::Catalogue)
+                        is RecommendedEntry.External -> externalByRepo[entry.repo]?.let(FavouriteApp::External)
+                    }
+                }
+            }
+            .distinctUntilChanged()
+            .flowOn(Dispatchers.Default)
+            .asStateFlow(emptyList())
 
     /** Puts the Shizuku app itself at the head of its own "Works with Shizuku" list, so the section
      *  reads coherently. Shizuku defines the permission rather than requesting it, so it may not match

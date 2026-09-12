@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.data.model.AppMinimal
@@ -254,6 +255,40 @@ fun CategoryRow(
             imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** One row of the "Recommended by Victor-root" list: icon + name, tap opens the app. Unlike
+ *  [CategoryRow] there's nothing to expand, so no chevron: this section is a plain vertical list,
+ *  not a carousel or an accordion. [entry] is either a catalogue app or one of the developer's own
+ *  apps tracked as an external source. */
+@Composable
+fun RecommendedAppRow(
+    entry: FavouriteApp,
+    isInstalled: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            // TV only: soft fill behind the focused row (no-op on touch).
+            .tvFocusFill(RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        when (entry) {
+            is FavouriteApp.Catalogue -> AppMinimalIcon(entry.app, isInstalled, Modifier.size(40.dp))
+            is FavouriteApp.External -> ExternalAppIcon(entry.app, isInstalled, size = 40.dp)
+        }
+        Spacer(Modifier.width(16.dp))
+        Text(
+            text = entry.name,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
         )
     }
 }

@@ -190,6 +190,7 @@ fun AppListScreen(
     val rootApps by viewModel.rootApps.collectAsStateWithLifecycle()
     val tvApps by viewModel.tvApps.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val recommendedByVictorApps by viewModel.recommendedByVictorApps.collectAsStateWithLifecycle()
     val favouriteApps by viewModel.favouriteApps.collectAsStateWithLifecycle()
     val favouritedAt by viewModel.favouritedAt.collectAsStateWithLifecycle()
     val favouriteInstallDates by viewModel.favouriteInstallDates.collectAsStateWithLifecycle()
@@ -986,11 +987,42 @@ fun AppListScreen(
                         )
                     }
                 }
+                // "Recommended by Victor-root": the developer's own hand-picked apps, as a plain
+                // vertical list (not a carousel): a title, then one row per app.
+                if (recommendedByVictorApps.isNotEmpty()) {
+                    item(
+                        span = { GridItemSpan(maxLineSpan) },
+                        key = "recommended-victor-title",
+                        contentType = "recommended-victor-title",
+                    ) {
+                        DiscoverListTitle(stringResource(R.string.discover_recommended_victor))
+                    }
+                    items(
+                        items = recommendedByVictorApps,
+                        key = { "recommended-${it.key}" },
+                        span = { GridItemSpan(maxLineSpan) },
+                        contentType = { "recommended-victor-row" },
+                    ) { entry ->
+                        RecommendedAppRow(
+                            entry = entry,
+                            isInstalled = when (entry) {
+                                is FavouriteApp.Catalogue -> entry.app.packageName.name in installedPackages
+                                is FavouriteApp.External -> entry.app.key in externalInstalledKeys
+                            },
+                            onClick = {
+                                when (entry) {
+                                    is FavouriteApp.Catalogue -> openApp(entry.app.packageName.name)
+                                    is FavouriteApp.External -> openExternalApp(entry.app.key)
+                                }
+                            },
+                        )
+                    }
+                }
                 // The categories accordion. The chevron expands a category's apps inline; tapping
                 // again collapses it.
                 if (categories.isNotEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "categories-title", contentType = "categories-title") {
-                        CategoriesTitle()
+                        DiscoverListTitle(stringResource(R.string.categories))
                     }
                     categories.forEach { category ->
                         item(
@@ -1898,11 +1930,12 @@ private fun LazyGridScope.expandedAppItems(
 fun Modifier.restoreFocusTarget(matches: Boolean, requester: FocusRequester): Modifier =
     if (matches) focusRequester(requester) else this
 
-/** "Categories" heading above the categories list. */
+/** A section heading in the Discover home's flat lists (categories, recommended apps); shared so
+ *  both read identically. */
 @Composable
-private fun CategoriesTitle() {
+private fun DiscoverListTitle(text: String) {
     Text(
-        text = stringResource(R.string.categories),
+        text = text,
         style = MaterialTheme.typography.titleLarge,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     )

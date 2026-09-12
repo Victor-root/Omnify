@@ -224,6 +224,58 @@ interface AppDao {
     }
 
     /**
+     * Catalogue apps matching any of [packageNames], used for the Discover home's "Recommended by
+     * Victor-root" row, a small hand-picked list rather than one built from filters. One row per
+     * matching package name; an app that isn't currently in the catalogue (its repo was never added,
+     * or is disabled: a disabled repo's rows are deleted, see AppDao.deleteByRepoId) is simply absent
+     * from the result, nothing else needs to check that here. Grouped by packageName like
+     * [mostDownloaded]/[rootApps], so an app carried by more than one of the user's repos (e.g. both
+     * F-Droid and IzzyOnDroid) still yields a single row rather than one per repo.
+     */
+    suspend fun byPackageNames(packageNames: List<String>, locale: String): List<AppMinimal> {
+        if (packageNames.isEmpty()) return emptyList()
+        val placeholders = packageNames.joinToString(",") { "?" }
+        val query = SimpleSQLiteQuery(
+            """
+            SELECT
+                app.id AS appId,
+                app.packageName AS packageName,
+                COALESCE(n_loc.name, n_en.name, app.packageName) AS name,
+                COALESCE(s_loc.summary, s_en.summary) AS summary,
+                repo.address AS baseAddress,
+                COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName,
+                (
+                    SELECT v.versionName FROM version v
+                    WHERE v.appId = app.id
+                    ORDER BY v.versionCode DESC
+                    LIMIT 1
+                ) AS suggestedVersion
+            FROM app
+            JOIN repository AS repo ON app.repoId = repo.id
+            LEFT JOIN localized_app_name AS n_loc ON n_loc.appId = app.id AND n_loc.locale = ?
+            LEFT JOIN localized_app_name AS n_en ON n_en.appId = app.id AND n_en.locale = 'en-US'
+            LEFT JOIN localized_app_summary AS s_loc ON s_loc.appId = app.id AND s_loc.locale = ?
+            LEFT JOIN localized_app_summary AS s_en ON s_en.appId = app.id AND s_en.locale = 'en-US'
+            LEFT JOIN localized_app_icon AS i_loc ON i_loc.appId = app.id AND i_loc.locale = ?
+            LEFT JOIN localized_app_icon AS i_en ON i_en.appId = app.id AND i_en.locale = 'en-US'
+            WHERE app.packageName IN ($placeholders)
+            GROUP BY app.packageName
+            """.trimIndent(),
+            arrayOf(locale, locale, locale, *packageNames.toTypedArray()),
+        )
+        return _rawQueryAppMinimal(query).map {
+            AppMinimal(
+                appId = it.appId.toLong(),
+                packageName = PackageName(it.packageName),
+                name = it.name,
+                summary = it.summary,
+                icon = FilePath(it.baseAddress, it.iconName),
+                suggestedVersion = it.suggestedVersion ?: "",
+            )
+        }
+    }
+
+    /**
      * The real app icon for every repo that serves exactly one app, keyed by repo — used to replace a
      * single-app repo's own declared icon in the repositories list. Small self-hosted repos routinely
      * ship no custom repo icon (fdroidserver defaults to a QR code of the repo address), but the one app
