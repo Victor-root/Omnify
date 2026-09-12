@@ -20,7 +20,6 @@ import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
-import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.network.NetworkMonitor
 import com.looker.droidify.sync.v2.model.DefaultName
@@ -76,17 +75,17 @@ sealed interface FavouriteApp {
  *  the full page is reflected there too instead of the carousel keeping some order of its own. */
 enum class FavouritesSortOrder { NAME, FAVOURITED_AT, INSTALLED_AT }
 
-/** One entry of [RECOMMENDED_BY_VICTOR]: either a regular F-Droid catalogue package, or one of the
- *  developer's own apps, tracked as an external source under his "Victor-root" GitHub account and
- *  identified by its repo name there (see [ExternalApp.repo]). */
+/** One entry of [RECOMMENDED_BY_VICTOR]: either a regular F-Droid catalogue package, or an app
+ *  tracked as an external (GitHub) source, identified by its [ExternalApp.key] (owner/repo aren't
+ *  always the developer's own: Magisk is tracked as topjohnwu/Magisk, a standalone source, not part
+ *  of any account). */
 private sealed interface RecommendedEntry {
     data class Catalogue(val packageName: String) : RecommendedEntry
-    data class External(val repo: String) : RecommendedEntry
+    data class External(val key: String) : RecommendedEntry
 }
 
-/** GitHub account the [RecommendedEntry.External] entries below are tracked under (see
- *  MainComposeActivity's victorAccount). */
-private const val VICTOR_ROOT_OWNER = "Victor-root"
+/** [RecommendedEntry.External] for a public GitHub source (see [ExternalApp.key]). */
+private fun githubExternal(owner: String, repo: String) = RecommendedEntry.External("GITHUB/$owner/$repo")
 
 /**
  * The developer's own hand-picked list for the Discover home's "Recommended by Victor-root" row, in
@@ -97,9 +96,9 @@ private val RECOMMENDED_BY_VICTOR: List<RecommendedEntry> = listOf(
     RecommendedEntry.Catalogue("net.thunderbird.android"), // Thunderbird
     RecommendedEntry.Catalogue("org.videolan.vlc"), // VLC
     RecommendedEntry.Catalogue("helium314.keyboard"), // HeliBoard
-    RecommendedEntry.External("OpenMessages"),
+    githubExternal("Victor-root", "OpenMessages"),
     RecommendedEntry.Catalogue("com.gitlab.mudlej.MjPdfReader"), // mjpdf
-    RecommendedEntry.Catalogue("com.topjohnwu.magisk"), // Magisk
+    githubExternal("topjohnwu", "Magisk"),
     RecommendedEntry.Catalogue("org.localsend.localsend_app"), // LocalSend
     RecommendedEntry.Catalogue("com.brave.browser"), // Brave
     RecommendedEntry.Catalogue("com.cbouvat.android.saracroche"), // Saracroche
@@ -109,8 +108,8 @@ private val RECOMMENDED_BY_VICTOR: List<RecommendedEntry> = listOf(
     RecommendedEntry.Catalogue("org.fossify.phone"), // Fossify Phone
     RecommendedEntry.Catalogue("org.fossify.contacts"), // Fossify Contacts
     RecommendedEntry.Catalogue("org.fossify.gallery"), // Fossify Gallery
-    RecommendedEntry.External("AdAway-Community"),
-    RecommendedEntry.External("VFiles"),
+    githubExternal("Victor-root", "AdAway-Community"),
+    githubExternal("Victor-root", "VFiles"),
 )
 
 private val RECOMMENDED_CATALOGUE_PACKAGES: List<String> =
@@ -644,15 +643,17 @@ class AppListViewModel @Inject constructor(
     /**
      * "Recommended by Victor-root": a plain vertical list (not a carousel) on the Discover home, of
      * apps the developer personally recommends. A fixed, hand-picked list rather than one built from
-     * catalogue filters, mixing regular F-Droid catalogue apps with three of the developer's own apps
-     * tracked as external sources under his "Victor-root" GitHub account (see MainComposeActivity's
-     * victorAccount and ExternalAccount.OMNIFY_KEY).
+     * catalogue filters, mixing regular F-Droid catalogue apps with a few tracked external (GitHub)
+     * sources: three of the developer's own apps under his "Victor-root" account (see
+     * MainComposeActivity's victorAccount and ExternalAccount.OMNIFY_KEY), plus Magisk, tracked as its
+     * own standalone source (topjohnwu/Magisk) since it isn't in any F-Droid repository.
      *
      * A catalogue entry disappears on its own once its repo is disabled (a disabled repo's rows are
      * deleted, see AppRepository.appsByPackageNames / AppDao.deleteByRepoId), and an external entry
-     * disappears once the user disables the Victor-root account or its own tracked app, exactly like
-     * every other repository/source in Omnify, nothing extra to check here beyond the same [enabled]
-     * flag every other external-source check already reads (e.g. [externallyInstalledPackages]).
+     * disappears once the user disables its account (for the Victor-root ones) or the source itself,
+     * exactly like every other repository/source in Omnify, nothing extra to check here beyond the
+     * same [enabled] flag every other external-source check already reads (e.g.
+     * [externallyInstalledPackages]).
      */
     val recommendedByVictorApps: StateFlow<List<FavouriteApp>> =
         combine(catalogChanges, hiddenApps, externalAppRepository.apps) { _, hidden, externalApps ->
@@ -662,13 +663,11 @@ class AppListViewModel @Inject constructor(
                 val catalogueApps = appRepository.appsByPackageNames(RECOMMENDED_CATALOGUE_PACKAGES)
                     .excludingHidden(hidden)
                     .associateBy { it.packageName.name }
-                val externalByRepo = externalApps
-                    .filter { it.provider == SourceProvider.GITHUB && it.owner == VICTOR_ROOT_OWNER && it.enabled }
-                    .associateBy { it.repo }
+                val externalByKey = externalApps.filter { it.enabled }.associateBy { it.key }
                 RECOMMENDED_BY_VICTOR.mapNotNull { entry ->
                     when (entry) {
                         is RecommendedEntry.Catalogue -> catalogueApps[entry.packageName]?.let(FavouriteApp::Catalogue)
-                        is RecommendedEntry.External -> externalByRepo[entry.repo]?.let(FavouriteApp::External)
+                        is RecommendedEntry.External -> externalByKey[entry.key]?.let(FavouriteApp::External)
                     }
                 }
             }
