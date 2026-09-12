@@ -51,6 +51,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -65,7 +66,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -73,7 +80,6 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
-import com.looker.droidify.data.model.Html
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.appDetail.GoogleServiceDependency
@@ -130,7 +136,6 @@ import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.isInstalledFromGooglePlay
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.singleSignature
-import com.looker.droidify.utility.text.toAnnotatedString
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -1414,16 +1419,52 @@ private fun ExternalVersionsSection(
 /** Versions shown before the "show more" toggle, matching the F-Droid catalogue's version list. */
 private const val VERSIONS_COLLAPSED_COUNT = 5
 
+/** The external_preinstall_notice string is split into 3 parts around this marker: the text
+ *  before the link, the link's own label, and the text after it. Never shown to the user, so it
+ *  isn't translated; picked short and implausible in normal prose so a split always yields exactly
+ *  those 3 parts. */
+private const val PREINSTALL_NOTICE_LINK_MARKER = "##"
+
+/** Where [PreInstallNotice]'s link opens: a blank new-issue form on Omnify's own repository. */
+private const val PREINSTALL_NOTICE_ISSUE_URL = "https://github.com/Victor-root/Omnify/issues/new"
+
 /** Tells the user that the name/icon/version shown are the repository's until the app is installed
  *  (a release carries no app metadata, so the real ones are only known once the APK is on-device),
  *  and links to opening a GitHub issue for when one of them looks wrong, so a detection gap gets
- *  reported instead of just worked around by installing. */
+ *  reported instead of just worked around by installing. Built directly as an [AnnotatedString]
+ *  (not via Html/HtmlCompat like every other in-app link): a `<a href>` written escaped into a
+ *  string resource, as that path needs, came back from resource compilation as plain, unstyled text
+ *  with no working link at all, rather than a parsed anchor. */
 @Composable
 private fun PreInstallNotice(modifier: Modifier = Modifier) {
     val uriHandler = LocalUriHandler.current
-    val noticeText = stringResource(R.string.external_preinstall_notice)
-    val notice = remember(noticeText) {
-        Html(noticeText).toAnnotatedString(onUrlClick = { runCatching { uriHandler.openUri(it) } })
+    val rawNotice = stringResource(R.string.external_preinstall_notice)
+    val notice = remember(rawNotice) {
+        val parts = rawNotice.split(PREINSTALL_NOTICE_LINK_MARKER)
+        if (parts.size != 3) {
+            AnnotatedString(rawNotice)
+        } else {
+            buildAnnotatedString {
+                append(parts[0])
+                val linkStart = length
+                append(parts[1])
+                val linkEnd = length
+                append(parts[2])
+                addLink(
+                    url = LinkAnnotation.Url(
+                        url = PREINSTALL_NOTICE_ISSUE_URL,
+                        styles = TextLinkStyles(
+                            style = SpanStyle(color = Color.Blue, textDecoration = TextDecoration.Underline),
+                        ),
+                        linkInteractionListener = {
+                            runCatching { uriHandler.openUri(PREINSTALL_NOTICE_ISSUE_URL) }
+                        },
+                    ),
+                    start = linkStart,
+                    end = linkEnd,
+                )
+            }
+        }
     }
     Surface(
         modifier = modifier.fillMaxWidth(),

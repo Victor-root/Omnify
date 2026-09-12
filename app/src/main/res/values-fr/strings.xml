@@ -545,7 +545,7 @@
     <string name="external_repo_latest">Dernière release : %1$s</string>
     <string name="external_latest_apk">Dernier APK : %1$s</string>
     <string name="external_installed_version">Installé : %1$s</string>
-    <string name="external_preinstall_notice">Le nom, l\'icône et la version viennent du dépôt et peuvent être imprécis avant l\'installation. Si ça s\'affiche mal, &lt;a href=&quot;https://github.com/Victor-root/Omnify/issues/new&quot;&gt;ouvrez une issue sur GitHub&lt;/a&gt; pour aider à améliorer la détection d\'Omnify.</string>
+    <string name="external_preinstall_notice">Le nom, l\'icône et la version viennent du dépôt et peuvent être imprécis avant l\'installation. Si ces données vous semblent fausses pour ce projet, ##ouvrez une issue sur GitHub## pour aider à améliorer la détection d\'Omnify.</string>
     <string name="external_add_source">Ajouter une source externe</string>
     <string name="external_add_account">Ajouter un compte</string>
     <string name="external_account_url_label">URL du compte (GitHub, GitLab, Codeberg)</string>

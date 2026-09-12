@@ -528,7 +528,7 @@
     <string name="external_repo_latest">最新发布版本：%1$s</string>
     <string name="external_latest_apk">最新 APK：%1$s</string>
     <string name="external_installed_version">已安装：%1$s</string>
-    <string name="external_preinstall_notice">此处显示的名称、图标和版本均读取自存储库。如有不准确之处，请安装该应用以查看真实信息。</string>
+    <string name="external_preinstall_notice">此处显示的名称、图标和版本均来自仓库，安装前可能不准确。如果这些信息对该项目而言显示有误，请##在 GitHub 上提交 issue##，帮助改进 Omnify 的检测。</string>
     <string name="external_add_source">添加外部来源</string>
     <string name="external_add_account">添加账户</string>
     <string name="external_account_url_label">账户网址（GitHub、GitLab、Codeberg）</string>

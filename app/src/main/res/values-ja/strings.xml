@@ -528,7 +528,7 @@
     <string name="external_repo_latest">最新リリース: %1$s</string>
     <string name="external_latest_apk">最新APK: %1$s</string>
     <string name="external_installed_version">インストール済み: %1$s</string>
-    <string name="external_preinstall_notice">表示されている名前、アイコン、バージョンはリポジトリから読み取られたものです。内容が正しくないように見える場合は、アプリをインストールすると実際の情報が反映されます。</string>
+    <string name="external_preinstall_notice">表示されている名前、アイコン、バージョンはリポジトリから取得したもので、インストール前は正確でないことがあります。この情報がこのプロジェクトのものとして誤っているように見える場合は、##GitHubでissueを開く##と、Omnifyの検出精度の向上に役立ちます。</string>
     <string name="external_add_source">外部ソースを追加</string>
     <string name="external_add_account">アカウントを追加</string>
     <string name="external_account_url_label">アカウントのURL (GitHub、GitLab、Codeberg)</string>

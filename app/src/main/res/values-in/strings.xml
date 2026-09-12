@@ -528,7 +528,7 @@
     <string name="external_repo_latest">Rilis terbaru: %1$s</string>
     <string name="external_latest_apk">APK terbaru: %1$s</string>
     <string name="external_installed_version">Terpasang: %1$s</string>
-    <string name="external_preinstall_notice">Nama, ikon, dan versi yang ditampilkan diambil dari repositori. Jika ada yang terlihat salah, pasang aplikasinya untuk menggunakan data yang sebenarnya.</string>
+    <string name="external_preinstall_notice">Nama, ikon, dan versi yang ditampilkan berasal dari repositori dan mungkin tidak akurat sebelum pemasangan. Jika data ini tampak salah untuk proyek ini, ##buka issue di GitHub## untuk membantu meningkatkan deteksi Omnify.</string>
     <string name="external_add_source">Tambah sumber eksternal</string>
     <string name="external_add_account">Tambah akun</string>
     <string name="external_account_url_label">URL akun (GitHub, GitLab, Codeberg)</string>

@@ -538,7 +538,7 @@
     <string name="external_repo_latest">Última versión: %1$s</string>
     <string name="external_latest_apk">Último APK: %1$s</string>
     <string name="external_installed_version">Instalado: %1$s</string>
-    <string name="external_preinstall_notice">El nombre, el ícono y la versión mostrados se leen del repositorio. Si alguno parece incorrecto, instala la app para usar los reales.</string>
+    <string name="external_preinstall_notice">El nombre, el ícono y la versión mostrados provienen del repositorio y pueden ser inexactos antes de la instalación. Si estos datos te parecen incorrectos para este proyecto, ##abre un issue en GitHub## para ayudar a mejorar la detección de Omnify.</string>
     <string name="external_add_source">Agregar fuente externa</string>
     <string name="external_add_account">Agregar una cuenta</string>
     <string name="external_account_url_label">URL de la cuenta (GitHub, GitLab, Codeberg)</string>

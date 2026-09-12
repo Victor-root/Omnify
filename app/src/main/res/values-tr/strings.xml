@@ -533,7 +533,7 @@
     <string name="external_repo_latest">En son sürüm: %1$s</string>
     <string name="external_latest_apk">En son APK: %1$s</string>
     <string name="external_installed_version">Kurulu: %1$s</string>
-    <string name="external_preinstall_notice">Gösterilen ad, ikon ve sürüm depodan okunur. Herhangi biri yanlış görünüyorsa, gerçeklerini kullanmak için uygulamayı kur.</string>
+    <string name="external_preinstall_notice">Gösterilen ad, simge ve sürüm depodan alınır ve kurulumdan önce hatalı olabilir. Bu veriler bu proje için yanlış görünüyorsa, Omnify\'nin algılamasını iyileştirmeye yardımcı olması için ##GitHub\'da bir issue aç##.</string>
     <string name="external_add_source">Harici kaynak ekle</string>
     <string name="external_add_account">Bir hesap ekle</string>
     <string name="external_account_url_label">Hesap URL\'si (GitHub, GitLab, Codeberg)</string>

@@ -543,7 +543,7 @@
     <string name="external_repo_latest">Последний релиз: %1$s</string>
     <string name="external_latest_apk">Последний APK: %1$s</string>
     <string name="external_installed_version">Установлено: %1$s</string>
-    <string name="external_preinstall_notice">Отображаемые имя, значок и версия берутся из репозитория. Если что-то из этого выглядит неверно, установите приложение, чтобы получить настоящие данные.</string>
+    <string name="external_preinstall_notice">Отображаемые имя, значок и версия берутся из репозитория и могут быть неточными до установки. Если эти данные кажутся неверными для этого проекта, ##создайте issue на GitHub##, чтобы помочь улучшить определение в Omnify.</string>
     <string name="external_add_source">Добавить внешний источник</string>
     <string name="external_add_account">Добавить аккаунт</string>
     <string name="external_account_url_label">URL-адрес аккаунта (GitHub, GitLab, Codeberg)</string>

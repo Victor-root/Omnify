@@ -533,7 +533,7 @@
     <string name="external_repo_latest">Nieuwste release: %1$s</string>
     <string name="external_latest_apk">Nieuwste APK: %1$s</string>
     <string name="external_installed_version">Geïnstalleerd: %1$s</string>
-    <string name="external_preinstall_notice">De naam, het pictogram en de versie die worden getoond, komen uit de bron. Als iets ervan er niet klopt, installeer dan de app om de echte gegevens te gebruiken.</string>
+    <string name="external_preinstall_notice">De naam, het pictogram en de versie die worden getoond, komen uit de bron en kunnen vóór installatie onnauwkeurig zijn. Als deze gegevens er voor dit project niet juist uitzien, ##open een issue op GitHub## om de detectie van Omnify te helpen verbeteren.</string>
     <string name="external_add_source">Externe bron toevoegen</string>
     <string name="external_add_account">Account toevoegen</string>
     <string name="external_account_url_label">Account-URL (GitHub, GitLab, Codeberg)</string>
