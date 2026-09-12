@@ -160,12 +160,20 @@ private data class AdaptiveIconLayers(val background: String?, val foreground: S
  * The repository's adaptive launcher icon definition, preferring the density-independent `anydpi`
  * folder Android itself resolves first, and `ic_launcher` over the colour aliases some apps ship
  * alongside it (an alias is one of several optional themes, not the app's own icon).
+ *
+ * Checked under both `mipmap-*` and `drawable-*`: an adaptive icon resolves identically under
+ * either resource type (the manifest's `android:icon` names one or the other, Android doesn't care
+ * which), and `mipmap` is only the Android Studio template's default, not a requirement. Confirmed on
+ * topjohnwu/Magisk, whose launcher icon (`android:icon="@drawable/ic_launcher"`) lives entirely under
+ * `res/drawable`/`res/drawable-v26`, no `mipmap` folder anywhere in the repo: a `mipmap`-only search
+ * found neither the adaptive icon here nor a legacy raster (rankIconPaths in ExternalApi.kt already
+ * checks both resource types) and fell all the way back to the source account's avatar.
  */
 private fun findAdaptiveIconPath(treePaths: List<String>): String? {
     val candidates = treePaths.filter { path ->
         val file = path.substringAfterLast('/')
         val dir = path.substringBeforeLast('/', "").substringAfterLast('/').lowercase()
-        file.endsWith(".xml") && dir.startsWith("mipmap") &&
+        file.endsWith(".xml") && (dir.startsWith("mipmap") || dir.startsWith("drawable")) &&
             (file.startsWith("ic_launcher") || file.startsWith("ic_app") || file == "launcher.xml")
     }
     if (candidates.isEmpty()) return null

@@ -64,6 +64,7 @@ import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
+import com.looker.droidify.external.ExternalIconCache
 import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.compose.externalApps.PendingSharedSource
 import com.looker.droidify.external.parseAccountSource
@@ -128,6 +129,7 @@ class MainComposeActivity : ComponentActivity() {
         private const val KEY_TV_PACK_ICONS_BACKFILLED_V1 = "tv_pack_icons_backfilled_v1"
         private const val KEY_TV_PACK_CURATEDTV_BACKFILLED_V1 = "tv_pack_curatedtv_backfilled_v1"
         private const val KEY_ADAPTIVE_ICON_RESCAN_V1 = "adaptive_icon_rescan_v1"
+        private const val KEY_ADAPTIVE_ICON_DRAWABLE_RESCAN_V1 = "adaptive_icon_drawable_rescan_v1"
     }
 
     /** Omnify's own repo (github.com/Victor-root/Omnify) as the built-in update channel, active by
@@ -621,6 +623,34 @@ class MainComposeActivity : ComponentActivity() {
                     rescannedApps.forEach { externalAppRepository.upsertApp(it) }
                 }
                 firstRunPrefs.edit().putBoolean(KEY_ADAPTIVE_ICON_RESCAN_V1, true).apply()
+            }
+
+            // One-time: give every already-tracked source with no cached icon yet one more adaptive-icon
+            // scan, now that AdaptiveIconComposer's findAdaptiveIconPath also checks drawable-* folders,
+            // not just mipmap-* (fixed): confirmed on topjohnwu/Magisk, whose adaptive icon lives
+            // entirely under res/drawable/res/drawable-v26 and was invisible to the old mipmap-only
+            // search, leaving the source stuck showing the maintainer's GitHub avatar forever
+            // (adaptiveIconChecked was already true from that failed scan, so a normal refresh never
+            // retries it on its own). Detected generically (any tracked source with no cached icon file,
+            // not hardcoded to Magisk) so every other source hit by the same gap self-heals too.
+            if (!firstRunPrefs.getBoolean(KEY_ADAPTIVE_ICON_DRAWABLE_RESCAN_V1, false)) {
+                val uncachedApps = externalAppRepository.getApps().filter {
+                    it.adaptiveIconChecked && !it.iconOverridden &&
+                        !ExternalIconCache.iconFile(this@MainComposeActivity, it.key).exists()
+                }
+                if (uncachedApps.isNotEmpty()) {
+                    coroutineScope {
+                        uncachedApps.map { app ->
+                            async(Dispatchers.IO) {
+                                val meta = runCatching { externalApi.fetchRepoMetadata(app) }.getOrNull()
+                                meta?.adaptiveIcon?.let {
+                                    ExternalIconCache.save(this@MainComposeActivity, app.key, it)
+                                }
+                            }
+                        }.awaitAll()
+                    }
+                }
+                firstRunPrefs.edit().putBoolean(KEY_ADAPTIVE_ICON_DRAWABLE_RESCAN_V1, true).apply()
             }
 
             // One-time: mark already-seeded TV pack entries with curatedTv, so an install seeded before
