@@ -113,9 +113,10 @@ internal class AdaptiveIconComposer(
      * files: attrs, dimens, styles, themes…) can easily push the one file that actually declares the
      * background colour past [MAX_COLOUR_FILES] before this ever reaches it. Confirmed on
      * topjohnwu/Magisk: `app/core/src/main/res/values/colors.xml` (the only file in the whole repo
-     * with `ic_launcher_background`) sorted 14th among `res/values/*.xml` files, behind 12 unrelated
-     * ones from two other modules (`app/apk-legacy`, `app/apk`) alone, so the cap cut it off and the
-     * composed icon's background silently fell back to transparent instead of Magisk's actual teal.
+     * with `ic_launcher_background`) sorted 14th among the repo's `res/values` XML files, behind 12
+     * unrelated ones from two other modules (`app/apk-legacy`, `app/apk`) alone, so the cap cut it off
+     * and the composed icon's background silently fell back to transparent instead of Magisk's actual
+     * teal.
      */
     private suspend fun resolveColour(name: String, treePaths: List<String>): Int? {
         val colourFiles = treePaths
