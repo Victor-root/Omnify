@@ -73,6 +73,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
+import com.looker.droidify.data.model.Html
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.appDetail.GoogleServiceDependency
@@ -129,6 +130,7 @@ import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.isInstalledFromGooglePlay
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.singleSignature
+import com.looker.droidify.utility.text.toAnnotatedString
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -1413,9 +1415,16 @@ private fun ExternalVersionsSection(
 private const val VERSIONS_COLLAPSED_COUNT = 5
 
 /** Tells the user that the name/icon/version shown are the repository's until the app is installed
- *  (a release carries no app metadata, so the real ones are only known once the APK is on-device). */
+ *  (a release carries no app metadata, so the real ones are only known once the APK is on-device),
+ *  and links to opening a GitHub issue for when one of them looks wrong, so a detection gap gets
+ *  reported instead of just worked around by installing. */
 @Composable
 private fun PreInstallNotice(modifier: Modifier = Modifier) {
+    val uriHandler = LocalUriHandler.current
+    val noticeText = stringResource(R.string.external_preinstall_notice)
+    val notice = remember(noticeText) {
+        Html(noticeText).toAnnotatedString(onUrlClick = { runCatching { uriHandler.openUri(it) } })
+    }
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.secondaryContainer,
@@ -1429,7 +1438,7 @@ private fun PreInstallNotice(modifier: Modifier = Modifier) {
             Icon(imageVector = Icons.Outlined.Info, contentDescription = null)
             Spacer(Modifier.width(12.dp))
             Text(
-                text = stringResource(R.string.external_preinstall_notice),
+                text = notice,
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
