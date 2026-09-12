@@ -65,6 +65,7 @@ import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.ExternalIconCache
+import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.compose.externalApps.PendingSharedSource
 import com.looker.droidify.external.parseAccountSource
@@ -112,6 +113,9 @@ class MainComposeActivity : ComponentActivity() {
 
     @Inject
     lateinit var externalApi: ExternalApi
+
+    @Inject
+    lateinit var externalRefresher: ExternalRefresher
 
     companion object {
         const val ACTION_UPDATES = "${BuildConfig.APPLICATION_ID}.intent.action.UPDATES"
@@ -632,11 +636,14 @@ class MainComposeActivity : ComponentActivity() {
             // search, leaving the source stuck showing the maintainer's GitHub avatar forever
             // (adaptiveIconChecked was already true from that failed scan, so a normal refresh never
             // retries it on its own). Detected generically (any tracked source with no cached icon file,
-            // not hardcoded to Magisk) so every other source hit by the same gap self-heals too.
+            // not hardcoded to Magisk) so every other source hit by the same gap self-heals too. Skips an
+            // already-installed app exactly like ExternalRefresher.refreshOne does: its real launcher
+            // icon already wins over any composed one, so composing here would be wasted network use.
             if (!firstRunPrefs.getBoolean(KEY_ADAPTIVE_ICON_DRAWABLE_RESCAN_V1, false)) {
-                val uncachedApps = externalAppRepository.getApps().filter {
-                    it.adaptiveIconChecked && !it.iconOverridden &&
-                        !ExternalIconCache.iconFile(this@MainComposeActivity, it.key).exists()
+                val uncachedApps = externalAppRepository.getApps().filter { app ->
+                    app.adaptiveIconChecked && !app.iconOverridden &&
+                        !ExternalIconCache.iconFile(this@MainComposeActivity, app.key).exists() &&
+                        app.packageName?.let(externalRefresher::isInstalled) != true
                 }
                 if (uncachedApps.isNotEmpty()) {
                     coroutineScope {
