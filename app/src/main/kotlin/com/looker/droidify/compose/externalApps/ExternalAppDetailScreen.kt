@@ -1425,8 +1425,11 @@ private const val VERSIONS_COLLAPSED_COUNT = 5
  *  those 3 parts. */
 private const val PREINSTALL_NOTICE_LINK_MARKER = "##"
 
-/** Where [PreInstallNotice]'s link opens: a blank new-issue form on Omnify's own repository. */
-private const val PREINSTALL_NOTICE_ISSUE_URL = "https://github.com/Victor-root/Omnify/issues/new"
+/** Where [PreInstallNotice]'s link opens: Omnify's own "Bug Report" issue form
+ *  (.github/ISSUE_TEMPLATE/bug_report.yml), skipping the template chooser GitHub would otherwise
+ *  show first (blank issues are disabled repo-wide, see ISSUE_TEMPLATE/config.yml). */
+private const val PREINSTALL_NOTICE_ISSUE_URL =
+    "https://github.com/Victor-root/Omnify/issues/new?template=bug_report.yml"
 
 /** Tells the user that the name/icon/version shown are the repository's until the app is installed
  *  (a release carries no app metadata, so the real ones are only known once the APK is on-device),
