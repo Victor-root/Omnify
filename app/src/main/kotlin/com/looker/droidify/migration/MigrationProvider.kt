@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.Binder
 import android.os.Bundle
 import android.os.Process
-import androidx.core.os.bundleOf
 import com.looker.droidify.data.backup.BackupCategory
 import com.looker.droidify.data.backup.BackupRepository
 import dagger.hilt.EntryPoint
@@ -55,7 +54,7 @@ class MigrationProvider : ContentProvider() {
         val archive = runBlocking {
             backupRepository.createBackupBytes(BackupCategory.entries.toSet()).getOrNull()
         } ?: return null
-        return bundleOf(KEY_ARCHIVE to archive)
+        return Bundle().apply { putByteArray(KEY_ARCHIVE, archive) }
     }
 
     /** The caller must be another build of this same app. [Binder.getCallingUid] is the kernel's word
