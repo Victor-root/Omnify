@@ -987,42 +987,36 @@ fun AppListScreen(
                         )
                     }
                 }
-                // "Recommended by Victor-root": the developer's own hand-picked apps, as a plain
-                // vertical list (not a carousel): a title, then one row per app.
-                if (recommendedByVictorApps.isNotEmpty()) {
-                    item(
-                        span = { GridItemSpan(maxLineSpan) },
-                        key = "recommended-victor-title",
-                        contentType = "recommended-victor-title",
-                    ) {
-                        DiscoverListTitle(stringResource(R.string.discover_recommended_victor))
-                    }
-                    items(
-                        items = recommendedByVictorApps,
-                        key = { "recommended-${it.key}" },
-                        span = { GridItemSpan(maxLineSpan) },
-                        contentType = { "recommended-victor-row" },
-                    ) { entry ->
-                        RecommendedAppRow(
-                            entry = entry,
-                            isInstalled = when (entry) {
-                                is FavouriteApp.Catalogue -> entry.app.packageName.name in installedPackages
-                                is FavouriteApp.External -> entry.app.key in externalInstalledKeys
-                            },
-                            onClick = {
-                                when (entry) {
-                                    is FavouriteApp.Catalogue -> openApp(entry.app.packageName.name)
-                                    is FavouriteApp.External -> openExternalApp(entry.app.key)
-                                }
-                            },
-                        )
-                    }
-                }
                 // The categories accordion. The chevron expands a category's apps inline; tapping
-                // again collapses it.
-                if (categories.isNotEmpty()) {
+                // again collapses it. "Recommended by Victor-root" leads the list as a hand-picked
+                // pseudo-category, expanding and collapsing exactly the same way as a real one.
+                if (categories.isNotEmpty() || recommendedByVictorApps.isNotEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "categories-title", contentType = "categories-title") {
-                        DiscoverListTitle(stringResource(R.string.categories))
+                        CategoriesTitle()
+                    }
+                    if (recommendedByVictorApps.isNotEmpty()) {
+                        item(
+                            span = { GridItemSpan(maxLineSpan) },
+                            key = "category-recommended-victor",
+                            contentType = "category",
+                        ) {
+                            CategoryRow(
+                                name = stringResource(R.string.discover_recommended_victor),
+                                defaultName = RECOMMENDED_VICTOR_KEY,
+                                expanded = RECOMMENDED_VICTOR_KEY in expandedSections,
+                                onClick = { viewModel.toggleSection(RECOMMENDED_VICTOR_KEY) },
+                            )
+                        }
+                        recommendedVictorAppItems(
+                            expandedSections = expandedSections,
+                            apps = recommendedByVictorApps,
+                            installedPackages = installedPackages,
+                            externalInstalledKeys = externalInstalledKeys,
+                            onAppClick = openApp,
+                            onExternalAppClick = openExternalApp,
+                            restoreFocusId = restoreFocusId.takeIf { isTelevision },
+                            restoreRequester = restoreRequester,
+                        )
                     }
                     categories.forEach { category ->
                         item(
@@ -1924,18 +1918,59 @@ private fun LazyGridScope.expandedAppItems(
     }
 }
 
+/** Emits the inline-expanded tiles for the "Recommended by Victor-root" pseudo-category, lazily,
+ *  when it's expanded: mirrors [expandedAppItems], but for [FavouriteApp] (catalogue or external)
+ *  instead of [AppMinimal] alone, since three of the recommended apps are external sources. */
+private fun LazyGridScope.recommendedVictorAppItems(
+    expandedSections: Set<String>,
+    apps: List<FavouriteApp>,
+    installedPackages: Set<String>,
+    externalInstalledKeys: Set<String>,
+    onAppClick: (String) -> Unit,
+    onExternalAppClick: (String) -> Unit,
+    restoreFocusId: String?,
+    restoreRequester: FocusRequester,
+) {
+    if (RECOMMENDED_VICTOR_KEY !in expandedSections) return
+    items(
+        items = apps,
+        key = { "exp-recommended-${it.key}" },
+        contentType = { if (it is FavouriteApp.Catalogue) "app-tile" else "ext-tile" },
+    ) { entry ->
+        when (entry) {
+            is FavouriteApp.Catalogue -> CatalogAppTile(
+                app = entry.app,
+                isInstalled = entry.app.packageName.name in installedPackages,
+                onClick = { onAppClick(entry.app.packageName.name) },
+                modifier = Modifier.restoreFocusTarget(
+                    restoreFocusId == "app:${entry.app.packageName.name}",
+                    restoreRequester,
+                ),
+            )
+            is FavouriteApp.External -> ExternalAppTile(
+                app = entry.app,
+                isInstalled = entry.app.key in externalInstalledKeys,
+                onClick = { onExternalAppClick(entry.app.key) },
+                modifier = Modifier.restoreFocusTarget(
+                    restoreFocusId == "ext:${entry.app.key}",
+                    restoreRequester,
+                ),
+            )
+        }
+    }
+}
+
 /** Attaches [requester] to this element only when [matches] (the tile the user last opened, so focus
  *  returns to it). A plain `this` otherwise. Not private: also used by [DiscoverCarousel] in
  *  DiscoverHome.kt, so a carousel tile can be re-targeted on return from its detail screen too. */
 fun Modifier.restoreFocusTarget(matches: Boolean, requester: FocusRequester): Modifier =
     if (matches) focusRequester(requester) else this
 
-/** A section heading in the Discover home's flat lists (categories, recommended apps); shared so
- *  both read identically. */
+/** "Categories" heading above the categories list. */
 @Composable
-private fun DiscoverListTitle(text: String) {
+private fun CategoriesTitle() {
     Text(
-        text = text,
+        text = stringResource(R.string.categories),
         style = MaterialTheme.typography.titleLarge,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     )

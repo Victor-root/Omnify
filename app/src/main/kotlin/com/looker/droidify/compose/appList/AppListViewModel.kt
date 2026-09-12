@@ -798,6 +798,13 @@ const val SECTION_TV = "::tv_apps"
 const val SECTION_SHIZUKU = "::shizuku"
 const val SECTION_ROOT = "::root"
 
+/** [expandedSections] key for the "Recommended by Victor-root" pseudo-category (see
+ *  [AppListViewModel.recommendedByVictorApps]): expands inline exactly like a real F-Droid category,
+ *  in the same accordion, but isn't one. Same "::" trick as the SECTION_* keys above, so it can't
+ *  collide with a real category's defaultName either, even though it feeds a different mechanism
+ *  (expandedSections/toggleSection, not openedSection/openSection). */
+const val RECOMMENDED_VICTOR_KEY = "::recommended_victor"
+
 /** The manifest <uses-feature> an app declares when it ships an Android TV (leanback) launcher — our
  *  marker for "made for TV". */
 private const val LEANBACK_FEATURE = "android.software.leanback"

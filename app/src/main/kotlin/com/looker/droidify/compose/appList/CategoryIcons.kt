@@ -83,6 +83,7 @@ import androidx.compose.material.icons.filled.Sos
 import androidx.compose.material.icons.filled.SportsMartialArts
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material.icons.filled.StackedLineChart
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.TaskAlt
@@ -105,6 +106,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
  * (fine-grained) F-Droid/IzzyOnDroid categories are all covered; anything unknown gets a neutral tag.
  */
 fun categoryIcon(category: String): ImageVector = when (category) {
+    // Not a real F-Droid category: the "Recommended by Victor-root" pseudo-category (see
+    // AppListViewModel.RECOMMENDED_VICTOR_KEY).
+    RECOMMENDED_VICTOR_KEY -> Icons.Filled.Star
     "AI Chat" -> Icons.Filled.VoiceChat
     "App Manager" -> Icons.Filled.Apps
     "App Store & Updater" -> Icons.Filled.Storefront
