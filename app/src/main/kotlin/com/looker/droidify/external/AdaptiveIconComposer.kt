@@ -105,11 +105,23 @@ internal class AdaptiveIconComposer(
         return null
     }
 
-    /** A `<color name="…">#RRGGBB</color>` from a file in `res/values`, for a colour-only layer. */
+    /**
+     * A `<color name="…">#RRGGBB</color>` from a file in `res/values`, for a colour-only layer.
+     *
+     * `colors.xml` first, everything else after in whatever order the tree listing gave it: a
+     * monorepo with several modules (each contributing its own `res/values/` folder of unrelated
+     * files: attrs, dimens, styles, themes…) can easily push the one file that actually declares the
+     * background colour past [MAX_COLOUR_FILES] before this ever reaches it. Confirmed on
+     * topjohnwu/Magisk: `app/core/src/main/res/values/colors.xml` (the only file in the whole repo
+     * with `ic_launcher_background`) sorted 14th among `res/values/*.xml` files, behind 12 unrelated
+     * ones from two other modules (`app/apk-legacy`, `app/apk`) alone, so the cap cut it off and the
+     * composed icon's background silently fell back to transparent instead of Magisk's actual teal.
+     */
     private suspend fun resolveColour(name: String, treePaths: List<String>): Int? {
-        val colourFiles = treePaths.filter {
-            it.contains("/res/values/") && it.endsWith(".xml")
-        }.take(MAX_COLOUR_FILES)
+        val colourFiles = treePaths
+            .filter { it.contains("/res/values/") && it.endsWith(".xml") }
+            .sortedBy { if (it.substringAfterLast('/').equals("colors.xml", ignoreCase = true)) 0 else 1 }
+            .take(MAX_COLOUR_FILES)
         val pattern = Regex("""<color\s+name="${Regex.escape(name)}"\s*>\s*(#[0-9a-fA-F]{3,8})\s*</color>""")
         for (path in colourFiles) {
             val text = readFile(path) ?: continue

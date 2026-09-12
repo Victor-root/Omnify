@@ -134,6 +134,7 @@ class MainComposeActivity : ComponentActivity() {
         private const val KEY_TV_PACK_CURATEDTV_BACKFILLED_V1 = "tv_pack_curatedtv_backfilled_v1"
         private const val KEY_ADAPTIVE_ICON_RESCAN_V1 = "adaptive_icon_rescan_v1"
         private const val KEY_ADAPTIVE_ICON_DRAWABLE_RESCAN_V1 = "adaptive_icon_drawable_rescan_v1"
+        private const val KEY_ADAPTIVE_ICON_COLOR_RESCAN_V1 = "adaptive_icon_color_rescan_v1"
     }
 
     /** Omnify's own repo (github.com/Victor-root/Omnify) as the built-in update channel, active by
@@ -658,6 +659,36 @@ class MainComposeActivity : ComponentActivity() {
                     }
                 }
                 firstRunPrefs.edit().putBoolean(KEY_ADAPTIVE_ICON_DRAWABLE_RESCAN_V1, true).apply()
+            }
+
+            // One-time: recompose every already-tracked source's adaptive icon once more, regardless of
+            // whether one is already cached for it, now that resolveColour also prioritises a real
+            // colors.xml before the MAX_COLOUR_FILES cap (fixed) instead of taking the tree listing's raw
+            // order: a monorepo with several modules, each contributing its own res/values/ folder of
+            // mostly unrelated files (attrs, dimens, styles…), can crowd the one file that actually
+            // declares the background colour past that cap. Confirmed on topjohnwu/Magisk: its background
+            // stayed transparent (the app's own dark surface showing through) instead of the repo's real
+            // teal, because the cap cut off 2 files short of reaching
+            // app/core/src/main/res/values/colors.xml. Not gated on "no cached icon" like the migration
+            // above: a wrong-but-present icon wouldn't be caught by that check at all.
+            if (!firstRunPrefs.getBoolean(KEY_ADAPTIVE_ICON_COLOR_RESCAN_V1, false)) {
+                val trackedApps = externalAppRepository.getApps().filter { app ->
+                    app.adaptiveIconChecked && !app.iconOverridden &&
+                        app.packageName?.let(externalRefresher::isInstalled) != true
+                }
+                if (trackedApps.isNotEmpty()) {
+                    coroutineScope {
+                        trackedApps.map { app ->
+                            async(Dispatchers.IO) {
+                                val meta = runCatching { externalApi.fetchRepoMetadata(app) }.getOrNull()
+                                meta?.adaptiveIcon?.let {
+                                    ExternalIconCache.save(this@MainComposeActivity, app.key, it)
+                                }
+                            }
+                        }.awaitAll()
+                    }
+                }
+                firstRunPrefs.edit().putBoolean(KEY_ADAPTIVE_ICON_COLOR_RESCAN_V1, true).apply()
             }
 
             // One-time: mark already-seeded TV pack entries with curatedTv, so an install seeded before
