@@ -76,14 +76,15 @@ sealed interface FavouriteApp {
 enum class FavouritesSortOrder { NAME, FAVOURITED_AT, INSTALLED_AT }
 
 /**
- * One entry of [RECOMMENDED_BY_VICTOR]. [packageName] is tried first (an F-Droid catalogue package,
- * found only if one of the user's enabled repos actually carries it); [externalKey] is the fallback,
- * an app tracked as an external (GitHub) source, identified by its [ExternalApp.key] (owner/repo
- * aren't always the developer's own: Magisk is tracked as topjohnwu/Magisk, a standalone source, not
- * part of any account). An entry needing both covers a package some users get from a catalogue repo
- * (F-Droid, IzzyOnDroid…) and others track as an external source instead, like Magisk here: itself on
- * F-Droid and IzzyOnDroid, but this app was actually tracking it as topjohnwu/Magisk directly. At
- * least one of the two must be set.
+ * One entry of [RECOMMENDED_BY_VICTOR]. [externalKey] is tried first: an app tracked as an external
+ * (GitHub) source, identified by its [ExternalApp.key] (owner/repo aren't always the developer's own:
+ * Magisk is tracked as topjohnwu/Magisk, a standalone source, not part of any account). [packageName]
+ * is the fallback, an F-Droid catalogue package, found only if one of the user's enabled repos
+ * actually carries it. External wins when both are set and both are present: someone who went to the
+ * trouble of adding a direct external source over the catalogue almost always did it to track the
+ * project's own releases and get updates faster than a catalogue rebuild (F-Droid, IzzyOnDroid…) can
+ * publish them, so that is the one meant to be shown, e.g. Magisk here: on F-Droid and IzzyOnDroid,
+ * but tracked directly as topjohnwu/Magisk instead. At least one of the two must be set.
  */
 private data class RecommendedEntry(val packageName: String? = null, val externalKey: String? = null)
 
@@ -671,8 +672,8 @@ class AppListViewModel @Inject constructor(
                     .associateBy { it.packageName.name }
                 val externalByKey = externalApps.filter { it.enabled }.associateBy { it.key }
                 RECOMMENDED_BY_VICTOR.mapNotNull { entry ->
-                    entry.packageName?.let(catalogueApps::get)?.let(FavouriteApp::Catalogue)
-                        ?: entry.externalKey?.let(externalByKey::get)?.let(FavouriteApp::External)
+                    entry.externalKey?.let(externalByKey::get)?.let(FavouriteApp::External)
+                        ?: entry.packageName?.let(catalogueApps::get)?.let(FavouriteApp::Catalogue)
                 }
             }
             .distinctUntilChanged()
