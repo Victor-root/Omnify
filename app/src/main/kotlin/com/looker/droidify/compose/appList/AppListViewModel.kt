@@ -75,17 +75,22 @@ sealed interface FavouriteApp {
  *  the full page is reflected there too instead of the carousel keeping some order of its own. */
 enum class FavouritesSortOrder { NAME, FAVOURITED_AT, INSTALLED_AT }
 
-/** One entry of [RECOMMENDED_BY_VICTOR]: either a regular F-Droid catalogue package, or an app
- *  tracked as an external (GitHub) source, identified by its [ExternalApp.key] (owner/repo aren't
- *  always the developer's own: Magisk is tracked as topjohnwu/Magisk, a standalone source, not part
- *  of any account). */
-private sealed interface RecommendedEntry {
-    data class Catalogue(val packageName: String) : RecommendedEntry
-    data class External(val key: String) : RecommendedEntry
-}
+/**
+ * One entry of [RECOMMENDED_BY_VICTOR]. [packageName] is tried first (an F-Droid catalogue package,
+ * found only if one of the user's enabled repos actually carries it); [externalKey] is the fallback,
+ * an app tracked as an external (GitHub) source, identified by its [ExternalApp.key] (owner/repo
+ * aren't always the developer's own: Magisk is tracked as topjohnwu/Magisk, a standalone source, not
+ * part of any account). An entry needing both covers a package some users get from a catalogue repo
+ * (F-Droid, IzzyOnDroid…) and others track as an external source instead, like Magisk here: itself on
+ * F-Droid and IzzyOnDroid, but this app was actually tracking it as topjohnwu/Magisk directly. At
+ * least one of the two must be set.
+ */
+private data class RecommendedEntry(val packageName: String? = null, val externalKey: String? = null)
 
-/** [RecommendedEntry.External] for a public GitHub source (see [ExternalApp.key]). */
-private fun githubExternal(owner: String, repo: String) = RecommendedEntry.External("GITHUB/$owner/$repo")
+private fun catalogue(packageName: String) = RecommendedEntry(packageName = packageName)
+
+/** A [RecommendedEntry] for a public GitHub source (see [ExternalApp.key]). */
+private fun githubExternal(owner: String, repo: String) = RecommendedEntry(externalKey = "GITHUB/$owner/$repo")
 
 /**
  * The developer's own hand-picked list for the Discover home's "Recommended by Victor-root" row, in
@@ -93,27 +98,27 @@ private fun githubExternal(owner: String, repo: String) = RecommendedEntry.Exter
  * derived from any catalogue data.
  */
 private val RECOMMENDED_BY_VICTOR: List<RecommendedEntry> = listOf(
-    RecommendedEntry.Catalogue("net.thunderbird.android"), // Thunderbird
-    RecommendedEntry.Catalogue("org.videolan.vlc"), // VLC
-    RecommendedEntry.Catalogue("helium314.keyboard"), // HeliBoard
+    catalogue("net.thunderbird.android"), // Thunderbird
+    catalogue("org.videolan.vlc"), // VLC
+    catalogue("helium314.keyboard"), // HeliBoard
     githubExternal("Victor-root", "OpenMessages"),
-    RecommendedEntry.Catalogue("com.gitlab.mudlej.MjPdfReader"), // mjpdf
-    githubExternal("topjohnwu", "Magisk"),
-    RecommendedEntry.Catalogue("org.localsend.localsend_app"), // LocalSend
-    RecommendedEntry.Catalogue("com.brave.browser"), // Brave
-    RecommendedEntry.Catalogue("com.cbouvat.android.saracroche"), // Saracroche
-    RecommendedEntry.Catalogue("de.markusfisch.android.binaryeye"), // Binary Eye
-    RecommendedEntry.Catalogue("org.breezyweather"), // Breezy Weather
-    RecommendedEntry.Catalogue("com.aurora.store"), // Aurora Store
-    RecommendedEntry.Catalogue("org.fossify.phone"), // Fossify Phone
-    RecommendedEntry.Catalogue("org.fossify.contacts"), // Fossify Contacts
-    RecommendedEntry.Catalogue("org.fossify.gallery"), // Fossify Gallery
+    catalogue("com.gitlab.mudlej.MjPdfReader"), // mjpdf
+    RecommendedEntry(packageName = "com.topjohnwu.magisk", externalKey = "GITHUB/topjohnwu/Magisk"),
+    catalogue("org.localsend.localsend_app"), // LocalSend
+    catalogue("com.brave.browser"), // Brave
+    catalogue("com.cbouvat.android.saracroche"), // Saracroche
+    catalogue("de.markusfisch.android.binaryeye"), // Binary Eye
+    catalogue("org.breezyweather"), // Breezy Weather
+    catalogue("com.aurora.store"), // Aurora Store
+    catalogue("org.fossify.phone"), // Fossify Phone
+    catalogue("org.fossify.contacts"), // Fossify Contacts
+    catalogue("org.fossify.gallery"), // Fossify Gallery
     githubExternal("Victor-root", "AdAway-Community"),
     githubExternal("Victor-root", "VFiles"),
 )
 
 private val RECOMMENDED_CATALOGUE_PACKAGES: List<String> =
-    RECOMMENDED_BY_VICTOR.filterIsInstance<RecommendedEntry.Catalogue>().map { it.packageName }
+    RECOMMENDED_BY_VICTOR.mapNotNull { it.packageName }
 
 @HiltViewModel
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
@@ -645,8 +650,9 @@ class AppListViewModel @Inject constructor(
      * apps the developer personally recommends. A fixed, hand-picked list rather than one built from
      * catalogue filters, mixing regular F-Droid catalogue apps with a few tracked external (GitHub)
      * sources: three of the developer's own apps under his "Victor-root" account (see
-     * MainComposeActivity's victorAccount and ExternalAccount.OMNIFY_KEY), plus Magisk, tracked as its
-     * own standalone source (topjohnwu/Magisk) since it isn't in any F-Droid repository.
+     * MainComposeActivity's victorAccount and ExternalAccount.OMNIFY_KEY), plus Magisk, which some
+     * users get from a catalogue repo (it's on F-Droid and IzzyOnDroid) and others, like this app,
+     * track directly as its own external source (topjohnwu/Magisk) instead (see [RecommendedEntry]).
      *
      * A catalogue entry disappears on its own once its repo is disabled (a disabled repo's rows are
      * deleted, see AppRepository.appsByPackageNames / AppDao.deleteByRepoId), and an external entry
@@ -665,10 +671,8 @@ class AppListViewModel @Inject constructor(
                     .associateBy { it.packageName.name }
                 val externalByKey = externalApps.filter { it.enabled }.associateBy { it.key }
                 RECOMMENDED_BY_VICTOR.mapNotNull { entry ->
-                    when (entry) {
-                        is RecommendedEntry.Catalogue -> catalogueApps[entry.packageName]?.let(FavouriteApp::Catalogue)
-                        is RecommendedEntry.External -> externalByKey[entry.key]?.let(FavouriteApp::External)
-                    }
+                    entry.packageName?.let(catalogueApps::get)?.let(FavouriteApp::Catalogue)
+                        ?: entry.externalKey?.let(externalByKey::get)?.let(FavouriteApp::External)
                 }
             }
             .distinctUntilChanged()
