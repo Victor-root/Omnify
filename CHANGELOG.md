@@ -1,5 +1,17 @@
 # 📋 Changelog
 
+## 🚀 v1.0.7-beta.8 (2026-09-13)
+
+A more reliable pre-install icon for a tracked external source, and its notice about that now points at reporting a bad one instead of just working around it.
+
+### 🔄 Changed
+- **The pre-install notice for an external source now links to opening a GitHub issue** for when its name, icon or version look wrong, instead of just suggesting you install the app to see the real ones. A wrong one gets fixed for everyone that way, not just worked around on your own device.
+
+### 🐛 Fixed
+- **An external source's pre-install icon is found in more places.** The search only looked inside a project's `mipmap` folders, so one that puts its adaptive icon under `drawable` instead (Magisk, for one) fell back to showing the maintainer's account picture. A separate cap on how many files it read for the icon's background colour could also run out before reaching the one that actually declares it, on a project split across several modules, leaving the icon composed with no background at all.
+
+---
+
 ## 🚀 v1.0.6-beta.7 (2026-09-05)
 
 Tidier categories on the Explore tab: the ones your own repositories bring come first, and ones holding nothing at all stop showing.
