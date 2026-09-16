@@ -41,7 +41,12 @@ jobs:
 
       # Puts the Android SDK's command line tools on the runner and accepts the SDK licences, which
       # is what lets Gradle fetch the platform this project compiles against on its own.
+      # packages is emptied out: the action's default ("tools platform-tools") tries to install the
+      # legacy "tools" package, which Google has removed from the SDK repository, failing this step
+      # before Gradle even starts. Gradle/AGP fetches the platform and build-tools it actually needs.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
       # Caches the Gradle distribution and the dependency downloads between runs.
       - uses: gradle/actions/setup-gradle@v4
