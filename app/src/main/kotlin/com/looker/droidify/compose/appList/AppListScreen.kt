@@ -183,6 +183,7 @@ fun AppListScreen(
     val isSyncScheduled by viewModel.isSyncScheduled.collectAsStateWithLifecycle()
     val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
     val catalogEmpty by viewModel.catalogEmpty.collectAsStateWithLifecycle()
+    val updatesLoaded by viewModel.updatesLoaded.collectAsStateWithLifecycle()
     val newApps by viewModel.newApps.collectAsStateWithLifecycle()
     val recentlyUpdatedApps by viewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val mostDownloadedApps by viewModel.mostDownloadedApps.collectAsStateWithLifecycle()
@@ -1044,9 +1045,26 @@ fun AppListScreen(
                     }
                 }
             }
+            // The Updates tab's catalogue half (updatableApps) starts empty and needs a moment to
+            // compute a real result: see updatesLoaded's own doc comment. While it hasn't, a spinner
+            // shows instead of risking "Everything is up to date" flashing while updates are still
+            // being found (the external half, externalUpdates, is cheap enough it doesn't need this).
+            val updatesStillLoading = selectedTab == AppTab.UPDATES && !updatesLoaded
+            if (updatesStillLoading) {
+                item(span = { GridItemSpan(maxLineSpan) }, key = "updates-loading") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularWavyProgressIndicator()
+                    }
+                }
+            }
             val showEmpty = when (selectedTab) {
                 AppTab.INSTALLED -> apps.isEmpty()
-                AppTab.UPDATES -> apps.isEmpty() && externalUpdates.isEmpty()
+                AppTab.UPDATES -> !updatesStillLoading && apps.isEmpty() && externalUpdates.isEmpty()
                 else -> false
             }
             if (showEmpty) {

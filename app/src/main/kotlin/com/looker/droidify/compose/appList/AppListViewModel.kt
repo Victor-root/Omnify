@@ -139,7 +139,15 @@ class AppListViewModel @Inject constructor(
     private val isTelevisionDevice = context.isTelevision()
 
     val searchQuery = TextFieldState("")
-    private val searchQueryStream = snapshotFlow { searchQuery.text.toString() }.debounce(300)
+
+    /** Debounced so typing doesn't run a fresh query per keystroke, except the very first read
+     *  (almost always an empty, untyped query): debouncing that one too meant every screen open,
+     *  notably the Updates tab opened from the "updates available" notification, sat on the
+     *  empty-tab message for [SEARCH_DEBOUNCE_MS] before the real list could even start loading, on
+     *  top of however long the rest of the chain (a Room query, then the combine below it) then
+     *  took. */
+    private val searchQueryStream = snapshotFlow { searchQuery.text.toString() }
+        .debounce { if (it.isEmpty()) 0L else SEARCH_DEBOUNCE_MS }
 
     val categories: StateFlow<List<CatalogCategory>> =
         appRepository.categories.asStateFlow(emptyList())
@@ -353,16 +361,39 @@ class AppListViewModel @Inject constructor(
         apps.filter { it.packageName.name in installed }
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
 
-    /** The Updates tab's list — installed apps with an available update. Precomputed like [installedApps];
-     *  also drives the tab badge ([updatesCount]) so the work is done once. */
-    val updatableApps: StateFlow<List<AppMinimal>> = combine(
+    /** Null until it has a real result: the four flows it combines (a Room query behind
+     *  [appsState], the installed-apps table, suggested versions, which external source owns which
+     *  installed package) each start from an empty placeholder before their own first real read
+     *  lands. [updatableApps]/[updatesLoaded] below are both derived from this single upstream
+     *  instead of re-running the combine twice. */
+    private val updatableAppsOrNull: StateFlow<List<AppMinimal>?> = combine(
         appsState,
         installedInfo,
         suggestedVersions,
         externallyInstalledPackages,
     ) { apps, installed, suggested, externallyOwned ->
         apps.filter { hasUpdate(it, installed, suggested, externallyOwned.keys) }
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(null)
+
+    /** The Updates tab's list — installed apps with an available update. Precomputed like [installedApps];
+     *  also drives the tab badge ([updatesCount]) so the work is done once. */
+    val updatableApps: StateFlow<List<AppMinimal>> = updatableAppsOrNull
+        .map { it.orEmpty() }
+        .distinctUntilChanged()
+        .asStateFlow(emptyList())
+
+    /**
+     * False until [updatableApps] has computed a real result at least once (see [catalogEmpty]'s own
+     * doc comment for why "not yet known" has to be a state of its own, not folded into "empty").
+     * Without this, opening the Updates tab from the "updates available" notification on a cold
+     * start (the common case: the periodic sync that posts it usually runs with Omnify not in
+     * memory) showed "Everything is up to date" for as long as that first computation took, reading
+     * as the notification having simply been wrong about what it had just found.
+     */
+    val updatesLoaded: StateFlow<Boolean> = updatableAppsOrNull
+        .map { it != null }
+        .distinctUntilChanged()
+        .asStateFlow(false)
 
     /**
      * Apps shown for the current tab. Search / sort / category / favourites filters are already applied
@@ -791,6 +822,10 @@ class AppListViewModel @Inject constructor(
 }
 
 private const val DISCOVER_ROW_COUNT = 16
+
+/** How long a typed search query is debounced before it re-queries; see [AppListViewModel]'s
+ *  searchQueryStream, which skips this for the untyped/empty query. */
+private const val SEARCH_DEBOUNCE_MS = 300L
 
 /** Section keys for the inline-expandable Discover sections (the "::" prefix can't collide with a
  *  category name). */
