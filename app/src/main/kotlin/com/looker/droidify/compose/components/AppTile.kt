@@ -8,6 +8,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -148,7 +149,8 @@ fun AppTile(
     ) {
         Box(contentAlignment = Alignment.Center) {
             // While this app is being updated by "update all", dim its icon and spin a wavy ring over
-            // it, so the batch's live progress is obvious as it moves from app to app.
+            // it, so the batch's live progress is obvious as it moves from app to app. The ring is as
+            // large as the icon itself (matchParentSize), so it runs all the way around the logo.
             Box(
                 modifier = if (isUpdating) {
                     Modifier.graphicsLayer { alpha = 0.35f }
@@ -160,10 +162,10 @@ fun AppTile(
             }
             if (isUpdating) {
                 if (updateFraction != null) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.matchParentSize()) {
                         CircularWavyProgressIndicator(
                             progress = { updateFraction },
-                            modifier = Modifier.size(36.dp),
+                            modifier = Modifier.fillMaxSize(),
                         )
                         Text(
                             text = "${(updateFraction * 100).toInt()}",
@@ -172,7 +174,7 @@ fun AppTile(
                         )
                     }
                 } else {
-                    CircularWavyProgressIndicator(modifier = Modifier.size(32.dp))
+                    CircularWavyProgressIndicator(modifier = Modifier.matchParentSize())
                 }
             } else if (isInstalled) {
                 Box(
