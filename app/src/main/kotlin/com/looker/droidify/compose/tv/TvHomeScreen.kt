@@ -130,6 +130,8 @@ fun TvHomeScreen(
     val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
     val updatableApps by viewModel.updatableApps.collectAsStateWithLifecycle()
     val updatesCount by viewModel.updatesCount.collectAsStateWithLifecycle()
+    // The same answer as the catalogue half and the notification: see AppListViewModel.updates.
+    val externalUpdates by viewModel.externalUpdates.collectAsStateWithLifecycle()
     val isUpdatingAll by viewModel.isUpdatingAll.collectAsStateWithLifecycle()
     val displayedApps by viewModel.displayedApps.collectAsStateWithLifecycle()
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
@@ -141,7 +143,6 @@ fun TvHomeScreen(
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val isRefreshingExternal by externalViewModel.isRefreshing.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
-    val externalInstalledVersions by externalViewModel.installedVersions.collectAsStateWithLifecycle()
     val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
     val githubRateLimitRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
@@ -187,17 +188,6 @@ fun TvHomeScreen(
     }
 
     val installedPackages = remember(installedVersionNames) { installedVersionNames.keys }
-
-    // Tracked sources with a newer release than the copy on the device, by the phone Updates tab's own
-    // rule: switched on, not individually hidden, and pending against the version really installed
-    // rather than the source's own record (see ExternalApp.isUpdatePending). The External grid below
-    // keeps showing switched-off sources so they can be switched back on; an update check is
-    // enabled-only, exactly as the background refresh is.
-    val externalUpdates = remember(externalApps, hiddenExternalApps, externalInstalledVersions) {
-        externalApps
-            .filter { it.enabled && it.key !in hiddenExternalApps }
-            .filter { it.isUpdatePending(externalInstalledVersions[it.key]) }
-    }
 
     // rememberSaveable (not remember) so the section survives leaving the composition — navigating into
     // a detail screen and back would otherwise reset the home to Explore instead of the tab you left.
@@ -301,7 +291,7 @@ fun TvHomeScreen(
         TvNavRail(
             section = section,
             // Both halves of the Updates grid, so the badge counts what that grid lists.
-            updatesCount = updatesCount + externalUpdates.size,
+            updatesCount = updatesCount,
             syncing = tvSyncing,
             tvOnly = tvOnly,
             onToggleTvOnly = viewModel::toggleTvOnly,

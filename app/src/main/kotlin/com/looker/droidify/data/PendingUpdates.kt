@@ -2,6 +2,8 @@ package com.looker.droidify.data
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import android.util.Log
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
@@ -12,18 +14,39 @@ import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.utility.notifications.UpdateEntry
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapLatest
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val TAG = "PendingUpdates"
+
+/** Everything with an update waiting at one moment: the catalogue half as package names (the rows to
+ *  show are read for them where they are shown), the external half as the sources themselves. */
+data class PendingUpdateSet(
+    val cataloguePackages: Set<String>,
+    val external: List<ExternalApp>,
+) {
+    /** How many apps are waiting, whatever a screen's own search or filter happens to show of them. */
+    val count: Int get() = cataloguePackages.size + external.size
+}
+
 /**
- * What currently has an update waiting, catalogue and external sources alike, resolved without a
- * ViewModel so a worker can ask the same question the Updates tab answers on screen.
+ * What currently has an update waiting, catalogue and external sources alike: the one place that
+ * answers it, for the "updates available" notification and for the Updates tab alike.
  *
- * The Updates tab computes its own lists reactively from flows, which is the right shape for a screen
- * but unusable from a headless worker. Rather than restate the rules here (and risk the automatic
- * installer acting on a different set than the one the user was shown), both halves defer to the same
- * shared predicates the tab uses: [hasCatalogueUpdate] and [ExternalApp.isUpdatePending].
+ * Both used to work it out on their own. The tab combined four flows that each start from an empty
+ * placeholder, so for as long as they took to answer it showed an empty list that looked exactly like
+ * "everything is up to date", while the notification, built from fresh reads, named real updates.
+ * Everything here is read fresh, and [stream] re-reads it whenever one of its inputs changes, so a
+ * screen can show the same answer a worker asks for once.
+ *
+ * Both halves defer to the shared predicates the rules live in: [hasCatalogueUpdate] and
+ * [ExternalApp.isUpdatePending].
  */
 @Singleton
 class PendingUpdates @Inject constructor(
@@ -36,6 +59,31 @@ class PendingUpdates @Inject constructor(
 ) {
 
     /**
+     * [cataloguePackages] and [externalApps], again whenever something either reads changes: the
+     * catalogue (a sync), the installed apps, the tracked sources, or which apps the user hid.
+     *
+     * Those flows only say that something changed: what to do about it is read fresh each time, so a
+     * placeholder can never be mistaken for an answer. The first value is therefore a real one, and
+     * nothing is emitted before it: a collector that has not received one yet is still waiting, which is
+     * different from there being nothing to update.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val stream: Flow<PendingUpdateSet> = combine(
+        appRepository.throttledCatalogChanges,
+        installedRepository.getAllStream(),
+        externalAppRepository.apps,
+        settingsRepository.get { hiddenApps }.distinctUntilChanged(),
+    ) { _, _, _, _ -> }
+        .mapLatest {
+            PendingUpdateSet(cataloguePackages(), externalApps()).also { pending ->
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "pending: ${pending.cataloguePackages} + ${pending.external.map { it.key }}")
+                }
+            }
+        }
+        .distinctUntilChanged()
+
+    /**
      * Installed catalogue apps with a newer device-compatible build available, carrying the name and
      * offered version so a caller can list them to the user without querying again.
      *
@@ -46,6 +94,13 @@ class PendingUpdates @Inject constructor(
      * another to the source it really came from is how that becomes a silent downgrade.
      */
     suspend fun catalogueApps(): List<AppMinimal> {
+        val updatable = cataloguePackages()
+        if (updatable.isEmpty()) return emptyList()
+        return appRepository.apps(sortOrder = SortOrder.NAME, packageNames = updatable.toList())
+    }
+
+    /** The package names [catalogueApps] lists: the catalogue half of everything waiting. */
+    suspend fun cataloguePackages(): Set<String> {
         val hidden = settingsRepository.get { hiddenApps }.first()
         val suggested = appRepository.suggestedVersions()
         val installedApps = installedRepository.getAllStream().first()
@@ -53,7 +108,7 @@ class PendingUpdates @Inject constructor(
             installedSigners = installedApps.associate { it.packageName to it.signature },
             suggested = suggested,
         )
-        val updatable = installedApps
+        return installedApps
             .filter { installed ->
                 installed.packageName !in hidden &&
                     hasCatalogueUpdate(
@@ -66,11 +121,6 @@ class PendingUpdates @Inject constructor(
                     )
             }
             .mapTo(mutableSetOf()) { it.packageName }
-        // Reading the catalogue back is what turns package ids into names and versions, and it is the
-        // one expensive step here, so it is skipped entirely on the normal case of nothing to update.
-        if (updatable.isEmpty()) return emptyList()
-        return appRepository.apps(sortOrder = SortOrder.NAME)
-            .filter { it.packageName.name in updatable }
     }
 
     /**

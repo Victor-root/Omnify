@@ -61,12 +61,16 @@ interface AppDao {
         // Keep only apps updated at least once since they were added (lastUpdated > added). Used by the
         // "Recently updated" carousel so it isn't a copy of the "New apps" one.
         updatedOnly: Boolean = false,
+        // Keep only these packages. Unlike the filters above, an empty list matches nothing rather than
+        // meaning "no restriction", since the caller is naming exactly the apps it wants back.
+        packageNames: List<String>? = null,
         locale: String,
     ): List<AppMinimal> = _rawQueryAppMinimal(
         searchQueryMinimal(
             sortOrder = sortOrder,
             searchQuery = searchQuery,
             repoId = repoId,
+            packageNames = packageNames,
             categoriesToInclude = categoriesToInclude,
             categoriesToExclude = categoriesToExclude,
             antiFeaturesToInclude = antiFeaturesToInclude,
@@ -321,6 +325,7 @@ interface AppDao {
         permissionsToInclude: List<String>?,
         featuresOrCategories: Boolean = false,
         updatedOnly: Boolean,
+        packageNames: List<String>?,
         locale: String,
     ): SimpleSQLiteQuery {
         logQuery(
@@ -386,6 +391,13 @@ interface AppDao {
             if (repoId != null) {
                 append(" AND app.repoId = ?")
                 args.add(repoId)
+            }
+
+            if (packageNames != null) {
+                append(" AND app.packageName IN (")
+                append(packageNames.joinToString(", ") { "?" })
+                append(")")
+                args.addAll(packageNames)
             }
 
             // "Recently updated" only: keep apps that have actually been updated at least once since

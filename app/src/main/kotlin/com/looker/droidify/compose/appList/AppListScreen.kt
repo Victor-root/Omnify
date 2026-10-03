@@ -184,6 +184,8 @@ fun AppListScreen(
     val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
     val catalogEmpty by viewModel.catalogEmpty.collectAsStateWithLifecycle()
     val updatesLoaded by viewModel.updatesLoaded.collectAsStateWithLifecycle()
+    // From the same answer as the catalogue half and the notification: see AppListViewModel.updates.
+    val externalUpdates by viewModel.externalUpdates.collectAsStateWithLifecycle()
     val newApps by viewModel.newApps.collectAsStateWithLifecycle()
     val recentlyUpdatedApps by viewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val mostDownloadedApps by viewModel.mostDownloadedApps.collectAsStateWithLifecycle()
@@ -356,7 +358,6 @@ fun AppListScreen(
     val favouriteExternalApps by externalViewModel.favouriteApps.collectAsStateWithLifecycle()
     val favouriteExternalInstallDates by externalViewModel.favouriteInstallDates.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
-    val externalInstalledVersions by externalViewModel.installedVersions.collectAsStateWithLifecycle()
     val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
     val githubRateLimitRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
@@ -391,12 +392,6 @@ fun AppListScreen(
     // reusing the exact same list the "Made for TV" carousel/section already computes above instead of
     // filtering twice.
     val gridExternalApps = if (tvOnly) tvExternalApps else enabledExternalApps
-    // "Track only" sources keep updating in the background but are kept out of the Updates tab/count.
-    // hasUpdateGiven (not the plain hasUpdate) also catches an app installed before its source was
-    // tracked, by falling back to its real on-device version — see ExternalApp.hasUpdateGiven.
-    val externalUpdates = remember(enabledExternalApps, externalInstalledVersions) {
-        enabledExternalApps.filter { it.isUpdatePending(externalInstalledVersions[it.key]) }
-    }
     // The favourites full page's own order, independent of the carousel above it: catalogue and
     // external favourites merged into one list and sorted by whatever favouritesSortOrder currently
     // is. Just a re-sort of data already resolved elsewhere (including the PackageManager lookups
@@ -686,7 +681,7 @@ fun AppListScreen(
                     )
                     AppTabRow(
                         selectedTab = selectedTab,
-                        updatesCount = updatesCount + externalUpdates.size,
+                        updatesCount = updatesCount,
                         onSelectTab = viewModel::selectTab,
                         // TV: the tab row is the startup focus target (see tabsFocusRequester), and a
                         // focus group so requesting focus here lands on a tab. "Down" from a tab drops
@@ -1045,10 +1040,10 @@ fun AppListScreen(
                     }
                 }
             }
-            // The Updates tab's catalogue half (updatableApps) starts empty and needs a moment to
-            // compute a real result: see updatesLoaded's own doc comment. While it hasn't, a spinner
-            // shows instead of risking "Everything is up to date" flashing while updates are still
-            // being found (the external half, externalUpdates, is cheap enough it doesn't need this).
+            // Both halves of the Updates tab (updatableApps, externalUpdates) are empty until the one
+            // answer behind them has been worked out, see AppListViewModel.updates. While it has not, a
+            // spinner shows instead of "Everything is up to date", which would claim there is nothing
+            // when updates are only still being found.
             val updatesStillLoading = selectedTab == AppTab.UPDATES && !updatesLoaded
             if (updatesStillLoading) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "updates-loading") {

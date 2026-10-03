@@ -1,17 +1,18 @@
 package com.looker.droidify.compose.appList
 
 import android.content.Context
-import android.content.pm.ApplicationInfo
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.data.AppRepository
+import com.looker.droidify.data.CATALOG_REFRESH_MS
 import com.looker.droidify.data.InstalledIdentityRepository
 import com.looker.droidify.data.InstalledRepository
+import com.looker.droidify.data.PendingUpdateSet
+import com.looker.droidify.data.PendingUpdates
 import com.looker.droidify.data.SuggestedVersion
 import com.looker.droidify.data.externalSourceOwns
-import com.looker.droidify.data.hasCatalogueUpdate
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.data.model.excludingHidden
@@ -76,6 +77,25 @@ sealed interface FavouriteApp {
 enum class FavouritesSortOrder { NAME, FAVOURITED_AT, INSTALLED_AT }
 
 /**
+ * What the Updates tab lists: the catalogue rows (narrowed by search and the TV filter, like every other
+ * list), the external sources, and [count], how many apps are waiting whatever that narrowing leaves
+ * on screen (the tab badge).
+ */
+data class UpdatesState(
+    val catalogue: List<AppMinimal>,
+    val external: List<ExternalApp>,
+    val count: Int,
+)
+
+/** What [AppListViewModel.updates] recomputes from, gathered so the four of them travel together. */
+private data class UpdatesInputs(
+    val pending: PendingUpdateSet,
+    val search: String,
+    val tvOnly: Boolean,
+    val tvNames: Set<String>,
+)
+
+/**
  * One entry of [RECOMMENDED_BY_VICTOR]. [externalKey] is tried first: an app tracked as an external
  * (GitHub) source, identified by its [ExternalApp.key] (owner/repo aren't always the developer's own:
  * Magisk is tracked as topjohnwu/Magisk, a standalone source, not part of any account). [packageName]
@@ -132,6 +152,7 @@ class AppListViewModel @Inject constructor(
     batchProgress: BatchUpdateProgress,
     private val installManager: InstallManager,
     private val networkMonitor: NetworkMonitor,
+    private val pendingUpdates: PendingUpdates,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -192,18 +213,11 @@ class AppListViewModel @Inject constructor(
     }
 
     // Emits whenever the catalogue (apps/versions) changes — e.g. after a sync — so every list
-    // below re-queries automatically instead of waiting for the user to change a filter.
-    //
-    // The first sync grows the catalogue from 0 to thousands of rows, and Room re-emits the count on
-    // every insert batch. Left un-throttled, that flood makes the list flows re-query and the grid
-    // recompose continuously (and mapLatest keep cancelling/restarting the query), starving the main
-    // thread — which freezes the sync spinner so the app looks crashed. We emit the first value
-    // immediately (no startup delay), then sample the rest so the lists refresh a couple of times a
-    // second during a sync: plenty to show progress while keeping the UI responsive.
-    private val catalogChanges: StateFlow<Int> = merge(
-        appRepository.catalogChanges.take(1),
-        appRepository.catalogChanges.drop(1).sample(CATALOG_REFRESH_MS),
-    ).distinctUntilChanged().asStateFlow(0)
+    // below re-queries automatically instead of waiting for the user to change a filter. Throttled
+    // during a sync, see AppRepository.throttledCatalogChanges.
+    private val catalogChanges: StateFlow<Int> = appRepository.throttledCatalogChanges
+        .distinctUntilChanged()
+        .asStateFlow(0)
 
     // Throttled trigger for the download-stats table — the stats worker inserts roughly one batch per
     // month, so this mirrors catalogChanges to refresh the "Most downloaded" carousel when stats land
@@ -266,19 +280,14 @@ class AppListViewModel @Inject constructor(
         _selectedTab.value = tab
     }
 
-    // A single snapshot of the installed apps (versionCode, versionName, signing fingerprint and
-    // system-app status), reactive to install/uninstall. Everything the Installed/Updates tabs need,
-    // derived from one package-table subscription.
+    // A single snapshot of the installed apps (versionCode and signing fingerprint), reactive to
+    // install/uninstall, derived from one package-table subscription.
     private val installedInfo: StateFlow<InstalledInfo> = installedRepository
         .getAllStream()
         .map { items ->
             InstalledInfo(
                 versions = items.associate { it.packageName to it.versionCode },
-                names = items.associate { it.packageName to it.version },
                 signatures = items.associate { it.packageName to it.signature },
-                systemApps = items.mapNotNullTo(mutableSetOf()) {
-                    it.packageName.takeIf { pkg -> isSystemApp(pkg) }
-                },
             )
         }
         .distinctUntilChanged()
@@ -361,36 +370,62 @@ class AppListViewModel @Inject constructor(
         apps.filter { it.packageName.name in installed }
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
 
-    /** Null until it has a real result: the four flows it combines (a Room query behind
-     *  [appsState], the installed-apps table, suggested versions, which external source owns which
-     *  installed package) each start from an empty placeholder before their own first real read
-     *  lands. [updatableApps]/[updatesLoaded] below are both derived from this single upstream
-     *  instead of re-running the combine twice. */
-    private val updatableAppsOrNull: StateFlow<List<AppMinimal>?> = combine(
-        appsState,
-        installedInfo,
-        suggestedVersions,
-        externallyInstalledPackages,
-    ) { apps, installed, suggested, externallyOwned ->
-        apps.filter { hasUpdate(it, installed, suggested, externallyOwned.keys) }
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(null)
+    /**
+     * Everything the Updates tab shows, or null while it is not known yet.
+     *
+     * What counts as an update is not decided here: [PendingUpdates] answers it, for this tab and for the
+     * "updates available" notification alike, so the two can only differ by when each last looked. This
+     * only reads the catalogue rows of those packages, narrowed by search and the TV filter like every
+     * other list. It used to filter [appsState] through four flows that each began on an empty
+     * placeholder, so the tab spent the first seconds of a cold start showing an empty list that looked
+     * exactly like "everything is up to date", just after a notification had named real updates.
+     *
+     * Null really means "not known yet" (see [catalogEmpty] for why that is a state of its own): the
+     * first value only arrives once [PendingUpdates.stream] and the read of those rows have both
+     * produced an answer.
+     */
+    val updates: StateFlow<UpdatesState?> = combine(
+        pendingUpdates.stream,
+        searchQueryStream,
+        tvOnly,
+        tvPackageNames,
+    ) { pending, search, tvOnlyValue, tvNames -> UpdatesInputs(pending, search, tvOnlyValue, tvNames) }
+        .mapLatest { (pending, search, tvOnlyValue, tvNames) ->
+            // An empty package list matches nothing, but there is no point asking the database.
+            val rows = if (pending.cataloguePackages.isEmpty()) {
+                emptyList()
+            } else {
+                appRepository.apps(
+                    sortOrder = SortOrder.UPDATED,
+                    searchQuery = search,
+                    packageNames = pending.cataloguePackages.toList(),
+                )
+            }
+            UpdatesState(
+                catalogue = if (tvOnlyValue) rows.filter { it.packageName.name in tvNames } else rows,
+                external = pending.external,
+                count = pending.count,
+            )
+        }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(null)
 
-    /** The Updates tab's list — installed apps with an available update. Precomputed like [installedApps];
-     *  also drives the tab badge ([updatesCount]) so the work is done once. */
-    val updatableApps: StateFlow<List<AppMinimal>> = updatableAppsOrNull
-        .map { it.orEmpty() }
+    /** The Updates tab's catalogue list — installed apps with an available update. Precomputed like
+     *  [installedApps], so switching to the tab is a cheap selection. */
+    val updatableApps: StateFlow<List<AppMinimal>> = updates
+        .map { it?.catalogue.orEmpty() }
         .distinctUntilChanged()
         .asStateFlow(emptyList())
 
-    /**
-     * False until [updatableApps] has computed a real result at least once (see [catalogEmpty]'s own
-     * doc comment for why "not yet known" has to be a state of its own, not folded into "empty").
-     * Without this, opening the Updates tab from the "updates available" notification on a cold
-     * start (the common case: the periodic sync that posts it usually runs with Omnify not in
-     * memory) showed "Everything is up to date" for as long as that first computation took, reading
-     * as the notification having simply been wrong about what it had just found.
-     */
-    val updatesLoaded: StateFlow<Boolean> = updatableAppsOrNull
+    /** The Updates tab's external sources, from the same answer as [updatableApps]. */
+    val externalUpdates: StateFlow<List<ExternalApp>> = updates
+        .map { it?.external.orEmpty() }
+        .distinctUntilChanged()
+        .asStateFlow(emptyList())
+
+    /** False until [updates] has a real answer; see there. */
+    val updatesLoaded: StateFlow<Boolean> = updates
         .map { it != null }
         .distinctUntilChanged()
         .asStateFlow(false)
@@ -415,36 +450,12 @@ class AppListViewModel @Inject constructor(
         }
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
 
-    /** Number of installed apps with an available, installable update (shown on the Updates tab). */
-    val updatesCount: StateFlow<Int> = updatableApps
-        .map { it.size }
+    /** Number of apps with an available, installable update, catalogue and external sources together
+     *  (shown on the Updates tab), the same count the notification gives. */
+    val updatesCount: StateFlow<Int> = updates
+        .map { it?.count ?: 0 }
         .distinctUntilChanged()
         .asStateFlow(0)
-
-    /** Whether [app] has a newer catalogue version worth offering. The rule itself lives in
-     *  [hasCatalogueUpdate], shared with the automatic update installer, which has no ViewModel to read
-     *  it from; this only unpacks [installed] for it. */
-    private fun hasUpdate(
-        app: AppMinimal,
-        installed: InstalledInfo,
-        suggested: Map<String, SuggestedVersion>,
-        externallyOwned: Set<String>,
-    ): Boolean {
-        val pkg = app.packageName.name
-        return hasCatalogueUpdate(
-            installedVersionCode = installed.versions[pkg],
-            installedVersionName = installed.names[pkg],
-            installedSigner = installed.signatures[pkg],
-            isSystemApp = pkg in installed.systemApps,
-            installedFromExternalSource = pkg in externallyOwned,
-            suggested = suggested[pkg],
-        )
-    }
-
-    private fun isSystemApp(packageName: String): Boolean = runCatching {
-        val flags = context.packageManager.getApplicationInfo(packageName, 0).flags
-        (flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
-    }.getOrDefault(false)
 
     // A curated carousel ("New apps" / "Recently updated" / "Most downloaded") opened as its own full
     // page via its "see all" arrow; null = the Discover home. (Categories, by contrast, expand inline
@@ -872,9 +883,6 @@ private const val SECTION_EXPAND_LIMIT = 40
  *  that opening/closing the page stays smooth (the whole catalogue would be thousands of rows). */
 private const val SECTION_PAGE_LIMIT = 200
 
-/** How often catalogue changes are allowed to refresh the lists (throttles the first-sync flood). */
-private const val CATALOG_REFRESH_MS = 500L
-
 private data class AppQuery(
     val search: String,
     val categories: Set<DefaultName>,
@@ -882,21 +890,13 @@ private data class AppQuery(
 )
 
 /**
- * A snapshot of the installed apps used to drive the Installed/Updates tabs, all derived from one
- * package-table subscription:
+ * A snapshot of the installed apps, all derived from one package-table subscription:
  *  - [versions]   packageName -> installed versionCode (compared against the catalogue)
  *  - [signatures] packageName -> installed signing-cert fingerprint (lowercase hex SHA-256)
- *  - [systemApps] packages that are system apps (or updates to one) — can't be uninstalled, so a
- *                 differently-signed catalogue version can never replace them.
  */
 private data class InstalledInfo(
     val versions: Map<String, Long> = emptyMap(),
-    // The version as its publisher writes it, alongside the code Android orders builds by: the two
-    // answer different questions once a package can come from more than one place. See
-    // [com.looker.droidify.data.catalogueBuildIsOlder].
-    val names: Map<String, String> = emptyMap(),
     val signatures: Map<String, String> = emptyMap(),
-    val systemApps: Set<String> = emptySet(),
 )
 
 enum class AppTab { AVAILABLE, INSTALLED, UPDATES, EXTERNAL }

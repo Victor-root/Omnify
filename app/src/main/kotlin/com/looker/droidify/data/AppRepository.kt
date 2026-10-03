@@ -20,15 +20,23 @@ import com.looker.droidify.model.Repository
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.sync.v2.model.Tag
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.sample
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import javax.inject.Inject
+
+/** How often a list built from the catalogue may refresh while a sync is still writing to it. */
+const val CATALOG_REFRESH_MS = 500L
 
 class AppRepository @Inject constructor(
     private val appDao: AppDao,
@@ -53,6 +61,8 @@ class AppRepository @Inject constructor(
         // categoriesToInclude when both are given.
         featuresOrCategories: Boolean = false,
         updatedOnly: Boolean = false,
+        // Only these packages; an empty list matches nothing (see AppDao.query).
+        packageNames: List<String>? = null,
     ): List<AppMinimal> = withContext(Dispatchers.Default) {
         val currentLocale = localeStream.first()
         appDao.query(
@@ -67,6 +77,7 @@ class AppRepository @Inject constructor(
             permissionsToInclude = permissionsToInclude?.ifEmpty { null },
             featuresOrCategories = featuresOrCategories,
             updatedOnly = updatedOnly,
+            packageNames = packageNames,
             locale = currentLocale,
         )
     }
@@ -161,6 +172,23 @@ class AppRepository @Inject constructor(
     /** Emits whenever the catalogue (apps/versions) changes, e.g. after a sync. */
     val catalogChanges: Flow<Int>
         get() = appDao.catalogSizeStream()
+
+    /**
+     * [catalogChanges] for whatever recomputes something from the catalogue: the first value at once,
+     * then at most one per [CATALOG_REFRESH_MS].
+     *
+     * The first sync grows the catalogue from 0 to thousands of rows, and Room re-emits on every insert
+     * batch. Left un-throttled, that flood makes each list re-query and the grid recompose continuously
+     * (and mapLatest keep cancelling and restarting the query), starving the main thread, which freezes
+     * the sync spinner so the app looks crashed. Sampling the rest lets lists refresh a couple of times a
+     * second during a sync: plenty to show progress while keeping the UI responsive.
+     */
+    @OptIn(FlowPreview::class)
+    val throttledCatalogChanges: Flow<Int>
+        get() = merge(
+            catalogChanges.take(1),
+            catalogChanges.drop(1).sample(CATALOG_REFRESH_MS),
+        )
 
     /** Emits whenever the download-stats table changes (the stats worker inserted a monthly file),
      *  so the "Most downloaded" carousel refreshes as soon as stats arrive. */
