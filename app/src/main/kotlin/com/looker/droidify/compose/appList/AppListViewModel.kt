@@ -19,6 +19,7 @@ import com.looker.droidify.data.model.excludingHidden
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
+import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.installer.InstallManager
@@ -697,18 +698,28 @@ class AppListViewModel @Inject constructor(
      * users get from a catalogue repo (it's on F-Droid and IzzyOnDroid) and others, like this app,
      * track directly as its own external source (topjohnwu/Magisk) instead (see [RecommendedEntry]).
      *
-     * A catalogue entry disappears on its own once its repo is disabled (a disabled repo's rows are
-     * deleted, see AppRepository.appsByPackageNames / AppDao.deleteByRepoId), and an external entry
-     * disappears once the user disables its account (for the Victor-root ones) or the source itself,
-     * exactly like every other repository/source in Omnify, nothing extra to check here beyond the
-     * same [enabled] flag every other external-source check already reads (e.g.
-     * [externallyInstalledPackages]).
+     * The whole list is an opt-in: it is empty until the user switches on the Victor-root account in
+     * the repositories screen (it ships disabled, see MainComposeActivity's victorAccount), and goes
+     * away again when they switch it off. Past that, a catalogue entry disappears on its own once its repo is
+     * disabled (a disabled repo's rows are deleted, see AppRepository.appsByPackageNames /
+     * AppDao.deleteByRepoId), and an external entry once its source is disabled, like every other
+     * repository/source in Omnify.
      */
     val recommendedByVictorApps: StateFlow<List<FavouriteApp>> =
-        combine(catalogChanges, hiddenApps, externalAppRepository.apps) { _, hidden, externalApps ->
-            hidden to externalApps
+        combine(
+            catalogChanges,
+            hiddenApps,
+            externalAppRepository.apps,
+            externalAppRepository.accounts,
+        ) { _, hidden, externalApps, accounts ->
+            Triple(
+                hidden,
+                externalApps,
+                accounts.any { it.key == ExternalAccount.OMNIFY_KEY && it.enabled },
+            )
         }
-            .mapLatest { (hidden, externalApps) ->
+            .mapLatest { (hidden, externalApps, accountEnabled) ->
+                if (!accountEnabled) return@mapLatest emptyList()
                 val catalogueApps = appRepository.appsByPackageNames(RECOMMENDED_CATALOGUE_PACKAGES)
                     .excludingHidden(hidden)
                     .associateBy { it.packageName.name }
