@@ -8,31 +8,36 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.CircularWavyProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -51,6 +56,27 @@ private const val TvFocusedScale = 1.1f
 /** The rounded box drawn behind/around a focused tile on Android TV. */
 private val TvTileShape = RoundedCornerShape(16.dp)
 
+/** Where a corner of the icon is probed, as a share of its side: deep enough to sit inside a rounded
+ *  square's corner arc, yet still outside a circle's edge. */
+private const val CornerProbe = 0.1f
+
+/** At or below this alpha a probed pixel counts as empty. */
+private const val EmptyAlpha = 16
+
+/** Whether this rendered icon is a round logo: something is drawn at its centre, but all four corners
+ *  are empty. A full square icon, or the card every icon sits on on Android TV, fills its corners. */
+private fun ImageBitmap.isRoundLogo(): Boolean {
+    val pixel = IntArray(1)
+    fun alphaAt(x: Float, y: Float): Int {
+        val startX = (x * (width - 1)).toInt()
+        val startY = (y * (height - 1)).toInt()
+        readPixels(pixel, startX = startX, startY = startY, width = 1, height = 1)
+        return pixel[0] ushr 24
+    }
+    val ends = listOf(CornerProbe, 1f - CornerProbe)
+    return alphaAt(0.5f, 0.5f) > EmptyAlpha && ends.all { x -> ends.all { y -> alphaAt(x, y) <= EmptyAlpha } }
+}
+
 /**
  * An app shown as a compact tile (F-Droid Discover style): a large rounded [icon] with an optional
  * "installed" check, and the name on (up to) two centred lines. Shared by the Discover carousels and
@@ -58,7 +84,6 @@ private val TvTileShape = RoundedCornerShape(16.dp)
  * icon vs. an external/provider icon). The caller sets the width via [modifier] (a fixed width in a
  * carousel, the cell width in a grid).
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppTile(
     name: String,
@@ -97,6 +122,18 @@ fun AppTile(
         animateFloatAsState(if (focused) 1f else 0f, label = "tvTileBorder").value
     } else {
         0f
+    }
+    // The update ring follows the icon's outline: a rounded square, or a circle for a round logo. The
+    // icon is a caller-supplied slot with no shape to read, so it is recorded here and its corners are
+    // looked at when the update starts.
+    val iconLayer = rememberGraphicsLayer()
+    var roundIcon by remember { mutableStateOf(false) }
+    LaunchedEffect(isUpdating) {
+        if (isUpdating) {
+            // A tile that appears mid-update has not drawn its icon yet: wait for that first frame.
+            withFrameNanos { }
+            roundIcon = iconLayer.size != IntSize.Zero && iconLayer.toImageBitmap().isRoundLogo()
+        }
     }
 
     Column(
@@ -152,29 +189,28 @@ fun AppTile(
             // it, so the batch's live progress is obvious as it moves from app to app. The ring is as
             // large as the icon itself (matchParentSize), so it runs all the way around the logo.
             Box(
-                modifier = if (isUpdating) {
-                    Modifier.graphicsLayer { alpha = 0.35f }
-                } else {
-                    Modifier
-                },
+                modifier = (if (isUpdating) Modifier.graphicsLayer { alpha = 0.35f } else Modifier)
+                    // Inside the dimming, so the recording keeps the icon's own alpha.
+                    .drawWithContent {
+                        iconLayer.record { this@drawWithContent.drawContent() }
+                        drawLayer(iconLayer)
+                    },
             ) {
                 icon()
             }
             if (isUpdating) {
-                if (updateFraction != null) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.matchParentSize()) {
-                        CircularWavyProgressIndicator(
-                            progress = { updateFraction },
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.matchParentSize()) {
+                    OutlineWavyProgressIndicator(
+                        cornerSize = if (roundIcon) CornerSize(50) else MaterialTheme.shapes.large.topStart,
+                        progress = updateFraction?.let { fraction -> { fraction } },
+                    )
+                    if (updateFraction != null) {
                         Text(
                             text = "${(updateFraction * 100).toInt()}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
-                } else {
-                    CircularWavyProgressIndicator(modifier = Modifier.matchParentSize())
                 }
             } else if (isInstalled) {
                 Box(
