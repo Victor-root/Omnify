@@ -464,6 +464,23 @@ class MainComposeActivity : ComponentActivity() {
         navController.navigateToRepoList()
     }
 
+    /**
+     * Keeps the newest intent as the activity's own, on top of what ComponentActivity already does.
+     *
+     * ComponentActivity only hands a new intent to the listeners registered at that moment, and the
+     * one registered in [onCreate]'s content only exists once the first frame has composed. When the
+     * system rebuilds this activity for a tap (the process was killed while the task stayed in the
+     * recents, the usual state hours after the periodic sync posted the "updates available"
+     * notification), it delivers that tap's intent before the first frame: no listener is there yet,
+     * the intent is dropped, and the app reopens on whatever screen was left on top. Making it the
+     * activity's intent lets the launch handling below find it when the content does start.
+     */
+    override fun onNewIntent(intent: Intent) {
+        trailUpdatesNav { "Activity.onNewIntent action=${intent.action}" }
+        setIntent(intent)
+        super.onNewIntent(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val themeState = collectThemeChanges()
         super.onCreate(savedInstanceState)
