@@ -35,6 +35,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
@@ -63,6 +65,9 @@ private const val CornerProbe = 0.1f
 
 /** At or below this alpha a probed pixel counts as empty. */
 private const val EmptyAlpha = 16
+
+/** Room left around the widest percentage (100 %) inside the round badge of an updating icon. */
+private val PercentBadgePadding = 3.dp
 
 /** Whether this rendered icon is a round logo: something is drawn at its centre, but all four corners
  *  are empty. A full square icon, or the card every icon sits on on Android TV, fills its corners. */
@@ -206,16 +211,29 @@ fun AppTile(
                         progress = updateFraction?.let { fraction -> { fraction } },
                     )
                     if (updateFraction != null) {
-                        // On an opaque badge, as the dimmed icon underneath would otherwise show through
-                        // the digits. Truncated like the ring, so it never reads 100 % before it is full.
-                        Text(
-                            text = NumberFormat.getPercentInstance().format((updateFraction * 100).toInt() / 100.0),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimary,
+                        // On an opaque round badge, as the dimmed icon underneath would otherwise show
+                        // through the digits. The circle is sized once for the widest reading (100 %), so
+                        // it keeps the same size as the number climbs. Truncated like the ring, so it
+                        // never reads 100 % before the ring is full.
+                        val percent = NumberFormat.getPercentInstance()
+                        val style = MaterialTheme.typography.labelSmall
+                        val textMeasurer = rememberTextMeasurer()
+                        val diameter = with(LocalDensity.current) {
+                            val widest = textMeasurer.measure(percent.format(1.0), style).size
+                            maxOf(widest.width, widest.height).toDp() + PercentBadgePadding * 2
+                        }
+                        Box(
+                            contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .background(MaterialTheme.colorScheme.primary, CircleShape)
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
+                                .size(diameter)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape),
+                        ) {
+                            Text(
+                                text = percent.format((updateFraction * 100).toInt() / 100.0),
+                                style = style,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            )
+                        }
                     }
                 }
             } else if (isInstalled) {
