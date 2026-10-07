@@ -237,4 +237,6 @@
     <string name="no_connection_title">Нема интернет везе</string>
     <string name="no_connection_hint">Каталог ће се сам учитати чим се веза врати.</string>
     <string name="no_connection_DESC">Преузимања и синхронизација неће радити док се веза не врати.</string>
+    <string name="search_no_results">Нема резултата за „%1$s“</string>
+    <string name="search_no_results_DESC">Проверите правопис или потражите део назива.</string>
 </resources>

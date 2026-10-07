@@ -561,4 +561,6 @@
     <string name="add_without_checking">Tambahkan tanpa memeriksa</string>
     <string name="address_single_line">Ini lebih dari satu baris. Simpan hanya alamatnya.</string>
     <string name="last_updated">Terakhir diperbarui:</string>
+    <string name="search_no_results">Tidak ada hasil untuk “%1$s”</string>
+    <string name="search_no_results_DESC">Periksa ejaannya, atau cari sebagian dari namanya.</string>
 </resources>

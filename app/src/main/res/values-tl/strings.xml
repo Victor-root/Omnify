@@ -196,4 +196,6 @@
     <string name="no_connection_title">Walang koneksyon sa internet</string>
     <string name="no_connection_hint">Kusang mag-lo-load ang katalogo sa oras na bumalik ang koneksyon.</string>
     <string name="no_connection_DESC">Hindi gagana ang mga pag-download at pag-sync hangga\'t hindi bumabalik ang koneksyon.</string>
+    <string name="search_no_results">Walang resulta para sa “%1$s”</string>
+    <string name="search_no_results_DESC">Suriin ang baybay, o hanapin ang bahagi ng pangalan.</string>
 </resources>

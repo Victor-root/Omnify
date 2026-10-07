@@ -561,4 +561,6 @@
     <string name="add_without_checking">不检查直接添加</string>
     <string name="address_single_line">这里不止一行。只保留地址。</string>
     <string name="last_updated">最后更新：</string>
+    <string name="search_no_results">没有找到与“%1$s”相关的结果</string>
+    <string name="search_no_results_DESC">请检查拼写，或搜索名称的一部分。</string>
 </resources>

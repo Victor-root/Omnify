@@ -167,9 +167,17 @@ class AppListViewModel @Inject constructor(
      *  notably the Updates tab opened from the "updates available" notification, sat on the
      *  empty-tab message for [SEARCH_DEBOUNCE_MS] before the real list could even start loading, on
      *  top of however long the rest of the chain (a Room query, then the combine below it) then
-     *  took. */
-    private val searchQueryStream = snapshotFlow { searchQuery.text.toString() }
+     *  took.
+     *
+     *  Trimmed: picking a keyboard's suggestion leaves a space after the word, and a search for
+     *  "signal " then only matched a name with something after "signal". */
+    private val searchQueryStream = snapshotFlow { searchQuery.text.toString().trim() }
         .debounce { if (it.isEmpty()) 0L else SEARCH_DEBOUNCE_MS }
+
+    /** The search every list here is filtered by, exactly as they see it (trimmed and debounced), or
+     *  empty while not searching. For the screen to filter the external sources the same way, and to
+     *  name what was searched when nothing matched. */
+    val activeSearch: StateFlow<String> = searchQueryStream.asStateFlow("")
 
     val categories: StateFlow<List<CatalogCategory>> =
         appRepository.categories.asStateFlow(emptyList())

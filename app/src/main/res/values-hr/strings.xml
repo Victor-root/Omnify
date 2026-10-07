@@ -272,4 +272,6 @@
     <string name="no_connection_title">Nema internetske veze</string>
     <string name="no_connection_hint">Katalog će se učitati sam čim se veza vrati.</string>
     <string name="no_connection_DESC">Preuzimanja i sinkronizacija neće raditi dok se veza ne vrati.</string>
+    <string name="search_no_results">Nema rezultata za „%1$s”</string>
+    <string name="search_no_results_DESC">Provjerite pravopis ili potražite dio naziva.</string>
 </resources>

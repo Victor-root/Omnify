@@ -196,4 +196,6 @@
     <string name="no_connection_title">ഇന്റർനെറ്റ് കണക്ഷൻ ഇല്ല</string>
     <string name="no_connection_hint">കണക്ഷൻ തിരികെ വരുമ്പോൾ കാറ്റലോഗ് സ്വയം ലോഡ് ചെയ്യും.</string>
     <string name="no_connection_DESC">കണക്ഷൻ തിരികെ വരുന്നതുവരെ ഡൗൺലോഡുകളും സമന്വയവും പ്രവർത്തിക്കില്ല.</string>
+    <string name="search_no_results">“%1$s” എന്നതിന് ഫലങ്ങളൊന്നുമില്ല</string>
+    <string name="search_no_results_DESC">അക്ഷരത്തെറ്റ് പരിശോധിക്കുക, അല്ലെങ്കിൽ പേരിന്റെ ഒരു ഭാഗം തിരയുക.</string>
 </resources>

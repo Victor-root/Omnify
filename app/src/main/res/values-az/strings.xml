@@ -234,4 +234,6 @@
     <string name="no_connection_title">İnternet bağlantısı yoxdur</string>
     <string name="no_connection_hint">Bağlantı bərpa olunan kimi kataloq öz-özünə yüklənəcək.</string>
     <string name="no_connection_DESC">Bağlantı bərpa olunana qədər yükləmələr və sinxronizasiya işləməyəcək.</string>
+    <string name="search_no_results">“%1$s” üçün nəticə yoxdur</string>
+    <string name="search_no_results_DESC">Yazılışı yoxlayın və ya adın bir hissəsini axtarın.</string>
 </resources>

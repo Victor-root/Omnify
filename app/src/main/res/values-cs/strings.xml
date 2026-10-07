@@ -272,4 +272,6 @@
     <string name="no_connection_title">Žádné připojení k internetu</string>
     <string name="no_connection_hint">Katalog se načte sám, jakmile bude připojení zpět.</string>
     <string name="no_connection_DESC">Stahování ani synchronizace nebudou fungovat, dokud se připojení nevrátí.</string>
+    <string name="search_no_results">Žádné výsledky pro „%1$s“</string>
+    <string name="search_no_results_DESC">Zkontrolujte pravopis, nebo hledejte část názvu.</string>
 </resources>

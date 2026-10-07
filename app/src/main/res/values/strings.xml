@@ -436,6 +436,8 @@
     <string name="discover_recommended_victor">Recommended by Victor-root</string>
     <string name="no_installed_apps">No installed apps found</string>
     <string name="everything_up_to_date">Everything is up to date</string>
+    <string name="search_no_results">No results for “%1$s”</string>
+    <string name="search_no_results_DESC">Check the spelling, or search for part of the name.</string>
     <string name="delete_repository">Delete repository</string>
     <string name="delete_repository_confirm">Are you sure you want to delete this repository?</string>
     <string name="edit">Edit</string>

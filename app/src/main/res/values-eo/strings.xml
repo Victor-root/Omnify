@@ -216,4 +216,6 @@
     <string name="no_connection_title">Neniu interreta konekto</string>
     <string name="no_connection_hint">La katalogo ŝargiĝos aŭtomate tuj kiam la konekto revenos.</string>
     <string name="no_connection_DESC">Elŝutoj kaj sinkronigo ne funkcios ĝis la konekto revenos.</string>
+    <string name="search_no_results">Neniuj rezultoj por “%1$s”</string>
+    <string name="search_no_results_DESC">Kontrolu la literumon aŭ serĉu parton de la nomo.</string>
 </resources>

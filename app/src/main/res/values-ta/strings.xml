@@ -216,4 +216,6 @@
     <string name="no_connection_title">இணைய இணைப்பு இல்லை</string>
     <string name="no_connection_hint">இணைப்பு திரும்பியவுடன் பட்டியல் தானாகவே ஏற்றப்படும்.</string>
     <string name="no_connection_DESC">இணைப்பு திரும்பும் வரை பதிவிறக்கங்களும் ஒத்திசைவும் வேலை செய்யாது.</string>
+    <string name="search_no_results">“%1$s” க்கு முடிவுகள் இல்லை</string>
+    <string name="search_no_results_DESC">எழுத்துப்பிழையைச் சரிபார்க்கவும், அல்லது பெயரின் ஒரு பகுதியைத் தேடவும்.</string>
 </resources>

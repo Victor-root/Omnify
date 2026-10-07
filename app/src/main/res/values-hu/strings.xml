@@ -269,4 +269,6 @@
     <string name="no_connection_title">Nincs internetkapcsolat</string>
     <string name="no_connection_hint">A katalógus magától betöltődik, amint helyreáll a kapcsolat.</string>
     <string name="no_connection_DESC">A letöltések és a szinkronizálás nem működnek, amíg vissza nem áll a kapcsolat.</string>
+    <string name="search_no_results">Nincs találat erre: „%1$s”</string>
+    <string name="search_no_results_DESC">Ellenőrizze a helyesírást, vagy keressen a név egy részére.</string>
 </resources>

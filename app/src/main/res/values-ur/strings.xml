@@ -55,4 +55,6 @@
     <string name="no_connection_title">انٹرنیٹ کنکشن نہیں ہے</string>
     <string name="no_connection_hint">کنکشن واپس آتے ہی فہرست خود بخود لوڈ ہو جائے گی۔</string>
     <string name="no_connection_DESC">کنکشن واپس آنے تک ڈاؤن لوڈ اور ہم آہنگی کام نہیں کریں گے۔</string>
+    <string name="search_no_results">“%1$s” کے لیے کوئی نتیجہ نہیں</string>
+    <string name="search_no_results_DESC">ہجے چیک کریں، یا نام کا کچھ حصہ تلاش کریں۔</string>
 </resources>

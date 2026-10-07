@@ -566,4 +566,6 @@
     <string name="add_without_checking">Toevoegen zonder controle</string>
     <string name="address_single_line">Dit is meer dan één regel. Bewaar alleen het adres.</string>
     <string name="last_updated">Laatst bijgewerkt:</string>
+    <string name="search_no_results">Geen resultaten voor ‘%1$s’</string>
+    <string name="search_no_results_DESC">Controleer de spelling of zoek op een deel van de naam.</string>
 </resources>

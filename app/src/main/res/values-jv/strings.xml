@@ -7,4 +7,6 @@
     <string name="no_connection_title">Ora ana sambungan internet</string>
     <string name="no_connection_hint">Katalog bakal dimuat dhewe sanalika sambungan bali.</string>
     <string name="no_connection_DESC">Undhuhan lan sinkronisasi ora bakal mlaku nganti sambungan bali.</string>
+    <string name="search_no_results">Ora ana asil kanggo “%1$s”</string>
+    <string name="search_no_results_DESC">Priksa ejaane, utawa goleki sapérangan saka jenengé.</string>
 </resources>

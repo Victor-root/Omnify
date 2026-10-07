@@ -251,4 +251,6 @@
     <string name="no_connection_title">אין חיבור לאינטרנט</string>
     <string name="no_connection_hint">הקטלוג ייטען מעצמו ברגע שהחיבור יחזור.</string>
     <string name="no_connection_DESC">הורדות וסנכרון לא יפעלו עד שהחיבור יחזור.</string>
+    <string name="search_no_results">אין תוצאות עבור „%1$s”</string>
+    <string name="search_no_results_DESC">כדאי לבדוק את האיות, או לחפש חלק מהשם.</string>
 </resources>

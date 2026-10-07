@@ -268,4 +268,6 @@
     <string name="no_connection_title">Internetiühendus puudub</string>
     <string name="no_connection_hint">Kataloog laaditakse ise, niipea kui ühendus taastub.</string>
     <string name="no_connection_DESC">Allalaadimised ja sünkroonimine ei tööta enne, kui ühendus taastub.</string>
+    <string name="search_no_results">„%1$s“ kohta tulemusi pole</string>
+    <string name="search_no_results_DESC">Kontrolli õigekirja või otsi nime osa järgi.</string>
 </resources>

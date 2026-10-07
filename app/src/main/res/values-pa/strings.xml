@@ -228,4 +228,6 @@
     <string name="no_connection_title">ਕੋਈ ਇੰਟਰਨੈੱਟ ਕਨੈਕਸ਼ਨ ਨਹੀਂ</string>
     <string name="no_connection_hint">ਕਨੈਕਸ਼ਨ ਵਾਪਸ ਆਉਂਦੇ ਹੀ ਕੈਟਾਲਾਗ ਆਪਣੇ ਆਪ ਲੋਡ ਹੋ ਜਾਵੇਗਾ।</string>
     <string name="no_connection_DESC">ਕਨੈਕਸ਼ਨ ਵਾਪਸ ਆਉਣ ਤੱਕ ਡਾਊਨਲੋਡ ਅਤੇ ਸਿੰਕ ਕੰਮ ਨਹੀਂ ਕਰਨਗੇ।</string>
+    <string name="search_no_results">“%1$s” ਲਈ ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ</string>
+    <string name="search_no_results_DESC">ਸ਼ਬਦ-ਜੋੜ ਜਾਂਚੋ, ਜਾਂ ਨਾਮ ਦਾ ਕੋਈ ਹਿੱਸਾ ਖੋਜੋ।</string>
 </resources>

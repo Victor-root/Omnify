@@ -576,4 +576,6 @@
     <string name="add_without_checking">Добавить без проверки</string>
     <string name="address_single_line">Здесь больше одной строки. Оставьте только адрес.</string>
     <string name="last_updated">Последнее обновление:</string>
+    <string name="search_no_results">Ничего не найдено по запросу «%1$s»</string>
+    <string name="search_no_results_DESC">Проверьте написание или поищите по части названия.</string>
 </resources>

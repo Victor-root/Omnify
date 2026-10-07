@@ -566,4 +566,6 @@
     <string name="add_without_checking">Denetlemeden ekle</string>
     <string name="address_single_line">Burada birden fazla satır var. Yalnızca adresi bırakın.</string>
     <string name="last_updated">Son güncelleme:</string>
+    <string name="search_no_results">“%1$s” için sonuç yok</string>
+    <string name="search_no_results_DESC">Yazımı kontrol edin veya adın bir kısmını arayın.</string>
 </resources>

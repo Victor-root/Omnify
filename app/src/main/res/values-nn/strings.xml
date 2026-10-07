@@ -201,4 +201,6 @@
     <string name="no_connection_title">Inga internettilkopling</string>
     <string name="no_connection_hint">Katalogen blir lasta inn av seg sjølv så snart tilkoplinga er tilbake.</string>
     <string name="no_connection_DESC">Nedlastingar og synkronisering verkar ikkje før tilkoplinga er tilbake.</string>
+    <string name="search_no_results">Ingen resultat for «%1$s»</string>
+    <string name="search_no_results_DESC">Sjekk stavemåten, eller søk etter ein del av namnet.</string>
 </resources>

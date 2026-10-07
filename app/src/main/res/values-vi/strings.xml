@@ -231,4 +231,6 @@
     <string name="no_connection_title">Không có kết nối internet</string>
     <string name="no_connection_hint">Danh mục sẽ tự tải ngay khi có lại kết nối.</string>
     <string name="no_connection_DESC">Tải xuống và đồng bộ sẽ không hoạt động cho tới khi có lại kết nối.</string>
+    <string name="search_no_results">Không có kết quả cho “%1$s”</string>
+    <string name="search_no_results_DESC">Kiểm tra chính tả, hoặc tìm theo một phần của tên.</string>
 </resources>

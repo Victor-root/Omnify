@@ -237,4 +237,6 @@
     <string name="no_connection_title">Nav interneta savienojuma</string>
     <string name="no_connection_hint">Katalogs ielādēsies pats, tiklīdz savienojums atjaunosies.</string>
     <string name="no_connection_DESC">Lejupielādes un sinhronizācija nedarbosies, kamēr savienojums neatjaunosies.</string>
+    <string name="search_no_results">Nav rezultātu vaicājumam “%1$s”</string>
+    <string name="search_no_results_DESC">Pārbaudiet pareizrakstību vai meklējiet pēc nosaukuma daļas.</string>
 </resources>

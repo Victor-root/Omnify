@@ -234,4 +234,6 @@
     <string name="no_connection_title">اتصال اینترنتی وجود ندارد</string>
     <string name="no_connection_hint">به محض بازگشت اتصال، فهرست به‌طور خودکار بارگذاری می‌شود.</string>
     <string name="no_connection_DESC">تا بازگشت اتصال، بارگیری‌ها و همگام‌سازی کار نمی‌کنند.</string>
+    <string name="search_no_results">نتیجه‌ای برای «%1$s» پیدا نشد</string>
+    <string name="search_no_results_DESC">املای آن را بررسی کنید، یا بخشی از نام را جست‌وجو کنید.</string>
 </resources>

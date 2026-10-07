@@ -253,4 +253,6 @@
     <string name="no_connection_title">Nicio conexiune la internet</string>
     <string name="no_connection_hint">Catalogul se va încărca singur imediat ce revine conexiunea.</string>
     <string name="no_connection_DESC">Descărcările și sincronizarea nu vor funcționa până când nu revine conexiunea.</string>
+    <string name="search_no_results">Niciun rezultat pentru „%1$s”</string>
+    <string name="search_no_results_DESC">Verifică ortografia sau caută o parte din nume.</string>
 </resources>

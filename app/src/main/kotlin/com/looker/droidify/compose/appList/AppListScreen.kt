@@ -151,6 +151,7 @@ import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.work.BatchUpdateProgress
 import kotlinx.coroutines.delay
 
@@ -198,13 +199,14 @@ fun AppListScreen(
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
     val externallyInstalled by viewModel.externallyInstalledPackages.collectAsStateWithLifecycle()
     val homeScreenSwiping by viewModel.homeScreenSwiping.collectAsStateWithLifecycle()
+    val activeSearch by viewModel.activeSearch.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
     // The whole header (toolbar + tabs + banner) collapses on scroll under edge-to-edge.
     val header = rememberCollapsibleHeader()
     var searchExpanded by rememberSaveable { mutableStateOf(false) }
     // The Explore tab shows the Discover home (3 curated carousels + the categories list) by default;
     // once the user is searching or has opened a category, it shows a flat list of apps instead.
-    val isSearching = viewModel.searchQuery.text.isNotEmpty()
+    val isSearching = viewModel.searchQuery.text.isNotBlank()
     // A curated carousel's "see all" opens it as its own page (a flat list of the whole section);
     // null means we're on the Discover home. Categories, by contrast, expand inline in the accordion.
     val sectionView = openedSection != null
@@ -335,6 +337,16 @@ fun AppListScreen(
     // reusing the exact same list the "Made for TV" carousel/section already computes above instead of
     // filtering twice.
     val gridExternalApps = if (tvOnly) tvExternalApps else enabledExternalApps
+    // The external sources live outside the database the search runs in, so the same search is applied
+    // to them here: on the Explore tab's results, the External tab and the Updates tab alike, the way
+    // their catalogue halves already are. They were left out entirely, so an app followed from GitHub
+    // could not be found by name.
+    val searchedExternalApps = remember(gridExternalApps, activeSearch) {
+        gridExternalApps.filter { it.matchesSearch(activeSearch) }
+    }
+    val searchedExternalUpdates = remember(externalUpdates, activeSearch) {
+        externalUpdates.filter { it.matchesSearch(activeSearch) }
+    }
     // The favourites full page's own order, independent of the carousel above it: catalogue and
     // external favourites merged into one list and sorted by whatever favouritesSortOrder currently
     // is. Just a re-sort of data already resolved elsewhere (including the PackageManager lookups
@@ -764,9 +776,13 @@ fun AppListScreen(
                     item(span = { GridItemSpan(maxLineSpan) }, key = "external-empty") {
                         ExternalTabEmpty()
                     }
+                } else if (searchedExternalApps.isEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "no-search-results") {
+                        NoSearchResults(query = activeSearch)
+                    }
                 }
                 // Install happens on the detail screen; the grid mirrors the catalogue tabs exactly.
-                items(items = gridExternalApps, key = { it.key }, contentType = { "ext-tile" }) { app ->
+                items(items = searchedExternalApps, key = { it.key }, contentType = { "ext-tile" }) { app ->
                     ExternalAppTile(
                         app = app,
                         isInstalled = app.key in externalInstalledKeys,
@@ -991,13 +1007,22 @@ fun AppListScreen(
                 }
             }
             val showEmpty = when (selectedTab) {
+                AppTab.AVAILABLE ->
+                    isSearching && !sectionView && activeSearch.isNotEmpty() &&
+                        apps.isEmpty() && searchedExternalApps.isEmpty()
                 AppTab.INSTALLED -> apps.isEmpty()
-                AppTab.UPDATES -> !updatesStillLoading && apps.isEmpty() && externalUpdates.isEmpty()
-                else -> false
+                AppTab.UPDATES -> !updatesStillLoading && apps.isEmpty() && searchedExternalUpdates.isEmpty()
+                AppTab.EXTERNAL -> false
             }
             if (showEmpty) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "empty-tab") {
-                    EmptyTabMessage(tab = selectedTab)
+                    // A search that emptied the list says so, rather than the tab's own empty message
+                    // ("Everything is up to date") claiming something the search only hid.
+                    if (activeSearch.isNotEmpty()) {
+                        NoSearchResults(query = activeSearch)
+                    } else {
+                        EmptyTabMessage(tab = selectedTab)
+                    }
                 }
             }
             // "Update all" on the Updates tab: one tap to download and install everything listed
@@ -1005,13 +1030,13 @@ fun AppListScreen(
             // sources, so the count on the button is the count on the tab and the button does what it
             // says. It counted and updated only the catalogue half before, which showed up as a
             // "(3)" sitting above four apps.
-            if (selectedTab == AppTab.UPDATES && (apps.isNotEmpty() || externalUpdates.isNotEmpty())) {
+            if (selectedTab == AppTab.UPDATES && (apps.isNotEmpty() || searchedExternalUpdates.isNotEmpty())) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "update-all") {
                     UpdateAllButton(
-                        count = apps.size + externalUpdates.size,
+                        count = apps.size + searchedExternalUpdates.size,
                         isUpdating = isUpdatingAll,
                         batch = batchUpdate,
-                        onClick = { viewModel.updateAll(externalUpdates.map { it.key }) },
+                        onClick = { viewModel.updateAll(searchedExternalUpdates.map { it.key }) },
                         onCancel = viewModel::cancelUpdateAll,
                     )
                 }
@@ -1106,6 +1131,25 @@ fun AppListScreen(
                         )
                     }
                 }
+                // Search results: the matching external sources after the catalogue ones, the same
+                // order every carousel mixing the two uses.
+                if (isSearching && !sectionView) {
+                    items(
+                        items = searchedExternalApps,
+                        key = { "search-ext-${it.key}" },
+                        contentType = { "ext-tile" },
+                    ) { app ->
+                        ExternalAppTile(
+                            app = app,
+                            isInstalled = app.key in externalInstalledKeys,
+                            onClick = { openExternalApp(app.key) },
+                            modifier = Modifier.restoreFocusTarget(
+                                isTelevision && restoreFocusId == "ext:${app.key}",
+                                restoreRequester,
+                            ),
+                        )
+                    }
+                }
             } else {
                 items(
                     items = apps,
@@ -1143,7 +1187,7 @@ fun AppListScreen(
             // External-repo updates, shown alongside the F-Droid ones on the Updates tab.
             if (selectedTab == AppTab.UPDATES) {
                 items(
-                    items = externalUpdates,
+                    items = searchedExternalUpdates,
                     key = { "ext-${it.key}" },
                     contentType = { "ext-tile" },
                 ) { app ->
@@ -1339,6 +1383,46 @@ private fun TitleOrSyncIndicator(syncing: Boolean, modifier: Modifier = Modifier
                 trackColor = LocalOnAccentBarColor.current.copy(alpha = 0.24f),
             )
         }
+    }
+}
+
+/** Whether [query] appears in this source's name, its project (owner/repo) or its package name,
+ *  ignoring case, the way the catalogue's own search matches an app. An empty query matches all. */
+private fun ExternalApp.matchesSearch(query: String): Boolean =
+    query.isEmpty() ||
+        label.contains(query, ignoreCase = true) ||
+        path.contains(query, ignoreCase = true) ||
+        packageName?.contains(query, ignoreCase = true) == true
+
+/** Shown where a search left nothing to list: says plainly that nothing matched, and what was searched,
+ *  so an empty grid never reads as the app having broken. */
+@Composable
+private fun NoSearchResults(query: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_tabler_search_off),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(48.dp),
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.search_no_results, query),
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.search_no_results_DESC),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

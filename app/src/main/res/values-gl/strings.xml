@@ -234,4 +234,6 @@
     <string name="no_connection_title">Sen conexión a Internet</string>
     <string name="no_connection_hint">O catálogo cargarase só en canto volva a conexión.</string>
     <string name="no_connection_DESC">As descargas e a sincronización non funcionarán ata que volva a conexión.</string>
+    <string name="search_no_results">Non hai resultados para «%1$s»</string>
+    <string name="search_no_results_DESC">Comproba a ortografía ou busca unha parte do nome.</string>
 </resources>

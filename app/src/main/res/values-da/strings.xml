@@ -233,4 +233,6 @@
     <string name="no_connection_title">Ingen internetforbindelse</string>
     <string name="no_connection_hint">Kataloget indlæses af sig selv, så snart forbindelsen er tilbage.</string>
     <string name="no_connection_DESC">Downloads og synkronisering virker ikke, før forbindelsen er tilbage.</string>
+    <string name="search_no_results">Ingen resultater for »%1$s«</string>
+    <string name="search_no_results_DESC">Tjek stavemåden, eller søg efter en del af navnet.</string>
 </resources>

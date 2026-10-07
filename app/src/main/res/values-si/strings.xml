@@ -7,4 +7,6 @@
     <string name="no_connection_title">අන්තර්ජාල සම්බන්ධතාවක් නැත</string>
     <string name="no_connection_hint">සම්බන්ධතාව නැවත ලැබුණු විගස නාමාවලිය තනිවම පූරණය වේ.</string>
     <string name="no_connection_DESC">සම්බන්ධතාව නැවත ලැබෙන තෙක් බාගැනීම් සහ සමමුහූර්තකරණය ක්‍රියා නොකරයි.</string>
+    <string name="search_no_results">“%1$s” සඳහා ප්‍රතිඵල නැත</string>
+    <string name="search_no_results_DESC">අක්ෂර වින්‍යාසය පරීක්ෂා කරන්න, නැතහොත් නමේ කොටසක් සොයන්න.</string>
 </resources>

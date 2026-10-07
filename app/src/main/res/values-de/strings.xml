@@ -566,4 +566,6 @@
     <string name="add_without_checking">Ohne Prüfung hinzufügen</string>
     <string name="address_single_line">Hier steht mehr als eine Zeile. Behalten Sie nur die Adresse.</string>
     <string name="last_updated">Zuletzt aktualisiert:</string>
+    <string name="search_no_results">Keine Ergebnisse für „%1$s“</string>
+    <string name="search_no_results_DESC">Prüfe die Schreibweise oder suche nach einem Teil des Namens.</string>
 </resources>

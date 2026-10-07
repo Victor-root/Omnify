@@ -228,4 +228,6 @@
     <string name="no_connection_title">ইন্টারনেট সংযোগ নেই</string>
     <string name="no_connection_hint">সংযোগ ফিরে এলেই ক্যাটালগ নিজে থেকে লোড হবে।</string>
     <string name="no_connection_DESC">সংযোগ ফিরে না আসা পর্যন্ত ডাউনলোড ও সিঙ্ক কাজ করবে না।</string>
+    <string name="search_no_results">“%1$s”-এর জন্য কোনো ফলাফল নেই</string>
+    <string name="search_no_results_DESC">বানান যাচাই করুন, অথবা নামের একটি অংশ দিয়ে খুঁজুন।</string>
 </resources>

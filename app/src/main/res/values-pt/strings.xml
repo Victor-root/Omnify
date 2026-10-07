@@ -267,4 +267,6 @@
     <string name="no_connection_title">Sem ligação à Internet</string>
     <string name="no_connection_hint">O catálogo será carregado sozinho assim que a ligação voltar.</string>
     <string name="no_connection_DESC">As transferências e a sincronização não funcionarão até a ligação voltar.</string>
+    <string name="search_no_results">Nenhum resultado para «%1$s»</string>
+    <string name="search_no_results_DESC">Verifique a ortografia ou pesquise parte do nome.</string>
 </resources>

@@ -221,4 +221,6 @@
     <string name="no_connection_title">कोई इंटरनेट कनेक्शन नहीं</string>
     <string name="no_connection_hint">कनेक्शन वापस आते ही कैटलॉग अपने आप लोड हो जाएगा।</string>
     <string name="no_connection_DESC">कनेक्शन वापस आने तक डाउनलोड और सिंक काम नहीं करेंगे।</string>
+    <string name="search_no_results">“%1$s” के लिए कोई परिणाम नहीं</string>
+    <string name="search_no_results_DESC">वर्तनी जाँचें, या नाम का कोई हिस्सा खोजें।</string>
 </resources>

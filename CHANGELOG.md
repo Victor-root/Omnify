@@ -12,12 +12,16 @@ Ten backgrounds to choose from, an Updates tab that always matches its notificat
 - **Categories from your own repositories come first** in Explore, with their own icon.
 - **The pre-install notice of an external source links to a GitHub issue** to report a wrong name, icon or version.
 - **The optional ML Kit translator no longer reports to Google**: its usage statistics are cut, it only starts when a translation is asked for, and its Firebase requests are blocked. The next version replaces it.
+- **Under edge-to-edge, every page's header slides away as you scroll** and comes back as soon as you scroll up, as on the home screen.
 
 ### 🐛 Fixed
 - **The "updates available" notification always opens the Updates tab**, on the same apps it announced.
 - **The Updates tab shows a loading state on a cold open** instead of "up to date".
 - **External sources' pre-install icons are found in more places** (Magisk, for one), with the right background colour.
 - **Empty categories no longer show.**
+- **Search finds the apps you follow from GitHub or GitLab too**, ignores the space a keyboard suggestion leaves after a word, and says so when nothing matches.
+- **With the accent matching an app's icon, the navigation bar keeps that colour** behind the install dialog.
+- **No more grey veil over the status bar** under edge-to-edge.
 
 ---
 

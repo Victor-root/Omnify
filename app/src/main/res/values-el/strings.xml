@@ -234,4 +234,6 @@
     <string name="no_connection_title">Δεν υπάρχει σύνδεση στο διαδίκτυο</string>
     <string name="no_connection_hint">Ο κατάλογος θα φορτωθεί από μόνος του μόλις επανέλθει η σύνδεση.</string>
     <string name="no_connection_DESC">Οι λήψεις και ο συγχρονισμός δεν θα λειτουργήσουν μέχρι να επανέλθει η σύνδεση.</string>
+    <string name="search_no_results">Δεν βρέθηκαν αποτελέσματα για «%1$s»</string>
+    <string name="search_no_results_DESC">Ελέγξτε την ορθογραφία ή αναζητήστε μέρος του ονόματος.</string>
 </resources>

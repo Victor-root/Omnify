@@ -571,4 +571,6 @@
     <string name="add_without_checking">Adicionar sem verificar</string>
     <string name="address_single_line">Há mais de uma linha aqui. Mantenha apenas o endereço.</string>
     <string name="last_updated">Última atualização:</string>
+    <string name="search_no_results">Nenhum resultado para “%1$s”</string>
+    <string name="search_no_results_DESC">Verifique a ortografia ou pesquise parte do nome.</string>
 </resources>

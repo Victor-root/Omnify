@@ -226,4 +226,6 @@
     <string name="no_connection_title">인터넷에 연결되어 있지 않습니다</string>
     <string name="no_connection_hint">연결이 돌아오는 대로 카탈로그가 저절로 불러와집니다.</string>
     <string name="no_connection_DESC">연결이 돌아올 때까지 다운로드와 동기화는 작동하지 않습니다.</string>
+    <string name="search_no_results">“%1$s”에 대한 결과가 없습니다</string>
+    <string name="search_no_results_DESC">철자를 확인하거나 이름의 일부로 검색해 보세요.</string>
 </resources>

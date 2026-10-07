@@ -220,4 +220,6 @@
     <string name="no_connection_title">Nulle connexion a internet</string>
     <string name="no_connection_hint">Le catalogo se cargara automaticamente tosto que le connexion retorna.</string>
     <string name="no_connection_DESC">Le discargamentos e le synchronisation non functionara usque le connexion retorna.</string>
+    <string name="search_no_results">Nulle resultatos pro “%1$s”</string>
+    <string name="search_no_results_DESC">Verifica le orthographia, o cerca un parte del nomine.</string>
 </resources>

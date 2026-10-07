@@ -231,4 +231,6 @@
     <string name="no_connection_title">Teu aya sambungan internét</string>
     <string name="no_connection_hint">Katalog bakal dimuat sorangan sanggeus sambungan balik deui.</string>
     <string name="no_connection_DESC">Undeuran jeung sinkronisasi moal jalan nepi ka sambungan balik deui.</string>
+    <string name="search_no_results">Euweuh hasil pikeun “%1$s”</string>
+    <string name="search_no_results_DESC">Pariksa éjahanana, atawa paluruh sabagian tina ngaranna.</string>
 </resources>

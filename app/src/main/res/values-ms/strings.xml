@@ -207,4 +207,6 @@
     <string name="no_connection_title">Tiada sambungan internet</string>
     <string name="no_connection_hint">Katalog akan dimuatkan dengan sendirinya sebaik sahaja sambungan kembali.</string>
     <string name="no_connection_DESC">Muat turun dan penyegerakan tidak akan berfungsi sehingga sambungan kembali.</string>
+    <string name="search_no_results">Tiada hasil untuk “%1$s”</string>
+    <string name="search_no_results_DESC">Semak ejaan, atau cari sebahagian daripada nama.</string>
 </resources>

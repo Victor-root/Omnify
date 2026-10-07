@@ -202,4 +202,6 @@
     <string name="no_connection_title">Ni internetne povezave</string>
     <string name="no_connection_hint">Katalog se bo naložil sam, takoj ko bo povezava spet na voljo.</string>
     <string name="no_connection_DESC">Prenosi in usklajevanje ne bodo delovali, dokler povezava ne bo spet na voljo.</string>
+    <string name="search_no_results">Ni rezultatov za »%1$s«</string>
+    <string name="search_no_results_DESC">Preverite črkovanje ali poiščite del imena.</string>
 </resources>

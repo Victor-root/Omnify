@@ -241,4 +241,6 @@
     <string name="no_connection_title">Ingen internetanslutning</string>
     <string name="no_connection_hint">Katalogen laddas av sig själv så snart anslutningen är tillbaka.</string>
     <string name="no_connection_DESC">Nedladdningar och synkronisering fungerar inte förrän anslutningen är tillbaka.</string>
+    <string name="search_no_results">Inga resultat för ”%1$s”</string>
+    <string name="search_no_results_DESC">Kontrollera stavningen eller sök på en del av namnet.</string>
 </resources>

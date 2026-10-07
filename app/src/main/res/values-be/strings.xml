@@ -240,4 +240,6 @@
     <string name="no_connection_title">Няма злучэння з інтэрнэтам</string>
     <string name="no_connection_hint">Каталог загрузіцца сам, як толькі з’явіцца злучэнне.</string>
     <string name="no_connection_DESC">Спампоўкі і сінхранізацыя не будуць працаваць, пакуль не адновіцца злучэнне.</string>
+    <string name="search_no_results">Няма вынікаў па запыце «%1$s»</string>
+    <string name="search_no_results_DESC">Праверце напісанне або пашукайце па частцы назвы.</string>
 </resources>

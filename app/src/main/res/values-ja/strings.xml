@@ -561,4 +561,6 @@
     <string name="add_without_checking">確認せずに追加</string>
     <string name="address_single_line">複数行あります。アドレスだけを残してください。</string>
     <string name="last_updated">最終更新:</string>
+    <string name="search_no_results">「%1$s」に一致する結果はありません</string>
+    <string name="search_no_results_DESC">スペルを確認するか、名前の一部で検索してください。</string>
 </resources>
