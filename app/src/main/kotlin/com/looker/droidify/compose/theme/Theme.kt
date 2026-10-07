@@ -14,9 +14,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
-import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -28,13 +26,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -439,9 +435,6 @@ fun DroidifyTheme(
         colorScheme = colorScheme,
         typography = Typography,
     ) {
-        // Opacity of the status-bar scrim, driven by the current screen's scroll (see
-        // LocalStatusBarScrimAlpha). Held here so the scrim itself can live above every screen.
-        val statusBarScrimAlpha = remember { mutableFloatStateOf(0f) }
         val baseDensity = LocalDensity.current
         // TV only: a uniform shrink of every dp/sp in the app (see TV_UI_SCALE), not just this or that
         // screen's own TV-specific sizes. No-op on touch (baseDensity itself, untouched).
@@ -458,7 +451,6 @@ fun DroidifyTheme(
             LocalOnAccentBarColor provides onBarColor,
             LocalEdgeToEdge provides edgeToEdge,
             LocalBackgroundStyle provides backgroundStyle,
-            LocalStatusBarScrimAlpha provides statusBarScrimAlpha,
             LocalScopedAccentBarColor provides scopedAccentBarColor,
             LocalIsTelevision provides isTelevision,
             LocalDensity provides scaledDensity,
@@ -482,24 +474,6 @@ fun DroidifyTheme(
                             .fillMaxWidth()
                             .windowInsetsBottomHeight(WindowInsets.navigationBars)
                             .background(systemBarColor),
-                    )
-                }
-                // Under edge-to-edge, a faint scrim over the status bar keeps it perceptible once a
-                // collapsing header has slid away and the content sits behind it. It stays invisible
-                // (alpha 0) while the accent header still covers the status bar, and fades in only as
-                // the content takes over — so the red header is never tinted. A light scrim in light
-                // mode and a light-on-dark one in dark mode keep it integrated with the background.
-                if (edgeToEdge) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .fillMaxWidth()
-                            .windowInsetsTopHeight(WindowInsets.statusBars)
-                            .graphicsLayer { alpha = statusBarScrimAlpha.floatValue }
-                            .background(
-                                if (darkTheme) Color.White.copy(alpha = 0.10f)
-                                else Color.Black.copy(alpha = 0.14f),
-                            ),
                     )
                 }
             }

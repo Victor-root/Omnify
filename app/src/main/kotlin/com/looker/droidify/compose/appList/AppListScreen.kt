@@ -161,7 +161,6 @@ import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalEdgeToEdge
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
-import com.looker.droidify.compose.theme.LocalStatusBarScrimAlpha
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.work.BatchUpdateProgress
 import kotlinx.coroutines.delay
@@ -292,9 +291,8 @@ fun AppListScreen(
     val view = LocalView.current
     val statusBarPx = WindowInsets.statusBars.getTop(LocalDensity.current)
     val backgroundIsLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
-    val statusBarScrimAlpha = LocalStatusBarScrimAlpha.current
     if (edgeToEdge && !view.isInEditMode) {
-        LaunchedEffect(view, statusBarPx, backgroundIsLight, statusBarScrimAlpha) {
+        LaunchedEffect(view, statusBarPx, backgroundIsLight) {
             val window = generateSequence(view.context) { (it as? ContextWrapper)?.baseContext }
                 .filterIsInstance<Activity>()
                 .firstOrNull()
@@ -311,13 +309,11 @@ fun AppListScreen(
                         ((statusBarPx - headerBottomPx) / statusBarPx).coerceIn(0f, 1f)
                     }
                 }.distinctUntilChanged().collect { contentFraction ->
-                    // Fade the faint scrim in with the content, and once content dominates the bar flip
-                    // the icons to match it (only matters in light mode; dark content suits white icons).
-                    statusBarScrimAlpha.floatValue = contentFraction
+                    // Once content dominates the bar, flip the icons to match it (only matters in light
+                    // mode; dark content suits white icons). The bar itself stays fully transparent.
                     controller.isAppearanceLightStatusBars = contentFraction > 0.5f && backgroundIsLight
                 }
             } finally {
-                statusBarScrimAlpha.floatValue = 0f
                 controller.isAppearanceLightStatusBars = false
             }
         }

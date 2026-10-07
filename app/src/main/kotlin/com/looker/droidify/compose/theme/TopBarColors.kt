@@ -5,9 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
@@ -27,13 +25,6 @@ val LocalOnAccentBarColor = staticCompositionLocalOf { Color.White }
  * by [DroidifyTheme].
  */
 val LocalEdgeToEdge = staticCompositionLocalOf { true }
-
-/**
- * Opacity (0..1) of the status-bar scrim — a faint, well-integrated background that keeps the status
- * bar perceptible once a collapsing header has slid away and the app content shows behind it. The
- * current screen drives it from its scroll state; [DroidifyTheme] draws the scrim and resets it to 0.
- */
-val LocalStatusBarScrimAlpha = staticCompositionLocalOf<MutableFloatState> { mutableFloatStateOf(0f) }
 
 /**
  * The accent a single screen has taken over with [ScopedAccentColor], or null when none has. Only the
