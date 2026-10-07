@@ -1,7 +1,5 @@
 package com.looker.droidify.compose.appList
 
-import android.app.Activity
-import android.content.ContextWrapper
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -43,7 +41,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
@@ -92,7 +89,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -117,15 +113,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -136,7 +128,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -150,6 +141,8 @@ import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.compose.components.AccentTabRow
 import com.looker.droidify.compose.components.CatalogOfflineState
+import com.looker.droidify.compose.components.CollapsingHeaderStatusBar
+import com.looker.droidify.compose.components.collapsingHeader
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.ScrollToTopFab
@@ -164,8 +157,6 @@ import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.work.BatchUpdateProgress
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -283,42 +274,6 @@ fun AppListScreen(
         }
     }
 
-    // Status-bar icons: white while the red header sits behind the status bar, but once the header has
-    // collapsed enough that the app content shows behind the status bar, match that content instead —
-    // otherwise white icons would land on a white background in light mode (dark mode is fine, white on
-    // black). Driven off the scroll state through a snapshotFlow so the screen doesn't recompose each
-    // frame; the white icons are handed back to the red header when we leave or turn edge-to-edge off.
-    val view = LocalView.current
-    val statusBarPx = WindowInsets.statusBars.getTop(LocalDensity.current)
-    val backgroundIsLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
-    if (edgeToEdge && !view.isInEditMode) {
-        LaunchedEffect(view, statusBarPx, backgroundIsLight) {
-            val window = generateSequence(view.context) { (it as? ContextWrapper)?.baseContext }
-                .filterIsInstance<Activity>()
-                .firstOrNull()
-                ?.window ?: return@LaunchedEffect
-            val controller = WindowCompat.getInsetsController(window, view)
-            try {
-                snapshotFlow {
-                    val headerHeightPx = -scrollBehavior.state.heightOffsetLimit
-                    val headerBottomPx = scrollBehavior.state.heightOffset + headerHeightPx
-                    // How much of the status bar now shows app content instead of the red header (0..1).
-                    if (headerHeightPx <= 0f || statusBarPx <= 0) {
-                        0f
-                    } else {
-                        ((statusBarPx - headerBottomPx) / statusBarPx).coerceIn(0f, 1f)
-                    }
-                }.distinctUntilChanged().collect { contentFraction ->
-                    // Once content dominates the bar, flip the icons to match it (only matters in light
-                    // mode; dark content suits white icons). The bar itself stays fully transparent.
-                    controller.isAppearanceLightStatusBars = contentFraction > 0.5f && backgroundIsLight
-                }
-            } finally {
-                controller.isAppearanceLightStatusBars = false
-            }
-        }
-    }
-
     // Cold/warm start: the Discover carousels are fed by independent flows that emit in a race, and
     // LazyGrid anchors on its first visible item — so a carousel that finishes loading *above* the
     // current anchor (e.g. "New apps" arriving after "Most downloaded") shoves the top off-screen and
@@ -423,6 +378,7 @@ fun AppListScreen(
     // On TV the header must never scroll away (the tabs would become unreachable with a remote), so the
     // collapse-on-scroll is only wired up off TV. Other edge-to-edge behaviour is left untouched.
     val collapsibleHeader = edgeToEdge && !isTelevision
+    if (collapsibleHeader) CollapsingHeaderStatusBar(scrollBehavior)
     // Android TV: some remotes (e.g. the Nvidia Shield's) have a distinct "menu" key, the same one the
     // system launcher uses to open quick settings from the home screen — mirrored here on Omnify's own
     // main screen to open its own overflow menu (Favourites/Repositories/Settings), regardless of which
@@ -1231,25 +1187,6 @@ fun AppListScreen(
         }
     }
 }
-
-/**
- * Collapses the element this modifies (the whole header) off the top of the screen as the body
- * scrolls, driven by [scrollBehavior]'s enter-always logic. It reports a height that shrinks with the
- * scroll offset — so the Scaffold slides the body up into the freed space — and translates the header
- * by the same amount, so the header leaves and the content slides behind the status bar together.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-private fun Modifier.collapsingHeader(scrollBehavior: TopAppBarScrollBehavior): Modifier =
-    layout { measurable, constraints ->
-        val placeable = measurable.measure(constraints)
-        // The header can collapse by its full height; tell the scroll behaviour so it clamps there.
-        scrollBehavior.state.heightOffsetLimit = -placeable.height.toFloat()
-        val offsetY = scrollBehavior.state.heightOffset.roundToInt() // 0 (shown) .. -height (hidden)
-        val measuredHeight = (placeable.height + offsetY).coerceAtLeast(0)
-        layout(placeable.width, measuredHeight) {
-            placeable.place(0, offsetY)
-        }
-    }
 
 @Composable
 private fun AppTabRow(

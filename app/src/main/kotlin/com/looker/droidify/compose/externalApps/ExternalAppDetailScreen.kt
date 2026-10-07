@@ -35,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -57,6 +58,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
@@ -74,6 +76,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -86,13 +89,16 @@ import com.looker.droidify.compose.appDetail.GoogleServiceDependency
 import com.looker.droidify.compose.appDetail.GoogleServicesCard
 import com.looker.droidify.compose.appDetail.isGoogleServicesProviderPackage
 import com.looker.droidify.compose.components.CertificateSection
+import com.looker.droidify.compose.components.CollapsingHeaderStatusBar
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
+import com.looker.droidify.compose.components.collapsingHeader
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.HideAppAction
 import com.looker.droidify.compose.components.InstallConflictDialog
+import com.looker.droidify.compose.theme.LocalEdgeToEdge
 import com.looker.droidify.migration.ChannelSwitchBanner
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
@@ -136,6 +142,7 @@ import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.isInstalledFromGooglePlay
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.singleSignature
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -343,6 +350,12 @@ fun ExternalAppDetailScreen(
     // settling. That scroll bug is now fixed at the scroll level itself, so it no longer needs the heart
     // as a workaround.
     val primaryActionFocusRequester = remember { FocusRequester() }
+    // Edge-to-edge: the header slides off the top as the page scrolls down and comes back on the
+    // slightest scroll up, as on the home screen. Pinned otherwise, and always on TV, where a remote
+    // couldn't bring it back. Created unconditionally so the call site stays stable.
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    val collapsibleHeader = LocalEdgeToEdge.current && !isTelevision
+    if (collapsibleHeader) CollapsingHeaderStatusBar(scrollBehavior)
     // TV: whether the user has pressed any key on this screen yet. Once true, focus is entirely theirs —
     // nothing below may redirect it again. Set from the screen-root key handler (see the Scaffold
     // modifier below), which sees every key press regardless of what currently has focus.
@@ -414,6 +427,8 @@ fun ExternalAppDetailScreen(
                         false
                     }
                 }
+        } else if (collapsibleHeader) {
+            Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
         } else {
             Modifier
         },
@@ -457,6 +472,8 @@ fun ExternalAppDetailScreen(
                                 runCatching { primaryActionFocusRequester.requestFocus() }
                             }
                         }
+                } else if (collapsibleHeader) {
+                    Modifier.collapsingHeader(scrollBehavior)
                 } else {
                     Modifier
                 },
@@ -560,6 +577,12 @@ fun ExternalAppDetailScreen(
         // scrollState is hoisted above the Scaffold (used by the page-scroll TV modifier below and by
         // the scroll-to-top FAB). viewportPx drives the page step for TV D-pad paging.
         var viewportPx by remember { mutableStateOf(0) }
+        // The viewport as it stands with the header shown. A collapsing header grows the viewport by
+        // however much of it has slid away, and the README's collapsed height and rendering mode are
+        // both sized from this, so they must not change in the middle of a scroll.
+        val onViewportSized: (IntSize) -> Unit = {
+            viewportPx = it.height + scrollBehavior.state.heightOffset.roundToInt()
+        }
 
         // The repo's release tag (e.g. "v2.5.0") often doesn't match the APK's own version — the file
         // name usually does (e.g. "GlassKeep-1.4.6.apk" for a "v2.5.0" release) — but some projects ship
@@ -767,7 +790,7 @@ fun ExternalAppDetailScreen(
                     modifier = Modifier
                         .weight(0.6f)
                         .fillMaxHeight()
-                        .onSizeChanged { viewportPx = it.height }
+                        .onSizeChanged(onViewportSized)
                         // No stretch overscroll: this pane hosts the README WebView — see the same
                         // parameter on the single-column layout below for the full native-crash story.
                         .verticalScroll(scrollState, overscrollEffect = null)
@@ -861,7 +884,7 @@ fun ExternalAppDetailScreen(
                         .padding(contentPadding)
                         // So the last version card isn't glued to the bottom of the screen.
                         .padding(bottom = 24.dp)
-                        .onSizeChanged { viewportPx = it.height }
+                        .onSizeChanged(onViewportSized)
                         // overscrollEffect = null: NO stretch overscroll on this container — it hosts
                         // a hardware-accelerated WebView (the README), and Android 12+'s stretch effect
                         // redraws that WebView's GL draw functor through an unclipped-saveLayer path in

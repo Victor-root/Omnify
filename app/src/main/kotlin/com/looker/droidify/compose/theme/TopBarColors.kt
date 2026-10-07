@@ -6,7 +6,10 @@ import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -25,6 +28,39 @@ val LocalOnAccentBarColor = staticCompositionLocalOf { Color.White }
  * by [DroidifyTheme].
  */
 val LocalEdgeToEdge = staticCompositionLocalOf { true }
+
+/**
+ * Whether a screen's own content, rather than its header, now fills the status bar: under edge-to-edge
+ * a collapsing header slides off the top as the page scrolls (see
+ * [com.looker.droidify.compose.components.CollapsingHeaderStatusBar]). [DroidifyTheme] reads it to keep
+ * the status-bar icons legible over that content instead of over the header's accent.
+ *
+ * Held per owner, like [LocalScopedAccentBarColor]: two screens are composed together while one slides
+ * over the other, and the leaving one releases only after the arriving one has published, so a release
+ * clears nothing but what is still its own.
+ */
+@Stable
+class StatusBarContent {
+    private var owner: Any? by mutableStateOf(null)
+    private var contentShown by mutableStateOf(false)
+
+    /** True while most of the status bar shows a screen's content rather than its header. */
+    val showsContent: Boolean get() = owner != null && contentShown
+
+    fun publish(owner: Any, showsContent: Boolean) {
+        this.owner = owner
+        contentShown = showsContent
+    }
+
+    fun release(owner: Any) {
+        if (this.owner === owner) {
+            this.owner = null
+            contentShown = false
+        }
+    }
+}
+
+val LocalStatusBarContent = staticCompositionLocalOf { StatusBarContent() }
 
 /**
  * The accent a single screen has taken over with [ScopedAccentColor], or null when none has. Only the

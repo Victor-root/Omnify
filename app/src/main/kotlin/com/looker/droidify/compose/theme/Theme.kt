@@ -409,13 +409,18 @@ fun DroidifyTheme(
         animationSpec = if (scopedTarget == null) tween(durationMillis = 300) else snap(),
     )
 
-    // System-bar icons must stay legible. The status bar always sits behind the accent-coloured top
-    // bar, so its icons contrast with the accent. The navigation bar is an opaque accent overlay when
-    // edge-to-edge is off (so its icons contrast with the accent), but transparent over the app
-    // background when on (so they must contrast with that background instead).
+    // A screen whose header has collapsed off the top says so here (see StatusBarContent).
+    val statusBarContent = remember { StatusBarContent() }
+
+    // System-bar icons must stay legible. The status bar sits behind the accent-coloured top bar, so its
+    // icons contrast with the accent, except once a collapsing header has slid away and the screen's
+    // own content shows there instead, when they contrast with that background. The navigation bar is
+    // an opaque accent overlay when edge-to-edge is off (so its icons contrast with the accent), but
+    // transparent over the app background when on (so they must contrast with that background instead).
     val view = LocalView.current
     if (!view.isInEditMode) {
         val accentIsDark = systemBarColor.luminance() <= 0.5f
+        val contentUnderStatusBar = statusBarContent.showsContent
         SideEffect {
             // Find the Activity safely (some OEM contexts are wrappers); never crash on a bad cast.
             val window = generateSequence(view.context) { (it as? ContextWrapper)?.baseContext }
@@ -424,7 +429,8 @@ fun DroidifyTheme(
                 ?.window
             if (window != null) {
                 val controller = WindowCompat.getInsetsController(window, view)
-                controller.isAppearanceLightStatusBars = !accentIsDark
+                controller.isAppearanceLightStatusBars =
+                    if (contentUnderStatusBar) !darkTheme else !accentIsDark
                 controller.isAppearanceLightNavigationBars =
                     if (edgeToEdge) !darkTheme else !accentIsDark
             }
@@ -452,6 +458,7 @@ fun DroidifyTheme(
             LocalEdgeToEdge provides edgeToEdge,
             LocalBackgroundStyle provides backgroundStyle,
             LocalScopedAccentBarColor provides scopedAccentBarColor,
+            LocalStatusBarContent provides statusBarContent,
             LocalIsTelevision provides isTelevision,
             LocalDensity provides scaledDensity,
         ) {
