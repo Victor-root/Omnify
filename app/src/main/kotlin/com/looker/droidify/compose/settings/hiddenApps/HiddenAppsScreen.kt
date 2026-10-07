@@ -38,6 +38,7 @@ import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
+import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
@@ -64,10 +65,12 @@ fun HiddenAppsScreen(
     val isTelevision = LocalIsTelevision.current
     // TV / D-pad: drop focus from the header into the list (the top bar won't on its own).
     val contentFocusRequester = remember { FocusRequester() }
+    val header = rememberCollapsibleHeader()
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (isTelevision) TvAccentBackground()
         Scaffold(
+            modifier = header.scaffoldModifier,
             containerColor = if (isTelevision) Color.Transparent else MaterialTheme.colorScheme.background,
             topBar = {
                 if (isTelevision) {
@@ -80,7 +83,7 @@ fun HiddenAppsScreen(
                     TopAppBar(
                         colors = accentTopAppBarColors(),
                         expandedHeight = AccentBarHeight,
-                        modifier = Modifier.tvDpadDownTo(contentFocusRequester),
+                        modifier = header.headerModifier.tvDpadDownTo(contentFocusRequester),
                         title = { Text(text = stringResource(R.string.hidden_apps_title)) },
                         navigationIcon = { BackButton(onBackClick) },
                     )

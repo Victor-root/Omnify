@@ -56,7 +56,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -80,7 +79,6 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -112,13 +110,12 @@ import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.components.AccentScrollableTabRow
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.CertificateSection
-import com.looker.droidify.compose.components.CollapsingHeaderStatusBar
 import com.looker.droidify.compose.components.CountBadge
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.ExpandableText
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
-import com.looker.droidify.compose.components.collapsingHeader
+import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
@@ -146,7 +143,6 @@ import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.tvReadable
-import com.looker.droidify.compose.theme.LocalEdgeToEdge
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.data.catalogueBuildIsOlder
@@ -305,12 +301,7 @@ fun AppDetailScreen(
     // always-visible favourite heart as a workaround.
     val primaryActionFocusRequester = remember { FocusRequester() }
     val isTelevision = LocalIsTelevision.current
-    // Edge-to-edge: the header slides off the top as the page scrolls down and comes back on the
-    // slightest scroll up, as on the home screen. Pinned otherwise, and always on TV, where a remote
-    // couldn't bring it back. Created unconditionally so the call site stays stable.
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
-    val collapsibleHeader = LocalEdgeToEdge.current && !isTelevision
-    if (collapsibleHeader) CollapsingHeaderStatusBar(scrollBehavior)
+    val header = rememberCollapsibleHeader()
     // TV: whether the user has pressed any key on this screen yet. Once true, focus is entirely theirs —
     // nothing below may redirect it again. Set from the screen-root key handler (see the Scaffold
     // modifier below), which sees every key press regardless of what currently has focus.
@@ -374,16 +365,14 @@ fun AppDetailScreen(
                         false
                     }
                 }
-        } else if (collapsibleHeader) {
-            Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
         } else {
-            Modifier
+            header.scaffoldModifier
         },
         topBar = {
             TopAppBar(
                 colors = accentTopAppBarColors(),
                 expandedHeight = AccentBarHeight,
-                modifier = (if (collapsibleHeader) Modifier.collapsingHeader(scrollBehavior) else Modifier)
+                modifier = header.headerModifier
                     .onPreviewKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
                             val result = runCatching { primaryActionFocusRequester.requestFocus() }

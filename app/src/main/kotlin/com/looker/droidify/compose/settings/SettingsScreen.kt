@@ -52,6 +52,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
+import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.tv.TvAccentBackground
 import com.looker.droidify.compose.tv.TvAccentHeader
 import androidx.core.net.toUri
@@ -257,6 +258,7 @@ fun SettingsScreen(
 
     // TV / D-pad: drop focus from the header into the settings list (the top bar won't on its own).
     val contentFocusRequester = remember { FocusRequester() }
+    val header = rememberCollapsibleHeader()
 
     // On TV the accent wash spans the whole screen (behind the header too, so there's no seam), so the
     // Scaffold is transparent and the wash is drawn behind it. On phone the Scaffold keeps its own
@@ -264,6 +266,7 @@ fun SettingsScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         if (isTelevision) TvAccentBackground()
         Scaffold(
+        modifier = header.scaffoldModifier,
         containerColor = if (isTelevision) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             if (isTelevision) {
@@ -278,7 +281,7 @@ fun SettingsScreen(
                 TopAppBar(
                     colors = accentTopAppBarColors(),
                     expandedHeight = AccentBarHeight,
-                    modifier = Modifier.tvDpadDownTo(contentFocusRequester),
+                    modifier = header.headerModifier.tvDpadDownTo(contentFocusRequester),
                     title = { Text(text = stringResource(R.string.settings)) },
                     navigationIcon = { BackButton(onBackClick) },
                 )

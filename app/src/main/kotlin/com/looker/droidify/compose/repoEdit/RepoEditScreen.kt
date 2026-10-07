@@ -49,6 +49,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
+import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -86,6 +87,7 @@ fun RepoEditScreen(
     // would leave the user stuck in the header. This points at the first field; the key handler below
     // moves focus into the form. No effect on touch.
     val contentFocusRequester = remember { FocusRequester() }
+    val header = rememberCollapsibleHeader()
     val isTelevision = LocalIsTelevision.current
     // Android TV must always land the D-pad focus somewhere on entry, or a remote press with nothing
     // focused times out input dispatch and kills the app. Lands on the address field, retried briefly
@@ -116,12 +118,13 @@ fun RepoEditScreen(
     Box(modifier = Modifier.fillMaxSize()) {
     if (isTelevision) TvAccentBackground()
     Scaffold(
+        modifier = header.scaffoldModifier,
         containerColor = if (isTelevision) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 colors = if (isTelevision) tvTopAppBarColors() else accentTopAppBarColors(),
                 expandedHeight = if (isTelevision) TopAppBarDefaults.TopAppBarExpandedHeight else AccentBarHeight,
-                modifier = Modifier.tvDpadDownTo(contentFocusRequester),
+                modifier = header.headerModifier.tvDpadDownTo(contentFocusRequester),
                 title = {
                     Text(
                         text = stringResource(

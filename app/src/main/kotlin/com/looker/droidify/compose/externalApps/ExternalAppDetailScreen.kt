@@ -35,7 +35,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -58,7 +57,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
@@ -89,16 +87,14 @@ import com.looker.droidify.compose.appDetail.GoogleServiceDependency
 import com.looker.droidify.compose.appDetail.GoogleServicesCard
 import com.looker.droidify.compose.appDetail.isGoogleServicesProviderPackage
 import com.looker.droidify.compose.components.CertificateSection
-import com.looker.droidify.compose.components.CollapsingHeaderStatusBar
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
-import com.looker.droidify.compose.components.collapsingHeader
+import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.HideAppAction
 import com.looker.droidify.compose.components.InstallConflictDialog
-import com.looker.droidify.compose.theme.LocalEdgeToEdge
 import com.looker.droidify.migration.ChannelSwitchBanner
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
@@ -142,7 +138,6 @@ import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.isInstalledFromGooglePlay
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.singleSignature
-import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -350,12 +345,7 @@ fun ExternalAppDetailScreen(
     // settling. That scroll bug is now fixed at the scroll level itself, so it no longer needs the heart
     // as a workaround.
     val primaryActionFocusRequester = remember { FocusRequester() }
-    // Edge-to-edge: the header slides off the top as the page scrolls down and comes back on the
-    // slightest scroll up, as on the home screen. Pinned otherwise, and always on TV, where a remote
-    // couldn't bring it back. Created unconditionally so the call site stays stable.
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
-    val collapsibleHeader = LocalEdgeToEdge.current && !isTelevision
-    if (collapsibleHeader) CollapsingHeaderStatusBar(scrollBehavior)
+    val header = rememberCollapsibleHeader()
     // TV: whether the user has pressed any key on this screen yet. Once true, focus is entirely theirs —
     // nothing below may redirect it again. Set from the screen-root key handler (see the Scaffold
     // modifier below), which sees every key press regardless of what currently has focus.
@@ -427,10 +417,8 @@ fun ExternalAppDetailScreen(
                         false
                     }
                 }
-        } else if (collapsibleHeader) {
-            Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
         } else {
-            Modifier
+            header.scaffoldModifier
         },
         topBar = {
             TopAppBar(
@@ -472,10 +460,8 @@ fun ExternalAppDetailScreen(
                                 runCatching { primaryActionFocusRequester.requestFocus() }
                             }
                         }
-                } else if (collapsibleHeader) {
-                    Modifier.collapsingHeader(scrollBehavior)
                 } else {
-                    Modifier
+                    header.headerModifier
                 },
                 title = {
                     Text(
@@ -581,7 +567,7 @@ fun ExternalAppDetailScreen(
         // however much of it has slid away, and the README's collapsed height and rendering mode are
         // both sized from this, so they must not change in the middle of a scroll.
         val onViewportSized: (IntSize) -> Unit = {
-            viewportPx = it.height + scrollBehavior.state.heightOffset.roundToInt()
+            viewportPx = it.height - header.collapsedPx
         }
 
         // The repo's release tag (e.g. "v2.5.0") often doesn't match the APK's own version — the file

@@ -76,6 +76,7 @@ import com.looker.droidify.compose.components.FingerprintCard
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.premiumCardBorder
+import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvFocusScale
@@ -136,6 +137,9 @@ fun RepoDetailScreen(
     // the nearest thing below it instead of skipping the tabs entirely.
     val tabsFocusRequester = remember { FocusRequester() }
     val contentFocusRequester = remember { FocusRequester() }
+    val header = rememberCollapsibleHeader()
+    // A tab too short to scroll would otherwise leave a hidden header no way back.
+    LaunchedEffect(selectedTab) { header.reveal() }
     val isTelevision = LocalIsTelevision.current
     // Android TV must always land the D-pad focus somewhere on entry, or a remote press with nothing
     // focused times out input dispatch and kills the app. Prefer the tab row (present as soon as the
@@ -157,9 +161,10 @@ fun RepoDetailScreen(
     Box(modifier = Modifier.fillMaxSize()) {
     if (isTelevision) TvAccentBackground()
     Scaffold(
+        modifier = header.scaffoldModifier,
         containerColor = if (isTelevision) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
-            Column {
+            Column(modifier = header.headerModifier) {
                 TopAppBar(
                     colors = if (isTelevision) tvTopAppBarColors() else accentTopAppBarColors(),
                     expandedHeight = if (isTelevision) TopAppBarDefaults.TopAppBarExpandedHeight else AccentBarHeight,

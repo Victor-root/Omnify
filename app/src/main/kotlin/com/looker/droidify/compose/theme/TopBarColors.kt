@@ -32,7 +32,7 @@ val LocalEdgeToEdge = staticCompositionLocalOf { true }
 /**
  * Whether a screen's own content, rather than its header, now fills the status bar: under edge-to-edge
  * a collapsing header slides off the top as the page scrolls (see
- * [com.looker.droidify.compose.components.CollapsingHeaderStatusBar]). [DroidifyTheme] reads it to keep
+ * [com.looker.droidify.compose.components.CollapsibleHeader]). [DroidifyTheme] reads it to keep
  * the status-bar icons legible over that content instead of over the header's accent.
  *
  * Held per owner, like [LocalScopedAccentBarColor]: two screens are composed together while one slides

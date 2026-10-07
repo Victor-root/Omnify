@@ -50,6 +50,7 @@ import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.TvOverscan
+import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.repoList.AppLauncherIcon
@@ -99,10 +100,17 @@ fun ExternalAccountDetailScreen(
 
     // TV / D-pad: drop focus from the header (top bar or tab row) into the content below.
     val contentFocusRequester = remember { FocusRequester() }
+    val header = rememberCollapsibleHeader()
+    // A tab too short to scroll would otherwise leave a hidden header no way back.
+    LaunchedEffect(selectedTab) { header.reveal() }
 
     Scaffold(
+        modifier = header.scaffoldModifier,
         topBar = {
-            Column(modifier = Modifier.tvDpadDownTo(contentFocusRequester, debugLabel = "account-topappbar")) {
+            Column(
+                modifier = header.headerModifier
+                    .tvDpadDownTo(contentFocusRequester, debugLabel = "account-topappbar"),
+            ) {
                 TopAppBar(
                     colors = accentTopAppBarColors(),
                     expandedHeight = AccentBarHeight,

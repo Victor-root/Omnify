@@ -78,6 +78,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
+import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
@@ -220,6 +221,7 @@ fun RepoListScreen(
     // header into the list. No effect on touch.
     val contentFocusRequester = remember { FocusRequester() }
     val isTelevision = LocalIsTelevision.current
+    val header = rememberCollapsibleHeader()
     // Android TV must always land the D-pad focus somewhere on entry, or a remote press with nothing
     // focused times out input dispatch and kills the app. Retried briefly because the list isn't laid
     // out on the very first frame. No-op on touch.
@@ -233,11 +235,12 @@ fun RepoListScreen(
     }
 
     Scaffold(
+        modifier = header.scaffoldModifier,
         topBar = {
             TopAppBar(
                 colors = accentTopAppBarColors(),
                 expandedHeight = AccentBarHeight,
-                modifier = Modifier.tvDpadDownTo(contentFocusRequester),
+                modifier = header.headerModifier.tvDpadDownTo(contentFocusRequester),
                 title = { Text(text = stringResource(R.string.repositories)) },
                 navigationIcon = { BackButton(onBackClick) },
                 actions = {

@@ -88,7 +88,6 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -113,7 +112,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
@@ -141,8 +139,7 @@ import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.compose.components.AccentTabRow
 import com.looker.droidify.compose.components.CatalogOfflineState
-import com.looker.droidify.compose.components.CollapsingHeaderStatusBar
-import com.looker.droidify.compose.components.collapsingHeader
+import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.ScrollToTopFab
@@ -151,7 +148,6 @@ import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.AccentBarHeight
-import com.looker.droidify.compose.theme.LocalEdgeToEdge
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
@@ -203,12 +199,8 @@ fun AppListScreen(
     val externallyInstalled by viewModel.externallyInstalledPackages.collectAsStateWithLifecycle()
     val homeScreenSwiping by viewModel.homeScreenSwiping.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
-    val edgeToEdge = LocalEdgeToEdge.current
-    // In edge-to-edge mode the whole header (toolbar + tabs + banner) collapses off the top on
-    // scroll-down and returns on the slightest scroll-up (Material 3 "enter always"); when off it
-    // stays pinned. Created unconditionally so the call site is stable across recompositions, and only
-    // wired up (nested scroll + collapsing layout) below when edge-to-edge is on.
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    // The whole header (toolbar + tabs + banner) collapses on scroll under edge-to-edge.
+    val header = rememberCollapsibleHeader()
     var searchExpanded by rememberSaveable { mutableStateOf(false) }
     // The Explore tab shows the Discover home (3 curated carousels + the categories list) by default;
     // once the user is searching or has opened a category, it shows a flat list of apps instead.
@@ -239,13 +231,13 @@ fun AppListScreen(
         if (openedSection != lastHandledSection) {
             lastHandledSection = openedSection
             gridState.scrollToItem(0)
-            scrollBehavior.state.heightOffset = 0f
+            header.reveal()
         }
     }
     // Switching tab or opening search must reveal the collapsed header again — otherwise a short
     // tab (e.g. a near-empty Installed list) could leave it stuck hidden with no room to scroll up.
     LaunchedEffect(selectedTab, searchExpanded) {
-        scrollBehavior.state.heightOffset = 0f
+        header.reveal()
     }
     // An intent asking for a particular tab (the "updates available" notification), read once and
     // cleared. Goes through selectTab exactly as tapping that tab does, so it lands in the same state.
@@ -375,10 +367,6 @@ fun AppListScreen(
     // a key handler on the header moves focus into it. No effect with touch (no D-pad key events).
     val contentFocusRequester = remember { FocusRequester() }
     val isTelevision = LocalIsTelevision.current
-    // On TV the header must never scroll away (the tabs would become unreachable with a remote), so the
-    // collapse-on-scroll is only wired up off TV. Other edge-to-edge behaviour is left untouched.
-    val collapsibleHeader = edgeToEdge && !isTelevision
-    if (collapsibleHeader) CollapsingHeaderStatusBar(scrollBehavior)
     // Android TV: some remotes (e.g. the Nvidia Shield's) have a distinct "menu" key, the same one the
     // system launcher uses to open quick settings from the home screen — mirrored here on Omnify's own
     // main screen to open its own overflow menu (Favourites/Repositories/Settings), regardless of which
@@ -508,14 +496,7 @@ fun AppListScreen(
     }
 
     Scaffold(
-        // Edge-to-edge: let the header collapse as the grid scrolls. Pinned otherwise (and on TV).
-        modifier = (
-            if (collapsibleHeader) {
-                Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
-            } else {
-                Modifier
-            }
-            ).then(
+        modifier = header.scaffoldModifier.then(
             if (isTelevision) {
                 // Attached at the screen root (not just the top bar) so it fires no matter which tile
                 // currently has focus — the top bar and the content grid are siblings under Scaffold,
@@ -538,7 +519,7 @@ fun AppListScreen(
         floatingActionButton = { ScrollToTopFab(gridState) },
         topBar = {
             Column(
-                modifier = if (collapsibleHeader) Modifier.collapsingHeader(scrollBehavior) else Modifier,
+                modifier = header.headerModifier,
             ) {
                 // A carousel "see all" page takes over the whole header: a back arrow + the section
                 // title, with no tabs, so it reads as its own screen.
