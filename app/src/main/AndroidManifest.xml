@@ -229,6 +229,29 @@
             android:authorities="${applicationId}.androidx-startup"
             tools:node="remove" />
 
+        <!--
+          Google ML Kit (on-device translation and language detection) reports usage statistics to
+          Google through Firebase's logging transport, and this is that transport's only backend.
+          Without it, the transport drops each event with a warning instead of storing or sending it,
+          and nothing ML Kit does needs it: the translation itself runs on the device.
+        -->
+        <service
+            android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"
+            tools:node="merge">
+            <meta-data
+                android:name="backend:com.google.android.datatransport.cct.CctBackendFactory"
+                tools:node="remove" />
+        </service>
+
+        <!--
+          ML Kit would otherwise start with every launch, translation used or not. MlKitTranslator
+          starts it the first time it is actually needed instead.
+        -->
+        <provider
+            android:name="com.google.mlkit.common.internal.MlKitInitProvider"
+            android:authorities="${applicationId}.mlkitinitprovider"
+            tools:node="remove" />
+
         <receiver
             android:name=".receivers.UnarchivePackageReceiver"
             android:exported="false"

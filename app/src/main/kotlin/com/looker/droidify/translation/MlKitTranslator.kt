@@ -1,12 +1,15 @@
 package com.looker.droidify.translation
 
+import android.content.Context
 import com.google.android.gms.tasks.Task
 import com.google.mlkit.common.model.DownloadConditions
+import com.google.mlkit.common.sdkinternal.MlKitContext
 import com.google.mlkit.nl.languageid.LanguageIdentification
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -21,9 +24,15 @@ import kotlin.coroutines.resumeWithException
  * downloaded — and that download happens here, on the first translation the user asks for, never
  * ahead of time. The source language is auto-detected (falling back to English). Throws when the
  * device locale isn't a language ML Kit supports.
+ *
+ * ML Kit does not start with the app (its startup provider is removed in the manifest), so each entry
+ * point here starts it first: nothing of it runs until a translation or a language detection is
+ * actually asked for.
  */
 @Singleton
-class MlKitTranslator @Inject constructor() {
+class MlKitTranslator @Inject constructor(
+    @param:ApplicationContext private val context: Context,
+) {
 
     private val lock = Mutex()
     private var open: OpenTranslator? = null
@@ -46,6 +55,7 @@ class MlKitTranslator @Inject constructor() {
      * Null falls back to detecting from [text] itself.
      */
     suspend fun translate(text: String, targetLanguage: String, sourceLanguage: String? = null): String {
+        MlKitContext.initializeIfNeeded(context)
         val target = TranslateLanguage.fromLanguageTag(targetLanguage)
             ?: error("ML Kit does not support the language '$targetLanguage'")
         val source = (sourceLanguage ?: detectLanguage(text))
@@ -122,6 +132,7 @@ class MlKitTranslator @Inject constructor() {
      *  on failure. Uses the bundled language-id model — instant, offline, no download. Also used (engine-
      *  independently) to decide whether auto-translation is needed. */
     suspend fun detectLanguage(text: String): String? = runCatching {
+        MlKitContext.initializeIfNeeded(context)
         languageIdentifier.identifyLanguage(text).await()
     }.getOrNull()
 }
