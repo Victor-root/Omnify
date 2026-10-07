@@ -3,6 +3,7 @@ package com.looker.droidify.compose.theme
 import android.app.Activity
 import android.content.ContextWrapper
 import android.os.Build
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -30,7 +31,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.MaterialColors
@@ -50,9 +51,6 @@ import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.utility.common.IconAccent
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.wallpaperAccentColor
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /** Android TV's default density (matched to the same dp-based layouts phones use, plus this app's own
  *  10-foot-UI size bumps — bigger tiles, bigger buttons, bigger focus scale) rendered noticeably larger
@@ -325,27 +323,21 @@ fun ScopedAccentColor(accent: IconAccent?, content: @Composable () -> Unit) {
     // ON_PAUSE fires as soon as this destination stops being the current one, well before the exit
     // transition finishes and this composable actually leaves composition (what onDispose above waits
     // for): without this, the navigation bar stayed on the icon accent for the whole transition after
-    // pressing back, even though the previous screen's own header had already reverted. ON_RESUME puts
-    // it back for the other reason ON_PAUSE fires: the app itself backgrounding while still on this
-    // screen, not a real navigation away.
+    // pressing back, even though the previous screen's own header had already reverted.
     //
-    // That second case also covers a brief system overlay on top of this screen (the share sheet, an
-    // app chooser, a permission prompt, …), which pauses this screen without really leaving it. Clearing
-    // the accent the instant ON_PAUSE fires flashed the navigation bar back to the app-wide colour for
-    // that split second before ON_RESUME put it back, visible precisely because opening one of those
-    // takes a moment. Delaying the clear briefly, and cancelling it if ON_RESUME arrives first (the
-    // overlay closed, this was never a real navigation away), avoids that flash. A genuine back-navigation
-    // still reverts the same way, just a little behind where it used to line up with the exit transition.
-    val pauseScope = rememberCoroutineScope()
-    val pendingClear = remember { mutableStateOf<Job?>(null) }
+    // It also fires when something covers the whole app while this screen stays on display underneath:
+    // the install confirmation, the share sheet, a permission prompt, or the app going to the background.
+    // Those pause the activity itself, which has already left RESUMED by the time this destination hears
+    // about it, whereas a navigation away pauses this destination alone. Only that one gives the accent
+    // back; otherwise the navigation bar fell back to the app-wide colour behind the install dialog
+    // while the header above it kept the icon's. ON_RESUME puts the accent back after a navigation that
+    // returns here.
+    val hostLifecycle = (LocalActivity.current as? LifecycleOwner)?.lifecycle
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
-        pendingClear.value = pauseScope.launch {
-            delay(300)
-            if (systemBarAccent.value == scopedBarColor) systemBarAccent.value = null
-        }
+        val leavingScreen = hostLifecycle == null || hostLifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        if (leavingScreen && systemBarAccent.value == scopedBarColor) systemBarAccent.value = null
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        pendingClear.value?.cancel()
         systemBarAccent.value = scopedBarColor
     }
     CompositionLocalProvider(
