@@ -56,4 +56,20 @@
             <pin digest="SHA-256">UaqofZhLVZrGnpKfiIoCLYMuCJ/026CkErUQG8pLx5k=</pin>
         </pin-set>
     </domain-config>
+
+    <!--
+      Google ML Kit's translation registers an installation ID with Firebase and fetches a remote
+      configuration from Google when a translator opens, sending the app, its version and the
+      device's country, language and time zone. It never waits for that fetch and falls back to
+      built-in defaults, so the translation needs neither. A pin no certificate can match makes
+      Android refuse both hosts during the TLS handshake, before anything is sent. Android 7 and
+      later only: Android 6 does not read this file.
+    -->
+    <domain-config>
+        <domain includeSubdomains="false">firebaseinstallations.googleapis.com</domain>
+        <domain includeSubdomains="false">firebaseremoteconfig.googleapis.com</domain>
+        <pin-set>
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+        </pin-set>
+    </domain-config>
 </network-security-config>
