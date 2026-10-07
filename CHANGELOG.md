@@ -5,7 +5,7 @@
 Ten backgrounds to choose from, an Updates tab that always matches its notification, and tidier categories. If you use the optional ML Kit translator (off by default), it no longer reports to Google, ahead of being replaced in the next version.
 
 ### ✨ Added
-- **Ten backgrounds to pick from** in Settings, all tinted from your accent and following light, dark and black themes. Contour lines is the new default; the previous one stays as "Aurora (classic)".
+- **Ten backgrounds to pick from** in Settings, all tinted from your accent and following light, dark and black themes. Halo is the new default; the previous one stays as "Aurora (classic)".
 
 ### 🔄 Changed
 - **The update ring goes all the way around the app icon**, following its shape, with the percentage on a round badge.

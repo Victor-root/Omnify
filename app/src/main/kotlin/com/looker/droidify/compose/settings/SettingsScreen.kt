@@ -119,8 +119,8 @@ private fun defaultBackupFileName(): String =
 @Composable
 private fun backgroundStyleLabel(style: BackgroundStyle): String = stringResource(
     when (style) {
-        BackgroundStyle.CONTOUR -> R.string.background_style_contour
         BackgroundStyle.HALO -> R.string.background_style_halo
+        BackgroundStyle.CONTOUR -> R.string.background_style_contour
         BackgroundStyle.SILK -> R.string.background_style_silk
         BackgroundStyle.AURORA -> R.string.background_style_aurora
         BackgroundStyle.DUNES -> R.string.background_style_dunes

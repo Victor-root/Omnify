@@ -287,8 +287,8 @@ class PreferenceSettingsRepository(
         val themeColor = preferences[THEME_COLOR] ?: DEFAULT_THEME_COLOR
         val edgeToEdge = preferences[EDGE_TO_EDGE] ?: false
         val backgroundStyle = runCatching {
-            BackgroundStyle.valueOf(preferences[BACKGROUND_STYLE] ?: BackgroundStyle.CONTOUR.name)
-        }.getOrDefault(BackgroundStyle.CONTOUR)
+            BackgroundStyle.valueOf(preferences[BACKGROUND_STYLE] ?: BackgroundStyle.HALO.name)
+        }.getOrDefault(BackgroundStyle.HALO)
         val autoUpdate = preferences[AUTO_UPDATE] ?: false
         val autoSync = AutoSync.valueOf(preferences[AUTO_SYNC] ?: AutoSync.WIFI_ONLY.name)
         val sortOrder = SortOrder.valueOf(preferences[SORT_ORDER] ?: SortOrder.UPDATED.name)

@@ -92,8 +92,8 @@ internal class Backdrop(
     fun DrawScope.drawBackdrop(phase: Float) {
         drawRect(tones.base)
         when (style) {
-            BackgroundStyle.CONTOUR -> contour(phase)
             BackgroundStyle.HALO -> halo(phase)
+            BackgroundStyle.CONTOUR -> contour(phase)
             BackgroundStyle.SILK -> silk(phase)
             BackgroundStyle.DUNES -> dunes(phase)
             BackgroundStyle.BOKEH -> bokeh(phase)

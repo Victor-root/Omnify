@@ -363,7 +363,7 @@ fun DroidifyTheme(
     dynamicColor: Boolean = false,
     accentColor: Int = DEFAULT_THEME_COLOR,
     edgeToEdge: Boolean = true,
-    backgroundStyle: BackgroundStyle = BackgroundStyle.CONTOUR,
+    backgroundStyle: BackgroundStyle = BackgroundStyle.HALO,
     content:
     @Composable()
     () -> Unit,

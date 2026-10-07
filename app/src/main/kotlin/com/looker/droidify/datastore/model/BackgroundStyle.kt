@@ -6,11 +6,11 @@ package com.looker.droidify.datastore.model
  * user's accent and follows the light, dark and black themes.
  */
 enum class BackgroundStyle {
-    /** Thin contour lines, like a relief map, over two corner glows. Default. */
-    CONTOUR,
-
-    /** Large soft glows in the accent and two neighbouring hues. */
+    /** Large soft glows in the accent and two neighbouring hues. Default. */
     HALO,
+
+    /** Thin contour lines, like a relief map, over two corner glows. */
+    CONTOUR,
 
     /** Soft ribbons sweeping across the screen in a wave. */
     SILK,
