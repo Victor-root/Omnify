@@ -33,11 +33,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # 17 is what the project compiles against (see app/build.gradle.kts).
+      # The JDK Gradle itself runs on, which gradle/gradle-daemon-jvm.properties requires to be
+      # JetBrains 21. Installed here because Gradle can no longer download it: foojay stopped listing
+      # JetBrains 21, so the links in that file answer 400 and the build failed before starting.
+      # The code still compiles against 17 (the JetBrains 17 toolchain in app/build.gradle.kts),
+      # which Gradle keeps fetching on its own.
       - uses: actions/setup-java@v5
         with:
-          distribution: temurin
-          java-version: '17'
+          distribution: jetbrains
+          java-version: '21'
 
       # Puts the Android SDK's command line tools on the runner and accepts the SDK licences, which
       # is what lets Gradle fetch the platform this project compiles against on its own.
