@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.looker.droidify.compose.theme.LocalIsTelevision
+import java.text.NumberFormat
 
 /** The icon size shared by every catalogue/external app tile (touch). */
 val TileIconSize = 72.dp
@@ -205,10 +206,15 @@ fun AppTile(
                         progress = updateFraction?.let { fraction -> { fraction } },
                     )
                     if (updateFraction != null) {
+                        // On an opaque badge, as the dimmed icon underneath would otherwise show through
+                        // the digits. Truncated like the ring, so it never reads 100 % before it is full.
                         Text(
-                            text = "${(updateFraction * 100).toInt()}",
+                            text = NumberFormat.getPercentInstance().format((updateFraction * 100).toInt() / 100.0),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                 }
