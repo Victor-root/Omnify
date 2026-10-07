@@ -2,23 +2,19 @@
 
 ## 🚀 v1.0.6-beta.7 (2026-10-07)
 
-A clearer Updates tab that always agrees with its notification, a tidier Explore tab, a more reliable pre-install icon for external sources, and the on-device translation no longer reporting anything to Google.
-
-### ✨ Added
-- **A "Recommended by Victor-root" list on the Explore tab**, folded into the categories. It only shows once the Victor-root account is switched on in the settings.
+An Updates tab that always matches its notification, and tidier categories. If you use the optional ML Kit translator (off by default), it no longer reports to Google, ahead of being replaced in the next version.
 
 ### 🔄 Changed
-- **The update ring now runs all the way around the app icon** while an update installs, following the icon's own outline (round or rounded square) and sitting right on its border.
-- **A category from a repository you added yourself now leads the categories list**, instead of sitting alphabetically among the dozens the shipped repositories bring, and carries an icon of its own (a box with a plus on it) rather than the neutral tag every unrecognised category falls back to. The same order the repositories list already uses.
-- **The pre-install notice for an external source now links to opening a GitHub issue** for when its name, icon or version look wrong, instead of just suggesting you install the app to see the real ones. A wrong one gets fixed for everyone that way, not just worked around on your own device.
-- **On-device translation no longer talks to Google beyond downloading its dictionaries.** Google ML Kit's usage statistics are cut, it no longer starts with every launch (only when a translation is actually asked for), and its Firebase installation ID and remote configuration requests are refused before anything is sent.
+- **The update ring goes all the way around the app icon**, following its shape, with the percentage on a round badge.
+- **Categories from your own repositories come first** in Explore, with their own icon.
+- **The pre-install notice of an external source links to a GitHub issue** to report a wrong name, icon or version.
+- **The optional ML Kit translator no longer reports to Google**: its usage statistics are cut, it only starts when a translation is asked for, and its Firebase requests are blocked. The next version replaces it.
 
 ### 🐛 Fixed
-- **Tapping the "updates available" notification shows the same apps it announced.** The notification and the Updates tab worked out the list separately, so with several updates the tab could open on apps not loaded yet, or on a different list. They now share one answer.
-- **Tapping that notification always lands on the Updates tab**, even when another screen was open or the app was starting up.
-- **The Updates tab shows a loading state on a cold open** instead of briefly claiming everything is up to date.
-- **An external source's pre-install icon is found in more places.** The search only looked inside a project's `mipmap` folders, so one that puts its adaptive icon under `drawable` instead (Magisk, for one) fell back to showing the maintainer's account picture. A separate cap on how many files it read for the icon's background colour could also run out before reaching the one that actually declares it, on a project split across several modules, leaving the icon composed with no background at all.
-- **A category with no apps in it no longer shows.** Nothing ever removed a category once it had been seen, so one a repository stopped declaring, or that left along with the repository itself, stayed in the list for good and opened on nothing.
+- **The "updates available" notification always opens the Updates tab**, on the same apps it announced.
+- **The Updates tab shows a loading state on a cold open** instead of "up to date".
+- **External sources' pre-install icons are found in more places** (Magisk, for one), with the right background colour.
+- **Empty categories no longer show.**
 
 ---
 
