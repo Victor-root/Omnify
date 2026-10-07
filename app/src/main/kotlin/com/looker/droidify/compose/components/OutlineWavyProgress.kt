@@ -46,9 +46,9 @@ private const val FlatEdge = 0.1f
  * a rounded rectangle instead of a circle, so it can run all the way around a square-ish app icon.
  * A [cornerSize] of 50 % gives back a plain circle.
  *
- * The outline runs exactly along the edge of the space it is given, so the stroke and the crests of the
- * wave straddle that edge: a few dp of them spill outside the box, which is what lets it sit on an
- * icon's own border. [progress] null means an indeterminate ring (an arc that spins and breathes),
+ * The outline runs just outside the space it is given, far enough out (half the stroke plus the wave's
+ * amplitude) that neither the stroke nor the inner crests of the wave cover the box: it hugs an icon's
+ * border from the outside, with its corners kept concentric to the icon's. [progress] null means an indeterminate ring (an arc that spins and breathes),
  * otherwise the ring fills clockwise from the top. The track is a plain neutral outline, like the
  * other wavy indicators of the app.
  */
@@ -85,8 +85,9 @@ fun OutlineWavyProgressIndicator(
     Canvas(modifier = modifier.fillMaxSize()) {
         val strokePx = RingStroke.toPx()
         val amplitudePx = WaveAmplitude.toPx()
-        val bounds = Rect(0f, 0f, size.width, size.height)
-        val radius = cornerSize.toPx(size, this).coerceIn(0f, bounds.minDimension / 2)
+        val outset = strokePx / 2 + amplitudePx
+        val bounds = Rect(-outset, -outset, size.width + outset, size.height + outset)
+        val radius = (cornerSize.toPx(size, this) + outset).coerceIn(0f, bounds.minDimension / 2)
         val outline = roundedRectPath(bounds, radius)
         val stroke = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
         drawPath(outline, trackColor, style = stroke)
