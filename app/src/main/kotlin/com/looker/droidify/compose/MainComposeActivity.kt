@@ -72,6 +72,7 @@ import com.looker.droidify.external.parseAccountSource
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.datastore.extension.getThemeRes
 import com.looker.droidify.datastore.get
+import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.model.Repository
 import com.looker.droidify.utility.common.DeeplinkType
@@ -290,6 +291,7 @@ class MainComposeActivity : ComponentActivity() {
         val dynamicTheme: Boolean,
         val themeColor: Int,
         val edgeToEdge: Boolean,
+        val backgroundStyle: BackgroundStyle,
     )
 
     /**
@@ -300,7 +302,7 @@ class MainComposeActivity : ComponentActivity() {
     private fun collectThemeChanges(): ThemeState {
         val entryPoint = EntryPointAccessors.fromApplication(this, SettingsEntryPoint::class.java)
         val themeFlow = entryPoint.settingsRepository()
-            .get { ThemeState(theme, dynamicTheme, themeColor, edgeToEdge) }
+            .get { ThemeState(theme, dynamicTheme, themeColor, edgeToEdge, backgroundStyle) }
         val backupRepository = entryPoint.backupRepository()
         val initial = runBlocking { themeFlow.first() }
         setTheme(
@@ -751,6 +753,7 @@ class MainComposeActivity : ComponentActivity() {
                 dynamicColor = themeState.dynamicTheme,
                 accentColor = themeState.themeColor,
                 edgeToEdge = themeState.edgeToEdge,
+                backgroundStyle = themeState.backgroundStyle,
             ) {
                 val navController = rememberNavController()
                 // Handle the launching deeplink, then any that arrive while we're running.

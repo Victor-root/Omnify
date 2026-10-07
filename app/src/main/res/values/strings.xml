@@ -488,6 +488,17 @@
     <string name="custom_button_delete_confirmation">Delete the button \"%1$s\"?</string>
     <string name="theme_color">Theme color</string>
     <string name="theme_color_DESC">Choose the accent color of the app</string>
+    <string name="background_style">Background</string>
+    <string name="background_style_halo">Halo</string>
+    <string name="background_style_silk">Silk</string>
+    <string name="background_style_contour">Contour lines</string>
+    <string name="background_style_aurora">Aurora (classic)</string>
+    <string name="background_style_dunes">Dunes</string>
+    <string name="background_style_bokeh">Bokeh</string>
+    <string name="background_style_facets">Facets</string>
+    <string name="background_style_dots">Dots</string>
+    <string name="background_style_ripples">Ripples</string>
+    <string name="background_style_flow">Flow</string>
     <string name="theme_color_default">Default</string>
     <string name="theme_color_wallpaper">Wallpaper</string>
     <string name="accent_matches_app_icon_title">Match accent to app icon</string>

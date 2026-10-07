@@ -81,6 +81,7 @@ import com.looker.droidify.compose.settings.transfer.DeviceTransferReceiveDialog
 import com.looker.droidify.compose.settings.transfer.DeviceTransferSendDialog
 import com.looker.droidify.data.backup.BackupCategory
 import com.looker.droidify.datastore.model.AutoSync
+import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
@@ -113,6 +114,23 @@ private val RESTORE_MIME_TYPES = arrayOf(
 
 private fun defaultBackupFileName(): String =
     "omnify-backup-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".zip"
+
+/** Localised label for a background style choice in the dropdown. */
+@Composable
+private fun backgroundStyleLabel(style: BackgroundStyle): String = stringResource(
+    when (style) {
+        BackgroundStyle.CONTOUR -> R.string.background_style_contour
+        BackgroundStyle.HALO -> R.string.background_style_halo
+        BackgroundStyle.SILK -> R.string.background_style_silk
+        BackgroundStyle.AURORA -> R.string.background_style_aurora
+        BackgroundStyle.DUNES -> R.string.background_style_dunes
+        BackgroundStyle.BOKEH -> R.string.background_style_bokeh
+        BackgroundStyle.FACETS -> R.string.background_style_facets
+        BackgroundStyle.DOTS -> R.string.background_style_dots
+        BackgroundStyle.RIPPLES -> R.string.background_style_ripples
+        BackgroundStyle.FLOW -> R.string.background_style_flow
+    },
+)
 
 /** Localised label for a translation engine choice in the dropdown. */
 @Composable
@@ -318,6 +336,17 @@ fun SettingsScreen(
                     description = stringResource(R.string.theme_color_DESC),
                     icon = painterResource(R.drawable.ic_tabler_palette),
                     onClick = { showColorPicker = true },
+                )
+            }
+
+            item {
+                SelectionSettingItem(
+                    title = stringResource(R.string.background_style),
+                    icon = painterResource(R.drawable.ic_tabler_background),
+                    selectedValue = settings.backgroundStyle,
+                    values = BackgroundStyle.entries.toList(),
+                    onValueSelected = viewModel::setBackgroundStyle,
+                    valueToString = { backgroundStyleLabel(it) },
                 )
             }
 

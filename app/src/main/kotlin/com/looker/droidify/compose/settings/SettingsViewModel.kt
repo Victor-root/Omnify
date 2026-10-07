@@ -18,6 +18,7 @@ import com.looker.droidify.datastore.CustomButtonRepository
 import com.looker.droidify.datastore.Settings
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.model.AutoSync
+import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
@@ -123,6 +124,12 @@ class SettingsViewModel @Inject constructor(
     fun setThemeColor(color: Int) {
         viewModelScope.launch {
             settingsRepository.setThemeColor(color)
+        }
+    }
+
+    fun setBackgroundStyle(style: BackgroundStyle) {
+        viewModelScope.launch {
+            settingsRepository.setBackgroundStyle(style)
         }
     }
 

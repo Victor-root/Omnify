@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.components
 
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.StartOffset
@@ -10,8 +11,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,23 +21,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
+import com.looker.droidify.compose.theme.LocalBackgroundStyle
 import com.looker.droidify.compose.theme.LocalEdgeToEdge
 import com.looker.droidify.compose.theme.LocalIsTelevision
+import com.looker.droidify.datastore.model.BackgroundStyle
+import kotlin.math.PI
 
 /**
- * Ambient, aurora-style glow behind a screen's real content — a handful of large, softly overlapping
- * colour fields drifting very slowly and blending into one another, like the diffuse colour wash on
- * Aurora Store's own icon rather than any literal shape or a handful of separate dots. Purely
- * cosmetic: ignores touch, never intercepts input.
+ * The abstract backdrop behind a screen's real content, in the style the user picked in the settings
+ * ([LocalBackgroundStyle]): tinted from their accent and following the light, dark and black themes,
+ * with a slow drift so it never looks frozen. Purely cosmetic: ignores touch, never intercepts input.
  *
  * Meant to be the FIRST child inside a screen's own content [Box] (right after applying
  * `contentPadding`, before the real list/content), so whatever the screen composes afterwards in
@@ -51,19 +56,53 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 fun FloatingAppCardsBackground(
     modifier: Modifier = Modifier,
     // Off on TV by default (most TV screens paint their own solid surface); the TV screens opt in so
-    // their content area gets the same accent aurora wash as the phone build.
+    // their content area gets the same backdrop as the phone build.
     enableOnTelevision: Boolean = false,
-    // Multiplies the wash opacity. TV sits ~1.7× the phone value so it reads clearly on the big screen
-    // (its content is sparser and further away). Phone callers keep 1×.
+    // Multiplies the strength of the decoration. TV sits ~1.7× the phone value so it reads clearly on
+    // the big screen (its content is sparser and further away). Phone callers keep 1×.
     intensity: Float = 1f,
 ) {
     if (LocalIsTelevision.current && !enableOnTelevision) return
-    val dark = isSystemInDarkTheme()
-    val alpha = (if (dark) DarkAlpha else LightAlpha) * intensity
+    val background = MaterialTheme.colorScheme.background
+    // Read off the theme actually applied, not the system setting, so a forced light or dark theme gets
+    // its own look.
+    val dark = background.luminance() < 0.5f
     // The user's own chosen accent (MaterialTheme.colorScheme.primary is that raw accent, not a
-    // muted derived tone — see DroidifyTheme.withVividAccent) as the seed for the whole palette,
-    // instead of a fixed rainbow unrelated to their theme.
+    // muted derived tone — see DroidifyTheme.withVividAccent) as the seed for every colour.
     val accent = MaterialTheme.colorScheme.primary
+    val style = LocalBackgroundStyle.current
+    if (style == BackgroundStyle.AURORA) {
+        AuroraBackground(modifier, accent, dark, intensity)
+        return
+    }
+    val tones = remember(accent, dark, background, intensity) {
+        BackdropTones(accent, dark, black = background == Color.Black, intensity)
+    }
+    val phase = rememberInfiniteTransition(label = "backdrop").animateFloat(
+        initialValue = 0f,
+        targetValue = 2 * PI.toFloat(),
+        animationSpec = infiniteRepeatable(tween(BackdropCycleMillis, easing = LinearEasing)),
+        label = "backdropPhase",
+    )
+    // The phase is read inside the draw lambda only, so each frame re-runs that draw and nothing else.
+    Spacer(
+        modifier
+            .fillMaxSize()
+            .drawWithCache {
+                val backdrop = Backdrop(style, tones, size, density)
+                onDrawBehind { with(backdrop) { drawBackdrop(phase.value) } }
+            },
+    )
+}
+
+/**
+ * The original backdrop, kept as [BackgroundStyle.AURORA]: a handful of large, softly overlapping
+ * colour fields drifting very slowly over the plain neutral background, like the diffuse colour wash
+ * on Aurora Store's own icon rather than any literal shape.
+ */
+@Composable
+private fun AuroraBackground(modifier: Modifier, accent: Color, dark: Boolean, intensity: Float) {
+    val alpha = (if (dark) DarkAlpha else LightAlpha) * intensity
     val palette = remember(accent) { auroraPaletteFrom(accent) }
     val transition = rememberInfiniteTransition(label = "aurora")
     // One State pair per blob, all driven by the same shared transition — read directly inside the

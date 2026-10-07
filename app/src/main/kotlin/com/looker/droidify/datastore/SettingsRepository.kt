@@ -1,6 +1,7 @@
 package com.looker.droidify.datastore
 
 import com.looker.droidify.datastore.model.AutoSync
+import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
@@ -41,6 +42,8 @@ interface SettingsRepository {
     suspend fun setThemeColor(color: Int)
 
     suspend fun setEdgeToEdge(enable: Boolean)
+
+    suspend fun setBackgroundStyle(style: BackgroundStyle)
 
     suspend fun setInstallerType(installerType: InstallerType)
 

@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.looker.droidify.datastore.model.AutoSync
+import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyPreference
@@ -80,6 +81,9 @@ class PreferenceSettingsRepository(
 
     override suspend fun setEdgeToEdge(enable: Boolean) =
         EDGE_TO_EDGE.update(enable)
+
+    override suspend fun setBackgroundStyle(style: BackgroundStyle) =
+        BACKGROUND_STYLE.update(style.name)
 
     override suspend fun setInstallerType(installerType: InstallerType) =
         INSTALLER_TYPE.update(installerType.name)
@@ -282,6 +286,9 @@ class PreferenceSettingsRepository(
         val dynamicTheme = preferences[DYNAMIC_THEME] ?: false
         val themeColor = preferences[THEME_COLOR] ?: DEFAULT_THEME_COLOR
         val edgeToEdge = preferences[EDGE_TO_EDGE] ?: false
+        val backgroundStyle = runCatching {
+            BackgroundStyle.valueOf(preferences[BACKGROUND_STYLE] ?: BackgroundStyle.CONTOUR.name)
+        }.getOrDefault(BackgroundStyle.CONTOUR)
         val autoUpdate = preferences[AUTO_UPDATE] ?: false
         val autoSync = AutoSync.valueOf(preferences[AUTO_SYNC] ?: AutoSync.WIFI_ONLY.name)
         val sortOrder = SortOrder.valueOf(preferences[SORT_ORDER] ?: SortOrder.UPDATED.name)
@@ -326,6 +333,7 @@ class PreferenceSettingsRepository(
             dynamicTheme = dynamicTheme,
             themeColor = themeColor,
             edgeToEdge = edgeToEdge,
+            backgroundStyle = backgroundStyle,
             installerType = installerType,
             legacyInstallerComponent = legacyInstallerComponent,
             autoUpdate = autoUpdate,
@@ -409,6 +417,7 @@ class PreferenceSettingsRepository(
         val AUTO_SYNC = stringPreferencesKey("key_auto_sync")
         val SORT_ORDER = stringPreferencesKey("key_sort_order")
         val PROXY_TYPE = stringPreferencesKey("key_proxy_type")
+        val BACKGROUND_STYLE = stringPreferencesKey("key_background_style")
 
         fun MutablePreferences.setting(settings: Settings): Preferences {
             set(LANGUAGE, settings.language)
@@ -419,6 +428,7 @@ class PreferenceSettingsRepository(
             set(DYNAMIC_THEME, settings.dynamicTheme)
             set(THEME_COLOR, settings.themeColor)
             set(EDGE_TO_EDGE, settings.edgeToEdge)
+            set(BACKGROUND_STYLE, settings.backgroundStyle.name)
             when (settings.legacyInstallerComponent) {
                 is LegacyInstallerComponent.Component -> {
                     set(LEGACY_INSTALLER_COMPONENT_TYPE, "component")

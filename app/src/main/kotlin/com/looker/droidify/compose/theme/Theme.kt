@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.MaterialColors
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
+import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.utility.common.IconAccent
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.wallpaperAccentColor
@@ -362,6 +363,7 @@ fun DroidifyTheme(
     dynamicColor: Boolean = false,
     accentColor: Int = DEFAULT_THEME_COLOR,
     edgeToEdge: Boolean = true,
+    backgroundStyle: BackgroundStyle = BackgroundStyle.CONTOUR,
     content:
     @Composable()
     () -> Unit,
@@ -463,6 +465,7 @@ fun DroidifyTheme(
             LocalAccentBarColor provides barColor,
             LocalOnAccentBarColor provides onBarColor,
             LocalEdgeToEdge provides edgeToEdge,
+            LocalBackgroundStyle provides backgroundStyle,
             LocalStatusBarScrimAlpha provides statusBarScrimAlpha,
             LocalScopedAccentBarColor provides scopedAccentBarColor,
             LocalIsTelevision provides isTelevision,

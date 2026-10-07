@@ -470,6 +470,17 @@
     <string name="custom_button_delete_confirmation">Supprimer le bouton \"%1$s\" ?</string>
     <string name="theme_color">Couleur du thème</string>
     <string name="theme_color_DESC">Choisir la couleur d\'accentuation de l\'app</string>
+    <string name="background_style">Fond</string>
+    <string name="background_style_halo">Halo</string>
+    <string name="background_style_silk">Soie</string>
+    <string name="background_style_contour">Lignes de relief</string>
+    <string name="background_style_aurora">Aurore (classique)</string>
+    <string name="background_style_dunes">Dunes</string>
+    <string name="background_style_bokeh">Bokeh</string>
+    <string name="background_style_facets">Facettes</string>
+    <string name="background_style_dots">Points</string>
+    <string name="background_style_ripples">Ondes</string>
+    <string name="background_style_flow">Flux</string>
     <string name="theme_color_default">Par défaut</string>
     <string name="theme_color_wallpaper">Fond d\'écran</string>
     <string name="accent_matches_app_icon_title">Accorder l\'accent à l\'icône de l\'app</string>
