@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.externalApps
 
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
@@ -46,6 +47,10 @@ private const val LauncherIconPx = 256
 
 private const val TAG = "ExternalAppIcon"
 
+/** The device's own launcher icon for an app, once asked for: [bitmap] is null when the app isn't on
+ *  the device or its icon couldn't be read. */
+private class LauncherIconRead(val bitmap: ImageBitmap?)
+
 /**
  * Icon for an external app, in priority order:
  *  1. the real launcher icon read from the system, once the app is installed (or extracted from the
@@ -59,8 +64,10 @@ private const val TAG = "ExternalAppIcon"
  *
  * [onIconBitmap] receives each picture of the app's own icon as it shows, with a key naming where it
  * came from, so a caller can tell a new picture from a repeat of the same one. The avatar is never
- * passed on: it is the developer's logo, not the app's, and only stands in until something better
- * loads (the launcher icon is read off the main thread, so it shows a moment after the avatar).
+ * passed on: it is the developer's logo, not the app's.
+ *
+ * [isInstalled] is a hint, not a gate: the device is asked for the app's own icon whenever its package
+ * is known, and a change of [isInstalled] only asks again.
  */
 @Composable
 fun ExternalAppIcon(
@@ -84,10 +91,13 @@ fun ExternalAppIcon(
         }
     }
     // Loaded off the main thread (produceState + IO): reading the launcher icon inline for every tile
-    // made lists of installed apps (Installed/Updates tabs) slow to open. It resolves a frame later; the
-    // extracted/repo icon or a placeholder shows meanwhile.
-    val launcherIcon by produceState<ImageBitmap?>(null, packageName, isInstalled) {
-        value = if (isInstalled && packageName != null) {
+    // made lists of installed apps (Installed/Updates tabs) slow to open. It resolves a frame later; only
+    // the extracted icon shows meanwhile (see below).
+    //
+    // Not gated on [isInstalled]: a screen learns its install state a moment after it opens, and waiting
+    // for it showed the developer's avatar on an installed app's page before the real icon replaced it.
+    val launcherIcon by produceState<LauncherIconRead?>(null, packageName, isInstalled) {
+        val bitmap = packageName?.let { pkg ->
             withContext(Dispatchers.IO) {
                 runCatching {
                     // Explicit size: toBitmap() with none uses the drawable's intrinsic size, which
@@ -97,14 +107,17 @@ fun ExternalAppIcon(
                     // BitmapDrawable's own bitmap unconverted whenever the requested size matches its
                     // intrinsic size, hardware config included, which then crashes reading pixels back
                     // out for colour extraction.
-                    context.packageManager.getApplicationIcon(packageName)
+                    context.packageManager.getApplicationIcon(pkg)
                         .toBitmap(width = LauncherIconPx, height = LauncherIconPx, config = Bitmap.Config.ARGB_8888)
                         .asImageBitmap()
-                }.onFailure { Log.e(TAG, "Unable to read $packageName's launcher icon", it) }.getOrNull()
+                }.onFailure {
+                    if (it !is PackageManager.NameNotFoundException) {
+                        Log.e(TAG, "Unable to read $pkg's launcher icon", it)
+                    }
+                }.getOrNull()
             }
-        } else {
-            null
         }
+        value = LauncherIconRead(bitmap)
     }
     var repoIconFailed by remember(app.repoIconUrl) { mutableStateOf(false) }
     var avatarFailed by remember(app.iconUrl) { mutableStateOf(false) }
@@ -141,7 +154,10 @@ fun ExternalAppIcon(
             .fillMaxSize()
             .then(if (isTelevision) Modifier else Modifier.clip(shape))
         // Local copy so the null-check smart-casts (launcherIcon is a produceState delegate).
-        val launcher = launcherIcon
+        val launcher = launcherIcon?.bitmap
+        // Nothing stands in for the device's own icon while it is still being read: the repo icon and the
+        // avatar would only show for that moment and then jump to the real one.
+        val readingLauncher = packageName != null && launcherIcon == null
         // The repo icon is very often the small flat PNG a project keeps only for pre-Android-8 devices
         // (its real icon being an adaptive one Android composes from a vector at whatever size it's
         // drawn, with no fixed source resolution to run out of): confirmed on Victor-root/OpenMessages,
@@ -173,6 +189,8 @@ fun ExternalAppIcon(
                     modifier = imageModifier,
                 )
             }
+
+            readingLauncher -> Unit
 
             app.repoIconUrl != null && !repoIconFailed -> AsyncImage(
                 model = repoIconModel,
