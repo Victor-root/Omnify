@@ -56,6 +56,11 @@ private const val TAG = "ExternalAppIcon"
  *
  * Sized via [size] so the same composable serves the grid cards, the detail header and the
  * management list.
+ *
+ * [onIconBitmap] receives each picture of the app's own icon as it shows, with a key naming where it
+ * came from, so a caller can tell a new picture from a repeat of the same one. The avatar is never
+ * passed on: it is the developer's logo, not the app's, and only stands in until something better
+ * loads (the launcher icon is read off the main thread, so it shows a moment after the avatar).
  */
 @Composable
 fun ExternalAppIcon(
@@ -63,7 +68,7 @@ fun ExternalAppIcon(
     isInstalled: Boolean,
     size: Dp,
     modifier: Modifier = Modifier,
-    onIconBitmap: ((Bitmap) -> Unit)? = null,
+    onIconBitmap: ((source: String, bitmap: Bitmap) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val packageName = app.packageName
@@ -75,11 +80,6 @@ fun ExternalAppIcon(
     // wants the bitmap back, so ordinary tiles (no onIconBitmap) keep the faster hardware path.
     val repoIconModel = remember(app.repoIconUrl, onIconBitmap != null) {
         app.repoIconUrl?.let { url ->
-            ImageRequest.Builder(context).data(url).allowHardware(onIconBitmap == null).build()
-        }
-    }
-    val avatarModel = remember(app.iconUrl, onIconBitmap != null) {
-        app.iconUrl?.let { url ->
             ImageRequest.Builder(context).data(url).allowHardware(onIconBitmap == null).build()
         }
     }
@@ -112,7 +112,8 @@ fun ExternalAppIcon(
     // timestamp so it refreshes if re-extracted. Loaded as a bitmap (not via Coil) since this is a
     // local file.
     val extractedFile = ExternalIconCache.iconFile(context, app.key).takeIf { it.exists() }
-    val extractedIcon = remember(app.key, extractedFile?.lastModified()) {
+    val extractedAt = extractedFile?.lastModified()
+    val extractedIcon = remember(app.key, extractedAt) {
         extractedFile?.let {
             runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull()
         }
@@ -150,7 +151,7 @@ fun ExternalAppIcon(
         // stops the pre-install icon from looking worse than the real one it's standing in for.
         when {
             launcher != null -> {
-                LaunchedEffect(launcher) { onIconBitmap?.invoke(launcher.asAndroidBitmap()) }
+                LaunchedEffect(launcher) { onIconBitmap?.invoke("launcher:$packageName", launcher.asAndroidBitmap()) }
                 Image(
                     bitmap = launcher,
                     contentDescription = null,
@@ -161,7 +162,9 @@ fun ExternalAppIcon(
             }
 
             extractedIcon != null -> {
-                LaunchedEffect(extractedIcon) { onIconBitmap?.invoke(extractedIcon.asAndroidBitmap()) }
+                LaunchedEffect(extractedIcon) {
+                    onIconBitmap?.invoke("file:$extractedAt", extractedIcon.asAndroidBitmap())
+                }
                 Image(
                     bitmap = extractedIcon,
                     contentDescription = null,
@@ -176,7 +179,7 @@ fun ExternalAppIcon(
                 onError = { repoIconFailed = true },
                 onSuccess = onIconBitmap?.let { callback ->
                     { state: AsyncImagePainter.State.Success ->
-                        state.toSafeBitmap(LauncherIconPx)?.let(callback)
+                        state.toSafeBitmap(LauncherIconPx)?.let { callback("repo:${app.repoIconUrl}", it) }
                     }
                 },
                 contentDescription = null,
@@ -186,13 +189,8 @@ fun ExternalAppIcon(
             )
 
             app.iconUrl != null && !avatarFailed -> AsyncImage(
-                model = avatarModel,
+                model = app.iconUrl,
                 onError = { avatarFailed = true },
-                onSuccess = onIconBitmap?.let { callback ->
-                    { state: AsyncImagePainter.State.Success ->
-                        state.toSafeBitmap(LauncherIconPx)?.let(callback)
-                    }
-                },
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 filterQuality = FilterQuality.High,

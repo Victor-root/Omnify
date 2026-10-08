@@ -68,7 +68,6 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
 import com.looker.droidify.utility.common.IconAccentCache
-import com.looker.droidify.utility.common.iconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
@@ -142,7 +141,7 @@ fun TvExternalAppDetailScreen(
                 ?.calculateHash()
         }
     }
-    // Set once the hero icon actually loads (see the ExternalAppIcon call below); reset per screen
+    // Set as the hero icon loads (see the ExternalAppIcon call below); reset per screen
     // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
     // Seeded from IconAccentCache so revisiting the same app doesn't wait for the icon to decode
     // and get quantized all over again.
@@ -297,15 +296,10 @@ fun TvExternalAppDetailScreen(
                         app = app,
                         isInstalled = isInstalled,
                         size = 112.dp,
-                        onIconBitmap = { bitmap ->
-                            // Coil re-invokes this on every recomposition of the icon's AsyncImage, not
-                            // just once per real image load; skip it once a colour is already known for
-                            // this screen instance instead of redoing that work every time.
-                            if (iconAccent == null) {
-                                iconAccent = bitmap.iconAccent()?.also {
-                                    IconAccentCache.put(iconAccentCacheKey, it)
-                                }
-                            }
+                        onIconBitmap = { source, bitmap ->
+                            // Follows the picture on screen: the app's own icon read off the device
+                            // replaces the one shown before it, and the accent has to follow it.
+                            iconAccent = IconAccentCache.accentOf(iconAccentCacheKey, source, bitmap)
                         },
                     )
                 }
