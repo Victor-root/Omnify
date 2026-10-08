@@ -17,6 +17,7 @@ import androidx.core.graphics.PathParser
 import androidx.core.graphics.drawable.toBitmap
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.utility.common.SdkCheck
+import kotlinx.coroutines.CancellationException
 
 /**
  * Builds the icon Android will actually draw for a source, from the adaptive icon in its repository,
@@ -39,24 +40,47 @@ internal class AdaptiveIconComposer(
 ) {
 
     /**
-     * Composes [treePaths]' adaptive launcher icon at [sizePx] square, or null when the repository has
-     * none, when a layer can't be read, or when the result would be pointless (an empty or fully
-     * transparent image). Never throws.
+     * Composes [treePaths]' adaptive launcher icon at [sizePx] square. [AdaptiveIconResult.Unavailable]
+     * when the repository has none this can draw, or when the result would be pointless (an empty or
+     * fully transparent image); [AdaptiveIconResult.ReadFailed] when one of its files couldn't be
+     * downloaded, so the caller asks again later instead of settling on the fallback for good.
      */
-    suspend fun compose(treePaths: List<String>, sizePx: Int = ICON_SIZE_PX): Bitmap? {
-        if (!SdkCheck.isOreo) return null
+    suspend fun compose(treePaths: List<String>, sizePx: Int = ICON_SIZE_PX): AdaptiveIconResult {
+        if (!SdkCheck.isOreo) return AdaptiveIconResult.Unavailable
         return try {
-            composeInternal(treePaths, sizePx)
+            composeInternal(treePaths, sizePx)?.let(AdaptiveIconResult::Composed) ?: AdaptiveIconResult.Unavailable
+        } catch (e: UnreadableIconFile) {
+            if (BuildConfig.DEBUG) Log.d(TAG, "could not download ${e.path}, the icon will be composed again later")
+            AdaptiveIconResult.ReadFailed
+        } catch (e: CancellationException) {
+            throw e
         } catch (t: Throwable) {
             Log.w(TAG, "Adaptive icon composition failed", t)
+            AdaptiveIconResult.Unavailable
+        }
+    }
+
+    /**
+     * Downloads [path] with [read]. Every path asked for here comes from the repository's own file
+     * listing, so no answer means the download failed rather than that the file doesn't exist: thrown
+     * as [UnreadableIconFile] so the whole composition is retried, instead of quietly drawing the icon
+     * without the layer or colour that was missing (Magisk's teal background, say).
+     */
+    private suspend fun <T : Any> download(path: String, read: suspend (String) -> T?): T {
+        val result = try {
+            read(path)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             null
         }
+        return result ?: throw UnreadableIconFile(path)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun composeInternal(treePaths: List<String>, sizePx: Int): Bitmap? {
         val definitionPath = findAdaptiveIconPath(treePaths) ?: return null
-        val definition = readFile(definitionPath)?.withoutXmlComments() ?: return null
+        val definition = download(definitionPath, readFile).withoutXmlComments()
         val layers = parseAdaptiveIcon(definition) ?: return null
         if (BuildConfig.DEBUG) {
             Log.d(TAG, "adaptive icon at $definitionPath -> bg=${layers.background} fg=${layers.foreground}")
@@ -92,14 +116,12 @@ internal class AdaptiveIconComposer(
         }
         // A raster wins when the repo ships one: it is the artwork itself rather than a re-drawing of it.
         rasterPathFor(name, treePaths)?.let { path ->
-            readBytes(path)?.let { bytes ->
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let { return BitmapDrawable(null, it) }
-            }
+            val bytes = download(path, readBytes)
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let { return BitmapDrawable(null, it) }
         }
         vectorPathFor(name, treePaths)?.let { path ->
-            readFile(path)?.let { xml ->
-                renderVector(xml.withoutXmlComments(), sizePx)?.let { return BitmapDrawable(null, it) }
-            }
+            val xml = download(path, readFile)
+            renderVector(xml.withoutXmlComments(), sizePx)?.let { return BitmapDrawable(null, it) }
         }
         if (BuildConfig.DEBUG) Log.d(TAG, "could not resolve icon layer $reference")
         return null
@@ -125,7 +147,7 @@ internal class AdaptiveIconComposer(
             .take(MAX_COLOUR_FILES)
         val pattern = Regex("""<color\s+name="${Regex.escape(name)}"\s*>\s*(#[0-9a-fA-F]{3,8})\s*</color>""")
         for (path in colourFiles) {
-            val text = readFile(path) ?: continue
+            val text = download(path, readFile)
             val match = pattern.find(text) ?: continue
             return parseColourLiteral(match.groupValues[1])
         }
@@ -156,6 +178,20 @@ internal class AdaptiveIconComposer(
         }
     }
 }
+
+/** What composing a source's adaptive icon came to. */
+internal sealed interface AdaptiveIconResult {
+    /** The icon, as Android will draw it once the app is installed. */
+    class Composed(val bitmap: Bitmap) : AdaptiveIconResult
+
+    /** A final answer: the repository has no adaptive icon this can draw. */
+    data object Unavailable : AdaptiveIconResult
+
+    /** One of the icon's files couldn't be downloaded: worth trying again later. */
+    data object ReadFailed : AdaptiveIconResult
+}
+
+private class UnreadableIconFile(val path: String) : Exception("Could not download $path")
 
 private const val TAG = "AdaptiveIconComposer"
 

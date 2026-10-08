@@ -136,6 +136,7 @@ class MainComposeActivity : ComponentActivity() {
         private const val KEY_ADAPTIVE_ICON_RESCAN_V1 = "adaptive_icon_rescan_v1"
         private const val KEY_ADAPTIVE_ICON_DRAWABLE_RESCAN_V1 = "adaptive_icon_drawable_rescan_v1"
         private const val KEY_ADAPTIVE_ICON_COLOR_RESCAN_V1 = "adaptive_icon_color_rescan_v1"
+        private const val KEY_ADAPTIVE_ICON_RETRY_V1 = "adaptive_icon_retry_v1"
     }
 
     /** Omnify's own repo (github.com/Victor-root/Omnify) as the built-in update channel, active by
@@ -708,6 +709,23 @@ class MainComposeActivity : ComponentActivity() {
                     }
                 }
                 firstRunPrefs.edit().putBoolean(KEY_ADAPTIVE_ICON_COLOR_RESCAN_V1, true).apply()
+            }
+
+            // One-time: hand every source still without a composed icon back to the regular refresh, which
+            // composes it again. Until the composer told a failed download apart from a repository with no
+            // adaptive icon, a single file that didn't come through (or a restored backup, whose sources
+            // arrive without their icon files) marked the source as checked for good and left it on the
+            // maintainer's avatar: seen on topjohnwu/Magisk on a fresh install. Only the flag is reset
+            // here; the network work stays in ExternalRefresher.refreshOne.
+            if (!firstRunPrefs.getBoolean(KEY_ADAPTIVE_ICON_RETRY_V1, false)) {
+                externalAppRepository.getApps()
+                    .filter { app ->
+                        app.adaptiveIconChecked && !app.iconOverridden &&
+                            !ExternalIconCache.iconFile(this@MainComposeActivity, app.key).exists() &&
+                            app.packageName?.let(externalRefresher::isInstalled) != true
+                    }
+                    .forEach { externalAppRepository.upsertApp(it.copy(adaptiveIconChecked = false)) }
+                firstRunPrefs.edit().putBoolean(KEY_ADAPTIVE_ICON_RETRY_V1, true).apply()
             }
 
             // One-time: mark already-seeded TV pack entries with curatedTv, so an install seeded before

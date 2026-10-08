@@ -1229,7 +1229,7 @@ class ExternalAppsViewModel @Inject constructor(
                             // Only mark scanned when the repo was actually read, so a transient failure
                             // re-scans on a later refresh instead of caching an empty / non-TV result.
                             iconChecked = meta != null,
-                            adaptiveIconChecked = meta != null,
+                            adaptiveIconChecked = meta?.adaptiveIconSettled == true,
                             supportsTelevision = meta?.supportsTelevision ?: false,
                             tvChecked = meta != null,
                             latestTag = release.tag,

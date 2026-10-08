@@ -212,7 +212,8 @@ class ExternalRefresher @Inject constructor(
                     latestReleaseAt = releaseAt,
                     repoIconUrl = repoIcon,
                     iconChecked = current.iconChecked || (needsIcon && scanned),
-                    adaptiveIconChecked = current.adaptiveIconChecked || (needsAdaptiveIcon && scanned),
+                    adaptiveIconChecked = current.adaptiveIconChecked ||
+                        (needsAdaptiveIcon && meta?.adaptiveIconSettled == true),
                     supportsTelevision = supportsTv,
                     tvChecked = current.tvChecked || (needsTv && scanned),
                 ),
@@ -306,7 +307,7 @@ class ExternalRefresher @Inject constructor(
                 label = resolvedLabel,
                 repoIconUrl = meta?.iconCandidates?.firstOrNull(),
                 iconChecked = meta != null,
-                adaptiveIconChecked = meta != null,
+                adaptiveIconChecked = meta?.adaptiveIconSettled == true,
                 supportsTelevision = meta?.supportsTelevision ?: false,
                 tvChecked = meta != null,
                 latestTag = release.tag,

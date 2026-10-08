@@ -17,7 +17,7 @@ Ten backgrounds to choose from, an Updates tab that always matches its notificat
 ### 🐛 Fixed
 - **The "updates available" notification always opens the Updates tab**, on the same apps it announced.
 - **The Updates tab shows a loading state on a cold open** instead of "up to date".
-- **External sources' pre-install icons are found in more places** (Magisk, for one), with the right background colour.
+- **External sources' pre-install icons are found in more places** (Magisk, for one), with the right background colour, and are tried again after a failed download or a backup restore instead of staying on the developer's avatar.
 - **Empty categories no longer show.**
 - **Search finds the apps you follow from GitHub or GitLab too**, ignores the space a keyboard suggestion leaves after a word, and says so when nothing matches.
 - **With the accent matching an app's icon, the navigation bar keeps that colour** behind the install dialog.

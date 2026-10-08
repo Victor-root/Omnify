@@ -254,9 +254,11 @@ class ExternalApi @Inject constructor(
         // instead of caching "nothing found" / "not a TV app" from a transient failure.
         val paths = fetchTreePaths(app)
         if (paths.isEmpty()) return@withContext null
+        val adaptiveIcon = if (includeAdaptiveIcon) composeAdaptiveIcon(app, paths) else null
         RepoMetadata(
             iconCandidates = rankIconPaths(paths).map { app.readmeBaseUrl + it },
-            adaptiveIcon = if (includeAdaptiveIcon) composeAdaptiveIcon(app, paths) else null,
+            adaptiveIcon = (adaptiveIcon as? AdaptiveIconResult.Composed)?.bitmap,
+            adaptiveIconSettled = adaptiveIcon != AdaptiveIconResult.ReadFailed,
             appName = resolveAppName(app, paths),
             supportsTelevision = detectTelevisionSupport(app, paths),
         )
@@ -264,10 +266,10 @@ class ExternalApi @Inject constructor(
 
     /**
      * The icon Android will really draw for [app], built from the `<adaptive-icon>` in its repository.
-     * Null when it has none, or on Android 7 and below where the flat raster genuinely is what the
-     * device uses. See [AdaptiveIconComposer] for why the raster alone isn't good enough.
+     * Unavailable when it has none, or on Android 7 and below where the flat raster genuinely is what
+     * the device uses. See [AdaptiveIconComposer] for why the raster alone isn't good enough.
      */
-    private suspend fun composeAdaptiveIcon(app: ExternalApp, paths: List<String>): Bitmap? =
+    private suspend fun composeAdaptiveIcon(app: ExternalApp, paths: List<String>): AdaptiveIconResult =
         AdaptiveIconComposer(
             readFile = { path -> getText(app.readmeBaseUrl + path) },
             readBytes = { path -> fetchBytes(app.readmeBaseUrl + path) },
@@ -1643,6 +1645,9 @@ data class RepoMetadata(
      *  it once installed. Null when the repo ships none, or below Android 8. Preferred over
      *  [iconCandidates], whose flat raster is only the pre-Android-8 fallback and is often stale. */
     val adaptiveIcon: Bitmap? = null,
+    /** False when one of the adaptive icon's files couldn't be downloaded: [adaptiveIcon] is then no
+     *  final answer, and the source should be scanned for it again rather than marked as checked. */
+    val adaptiveIconSettled: Boolean = true,
     val appName: String? = null,
     val supportsTelevision: Boolean = false,
 )
