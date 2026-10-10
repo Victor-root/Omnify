@@ -239,6 +239,8 @@
     <string name="delete_apk_on_install_summary">Automatically delete APK files after successful installation</string>
     <string name="play_store_install_source">Show Google Play as install source</string>
     <string name="play_store_install_source_summary">Apps installed with Shizuku or root appear as installed from Google Play instead of Omnify</string>
+    <string name="install_source_google_play">Install source: Google Play</string>
+    <string name="install_source_omnify">Install source: Omnify</string>
     <string name="unspecified">Unspecified</string>
     <string name="insufficient_storage">Insufficient space</string>
     <string name="insufficient_storage_DESC">There isn\'t enough free space to install this app</string>

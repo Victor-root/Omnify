@@ -9,6 +9,10 @@ enum class InstallerType {
     ROOT,
     ;
 
+    /** Whether installs through this installer can record another app as their installer. */
+    val canSetInstallSource: Boolean
+        get() = this == SHIZUKU || this == ROOT
+
     companion object {
         val Default: InstallerType
             get() = if (Miui.isMiui) {

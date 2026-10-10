@@ -217,6 +217,15 @@ class PreferenceSettingsRepository(
     override suspend fun setPlayStoreInstallSource(enable: Boolean) =
         PLAY_STORE_INSTALL_SOURCE.update(enable)
 
+    override suspend fun toggleOmnifyInstallSource(packageName: String) {
+        dataStore.edit { preference ->
+            val currentSet = preference[OMNIFY_INSTALL_SOURCE_APPS] ?: emptySet()
+            preference[OMNIFY_INSTALL_SOURCE_APPS] = currentSet.updateAsMutable {
+                if (!add(packageName)) remove(packageName)
+            }
+        }
+    }
+
     override suspend fun setDownloadStatisticsEnabled(enabled: Boolean) =
         DOWNLOAD_STATISTICS_ENABLED.update(enabled)
 
@@ -313,6 +322,7 @@ class PreferenceSettingsRepository(
             preferences[ENABLED_REPO_IDS]?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
         val deleteApkOnInstall = preferences[DELETE_APK_ON_INSTALL] ?: false
         val playStoreInstallSource = preferences[PLAY_STORE_INSTALL_SOURCE] ?: false
+        val omnifyInstallSourceApps = preferences[OMNIFY_INSTALL_SOURCE_APPS] ?: emptySet()
         val downloadStatisticsEnabled = preferences[DOWNLOAD_STATISTICS_ENABLED] ?: true
         val reproducibilityLogsEnabled = preferences[REPRODUCIBILITY_LOGS_ENABLED] ?: true
         val githubToken = preferences[GITHUB_TOKEN] ?: ""
@@ -355,6 +365,7 @@ class PreferenceSettingsRepository(
             enabledRepoIds = enabledRepoIds,
             deleteApkOnInstall = deleteApkOnInstall,
             playStoreInstallSource = playStoreInstallSource,
+            omnifyInstallSourceApps = omnifyInstallSourceApps,
             dlStatsEnabled = downloadStatisticsEnabled,
             rbLogsEnabled = reproducibilityLogsEnabled,
             githubToken = githubToken,
@@ -397,6 +408,7 @@ class PreferenceSettingsRepository(
         val SHOW_FAVOURITES_CAROUSEL = booleanPreferencesKey("key_show_favourites_carousel")
         val DELETE_APK_ON_INSTALL = booleanPreferencesKey("key_delete_apk_on_install")
         val PLAY_STORE_INSTALL_SOURCE = booleanPreferencesKey("key_play_store_install_source")
+        val OMNIFY_INSTALL_SOURCE_APPS = stringSetPreferencesKey("key_omnify_install_source_apps")
         val DOWNLOAD_STATISTICS_ENABLED = booleanPreferencesKey("key_download_statistics_enabled")
         val REPRODUCIBILITY_LOGS_ENABLED = booleanPreferencesKey("key_reproducibility_logs_enabled")
         val LEGACY_INSTALLER_COMPONENT_CLASS =
@@ -477,6 +489,7 @@ class PreferenceSettingsRepository(
             set(ENABLED_REPO_IDS, settings.enabledRepoIds.map { it.toString() }.toSet())
             set(DELETE_APK_ON_INSTALL, settings.deleteApkOnInstall)
             set(PLAY_STORE_INSTALL_SOURCE, settings.playStoreInstallSource)
+            set(OMNIFY_INSTALL_SOURCE_APPS, settings.omnifyInstallSourceApps)
             set(DOWNLOAD_STATISTICS_ENABLED, settings.dlStatsEnabled)
             set(REPRODUCIBILITY_LOGS_ENABLED, settings.rbLogsEnabled)
             set(GITHUB_TOKEN, settings.githubToken)

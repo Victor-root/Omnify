@@ -518,7 +518,7 @@ fun SettingsScreen(
                 )
             }
 
-            if (settings.installerType == InstallerType.SHIZUKU || settings.installerType == InstallerType.ROOT) {
+            if (settings.installerType.canSetInstallSource) {
                 item {
                     SwitchSettingItem(
                         title = stringResource(R.string.play_store_install_source),

@@ -14,7 +14,15 @@ interface Installer : AutoCloseable {
     suspend fun uninstall(packageName: PackageName)
 }
 
-/** The package recorded as the installer of an app installed through `pm`: Omnify, or Google Play when
- *  the user asked for it. Read per install so changing the setting never touches one in progress. */
-suspend fun Context.installSourcePackage(settingsRepository: SettingsRepository): String =
-    if (settingsRepository.getInitial().playStoreInstallSource) PLAY_STORE_PACKAGE_NAME else packageName
+/** The package recorded as the installer of [installItem]'s app when installed through `pm`: Omnify, or
+ *  Google Play when the user asked for it. Read per install so changing the setting never touches one in
+ *  progress. */
+suspend fun Context.installSourcePackage(
+    settingsRepository: SettingsRepository,
+    installItem: InstallItem,
+): String =
+    if (settingsRepository.getInitial().installsAsPlayStore(installItem.packageName.name)) {
+        PLAY_STORE_PACKAGE_NAME
+    } else {
+        packageName
+    }

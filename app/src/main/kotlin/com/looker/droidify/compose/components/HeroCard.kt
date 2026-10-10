@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.components
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +60,11 @@ fun HeroCard(
     // could otherwise get squeezed and truncated). Only shown once there's somewhere for it to go
     // (an installed app); null hides it entirely.
     onManageClick: (() -> Unit)? = null,
+    // Which install source this app gets: Google Play (true) or Omnify (false), as picked in Settings
+    // and overridden per app. Overlaid top-start too, right of the gear when there is one. null hides
+    // it, since the choice only exists while Google Play is the default install source.
+    playStoreSource: Boolean? = null,
+    onToggleInstallSource: (() -> Unit)? = null,
     badge: (@Composable () -> Unit)? = null,
     stats: (@Composable () -> Unit)? = null,
     footer: (@Composable () -> Unit)? = null,
@@ -139,6 +146,44 @@ fun HeroCard(
                         imageVector = Icons.Filled.Settings,
                         contentDescription = stringResource(R.string.manage),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+
+            if (playStoreSource != null && onToggleInstallSource != null) {
+                val context = LocalContext.current
+                val playStoreLabel = stringResource(R.string.install_source_google_play)
+                val omnifyLabel = stringResource(R.string.install_source_omnify)
+                IconToggleButton(
+                    checked = playStoreSource,
+                    onCheckedChange = {
+                        onToggleInstallSource()
+                        // The icon alone doesn't say which source it now stands for.
+                        val newLabel = if (playStoreSource) omnifyLabel else playStoreLabel
+                        Toast.makeText(context, newLabel, Toast.LENGTH_SHORT).show()
+                    },
+                    // Sits beside the manage gear, one 48dp button over, when that one is shown.
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = if (onManageClick != null) 48.dp else 0.dp)
+                        .then(if (LocalIsTelevision.current) Modifier.size(48.dp) else Modifier)
+                        .tvFocusScale(debugLabel = "hero-install-source"),
+                ) {
+                    Icon(
+                        painter = painterResource(
+                            if (playStoreSource) {
+                                R.drawable.ic_tabler_brand_google
+                            } else {
+                                R.drawable.ic_tabler_brand_google_off
+                            },
+                        ),
+                        contentDescription = if (playStoreSource) playStoreLabel else omnifyLabel,
+                        tint = if (playStoreSource) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         modifier = Modifier.size(24.dp),
                     )
                 }

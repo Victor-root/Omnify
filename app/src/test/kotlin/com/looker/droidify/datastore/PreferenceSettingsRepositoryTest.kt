@@ -168,4 +168,19 @@ class PreferenceSettingsRepositoryTest {
         repository.setPlayStoreInstallSource(true)
         assertTrue(repository.getInitial().playStoreInstallSource)
     }
+
+    @Test
+    fun `toggleOmnifyInstallSource keeps one app on Omnify and back`() = runTest {
+        repository.setPlayStoreInstallSource(true)
+        assertTrue(repository.getInitial().installsAsPlayStore("com.example.app"))
+
+        repository.toggleOmnifyInstallSource("com.example.app")
+        var settings = repository.getInitial()
+        assertFalse(settings.installsAsPlayStore("com.example.app"))
+        assertTrue(settings.installsAsPlayStore("com.example.other"))
+
+        repository.toggleOmnifyInstallSource("com.example.app")
+        settings = repository.getInitial()
+        assertTrue(settings.installsAsPlayStore("com.example.app"))
+    }
 }

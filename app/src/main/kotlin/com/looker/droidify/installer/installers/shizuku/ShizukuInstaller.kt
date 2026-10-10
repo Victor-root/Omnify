@@ -69,7 +69,7 @@ class ShizukuInstaller(
     private var runningProcess: Process? = null
 
     override suspend fun install(installItem: InstallItem): InstallState =
-        installAs(installItem, context.installSourcePackage(settingsRepository))
+        installAs(installItem, context.installSourcePackage(settingsRepository, installItem))
 
     private suspend fun installAs(
         installItem: InstallItem,

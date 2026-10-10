@@ -209,6 +209,7 @@ fun AppDetailScreen(
     val downloadTargetVersionCode by viewModel.downloadTargetVersionCode.collectAsStateWithLifecycle()
     val isFavourite by viewModel.isFavourite.collectAsStateWithLifecycle()
     val isHidden by viewModel.isHidden.collectAsStateWithLifecycle()
+    val playStoreInstallSource by viewModel.playStoreInstallSource.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
     val externallySourced by viewModel.externallySourced.collectAsStateWithLifecycle()
     val remoteIcon by viewModel.remoteIcon.collectAsStateWithLifecycle()
@@ -517,6 +518,8 @@ fun AppDetailScreen(
                     pushCapabilityConfirmedAbsent = pushCapabilityConfirmedAbsent,
                     isFavourite = isFavourite,
                     onToggleFavourite = viewModel::toggleFavourite,
+                    playStoreInstallSource = playStoreInstallSource,
+                    onToggleInstallSource = viewModel::toggleInstallSource,
                     onSelectRepo = viewModel::setPreferredRepo,
                     onInstallOrUpdate = viewModel::installOrUpdate,
                     onInstallVersion = viewModel::installVersion,
@@ -708,6 +711,8 @@ private fun AppDetail(
     pushCapabilityConfirmedAbsent: Boolean,
     isFavourite: Boolean,
     onToggleFavourite: () -> Unit,
+    playStoreInstallSource: Boolean?,
+    onToggleInstallSource: () -> Unit,
     onSelectRepo: (Int) -> Unit,
     onInstallOrUpdate: () -> Unit,
     onInstallVersion: (Package, Repo) -> Unit,
@@ -850,6 +855,8 @@ private fun AppDetail(
             remoteIcon = remoteIcon,
             isFavorite = isFavourite,
             onToggleFavorite = onToggleFavourite,
+            playStoreInstallSource = playStoreInstallSource,
+            onToggleInstallSource = onToggleInstallSource,
             updateAvailable = updateAvailable,
             installState = installState,
             downloadStatus = downloadStatus,
@@ -1488,6 +1495,8 @@ private fun AppHeaderCard(
     remoteIcon: File?,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
+    playStoreInstallSource: Boolean?,
+    onToggleInstallSource: () -> Unit,
     updateAvailable: Boolean,
     installState: InstallState?,
     downloadStatus: DownloadStatus?,
@@ -1588,6 +1597,8 @@ private fun AppHeaderCard(
         } else {
             null
         },
+        playStoreSource = playStoreInstallSource,
+        onToggleInstallSource = onToggleInstallSource,
         badge = if (isRootCompatible) { { RootBadge() } } else null,
         stats = if (version != null || size != null || onSourceCodeClick != null) {
             { HeroStatsRow(version = version, size = size, onSourceCodeClick = onSourceCodeClick) }

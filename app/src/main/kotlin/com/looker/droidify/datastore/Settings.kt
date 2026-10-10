@@ -75,6 +75,8 @@ data class Settings(
     val deleteApkOnInstall: Boolean = false,
     /** Shizuku and root installs record Google Play, instead of Omnify, as the app's installer. */
     val playStoreInstallSource: Boolean = false,
+    /** Packages kept on Omnify as their install source even while [playStoreInstallSource] is on. */
+    val omnifyInstallSourceApps: Set<String> = emptySet(),
     val dlStatsEnabled: Boolean = true,
     val rbLogsEnabled: Boolean = true,
     /** Optional GitHub personal access token (no scopes needed). When set, external-source requests to
@@ -112,7 +114,11 @@ data class Settings(
      *  shared into the app) opens the add dialog for a last look before adding, rather than being
      *  added straight away. Off by default: tapping a badge already said what it does. */
     val confirmBadgeAdd: Boolean = false,
-)
+) {
+    /** Whether [packageName] is installed with Google Play recorded as its installer. */
+    fun installsAsPlayStore(packageName: String): Boolean =
+        playStoreInstallSource && packageName !in omnifyInstallSourceApps
+}
 
 @OptIn(ExperimentalSerializationApi::class)
 object SettingsSerializer : Serializer<Settings> {

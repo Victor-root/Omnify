@@ -186,6 +186,7 @@ fun ExternalAppDetailScreen(
     val splitViewSettingEnabled by viewModel.splitViewEnabled.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
     val hiddenApps by viewModel.hidden.collectAsStateWithLifecycle()
+    val omnifyInstallSourceApps by viewModel.omnifyInstallSourceApps.collectAsStateWithLifecycle()
     val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
     // Set as the hero icon loads (see the ExternalAppIcon call below); reset per screen
@@ -637,6 +638,14 @@ fun ExternalAppDetailScreen(
                     app.packageName?.let { packageName -> { context.openAppInfo(packageName) } }
                 } else {
                     null
+                },
+                // Needs the package id: the install source is set per package, and it can still be unknown
+                // for a source that was never installed (see ensurePackageId above).
+                playStoreSource = app.packageName?.let { packageName ->
+                    omnifyInstallSourceApps?.let { packageName !in it }
+                },
+                onToggleInstallSource = app.packageName?.let { packageName ->
+                    { viewModel.toggleInstallSource(packageName) }
                 },
                 badge = if (isRootCompatible) { { RootBadge() } } else null,
                 stats = {

@@ -52,6 +52,7 @@ import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
+import com.looker.droidify.datastore.installSourceChoice
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
@@ -408,6 +409,16 @@ class ExternalAppsViewModel @Inject constructor(
     /** Hides or unhides [app] from every app listing. */
     fun toggleHidden(app: ExternalApp) {
         viewModelScope.launch { settingsRepository.toggleHidden(app.key) }
+    }
+
+    /** Package names kept on Omnify as their install source, or null when no per-app choice is offered
+     *  (see [installSourceChoice]). */
+    val omnifyInstallSourceApps: StateFlow<Set<String>?> =
+        settingsRepository.installSourceChoice().asStateFlow(null)
+
+    /** Switches [packageName] between Google Play and Omnify as its install source. */
+    fun toggleInstallSource(packageName: String) {
+        viewModelScope.launch { settingsRepository.toggleOmnifyInstallSource(packageName) }
     }
 
     /** Per-app system install state (Pending/Installing/…), keyed by [ExternalApp.key]. */

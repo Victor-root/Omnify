@@ -87,6 +87,8 @@ interface SettingsRepository {
 
     suspend fun setPlayStoreInstallSource(enable: Boolean)
 
+    suspend fun toggleOmnifyInstallSource(packageName: String)
+
     suspend fun setDownloadStatisticsEnabled(enabled: Boolean)
 
     suspend fun clearDownloadStatsLastModified()
@@ -116,4 +118,12 @@ interface SettingsRepository {
 
 inline fun <T> SettingsRepository.get(crossinline block: suspend Settings.() -> T): Flow<T> {
     return data.map(block).distinctUntilChanged()
+}
+
+/**
+ * The packages kept on Omnify as their install source, or null when no per-app choice is offered, which
+ * is whenever the installer in use can't set an install source or Google Play isn't the default one.
+ */
+fun SettingsRepository.installSourceChoice(): Flow<Set<String>?> = get {
+    if (installerType.canSetInstallSource && playStoreInstallSource) omnifyInstallSourceApps else null
 }

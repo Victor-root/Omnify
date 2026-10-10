@@ -26,6 +26,7 @@ import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.datastore.CustomButtonRepository
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
+import com.looker.droidify.datastore.installSourceChoice
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.installers.shizuku.ShizukuState
@@ -321,6 +322,12 @@ class AppDetailViewModel @Inject constructor(
         .map { packageName in it }
         .asStateFlow(false)
 
+    /** Whether this app installs with Google Play as its install source, or null when no choice is
+     *  offered (see [installSourceChoice]). */
+    val playStoreInstallSource: StateFlow<Boolean?> = settingsRepository.installSourceChoice()
+        .map { omnifyApps -> omnifyApps?.let { packageName !in it } }
+        .asStateFlow(null)
+
     /** Whether the tablet-landscape two-pane detail layout is allowed at all (the Settings toggle) — a
      *  screen still only actually shows it when it's also tablet-width and landscape. */
     val splitViewEnabled: StateFlow<Boolean> = settingsRepository.get { splitViewEnabled }
@@ -345,6 +352,11 @@ class AppDetailViewModel @Inject constructor(
     /** Hides or unhides this app from every app listing. */
     fun toggleHidden() {
         viewModelScope.launch { settingsRepository.toggleHidden(packageName) }
+    }
+
+    /** Switches this app between Google Play and Omnify as its install source. */
+    fun toggleInstallSource() {
+        viewModelScope.launch { settingsRepository.toggleOmnifyInstallSource(packageName) }
     }
 
     private val _downloadStatus = MutableStateFlow<DownloadStatus?>(null)
