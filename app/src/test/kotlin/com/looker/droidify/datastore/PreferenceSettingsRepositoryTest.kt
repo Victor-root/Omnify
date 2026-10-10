@@ -161,4 +161,11 @@ class PreferenceSettingsRepositoryTest {
         val settings = repository.getInitial()
         assertTrue(settings.deleteApkOnInstall)
     }
+
+    @Test
+    fun `setPlayStoreInstallSource updates setting and is off by default`() = runTest {
+        assertFalse(repository.getInitial().playStoreInstallSource)
+        repository.setPlayStoreInstallSource(true)
+        assertTrue(repository.getInitial().playStoreInstallSource)
+    }
 }

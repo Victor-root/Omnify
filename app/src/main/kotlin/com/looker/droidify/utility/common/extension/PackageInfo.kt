@@ -136,6 +136,8 @@ fun PackageManager.getPackageArchiveInfoCompat(
     null
 }
 
+const val PLAY_STORE_PACKAGE_NAME = "com.android.vending"
+
 private fun Context.rawInstallerPackageName(packageName: String): String? = runCatching {
     if (SdkCheck.isR) {
         packageManager.getInstallSourceInfo(packageName).installingPackageName
@@ -164,7 +166,7 @@ fun Context.installerSourceLabel(packageName: String, knownInstalledByOmnify: Bo
         } else {
             getString(R.string.installer_unknown)
         }
-        "com.android.vending" -> "Google Play"
+        PLAY_STORE_PACKAGE_NAME -> "Google Play"
         "org.fdroid.fdroid", "org.fdroid.basic" -> "F-Droid"
         this.packageName -> getString(R.string.installer_self_name)
         else -> installer
@@ -176,7 +178,7 @@ fun Context.installerSourceLabel(packageName: String, knownInstalledByOmnify: Bo
  *  Google-services-provider id (see [com.looker.droidify.compose.appDetail.isGoogleServicesProviderPackage])
  *  is genuinely Google's own build, not e.g. a ROM-integrated microG that impersonates the same id. */
 fun Context.isInstalledFromGooglePlay(packageName: String): Boolean =
-    rawInstallerPackageName(packageName) == "com.android.vending"
+    rawInstallerPackageName(packageName) == PLAY_STORE_PACKAGE_NAME
 
 /**
  * True when [packageName] is already installed but signed by a different key than [apkFile]. Android

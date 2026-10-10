@@ -85,6 +85,8 @@ interface SettingsRepository {
 
     suspend fun setDeleteApkOnInstall(enable: Boolean)
 
+    suspend fun setPlayStoreInstallSource(enable: Boolean)
+
     suspend fun setDownloadStatisticsEnabled(enabled: Boolean)
 
     suspend fun clearDownloadStatsLastModified()

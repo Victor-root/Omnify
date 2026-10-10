@@ -518,6 +518,18 @@ fun SettingsScreen(
                 )
             }
 
+            if (settings.installerType == InstallerType.SHIZUKU || settings.installerType == InstallerType.ROOT) {
+                item {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.play_store_install_source),
+                        description = stringResource(R.string.play_store_install_source_summary),
+                        icon = painterResource(R.drawable.ic_tabler_brand_google),
+                        checked = settings.playStoreInstallSource,
+                        onCheckedChange = viewModel::setPlayStoreInstallSource,
+                    )
+                }
+            }
+
             if (settings.installerType == InstallerType.LEGACY) {
                 item {
                     LegacyInstallerComponentSetting(

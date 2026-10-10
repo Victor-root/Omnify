@@ -327,8 +327,8 @@ class InstallManager(
             _installer = when (installerType) {
                 InstallerType.LEGACY -> LegacyInstaller(context, settingsRepository)
                 InstallerType.SESSION -> SessionInstaller(context)
-                InstallerType.SHIZUKU -> ShizukuInstaller(context)
-                InstallerType.ROOT -> RootInstaller(context)
+                InstallerType.SHIZUKU -> ShizukuInstaller(context, settingsRepository)
+                InstallerType.ROOT -> RootInstaller(context, settingsRepository)
             }
         }
     }

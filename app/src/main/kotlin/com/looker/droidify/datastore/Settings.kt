@@ -73,6 +73,8 @@ data class Settings(
     val showFavouritesCarousel: Boolean = true,
     val enabledRepoIds: Set<Int> = emptySet(),
     val deleteApkOnInstall: Boolean = false,
+    /** Shizuku and root installs record Google Play, instead of Omnify, as the app's installer. */
+    val playStoreInstallSource: Boolean = false,
     val dlStatsEnabled: Boolean = true,
     val rbLogsEnabled: Boolean = true,
     /** Optional GitHub personal access token (no scopes needed). When set, external-source requests to

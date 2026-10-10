@@ -244,6 +244,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setPlayStoreInstallSource(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setPlayStoreInstallSource(enabled)
+        }
+    }
+
     fun setDownloadStatisticsEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setDownloadStatisticsEnabled(enabled)

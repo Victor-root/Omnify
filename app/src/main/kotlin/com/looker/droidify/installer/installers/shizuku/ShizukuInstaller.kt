@@ -7,7 +7,9 @@ import android.util.Log
 import android.widget.Toast
 import com.looker.droidify.R
 import com.looker.droidify.data.model.PackageName
+import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.installer.installers.Installer
+import com.looker.droidify.installer.installers.installSourcePackage
 import com.looker.droidify.installer.installers.uninstallPackage
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.installer.model.InstallState
@@ -20,7 +22,10 @@ import java.io.BufferedReader
 import java.io.InputStream
 import kotlin.coroutines.resume
 
-class ShizukuInstaller(private val context: Context) : Installer {
+class ShizukuInstaller(
+    private val context: Context,
+    private val settingsRepository: SettingsRepository,
+) : Installer {
 
     companion object {
         private val SESSION_ID_REGEX = Regex("(?<=\\[).+?(?=])")
@@ -63,8 +68,12 @@ class ShizukuInstaller(private val context: Context) : Installer {
     @Volatile
     private var runningProcess: Process? = null
 
-    override suspend fun install(
+    override suspend fun install(installItem: InstallItem): InstallState =
+        installAs(installItem, context.installSourcePackage(settingsRepository))
+
+    private suspend fun installAs(
         installItem: InstallItem,
+        installerPackage: String,
     ): InstallState = suspendCancellableCoroutine { cont ->
         cont.invokeOnCancellation { runCatching { runningProcess?.destroy() } }
         if (!shizukuReady()) {
@@ -80,7 +89,6 @@ class ShizukuInstaller(private val context: Context) : Installer {
                 error("File is not valid: Size ${file.size}")
             }
             if (cont.isCompleted) return@suspendCancellableCoroutine
-            val installerPackage = context.packageName
             file.inputStream().use {
                 // INSTALL_REASON_USER (4): launchers only auto-add a home screen icon for
                 // user-initiated install sessions; `pm` knows the option since Android O.
