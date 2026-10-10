@@ -1,0 +1,1165 @@
+{
+ "repo": {
+  "timestamp": 1791035160000,
+  "version": 20002,
+  "name": "SimpleX Chat F-Droid",
+  "icon": "1.png",
+  "address": "https://app.simplex.chat/fdroid/repo",
+  "description": "SimpleX Chat official F-Droid repository."
+ },
+ "requests": {
+  "install": [],
+  "uninstall": []
+ },
+ "apps": [
+  {
+   "bitcoin": "1bpefFkzuRoMY3ZuBbZNZxycbg7NYPYTG",
+   "categories": [
+    "Connectivity",
+    "Phone & SMS"
+   ],
+   "changelog": "https://github.com/simplex-chat/simplex-chat/releases",
+   "suggestedVersionName": "7.0.4",
+   "suggestedVersionCode": "384",
+   "donate": "https://github.com/simplex-chat/simplex-chat#help-us-with-donations",
+   "issueTracker": "https://github.com/simplex-chat/simplex-chat/issues",
+   "license": "AGPL-3.0-or-later",
+   "openCollective": "simplex-chat",
+   "sourceCode": "https://github.com/simplex-chat/simplex-chat",
+   "translation": "https://hosted.weblate.org/projects/simplex-chat/android/",
+   "webSite": "https://simplex.chat/",
+   "added": 1751392544000,
+   "packageName": "chat.simplex.app",
+   "lastUpdated": 1791035152000,
+   "localized": {
+    "en-US": {
+     "description": "<h1>SimpleX - the first messaging platform that has no user identifiers, not even random numbers!</h1>\n<p><a href=\"https://simplex.chat/blog/20221108-simplex-chat-v4.2-security-audit-new-website.html\" target=\"_blank\">Security assessment</a> was done by Trail of Bits in November 2022.</p>\n<p>SimpleX Chat features:</p>\n<ul>\n  <li>end-to-end encrypted messages, with editing, replies and deletion of messages.</li>\n  <li>sending end-to-end encrypted images and files.</li>\n  <li>single-use and long-term user addresses.</li>\n  <li>secret chat groups - only group members know it exists and who is the member.</li>\n  <li>end-to-end encrypted audio and video calls.</li>\n  <li>private instant notifications.</li>\n  <li>portable chat profile - you can transfer your chat contacts and history to another device (terminal or mobile).</li>\n</ul>\n<p>SimpleX Chat advantages:</p>\n<ul>\n  <li><strong>Full privacy of your identity, profile, contacts and metadata</strong>: unlike any other existing messaging platform, SimpleX uses no phone numbers or any other identifiers assigned to the users - not even random numbers. This protects the privacy of who you are communicating with, hiding it from SimpleX platform servers and from any observers.</li>\n  <li><strong>Complete protection against spam and abuse</strong>: as you have no identifier on SimpleX platform, you cannot be contacted unless you share a one-time invitation link or an optional temporary user address.</li>\n  <li><strong>Full ownership, control and security of your data</strong>: SimpleX stores all user data on client devices, the messages are only held temporarily on SimpleX relay servers until they are received.</li>\n  <li><strong>Decentralized network</strong>: you can use SimpleX with your own servers and still communicate with people using the servers that are pre-configured in the apps or any other SimpleX servers.</li>\n</ul>\n<p>You can connect to anybody you know via link or scan QR code (in the video call or in person) and start sending messages instantly - no emails, phone numbers or passwords needed.</p> \n<p>Your profile and contacts are only stored in the app on your device - our servers do not have access to this information.</p>\n<p>All messages are end-to-end encrypted using open-source double-ratchet protocol; the messages are routed via our servers using open-source SimpleX Messaging Protocol.</p>\n<p>Please send us any questions via the app (connect to the team via settings!), <a href=\"mailto:chat@simplex.chat?subject=SimpleX Chat on F-Droid\">email us</a> or submit an <a href=\"https://github.com/simplex-chat/simplex-chat/issues\" target=\"_blank\">issue on GitHub</a>.</p>\n<p>Follow us on Mastodon (<a href=\"https://mastodon.social/@simplex\" target=\"_blank\">@simplex@mastodon.social</a>), Twitter (<a href=\"https://twitter.com/SimpleXChat\" target=\"_blank\">@SimpleXChat</a>) and Reddit (<a href=\"https://www.reddit.com/r/SimpleXChat/\" target=\"_blank\">r/SimpleXChat</a>) for the latest updates.</p>\n<p>Once you install SimpleX Chat, join the group of users via <a href=\"https://simplex.chat/contact#/?v=1-2&smp=smp%3A%2F%2Fu2dS9sG8nMNURyZwqASV4yROM28Er0luVTx5X1CsMrU%3D%40smp4.simplex.im%2FWHV0YU1sYlU7NqiEHkHDB6gxO1ofTync%23%2F%3Fv%3D1-2%26dh%3DMCowBQYDK2VuAyEAWbebOqVYuBXaiqHcXYjEHCpYi6VzDlu6CVaijDTmsQU%253D%26srv%3Do5vmywmrnaxalvz6wi3zicyftgio6psuvyniis6gco6bp6ekl4cqj4id.onion&data=%7B%22type%22%3A%22group%22%2C%22groupLinkId%22%3A%22mL-7Divb94GGmGmRBef5Dg%3D%3D%22%7D\" target=\"_blank\">this link</a> to share your ideas and feedback.</p>\n",
+     "icon": "icon_IDdtCGG0wL-lNRFuu7OK2tHe0TTFmPfU06AgixSneLM=.png",
+     "name": "SimpleX Chat",
+     "phoneScreenshots": [
+      "1.jpg",
+      "1.png",
+      "2.jpg",
+      "2.png",
+      "3.jpg",
+      "3.png",
+      "4.jpg",
+      "4.png",
+      "5.jpg",
+      "5.png",
+      "6.jpg",
+      "6.png",
+      "7.jpg",
+      "7.png",
+      "8.jpg"
+     ],
+     "summary": "SimpleX Chat - e2e encrypted messenger without any user IDs - private by design!"
+    }
+   }
+  }
+ ],
+ "packages": {
+  "chat.simplex.app": [
+   {
+    "added": 1791035131000,
+    "apkName": "chat.simplex.app_aarch64_386.apk",
+    "features": [
+     "android.hardware.camera"
+    ],
+    "hash": "9e5a318bb8b09bab45c4b626b2953224b962108de27d7e3210cdfdf4fd50778b",
+    "hashType": "sha256",
+    "minSdkVersion": 26,
+    "nativecode": [
+     "arm64-v8a"
+    ],
+    "packageName": "chat.simplex.app",
+    "sig": "a04e11107a6ffe39667fe98567957fd0",
+    "signer": "3c52c4fd3cad1c07c9b00a7080e358fab9fefcb8af5aec147765f16d0f21ad85",
+    "size": 89113888,
+    "targetSdkVersion": 35,
+    "uses-permission": [
+     [
+      "android.permission.CAMERA",
+      null
+     ],
+     [
+      "android.permission.POST_NOTIFICATIONS",
+      null
+     ],
+     [
+      "android.permission.VIDEO_CAPTURE",
+      null
+     ],
+     [
+      "android.permission.RECORD_AUDIO",
+      null
+     ],
+     [
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE",
+      null
+     ],
+     [
+      "android.permission.WAKE_LOCK",
+      null
+     ],
+     [
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      null
+     ],
+     [
+      "android.permission.VIBRATE",
+      null
+     ],
+     [
+      "android.permission.INTERNET",
+      null
+     ],
+     [
+      "android.permission.ACCESS_NETWORK_STATE",
+      null
+     ],
+     [
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      null
+     ],
+     [
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      null
+     ],
+     [
+      "android.permission.USE_FULL_SCREEN_INTENT",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_CAMERA",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      null
+     ],
+     [
+      "android.permission.USE_BIOMETRIC",
+      null
+     ],
+     [
+      "android.permission.USE_FINGERPRINT",
+      null
+     ],
+     [
+      "chat.simplex.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      null
+     ],
+     [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      null
+     ]
+    ],
+    "versionCode": 386,
+    "versionName": "7.1-beta.6"
+   },
+   {
+    "added": 1791035152000,
+    "apkName": "chat.simplex.app_armv7_386.apk",
+    "features": [
+     "android.hardware.camera"
+    ],
+    "hash": "12d72368734bd8ff3a02ad894f31f06c6dae0aa9bbe1a62646fdc0dbafd674dc",
+    "hashType": "sha256",
+    "minSdkVersion": 26,
+    "nativecode": [
+     "armeabi-v7a"
+    ],
+    "packageName": "chat.simplex.app",
+    "sig": "a04e11107a6ffe39667fe98567957fd0",
+    "signer": "3c52c4fd3cad1c07c9b00a7080e358fab9fefcb8af5aec147765f16d0f21ad85",
+    "size": 96281900,
+    "targetSdkVersion": 35,
+    "uses-permission": [
+     [
+      "android.permission.CAMERA",
+      null
+     ],
+     [
+      "android.permission.POST_NOTIFICATIONS",
+      null
+     ],
+     [
+      "android.permission.VIDEO_CAPTURE",
+      null
+     ],
+     [
+      "android.permission.RECORD_AUDIO",
+      null
+     ],
+     [
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE",
+      null
+     ],
+     [
+      "android.permission.WAKE_LOCK",
+      null
+     ],
+     [
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      null
+     ],
+     [
+      "android.permission.VIBRATE",
+      null
+     ],
+     [
+      "android.permission.INTERNET",
+      null
+     ],
+     [
+      "android.permission.ACCESS_NETWORK_STATE",
+      null
+     ],
+     [
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      null
+     ],
+     [
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      null
+     ],
+     [
+      "android.permission.USE_FULL_SCREEN_INTENT",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_CAMERA",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      null
+     ],
+     [
+      "android.permission.USE_BIOMETRIC",
+      null
+     ],
+     [
+      "android.permission.USE_FINGERPRINT",
+      null
+     ],
+     [
+      "chat.simplex.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      null
+     ],
+     [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      null
+     ]
+    ],
+    "versionCode": 386,
+    "versionName": "7.1-beta.6"
+   },
+   {
+    "added": 1791020133000,
+    "apkName": "chat.simplex.app_aarch64_384.apk",
+    "features": [
+     "android.hardware.camera"
+    ],
+    "hash": "17966066a1e4369ebc8c569baec9607213b510a53b328279eb516facb3e7db29",
+    "hashType": "sha256",
+    "minSdkVersion": 26,
+    "nativecode": [
+     "arm64-v8a"
+    ],
+    "packageName": "chat.simplex.app",
+    "sig": "a04e11107a6ffe39667fe98567957fd0",
+    "signer": "3c52c4fd3cad1c07c9b00a7080e358fab9fefcb8af5aec147765f16d0f21ad85",
+    "size": 87523844,
+    "targetSdkVersion": 35,
+    "uses-permission": [
+     [
+      "android.permission.CAMERA",
+      null
+     ],
+     [
+      "android.permission.POST_NOTIFICATIONS",
+      null
+     ],
+     [
+      "android.permission.VIDEO_CAPTURE",
+      null
+     ],
+     [
+      "android.permission.RECORD_AUDIO",
+      null
+     ],
+     [
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE",
+      null
+     ],
+     [
+      "android.permission.WAKE_LOCK",
+      null
+     ],
+     [
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      null
+     ],
+     [
+      "android.permission.VIBRATE",
+      null
+     ],
+     [
+      "android.permission.INTERNET",
+      null
+     ],
+     [
+      "android.permission.ACCESS_NETWORK_STATE",
+      null
+     ],
+     [
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      null
+     ],
+     [
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      null
+     ],
+     [
+      "android.permission.USE_FULL_SCREEN_INTENT",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_CAMERA",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      null
+     ],
+     [
+      "android.permission.USE_BIOMETRIC",
+      null
+     ],
+     [
+      "android.permission.USE_FINGERPRINT",
+      null
+     ],
+     [
+      "chat.simplex.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      null
+     ],
+     [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      null
+     ]
+    ],
+    "versionCode": 384,
+    "versionName": "7.0.4"
+   },
+   {
+    "added": 1791020158000,
+    "apkName": "chat.simplex.app_armv7_384.apk",
+    "features": [
+     "android.hardware.camera"
+    ],
+    "hash": "7503603e83164e05ef60b0dbdca517260fe9f8b35954d2fcf79ef23981889524",
+    "hashType": "sha256",
+    "minSdkVersion": 26,
+    "nativecode": [
+     "armeabi-v7a"
+    ],
+    "packageName": "chat.simplex.app",
+    "sig": "a04e11107a6ffe39667fe98567957fd0",
+    "signer": "3c52c4fd3cad1c07c9b00a7080e358fab9fefcb8af5aec147765f16d0f21ad85",
+    "size": 99176976,
+    "targetSdkVersion": 35,
+    "uses-permission": [
+     [
+      "android.permission.CAMERA",
+      null
+     ],
+     [
+      "android.permission.POST_NOTIFICATIONS",
+      null
+     ],
+     [
+      "android.permission.VIDEO_CAPTURE",
+      null
+     ],
+     [
+      "android.permission.RECORD_AUDIO",
+      null
+     ],
+     [
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE",
+      null
+     ],
+     [
+      "android.permission.WAKE_LOCK",
+      null
+     ],
+     [
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      null
+     ],
+     [
+      "android.permission.VIBRATE",
+      null
+     ],
+     [
+      "android.permission.INTERNET",
+      null
+     ],
+     [
+      "android.permission.ACCESS_NETWORK_STATE",
+      null
+     ],
+     [
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      null
+     ],
+     [
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      null
+     ],
+     [
+      "android.permission.USE_FULL_SCREEN_INTENT",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_CAMERA",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      null
+     ],
+     [
+      "android.permission.USE_BIOMETRIC",
+      null
+     ],
+     [
+      "android.permission.USE_FINGERPRINT",
+      null
+     ],
+     [
+      "chat.simplex.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      null
+     ],
+     [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      null
+     ]
+    ],
+    "versionCode": 384,
+    "versionName": "7.0.4"
+   },
+   {
+    "added": 1790786749000,
+    "apkName": "chat.simplex.app_aarch64_383.apk",
+    "features": [
+     "android.hardware.camera"
+    ],
+    "hash": "1fd866a13a52c82f955e27ea53a1591cd7e5996b2209c9baadd80a8e33014ad5",
+    "hashType": "sha256",
+    "minSdkVersion": 26,
+    "nativecode": [
+     "arm64-v8a"
+    ],
+    "packageName": "chat.simplex.app",
+    "sig": "a04e11107a6ffe39667fe98567957fd0",
+    "signer": "3c52c4fd3cad1c07c9b00a7080e358fab9fefcb8af5aec147765f16d0f21ad85",
+    "size": 89097504,
+    "targetSdkVersion": 35,
+    "uses-permission": [
+     [
+      "android.permission.CAMERA",
+      null
+     ],
+     [
+      "android.permission.POST_NOTIFICATIONS",
+      null
+     ],
+     [
+      "android.permission.VIDEO_CAPTURE",
+      null
+     ],
+     [
+      "android.permission.RECORD_AUDIO",
+      null
+     ],
+     [
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE",
+      null
+     ],
+     [
+      "android.permission.WAKE_LOCK",
+      null
+     ],
+     [
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      null
+     ],
+     [
+      "android.permission.VIBRATE",
+      null
+     ],
+     [
+      "android.permission.INTERNET",
+      null
+     ],
+     [
+      "android.permission.ACCESS_NETWORK_STATE",
+      null
+     ],
+     [
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      null
+     ],
+     [
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      null
+     ],
+     [
+      "android.permission.USE_FULL_SCREEN_INTENT",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_CAMERA",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      null
+     ],
+     [
+      "android.permission.USE_BIOMETRIC",
+      null
+     ],
+     [
+      "android.permission.USE_FINGERPRINT",
+      null
+     ],
+     [
+      "chat.simplex.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      null
+     ],
+     [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      null
+     ]
+    ],
+    "versionCode": 383,
+    "versionName": "7.1-beta.5"
+   },
+   {
+    "added": 1790786782000,
+    "apkName": "chat.simplex.app_armv7_383.apk",
+    "features": [
+     "android.hardware.camera"
+    ],
+    "hash": "7cdad28ecca9e19101b80985511dff1711e046f7092712720a885251fb92404b",
+    "hashType": "sha256",
+    "minSdkVersion": 26,
+    "nativecode": [
+     "armeabi-v7a"
+    ],
+    "packageName": "chat.simplex.app",
+    "sig": "a04e11107a6ffe39667fe98567957fd0",
+    "signer": "3c52c4fd3cad1c07c9b00a7080e358fab9fefcb8af5aec147765f16d0f21ad85",
+    "size": 96277804,
+    "targetSdkVersion": 35,
+    "uses-permission": [
+     [
+      "android.permission.CAMERA",
+      null
+     ],
+     [
+      "android.permission.POST_NOTIFICATIONS",
+      null
+     ],
+     [
+      "android.permission.VIDEO_CAPTURE",
+      null
+     ],
+     [
+      "android.permission.RECORD_AUDIO",
+      null
+     ],
+     [
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE",
+      null
+     ],
+     [
+      "android.permission.WAKE_LOCK",
+      null
+     ],
+     [
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      null
+     ],
+     [
+      "android.permission.VIBRATE",
+      null
+     ],
+     [
+      "android.permission.INTERNET",
+      null
+     ],
+     [
+      "android.permission.ACCESS_NETWORK_STATE",
+      null
+     ],
+     [
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      null
+     ],
+     [
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      null
+     ],
+     [
+      "android.permission.USE_FULL_SCREEN_INTENT",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_CAMERA",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      null
+     ],
+     [
+      "android.permission.USE_BIOMETRIC",
+      null
+     ],
+     [
+      "android.permission.USE_FINGERPRINT",
+      null
+     ],
+     [
+      "chat.simplex.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      null
+     ],
+     [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      null
+     ]
+    ],
+    "versionCode": 383,
+    "versionName": "7.1-beta.5"
+   },
+   {
+    "added": 1790433339000,
+    "apkName": "chat.simplex.app_aarch64_381.apk",
+    "features": [
+     "android.hardware.camera"
+    ],
+    "hash": "d535e5a8986d4e11b9abd5656a3c0e1be5a08e06b00a7b20d6b7587ed0c3457f",
+    "hashType": "sha256",
+    "minSdkVersion": 26,
+    "nativecode": [
+     "arm64-v8a"
+    ],
+    "packageName": "chat.simplex.app",
+    "sig": "a04e11107a6ffe39667fe98567957fd0",
+    "signer": "3c52c4fd3cad1c07c9b00a7080e358fab9fefcb8af5aec147765f16d0f21ad85",
+    "size": 87519748,
+    "targetSdkVersion": 35,
+    "uses-permission": [
+     [
+      "android.permission.CAMERA",
+      null
+     ],
+     [
+      "android.permission.POST_NOTIFICATIONS",
+      null
+     ],
+     [
+      "android.permission.VIDEO_CAPTURE",
+      null
+     ],
+     [
+      "android.permission.RECORD_AUDIO",
+      null
+     ],
+     [
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE",
+      null
+     ],
+     [
+      "android.permission.WAKE_LOCK",
+      null
+     ],
+     [
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      null
+     ],
+     [
+      "android.permission.VIBRATE",
+      null
+     ],
+     [
+      "android.permission.INTERNET",
+      null
+     ],
+     [
+      "android.permission.ACCESS_NETWORK_STATE",
+      null
+     ],
+     [
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      null
+     ],
+     [
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      null
+     ],
+     [
+      "android.permission.USE_FULL_SCREEN_INTENT",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_CAMERA",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      null
+     ],
+     [
+      "android.permission.USE_BIOMETRIC",
+      null
+     ],
+     [
+      "android.permission.USE_FINGERPRINT",
+      null
+     ],
+     [
+      "chat.simplex.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      null
+     ],
+     [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      null
+     ]
+    ],
+    "versionCode": 381,
+    "versionName": "7.0.3"
+   },
+   {
+    "added": 1790433372000,
+    "apkName": "chat.simplex.app_armv7_381.apk",
+    "features": [
+     "android.hardware.camera"
+    ],
+    "hash": "3a89d2f825ce1a30ff51b30487c1b0b58de6eba03426d1500112b7417e659fdc",
+    "hashType": "sha256",
+    "minSdkVersion": 26,
+    "nativecode": [
+     "armeabi-v7a"
+    ],
+    "packageName": "chat.simplex.app",
+    "sig": "a04e11107a6ffe39667fe98567957fd0",
+    "signer": "3c52c4fd3cad1c07c9b00a7080e358fab9fefcb8af5aec147765f16d0f21ad85",
+    "size": 99172880,
+    "targetSdkVersion": 35,
+    "uses-permission": [
+     [
+      "android.permission.CAMERA",
+      null
+     ],
+     [
+      "android.permission.POST_NOTIFICATIONS",
+      null
+     ],
+     [
+      "android.permission.VIDEO_CAPTURE",
+      null
+     ],
+     [
+      "android.permission.RECORD_AUDIO",
+      null
+     ],
+     [
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE",
+      null
+     ],
+     [
+      "android.permission.WAKE_LOCK",
+      null
+     ],
+     [
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      null
+     ],
+     [
+      "android.permission.VIBRATE",
+      null
+     ],
+     [
+      "android.permission.INTERNET",
+      null
+     ],
+     [
+      "android.permission.ACCESS_NETWORK_STATE",
+      null
+     ],
+     [
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      null
+     ],
+     [
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      null
+     ],
+     [
+      "android.permission.USE_FULL_SCREEN_INTENT",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_CAMERA",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      null
+     ],
+     [
+      "android.permission.USE_BIOMETRIC",
+      null
+     ],
+     [
+      "android.permission.USE_FINGERPRINT",
+      null
+     ],
+     [
+      "chat.simplex.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      null
+     ],
+     [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      null
+     ]
+    ],
+    "versionCode": 381,
+    "versionName": "7.0.3"
+   },
+   {
+    "added": 1789828537000,
+    "apkName": "chat.simplex.app_aarch64_379.apk",
+    "features": [
+     "android.hardware.camera"
+    ],
+    "hash": "b8275c14067707e1e37c18e87db32a43a00c442b45d78b0d23b5baa9a962a159",
+    "hashType": "sha256",
+    "minSdkVersion": 26,
+    "nativecode": [
+     "arm64-v8a"
+    ],
+    "packageName": "chat.simplex.app",
+    "sig": "a04e11107a6ffe39667fe98567957fd0",
+    "signer": "3c52c4fd3cad1c07c9b00a7080e358fab9fefcb8af5aec147765f16d0f21ad85",
+    "size": 88827168,
+    "targetSdkVersion": 35,
+    "uses-permission": [
+     [
+      "android.permission.CAMERA",
+      null
+     ],
+     [
+      "android.permission.POST_NOTIFICATIONS",
+      null
+     ],
+     [
+      "android.permission.VIDEO_CAPTURE",
+      null
+     ],
+     [
+      "android.permission.RECORD_AUDIO",
+      null
+     ],
+     [
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE",
+      null
+     ],
+     [
+      "android.permission.WAKE_LOCK",
+      null
+     ],
+     [
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      null
+     ],
+     [
+      "android.permission.VIBRATE",
+      null
+     ],
+     [
+      "android.permission.INTERNET",
+      null
+     ],
+     [
+      "android.permission.ACCESS_NETWORK_STATE",
+      null
+     ],
+     [
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      null
+     ],
+     [
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      null
+     ],
+     [
+      "android.permission.USE_FULL_SCREEN_INTENT",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_CAMERA",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      null
+     ],
+     [
+      "android.permission.USE_BIOMETRIC",
+      null
+     ],
+     [
+      "android.permission.USE_FINGERPRINT",
+      null
+     ],
+     [
+      "chat.simplex.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      null
+     ],
+     [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      null
+     ]
+    ],
+    "versionCode": 379,
+    "versionName": "7.1-beta.4"
+   },
+   {
+    "added": 1789828563000,
+    "apkName": "chat.simplex.app_armv7_379.apk",
+    "features": [
+     "android.hardware.camera"
+    ],
+    "hash": "8b6ea858fc26789e1d02324f5ec934d7085ccf765b03137ea3f3cfff85f15cf2",
+    "hashType": "sha256",
+    "minSdkVersion": 26,
+    "nativecode": [
+     "armeabi-v7a"
+    ],
+    "packageName": "chat.simplex.app",
+    "sig": "a04e11107a6ffe39667fe98567957fd0",
+    "signer": "3c52c4fd3cad1c07c9b00a7080e358fab9fefcb8af5aec147765f16d0f21ad85",
+    "size": 95913260,
+    "targetSdkVersion": 35,
+    "uses-permission": [
+     [
+      "android.permission.CAMERA",
+      null
+     ],
+     [
+      "android.permission.POST_NOTIFICATIONS",
+      null
+     ],
+     [
+      "android.permission.VIDEO_CAPTURE",
+      null
+     ],
+     [
+      "android.permission.RECORD_AUDIO",
+      null
+     ],
+     [
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE",
+      null
+     ],
+     [
+      "android.permission.WAKE_LOCK",
+      null
+     ],
+     [
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      null
+     ],
+     [
+      "android.permission.VIBRATE",
+      null
+     ],
+     [
+      "android.permission.INTERNET",
+      null
+     ],
+     [
+      "android.permission.ACCESS_NETWORK_STATE",
+      null
+     ],
+     [
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      null
+     ],
+     [
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      null
+     ],
+     [
+      "android.permission.USE_FULL_SCREEN_INTENT",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_CAMERA",
+      null
+     ],
+     [
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      null
+     ],
+     [
+      "android.permission.USE_BIOMETRIC",
+      null
+     ],
+     [
+      "android.permission.USE_FINGERPRINT",
+      null
+     ],
+     [
+      "chat.simplex.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      null
+     ],
+     [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      null
+     ]
+    ],
+    "versionCode": 379,
+    "versionName": "7.1-beta.4"
+   }
+  ]
+ }
+}
