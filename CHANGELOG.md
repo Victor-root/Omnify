@@ -1,6 +1,6 @@
 # 📋 Changelog
 
-## 🚀 v1.0.6-beta.7 (2026-10-07)
+## 🚀 v1.0.6-beta.7 (2026-10-10)
 
 Ten backgrounds to choose from, an Updates tab that always matches its notification, and tidier categories. If you use the optional ML Kit translator (off by default), it no longer reports to Google, ahead of being replaced in the next version.
 
