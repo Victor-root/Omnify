@@ -1,48 +1,31 @@
-name: Feature Request
-description: Have an idea? We'd love to hear it
+name: "Feature Request"
+description: "Have an idea? Tell us what would help"
 title: "[Feature Request] "
 labels: ["enhancement"]
-type: feture
+type: feature
 body:
   - type: markdown
     attributes:
       value: |
-        Got a feature idea? Nice! Before you submit, make sure nobody's suggested it already.
+        Thank you for taking the time to suggest an idea. This report also serves as a public history of the project, so it must stay understandable to everyone. Describe simply what you need and what you would like to see. Please do not propose code changes: the maintainer takes care of that.
   - type: checkboxes
     id: checklist
     attributes:
-      label: Before you submit
-      description: Quick checks that help us and you
+      label: "Before you submit"
       options:
-        - label: I have searched the issue tracker for [open](https://github.com/Victor-root/Omnify/issues) and [closed](https://github.com/Victor-root/Omnify/issues?q=is%3Aissue+is%3Aclosed) issues that are similar to the feature request I want to file, without success.
+        - label: "I have checked that no identical request already exists."
           required: true
-        - label: I'm not requesting app support for a specific repo (that's up to the repo maintainers)
-          required: true
-        - label: I understand this might not get built (Omnify is maintained by a single person)
+        - label: "I know Omnify is maintained by a single person and that this idea may not be implemented."
           required: true
   - type: textarea
     id: problem
     attributes:
-      label: What's the problem?
-      description: What's frustrating or missing for you?
-      placeholder: e.g. I'm always having to... when...
+      label: "What's the problem?"
+      description: "What is missing or frustrating for you today?"
   - type: textarea
     id: solution
     attributes:
-      label: What would help?
-      description: Describe your ideal solution
-      placeholder: It would be great if...
+      label: "What solution would you like?"
+      description: "Describe the feature you would like."
     validations:
       required: true
-  - type: textarea
-    id: alternatives
-    attributes:
-      label: Alternatives?
-      description: Any other ways you've thought of to solve this?
-      placeholder: I also considered...
-  - type: textarea
-    id: additional
-    attributes:
-      label: Anything else?
-      description: Screenshots, mockups, or extra context. Drag and drop images here
-      placeholder: Whatever might help us understand...

@@ -1,5 +1,5 @@
-name: Bug Report
-description: Something's broken? Let us know so we can fix it
+name: "Bug Report"
+description: "Something's broken? Let us know what went wrong"
 title: "[BUG] "
 labels: ["bug"]
 type: bug
@@ -7,73 +7,93 @@ body:
   - type: markdown
     attributes:
       value: |
-        Found a bug? We appreciate you taking the time to report it. Before submitting, check if someone else already reported it.
+        Thank you for taking the time to report this problem. This report also serves as a public history of the project, so it must stay understandable to everyone, including people who do not know the code. Describe simply what you observed, how to reproduce the problem, and what you expected. Technical details (error messages, logs, precise terms) are welcome if they help, but not required. Please do not propose code changes: the maintainer takes care of that.
   - type: checkboxes
     id: checklist
     attributes:
-      label: Before you submit
-      description: Please tick all that apply. We need these to help you
+      label: "Before you report"
       options:
-        - label: I have searched the issue tracker for [open](https://github.com/Victor-root/Omnify/issues) and [closed](https://github.com/Victor-root/Omnify/issues?q=is%3Aissue+is%3Aclosed) issues that are similar to the feature request I want to file, without success.
+        - label: "I have checked that no identical report already exists."
           required: true
-        - label: This issue contains only one bug.
+        - label: "This report concerns only related problems."
           required: true
+  - type: input
+    id: location
+    attributes:
+      label: "Where does the problem appear?"
+      description: "E.g.: the catalogue, updates, an external source."
+      placeholder: "E.g.: an app's page"
+    validations:
+      required: true
+  - type: input
+    id: application
+    attributes:
+      label: "Application or source concerned"
+      description: "Name of the app. For an external source (GitHub, GitLab, F-Droid repository), give the name of the project or repository."
+      placeholder: "E.g.: Vela Maps"
   - type: textarea
     id: description
     attributes:
-      label: What's going wrong?
-      description: Describe the bug in your own words
-      placeholder: What happens when you...?
+      label: "Description of the problem"
+      description: "Describe what you observe."
+      placeholder: "E.g.: the install button does nothing when I tap an app."
     validations:
       required: true
   - type: textarea
     id: reproduce
     attributes:
-      label: How do we reproduce it?
-      description: Step-by-step so we can see it too
+      label: "Steps to reproduce"
+      description: "List the actions you took, in order."
       placeholder: |
-        1. Open the app and go to...
-        2. Tap on...
-        3. See the error
+        1. I open the Updates tab.
+        2. I tap an app.
+        3. I tap the Install button.
   - type: textarea
     id: expected
     attributes:
-      label: What did you expect?
-      description: What should have happened instead?
-      placeholder: Normally it would...
+      label: "Expected behavior"
+      description: "What should have happened instead?"
+      placeholder: "E.g.: the app should have started installing."
   - type: textarea
     id: screenshots
     attributes:
-      label: Screenshots
-      description: Pictures help a lot, just drag and drop them here
-      placeholder: Add screenshots here
-  - type: input
-    id: device
+      label: "Screenshots"
+      description: "Drag and drop your images here."
+      placeholder: "E.g.: a screenshot of the screen where the problem appears."
+  - type: dropdown
+    id: device-type
     attributes:
-      label: Your phone
-      description: Brand and model
-      placeholder: e.g. Pixel 6
+      label: "Device type"
+      options:
+        - "Phone"
+        - "Tablet"
+        - "Android TV"
     validations:
       required: true
   - type: input
-    id: os
+    id: device-model
     attributes:
-      label: Android version
-      description: What version of Android are you on?
-      placeholder: e.g. Android 14
+      label: "Brand and model"
+      placeholder: "E.g.: Pixel 7"
+    validations:
+      required: true
+  - type: input
+    id: android-version
+    attributes:
+      label: "Android version"
+      placeholder: "E.g.: Android 14"
     validations:
       required: true
   - type: input
     id: app-version
     attributes:
-      label: Omnify version
-      description: Check in Settings or About
-      placeholder: e.g. v0.5.1
+      label: "Omnify version"
+      placeholder: "E.g.: 1.0.6-beta.7"
     validations:
       required: true
   - type: textarea
     id: additional
     attributes:
-      label: Anything else?
-      description: Repos you have added, things you've tried, etc.
-      placeholder: Any other details that might help...
+      label: "Additional information"
+      description: "Useful context: recent update, fresh install, added source, etc."
+      placeholder: "E.g.: I updated the app the day before, just before the problem."
