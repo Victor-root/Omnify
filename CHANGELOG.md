@@ -5,7 +5,8 @@
 Ten backgrounds to choose from, an Updates tab that always matches its notification, and tidier categories. If you use the optional ML Kit translator (off by default), it no longer reports to Google, ahead of being replaced in the next version.
 
 ### ✨ Added
-- **Ten backgrounds to pick from** in Settings, all tinted from your accent and following light, dark and black themes. Halo is the new default; the previous one stays as "Aurora (classic)".
+- **Ten backgrounds to pick from** in Settings, all tinted from your accent and following light, dark and black themes. Dunes is the new default; the previous one stays as "Aurora (classic)".
+- **Install source per app.** For apps installed with Shizuku or root, choose Google Play (default) or Omnify from a line under the action buttons. Off by default, in Settings under Installer.
 
 ### 🔄 Changed
 - **The update ring goes all the way around the app icon**, following its shape, with the percentage on a round badge.
@@ -22,6 +23,9 @@ Ten backgrounds to choose from, an Updates tab that always matches its notificat
 - **Search finds the apps you follow from GitHub or GitLab too**, ignores the space a keyboard suggestion leaves after a word, and says so when nothing matches.
 - **With the accent matching an app's icon, the navigation bar keeps that colour** behind the install dialog.
 - **No more grey veil over the status bar** under edge-to-edge.
+- **Apps with one build per CPU architecture show all their versions.** Some devices got none and could not install. The next sync restores the missing builds.
+- **Installed apps show their own icon at once** on external source pages.
+- **Page accent follows the app's icon**, not the developer's avatar.
 
 ---
 
