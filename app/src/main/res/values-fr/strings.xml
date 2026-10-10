@@ -453,8 +453,8 @@
     <string name="delete_apk_on_install_summary">Supprimer automatiquement les fichiers APK après une installation réussie</string>
     <string name="play_store_install_source">Afficher Google Play comme source d\'installation</string>
     <string name="play_store_install_source_summary">Les applications installées avec Shizuku ou root apparaissent comme installées depuis Google Play au lieu d\'Omnify</string>
-    <string name="install_source_google_play">Source d\'installation : Google Play</string>
-    <string name="install_source_omnify">Source d\'installation : Omnify</string>
+    <string name="install_source_google_play">Sera affichée comme installée depuis Google Play</string>
+    <string name="install_source_omnify">Sera affichée comme installée depuis Omnify</string>
     <string name="requires_authentication">Requiert authentification ?</string>
     <string name="force_sync_repositories">Synchro forcée des répertoires</string>
     <string name="copy_error_details">Copier détails de l\'erreur</string>
