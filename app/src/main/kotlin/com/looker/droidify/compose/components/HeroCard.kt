@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,8 +62,9 @@ fun HeroCard(
     // (an installed app); null hides it entirely.
     onManageClick: (() -> Unit)? = null,
     // Which install source this app gets: Google Play (true) or Omnify (false), as picked in Settings
-    // and overridden per app. Overlaid top-start too, right of the gear when there is one. null hides
-    // it, since the choice only exists while Google Play is the default install source.
+    // and overridden per app. Overlaid bottom-end, facing the favourite heart, so it never competes with
+    // the manage gear for the top-start corner. null hides it, since the choice only exists while
+    // Google Play is the default install source.
     playStoreSource: Boolean? = null,
     onToggleInstallSource: (() -> Unit)? = null,
     badge: (@Composable () -> Unit)? = null,
@@ -70,6 +72,7 @@ fun HeroCard(
     footer: (@Composable () -> Unit)? = null,
 ) {
     val shape = MaterialTheme.shapes.large
+    val showInstallSource = playStoreSource != null && onToggleInstallSource != null
     // The border lives on this outer Box, not inside Surface's own modifier: Surface paints its
     // background as part of its internal implementation, which chains after whatever modifier
     // it's given — a border passed straight into Surface's modifier ended up painted OVER by
@@ -124,9 +127,22 @@ fun HeroCard(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 actions()
-                if (footer != null) {
+                if (footer != null || showInstallSource) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    footer()
+                    if (showInstallSource) {
+                        // The install source button sits in this card's bottom corner: keep a row as tall
+                        // as it is, and the footer text clear of it, so it never covers either the
+                        // buttons above or a long footer line wrapped to the full width.
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .padding(horizontal = 36.dp),
+                            contentAlignment = Alignment.Center,
+                        ) { footer?.invoke() }
+                    } else {
+                        footer?.invoke()
+                    }
                 }
             }
 
@@ -163,10 +179,8 @@ fun HeroCard(
                         val newLabel = if (playStoreSource) omnifyLabel else playStoreLabel
                         Toast.makeText(context, newLabel, Toast.LENGTH_SHORT).show()
                     },
-                    // Sits beside the manage gear, one 48dp button over, when that one is shown.
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(start = if (onManageClick != null) 48.dp else 0.dp)
+                        .align(Alignment.BottomEnd)
                         .then(if (LocalIsTelevision.current) Modifier.size(48.dp) else Modifier)
                         .tvFocusScale(debugLabel = "hero-install-source"),
                 ) {
