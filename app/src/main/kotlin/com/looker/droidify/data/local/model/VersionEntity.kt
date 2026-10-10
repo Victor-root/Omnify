@@ -24,7 +24,11 @@ import com.looker.droidify.sync.v2.model.localizedValue
     tableName = "version",
     indices = [
         Index("appId"),
-        Index(value = ["appId", "versionCode"], unique = true),
+        // A repository may publish several APKs under one versionCode, one per architecture (an
+        // armeabi-v7a and an arm64-v8a build of the same release). The APK's own file name is what tells
+        // them apart: keyed on the versionCode alone, only one of them survived a sync, whichever the
+        // index listed last, and it was not necessarily one this device can run.
+        Index(value = ["appId", "versionCode", "apk_name"], unique = true),
     ],
     foreignKeys = [
         ForeignKey(

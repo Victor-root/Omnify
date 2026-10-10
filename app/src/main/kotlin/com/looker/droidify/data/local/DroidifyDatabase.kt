@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.looker.droidify.data.local.converters.Converters
 import com.looker.droidify.data.local.converters.PermissionConverter
@@ -47,7 +48,7 @@ import com.looker.droidify.data.local.model.ScreenshotEntity
 import com.looker.droidify.data.local.model.VersionEntity
 
 @Database(
-    version = 5,
+    version = 6,
     exportSchema = true,
     entities = [
         AntiFeatureEntity::class,
@@ -97,12 +98,29 @@ abstract class DroidifyDatabase : RoomDatabase() {
     abstract fun confirmedInstallDao(): ConfirmedInstallDao
 }
 
+/**
+ * Lets the version table hold every APK a repository publishes under one versionCode (see
+ * [VersionEntity]'s unique index), and clears each repository's sync timestamp so the next sync
+ * downloads the whole index again: the variants a previous sync dropped are only recoverable from it.
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP INDEX IF EXISTS `index_version_appId_versionCode`")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_version_appId_versionCode_apk_name` " +
+                "ON `version` (`appId`, `versionCode`, `apk_name`)",
+        )
+        db.execSQL("UPDATE `repository` SET `timestamp` = NULL")
+    }
+}
+
 fun droidifyDatabase(context: Context): DroidifyDatabase = Room
     .databaseBuilder(
         context = context,
         klass = DroidifyDatabase::class.java,
         name = "droidify_room",
     )
+    .addMigrations(MIGRATION_5_6)
     .fallbackToDestructiveMigration(true)
     .addCallback(
         object : RoomDatabase.Callback() {
