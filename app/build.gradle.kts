@@ -155,12 +155,15 @@ android {
         // A throwaway build for a specific bug report: identical to release (same optimizations, same
         // signing when a local keystore is present) so it actually reproduces what a real user would
         // see, but installs alongside the real app (own applicationId) and is unmistakably labelled as
-        // a test build everywhere its name is shown (see src/canary/res/values/strings.xml) — meant to
+        // a test build everywhere its name is shown (see src/trial/res/values/strings.xml) — meant to
         // be handed to one reporter to confirm a fix, then discarded, never publicly distributed.
-        create("canary") {
+        //
+        // Named "trial" because Gradle refuses a build type whose name starts with "test"; everything
+        // a person sees (applicationId, label, version, header chip) still says "test".
+        create("trial") {
             initWith(getByName("release"))
-            applicationIdSuffix = ".canary"
-            versionNameSuffix = ".canary"
+            applicationIdSuffix = ".test"
+            versionNameSuffix = ".test"
         }
         // Public pre-release channel: identical to release (same optimizations, same signing when a
         // local keystore is present) so it behaves exactly like the real thing, installs alongside the
@@ -205,7 +208,7 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = ".d"
-            // Same custom key as release/beta/canary when available, so a debug build's signature
+            // Same custom key as release/beta/trial when available, so a debug build's signature
             // still matches the expected fingerprint instead of Android Studio's auto-generated
             // debug keystore.
             if (hasReleaseSigning) {
@@ -214,7 +217,7 @@ android {
         }
         all {
             // Only the beta channel's own pre-release tag belongs in VERSION_NAME (see the "beta"
-            // build type above): release, canary and debug all track latestVersionName as-is.
+            // build type above): release, trial and debug all track latestVersionName as-is.
             val suffix = if (name == "beta") versionNameSuffix.orEmpty() else ""
             buildConfigField(
                 type = "String",
@@ -228,7 +231,7 @@ android {
             // -Pomnify.simulateChannelSwitch=true.
             //
             // Debug builds only, deliberately. This is the one build that never reaches anyone, so
-            // leaving it on by accident cannot ship: beta, canary and release ignore it outright rather
+            // leaving it on by accident cannot ship: beta, trial and release ignore it outright rather
             // than trusting whoever runs the build to remember to turn it back off.
             buildConfigField(
                 type = "boolean",

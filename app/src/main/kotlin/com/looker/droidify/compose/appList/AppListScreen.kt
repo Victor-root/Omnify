@@ -99,7 +99,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
@@ -583,30 +582,12 @@ fun AppListScreen(
                                     .fillMaxWidth()
                                     .offset(x = (-16).dp),
                             ) {
-                                Box {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_launcher_monochrome),
-                                        contentDescription = null,
-                                        tint = LocalOnAccentBarColor.current,
-                                        modifier = Modifier.size(60.dp),
-                                    )
-                                    // The monochrome icon is tinted to a single flat colour, so a coloured
-                                    // ribbon baked into the drawable itself would just vanish into it. This
-                                    // badge is drawn on top, after tinting, so it keeps its own colour.
-                                    if (BuildConfig.APPLICATION_ID.endsWith(".canary")) {
-                                        Text(
-                                            text = stringResource(R.string.canary_badge),
-                                            color = Color.White,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier
-                                                .align(Alignment.Center)
-                                                .rotate(-30f)
-                                                .background(Color(0xFFFF8C00))
-                                                .padding(horizontal = 6.dp, vertical = 1.dp),
-                                        )
-                                    }
-                                }
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_launcher_monochrome),
+                                    contentDescription = null,
+                                    tint = LocalOnAccentBarColor.current,
+                                    modifier = Modifier.size(60.dp),
+                                )
                                 // While a sync runs, this same spot hands itself over to a status bar
                                 // instead of a second strip elsewhere competing with the app list for
                                 // space (see TitleOrSyncIndicator). The wordmark isn't needed to orient
@@ -1353,18 +1334,21 @@ private fun TitleOrSyncIndicator(syncing: Boolean, modifier: Modifier = Modifier
                 transitionSpec = { tween(260) },
                 label = "titleExit",
             ) { state -> if (state == EnterExitState.PostExit) 1f else 0f }
-            Text(
-                text = stringResource(R.string.application_name),
-                modifier = Modifier.drawWithContent {
-                    // Visible span is [size.width * exitProgress, size.width * enterProgress]. Entering,
-                    // exitProgress is pinned at 0 and the right edge alone sweeps 0 -> size.width.
-                    // Leaving, enterProgress is pinned at 1 and the left edge alone sweeps the same
-                    // 0 -> size.width, eating the text away left to right rather than right to left.
-                    clipRect(left = size.width * exitProgress, right = size.width * enterProgress) {
-                        this@drawWithContent.drawContent()
-                    }
-                },
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.header_title),
+                    modifier = Modifier.drawWithContent {
+                        // Visible span is [size.width * exitProgress, size.width * enterProgress]. Entering,
+                        // exitProgress is pinned at 0 and the right edge alone sweeps 0 -> size.width.
+                        // Leaving, enterProgress is pinned at 1 and the left edge alone sweeps the same
+                        // 0 -> size.width, eating the text away left to right rather than right to left.
+                        clipRect(left = size.width * exitProgress, right = size.width * enterProgress) {
+                            this@drawWithContent.drawContent()
+                        }
+                    },
+                )
+                if (BuildConfig.APPLICATION_ID.endsWith(".test")) TestBuildChip()
+            }
         }
         AnimatedVisibility(
             visible = syncing,
@@ -1384,6 +1368,23 @@ private fun TitleOrSyncIndicator(syncing: Boolean, modifier: Modifier = Modifier
             )
         }
     }
+}
+
+/** Marks the test build beside the name in the header, drawn in its own colour (not tinted like the logo),
+ *  so a screenshot of that build can never be mistaken for the real app. */
+@Composable
+private fun TestBuildChip() {
+    Text(
+        text = stringResource(R.string.test_badge),
+        color = Color.White,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.ExtraBold,
+        letterSpacing = 0.8.sp,
+        modifier = Modifier
+            .padding(start = 8.dp)
+            .background(Color(0xFFFF8C00), RoundedCornerShape(9.dp))
+            .padding(horizontal = 7.dp, vertical = 3.dp),
+    )
 }
 
 /** Whether [query] appears in this source's name, its project (owner/repo) or its package name,

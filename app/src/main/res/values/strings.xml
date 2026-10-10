@@ -6,9 +6,11 @@
          same regardless of which build variant did the installing. -->
     <string name="installer_self_name" translatable="false">Omnify</string>
     <string name="cleartext_allowed" translatable="false">false</string>
-    <!-- Watermark drawn over the header logo on the canary test build only; kept untranslated since
-         it's a build-identification marker, not user-facing app content. -->
-    <string name="canary_badge" translatable="false">TEST</string>
+    <!-- Name shown in the app's header: the app name, except on the test build (see src/trial). -->
+    <string name="header_title" translatable="false">@string/application_name</string>
+    <!-- Chip drawn beside the header name on the test build only; kept untranslated since it's a
+         build-identification marker, not user-facing app content. -->
+    <string name="test_badge" translatable="false">TEST</string>
     <!-- Android TV: label on the detail screen's back affordance. -->
     <string name="tv_back">Back</string>
     <!-- Android TV: opens the app description / README in a full-screen reader. -->

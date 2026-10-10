@@ -24,11 +24,11 @@ import kotlin.time.Duration.Companion.hours
 
 /**
  * Default accent colour: Material Green #4CAF50 — Android's colour, and a good match for the logo.
- * Applied raw (vivid) as the primary/accent; the surface roles are generated from it. The canary
- * test build uses grey instead, so it's visually distinct from the real app at a glance.
+ * Applied raw (vivid) as the primary/accent; the surface roles are generated from it. The test
+ * build uses grey instead, so it's visually distinct from the real app at a glance.
  */
 val DEFAULT_THEME_COLOR: Int =
-    if (BuildConfig.APPLICATION_ID.endsWith(".canary")) {
+    if (BuildConfig.APPLICATION_ID.endsWith(".test")) {
         0xFF9E9E9E.toInt()
     } else {
         0xFF4CAF50.toInt()

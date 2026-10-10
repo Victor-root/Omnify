@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="application_name" translatable="false">Omnify Test</string>
+    <!-- The header already carries a TEST chip beside the name, so the name itself stays plain. -->
+    <string name="header_title" translatable="false">Omnify</string>
+    <string name="cleartext_allowed" translatable="false">false</string>
+</resources>

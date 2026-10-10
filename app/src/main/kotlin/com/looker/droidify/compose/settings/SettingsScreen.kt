@@ -933,8 +933,13 @@ private fun VersionFooter(onEasterEgg: () -> Unit) {
             Text(
                 text = stringResource(R.string.version_FORMAT, BuildConfig.VERSION_NAME) +
                     // The version name already ends in "-beta.N" here, so the build type would just
-                    // repeat it right after.
-                    if (BuildConfig.BUILD_TYPE == "beta") "" else " · ${BuildConfig.BUILD_TYPE}",
+                    // repeat it right after. The test build's own type name is an internal one: Gradle
+                    // forbids calling a build type "test", so it says what it is here instead.
+                    when (BuildConfig.BUILD_TYPE) {
+                        "beta" -> ""
+                        "trial" -> " · test"
+                        else -> " · ${BuildConfig.BUILD_TYPE}"
+                    },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
