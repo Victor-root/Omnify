@@ -45,7 +45,7 @@ data class Settings(
     val themeColor: Int = DEFAULT_THEME_COLOR,
     val edgeToEdge: Boolean = false,
     /** The abstract backdrop behind the app's screens. */
-    val backgroundStyle: BackgroundStyle = BackgroundStyle.HALO,
+    val backgroundStyle: BackgroundStyle = BackgroundStyle.DUNES,
     val installerType: InstallerType = InstallerType.Default,
     val legacyInstallerComponent: LegacyInstallerComponent? = null,
     val autoUpdate: Boolean = false,
