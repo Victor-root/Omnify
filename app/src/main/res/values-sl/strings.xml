@@ -204,4 +204,8 @@
     <string name="no_connection_DESC">Prenosi in usklajevanje ne bodo delovali, dokler povezava ne bo spet na voljo.</string>
     <string name="search_no_results">Ni rezultatov za »%1$s«</string>
     <string name="search_no_results_DESC">Preverite črkovanje ali poiščite del imena.</string>
+    <string name="play_store_install_source">Prikaži Google Play kot vir namestitve</string>
+    <string name="play_store_install_source_summary">Aplikacije, nameščene s Shizuku ali rootom, se prikažejo kot nameščene iz Google Play namesto iz Omnifyja</string>
+    <string name="install_source_google_play">Prikazano bo kot nameščeno iz Google Play</string>
+    <string name="install_source_omnify">Prikazano bo kot nameščeno iz Omnifyja</string>
 </resources>

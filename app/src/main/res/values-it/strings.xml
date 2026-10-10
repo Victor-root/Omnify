@@ -237,6 +237,10 @@
     <string name="legacyInstallerComponent">Componente dell’installatore legacy</string>
     <string name="delete_apk_on_install">Elimina APK all’installazione</string>
     <string name="delete_apk_on_install_summary">Elimina automaticamente i file APK dopo un’installazione con successo</string>
+    <string name="play_store_install_source">Mostra Google Play come origine dell\'installazione</string>
+    <string name="play_store_install_source_summary">Le app installate con Shizuku o root risultano installate da Google Play invece che da Omnify</string>
+    <string name="install_source_google_play">Verrà mostrata come installata da Google Play</string>
+    <string name="install_source_omnify">Verrà mostrata come installata da Omnify</string>
     <string name="shizuku_legacy_installer">Installatore Shizuku/Sui legacy</string>
     <string name="requires_authentication">Richiede autenticazione?</string>
     <string name="repository_not_synced_or_enabled">Il repository non è attivato né sincronizzato</string>

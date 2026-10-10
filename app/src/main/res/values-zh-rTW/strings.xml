@@ -245,6 +245,10 @@
     <string name="copy_error_details">複製錯誤詳細資訊</string>
     <string name="delete_apk_on_install">安裝後刪除 APK</string>
     <string name="delete_apk_on_install_summary">成功安裝後自動刪除 APK 檔案</string>
+    <string name="play_store_install_source">將 Google Play 顯示為安裝來源</string>
+    <string name="play_store_install_source_summary">透過 Shizuku 或 root 安裝的應用程式將顯示為從 Google Play 安裝，而非 Omnify</string>
+    <string name="install_source_google_play">將顯示為從 Google Play 安裝</string>
+    <string name="install_source_omnify">將顯示為從 Omnify 安裝</string>
     <string name="copied_to_clipboard">已複製</string>
     <string name="custom_buttons">自訂按鈕</string>
     <string name="custom_buttons_description">在應用程式詳細資訊加入外部服務的快速連結</string>

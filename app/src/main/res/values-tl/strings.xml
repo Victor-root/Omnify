@@ -198,4 +198,8 @@
     <string name="no_connection_DESC">Hindi gagana ang mga pag-download at pag-sync hangga\'t hindi bumabalik ang koneksyon.</string>
     <string name="search_no_results">Walang resulta para sa “%1$s”</string>
     <string name="search_no_results_DESC">Suriin ang baybay, o hanapin ang bahagi ng pangalan.</string>
+    <string name="play_store_install_source">Ipakita ang Google Play bilang pinagmulan ng pag-install</string>
+    <string name="play_store_install_source_summary">Ang mga app na na-install gamit ang Shizuku o root ay ipapakitang na-install mula sa Google Play sa halip na Omnify</string>
+    <string name="install_source_google_play">Ipapakitang na-install mula sa Google Play</string>
+    <string name="install_source_omnify">Ipapakitang na-install mula sa Omnify</string>
 </resources>

@@ -223,4 +223,8 @@
     <string name="no_connection_DESC">कनेक्शन वापस आने तक डाउनलोड और सिंक काम नहीं करेंगे।</string>
     <string name="search_no_results">“%1$s” के लिए कोई परिणाम नहीं</string>
     <string name="search_no_results_DESC">वर्तनी जाँचें, या नाम का कोई हिस्सा खोजें।</string>
+    <string name="play_store_install_source">इंस्टॉल स्रोत के रूप में Google Play दिखाएँ</string>
+    <string name="play_store_install_source_summary">Shizuku या root से इंस्टॉल किए गए ऐप Omnify के बजाय Google Play से इंस्टॉल किए गए दिखेंगे</string>
+    <string name="install_source_google_play">Google Play से इंस्टॉल किया गया दिखाया जाएगा</string>
+    <string name="install_source_omnify">Omnify से इंस्टॉल किया गया दिखाया जाएगा</string>
 </resources>

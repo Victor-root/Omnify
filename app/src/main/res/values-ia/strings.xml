@@ -222,4 +222,8 @@
     <string name="no_connection_DESC">Le discargamentos e le synchronisation non functionara usque le connexion retorna.</string>
     <string name="search_no_results">Nulle resultatos pro “%1$s”</string>
     <string name="search_no_results_DESC">Verifica le orthographia, o cerca un parte del nomine.</string>
+    <string name="play_store_install_source">Monstrar Google Play como fonte de installation</string>
+    <string name="play_store_install_source_summary">Le applicationes installate con Shizuku o root appare como installate ab Google Play in vice de Omnify</string>
+    <string name="install_source_google_play">Essera monstrate como installate ab Google Play</string>
+    <string name="install_source_omnify">Essera monstrate como installate ab Omnify</string>
 </resources>

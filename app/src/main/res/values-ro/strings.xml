@@ -255,4 +255,8 @@
     <string name="no_connection_DESC">Descărcările și sincronizarea nu vor funcționa până când nu revine conexiunea.</string>
     <string name="search_no_results">Niciun rezultat pentru „%1$s”</string>
     <string name="search_no_results_DESC">Verifică ortografia sau caută o parte din nume.</string>
+    <string name="play_store_install_source">Afișează Google Play ca sursă de instalare</string>
+    <string name="play_store_install_source_summary">Aplicațiile instalate cu Shizuku sau root apar ca instalate din Google Play în loc de Omnify</string>
+    <string name="install_source_google_play">Va fi afișată ca instalată din Google Play</string>
+    <string name="install_source_omnify">Va fi afișată ca instalată din Omnify</string>
 </resources>

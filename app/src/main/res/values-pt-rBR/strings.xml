@@ -360,6 +360,10 @@
     <string name="install_version_downgrade_DESC">Uma versão mais recente está instalada. O Android não consegue fazer downgrade de um app diretamente, então a versão instalada precisa ser desinstalada primeiro (você perderá os dados dela). Desinstale-a e depois toque nesta versão novamente para instalá-la.</string>
     <string name="delete_apk_on_install">Excluir APK após instalação</string>
     <string name="delete_apk_on_install_summary">Excluir automaticamente os arquivos APK após uma instalação bem-sucedida</string>
+    <string name="play_store_install_source">Mostrar o Google Play como origem da instalação</string>
+    <string name="play_store_install_source_summary">Os apps instalados com Shizuku ou root aparecem como instalados pelo Google Play em vez do Omnify</string>
+    <string name="install_source_google_play">Será exibido como instalado pelo Google Play</string>
+    <string name="install_source_omnify">Será exibido como instalado pelo Omnify</string>
     <string name="root_compatible">Compatível com root</string>
     <string name="root_compatible_DESC">Este app pode usar acesso root em dispositivos com root, mas isso não é necessário para instalá-lo ou usá-lo.</string>
     <string name="root_not_granted">O acesso root foi negado ou expirou</string>

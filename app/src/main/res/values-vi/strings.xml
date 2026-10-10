@@ -233,4 +233,8 @@
     <string name="no_connection_DESC">Tải xuống và đồng bộ sẽ không hoạt động cho tới khi có lại kết nối.</string>
     <string name="search_no_results">Không có kết quả cho “%1$s”</string>
     <string name="search_no_results_DESC">Kiểm tra chính tả, hoặc tìm theo một phần của tên.</string>
+    <string name="play_store_install_source">Hiển thị Google Play làm nguồn cài đặt</string>
+    <string name="play_store_install_source_summary">Ứng dụng cài bằng Shizuku hoặc root sẽ hiển thị là đã cài từ Google Play thay vì Omnify</string>
+    <string name="install_source_google_play">Sẽ hiển thị là đã cài từ Google Play</string>
+    <string name="install_source_omnify">Sẽ hiển thị là đã cài từ Omnify</string>
 </resources>

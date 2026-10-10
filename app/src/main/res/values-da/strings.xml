@@ -235,4 +235,8 @@
     <string name="no_connection_DESC">Downloads og synkronisering virker ikke, før forbindelsen er tilbage.</string>
     <string name="search_no_results">Ingen resultater for »%1$s«</string>
     <string name="search_no_results_DESC">Tjek stavemåden, eller søg efter en del af navnet.</string>
+    <string name="play_store_install_source">Vis Google Play som installationskilde</string>
+    <string name="play_store_install_source_summary">Apps installeret med Shizuku eller root vises som installeret fra Google Play i stedet for Omnify</string>
+    <string name="install_source_google_play">Vises som installeret fra Google Play</string>
+    <string name="install_source_omnify">Vises som installeret fra Omnify</string>
 </resources>

@@ -370,6 +370,10 @@
     <string name="install_version_downgrade_DESC">已安装更新的版本。Android 无法直接降级应用，因此必须先卸载已安装的版本（这将丢失其数据）。卸载后，再次点击此版本即可安装。</string>
     <string name="delete_apk_on_install">安装后删除 APK</string>
     <string name="delete_apk_on_install_summary">安装成功后自动删除 APK 文件</string>
+    <string name="play_store_install_source">将 Google Play 显示为安装来源</string>
+    <string name="play_store_install_source_summary">通过 Shizuku 或 root 安装的应用将显示为从 Google Play 安装，而不是 Omnify</string>
+    <string name="install_source_google_play">将显示为从 Google Play 安装</string>
+    <string name="install_source_omnify">将显示为从 Omnify 安装</string>
     <string name="root_compatible">兼容 Root</string>
     <string name="root_compatible_DESC">此应用可以在已 root 的设备上使用 root 权限，但安装或使用该应用并不需要 root。</string>
     <string name="root_not_granted">Root 权限被拒绝或超时</string>

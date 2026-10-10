@@ -236,4 +236,8 @@
     <string name="no_connection_DESC">Οι λήψεις και ο συγχρονισμός δεν θα λειτουργήσουν μέχρι να επανέλθει η σύνδεση.</string>
     <string name="search_no_results">Δεν βρέθηκαν αποτελέσματα για «%1$s»</string>
     <string name="search_no_results_DESC">Ελέγξτε την ορθογραφία ή αναζητήστε μέρος του ονόματος.</string>
+    <string name="play_store_install_source">Εμφάνιση του Google Play ως πηγής εγκατάστασης</string>
+    <string name="play_store_install_source_summary">Οι εφαρμογές που εγκαθίστανται με Shizuku ή root εμφανίζονται ως εγκατεστημένες από το Google Play αντί για το Omnify</string>
+    <string name="install_source_google_play">Θα εμφανίζεται ως εγκατεστημένη από το Google Play</string>
+    <string name="install_source_omnify">Θα εμφανίζεται ως εγκατεστημένη από το Omnify</string>
 </resources>

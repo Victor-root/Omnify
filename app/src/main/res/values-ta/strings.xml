@@ -218,4 +218,8 @@
     <string name="no_connection_DESC">இணைப்பு திரும்பும் வரை பதிவிறக்கங்களும் ஒத்திசைவும் வேலை செய்யாது.</string>
     <string name="search_no_results">“%1$s” க்கு முடிவுகள் இல்லை</string>
     <string name="search_no_results_DESC">எழுத்துப்பிழையைச் சரிபார்க்கவும், அல்லது பெயரின் ஒரு பகுதியைத் தேடவும்.</string>
+    <string name="play_store_install_source">நிறுவல் மூலமாக Google Play ஐக் காட்டு</string>
+    <string name="play_store_install_source_summary">Shizuku அல்லது root மூலம் நிறுவப்பட்ட பயன்பாடுகள் Omnify க்கு பதிலாக Google Play இலிருந்து நிறுவப்பட்டதாகக் காட்டப்படும்</string>
+    <string name="install_source_google_play">Google Play இலிருந்து நிறுவப்பட்டதாகக் காட்டப்படும்</string>
+    <string name="install_source_omnify">Omnify இலிருந்து நிறுவப்பட்டதாகக் காட்டப்படும்</string>
 </resources>

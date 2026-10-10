@@ -260,6 +260,10 @@
     <string name="copy_error_details">انسخ تفاصيل الخطأ</string>
     <string name="delete_apk_on_install">احذف APK عند التثبيت</string>
     <string name="delete_apk_on_install_summary">احذف ملفات APK تلقائيًا بعد التثبيت الناجح</string>
+    <string name="play_store_install_source">عرض Google Play كمصدر للتثبيت</string>
+    <string name="play_store_install_source_summary">تظهر التطبيقات المثبّتة عبر Shizuku أو root على أنها مثبّتة من Google Play بدلاً من Omnify</string>
+    <string name="install_source_google_play">سيظهر على أنه مثبّت من Google Play</string>
+    <string name="install_source_omnify">سيظهر على أنه مثبّت من Omnify</string>
     <string name="custom_buttons">أزرار مخصّصة</string>
     <string name="custom_buttons_description">أضف روابط سريعة لخدمات خارجية في تفاصيل التطبيق</string>
     <string name="custom_buttons_section">روابط تفاصيل التطبيق</string>

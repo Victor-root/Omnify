@@ -230,4 +230,8 @@
     <string name="no_connection_DESC">সংযোগ ফিরে না আসা পর্যন্ত ডাউনলোড ও সিঙ্ক কাজ করবে না।</string>
     <string name="search_no_results">“%1$s”-এর জন্য কোনো ফলাফল নেই</string>
     <string name="search_no_results_DESC">বানান যাচাই করুন, অথবা নামের একটি অংশ দিয়ে খুঁজুন।</string>
+    <string name="play_store_install_source">ইনস্টলের উৎস হিসেবে Google Play দেখান</string>
+    <string name="play_store_install_source_summary">Shizuku বা root দিয়ে ইনস্টল করা অ্যাপ Omnify-এর পরিবর্তে Google Play থেকে ইনস্টল করা হিসেবে দেখাবে</string>
+    <string name="install_source_google_play">Google Play থেকে ইনস্টল করা হিসেবে দেখানো হবে</string>
+    <string name="install_source_omnify">Omnify থেকে ইনস্টল করা হিসেবে দেখানো হবে</string>
 </resources>

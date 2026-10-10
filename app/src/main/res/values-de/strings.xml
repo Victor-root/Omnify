@@ -252,6 +252,10 @@
     <string name="copy_error_details">Fehlerdetails kopieren</string>
     <string name="force_sync_repositories">Paketquellen synchronisieren erzwingen</string>
     <string name="delete_apk_on_install_summary">APK-Dateien nach erfolgreicher Installation automatisch löschen</string>
+    <string name="play_store_install_source">Google Play als Installationsquelle anzeigen</string>
+    <string name="play_store_install_source_summary">Mit Shizuku oder root installierte Apps werden als von Google Play statt von Omnify installiert angezeigt</string>
+    <string name="install_source_google_play">Wird als von Google Play installiert angezeigt</string>
+    <string name="install_source_omnify">Wird als von Omnify installiert angezeigt</string>
     <string name="delete_apk_on_install">APK bei der Installation löschen</string>
     <string name="custom_buttons_description">Quicklinks zu externen Diensten in App-Details hinzufügen</string>
     <string name="custom_buttons_section">Appdetaillinks</string>

@@ -357,6 +357,10 @@
     <string name="install_version_downgrade_DESC">Er is een nieuwere versie geïnstalleerd. Android kan een app niet rechtstreeks downgraden, dus de geïnstalleerde versie moet eerst worden verwijderd (je verliest de gegevens ervan). Verwijder de app en tik daarna opnieuw op deze versie om ze te installeren.</string>
     <string name="delete_apk_on_install">APK verwijderen na installatie</string>
     <string name="delete_apk_on_install_summary">Verwijdert APK-bestanden automatisch na een geslaagde installatie</string>
+    <string name="play_store_install_source">Google Play tonen als installatiebron</string>
+    <string name="play_store_install_source_summary">Apps die met Shizuku of root zijn geïnstalleerd, worden getoond als geïnstalleerd vanuit Google Play in plaats van Omnify</string>
+    <string name="install_source_google_play">Wordt getoond als geïnstalleerd vanuit Google Play</string>
+    <string name="install_source_omnify">Wordt getoond als geïnstalleerd vanuit Omnify</string>
     <string name="root_compatible">Rootcompatibel</string>
     <string name="root_compatible_DESC">Deze app kan roottoegang gebruiken op apparaten met root: dit is niet vereist om de app te installeren of te gebruiken.</string>
     <string name="root_not_granted">Roottoegang geweigerd of time-out</string>

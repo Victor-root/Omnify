@@ -246,6 +246,10 @@
     <string name="title_activity_main_compose">MainComposeActivity</string>
     <string name="delete_apk_on_install">Hapus APK saat instalasi</string>
     <string name="delete_apk_on_install_summary">Otomatis menghapus file APK setelah penginstalan berhasil</string>
+    <string name="play_store_install_source">Tampilkan Google Play sebagai sumber pemasangan</string>
+    <string name="play_store_install_source_summary">Aplikasi yang dipasang dengan Shizuku atau root akan tampil sebagai dipasang dari Google Play, bukan Omnify</string>
+    <string name="install_source_google_play">Akan ditampilkan sebagai dipasang dari Google Play</string>
+    <string name="install_source_omnify">Akan ditampilkan sebagai dipasang dari Omnify</string>
     <string name="requires_authentication">Membutuhkan autentikasi?</string>
     <string name="force_sync_repositories">Paksa sinkron repositori</string>
     <string name="copy_error_details">Salin detail error</string>

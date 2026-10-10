@@ -229,6 +229,10 @@
     <string name="select_installer">Välj installerare</string>
     <string name="delete_apk_on_install">Radera APK-filen efter installation</string>
     <string name="delete_apk_on_install_summary">Ta bort APK-filer automatiskt vid lyckade installationer</string>
+    <string name="play_store_install_source">Visa Google Play som installationskälla</string>
+    <string name="play_store_install_source_summary">Appar som installeras med Shizuku eller root visas som installerade från Google Play i stället för Omnify</string>
+    <string name="install_source_google_play">Visas som installerad från Google Play</string>
+    <string name="install_source_omnify">Visas som installerad från Omnify</string>
     <string name="requires_authentication">Krävs autentisering?</string>
     <string name="action_sync_repo">Synkronisera</string>
     <string name="action_enable_repo">Aktivera</string>

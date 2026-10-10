@@ -205,4 +205,8 @@
     <string name="no_connection_DESC">Les baixades i la sincronització no funcionaran fins que torni la connexió.</string>
     <string name="search_no_results">Cap resultat per a «%1$s»</string>
     <string name="search_no_results_DESC">Comproveu l\'ortografia o cerqueu una part del nom.</string>
+    <string name="play_store_install_source">Mostra Google Play com a font d\'instal·lació</string>
+    <string name="play_store_install_source_summary">Les aplicacions instal·lades amb Shizuku o root apareixen com a instal·lades des de Google Play en lloc d\'Omnify</string>
+    <string name="install_source_google_play">Es mostrarà com a instal·lada des de Google Play</string>
+    <string name="install_source_omnify">Es mostrarà com a instal·lada des d\'Omnify</string>
 </resources>

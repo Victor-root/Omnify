@@ -198,4 +198,8 @@
     <string name="no_connection_DESC">കണക്ഷൻ തിരികെ വരുന്നതുവരെ ഡൗൺലോഡുകളും സമന്വയവും പ്രവർത്തിക്കില്ല.</string>
     <string name="search_no_results">“%1$s” എന്നതിന് ഫലങ്ങളൊന്നുമില്ല</string>
     <string name="search_no_results_DESC">അക്ഷരത്തെറ്റ് പരിശോധിക്കുക, അല്ലെങ്കിൽ പേരിന്റെ ഒരു ഭാഗം തിരയുക.</string>
+    <string name="play_store_install_source">ഇൻസ്റ്റാൾ ഉറവിടമായി Google Play കാണിക്കുക</string>
+    <string name="play_store_install_source_summary">Shizuku അല്ലെങ്കിൽ root ഉപയോഗിച്ച് ഇൻസ്റ്റാൾ ചെയ്ത ആപ്പുകൾ Omnify-ക്ക് പകരം Google Play-യിൽ നിന്ന് ഇൻസ്റ്റാൾ ചെയ്തതായി കാണിക്കും</string>
+    <string name="install_source_google_play">Google Play-യിൽ നിന്ന് ഇൻസ്റ്റാൾ ചെയ്തതായി കാണിക്കും</string>
+    <string name="install_source_omnify">Omnify-യിൽ നിന്ന് ഇൻസ്റ്റാൾ ചെയ്തതായി കാണിക്കും</string>
 </resources>

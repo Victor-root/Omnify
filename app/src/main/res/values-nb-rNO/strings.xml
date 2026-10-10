@@ -209,4 +209,8 @@
     <string name="no_connection_DESC">Nedlastinger og synkronisering virker ikke før forbindelsen er tilbake.</string>
     <string name="search_no_results">Ingen resultater for «%1$s»</string>
     <string name="search_no_results_DESC">Sjekk stavemåten, eller søk etter en del av navnet.</string>
+    <string name="play_store_install_source">Vis Google Play som installasjonskilde</string>
+    <string name="play_store_install_source_summary">Apper installert med Shizuku eller root vises som installert fra Google Play i stedet for Omnify</string>
+    <string name="install_source_google_play">Vises som installert fra Google Play</string>
+    <string name="install_source_omnify">Vises som installert fra Omnify</string>
 </resources>
