@@ -211,6 +211,5 @@
     <string name="search_no_results_DESC">Semak ejaan, atau cari sebahagian daripada nama.</string>
     <string name="play_store_install_source">Papar Google Play sebagai sumber pemasangan</string>
     <string name="play_store_install_source_summary">Aplikasi yang dipasang dengan Shizuku atau root akan dipaparkan sebagai dipasang daripada Google Play dan bukan Omnify</string>
-    <string name="install_source_google_play">Akan dipaparkan sebagai dipasang daripada Google Play</string>
-    <string name="install_source_omnify">Akan dipaparkan sebagai dipasang daripada Omnify</string>
+    <string name="install_source_shown_as">Dipaparkan sebagai: %1$s</string>
 </resources>

@@ -205,6 +205,5 @@
     <string name="search_no_results_DESC">Sjekk stavemåten, eller søk etter ein del av namnet.</string>
     <string name="play_store_install_source">Vis Google Play som installasjonskjelde</string>
     <string name="play_store_install_source_summary">Appar installerte med Shizuku eller root blir viste som installerte frå Google Play i staden for Omnify</string>
-    <string name="install_source_google_play">Blir vist som installert frå Google Play</string>
-    <string name="install_source_omnify">Blir vist som installert frå Omnify</string>
+    <string name="install_source_shown_as">Blir vist som: %1$s</string>
 </resources>

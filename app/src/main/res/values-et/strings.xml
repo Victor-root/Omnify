@@ -231,8 +231,7 @@
     <string name="delete_apk_on_install_summary">Kustuta APK failid pärast edukat paigaldamist</string>
     <string name="play_store_install_source">Näita Google Playd paigaldusallikana</string>
     <string name="play_store_install_source_summary">Shizuku või rooti abil paigaldatud rakendused kuvatakse Omnify asemel Google Playst paigaldatuna</string>
-    <string name="install_source_google_play">Kuvatakse Google Playst paigaldatuna</string>
-    <string name="install_source_omnify">Kuvatakse Omnifyst paigaldatuna</string>
+    <string name="install_source_shown_as">Kuvatakse kui: %1$s</string>
     <string name="requires_authentication">Nõuab autentimist?</string>
     <string name="repository_not_synced_or_enabled">Hoidla pole lubatud või sünkitud</string>
     <string name="action_sync_repo">Sünkrooni</string>

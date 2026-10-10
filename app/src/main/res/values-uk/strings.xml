@@ -253,8 +253,7 @@
     <string name="delete_apk_on_install_summary">Автоматично видаляти файли APK після успішного їх встановлення</string>
     <string name="play_store_install_source">Показувати Google Play як джерело встановлення</string>
     <string name="play_store_install_source_summary">Застосунки, встановлені через Shizuku або root, відображатимуться як встановлені з Google Play замість Omnify</string>
-    <string name="install_source_google_play">Відображатиметься як встановлений із Google Play</string>
-    <string name="install_source_omnify">Відображатиметься як встановлений з Omnify</string>
+    <string name="install_source_shown_as">Відображається як: %1$s</string>
     <string name="requires_authentication">Потребує автентифікацію?</string>
     <string name="force_sync_repositories">Примусова синхронізація репозиторіїв</string>
     <string name="copy_error_details">Копіювати деталі помилки</string>

@@ -246,8 +246,7 @@
     <string name="delete_apk_on_install_summary">Eliminar o ficheiro APK após uma instalação com sucesso</string>
     <string name="play_store_install_source">Mostrar o Google Play como origem da instalação</string>
     <string name="play_store_install_source_summary">As aplicações instaladas com Shizuku ou root aparecem como instaladas a partir do Google Play em vez do Omnify</string>
-    <string name="install_source_google_play">Será mostrada como instalada a partir do Google Play</string>
-    <string name="install_source_omnify">Será mostrada como instalada a partir do Omnify</string>
+    <string name="install_source_shown_as">Mostrada como: %1$s</string>
     <string name="requires_authentication">Requer autenticação?</string>
     <string name="force_sync_repositories">Impor sincronização dos repositórios</string>
     <string name="copy_error_details">Copiar detalhes do erro</string>

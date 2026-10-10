@@ -207,6 +207,5 @@
     <string name="search_no_results_DESC">Comproveu l\'ortografia o cerqueu una part del nom.</string>
     <string name="play_store_install_source">Mostra Google Play com a font d\'instal·lació</string>
     <string name="play_store_install_source_summary">Les aplicacions instal·lades amb Shizuku o root apareixen com a instal·lades des de Google Play en lloc d\'Omnify</string>
-    <string name="install_source_google_play">Es mostrarà com a instal·lada des de Google Play</string>
-    <string name="install_source_omnify">Es mostrarà com a instal·lada des d\'Omnify</string>
+    <string name="install_source_shown_as">Es mostra com a: %1$s</string>
 </resources>

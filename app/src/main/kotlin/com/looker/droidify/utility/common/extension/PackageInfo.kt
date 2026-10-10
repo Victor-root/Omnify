@@ -166,7 +166,7 @@ fun Context.installerSourceLabel(packageName: String, knownInstalledByOmnify: Bo
         } else {
             getString(R.string.installer_unknown)
         }
-        PLAY_STORE_PACKAGE_NAME -> "Google Play"
+        PLAY_STORE_PACKAGE_NAME -> getString(R.string.google_play_name)
         "org.fdroid.fdroid", "org.fdroid.basic" -> "F-Droid"
         this.packageName -> getString(R.string.installer_self_name)
         else -> installer

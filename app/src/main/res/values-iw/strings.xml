@@ -255,6 +255,5 @@
     <string name="search_no_results_DESC">כדאי לבדוק את האיות, או לחפש חלק מהשם.</string>
     <string name="play_store_install_source">הצג את Google Play כמקור ההתקנה</string>
     <string name="play_store_install_source_summary">אפליקציות שמותקנות באמצעות Shizuku או root יוצגו כמותקנות מ-Google Play במקום מ-Omnify</string>
-    <string name="install_source_google_play">תוצג כמותקנת מ-Google Play</string>
-    <string name="install_source_omnify">תוצג כמותקנת מ-Omnify</string>
+    <string name="install_source_shown_as">מוצג בתור: %1$s</string>
 </resources>

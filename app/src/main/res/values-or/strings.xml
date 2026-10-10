@@ -222,6 +222,5 @@
     <string name="search_no_results_DESC">ବନାନ ଯାଞ୍ଚ କରନ୍ତୁ, କିମ୍ବା ନାମର ଏକ ଅଂଶ ଖୋଜନ୍ତୁ।</string>
     <string name="play_store_install_source">ସଂସ୍ଥାପନ ଉତ୍ସ ଭାବରେ Google Play ଦେଖାନ୍ତୁ</string>
     <string name="play_store_install_source_summary">Shizuku କିମ୍ବା root ଦ୍ୱାରା ସଂସ୍ଥାପିତ ଆପ୍‌ଗୁଡ଼ିକ Omnify ବଦଳରେ Google Play ରୁ ସଂସ୍ଥାପିତ ଭାବରେ ଦେଖାଯିବ</string>
-    <string name="install_source_google_play">Google Play ରୁ ସଂସ୍ଥାପିତ ଭାବରେ ଦେଖାଯିବ</string>
-    <string name="install_source_omnify">Omnify ରୁ ସଂସ୍ଥାପିତ ଭାବରେ ଦେଖାଯିବ</string>
+    <string name="install_source_shown_as">ଏହିପରି ଦେଖାଯିବ: %1$s</string>
 </resources>

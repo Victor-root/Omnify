@@ -217,6 +217,5 @@
     <string name="search_no_results_DESC">Patikrinkite rašybą arba ieškokite pagal pavadinimo dalį.</string>
     <string name="play_store_install_source">Rodyti „Google Play“ kaip diegimo šaltinį</string>
     <string name="play_store_install_source_summary">Programos, įdiegtos naudojant „Shizuku“ arba root, bus rodomos kaip įdiegtos iš „Google Play“, o ne iš „Omnify“</string>
-    <string name="install_source_google_play">Bus rodoma kaip įdiegta iš „Google Play“</string>
-    <string name="install_source_omnify">Bus rodoma kaip įdiegta iš „Omnify“</string>
+    <string name="install_source_shown_as">Rodoma kaip: %1$s</string>
 </resources>

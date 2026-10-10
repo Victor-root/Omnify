@@ -244,6 +244,5 @@
     <string name="search_no_results_DESC">Праверце напісанне або пашукайце па частцы назвы.</string>
     <string name="play_store_install_source">Паказваць Google Play як крыніцу ўстаноўкі</string>
     <string name="play_store_install_source_summary">Праграмы, усталяваныя праз Shizuku або root, будуць паказвацца як усталяваныя з Google Play замест Omnify</string>
-    <string name="install_source_google_play">Будзе паказана як усталявана з Google Play</string>
-    <string name="install_source_omnify">Будзе паказана як усталявана з Omnify</string>
+    <string name="install_source_shown_as">Паказваецца як: %1$s</string>
 </resources>

@@ -230,6 +230,5 @@
     <string name="search_no_results_DESC">철자를 확인하거나 이름의 일부로 검색해 보세요.</string>
     <string name="play_store_install_source">설치 출처로 Google Play 표시</string>
     <string name="play_store_install_source_summary">Shizuku 또는 root로 설치한 앱이 Omnify 대신 Google Play에서 설치된 것으로 표시됩니다</string>
-    <string name="install_source_google_play">Google Play에서 설치된 것으로 표시됩니다</string>
-    <string name="install_source_omnify">Omnify에서 설치된 것으로 표시됩니다</string>
+    <string name="install_source_shown_as">다음으로 표시: %1$s</string>
 </resources>

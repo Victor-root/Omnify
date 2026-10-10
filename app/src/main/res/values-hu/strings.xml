@@ -250,8 +250,7 @@
     <string name="delete_apk_on_install_summary">APK-fájlok automatikus törlése a sikeres telepítés után</string>
     <string name="play_store_install_source">Google Play megjelenítése telepítési forrásként</string>
     <string name="play_store_install_source_summary">A Shizukuval vagy roottal telepített alkalmazások az Omnify helyett a Google Playből telepítettként jelennek meg</string>
-    <string name="install_source_google_play">Google Playből telepítettként jelenik meg</string>
-    <string name="install_source_omnify">Omnifyból telepítettként jelenik meg</string>
+    <string name="install_source_shown_as">Megjelenítve mint: %1$s</string>
     <string name="custom_buttons">Egyéni gombok</string>
     <string name="custom_buttons_description">Gyors hivatkozások hozzáadása külső szolgáltatásokhoz az alkalmazás részleteinél</string>
     <string name="custom_buttons_section">Alkalmazás részleteinek hivatkozásai</string>

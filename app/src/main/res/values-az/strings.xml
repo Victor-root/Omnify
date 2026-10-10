@@ -238,6 +238,5 @@
     <string name="search_no_results_DESC">Yazılışı yoxlayın və ya adın bir hissəsini axtarın.</string>
     <string name="play_store_install_source">Google Play-i quraşdırma mənbəyi kimi göstər</string>
     <string name="play_store_install_source_summary">Shizuku və ya root ilə quraşdırılan tətbiqlər Omnify əvəzinə Google Play-dən quraşdırılmış kimi görünür</string>
-    <string name="install_source_google_play">Google Play-dən quraşdırılmış kimi göstəriləcək</string>
-    <string name="install_source_omnify">Omnify-dan quraşdırılmış kimi göstəriləcək</string>
+    <string name="install_source_shown_as">Belə göstərilir: %1$s</string>
 </resources>

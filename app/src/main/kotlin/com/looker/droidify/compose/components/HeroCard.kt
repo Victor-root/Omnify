@@ -1,6 +1,6 @@
 package com.looker.droidify.compose.components
 
-import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -28,9 +30,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,10 +63,9 @@ fun HeroCard(
     // could otherwise get squeezed and truncated). Only shown once there's somewhere for it to go
     // (an installed app); null hides it entirely.
     onManageClick: (() -> Unit)? = null,
-    // Which install source this app gets: Google Play (true) or Omnify (false), as picked in Settings
-    // and overridden per app. Overlaid bottom-end, facing the favourite heart, so it never competes with
-    // the manage gear for the top-start corner. null hides it, since the choice only exists while
-    // Google Play is the default install source.
+    // Which install source this app is recorded with: Google Play (true) or Omnify (false), as picked in
+    // Settings and overridden per app. Shown as a row under the action buttons, written out in words.
+    // null hides it, since the choice only exists while Google Play is the default install source.
     playStoreSource: Boolean? = null,
     onToggleInstallSource: (() -> Unit)? = null,
     badge: (@Composable () -> Unit)? = null,
@@ -72,7 +73,6 @@ fun HeroCard(
     footer: (@Composable () -> Unit)? = null,
 ) {
     val shape = MaterialTheme.shapes.large
-    val showInstallSource = playStoreSource != null && onToggleInstallSource != null
     // The border lives on this outer Box, not inside Surface's own modifier: Surface paints its
     // background as part of its internal implementation, which chains after whatever modifier
     // it's given — a border passed straight into Surface's modifier ended up painted OVER by
@@ -127,22 +127,13 @@ fun HeroCard(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 actions()
-                if (footer != null || showInstallSource) {
+                if (playStoreSource != null && onToggleInstallSource != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    InstallSourceRow(playStore = playStoreSource, onToggle = onToggleInstallSource)
+                }
+                if (footer != null) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    if (showInstallSource) {
-                        // The install source button sits in this card's bottom corner: keep a row as tall
-                        // as it is, and the footer text clear of it, so it never covers either the
-                        // buttons above or a long footer line wrapped to the full width.
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .padding(horizontal = 36.dp),
-                            contentAlignment = Alignment.Center,
-                        ) { footer?.invoke() }
-                    } else {
-                        footer?.invoke()
-                    }
+                    footer()
                 }
             }
 
@@ -163,42 +154,6 @@ fun HeroCard(
                         contentDescription = stringResource(R.string.manage),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp),
-                    )
-                }
-            }
-
-            if (playStoreSource != null && onToggleInstallSource != null) {
-                val context = LocalContext.current
-                val playStoreLabel = stringResource(R.string.install_source_google_play)
-                val omnifyLabel = stringResource(R.string.install_source_omnify)
-                IconToggleButton(
-                    checked = playStoreSource,
-                    onCheckedChange = {
-                        onToggleInstallSource()
-                        // The icon alone doesn't say which source it now stands for.
-                        val newLabel = if (playStoreSource) omnifyLabel else playStoreLabel
-                        Toast.makeText(context, newLabel, Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .then(if (LocalIsTelevision.current) Modifier.size(48.dp) else Modifier)
-                        .tvFocusScale(debugLabel = "hero-install-source"),
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            if (playStoreSource) {
-                                R.drawable.ic_tabler_rubber_stamp
-                            } else {
-                                R.drawable.ic_tabler_rubber_stamp_off
-                            },
-                        ),
-                        contentDescription = if (playStoreSource) playStoreLabel else omnifyLabel,
-                        tint = if (playStoreSource) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.size(28.dp),
                     )
                 }
             }
@@ -234,6 +189,37 @@ fun HeroCard(
             }
         }
         }
+    }
+}
+
+/** The "Shown as: Google Play / Omnify" pill under the action buttons: the install source this app is
+ *  recorded with, and a tap to switch it. Written out in words rather than drawn as an icon alone, since
+ *  an icon read as if the app were going through the Play Store. */
+@Composable
+private fun InstallSourceRow(playStore: Boolean, onToggle: () -> Unit) {
+    val name = stringResource(if (playStore) R.string.google_play_name else R.string.installer_self_name)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(CircleShape)
+            // TV only: a soft accent fill behind the focused pill (no-op on touch).
+            .tvFocusFill(CircleShape, debugLabel = "hero-install-source")
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .toggleable(value = playStore, role = Role.Switch, onValueChange = { onToggle() })
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_tabler_rubber_stamp),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = stringResource(R.string.install_source_shown_as, name),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

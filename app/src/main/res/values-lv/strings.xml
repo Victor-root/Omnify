@@ -241,6 +241,5 @@
     <string name="search_no_results_DESC">Pārbaudiet pareizrakstību vai meklējiet pēc nosaukuma daļas.</string>
     <string name="play_store_install_source">Rādīt Google Play kā instalēšanas avotu</string>
     <string name="play_store_install_source_summary">Lietotnes, kas instalētas ar Shizuku vai root, tiks rādītas kā instalētas no Google Play, nevis no Omnify</string>
-    <string name="install_source_google_play">Tiks rādīta kā instalēta no Google Play</string>
-    <string name="install_source_omnify">Tiks rādīta kā instalēta no Omnify</string>
+    <string name="install_source_shown_as">Tiek rādīts kā: %1$s</string>
 </resources>

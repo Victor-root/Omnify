@@ -259,8 +259,7 @@
     <string name="delete_apk_on_install_summary">Eliminar automáticamente los archivos APK después de una instalación exitosa</string>
     <string name="play_store_install_source">Mostrar Google Play como origen de instalación</string>
     <string name="play_store_install_source_summary">Las aplicaciones instaladas con Shizuku o root aparecen como instaladas desde Google Play en lugar de Omnify</string>
-    <string name="install_source_google_play">Se mostrará como instalada desde Google Play</string>
-    <string name="install_source_omnify">Se mostrará como instalada desde Omnify</string>
+    <string name="install_source_shown_as">Se muestra como: %1$s</string>
     <string name="custom_buttons">Botones personalizados</string>
     <string name="custom_buttons_description">Añadir enlaces rápidos a servicios externos en detalles de aplicaciones</string>
     <string name="custom_buttons_section">Links de detalle de app</string>

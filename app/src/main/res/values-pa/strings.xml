@@ -232,6 +232,5 @@
     <string name="search_no_results_DESC">ਸ਼ਬਦ-ਜੋੜ ਜਾਂਚੋ, ਜਾਂ ਨਾਮ ਦਾ ਕੋਈ ਹਿੱਸਾ ਖੋਜੋ।</string>
     <string name="play_store_install_source">ਇੰਸਟਾਲ ਸਰੋਤ ਵਜੋਂ Google Play ਦਿਖਾਓ</string>
     <string name="play_store_install_source_summary">Shizuku ਜਾਂ root ਨਾਲ ਇੰਸਟਾਲ ਕੀਤੀਆਂ ਐਪਾਂ Omnify ਦੀ ਥਾਂ Google Play ਤੋਂ ਇੰਸਟਾਲ ਕੀਤੀਆਂ ਦਿਖਾਈ ਦੇਣਗੀਆਂ</string>
-    <string name="install_source_google_play">Google Play ਤੋਂ ਇੰਸਟਾਲ ਕੀਤੀ ਦਿਖਾਈ ਜਾਵੇਗੀ</string>
-    <string name="install_source_omnify">Omnify ਤੋਂ ਇੰਸਟਾਲ ਕੀਤੀ ਦਿਖਾਈ ਜਾਵੇਗੀ</string>
+    <string name="install_source_shown_as">ਇਸ ਤਰ੍ਹਾਂ ਦਿਖੇਗਾ: %1$s</string>
 </resources>

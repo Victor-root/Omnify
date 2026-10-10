@@ -238,6 +238,5 @@
     <string name="search_no_results_DESC">املای آن را بررسی کنید، یا بخشی از نام را جست‌وجو کنید.</string>
     <string name="play_store_install_source">نمایش Google Play به‌عنوان منبع نصب</string>
     <string name="play_store_install_source_summary">برنامه‌هایی که با Shizuku یا روت نصب می‌شوند، به جای Omnify به‌عنوان نصب‌شده از Google Play نمایش داده می‌شوند</string>
-    <string name="install_source_google_play">به‌عنوان نصب‌شده از Google Play نمایش داده می‌شود</string>
-    <string name="install_source_omnify">به‌عنوان نصب‌شده از Omnify نمایش داده می‌شود</string>
+    <string name="install_source_shown_as">نمایش به‌عنوان: %1$s</string>
 </resources>

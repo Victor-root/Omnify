@@ -248,8 +248,7 @@
     <string name="delete_apk_on_install_summary">Poista automaattisesti APK-tiedostot onnistuneen asennuksen jälkeen</string>
     <string name="play_store_install_source">Näytä Google Play asennuslähteenä</string>
     <string name="play_store_install_source_summary">Shizukulla tai rootilla asennetut sovellukset näkyvät Google Playsta asennettuina Omnifyn sijaan</string>
-    <string name="install_source_google_play">Näytetään Google Playsta asennettuna</string>
-    <string name="install_source_omnify">Näytetään Omnifysta asennettuna</string>
+    <string name="install_source_shown_as">Näytetään nimellä: %1$s</string>
     <string name="shizuku_legacy_installer">Shizuku/Sui legacy-asennusohjelma</string>
     <string name="requires_authentication">Vaatiiko tunnistautumista?</string>
     <string name="repository_not_synced_or_enabled">Ohjelmavarasto ei ole käytössä tai synkronoitu</string>

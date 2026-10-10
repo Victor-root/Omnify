@@ -220,6 +220,5 @@
     <string name="search_no_results_DESC">Kontrolu la literumon aŭ serĉu parton de la nomo.</string>
     <string name="play_store_install_source">Montri Google Play kiel instalan fonton</string>
     <string name="play_store_install_source_summary">Aplikaĵoj instalitaj per Shizuku aŭ root aperas kiel instalitaj el Google Play anstataŭ Omnify</string>
-    <string name="install_source_google_play">Estos montrata kiel instalita el Google Play</string>
-    <string name="install_source_omnify">Estos montrata kiel instalita el Omnify</string>
+    <string name="install_source_shown_as">Montriĝas kiel: %1$s</string>
 </resources>

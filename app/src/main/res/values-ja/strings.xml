@@ -345,8 +345,7 @@
     <string name="delete_apk_on_install_summary">インストールが完了したらAPKファイルを自動的に削除します</string>
     <string name="play_store_install_source">インストール元として Google Play を表示</string>
     <string name="play_store_install_source_summary">Shizuku または root でインストールしたアプリが、Omnify ではなく Google Play からインストールされたものとして表示されます</string>
-    <string name="install_source_google_play">Google Play からインストールされたものとして表示されます</string>
-    <string name="install_source_omnify">Omnify からインストールされたものとして表示されます</string>
+    <string name="install_source_shown_as">%1$s として表示</string>
     <string name="unspecified">未指定</string>
     <string name="insufficient_storage">空き容量不足</string>
     <string name="insufficient_storage_DESC">このアプリをインストールするための空き容量が不足しています</string>

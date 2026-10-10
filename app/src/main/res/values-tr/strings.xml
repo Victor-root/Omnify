@@ -256,8 +256,7 @@
     <string name="delete_apk_on_install_summary">Kurulum başarılı olursa APK dosyalarını otomatik olarak sil</string>
     <string name="play_store_install_source">Google Play\'i yükleme kaynağı olarak göster</string>
     <string name="play_store_install_source_summary">Shizuku veya root ile yüklenen uygulamalar Omnify yerine Google Play\'den yüklenmiş gibi görünür</string>
-    <string name="install_source_google_play">Google Play\'den yüklenmiş olarak gösterilecek</string>
-    <string name="install_source_omnify">Omnify\'dan yüklenmiş olarak gösterilecek</string>
+    <string name="install_source_shown_as">Şöyle gösterilir: %1$s</string>
     <string name="copied_to_clipboard">Kopyalandı</string>
     <string name="custom_buttons">Özel butonlar</string>
     <string name="custom_buttons_description">Uygulama detaylarına ekstra servislerin linkini ekleyin</string>
