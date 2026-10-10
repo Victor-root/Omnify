@@ -173,9 +173,9 @@ fun HeroCard(
                     Icon(
                         painter = painterResource(
                             if (playStoreSource) {
-                                R.drawable.ic_tabler_brand_google
+                                R.drawable.ic_tabler_building_store
                             } else {
-                                R.drawable.ic_tabler_brand_google_off
+                                R.drawable.ic_tabler_building_store_off
                             },
                         ),
                         contentDescription = if (playStoreSource) playStoreLabel else omnifyLabel,

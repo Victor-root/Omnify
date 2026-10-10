@@ -523,7 +523,7 @@ fun SettingsScreen(
                     SwitchSettingItem(
                         title = stringResource(R.string.play_store_install_source),
                         description = stringResource(R.string.play_store_install_source_summary),
-                        icon = painterResource(R.drawable.ic_tabler_brand_google),
+                        icon = painterResource(R.drawable.ic_tabler_building_store),
                         checked = settings.playStoreInstallSource,
                         onCheckedChange = viewModel::setPlayStoreInstallSource,
                     )
