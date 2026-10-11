@@ -73,6 +73,12 @@ data class ExternalApp(
      *  builds (e.g. a browser that ships its Nightly/Beta channel as a plain GitHub release).
      *  Empty/null = no extra filtering beyond [includePrereleases]. */
     val versionExcludeFilter: String? = null,
+    /** Optional comma-separated keywords matched the same way as [versionExcludeFilter], but keeping
+     *  only the releases that contain one: pins the source to one app of a repository publishing
+     *  several in the same release stream (ente-io/ente's "auth-v…", "photos-v…", "locker-v…"). Filled
+     *  in by the app picker when such a repository is added (see [releaseFamilies]).
+     *  Empty/null = every release. */
+    val versionIncludeFilter: String? = null,
     /** Whether this source is active. Disabled sources are hidden from the External tab and updates,
      *  and skipped when checking for new releases — exactly like a disabled F-Droid repository. */
     val enabled: Boolean = true,

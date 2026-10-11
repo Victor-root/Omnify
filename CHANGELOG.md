@@ -1,5 +1,19 @@
 # 📋 Changelog
 
+## 🚀 v1.0.7-beta.8 (Unreleased)
+
+External sources learn to handle repositories that publish several apps side by side, like ente (Auth, Photos, Locker) or Bitwarden (Password Manager, Authenticator).
+
+### ✨ Added
+- **Omnify asks which app you want** when a repository publishes several. Each one is listed with its latest version and APK, and the one you pick is the one the source follows from then on.
+- **An "Only versions containing" filter** on every external source, the opposite of "Excluded versions": only releases whose name contains one of its words are kept. The app picker fills it in for you, and it can be edited at any time.
+
+### 🐛 Fixed
+- **A source no longer shows another app's release.** Omnify keeps looking further back for the right one instead of stopping at the first page, and never falls back to a release of another app when your APK filter is working.
+- **A clear message when nothing matches the "Only versions containing" filter**, instead of a generic "no release".
+
+---
+
 ## 🚀 v1.0.6-beta.7 (2026-10-10)
 
 Ten backgrounds to choose from, an Updates tab that always matches its notification, and tidier categories. If you use the optional ML Kit translator (off by default), it no longer reports to Google, ahead of being replaced in the next version.

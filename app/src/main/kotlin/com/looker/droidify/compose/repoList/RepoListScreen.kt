@@ -90,6 +90,9 @@ import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.trailRepoIcon
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.ReleaseFamily
+import com.looker.droidify.external.apkFileName
+import com.looker.droidify.external.keywordFiltersFor
 import com.looker.droidify.model.Repository
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -161,6 +164,7 @@ fun RepoListScreen(
                     includePrereleases = false,
                     muteUpdates = false,
                     apkFilter = "",
+                    versionIncludeFilter = "",
                     versionExcludeFilter = "",
                 )
             } else {
@@ -442,7 +446,7 @@ fun RepoListScreen(
                 externalViewModel.consumeAddState()
             },
             onAdd = { url, customName, includeForks, includePrereleases, muteUpdates, apkFilter,
-                versionExcludeFilter ->
+                versionIncludeFilter, versionExcludeFilter ->
                 externalViewModel.addAccount(
                     url = url,
                     customName = customName,
@@ -450,6 +454,7 @@ fun RepoListScreen(
                     includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionIncludeFilter = versionIncludeFilter,
                     versionExcludeFilter = versionExcludeFilter,
                 )
             },
@@ -458,6 +463,7 @@ fun RepoListScreen(
     if (showAddExternal) {
         val addState by externalViewModel.addState.collectAsStateWithLifecycle()
         val addError by externalViewModel.addError.collectAsStateWithLifecycle()
+        val releaseFamilies by externalViewModel.releaseFamilies.collectAsStateWithLifecycle()
         val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
         val githubRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
         // Keep the dialog up (with a spinner) until the add actually finishes, then close on success —
@@ -475,6 +481,7 @@ fun RepoListScreen(
             // frame before closing — a visible flash, most obvious with a pre-filled shared URL.
             isLoading = addState != AddSourceState.IDLE,
             errorMessage = addError,
+            releaseFamilies = releaseFamilies,
             hasGithubToken = hasGithubToken,
             githubRemaining = githubRemaining,
             initialUrl = prefillUrl,
@@ -483,13 +490,15 @@ fun RepoListScreen(
                 prefillUrl = ""
                 externalViewModel.consumeAddState()
             },
-            onAdd = { url, includePrereleases, customName, muteUpdates, apkFilter, versionExcludeFilter ->
+            onAdd = { url, includePrereleases, customName, muteUpdates, apkFilter, versionIncludeFilter,
+                versionExcludeFilter ->
                 externalViewModel.addSource(
                     url = url,
                     includePrereleases = includePrereleases,
                     customName = customName,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionIncludeFilter = versionIncludeFilter,
                     versionExcludeFilter = versionExcludeFilter,
                 )
             },
@@ -504,13 +513,15 @@ fun RepoListScreen(
             app = app,
             iconCandidates = iconCandidates,
             onDismiss = { editingExternal = null },
-            onSave = { customName, includePrereleases, muteUpdates, apkFilter, versionExcludeFilter, iconUrl ->
+            onSave = { customName, includePrereleases, muteUpdates, apkFilter, versionIncludeFilter,
+                versionExcludeFilter, iconUrl ->
                 externalViewModel.updateSource(
                     app = app,
                     customName = customName,
                     includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionIncludeFilter = versionIncludeFilter,
                     versionExcludeFilter = versionExcludeFilter,
                     iconUrl = iconUrl,
                 )
@@ -1158,6 +1169,7 @@ private fun GithubLimitHint(remaining: Int?) {
 internal fun AddExternalSourceDialog(
     isLoading: Boolean,
     errorMessage: String?,
+    releaseFamilies: List<ReleaseFamily>,
     hasGithubToken: Boolean,
     githubRemaining: Int?,
     onDismiss: () -> Unit,
@@ -1167,6 +1179,7 @@ internal fun AddExternalSourceDialog(
         customName: String,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionIncludeFilter: String,
         versionExcludeFilter: String,
     ) -> Unit,
     initialUrl: String = "",
@@ -1176,7 +1189,20 @@ internal fun AddExternalSourceDialog(
     var includePrereleases by rememberSaveable { mutableStateOf(false) }
     var muteUpdates by rememberSaveable { mutableStateOf(false) }
     var apkFilter by rememberSaveable { mutableStateOf("") }
+    var versionIncludeFilter by rememberSaveable { mutableStateOf("") }
     var versionExcludeFilter by rememberSaveable { mutableStateOf("") }
+    val submit = {
+        onAdd(
+            url,
+            includePrereleases,
+            name,
+            muteUpdates,
+            apkFilter,
+            versionIncludeFilter,
+            versionExcludeFilter,
+        )
+    }
+    val pickingFamily = !isLoading && releaseFamilies.isNotEmpty()
     AlertDialog(
         // Stay cancellable even while loading, so a slow/stuck request can't trap the user.
         onDismissRequest = onDismiss,
@@ -1199,6 +1225,23 @@ internal fun AddExternalSourceDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            } else if (pickingFamily) {
+                // The form's own filters are what pins the source to the picked app, so they are
+                // updated before submitting again: a later failure brings the form back showing them.
+                ReleaseFamilyPicker(
+                    families = releaseFamilies,
+                    apkFilter = apkFilter,
+                    onPick = { family ->
+                        val (include, exclude) = releaseFamilies.keywordFiltersFor(
+                            family,
+                            include = versionIncludeFilter,
+                            exclude = versionExcludeFilter,
+                        )
+                        versionIncludeFilter = include
+                        versionExcludeFilter = exclude
+                        submit()
+                    },
+                )
             } else {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     OutlinedTextField(
@@ -1233,6 +1276,8 @@ internal fun AddExternalSourceDialog(
                         onMuteChange = { muteUpdates = it },
                         apkFilter = apkFilter,
                         onApkFilterChange = { apkFilter = it },
+                        versionIncludeFilter = versionIncludeFilter,
+                        onVersionIncludeFilterChange = { versionIncludeFilter = it },
                         versionExcludeFilter = versionExcludeFilter,
                         onVersionExcludeFilterChange = { versionExcludeFilter = it },
                     )
@@ -1240,11 +1285,9 @@ internal fun AddExternalSourceDialog(
             }
         },
         confirmButton = {
-            if (!isLoading) {
+            if (!isLoading && !pickingFamily) {
                 TextButton(
-                    onClick = {
-                        onAdd(url, includePrereleases, name, muteUpdates, apkFilter, versionExcludeFilter)
-                    },
+                    onClick = submit,
                     enabled = url.isNotBlank(),
                 ) {
                     Text(stringResource(R.string.external_add))
@@ -1255,6 +1298,46 @@ internal fun AddExternalSourceDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
+}
+
+/**
+ * Asks which app to follow in a repository publishing several in the same release stream: one row per
+ * app, with its newest release's tag and APK so it can be told apart even when its name is cryptic.
+ * Picking one submits at once, like the app's other single-choice dialogs.
+ */
+@Composable
+private fun ReleaseFamilyPicker(
+    families: List<ReleaseFamily>,
+    apkFilter: String,
+    onPick: (ReleaseFamily) -> Unit,
+) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        Text(
+            text = stringResource(R.string.external_pick_release_family),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.size(8.dp))
+        families.forEach { family ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // TV only: a soft accent fill behind the focused option (no-op on touch).
+                    .tvFocusFill(RoundedCornerShape(8.dp))
+                    .clickable { onPick(family) }
+                    .padding(horizontal = 8.dp, vertical = 10.dp),
+            ) {
+                Text(text = family.name, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = listOfNotNull(family.latest.tag, family.latest.apkFileName(filter = apkFilter))
+                        .joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
 }
 
 /** Adds a whole-account source: an account URL plus the same per-source options (applied to every
@@ -1273,6 +1356,7 @@ internal fun AddExternalAccountDialog(
         includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionIncludeFilter: String,
         versionExcludeFilter: String,
     ) -> Unit,
     initialUrl: String = "",
@@ -1283,6 +1367,7 @@ internal fun AddExternalAccountDialog(
     var includePrereleases by rememberSaveable { mutableStateOf(false) }
     var muteUpdates by rememberSaveable { mutableStateOf(false) }
     var apkFilter by rememberSaveable { mutableStateOf("") }
+    var versionIncludeFilter by rememberSaveable { mutableStateOf("") }
     var versionExcludeFilter by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1332,6 +1417,8 @@ internal fun AddExternalAccountDialog(
                         onMuteChange = { muteUpdates = it },
                         apkFilter = apkFilter,
                         onApkFilterChange = { apkFilter = it },
+                        versionIncludeFilter = versionIncludeFilter,
+                        onVersionIncludeFilterChange = { versionIncludeFilter = it },
                         versionExcludeFilter = versionExcludeFilter,
                         onVersionExcludeFilterChange = { versionExcludeFilter = it },
                     )
@@ -1354,6 +1441,7 @@ internal fun AddExternalAccountDialog(
                             includePrereleases,
                             muteUpdates,
                             apkFilter,
+                            versionIncludeFilter,
                             versionExcludeFilter,
                         )
                     },
@@ -1380,6 +1468,7 @@ internal fun EditExternalSourceDialog(
         includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionIncludeFilter: String,
         versionExcludeFilter: String,
         iconUrl: String?,
     ) -> Unit,
@@ -1390,6 +1479,9 @@ internal fun EditExternalSourceDialog(
     var includePrereleases by rememberSaveable(app.key) { mutableStateOf(app.includePrereleases) }
     var muteUpdates by rememberSaveable(app.key) { mutableStateOf(app.muteUpdates) }
     var apkFilter by rememberSaveable(app.key) { mutableStateOf(app.apkFilter ?: "") }
+    var versionIncludeFilter by rememberSaveable(app.key) {
+        mutableStateOf(app.versionIncludeFilter ?: "")
+    }
     var versionExcludeFilter by rememberSaveable(app.key) {
         mutableStateOf(app.versionExcludeFilter ?: "")
     }
@@ -1423,6 +1515,8 @@ internal fun EditExternalSourceDialog(
                     onMuteChange = { muteUpdates = it },
                     apkFilter = apkFilter,
                     onApkFilterChange = { apkFilter = it },
+                    versionIncludeFilter = versionIncludeFilter,
+                    onVersionIncludeFilterChange = { versionIncludeFilter = it },
                     versionExcludeFilter = versionExcludeFilter,
                     onVersionExcludeFilterChange = { versionExcludeFilter = it },
                 )
@@ -1436,6 +1530,7 @@ internal fun EditExternalSourceDialog(
                         includePrereleases,
                         muteUpdates,
                         apkFilter,
+                        versionIncludeFilter,
                         versionExcludeFilter,
                         selectedIcon,
                     )
@@ -1540,6 +1635,8 @@ private fun SourceOptionFields(
     onMuteChange: (Boolean) -> Unit,
     apkFilter: String,
     onApkFilterChange: (String) -> Unit,
+    versionIncludeFilter: String,
+    onVersionIncludeFilterChange: (String) -> Unit,
     versionExcludeFilter: String,
     onVersionExcludeFilterChange: (String) -> Unit,
 ) {
@@ -1561,6 +1658,15 @@ private fun SourceOptionFields(
         onValueChange = onApkFilterChange,
         label = { Text(stringResource(R.string.external_apk_filter)) },
         supportingText = { Text(stringResource(R.string.external_apk_filter_hint)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(Modifier.size(8.dp))
+    OutlinedTextField(
+        value = versionIncludeFilter,
+        onValueChange = onVersionIncludeFilterChange,
+        label = { Text(stringResource(R.string.external_version_include_filter)) },
+        supportingText = { Text(stringResource(R.string.external_version_include_filter_hint)) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
