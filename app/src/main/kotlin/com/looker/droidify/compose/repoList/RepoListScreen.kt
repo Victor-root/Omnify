@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.repoList
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1206,6 +1207,7 @@ internal fun AddExternalSourceDialog(
     AlertDialog(
         // Stay cancellable even while loading, so a slow/stuck request can't trap the user.
         onDismissRequest = onDismiss,
+        modifier = SourceDialogMargin,
         title = { Text(stringResource(R.string.external_add_source)) },
         text = {
             if (isLoading) {
@@ -1371,6 +1373,7 @@ internal fun AddExternalAccountDialog(
     var versionExcludeFilter by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = SourceDialogMargin,
         title = { Text(stringResource(R.string.external_add_account)) },
         text = {
             if (isLoading) {
@@ -1421,11 +1424,13 @@ internal fun AddExternalAccountDialog(
                         onVersionIncludeFilterChange = { versionIncludeFilter = it },
                         versionExcludeFilter = versionExcludeFilter,
                         onVersionExcludeFilterChange = { versionExcludeFilter = it },
-                    )
-                    CheckboxRow(
-                        checked = includeForks,
-                        onCheckedChange = { includeForks = it },
-                        label = stringResource(R.string.external_include_forks),
+                        extraOptions = {
+                            CheckboxRow(
+                                checked = includeForks,
+                                onCheckedChange = { includeForks = it },
+                                label = stringResource(R.string.external_include_forks),
+                            )
+                        },
                     )
                 }
             }
@@ -1489,6 +1494,7 @@ internal fun EditExternalSourceDialog(
     var selectedIcon by rememberSaveable(app.key) { mutableStateOf(app.repoIconUrl) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = SourceDialogMargin,
         title = { Text(stringResource(R.string.external_edit_source)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -1623,7 +1629,16 @@ private fun IconChoice(url: String, selected: Boolean, onClick: () -> Unit) {
     )
 }
 
-/** Per-source option fields shared by the add and edit dialogs. */
+/** Keeps the source dialogs off the top and bottom of the screen when their content is tall. */
+private val SourceDialogMargin = Modifier.padding(vertical = 24.dp)
+
+/**
+ * Per-source option fields shared by the add and edit dialogs. The everyday ones stay in view; the
+ * filters, only needed for an unusual repository, sit under a collapsed "Advanced options" row so the
+ * dialog stays short. That row starts open when one of them is already set, so a filter shaping the
+ * source is never hidden from the person editing it. [extraOptions] adds a dialog's own checkboxes
+ * next to the everyday ones.
+ */
 @Composable
 private fun SourceOptionFields(
     name: String,
@@ -1639,7 +1654,13 @@ private fun SourceOptionFields(
     onVersionIncludeFilterChange: (String) -> Unit,
     versionExcludeFilter: String,
     onVersionExcludeFilterChange: (String) -> Unit,
+    extraOptions: @Composable () -> Unit = {},
 ) {
+    var showAdvanced by rememberSaveable {
+        mutableStateOf(
+            apkFilter.isNotBlank() || versionIncludeFilter.isNotBlank() || versionExcludeFilter.isNotBlank(),
+        )
+    }
     OutlinedTextField(
         value = name,
         onValueChange = onNameChange,
@@ -1652,33 +1673,7 @@ private fun SourceOptionFields(
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
-    Spacer(Modifier.size(8.dp))
-    OutlinedTextField(
-        value = apkFilter,
-        onValueChange = onApkFilterChange,
-        label = { Text(stringResource(R.string.external_apk_filter)) },
-        supportingText = { Text(stringResource(R.string.external_apk_filter_hint)) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    Spacer(Modifier.size(8.dp))
-    OutlinedTextField(
-        value = versionIncludeFilter,
-        onValueChange = onVersionIncludeFilterChange,
-        label = { Text(stringResource(R.string.external_version_include_filter)) },
-        supportingText = { Text(stringResource(R.string.external_version_include_filter_hint)) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    Spacer(Modifier.size(8.dp))
-    OutlinedTextField(
-        value = versionExcludeFilter,
-        onValueChange = onVersionExcludeFilterChange,
-        label = { Text(stringResource(R.string.external_version_exclude_filter)) },
-        supportingText = { Text(stringResource(R.string.external_version_exclude_filter_hint)) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-    )
+    Spacer(Modifier.size(4.dp))
     CheckboxRow(
         checked = includePrereleases,
         onCheckedChange = onPrereleasesChange,
@@ -1688,6 +1683,67 @@ private fun SourceOptionFields(
         checked = muteUpdates,
         onCheckedChange = onMuteChange,
         label = stringResource(R.string.external_mute_updates),
+    )
+    extraOptions()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .tvFocusFill(RoundedCornerShape(12.dp))
+            .clickable { showAdvanced = !showAdvanced }
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.external_advanced_options),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = if (showAdvanced) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+    }
+    if (showAdvanced) {
+        FilterField(
+            value = apkFilter,
+            onValueChange = onApkFilterChange,
+            label = R.string.external_apk_filter,
+            hint = R.string.external_apk_filter_hint,
+        )
+        FilterField(
+            value = versionIncludeFilter,
+            onValueChange = onVersionIncludeFilterChange,
+            label = R.string.external_version_include_filter,
+            hint = R.string.external_version_include_filter_hint,
+        )
+        FilterField(
+            value = versionExcludeFilter,
+            onValueChange = onVersionExcludeFilterChange,
+            label = R.string.external_version_exclude_filter,
+            hint = R.string.external_version_exclude_filter_hint,
+        )
+    }
+}
+
+/** One of the advanced filter fields, with its short explanation underneath. */
+@Composable
+private fun FilterField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    @StringRes label: Int,
+    @StringRes hint: Int,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(stringResource(label)) },
+        supportingText = { Text(stringResource(hint)) },
+        singleLine = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 4.dp),
     )
 }
 

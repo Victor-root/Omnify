@@ -6,11 +6,11 @@ External sources learn to handle repositories that publish several apps side by 
 
 ### ✨ Added
 - **Omnify asks which app you want** when a repository publishes several. Each one is listed with its latest version and APK, and the one you pick is the one the source follows from then on.
-- **An "Only versions containing" filter** on every external source, the opposite of "Excluded versions": only releases whose name contains one of its words are kept. The app picker fills it in for you, and it can be edited at any time.
+- **A "Versions to keep" filter** on every external source, the opposite of "Excluded versions": only releases whose name contains one of its words are kept. The app picker fills it in for you, and it can be edited at any time.
 
 ### 🐛 Fixed
 - **A source no longer shows another app's release.** Omnify keeps looking further back for the right one instead of stopping at the first page, and never falls back to a release of another app when your APK filter is working.
-- **A clear message when nothing matches the "Only versions containing" filter**, instead of a generic "no release".
+- **A clear message when nothing matches the "Versions to keep" filter**, instead of a generic "no release".
 
 ---
 
