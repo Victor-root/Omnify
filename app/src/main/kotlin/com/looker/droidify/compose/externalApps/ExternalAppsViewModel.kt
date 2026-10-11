@@ -32,6 +32,7 @@ import com.looker.droidify.external.ExternalInstaller
 import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.external.ExternalAccountRef
 import com.looker.droidify.external.Release
+import com.looker.droidify.external.ReleaseFamily
 import com.looker.droidify.external.ReleaseLookup
 import com.looker.droidify.external.RepoRef
 import com.looker.droidify.external.apkDownloadUrl
@@ -546,6 +547,12 @@ class ExternalAppsViewModel @Inject constructor(
     private val _addError = MutableStateFlow<String?>(null)
     val addError: StateFlow<String?> = _addError
 
+    /** The apps found side by side in the release stream of the repository being added (see
+     *  [ExternalApi.releaseFamiliesFor]), for the Add dialog to ask which one to follow. Empty unless
+     *  the last add stopped on exactly that question. */
+    private val _releaseFamilies = MutableStateFlow<List<ReleaseFamily>>(emptyList())
+    val releaseFamilies: StateFlow<List<ReleaseFamily>> = _releaseFamilies
+
     /** Acknowledge a finished add so the dialog state resets (called once the dialog has closed). If the
      *  dialog was dismissed while still adding, cancel the in-flight work so a late success can't leave a
      *  stale state that would auto-close the next dialog. */
@@ -553,6 +560,7 @@ class ExternalAppsViewModel @Inject constructor(
         if (_addState.value == AddSourceState.LOADING) addJob?.cancel()
         _addState.value = AddSourceState.IDLE
         _addError.value = null
+        _releaseFamilies.value = emptyList()
     }
 
     private val downloadJobs = mutableMapOf<String, Job>()
@@ -1128,9 +1136,11 @@ class ExternalAppsViewModel @Inject constructor(
         customName: String = "",
         muteUpdates: Boolean = false,
         apkFilter: String = "",
+        versionIncludeFilter: String = "",
         versionExcludeFilter: String = "",
     ) {
         _addError.value = null
+        _releaseFamilies.value = emptyList()
         // Shown inline by the dialog, and toasted too: addSource is also reachable with no dialog open
         // (a "Get it on Omnify" badge tap with the confirmation prompt turned off in Settings), and
         // that path has nothing else to surface a failure with.
@@ -1166,6 +1176,7 @@ class ExternalAppsViewModel @Inject constructor(
                     includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter.trim().ifEmpty { null },
+                    versionIncludeFilter = versionIncludeFilter.trim().ifEmpty { null },
                     versionExcludeFilter = versionExcludeFilter.trim().ifEmpty { null },
                     label = trimmedName.ifEmpty { prettifyRepoName(ref.repo) },
                     nameOverridden = trimmedName.isNotEmpty(),
@@ -1179,6 +1190,14 @@ class ExternalAppsViewModel @Inject constructor(
                     return@launch
                 }
                 withBusy(app.key) {
+                    // A repository publishing several apps in one release stream (ente-io/ente) would
+                    // otherwise be added as whichever of them released last. The dialog asks which one
+                    // to follow, and submits again pinned to it, which finds a single app this time.
+                    val families = externalApi.releaseFamiliesFor(app)
+                    if (families.size > 1) {
+                        _releaseFamilies.value = families
+                        return@withBusy
+                    }
                     // A plain null release here used to collapse every failure — the GitHub rate limit,
                     // a repo that only publishes pre-releases (e.g. ReVanced Manager) with the option
                     // off, or genuinely nothing installable — into one misleading "no release" message.
@@ -1198,6 +1217,10 @@ class ExternalAppsViewModel @Inject constructor(
                         }
                         ReleaseLookup.AllExcludedByFilter -> {
                             fail(context.getString(R.string.external_all_excluded_by_filter, app.path))
+                            return@withBusy
+                        }
+                        ReleaseLookup.NoneMatchIncludeFilter -> {
+                            fail(context.getString(R.string.external_none_match_include_filter, app.path))
                             return@withBusy
                         }
                         ReleaseLookup.NoCompatibleApk -> {
@@ -1278,6 +1301,7 @@ class ExternalAppsViewModel @Inject constructor(
         includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionIncludeFilter: String,
         versionExcludeFilter: String,
     ) {
         val ref = parseAccountSource(url)
@@ -1292,6 +1316,7 @@ class ExternalAppsViewModel @Inject constructor(
             includePrereleases,
             muteUpdates,
             apkFilter,
+            versionIncludeFilter,
             versionExcludeFilter,
         )
     }
@@ -1310,6 +1335,7 @@ class ExternalAppsViewModel @Inject constructor(
         includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionIncludeFilter: String,
         versionExcludeFilter: String,
     ) {
         val trimmedName = label.trim()
@@ -1369,6 +1395,7 @@ class ExternalAppsViewModel @Inject constructor(
                     includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionIncludeFilter = versionIncludeFilter,
                     versionExcludeFilter = versionExcludeFilter,
                 )
                 if (discovered.isEmpty()) {
@@ -1520,7 +1547,7 @@ class ExternalAppsViewModel @Inject constructor(
     }
 
     /** Applies edited per-source settings. Re-fetches the latest release when the pre-release setting,
-     *  the APK filter or the exclude filter changed (all three affect which release/APK is picked). A
+     *  the APK filter or a keyword filter changed (all of them affect which release/APK is picked). A
      *  blank name reverts to the auto-detected one; a blank filter reverts to automatic by-architecture
      *  selection. */
     fun updateSource(
@@ -1529,6 +1556,7 @@ class ExternalAppsViewModel @Inject constructor(
         includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionIncludeFilter: String,
         versionExcludeFilter: String,
         iconUrl: String?,
     ) {
@@ -1542,6 +1570,7 @@ class ExternalAppsViewModel @Inject constructor(
                 else -> prettifyRepoName(app.repo)
             }
             val trimmedFilter = apkFilter.trim().ifEmpty { null }
+            val trimmedIncludeFilter = versionIncludeFilter.trim().ifEmpty { null }
             val trimmedExcludeFilter = versionExcludeFilter.trim().ifEmpty { null }
             // A different icon than the stored one means the user picked it; mark it overridden so the
             // refresh backfill won't replace their choice. The edit dialog has already scanned the repo,
@@ -1553,18 +1582,20 @@ class ExternalAppsViewModel @Inject constructor(
                 muteUpdates = muteUpdates,
                 includePrereleases = includePrereleases,
                 apkFilter = trimmedFilter,
+                versionIncludeFilter = trimmedIncludeFilter,
                 versionExcludeFilter = trimmedExcludeFilter,
                 repoIconUrl = iconUrl,
                 iconOverridden = iconChanged || app.iconOverridden,
                 iconChecked = true,
             )
             // The release to offer (and its APK) can change when the pre-release setting, the APK
-            // filter or the exclude filter changes, so re-resolve it in that case — and the version list
+            // filter or a keyword filter changes, so re-resolve it in that case, and the version list
             // must forget its cached fetch too (releaseHistory() filters by these same fields), or
             // reopening the detail screen within the cache's freshness window would keep showing the
             // list as it looked under the old settings.
             if (includePrereleases != app.includePrereleases ||
                 trimmedFilter != app.apkFilter ||
+                trimmedIncludeFilter != app.versionIncludeFilter ||
                 trimmedExcludeFilter != app.versionExcludeFilter
             ) {
                 releaseHistoryCache.remove(app.key)
@@ -1692,6 +1723,10 @@ class ExternalAppsViewModel @Inject constructor(
                 }
                 ReleaseLookup.AllExcludedByFilter -> {
                     toast(context.getString(R.string.external_all_excluded_by_filter, app.path))
+                    return
+                }
+                ReleaseLookup.NoneMatchIncludeFilter -> {
+                    toast(context.getString(R.string.external_none_match_include_filter, app.path))
                     return
                 }
                 ReleaseLookup.NoCompatibleApk -> {

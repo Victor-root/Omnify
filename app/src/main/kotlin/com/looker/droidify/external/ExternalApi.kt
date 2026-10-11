@@ -116,16 +116,16 @@ class ExternalApi @Inject constructor(
         }
     }
 
+    /**
+     * The release Omnify should offer for [app]: the newest non-draft release its settings allow that
+     * ships an APK this device can install. Releases with no APK (e.g. a server-only version bump)
+     * are skipped, since there's nothing to install from them and their tag would otherwise be
+     * mistaken for a new app version. When the newest release carries only foreign-architecture APKs,
+     * an older release with a device-compatible one is used instead (graceful fallback). Null on
+     * network/HTTP/parse failure or when no release in the window ships an APK.
+     */
     suspend fun latestReleaseFor(app: ExternalApp): Release? =
-        latestRelease(
-            app.provider,
-            app.effectiveHost,
-            app.owner,
-            app.repo,
-            app.includePrereleases,
-            app.apkFilter,
-            app.versionExcludeFilter,
-        )
+        (latestReleaseLookup(app) as? ReleaseLookup.Found)?.release
 
     /**
      * Same lookup as [latestReleaseFor], but reports *why* nothing was found instead of collapsing every
@@ -133,30 +133,66 @@ class ExternalApi @Inject constructor(
      * message) so it can distinguish a genuine network failure from "every recent release is a
      * pre-release and this source excludes them" or "none ships a compatible APK", which otherwise all
      * looked identical (a generic "couldn't reach GitHub") even though only one of them actually is that.
+     *
+     * Pages on until a release this source could actually offer turns up, not merely one its settings
+     * allow: a repository publishing several apps in one stream (ente-io/ente) can bury the wanted
+     * one's newest release well past the first page under the others'.
      */
     suspend fun latestReleaseLookup(app: ExternalApp): ReleaseLookup = withContext(Dispatchers.IO) {
         val releases = runCatching {
             fetchReleases(
                 app.provider, app.effectiveHost, app.owner, app.repo,
                 minQualifying = 1,
-                isQualifying = { it.isAllowedBy(app.includePrereleases, app.versionExcludeFilter) },
+                isQualifying = { it.isOfferableFor(app) },
             )
         }.getOrNull()
-        val picked = releases?.pickInstallable(app.includePrereleases, app.apkFilter, app.versionExcludeFilter)
-        // Only the pre-release setting applied, kept separate from `picked` so a source whose exclude
-        // filter (not the pre-release setting) is what's disqualifying everything gets its own accurate
-        // reason below instead of the generic NoCompatibleApk.
+        val picked = releases?.pickInstallable(app)
+        // Only the pre-release setting applied, kept separate from `picked` so a source whose keyword
+        // filters (not the pre-release setting) are what's disqualifying everything gets its own
+        // accurate reason below instead of the generic NoCompatibleApk.
         val nonPrerelease = releases?.filter { app.includePrereleases || !it.isPrerelease }
-        when {
+        val lookup = when {
             picked != null -> ReleaseLookup.Found(picked)
             releases == null -> ReleaseLookup.FetchFailed
             releases.isNotEmpty() && releases.all { it.isPrerelease } && !app.includePrereleases ->
                 ReleaseLookup.OnlyPrereleasesExcluded
             !nonPrerelease.isNullOrEmpty() &&
+                nonPrerelease.none { it.matchesIncludeFilter(app.versionIncludeFilter) } ->
+                ReleaseLookup.NoneMatchIncludeFilter
+            !nonPrerelease.isNullOrEmpty() &&
                 nonPrerelease.all { it.matchesExcludeFilter(app.versionExcludeFilter) } ->
                 ReleaseLookup.AllExcludedByFilter
             else -> ReleaseLookup.NoCompatibleApk
         }
+        if (lookup !is ReleaseLookup.Found) {
+            // Every caller but the add/install flow reduces this to null, so the real cause is logged
+            // here to stay visible in Logcat.
+            Log.w(
+                TAG,
+                "${app.path}: no installable release ($lookup, fetched=${releases?.size}, " +
+                    "includePrereleases=${app.includePrereleases}, apkFilter=${app.apkFilter}, " +
+                    "versionIncludeFilter=${app.versionIncludeFilter}, " +
+                    "versionExcludeFilter=${app.versionExcludeFilter})",
+            )
+        }
+        lookup
+    }
+
+    /**
+     * The apps published side by side in [app]'s release stream (see [releaseFamilies]), among the
+     * releases its current settings could offer. Fewer than two means there is nothing to choose
+     * between. Samples past the first page, since one app can crowd the others out of it. Empty on
+     * failure.
+     */
+    suspend fun releaseFamiliesFor(app: ExternalApp): List<ReleaseFamily> = withContext(Dispatchers.IO) {
+        val releases = runCatching {
+            fetchReleases(
+                app.provider, app.effectiveHost, app.owner, app.repo,
+                minQualifying = RELEASE_FAMILY_SAMPLE,
+                isQualifying = { it.isOfferableFor(app) },
+            )
+        }.getOrNull().orEmpty()
+        releaseFamilies(releases.filter { it.isOfferableFor(app) }, unmarkedName = prettifyRepoName(app.repo))
     }
 
     /**
@@ -181,23 +217,12 @@ class ExternalApi @Inject constructor(
             fetchReleases(
                 app.provider, app.effectiveHost, app.owner, app.repo,
                 minQualifying = limit,
-                isQualifying = {
-                    it.isAllowedBy(app.includePrereleases, app.versionExcludeFilter) &&
-                        it.hasApkMatchingFilter(app.apkFilter)
-                },
+                isQualifying = { it.isOfferableFor(app) },
             )
         }
             .getOrNull()
             .orEmpty()
-            // Shares pickInstallable's own criteria: a release the source excludes shouldn't appear in
-            // the version list either: the list should only ever offer what could actually be
-            // installed from it.
-            .allowedBy(app.includePrereleases, app.versionExcludeFilter)
-            // Strict, not selectApkAsset's own mercy fallback (see hasApkMatchingFilter's doc
-            // comment): otherwise a monorepo publishing more than one app's releases (e.g.
-            // bitwarden/android) would list every release regardless of which app it belongs to,
-            // since selectApkAsset always returns *something* once a release has any APK at all.
-            .filter { it.hasApkMatchingFilter(app.apkFilter) }
+            .filter { it.isOfferableFor(app) }
             .take(limit)
     }
 
@@ -830,58 +855,16 @@ class ExternalApi @Inject constructor(
     }
 
     /**
-     * Fetches the release Droidify should offer for the project: the newest non-draft release that
-     * ships an APK this device can install (optionally including pre-releases, and honouring the
-     * source's APK name [apkFilter]). Releases with no APK — e.g. a server-only version bump — are
-     * skipped, since there's nothing to install from them and their tag would otherwise be mistaken
-     * for a new app version. When the newest release carries only foreign-architecture APKs, an older
-     * release with a device-compatible one is used instead (graceful fallback). Returns null on
-     * network/HTTP/parse failure or when no release in the recent window ships an APK.
-     */
-    suspend fun latestRelease(
-        provider: SourceProvider,
-        host: String,
-        owner: String,
-        repo: String,
-        includePrereleases: Boolean = false,
-        apkFilter: String? = null,
-        versionExcludeFilter: String? = null,
-    ): Release? = withContext(Dispatchers.IO) {
-        val releases = runCatching {
-            fetchReleases(
-                provider, host, owner, repo,
-                minQualifying = 1,
-                isQualifying = { it.isAllowedBy(includePrereleases, versionExcludeFilter) },
-            )
-        }.getOrNull()
-        val picked = releases?.pickInstallable(includePrereleases, apkFilter, versionExcludeFilter)
-        if (picked == null) {
-            // The caller (downloadAndInstall) can't tell "the request itself failed" apart from
-            // "it succeeded but nothing in the recent window was installable" — both surface as the
-            // same generic "couldn't reach" message. Logged here so the real cause (fetch failure vs. no
-            // installable candidate, e.g. every recent release is a pre-release with includePrereleases
-            // off, or none ship a matching APK) is visible in Logcat instead of only that one message.
-            Log.w(
-                TAG,
-                "$owner/$repo: no installable release (fetched=${releases?.size ?: "fetch failed"}, " +
-                    "includePrereleases=$includePrereleases, apkFilter=$apkFilter, " +
-                    "versionExcludeFilter=$versionExcludeFilter)",
-            )
-        }
-        picked
-    }
-
-    /**
      * Fetches and decodes releases page by page (newest first), stopping once at least
      * [minQualifying] satisfy [isQualifying], the repo runs out of releases, or
      * [RELEASE_FETCH_MAX_PAGES] is reached — so a source whose most recent releases are mostly
      * excluded (several unstable channels sharing one repo, e.g. a browser's Nightly/Beta/Stable)
      * still surfaces real candidates instead of giving up after the first page. Returns everything
      * fetched, not just the qualifying ones, so callers keep their own filtering/ordering logic.
-     * Shared by [latestRelease]/[latestReleaseLookup] (pick one to offer) and [releaseHistory] (lists
-     * them for the user to choose from) with a matching [isQualifying], and by [genuineReleaseNotes]
-     * (default arguments: any single non-empty page is "enough"). Empty (not null/throwing) when the
-     * very first request fails.
+     * Shared by [latestReleaseLookup] (pick one to offer), [releaseFamiliesFor] (tell apps apart) and
+     * [releaseHistory] (lists them for the user to choose from) with a matching [isQualifying], and by
+     * [genuineReleaseNotes] (default arguments: any single non-empty page is "enough"). Empty (not
+     * null/throwing) when the very first request fails.
      */
     private suspend fun fetchReleases(
         provider: SourceProvider,
@@ -1044,21 +1027,29 @@ class ExternalApi @Inject constructor(
         json.decodeFromString(ListSerializer(GitlabReleaseDto.serializer()), text)
 
     /**
-     * From a newest-first list of releases, picks the newest that ships an APK this device can
-     * actually install (honouring [includePrereleases] and the APK name [filter]). If none has a
-     * device-compatible APK, falls back to the newest that ships *any* APK, so we degrade to
-     * "something installable" rather than nothing. Releases with no APK at all are ignored.
+     * Whether [app] could offer this release at all: its settings allow it, and it ships an APK that
+     * survives the APK name filter strictly (see [hasApkMatchingFilter]), not through selectApkAsset's
+     * own mercy fallback: otherwise a repository publishing more than one app's releases (e.g.
+     * bitwarden/android) would count every release regardless of which app it belongs to, since
+     * selectApkAsset always returns *something* once a release has any APK at all.
      */
-    private fun List<Release>.pickInstallable(
-        includePrereleases: Boolean,
-        apkFilter: String?,
-        versionExcludeFilter: String?,
-    ): Release? {
-        val candidates = allowedBy(includePrereleases, versionExcludeFilter)
-        return candidates.firstOrNull { it.hasCompatibleApk(filter = apkFilter) }
-            ?: candidates.firstOrNull { release ->
-                release.assets.any { it.name.endsWith(".apk", ignoreCase = true) }
-            }
+    private fun Release.isOfferableFor(app: ExternalApp): Boolean =
+        isAllowedBy(app.includePrereleases, app.versionIncludeFilter, app.versionExcludeFilter) &&
+            hasApkMatchingFilter(app.apkFilter)
+
+    /**
+     * From a newest-first list of releases, picks the newest [app] allows that ships an APK this device
+     * can actually install, honouring its APK name filter. Failing that, the newest whose APK matches
+     * the filter at all, whatever its architecture: in a repository publishing several apps, that is
+     * still the right app, where any other release may not be. Only when the filter matches nothing in
+     * the whole window (a typo) does it degrade to the newest release shipping *any* APK, so a typo
+     * never leaves the user with nothing. Releases with no APK at all are ignored.
+     */
+    private fun List<Release>.pickInstallable(app: ExternalApp): Release? {
+        val candidates = allowedBy(app.includePrereleases, app.versionIncludeFilter, app.versionExcludeFilter)
+        return candidates.firstOrNull { it.hasCompatibleApk(filter = app.apkFilter) }
+            ?: candidates.firstOrNull { it.hasApkMatchingFilter(app.apkFilter) }
+            ?: candidates.firstOrNull { it.hasApkMatchingFilter(null) }
     }
 
     /**
@@ -1180,6 +1171,10 @@ class ExternalApi @Inject constructor(
          *  bounds the worst-case request cost for a source whose recent history is mostly excluded
          *  (several unstable channels sharing one repo, e.g. a browser's Nightly/Beta/Stable). */
         const val RELEASE_FETCH_MAX_PAGES = 5
+
+        /** How many offerable releases [releaseFamiliesFor] looks through before deciding which apps a
+         *  repository publishes: enough to reach past one app crowding the others out of the first page. */
+        const val RELEASE_FAMILY_SAMPLE = 50
 
         /** Page cap when listing an account's repos, so a huge account can't spin forever. */
         const val ACCOUNT_REPOS_MAX_PAGES = 5

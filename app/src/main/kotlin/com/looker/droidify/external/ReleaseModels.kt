@@ -41,6 +41,10 @@ sealed class ReleaseLookup {
      *  [ExternalApp.versionExcludeFilter] — nothing else disqualified them. */
     data object AllExcludedByFilter : ReleaseLookup()
 
+    /** No release the pre-release setting allowed through matches the source's own
+     *  [ExternalApp.versionIncludeFilter], within the whole window searched. */
+    data object NoneMatchIncludeFilter : ReleaseLookup()
+
     /** Releases were found (and, if relevant, pre-releases are allowed) but none of them ships an APK
      *  this device can install. */
     data object NoCompatibleApk : ReleaseLookup()
@@ -215,31 +219,54 @@ private fun applyApkFilter(
 }
 
 /**
- * True when this release's tag or title contains one of the user's comma-separated [keywords] (plain
- * substring, case-insensitive — not a regex, so an ordinary word list works as typed) — lets a source
- * manually exclude builds that the provider's own pre-release flag doesn't catch (see
- * [ExternalApp.versionExcludeFilter]), e.g. a browser that ships its Nightly channel as a regular,
- * non-flagged GitHub release. A blank keyword list never excludes anything.
+ * Whether this release's tag or title contains one of the user's comma-separated [keywords] (plain
+ * substring, case-insensitive, not a regex, so an ordinary word list works as typed). Null when the
+ * list holds no keyword at all, so each filter decides for itself what a blank field means.
  */
-fun Release.matchesExcludeFilter(keywords: String?): Boolean {
+private fun Release.containsAnyKeyword(keywords: String?): Boolean? {
     val terms = keywords?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
-    if (terms.isNullOrEmpty()) return false
+    if (terms.isNullOrEmpty()) return null
     return terms.any { term ->
         tag.contains(term, ignoreCase = true) || (name != null && name.contains(term, ignoreCase = true))
     }
 }
 
-/** True when this single release passes a source's pre-release and exclude-keyword settings — the
- *  per-release predicate [allowedBy] filters a list with, and [ExternalApi] also checks directly
- *  while paginating to tell whether it has fetched enough qualifying releases yet. */
-fun Release.isAllowedBy(includePrereleases: Boolean, versionExcludeFilter: String?): Boolean =
-    (includePrereleases || !isPrerelease) && !matchesExcludeFilter(versionExcludeFilter)
+/**
+ * True when this release's tag or title contains one of the user's comma-separated [keywords]: lets
+ * a source manually exclude builds that the provider's own pre-release flag doesn't catch (see
+ * [ExternalApp.versionExcludeFilter]), e.g. a browser that ships its Nightly channel as a regular,
+ * non-flagged GitHub release. A blank keyword list never excludes anything.
+ */
+fun Release.matchesExcludeFilter(keywords: String?): Boolean = containsAnyKeyword(keywords) == true
 
-/** Releases allowed by a source's pre-release and exclude-keyword settings — the two criteria
- *  [ExternalApi] applies whenever it picks a release or lists history, kept in one place so they
- *  can't drift apart. */
-fun List<Release>.allowedBy(includePrereleases: Boolean, versionExcludeFilter: String?): List<Release> =
-    filter { it.isAllowedBy(includePrereleases, versionExcludeFilter) }
+/**
+ * True when this release's tag or title contains one of the user's comma-separated [keywords] (see
+ * [ExternalApp.versionIncludeFilter]): what keeps a source on one app of a repository publishing
+ * several, e.g. "auth-v" for ente-io/ente's Auth among its Photos and Locker releases. A blank keyword
+ * list keeps everything.
+ */
+fun Release.matchesIncludeFilter(keywords: String?): Boolean = containsAnyKeyword(keywords) != false
+
+/** True when this single release passes a source's pre-release, include-keyword and exclude-keyword
+ *  settings: the per-release predicate [allowedBy] filters a list with, and [ExternalApi] also checks
+ *  directly while paginating to tell whether it has fetched enough qualifying releases yet. */
+fun Release.isAllowedBy(
+    includePrereleases: Boolean,
+    versionIncludeFilter: String?,
+    versionExcludeFilter: String?,
+): Boolean =
+    (includePrereleases || !isPrerelease) &&
+        matchesIncludeFilter(versionIncludeFilter) &&
+        !matchesExcludeFilter(versionExcludeFilter)
+
+/** Releases allowed by a source's pre-release and keyword settings: the criteria [ExternalApi]
+ *  applies whenever it picks a release or lists history, kept in one place so they can't drift
+ *  apart. */
+fun List<Release>.allowedBy(
+    includePrereleases: Boolean,
+    versionIncludeFilter: String?,
+    versionExcludeFilter: String?,
+): List<Release> = filter { it.isAllowedBy(includePrereleases, versionIncludeFilter, versionExcludeFilter) }
 
 /** ABI tokens we recognise in APK file names, used to tell a foreign-architecture build apart from a
  *  universal one. */

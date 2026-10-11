@@ -250,6 +250,7 @@ class ExternalRefresher @Inject constructor(
                 includePrereleases = false,
                 muteUpdates = false,
                 apkFilter = "",
+                versionIncludeFilter = "",
                 versionExcludeFilter = "",
             )
             if (discovered.isNotEmpty()) {
@@ -273,9 +274,11 @@ class ExternalRefresher @Inject constructor(
         includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
+        versionIncludeFilter: String,
         versionExcludeFilter: String,
     ): List<ExternalApp> {
         val filter = apkFilter.trim().ifEmpty { null }
+        val includeFilter = versionIncludeFilter.trim().ifEmpty { null }
         val excludeFilter = versionExcludeFilter.trim().ifEmpty { null }
         val result = mutableListOf<ExternalApp>()
         for (ref in repos) {
@@ -287,6 +290,7 @@ class ExternalRefresher @Inject constructor(
                 includePrereleases = includePrereleases,
                 muteUpdates = muteUpdates,
                 apkFilter = filter,
+                versionIncludeFilter = includeFilter,
                 versionExcludeFilter = excludeFilter,
                 enabled = account.enabled,
                 accountKey = account.key,

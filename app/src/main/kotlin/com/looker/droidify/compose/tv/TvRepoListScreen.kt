@@ -136,6 +136,7 @@ fun TvRepoListScreen(
                     includePrereleases = false,
                     muteUpdates = false,
                     apkFilter = "",
+                    versionIncludeFilter = "",
                     versionExcludeFilter = "",
                 )
             } else {
@@ -369,7 +370,7 @@ fun TvRepoListScreen(
                 externalViewModel.consumeAddState()
             },
             onAdd = { url, customName, includeForks, includePrereleases, muteUpdates, apkFilter,
-                versionExcludeFilter ->
+                versionIncludeFilter, versionExcludeFilter ->
                 externalViewModel.addAccount(
                     url = url,
                     customName = customName,
@@ -377,6 +378,7 @@ fun TvRepoListScreen(
                     includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionIncludeFilter = versionIncludeFilter,
                     versionExcludeFilter = versionExcludeFilter,
                 )
             },
@@ -385,6 +387,7 @@ fun TvRepoListScreen(
     if (showAddExternal) {
         val addState by externalViewModel.addState.collectAsStateWithLifecycle()
         val addError by externalViewModel.addError.collectAsStateWithLifecycle()
+        val releaseFamilies by externalViewModel.releaseFamilies.collectAsStateWithLifecycle()
         val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
         val githubRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
         LaunchedEffect(addState) {
@@ -397,6 +400,7 @@ fun TvRepoListScreen(
         AddExternalSourceDialog(
             isLoading = addState != AddSourceState.IDLE,
             errorMessage = addError,
+            releaseFamilies = releaseFamilies,
             hasGithubToken = hasGithubToken,
             githubRemaining = githubRemaining,
             initialUrl = prefillUrl,
@@ -405,13 +409,15 @@ fun TvRepoListScreen(
                 prefillUrl = ""
                 externalViewModel.consumeAddState()
             },
-            onAdd = { url, includePrereleases, customName, muteUpdates, apkFilter, versionExcludeFilter ->
+            onAdd = { url, includePrereleases, customName, muteUpdates, apkFilter, versionIncludeFilter,
+                versionExcludeFilter ->
                 externalViewModel.addSource(
                     url = url,
                     includePrereleases = includePrereleases,
                     customName = customName,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionIncludeFilter = versionIncludeFilter,
                     versionExcludeFilter = versionExcludeFilter,
                 )
             },
@@ -425,13 +431,15 @@ fun TvRepoListScreen(
             app = app,
             iconCandidates = iconCandidates,
             onDismiss = { editingExternal = null },
-            onSave = { customName, includePrereleases, muteUpdates, apkFilter, versionExcludeFilter, iconUrl ->
+            onSave = { customName, includePrereleases, muteUpdates, apkFilter, versionIncludeFilter,
+                versionExcludeFilter, iconUrl ->
                 externalViewModel.updateSource(
                     app = app,
                     customName = customName,
                     includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
+                    versionIncludeFilter = versionIncludeFilter,
                     versionExcludeFilter = versionExcludeFilter,
                     iconUrl = iconUrl,
                 )

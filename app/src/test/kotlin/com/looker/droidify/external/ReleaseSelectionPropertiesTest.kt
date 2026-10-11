@@ -191,7 +191,11 @@ class ReleaseSelectionPropertiesTest {
                 assets = emptyList(),
             )
             assertFalse(
-                release.isAllowedBy(includePrereleases = false, versionExcludeFilter = null) &&
+                release.isAllowedBy(
+                    includePrereleases = false,
+                    versionIncludeFilter = null,
+                    versionExcludeFilter = null,
+                ) &&
                     release.isPrerelease,
                 "let the prerelease ${release.tag} through",
             )
@@ -221,6 +225,18 @@ class ReleaseSelectionPropertiesTest {
     }
 
     @Test
+    fun `an include keyword keeps only the releases that carry it`() {
+        val auth = Release("auth-v4.4.25", "Auth v4.4.25", false, emptyList())
+        val photos = Release("photos-v1.2.3", "Photos v1.2.3", false, emptyList())
+        assertTrue(auth.matchesIncludeFilter("auth-v"))
+        assertTrue(auth.matchesIncludeFilter("locker-v, AUTH-V"))
+        assertFalse(photos.matchesIncludeFilter("auth-v"))
+        for (blank in listOf(null, "", "   ", ",", " , , ")) {
+            assertTrue(photos.matchesIncludeFilter(blank), "dropped on [$blank]")
+        }
+    }
+
+    @Test
     fun `filtering a list agrees with asking each release on its own`() {
         // allowedBy exists so the two can never drift; this is that promise, checked.
         val rnd = Random(13)
@@ -234,10 +250,11 @@ class ReleaseSelectionPropertiesTest {
                 )
             }
             val includePrereleases = rnd.nextBoolean()
+            val include = listOf(null, "", "v", "nightly").random(rnd)
             val exclude = listOf(null, "", "nightly", "beta,nightly").random(rnd)
             assertEquals(
-                releases.filter { it.isAllowedBy(includePrereleases, exclude) },
-                releases.allowedBy(includePrereleases, exclude),
+                releases.filter { it.isAllowedBy(includePrereleases, include, exclude) },
+                releases.allowedBy(includePrereleases, include, exclude),
             )
         }
     }
