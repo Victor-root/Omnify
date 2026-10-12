@@ -6,11 +6,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 
 /** The backdrop sits ~1.7x the phone's strength so it reads on a big screen, where the content is
  *  sparser and further away. */
 private const val TV_BACKDROP_INTENSITY = 1.7f
+
+/** How much black goes over the backdrop in the dark themes, so the content stays easy to read from the
+ *  couch whichever style is picked. */
+private const val TV_BACKDROP_DIM = 0.35f
 
 /**
  * The Android TV screen background: the backdrop the user picked in the settings (see
@@ -21,7 +27,13 @@ private const val TV_BACKDROP_INTENSITY = 1.7f
  */
 @Composable
 fun TvAccentBackground(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    val background = MaterialTheme.colorScheme.background
+    Box(modifier = modifier.fillMaxSize().background(background)) {
         FloatingAppCardsBackground(enableOnTelevision = true, intensity = TV_BACKDROP_INTENSITY)
+        // Left alone in the light theme, where a darker backdrop would only cut the contrast of the
+        // dark text on it.
+        if (background.luminance() < 0.5f) {
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = TV_BACKDROP_DIM)))
+        }
     }
 }
