@@ -2,6 +2,7 @@ package com.looker.droidify.compose.welcome
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -72,9 +73,15 @@ import com.looker.droidify.compose.repoList.RepoIcon
 import com.looker.droidify.compose.repoList.defaultRepoIcon
 import com.looker.droidify.compose.repoList.defaultRepoIconRes
 import com.looker.droidify.compose.repoList.repoIconRequest
+import com.looker.droidify.compose.settings.BackgroundStyleSetting
 import com.looker.droidify.compose.settings.InstallerTypeSetting
+import com.looker.droidify.compose.settings.ThemeSetting
+import com.looker.droidify.compose.settings.components.AccentColorChoices
 import com.looker.droidify.compose.theme.LocalStatusBarContent
+import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.datastore.model.InstallerType
+import com.looker.droidify.datastore.model.Theme
+import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.text.toAnnotatedString
 import kotlinx.coroutines.launch
 
@@ -83,7 +90,7 @@ private val ContentMaxWidth = 560.dp
 /** What the bar under the pages takes: the dots, then the way back and the way forward. */
 private val NavigationBarHeight = 84.dp
 
-private const val PAGE_COUNT = 2
+private const val PAGE_COUNT = 3
 
 /** How much of the header the screen's height leaves room for. */
 private enum class HeaderSize { Large, Medium, Small }
@@ -95,18 +102,19 @@ private fun headerSizeFor(height: Dp): HeaderSize = when {
 }
 
 /**
- * What a fresh install opens on, in two pages with a pager's dots under them.
+ * What a fresh install opens on, in three pages with a pager's dots under them.
  *
  * The first welcomes the person and asks, one button each, for what Omnify needs from the device:
  * notifications, the install of apps, and the installer to use. Nothing is asked out of the blue at
- * start-up any more. The second asks where the apps should come from, before anything is downloaded,
- * instead of switching sources on by itself and starting to synchronise at once.
+ * start-up any more. The second lets them pick the look of the app, each choice applying at once. The
+ * third asks where the apps should come from, before anything is downloaded, instead of switching
+ * sources on by itself and starting to synchronise at once.
  *
- * Neither page scrolls as a page, whatever the screen: the sources sit in a card of their own that
- * scrolls inside itself, the header gives up room as the screen gets shorter, and a wide screen lays a
- * page out in two columns instead of one. The round button goes to the next page, then switches the
- * ticked sources on, with or without any, and opens the home, which is when the first synchronisation
- * starts. The Android TV version is [com.looker.droidify.compose.tv.TvWelcomeScreen].
+ * No page scrolls as a page, whatever the screen: the sources sit in a card of their own that scrolls
+ * inside itself, the header gives up room as the screen gets shorter, and a wide screen lays a page out
+ * in two columns instead of one. The buttons under the pages go back and forward, and the last one
+ * switches the ticked sources on, with or without any, and opens the home, which is when the first
+ * synchronisation starts. The Android TV version is [com.looker.droidify.compose.tv.TvWelcomeScreen].
  */
 @Composable
 fun WelcomeScreen(
@@ -116,6 +124,7 @@ fun WelcomeScreen(
     val items by viewModel.items.collectAsStateWithLifecycle()
     val finishing by viewModel.finishing.collectAsStateWithLifecycle()
     val installerType by viewModel.installerType.collectAsStateWithLifecycle()
+    val appearance by viewModel.appearance.collectAsStateWithLifecycle()
     val steps = rememberWelcomeSteps()
     val allChecked = items.isNotEmpty() && items.all { it.checked }
     val pagerState = rememberPagerState { PAGE_COUNT }
@@ -127,7 +136,7 @@ fun WelcomeScreen(
     }
     BackHandler(enabled = currentPage > 0) { goToPage(currentPage - 1) }
 
-    // The logos of the second page are fetched while the first is still being read, so they are there
+    // The logos of the last page are fetched while the first ones are being read, so they are there
     // when it comes.
     PrefetchWelcomeLogos(items)
 
@@ -150,16 +159,26 @@ fun WelcomeScreen(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 ) { page ->
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                        if (page == 0) {
-                            WelcomeSetupPage(
+                        when (page) {
+                            0 -> WelcomeSetupPage(
                                 wide = wide,
                                 headerSize = headerSize,
                                 steps = steps,
                                 installerType = installerType,
                                 onInstallerSelected = viewModel::setInstaller,
                             )
-                        } else {
-                            WelcomeSourcesPage(
+
+                            1 -> WelcomeAppearancePage(
+                                wide = wide,
+                                headerSize = headerSize,
+                                appearance = appearance,
+                                onThemeSelected = viewModel::setTheme,
+                                onBackgroundSelected = viewModel::setBackgroundStyle,
+                                onColorSelected = viewModel::chooseAccentColor,
+                                onWallpaperSelected = viewModel::useWallpaperAccent,
+                            )
+
+                            else -> WelcomeSourcesPage(
                                 wide = wide,
                                 headerSize = headerSize,
                                 items = items,
@@ -227,7 +246,64 @@ private fun WelcomeSetupPage(
     }
 }
 
-/** The second page: where the apps should come from. */
+/** The second page: how the app looks. */
+@Composable
+private fun WelcomeAppearancePage(
+    wide: Boolean,
+    headerSize: HeaderSize,
+    appearance: Appearance,
+    onThemeSelected: (Theme) -> Unit,
+    onBackgroundSelected: (BackgroundStyle) -> Unit,
+    onColorSelected: (Int) -> Unit,
+    onWallpaperSelected: () -> Unit,
+) {
+    val compact = headerSize == HeaderSize.Small
+    if (wide) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.weight(0.4f)) {
+                WelcomePageHeading(
+                    title = R.string.welcome_appearance_title,
+                    hint = R.string.welcome_appearance_hint,
+                    compact = compact,
+                )
+            }
+            WelcomeAppearanceCards(
+                appearance = appearance,
+                onThemeSelected = onThemeSelected,
+                onBackgroundSelected = onBackgroundSelected,
+                onColorSelected = onColorSelected,
+                onWallpaperSelected = onWallpaperSelected,
+                modifier = Modifier.weight(0.6f),
+            )
+        }
+    } else {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.widthIn(max = ContentMaxWidth).fillMaxSize().padding(16.dp),
+        ) {
+            WelcomePageHeading(
+                title = R.string.welcome_appearance_title,
+                hint = R.string.welcome_appearance_hint,
+                compact = compact,
+            )
+            Spacer(Modifier.height(16.dp))
+            WelcomeAppearanceCards(
+                appearance = appearance,
+                onThemeSelected = onThemeSelected,
+                onBackgroundSelected = onBackgroundSelected,
+                onColorSelected = onColorSelected,
+                onWallpaperSelected = onWallpaperSelected,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+        }
+    }
+}
+
+/** The third page: where the apps should come from. */
 @Composable
 private fun WelcomeSourcesPage(
     wide: Boolean,
@@ -245,7 +321,11 @@ private fun WelcomeSourcesPage(
             modifier = Modifier.fillMaxSize().padding(16.dp),
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.weight(0.4f)) {
-                WelcomeSourcesHeading(compact = headerSize == HeaderSize.Small)
+                WelcomePageHeading(
+                    title = R.string.welcome_sources_page_title,
+                    hint = R.string.welcome_sources_page_hint,
+                    compact = headerSize == HeaderSize.Small,
+                )
             }
             WelcomeSourcesCard(
                 items = items,
@@ -261,7 +341,11 @@ private fun WelcomeSourcesPage(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.widthIn(max = ContentMaxWidth).fillMaxSize().padding(16.dp),
         ) {
-            WelcomeSourcesHeading(compact = headerSize == HeaderSize.Small)
+            WelcomePageHeading(
+                title = R.string.welcome_sources_page_title,
+                hint = R.string.welcome_sources_page_hint,
+                compact = headerSize == HeaderSize.Small,
+            )
             Spacer(Modifier.height(16.dp))
             WelcomeSourcesCard(
                 items = items,
@@ -315,15 +399,20 @@ private fun WelcomeHeader(size: HeaderSize, modifier: Modifier = Modifier) {
     }
 }
 
-/** What the second page is asking, kept to its title when the screen is too short for the sentence. */
+/** What a page after the first is about, kept to its title when the screen is too short for the sentence. */
 @Composable
-private fun WelcomeSourcesHeading(compact: Boolean, modifier: Modifier = Modifier) {
+private fun WelcomePageHeading(
+    @StringRes title: Int,
+    @StringRes hint: Int,
+    compact: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp),
     ) {
         Text(
-            text = stringResource(R.string.welcome_sources_page_title),
+            text = stringResource(title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
@@ -331,7 +420,7 @@ private fun WelcomeSourcesHeading(compact: Boolean, modifier: Modifier = Modifie
         if (!compact) {
             Spacer(Modifier.height(8.dp))
             Text(
-                text = stringResource(R.string.welcome_sources_page_hint),
+                text = stringResource(hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -362,6 +451,55 @@ private fun WelcomeSetupCards(
                 onInstallerSelected = onInstallerSelected,
                 supportingText = stringResource(R.string.welcome_installer_hint),
             )
+        }
+    }
+}
+
+/** The look, a card each: the theme and the background as rows opening their lists, then the accent
+ *  colours laid out to be tapped. Every choice applies at once, so the page itself shows the result.
+ *  Scrolls only if a very small screen or a very large font leaves it no other way to fit. */
+@Composable
+private fun WelcomeAppearanceCards(
+    appearance: Appearance,
+    onThemeSelected: (Theme) -> Unit,
+    onBackgroundSelected: (BackgroundStyle) -> Unit,
+    onColorSelected: (Int) -> Unit,
+    onWallpaperSelected: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier.verticalScroll(rememberScrollState()),
+    ) {
+        WelcomeCard {
+            Column {
+                ThemeSetting(
+                    icon = painterResource(R.drawable.ic_tabler_paint),
+                    selectedTheme = appearance.theme,
+                    onThemeSelected = onThemeSelected,
+                )
+                BackgroundStyleSetting(
+                    selectedStyle = appearance.backgroundStyle,
+                    onStyleSelected = onBackgroundSelected,
+                )
+            }
+        }
+        WelcomeCard {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(R.string.theme_color),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.height(12.dp))
+                AccentColorChoices(
+                    selectedColor = appearance.themeColor,
+                    dynamicEnabled = appearance.dynamicTheme,
+                    showWallpaperOption = SdkCheck.isSnowCake,
+                    onColorSelected = onColorSelected,
+                    onWallpaperSelected = onWallpaperSelected,
+                )
+            }
         }
     }
 }

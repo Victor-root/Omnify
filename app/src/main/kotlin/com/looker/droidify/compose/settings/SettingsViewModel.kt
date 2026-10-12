@@ -17,6 +17,7 @@ import com.looker.droidify.data.backup.BackupRepository
 import com.looker.droidify.datastore.CustomButtonRepository
 import com.looker.droidify.datastore.Settings
 import com.looker.droidify.datastore.SettingsRepository
+import com.looker.droidify.datastore.chooseAccentColor
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.datastore.model.CustomButton
@@ -115,9 +116,9 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setThemeColor(color: Int) {
+    fun chooseAccentColor(color: Int) {
         viewModelScope.launch {
-            settingsRepository.setThemeColor(color)
+            settingsRepository.chooseAccentColor(color)
         }
     }
 

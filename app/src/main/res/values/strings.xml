@@ -55,7 +55,7 @@
     <string name="google_services_detection_caveat">Detected from the permissions declared in the app\'s manifest. A de-Googled build made by patching an app\'s code can leave an unused permission declared even after removing what used it, so a row here does not always mean the capability is still actually reachable in this specific build.</string>
     <string name="allow">Allow</string>
     <string name="welcome_title">Welcome to Omnify</string>
-    <string name="welcome_subtitle">Your apps, from the sources you choose. Two quick steps and Omnify is ready.</string>
+    <string name="welcome_subtitle">Your apps, from the sources you choose. A few quick steps and Omnify is ready.</string>
     <string name="welcome_sources_title">Sources</string>
     <string name="welcome_select_all">Select all</string>
     <string name="welcome_deselect_all">Deselect all</string>
@@ -65,6 +65,8 @@
     <string name="welcome_install_title">Install apps</string>
     <string name="welcome_installer_hint">The session installer is the default installer.</string>
     <string name="welcome_previous">Previous</string>
+    <string name="welcome_appearance_title">Make it yours</string>
+    <string name="welcome_appearance_hint">Pick a look for Omnify. You can change all of this later in Settings.</string>
     <string name="welcome_sources_page_title">Where do your apps come from?</string>
     <string name="welcome_sources_page_hint">Nothing is downloaded until you continue. You can change this at any time in Repositories.</string>
     <string name="welcome_notifications_title">Notifications</string>

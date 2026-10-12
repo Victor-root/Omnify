@@ -10,6 +10,7 @@ import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.datastore.model.TranslationEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.*
 import kotlin.time.Duration
@@ -126,4 +127,10 @@ inline fun <T> SettingsRepository.get(crossinline block: suspend Settings.() -> 
  */
 fun SettingsRepository.installSourceChoice(): Flow<Set<String>?> = get {
     if (installerType.canSetInstallSource && playStoreInstallSource) omnifyInstallSourceApps else null
+}
+
+/** Picks a fixed accent colour, which also ends the wallpaper-following one if that was in use. */
+suspend fun SettingsRepository.chooseAccentColor(color: Int) {
+    if (data.first().dynamicTheme) setDynamicTheme(false)
+    setThemeColor(color)
 }

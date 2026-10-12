@@ -25,8 +25,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -59,7 +61,10 @@ import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.verticalScrollbar
 import com.looker.droidify.compose.repoList.AppLauncherIcon
+import com.looker.droidify.compose.settings.BackgroundStyleSetting
 import com.looker.droidify.compose.settings.InstallerTypeSetting
+import com.looker.droidify.compose.settings.ThemeSetting
+import com.looker.droidify.compose.settings.components.AccentColorChoices
 import com.looker.droidify.compose.settings.components.SettingHeader
 import com.looker.droidify.compose.welcome.PrefetchWelcomeLogos
 import com.looker.droidify.compose.welcome.WelcomeItem
@@ -70,13 +75,14 @@ import com.looker.droidify.compose.welcome.WelcomeStep
 import com.looker.droidify.compose.welcome.WelcomeViewModel
 import com.looker.droidify.compose.welcome.rememberWelcomeSteps
 import com.looker.droidify.datastore.model.InstallerType
+import com.looker.droidify.utility.common.SdkCheck
 import kotlinx.coroutines.delay
 
-private const val PAGE_COUNT = 2
+private const val PAGE_COUNT = 3
 
 /**
  * The Android TV welcome of a fresh install (see [com.looker.droidify.compose.welcome.WelcomeScreen] for
- * what the two pages are for), laid out for a remote. Each page keeps its title and buttons on the left
+ * what the three pages are for), laid out for a remote. Each page keeps its title and buttons on the left
  * and its content on the right, so the button that goes on never has to be scrolled to, and focus
  * starts on it: accepting everything as it stands takes one press per page. Back steps to the page
  * before. It is the same [WelcomeViewModel], so what it does is exactly what the phone does. Never
@@ -90,7 +96,7 @@ fun TvWelcomeScreen(
     var page by rememberSaveable { mutableIntStateOf(0) }
     BackHandler(enabled = page > 0) { page -= 1 }
 
-    // The logos of the second page are fetched while the first is still being read.
+    // The logos of the last page are fetched while the first ones are being read.
     PrefetchWelcomeLogos(viewModel.items.collectAsStateWithLifecycle().value)
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -115,10 +121,10 @@ fun TvWelcomeScreen(
                 label = "welcomePage",
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) { target ->
-                if (target == 0) {
-                    TvSetupPage(viewModel = viewModel, onNext = { page = 1 })
-                } else {
-                    TvSourcesPage(viewModel = viewModel, onBack = { page = 0 }, onDone = onDone)
+                when (target) {
+                    0 -> TvSetupPage(viewModel = viewModel, onNext = { page = 1 })
+                    1 -> TvAppearancePage(viewModel = viewModel, onNext = { page = 2 }, onBack = { page = 0 })
+                    else -> TvSourcesPage(viewModel = viewModel, onBack = { page = 1 }, onDone = onDone)
                 }
             }
             PageIndicator(
@@ -250,7 +256,74 @@ private fun TvStepRow(step: WelcomeStep) {
     }
 }
 
-/** The second page: the question and the buttons on the left, the sources on the right. */
+/** The second page: the question and the buttons on the left, the look on the right. */
+@Composable
+private fun TvAppearancePage(viewModel: WelcomeViewModel, onNext: () -> Unit, onBack: () -> Unit) {
+    val appearance by viewModel.appearance.collectAsStateWithLifecycle()
+    val nextFocus = rememberEntryFocus()
+    Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = spacedBy(48.dp)) {
+        Column(
+            modifier = Modifier.weight(0.4f).fillMaxHeight().focusGroup(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = spacedBy(12.dp, Alignment.CenterVertically),
+        ) {
+            Text(
+                text = stringResource(R.string.welcome_appearance_title),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = stringResource(R.string.welcome_appearance_hint),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(8.dp))
+            Button(
+                onClick = onNext,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .tvFocusScale(1.05f)
+                    .focusRequester(nextFocus),
+            ) { Text(stringResource(R.string.welcome_next)) }
+            OutlinedButton(
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth().height(60.dp).tvFocusScale(1.05f),
+            ) { Text(stringResource(R.string.tv_back)) }
+        }
+        Column(
+            modifier = Modifier
+                .weight(0.6f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .focusGroup(),
+            verticalArrangement = spacedBy(6.dp, Alignment.CenterVertically),
+        ) {
+            ThemeSetting(
+                icon = painterResource(R.drawable.ic_tabler_paint),
+                selectedTheme = appearance.theme,
+                onThemeSelected = viewModel::setTheme,
+            )
+            BackgroundStyleSetting(
+                selectedStyle = appearance.backgroundStyle,
+                onStyleSelected = viewModel::setBackgroundStyle,
+            )
+            SettingHeader(stringResource(R.string.theme_color))
+            AccentColorChoices(
+                selectedColor = appearance.themeColor,
+                dynamicEnabled = appearance.dynamicTheme,
+                showWallpaperOption = SdkCheck.isSnowCake,
+                onColorSelected = viewModel::chooseAccentColor,
+                onWallpaperSelected = viewModel::useWallpaperAccent,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+        }
+    }
+}
+
+/** The third page: the question and the buttons on the left, the sources on the right. */
 @Composable
 private fun TvSourcesPage(viewModel: WelcomeViewModel, onBack: () -> Unit, onDone: () -> Unit) {
     val items by viewModel.items.collectAsStateWithLifecycle()

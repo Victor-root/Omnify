@@ -8,9 +8,13 @@ import androidx.lifecycle.viewModelScope
 import com.looker.droidify.compose.repoList.defaultRepoName
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.Repo
+import com.looker.droidify.datastore.Settings
 import com.looker.droidify.datastore.SettingsRepository
+import com.looker.droidify.datastore.chooseAccentColor
 import com.looker.droidify.datastore.get
+import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.datastore.model.InstallerType
+import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
@@ -36,6 +40,16 @@ data class WelcomeItem(
     val kind: WelcomeKind,
 )
 
+/** The look of the app as the welcome page's appearance step shows it. */
+data class Appearance(
+    val theme: Theme,
+    val themeColor: Int,
+    val dynamicTheme: Boolean,
+    val backgroundStyle: BackgroundStyle,
+)
+
+private fun Settings.toAppearance() = Appearance(theme, themeColor, dynamicTheme, backgroundStyle)
+
 sealed interface WelcomeKind {
     /** Omnify's own update channel, an external source shown with the app's own icon. */
     data object OmnifySource : WelcomeKind
@@ -55,8 +69,8 @@ sealed interface WelcomeKind {
 }
 
 /**
- * What the welcome pages of a fresh install need: the installer in use, for the first page, the sources
- * with their ticks, for the second, and the one action that ends it all by switching on whatever is
+ * What the welcome pages of a fresh install need: the installer in use, for the first page, the look of
+ * the app, for the second, the sources with their ticks, for the third, and the one action that ends it all by switching on whatever is
  * still ticked, which is also what starts the first synchronisation.
  *
  * A phone is offered every repository Omnify ships, plus Omnify's own update channel and its
@@ -124,6 +138,27 @@ class WelcomeViewModel @Inject constructor(
 
     fun setInstaller(installerType: InstallerType) {
         viewModelScope.launch { installerSelection.select(installerType) }
+    }
+
+    /** The look in use, which the appearance page lets the person choose, as Settings does. */
+    val appearance: StateFlow<Appearance> = settingsRepository
+        .get { toAppearance() }
+        .asStateFlow(Settings().toAppearance())
+
+    fun setTheme(theme: Theme) {
+        viewModelScope.launch { settingsRepository.setTheme(theme) }
+    }
+
+    fun setBackgroundStyle(style: BackgroundStyle) {
+        viewModelScope.launch { settingsRepository.setBackgroundStyle(style) }
+    }
+
+    fun chooseAccentColor(color: Int) {
+        viewModelScope.launch { settingsRepository.chooseAccentColor(color) }
+    }
+
+    fun useWallpaperAccent() {
+        viewModelScope.launch { settingsRepository.setDynamicTheme(true) }
     }
 
     private val _finishing = MutableStateFlow(false)
