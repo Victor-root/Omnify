@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
@@ -87,6 +88,9 @@ fun FloatingAppCardsBackground(
     Spacer(
         modifier
             .fillMaxSize()
+            // The glows are larger than the screen on purpose, and drawing is not clipped by default:
+            // without this they spill over whatever sits beside the backdrop (the TV's side rail).
+            .clipToBounds()
             .drawWithCache {
                 val backdrop = Backdrop(style, tones, size, density)
                 onDrawBehind { with(backdrop) { drawBackdrop(phase.value) } }
@@ -120,6 +124,7 @@ private fun AuroraBackground(modifier: Modifier, accent: Color, dark: Boolean, i
     Canvas(
         modifier
             .fillMaxSize()
+            .clipToBounds()
             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen),
     ) {
         AURORA_BLOB_SPECS.forEachIndexed { index, spec ->
