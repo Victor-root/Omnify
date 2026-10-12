@@ -299,7 +299,6 @@
     <string name="gms_cap_maps_v1">Google Haritalar v1 (eski sistem kütüphanesi)</string>
     <string name="gms_cap_maps_v1_desc">Bu uygulama, Google\'suz aygıtlarda bulunmayan ve microG tarafından sağlanmayan eski Google Haritalar v1 kütüphanesini kullanır (sunucuları 2013\'te kapatıldı). Harita ekranları çökebilir.</string>
     <string name="google_services_detection_caveat">Uygulamanın manifest dosyasında bildirilen izinlerden tespit edilmiştir. Bir uygulamanın kodu yamalanarak oluşturulan Google\'suz bir sürüm, onu kullanan şey kaldırılsa bile kullanılmayan bir izni bildirilmiş halde bırakabilir; bu nedenle buradaki bir satır, ilgili özelliğin bu belirli sürümde hâlâ gerçekten erişilebilir olduğu anlamına gelmez.</string>
-    <string name="allow_unknown_sources">Uygulama kurulumuna izin verin</string>
     <string name="allow">İzin ver</string>
     <string name="by_author_FORMAT">%1$s tarafından</string>
     <string name="backup_title">Yedekle</string>

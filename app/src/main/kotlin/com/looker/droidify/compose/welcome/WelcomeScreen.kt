@@ -1,12 +1,15 @@
 package com.looker.droidify.compose.welcome
 
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,23 +17,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,9 +41,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -53,8 +59,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
 import com.looker.droidify.R
-import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.PageIndicator
 import com.looker.droidify.compose.components.premiumCardBorder
@@ -64,6 +71,7 @@ import com.looker.droidify.compose.repoList.AppLauncherIcon
 import com.looker.droidify.compose.repoList.RepoIcon
 import com.looker.droidify.compose.repoList.defaultRepoIcon
 import com.looker.droidify.compose.repoList.defaultRepoIconRes
+import com.looker.droidify.compose.repoList.repoIconRequest
 import com.looker.droidify.compose.settings.InstallerTypeSetting
 import com.looker.droidify.compose.theme.LocalStatusBarContent
 import com.looker.droidify.datastore.model.InstallerType
@@ -72,8 +80,8 @@ import kotlinx.coroutines.launch
 
 private val ContentMaxWidth = 560.dp
 
-/** The bar under the pages: the way back, where the person is, the way forward. */
-private val NavigationBarHeight = 80.dp
+/** What the bar under the pages takes: the dots, then the way back and the way forward. */
+private val NavigationBarHeight = 84.dp
 
 private const val PAGE_COUNT = 2
 
@@ -119,6 +127,10 @@ fun WelcomeScreen(
     }
     BackHandler(enabled = currentPage > 0) { goToPage(currentPage - 1) }
 
+    // The logos of the second page are fetched while the first is still being read, so they are there
+    // when it comes.
+    PrefetchWelcomeLogos(items)
+
     // No accent bar sits under the status bar here, so its icons must contrast with the page instead.
     val statusBarContent = LocalStatusBarContent.current
     DisposableEffect(statusBarContent) {
@@ -162,7 +174,8 @@ fun WelcomeScreen(
                 WelcomeNavigationBar(
                     currentPage = currentPage,
                     anyChecked = items.any { it.checked },
-                    onBack = { goToPage(currentPage - 1) },
+                    enabled = !finishing,
+                    onPrevious = { goToPage(currentPage - 1) },
                     onNext = {
                         if (currentPage == PAGE_COUNT - 1) viewModel.finish(onDone) else goToPage(currentPage + 1)
                     },
@@ -190,7 +203,7 @@ private fun WelcomeSetupPage(
             Box(contentAlignment = Alignment.Center, modifier = Modifier.weight(0.4f)) {
                 WelcomeHeader(size = headerSize)
             }
-            WelcomeSetupCard(
+            WelcomeSetupCards(
                 steps = steps,
                 installerType = installerType,
                 onInstallerSelected = onInstallerSelected,
@@ -204,7 +217,7 @@ private fun WelcomeSetupPage(
         ) {
             WelcomeHeader(size = headerSize)
             Spacer(Modifier.height(16.dp))
-            WelcomeSetupCard(
+            WelcomeSetupCards(
                 steps = steps,
                 installerType = installerType,
                 onInstallerSelected = onInstallerSelected,
@@ -327,69 +340,98 @@ private fun WelcomeSourcesHeading(compact: Boolean, modifier: Modifier = Modifie
     }
 }
 
-/** What Omnify needs from the device, in a card: each permission with its button, then the installer. */
+/** What Omnify needs from the device, a card each: the permissions with their button, then the installer
+ *  with a word for those who do not know what to pick. Scrolls only if a very small screen or a very large
+ *  font leaves it no other way to fit. */
 @Composable
-private fun WelcomeSetupCard(
+private fun WelcomeSetupCards(
     steps: List<WelcomeStep>,
     installerType: InstallerType,
     onInstallerSelected: (InstallerType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = MaterialTheme.shapes.large
-    // The border lives on the outer Box: the Surface's own background would paint over it (see
-    // premiumCardBorder's use in HeroCard).
-    Box(modifier = modifier.then(premiumCardBorder(shape))) {
-        Surface(modifier = Modifier.fillMaxWidth(), shape = shape, color = MaterialTheme.colorScheme.surface) {
-            // Scrolls only if a very small screen or a very large font leaves it no other way to fit.
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                steps.forEach { step ->
-                    WelcomeStepRow(step)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier.verticalScroll(rememberScrollState()),
+    ) {
+        steps.forEach { step -> WelcomeStepCard(step) }
+        WelcomeCard {
+            Column {
                 InstallerTypeSetting(
                     icon = painterResource(R.drawable.ic_tabler_package),
                     selectedInstaller = installerType,
                     onInstallerSelected = onInstallerSelected,
+                )
+                Text(
+                    text = stringResource(R.string.welcome_installer_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 60.dp, end = 16.dp, bottom = 14.dp),
                 )
             }
         }
     }
 }
 
-/** One permission: what it is for, and a button to give it, or a tick once it is given. */
+/** The frame of a card on these pages: the usual bordered white card. */
 @Composable
-private fun WelcomeStepRow(step: WelcomeStep) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
-    ) {
-        Icon(
-            painter = painterResource(step.icon),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp),
+private fun WelcomeCard(
+    modifier: Modifier = Modifier,
+    fillHeight: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    val shape = MaterialTheme.shapes.large
+    // The border lives on the outer Box: the Surface's own background would paint over it (see
+    // premiumCardBorder's use in HeroCard).
+    Box(modifier = modifier.fillMaxWidth().then(premiumCardBorder(shape))) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().then(if (fillHeight) Modifier.fillMaxHeight() else Modifier),
+            shape = shape,
+            color = MaterialTheme.colorScheme.surface,
+            content = content,
         )
-        Spacer(Modifier.width(20.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = stringResource(step.title), style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = stringResource(step.description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        if (step.done) {
+    }
+}
+
+/**
+ * One permission: what it is, and a button to give it, or a tick once it is given. The button sits in
+ * the title's row and the sentence runs under both, so neither is squeezed by the other.
+ */
+@Composable
+private fun WelcomeStepCard(step: WelcomeStep) {
+    WelcomeCard {
+        Row(modifier = Modifier.padding(16.dp)) {
             Icon(
-                painter = painterResource(R.drawable.ic_check),
-                contentDescription = stringResource(R.string.welcome_allowed),
+                painter = painterResource(step.icon),
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(top = 8.dp).size(24.dp),
             )
-        } else {
-            FilledTonalButton(onClick = step.onClick) { Text(stringResource(R.string.allow)) }
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(step.title),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (step.done) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_check),
+                            contentDescription = stringResource(R.string.welcome_allowed),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                        )
+                    } else {
+                        FilledTonalButton(onClick = step.onClick) { Text(stringResource(R.string.allow)) }
+                    }
+                }
+                Text(
+                    text = stringResource(step.description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -407,67 +449,63 @@ private fun WelcomeSourcesCard(
     onSetAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = MaterialTheme.shapes.large
-    Box(modifier = modifier.then(premiumCardBorder(shape))) {
-        Surface(modifier = Modifier.fillMaxSize(), shape = shape, color = MaterialTheme.colorScheme.surface) {
-            Column {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 4.dp),
-                ) {
+    WelcomeCard(modifier = modifier, fillHeight = true) {
+        Column {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 4.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.welcome_sources_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onSetAll, enabled = enabled) {
                     Text(
-                        text = stringResource(R.string.welcome_sources_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f),
+                        stringResource(
+                            if (allChecked) R.string.welcome_deselect_all else R.string.welcome_select_all,
+                        ),
                     )
-                    TextButton(onClick = onSetAll, enabled = enabled) {
-                        Text(
-                            stringResource(
-                                if (allChecked) R.string.welcome_deselect_all else R.string.welcome_select_all,
-                            ),
-                        )
-                    }
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                val listState = rememberLazyListState()
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.weight(1f).fillMaxWidth().verticalScrollbar(listState),
-                ) {
-                    itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                        if (index > 0) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(start = 74.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                            )
-                        }
-                        WelcomeSourceRow(item = item, enabled = enabled, onToggle = { onToggle(item.id) })
-                    }
+            }
+            val listState = rememberLazyListState()
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(bottom = 8.dp),
+                modifier = Modifier.weight(1f).fillMaxWidth().verticalScrollbar(listState),
+            ) {
+                items(items, key = { it.id }) { item ->
+                    WelcomeSourceRow(item = item, enabled = enabled, onToggle = { onToggle(item.id) })
                 }
             }
         }
     }
 }
 
-/** One source: its logo, what it is, and a tick. The whole row is the control. */
+/** One source: its logo, what it is, and a tick. The whole row is the control, and a ticked one is tinted
+ *  with the accent, which says what is on without any line between the rows. */
 @Composable
 private fun WelcomeSourceRow(
     item: WelcomeItem,
     enabled: Boolean,
     onToggle: () -> Unit,
 ) {
+    val tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (item.checked) tint else Color.Transparent)
             .toggleable(
                 value = item.checked,
                 enabled = enabled,
                 role = Role.Checkbox,
                 onValueChange = { onToggle() },
             )
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 8.dp, vertical = 10.dp),
     ) {
         WelcomeSourceIcon(item = item, size = 44.dp)
         Spacer(Modifier.size(14.dp))
@@ -487,38 +525,81 @@ private fun WelcomeSourceRow(
 }
 
 /**
- * Under the pages: the way back once there is one, the dots, and the round button forward. A chevron
- * rather than a label, so the way forward reads the same on every screen and in every language, with
- * the words kept for screen readers; the last page turns it into a tick, since that one finishes.
+ * Under the pages: the dots, then the way back (from the second page on) and the way forward. The
+ * forward button names the step: "Next" until the last page, then what finishing amounts to.
  */
 @Composable
 private fun WelcomeNavigationBar(
     currentPage: Int,
     anyChecked: Boolean,
-    onBack: () -> Unit,
+    enabled: Boolean,
+    onPrevious: () -> Unit,
     onNext: () -> Unit,
 ) {
     val last = currentPage == PAGE_COUNT - 1
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.fillMaxWidth().height(NavigationBarHeight).padding(horizontal = 16.dp),
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
     ) {
-        if (currentPage > 0) {
-            BackButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart))
-        }
         PageIndicator(pageCount = PAGE_COUNT, currentPage = currentPage)
-        FloatingActionButton(onClick = onNext, modifier = Modifier.align(Alignment.CenterEnd)) {
-            Icon(
-                imageVector = if (last) Icons.Filled.Check else Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = stringResource(
-                    when {
-                        !last -> R.string.welcome_next
-                        anyChecked -> R.string.welcome_continue
-                        else -> R.string.welcome_continue_without_sources
-                    },
-                ),
-            )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.widthIn(max = ContentMaxWidth).fillMaxWidth(),
+        ) {
+            if (currentPage > 0) {
+                OutlinedButton(onClick = onPrevious, modifier = Modifier.weight(1f).height(48.dp)) {
+                    Text(stringResource(R.string.welcome_previous))
+                }
+            }
+            Button(
+                onClick = onNext,
+                enabled = enabled,
+                modifier = Modifier.weight(if (currentPage > 0) 2f else 1f).height(48.dp),
+            ) {
+                Text(
+                    stringResource(
+                        when {
+                            !last -> R.string.welcome_next
+                            anyChecked -> R.string.welcome_continue
+                            else -> R.string.welcome_continue_without_sources
+                        },
+                    ),
+                )
+            }
         }
+    }
+}
+
+/** The request for a source's logo when it comes from the network, the very one [WelcomeSourceIcon] makes. */
+private fun WelcomeItem.logoRequest(context: Context): ImageRequest? = when (val kind = kind) {
+    WelcomeKind.OmnifySource, WelcomeKind.OmnifyAccount -> null
+    is WelcomeKind.FdroidRepository -> {
+        val address = kind.repo.address
+        // A bundled glyph wins over any address, as in RepoIcon.
+        if (defaultRepoIconRes(address) != null) {
+            null
+        } else {
+            (defaultRepoIcon(address)?.takeIf { it.isNotBlank() } ?: kind.repo.icon?.path)
+                ?.let { repoIconRequest(context, it, kind.repo.versionInfo?.timestamp) }
+        }
+    }
+
+    is WelcomeKind.TvApp -> kind.app.repoIconUrl?.let { ImageRequest.Builder(context).data(it).build() }
+}
+
+/**
+ * Starts fetching every source's logo as soon as the sources are known, so that none is still arriving
+ * when the page that shows them is reached. It only fills the image cache; what is drawn is still
+ * [WelcomeSourceIcon]. Keyed on which sources there are, so ticking one does not fetch everything again.
+ */
+@Composable
+internal fun PrefetchWelcomeLogos(items: List<WelcomeItem>) {
+    val context = LocalContext.current
+    val ids = items.map { it.id }
+    LaunchedEffect(ids) {
+        val loader = SingletonImageLoader.get(context)
+        items.forEach { item -> item.logoRequest(context)?.let { loader.enqueue(it) } }
     }
 }
 

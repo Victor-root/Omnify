@@ -240,7 +240,6 @@
     <string name="gms_cap_maps_v1">Google Maps v1 (従来のシステムライブラリ)</string>
     <string name="gms_cap_maps_v1_desc">このアプリは従来のGoogle Maps v1 ライブラリを使用していますが、脱Google端末には存在せず、microGでも提供されません (サーバーは2013年に停止済みです)。地図画面がクラッシュする可能性があります。</string>
     <string name="google_services_detection_caveat">アプリのマニフェストに宣言された権限から検出しています。アプリのコードを改変して作られた脱Google版では、実際に使用していた箇所を削除した後も権限の宣言だけが残ることがあるため、ここに表示されているからといって、その機能がこのビルドで実際に使用可能とは限りません。</string>
-    <string name="allow_unknown_sources">アプリのインストールを許可</string>
     <string name="allow">許可</string>
     <string name="by_author_FORMAT">作者: %1$s</string>
     <string name="error_shizuku_service_unavailable">Shizuku/Sui サービスが実行されていません</string>

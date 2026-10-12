@@ -302,7 +302,6 @@
     <string name="gms_cap_maps_v1">Google Maps v1 (libreria di sistema legacy)</string>
     <string name="gms_cap_maps_v1_desc">Questa app utilizza la libreria legacy Google Maps v1, assente sui dispositivi de-googlizzati e non fornita da microG (i suoi server sono stati chiusi nel 2013). Le schermate con mappe potrebbero andare in crash.</string>
     <string name="google_services_detection_caveat">Rilevato dai permessi dichiarati nel manifest dell\'app. Una build de-googlizzata ottenuta modificando il codice di un\'app può lasciare un permesso dichiarato anche dopo aver rimosso ciò che lo utilizzava, quindi una voce qui non significa sempre che la funzione sia ancora realmente raggiungibile in questa build specifica.</string>
-    <string name="allow_unknown_sources">Consenti l\'installazione di app</string>
     <string name="allow">Consenti</string>
     <string name="by_author_FORMAT">di %1$s</string>
     <string name="backup_title">Backup</string>

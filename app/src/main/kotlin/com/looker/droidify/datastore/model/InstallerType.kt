@@ -2,9 +2,13 @@ package com.looker.droidify.datastore.model
 
 import com.looker.droidify.utility.common.device.Miui
 
+/**
+ * The ways Omnify can install an app. The order is the one the lists show: the one that suits almost
+ * everyone first, then the ones for people who know why they want them.
+ */
 enum class InstallerType {
-    LEGACY,
     SESSION,
+    LEGACY,
     SHIZUKU,
     ROOT,
     ;

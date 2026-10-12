@@ -61,6 +61,7 @@ import com.looker.droidify.compose.components.verticalScrollbar
 import com.looker.droidify.compose.repoList.AppLauncherIcon
 import com.looker.droidify.compose.settings.InstallerTypeSetting
 import com.looker.droidify.compose.settings.components.SettingHeader
+import com.looker.droidify.compose.welcome.PrefetchWelcomeLogos
 import com.looker.droidify.compose.welcome.WelcomeItem
 import com.looker.droidify.compose.welcome.WelcomeKind
 import com.looker.droidify.compose.welcome.WelcomeSourceDescription
@@ -88,6 +89,9 @@ fun TvWelcomeScreen(
 ) {
     var page by rememberSaveable { mutableIntStateOf(0) }
     BackHandler(enabled = page > 0) { page -= 1 }
+
+    // The logos of the second page are fetched while the first is still being read.
+    PrefetchWelcomeLogos(viewModel.items.collectAsStateWithLifecycle().value)
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TvAccentBackground()
