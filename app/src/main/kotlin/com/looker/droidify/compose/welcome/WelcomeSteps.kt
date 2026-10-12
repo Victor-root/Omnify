@@ -71,7 +71,7 @@ internal fun rememberWelcomeSteps(): List<WelcomeStep> {
         ),
         WelcomeStep(
             icon = R.drawable.ic_apk_install,
-            title = R.string.allow_unknown_sources,
+            title = R.string.welcome_install_title,
             description = R.string.welcome_install_hint,
             done = canInstallApps,
             onClick = { context.openUnknownAppSourcesSettings() },

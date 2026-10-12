@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.repoList
 
+import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -566,17 +567,7 @@ internal fun RepoIcon(
     // survived, with nothing anywhere saying why. A new index means a new key, so the logo is fetched
     // again and follows the repository it belongs to.
     val context = LocalContext.current
-    val request = remember(url, version, context) {
-        ImageRequest.Builder(context)
-            .data(url)
-            .apply {
-                version?.let {
-                    memoryCacheKey("$url@$it")
-                    diskCacheKey("$url@$it")
-                }
-            }
-            .build()
-    }
+    val request = remember(url, version, context) { repoIconRequest(context, url, version) }
     Box(
         modifier = modifier.clip(shape),
         contentAlignment = Alignment.Center,
@@ -623,6 +614,19 @@ internal fun RepoIcon(
         }
     }
 }
+
+/** The request [RepoIcon] makes for a repository's logo, kept in one place so that a logo fetched ahead
+ *  of time (see the welcome page) is the very one the icon then finds in the cache. */
+internal fun repoIconRequest(context: Context, url: String?, version: Long?): ImageRequest =
+    ImageRequest.Builder(context)
+        .data(url)
+        .apply {
+            version?.let {
+                memoryCacheKey("$url@$it")
+                diskCacheKey("$url@$it")
+            }
+        }
+        .build()
 
 /** The fallback avatar: the name's first letter on a theme container colour, picked deterministically
  *  from the letter so a given repo keeps a stable colour. The caller handles any disabled dimming. */

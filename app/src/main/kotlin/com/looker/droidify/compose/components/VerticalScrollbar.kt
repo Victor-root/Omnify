@@ -25,7 +25,7 @@ fun Modifier.verticalScrollbar(
     thickness: Dp = 4.dp,
     edgePadding: Dp = 3.dp,
 ): Modifier {
-    val color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+    val color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
     return drawWithContent {
         drawContent()
         val visible = state.layoutInfo.visibleItemsInfo

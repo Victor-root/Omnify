@@ -299,7 +299,6 @@
     <string name="gms_cap_maps_v1">Google Maps v1 (Legacy-Systembibliothek)</string>
     <string name="gms_cap_maps_v1_desc">Diese App nutzt die alte Google Maps v1-Bibliothek, die auf entgoogelten Geräten fehlt und von microG nicht bereitgestellt wird (ihre Server wurden 2013 abgeschaltet). Kartenansichten können abstürzen.</string>
     <string name="google_services_detection_caveat">Erkannt anhand der im Manifest der App deklarierten Berechtigungen. Ein entgoogelter Build, der durch Patchen des Codes einer App entsteht, kann eine Berechtigung weiterhin deklariert lassen, selbst nachdem das, was sie genutzt hat, entfernt wurde. Ein Eintrag hier bedeutet daher nicht immer, dass die betreffende Funktion in diesem konkreten Build tatsächlich noch erreichbar ist.</string>
-    <string name="allow_unknown_sources">Installation von Apps erlauben</string>
     <string name="allow">Erlauben</string>
     <string name="by_author_FORMAT">von %1$s</string>
     <string name="backup_title">Sicherung</string>

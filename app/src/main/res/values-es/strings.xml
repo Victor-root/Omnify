@@ -302,7 +302,6 @@
     <string name="gms_cap_maps_v1">Google Maps v1 (biblioteca del sistema heredada)</string>
     <string name="gms_cap_maps_v1_desc">Esta app usa la antigua biblioteca Google Maps v1, ausente en dispositivos degoogleizados y no proporcionada por microG (sus servidores se cerraron en 2013). Las pantallas de mapas pueden fallar.</string>
     <string name="google_services_detection_caveat">Detectado a partir de los permisos declarados en el manifiesto de la app. Una versión degoogleizada creada parcheando el código de una app puede dejar declarado un permiso sin usar incluso después de eliminar lo que lo utilizaba, así que una fila aquí no siempre significa que esa función siga siendo realmente accesible en esta versión concreta.</string>
-    <string name="allow_unknown_sources">Permitir instalar apps</string>
     <string name="allow">Permitir</string>
     <string name="by_author_FORMAT">por %1$s</string>
     <string name="backup_title">Respaldar</string>
