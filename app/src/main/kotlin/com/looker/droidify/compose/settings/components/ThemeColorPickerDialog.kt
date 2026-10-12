@@ -47,7 +47,6 @@ import com.looker.droidify.utility.common.wallpaperAccentColor
  * swatches, plus "Default" (red) and (on Android 12+) "Wallpaper" (Material You). Selecting a
  * color applies it immediately and recreates the activity so the whole app follows the choice.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ThemeColorPickerDialog(
     selectedColor: Int,
@@ -73,43 +72,13 @@ fun ThemeColorPickerDialog(
                     style = MaterialTheme.typography.headlineSmall,
                 )
                 Spacer(Modifier.height(20.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                    LabeledSwatch(
-                        color = Color(DEFAULT_THEME_COLOR),
-                        label = stringResource(R.string.theme_color_default),
-                        selected = !dynamicEnabled && selectedColor == DEFAULT_THEME_COLOR,
-                        onClick = { onColorSelected(DEFAULT_THEME_COLOR) },
-                    )
-                    if (showWallpaperOption) {
-                        // Preview the colour from the ACTUAL wallpaper (read via WallpaperManager), so
-                        // it's right even on OEM skins like ColorOS where the system dynamic accent
-                        // doesn't follow the wallpaper. Falls back to the current primary if unreadable.
-                        val context = LocalContext.current
-                        val wallpaperColor = remember(context) { context.wallpaperAccentColor() }
-                            ?.let { Color(it) }
-                            ?: MaterialTheme.colorScheme.primary
-                        LabeledSwatch(
-                            color = wallpaperColor,
-                            label = stringResource(R.string.theme_color_wallpaper),
-                            selected = dynamicEnabled,
-                            onClick = onWallpaperSelected,
-                        )
-                    }
-                }
-                Spacer(Modifier.height(20.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    // The default colour is offered as "Default" above, so leave it out of the grid.
-                    accentColorPalette.filter { it != DEFAULT_THEME_COLOR }.forEach { argb ->
-                        ColorSwatch(
-                            color = Color(argb),
-                            selected = !dynamicEnabled && selectedColor == argb,
-                            onClick = { onColorSelected(argb) },
-                        )
-                    }
-                }
+                AccentColorChoices(
+                    selectedColor = selectedColor,
+                    dynamicEnabled = dynamicEnabled,
+                    showWallpaperOption = showWallpaperOption,
+                    onColorSelected = onColorSelected,
+                    onWallpaperSelected = onWallpaperSelected,
+                )
                 Spacer(Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -119,6 +88,61 @@ fun ThemeColorPickerDialog(
                         Text(stringResource(android.R.string.ok))
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Every accent the app offers: "Default", on Android 12+ "Wallpaper" (Material You), then the grid of
+ * Material swatches. Shared by the picker dialog and the welcome page.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun AccentColorChoices(
+    selectedColor: Int,
+    dynamicEnabled: Boolean,
+    showWallpaperOption: Boolean,
+    onColorSelected: (Int) -> Unit,
+    onWallpaperSelected: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            LabeledSwatch(
+                color = Color(DEFAULT_THEME_COLOR),
+                label = stringResource(R.string.theme_color_default),
+                selected = !dynamicEnabled && selectedColor == DEFAULT_THEME_COLOR,
+                onClick = { onColorSelected(DEFAULT_THEME_COLOR) },
+            )
+            if (showWallpaperOption) {
+                // Preview the colour from the ACTUAL wallpaper (read via WallpaperManager), so
+                // it's right even on OEM skins like ColorOS where the system dynamic accent
+                // doesn't follow the wallpaper. Falls back to the current primary if unreadable.
+                val context = LocalContext.current
+                val wallpaperColor = remember(context) { context.wallpaperAccentColor() }
+                    ?.let { Color(it) }
+                    ?: MaterialTheme.colorScheme.primary
+                LabeledSwatch(
+                    color = wallpaperColor,
+                    label = stringResource(R.string.theme_color_wallpaper),
+                    selected = dynamicEnabled,
+                    onClick = onWallpaperSelected,
+                )
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // The default colour is offered as "Default" above, so leave it out of the grid.
+            accentColorPalette.filter { it != DEFAULT_THEME_COLOR }.forEach { argb ->
+                ColorSwatch(
+                    color = Color(argb),
+                    selected = !dynamicEnabled && selectedColor == argb,
+                    onClick = { onColorSelected(argb) },
+                )
             }
         }
     }

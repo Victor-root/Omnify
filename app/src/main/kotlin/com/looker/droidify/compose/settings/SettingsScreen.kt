@@ -343,13 +343,9 @@ fun SettingsScreen(
             }
 
             item {
-                SelectionSettingItem(
-                    title = stringResource(R.string.background_style),
-                    icon = painterResource(R.drawable.ic_tabler_background),
-                    selectedValue = settings.backgroundStyle,
-                    values = BackgroundStyle.entries.toList(),
-                    onValueSelected = viewModel::setBackgroundStyle,
-                    valueToString = { backgroundStyleLabel(it) },
+                BackgroundStyleSetting(
+                    selectedStyle = settings.backgroundStyle,
+                    onStyleSelected = viewModel::setBackgroundStyle,
                 )
             }
 
@@ -802,8 +798,7 @@ fun SettingsScreen(
             dynamicEnabled = settings.dynamicTheme,
             showWallpaperOption = SdkCheck.isSnowCake,
             onColorSelected = { color ->
-                if (settings.dynamicTheme) viewModel.setDynamicTheme(false)
-                viewModel.setThemeColor(color)
+                viewModel.chooseAccentColor(color)
                 showColorPicker = false
             },
             onWallpaperSelected = {
@@ -1031,8 +1026,25 @@ private fun LanguageSetting(
     }
 }
 
+/** The background choice, as a row opening the list of backgrounds. Also on the welcome page. */
 @Composable
-private fun ThemeSetting(
+internal fun BackgroundStyleSetting(
+    selectedStyle: BackgroundStyle,
+    onStyleSelected: (BackgroundStyle) -> Unit,
+) {
+    SelectionSettingItem(
+        title = stringResource(R.string.background_style),
+        icon = painterResource(R.drawable.ic_tabler_background),
+        selectedValue = selectedStyle,
+        values = BackgroundStyle.entries.toList(),
+        onValueSelected = onStyleSelected,
+        valueToString = { backgroundStyleLabel(it) },
+    )
+}
+
+/** The theme choice, as a row opening the list of themes. Also on the welcome page. */
+@Composable
+internal fun ThemeSetting(
     icon: Painter,
     selectedTheme: Theme,
     onThemeSelected: (Theme) -> Unit,

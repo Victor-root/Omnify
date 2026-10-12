@@ -34,7 +34,7 @@
     <string name="google_services_detection_caveat">Détecté d\'après les autorisations déclarées dans le manifeste de l\'app. Une version dégooglisée obtenue en patchant le code d\'une app peut laisser une autorisation déclarée même après en avoir retiré ce qui l\'utilisait : une ligne ici ne signifie donc pas toujours que la fonction concernée est encore réellement accessible dans cette version précise.</string>
     <string name="allow">Autoriser</string>
     <string name="welcome_title">Bienvenue sur Omnify</string>
-    <string name="welcome_subtitle">Vos applis, depuis les sources de votre choix. Deux étapes rapides et Omnify est prêt.</string>
+    <string name="welcome_subtitle">Vos applis, depuis les sources de votre choix. Quelques étapes rapides et Omnify est prêt.</string>
     <string name="welcome_sources_title">Sources</string>
     <string name="welcome_select_all">Tout cocher</string>
     <string name="welcome_deselect_all">Tout décocher</string>
@@ -44,6 +44,8 @@
     <string name="welcome_install_title">Installer des applis</string>
     <string name="welcome_installer_hint">L\'installateur de session est l\'installateur par défaut.</string>
     <string name="welcome_previous">Précédent</string>
+    <string name="welcome_appearance_title">Personnalisez Omnify</string>
+    <string name="welcome_appearance_hint">Choisissez l\'apparence d\'Omnify. Vous pourrez tout changer plus tard dans les réglages.</string>
     <string name="welcome_sources_page_title">D\'où viennent vos applis ?</string>
     <string name="welcome_sources_page_hint">Rien n\'est téléchargé avant que vous continuiez. Vous pourrez changer ce choix à tout moment dans Dépôts.</string>
     <string name="welcome_notifications_title">Notifications</string>
