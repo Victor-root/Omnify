@@ -1095,12 +1095,13 @@ private fun CleanUpIntervalSetting(
     )
 }
 
-/** The installer choice, as a row opening the list of installers. Also on the welcome page. */
+/** The installer choice, as a row opening the list of installers. Also on the welcome page, where [supportingText] says which to pick. */
 @Composable
 internal fun InstallerTypeSetting(
     icon: Painter,
     selectedInstaller: InstallerType,
     onInstallerSelected: (InstallerType) -> Unit,
+    supportingText: String? = null,
 ) {
     SelectionSettingItem(
         title = stringResource(R.string.installer),
@@ -1108,6 +1109,7 @@ internal fun InstallerTypeSetting(
         selectedValue = selectedInstaller,
         values = InstallerType.entries,
         onValueSelected = onInstallerSelected,
+        supportingText = supportingText,
         valueToString = { installer ->
             when (installer) {
                 InstallerType.LEGACY -> stringResource(R.string.legacy_installer)

@@ -11,7 +11,7 @@ A welcome page for a fresh install, and external sources that learn to handle re
 - **A "Versions to keep" filter** on every external source, the opposite of "Excluded versions": only releases whose name contains one of its words are kept. The app picker fills it in for you, and it can be edited at any time.
 
 ### 🔄 Changed
-- **The Session installer is now listed first**, and stays the default, so someone who does not know what to pick lands on the right one. The welcome page says so in a line under the choice.
+- **The Session installer is now listed first**, and stays the default, so someone who does not know what to pick lands on the right one. The welcome page says so in a line under the choice, and the whole installer card is tappable, not just its top.
 - **Omnify no longer asks for notifications, nor for the install of apps, out of the blue at the first start.** Both are asked on the welcome page, behind a button, and a notification dialog never pops up over a screen you are looking at any more.
 
 ### 🐛 Fixed

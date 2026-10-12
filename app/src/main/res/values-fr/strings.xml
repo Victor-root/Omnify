@@ -42,7 +42,7 @@
     <string name="welcome_continue_without_sources">Continuer sans source</string>
     <string name="welcome_install_hint">Nécessaire pour installer des applis. Android peut fermer Omnify à ce moment : rouvrez l\'appli.</string>
     <string name="welcome_install_title">Installer des applis</string>
-    <string name="welcome_installer_hint">Celui qui est présélectionné convient à presque tout le monde. Shizuku et root sont pour ceux qui savent déjà pourquoi ils en ont besoin.</string>
+    <string name="welcome_installer_hint">L&apos;installateur de session est l&apos;installateur par défaut.</string>
     <string name="welcome_previous">Précédent</string>
     <string name="welcome_sources_page_title">D\'où viennent vos applis ?</string>
     <string name="welcome_sources_page_hint">Rien n\'est téléchargé avant que vous continuiez. Vous pourrez changer ce choix à tout moment dans Dépôts.</string>
