@@ -36,6 +36,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 class RepoRepository @Inject constructor(
@@ -62,6 +65,8 @@ class RepoRepository @Inject constructor(
         downloader = downloader,
         dispatcher = syncDispatcher,
     )
+
+    private val fetchLocks = ConcurrentHashMap<Int, Mutex>()
 
     private val settings = settingsRepository.data
     private val keyStream = encryptionStorage.key
@@ -238,7 +243,13 @@ class RepoRepository @Inject constructor(
      * failure, so both answer true and the worker doesn't retry a sync nobody wants any more.
      */
     suspend fun sync(repo: Repo, onState: ((SyncState) -> Unit)? = null): Boolean {
-        val fetched = repoCatalogue.whileEnabled(repo.id) { fetchIndex(repo, onState) }
+        val fetched = repoCatalogue.whileEnabled(repo.id) {
+            val lock = fetchLock(repo.id)
+            if (BuildConfig.DEBUG && lock.isLocked) {
+                Log.d(TAG, "${repo.name} (id=${repo.id}) is already being synced; waiting for that one")
+            }
+            lock.withLock { fetchIndex(repo, onState) }
+        }
         if (fetched == null) {
             Log.i(TAG, "${repo.name} (id=${repo.id}) is disabled; sync skipped")
             return true
@@ -276,6 +287,14 @@ class RepoRepository @Inject constructor(
         }
         return fetched.success
     }
+
+    /**
+     * One at a time per repository: the scheduled sync and the one the user asked for run on separate
+     * workers and can reach the same repository together, and both work on the same cached index file.
+     * One downloading over it while the other reads it makes the read hit a file that shrank under it,
+     * which Android reports as a native crash (SIGBUS) that no try/catch can stop.
+     */
+    private fun fetchLock(repoId: Int): Mutex = fetchLocks.computeIfAbsent(repoId) { Mutex() }
 
     private suspend fun fetchIndex(repo: Repo, onState: ((SyncState) -> Unit)?): FetchedIndex {
         var success = false

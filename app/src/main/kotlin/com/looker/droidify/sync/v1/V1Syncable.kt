@@ -48,14 +48,14 @@ class V1Syncable(
             } else {
                 block(SyncState.IndexDownload.Success(repo.id))
             }
-            with(jar.toJarScope<IndexV1>()) {
+            jar.toJarScope<IndexV1>().use { scope ->
                 // The jar's signing-certificate fingerprint is only known once the whole entry has
                 // been read (java.util.jar.JarEntry.getCertificates() stays null until the stream is
                 // fully consumed), so json() must run before fingerprint is ever read. Reading
                 // fingerprint first (as this used to) always threw "Read the entry before reading
                 // fingerprint" — every v1 sync failed unconditionally, for every repo, every time.
-                val output = json()
-                val jarFingerprint = fingerprint
+                val output = scope.json()
+                val jarFingerprint = scope.fingerprint
                 when {
                     jarFingerprint == null -> block(
                         SyncState.JarParsing.Failure(

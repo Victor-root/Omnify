@@ -15,6 +15,7 @@ A welcome page for a fresh install, and external sources that learn to handle re
 - **Omnify no longer asks for notifications, nor for the install of apps, out of the blue at the first start.** Both are asked on the welcome page, behind a button, and a notification dialog never pops up over a screen you are looking at any more.
 
 ### 🐛 Fixed
+- **Omnify no longer closes by itself during a repository sync on some phones** (a native crash, SIGBUS, reported on a Realme GT Neo 3). The scheduled sync and a sync you start yourself could work on the same repository's index file at once, one downloading over it while the other read it. Syncs of one repository now take turns, and the index file is closed once read.
 - **On Android TV, the background you pick in Settings now shows.** Every TV screen kept the same fixed wash whatever the choice.
 - **Closing the file picker without choosing a file no longer says the file is invalid** when restoring a backup from Settings.
 - **On Android TV, the External tab no longer lists sources that are switched off.** It showed Omnify's picks even with every source off, where the phone already hid them.

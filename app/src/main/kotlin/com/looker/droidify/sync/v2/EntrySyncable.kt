@@ -56,9 +56,9 @@ class EntrySyncable(
                 block(SyncState.IndexDownload.Success(repo.id))
             }
             val (fingerprint, entry) = try {
-                with(jar.toJarScope<Entry>()) {
-                    val output = json()
-                    val jarFingerprint = fingerprint
+                jar.toJarScope<Entry>().use { scope ->
+                    val output = scope.json()
+                    val jarFingerprint = scope.fingerprint
                         ?: invalid("Jar entry does not contain a fingerprint")
 
                     if (repo.fingerprint != null && !repo.fingerprint.assert(jarFingerprint)) {
