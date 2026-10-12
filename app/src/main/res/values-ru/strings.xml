@@ -308,7 +308,6 @@
     <string name="allow_unknown_sources">Разрешить установку приложений</string>
     <string name="allow_unknown_sources_DESC">Omnify нужно разрешение на установку приложений. Предоставьте его сейчас, чтобы не отвлекаться при первой установке.\n\nПосле включения этого разрешения в настройках Android закроет Omnify, чтобы применить изменение (особенно на ТВ). Это нормально: просто откройте приложение заново.</string>
     <string name="allow">Разрешить</string>
-    <string name="later">Позже</string>
     <string name="by_author_FORMAT">от %1$s</string>
     <string name="backup_title">Резервное копирование</string>
     <string name="backup_row_DESC">Выберите, что включить в файл резервной копии</string>

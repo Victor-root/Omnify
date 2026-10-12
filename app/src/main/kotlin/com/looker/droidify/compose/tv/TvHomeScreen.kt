@@ -78,6 +78,7 @@ import com.looker.droidify.compose.appList.AppTab
 import com.looker.droidify.compose.appList.PendingAppListTab
 import com.looker.droidify.compose.appList.restoreFocusTarget
 import com.looker.droidify.compose.components.CatalogOfflineState
+import com.looker.droidify.compose.components.NoSourcesState
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
@@ -161,6 +162,7 @@ fun TvHomeScreen(
     // read yet is never mistaken for an empty one.
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     val catalogEmpty by viewModel.catalogEmpty.collectAsStateWithLifecycle()
+    val noRepositoryEnabled by viewModel.noRepositoryEnabled.collectAsStateWithLifecycle()
     var catalogReady by rememberSaveable { mutableStateOf(false) }
     var firstSyncFromEmpty by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(isSyncing, catalogEmpty) {
@@ -173,7 +175,10 @@ fun TvHomeScreen(
         }
     }
     // The External tab loads its own data (not the F-Droid catalogue), so it's never behind this loader.
-    val catalogLoading = !catalogReady && catalogEmpty != false
+    // No repository switched on and nothing in the catalogue: no first sync is coming, so the loader
+    // below would spin for ever. A state of its own says what to do instead.
+    val noSources = noRepositoryEnabled && catalogEmpty == true
+    val catalogLoading = !catalogReady && catalogEmpty != false && !noSources
     // Nothing to list and no connection to fetch it with: the loader above would otherwise spin for as
     // long as the network stayed off, promising something that cannot arrive. Same answer as the phone.
     val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
@@ -328,6 +333,12 @@ fun TvHomeScreen(
             // The TV accent wash behind the content (light & dark).
             TvAccentBackground()
             when {
+                // Nothing switched on, so nothing to load: point at the repositories (see NoSourcesState).
+                noSources && section != TvSection.EXTERNAL -> NoSourcesState(
+                    onOpenRepositories = onNavigateToRepos,
+                    modifier = Modifier.padding(horizontal = TvOverscan),
+                )
+
                 // Cold start with no network: say so rather than spin (see CatalogOfflineState).
                 catalogOffline && section != TvSection.EXTERNAL ->
                     CatalogOfflineState(Modifier.padding(horizontal = TvOverscan))

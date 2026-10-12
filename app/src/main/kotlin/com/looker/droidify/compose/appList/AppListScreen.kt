@@ -138,6 +138,7 @@ import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.compose.components.AccentTabRow
 import com.looker.droidify.compose.components.CatalogOfflineState
+import com.looker.droidify.compose.components.NoSourcesState
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
@@ -169,6 +170,7 @@ fun AppListScreen(
     val isSyncScheduled by viewModel.isSyncScheduled.collectAsStateWithLifecycle()
     val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
     val catalogEmpty by viewModel.catalogEmpty.collectAsStateWithLifecycle()
+    val noRepositoryEnabled by viewModel.noRepositoryEnabled.collectAsStateWithLifecycle()
     val updatesLoaded by viewModel.updatesLoaded.collectAsStateWithLifecycle()
     // From the same answer as the catalogue half and the notification: see AppListViewModel.updates.
     val externalUpdates by viewModel.externalUpdates.collectAsStateWithLifecycle()
@@ -666,6 +668,10 @@ fun AppListScreen(
         },
     ) { contentPadding ->
         FloatingAppCardsBackground(Modifier.padding(contentPadding.forFloatingBackground()))
+        if (catalogTabEmpty && noRepositoryEnabled) {
+            NoSourcesState(onOpenRepositories = onNavigateToRepos, modifier = Modifier.padding(contentPadding))
+            return@Scaffold
+        }
         if (catalogOffline) {
             CatalogOfflineState(modifier = Modifier.padding(contentPadding))
             return@Scaffold

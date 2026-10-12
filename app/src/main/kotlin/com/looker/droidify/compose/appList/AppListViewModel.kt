@@ -643,6 +643,16 @@ class AppListViewModel @Inject constructor(
         .distinctUntilChanged()
         .asStateFlow(null)
 
+    /**
+     * True while no repository is switched on at all. With the catalogue empty on top of that, there is
+     * nothing to wait for: no synchronisation is running or about to, so a screen waiting on one would
+     * wait for ever. False until the settings have answered, so nothing is claimed in the meantime.
+     */
+    val noRepositoryEnabled: StateFlow<Boolean> = settingsRepository.get { enabledRepoIds }
+        .map { it.isEmpty() }
+        .distinctUntilChanged()
+        .asStateFlow(false)
+
     /** "What's new" carousel on the Discover home — the most recently added apps. */
     val newApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
         .mapLatest { hidden ->

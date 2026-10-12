@@ -95,8 +95,8 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
     override fun onCreate() {
         super.onCreate()
 
-        // A fresh install seeds + syncs its default repos from MainComposeActivity, so there's no
-        // legacy "database created -> full sync" step here any more.
+        // A fresh install seeds its default repos from MainComposeActivity and syncs the ones picked on
+        // the welcome page, so there's no legacy "database created -> full sync" step here any more.
         installPrompt.attach(this)
         listenApplications()
         checkLanguage()
