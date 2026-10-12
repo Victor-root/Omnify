@@ -8,11 +8,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
+import java.io.Closeable
 import java.io.File
 import java.util.jar.JarEntry
 import java.util.jar.JarFile
 
-interface JarScope<out T> {
+/** A jar opened to read one entry of it. Closing it releases the file, which the caller does before
+ *  deleting it. */
+interface JarScope<out T> : Closeable {
     val fingerprint: Fingerprint?
     suspend fun json(): T
 }
@@ -38,6 +41,8 @@ inline fun <reified T> File.toJarScope(): JarScope<T> = object : JarScope<T> {
             require(isFingerprintSet) { "Read the entry before reading fingerprint" }
             return internalFingerprint
         }
+
+    override fun close() = jarFile.close()
 
     override suspend fun json(): T = withContext(Dispatchers.IO) {
         try {
