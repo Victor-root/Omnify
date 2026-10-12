@@ -308,7 +308,6 @@
     <string name="allow_unknown_sources">Zezwól na instalowanie aplikacji</string>
     <string name="allow_unknown_sources_DESC">Omnify potrzebuje uprawnienia do instalowania aplikacji. Zezwól na nie teraz, aby nie przerywać sobie pierwszej instalacji.\n\nPo włączeniu go w ustawieniach Android zamyka Omnify, aby zastosować zmianę (zwłaszcza na TV). To normalne: po prostu otwórz aplikację ponownie.</string>
     <string name="allow">Zezwól</string>
-    <string name="later">Później</string>
     <string name="by_author_FORMAT">autor: %1$s</string>
     <string name="backup_title">Kopia zapasowa</string>
     <string name="backup_row_DESC">Wybierz, co ma się znaleźć w pliku kopii zapasowej</string>

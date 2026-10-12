@@ -264,7 +264,6 @@
     <string name="allow_unknown_sources">Installeren van apps toestaan</string>
     <string name="allow_unknown_sources_DESC">Omnify heeft toestemming nodig om apps te installeren. Sta dit nu toe, zodat je niet wordt onderbroken bij je eerste installatie.\n\nNadat je dit in de instellingen hebt ingeschakeld, sluit Android Omnify af om de wijziging toe te passen (vooral op tv). Dit is normaal: open de app gewoon opnieuw.</string>
     <string name="allow">Toestaan</string>
-    <string name="later">Later</string>
     <string name="by_author_FORMAT">door %1$s</string>
     <string name="backup_title">Back-up</string>
     <string name="backup_row_DESC">Kies wat je wilt opnemen in een back-upbestand</string>

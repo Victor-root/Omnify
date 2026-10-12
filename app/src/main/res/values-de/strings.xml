@@ -302,7 +302,6 @@
     <string name="allow_unknown_sources">Installation von Apps erlauben</string>
     <string name="allow_unknown_sources_DESC">Omnify benötigt die Berechtigung, Apps zu installieren. Erlaube sie jetzt, damit du bei deiner ersten Installation nicht unterbrochen wirst.\n\nNachdem du sie in den Einstellungen aktiviert hast, schließt Android Omnify, um die Änderung anzuwenden (besonders auf TV-Geräten). Das ist normal: Öffne die App einfach erneut.</string>
     <string name="allow">Erlauben</string>
-    <string name="later">Später</string>
     <string name="by_author_FORMAT">von %1$s</string>
     <string name="backup_title">Sicherung</string>
     <string name="backup_row_DESC">Wähle aus, was in einer Sicherungsdatei enthalten sein soll</string>

@@ -243,7 +243,6 @@
     <string name="allow_unknown_sources">アプリのインストールを許可</string>
     <string name="allow_unknown_sources_DESC">Omnify にはアプリをインストールする権限が必要です。最初のインストール時に中断されないよう、今すぐ許可しておきましょう。\n\n設定でこれを有効にすると、変更を適用するためにAndroidがOmnifyを終了させることがあります (特にTVの場合)。これは正常な動作なので、アプリを再度開いてください。</string>
     <string name="allow">許可</string>
-    <string name="later">後で</string>
     <string name="by_author_FORMAT">作者: %1$s</string>
     <string name="error_shizuku_service_unavailable">Shizuku/Sui サービスが実行されていません</string>
     <string name="error_shizuku_not_running_DESC">Shizuku/Sui サービスが実行されていません</string>

@@ -305,7 +305,6 @@
     <string name="allow_unknown_sources">Permitir instalar apps</string>
     <string name="allow_unknown_sources_DESC">Omnify necesita permiso para instalar apps. Concédelo ahora para que no te interrumpa en tu primera instalación.\n\nDespués de activarlo en los ajustes, Android cierra Omnify para aplicar el cambio (sobre todo en TV). Esto es normal: solo tienes que volver a abrir la app.</string>
     <string name="allow">Permitir</string>
-    <string name="later">Más tarde</string>
     <string name="by_author_FORMAT">por %1$s</string>
     <string name="backup_title">Respaldar</string>
     <string name="backup_row_DESC">Elige qué incluir en un archivo de respaldo</string>

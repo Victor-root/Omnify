@@ -277,7 +277,6 @@
     <string name="allow_unknown_sources">允许安装应用</string>
     <string name="allow_unknown_sources_DESC">Omnify 需要获得安装应用的权限。请现在允许，以免在您首次安装时被打断。\n\n在设置中启用该权限后，Android 会关闭 Omnify 以应用更改（在电视上尤其如此）。这是正常现象，只需重新打开应用即可。</string>
     <string name="allow">允许</string>
-    <string name="later">稍后</string>
     <string name="by_author_FORMAT">由 %1$s</string>
     <string name="backup_title">备份</string>
     <string name="backup_row_DESC">选择备份文件中要包含的内容</string>

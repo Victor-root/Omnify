@@ -302,7 +302,6 @@
     <string name="allow_unknown_sources">Uygulama kurulumuna izin verin</string>
     <string name="allow_unknown_sources_DESC">Omnify\'nin uygulama kurmak için izne ihtiyacı var. Kesintiye uğramamak için ilk kurulumunuzda şimdi izin verin.\n\nAyarlardan etkinleştirdikten sonra Android, değişikliği uygulamak için Omnify\'yi kapatır (özellikle TV\'de). Bu normaldir: uygulamayı yeniden açmanız yeterli.</string>
     <string name="allow">İzin ver</string>
-    <string name="later">Daha sonra</string>
     <string name="by_author_FORMAT">%1$s tarafından</string>
     <string name="backup_title">Yedekle</string>
     <string name="backup_row_DESC">Yedek dosyasına nelerin dahil edileceğini seç</string>

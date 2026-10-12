@@ -1,6 +1,5 @@
 package com.looker.droidify.compose
 
-import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -15,10 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.util.Consumer
 import androidx.lifecycle.lifecycleScope
@@ -36,7 +31,6 @@ import com.looker.droidify.compose.appList.PendingAppListTab
 import com.looker.droidify.compose.appList.navigation.AppList
 import com.looker.droidify.compose.appList.navigation.appList
 import com.looker.droidify.compose.appList.navigation.navigateToAppList
-import com.looker.droidify.compose.components.UnknownSourcesDialog
 import com.looker.droidify.compose.easterEgg.navigation.easterEgg
 import com.looker.droidify.compose.easterEgg.navigation.navigateToEasterEgg
 import com.looker.droidify.compose.repoDetail.navigation.navigateToRepoDetail
@@ -55,6 +49,10 @@ import com.looker.droidify.compose.settings.hiddenApps.navigation.navigateToHidd
 import com.looker.droidify.compose.settings.navigation.navigateToSettings
 import com.looker.droidify.compose.settings.navigation.settings
 import com.looker.droidify.compose.theme.DroidifyTheme
+import com.looker.droidify.compose.welcome.FirstRun
+import com.looker.droidify.compose.welcome.navigation.Welcome
+import com.looker.droidify.compose.welcome.navigation.navigateFromWelcomeToAppList
+import com.looker.droidify.compose.welcome.navigation.welcome
 import com.looker.droidify.migration.MigrationPrompt
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
@@ -78,10 +76,8 @@ import com.looker.droidify.model.Repository
 import com.looker.droidify.utility.common.DeeplinkType
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.sdkAbove
-import com.looker.droidify.utility.common.canRequestPackageInstalls
 import com.looker.droidify.utility.common.deeplinkType
 import com.looker.droidify.utility.common.sharedSourceUrl
-import com.looker.droidify.utility.common.openUnknownAppSourcesSettings
 import com.looker.droidify.utility.common.requestNotificationPermission
 import com.looker.droidify.utility.common.wallpaperAccentColor
 import com.looker.droidify.work.SyncWorker
@@ -120,9 +116,6 @@ class MainComposeActivity : ComponentActivity() {
 
     companion object {
         const val ACTION_UPDATES = "${BuildConfig.APPLICATION_ID}.intent.action.UPDATES"
-
-        private const val FIRST_RUN_PREFS = "first_run"
-        private const val KEY_UNKNOWN_SOURCES_PROMPTED = "unknown_sources_prompted"
 
         // Seeded once on first run: Omnify's own repo as the active update channel, plus the developer's
         // whole GitHub account as a separate, opt-in (disabled) source.
@@ -265,17 +258,7 @@ class MainComposeActivity : ComponentActivity() {
             stem.endsWith("_back") || stem.endsWith("_bg")
     }
 
-    private val firstRunPrefs by lazy { getSharedPreferences(FIRST_RUN_PREFS, Context.MODE_PRIVATE) }
-
-    /** True only the first time, and only when the app can't yet install unknown apps — so the user is
-     *  prompted once, up front, instead of hitting the permission at their first install. */
-    private fun shouldPromptUnknownSources(): Boolean =
-        !canRequestPackageInstalls() &&
-            !firstRunPrefs.getBoolean(KEY_UNKNOWN_SOURCES_PROMPTED, false)
-
-    private fun markUnknownSourcesPrompted() {
-        firstRunPrefs.edit().putBoolean(KEY_UNKNOWN_SOURCES_PROMPTED, true).apply()
-    }
+    private val firstRunPrefs by lazy { FirstRun.prefs(this) }
 
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -502,42 +485,51 @@ class MainComposeActivity : ComponentActivity() {
         // turned out not to be fixable from any of these window-level APIs — see the doc comment on
         // DroidifyTheme's edge-to-edge Box in Theme.kt).
         applyTransparentSystemBars()
+        // Before anything below writes its own flag into the first-run preferences: see FirstRun.
+        FirstRun.markIfFreshInstall(this)
+        val welcomePending = FirstRun.isWelcomePending(this)
         // Off the main thread: this seeds repos and queries the catalog/installed state, and the
         // start-up frame is already busy — doing DB work here would jank the UI (and starve the
         // WorkManager scheduler that has to dispatch the sync).
         lifecycleScope.launch(Dispatchers.Default) {
             // Seeding the default repos does not switch any of them on: whether a repo is enabled lives
-            // in the settings, not in the repo table. The ones meant to be on out of the box are enabled
-            // (and therefore synced) right here, where they are created, so a fresh install fills its
-            // catalog instead of showing an empty list.
+            // in the settings, not in the repo table. A fresh install leaves that choice to the welcome
+            // page, which switches on whatever is ticked there and so starts the first synchronisation.
+            // Anything else that finds the list empty (a database reset, every repository removed) gets
+            // the ones meant to be on out of the box enabled (and therefore synced) right here, where
+            // they are created, so the catalog fills instead of showing an empty list.
             //
-            // Both halves belong to that first run only. Enabling on every start, which is what this used
-            // to do, silently turned a default repo the user had disabled back on at the next cold start:
-            // once the repos exist, "disabled by the user" and "not switched on yet" are the same state,
-            // and nothing here could tell them apart.
+            // Both halves belong to that empty list only. Enabling on every start, which is what this
+            // used to do, silently turned a default repo the user had disabled back on at the next cold
+            // start: once the repos exist, "disabled by the user" and "not switched on yet" are the same
+            // state, and nothing here could tell them apart.
             if (repository.repos.first().isEmpty()) {
                 Repository.defaultRepositories.forEach {
                     repository.insertRepo(it.address, it.fingerprint, null, null, it.name, it.description)
                 }
-                val enabledByDefault = Repository.defaultRepositories
-                    .filter { it.enabled }
-                    .map { it.address }
-                    .toSet()
-                repository.repos.first()
-                    .filter { it.address in enabledByDefault }
-                    .forEach { repository.enableRepository(it, enable = true) }
+                if (!welcomePending) {
+                    val enabledByDefault = Repository.defaultRepositories
+                        .filter { it.enabled }
+                        .map { it.address }
+                        .toSet()
+                    repository.repos.first()
+                        .filter { it.address in enabledByDefault }
+                        .forEach { repository.enableRepository(it, enable = true) }
+                }
             }
 
             // One-time: seed Omnify's own repo as the active update channel, plus the developer's whole
             // GitHub account as a separate, opt-in (disabled) source. Guarded by a flag (not by "is the
             // list empty"), so if the user removes either it stays removed. Clean up the previous
-            // whole-account-enabled seed shape (its discovered apps) before re-seeding.
+            // whole-account-enabled seed shape (its discovered apps) before re-seeding. On a fresh
+            // install the update channel starts switched off like the repositories, and the welcome page
+            // switches it on if it is still ticked there.
             if (!firstRunPrefs.getBoolean(KEY_OMNIFY_SEED, false)) {
                 externalAppRepository.removeAppsByAccount(ExternalAccount.OMNIFY_KEY)
                 // upsert (not add): the Omnify source already exists from an earlier seed, and addApp is
                 // insert-only, so it would keep the stale packageName/version. Replace it so the corrected
                 // fields (running build's package) actually take effect.
-                externalAppRepository.upsertApp(omnifyUpdateSource())
+                externalAppRepository.upsertApp(omnifyUpdateSource().copy(enabled = !welcomePending))
                 externalAppRepository.upsertAccount(victorAccount())
                 firstRunPrefs.edit().putBoolean(KEY_OMNIFY_SEED, true).apply()
             }
@@ -801,8 +793,10 @@ class MainComposeActivity : ComponentActivity() {
                     NavHost(
                         modifier = Modifier.padding(innerPadding),
                         navController = navController,
-                        startDestination = AppList,
+                        startDestination = if (welcomePending) Welcome else AppList,
                     ) {
+                        welcome(onDone = { navController.navigateFromWelcomeToAppList() })
+
                         appList(
                             onAppClick = { packageName ->
                                 navController.navigateToAppDetail(packageName)
@@ -869,22 +863,6 @@ class MainComposeActivity : ComponentActivity() {
 
                         easterEgg(onBackClick = { navController.popBackStack() })
                     }
-                }
-                // First-run: offer to allow installing apps up front, so the permission isn't hit
-                // later at the user's first install. Shown once (persisted), only when not granted.
-                var promptUnknownSources by remember { mutableStateOf(shouldPromptUnknownSources()) }
-                if (promptUnknownSources) {
-                    UnknownSourcesDialog(
-                        onAllow = {
-                            markUnknownSourcesPrompted()
-                            promptUnknownSources = false
-                            openUnknownAppSourcesSettings()
-                        },
-                        onDismiss = {
-                            markUnknownSourcesPrompted()
-                            promptUnknownSources = false
-                        },
-                    )
                 }
             }
         }

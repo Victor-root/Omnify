@@ -298,7 +298,6 @@
     <string name="allow_unknown_sources">Izinkan pemasangan aplikasi</string>
     <string name="allow_unknown_sources_DESC">Omnify memerlukan izin untuk memasang aplikasi. Izinkan sekarang agar Anda tidak terganggu saat pemasangan pertama.\n\nSetelah Anda mengaktifkannya di pengaturan, Android akan menutup Omnify untuk menerapkan perubahan ini (terutama di TV). Ini normal: cukup buka kembali aplikasinya.</string>
     <string name="allow">Izinkan</string>
-    <string name="later">Nanti</string>
     <string name="by_author_FORMAT">oleh %1$s</string>
     <string name="backup_title">Pencadangan</string>
     <string name="backup_row_DESC">Pilih yang disertakan dalam berkas cadangan</string>
