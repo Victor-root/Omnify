@@ -41,6 +41,7 @@ fun <T> SelectionSettingItem(
     dialogTitle: String = title,
     dialogIcon: ImageVector? = null,
     enabled: Boolean = true,
+    supportingText: String? = null,
 ) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -77,6 +78,13 @@ fun <T> SelectionSettingItem(
                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                 },
             )
+            supportingText?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 

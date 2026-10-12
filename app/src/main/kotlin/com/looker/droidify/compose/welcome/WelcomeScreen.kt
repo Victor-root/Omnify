@@ -356,19 +356,12 @@ private fun WelcomeSetupCards(
     ) {
         steps.forEach { step -> WelcomeStepCard(step) }
         WelcomeCard {
-            Column {
-                InstallerTypeSetting(
-                    icon = painterResource(R.drawable.ic_tabler_package),
-                    selectedInstaller = installerType,
-                    onInstallerSelected = onInstallerSelected,
-                )
-                Text(
-                    text = stringResource(R.string.welcome_installer_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 60.dp, end = 16.dp, bottom = 14.dp),
-                )
-            }
+            InstallerTypeSetting(
+                icon = painterResource(R.drawable.ic_tabler_package),
+                selectedInstaller = installerType,
+                onInstallerSelected = onInstallerSelected,
+                supportingText = stringResource(R.string.welcome_installer_hint),
+            )
         }
     }
 }
@@ -525,7 +518,7 @@ private fun WelcomeSourceRow(
 }
 
 /**
- * Under the pages: the dots, then the way back (from the second page on) and the way forward. The
+ * Under the pages: the dots, then the way back (greyed out on the first page, so the two buttons never change size) and the way forward. The
  * forward button names the step: "Next" until the last page, then what finishing amounts to.
  */
 @Composable
@@ -547,24 +540,31 @@ private fun WelcomeNavigationBar(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.widthIn(max = ContentMaxWidth).fillMaxWidth(),
         ) {
-            if (currentPage > 0) {
-                OutlinedButton(onClick = onPrevious, modifier = Modifier.weight(1f).height(48.dp)) {
-                    Text(stringResource(R.string.welcome_previous))
-                }
+            val padding = PaddingValues(horizontal = 12.dp)
+            OutlinedButton(
+                onClick = onPrevious,
+                enabled = currentPage > 0 && enabled,
+                contentPadding = padding,
+                modifier = Modifier.weight(1f).height(48.dp),
+            ) {
+                Text(stringResource(R.string.welcome_previous), maxLines = 1, softWrap = false)
             }
             Button(
                 onClick = onNext,
                 enabled = enabled,
-                modifier = Modifier.weight(if (currentPage > 0) 2f else 1f).height(48.dp),
+                contentPadding = padding,
+                modifier = Modifier.weight(1f).height(48.dp),
             ) {
                 Text(
-                    stringResource(
+                    text = stringResource(
                         when {
                             !last -> R.string.welcome_next
                             anyChecked -> R.string.welcome_continue
                             else -> R.string.welcome_continue_without_sources
                         },
                     ),
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
         }

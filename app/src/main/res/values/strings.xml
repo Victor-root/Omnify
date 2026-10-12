@@ -63,7 +63,7 @@
     <string name="welcome_continue_without_sources">Continue without sources</string>
     <string name="welcome_install_hint">Needed to install apps. Android may close Omnify when you allow it: just reopen it.</string>
     <string name="welcome_install_title">Install apps</string>
-    <string name="welcome_installer_hint">The pre-selected one is the right choice for almost everyone. Shizuku and root are for people who already know why they need them.</string>
+    <string name="welcome_installer_hint">The session installer is the default installer.</string>
     <string name="welcome_previous">Previous</string>
     <string name="welcome_sources_page_title">Where do your apps come from?</string>
     <string name="welcome_sources_page_hint">Nothing is downloaded until you continue. You can change this at any time in Repositories.</string>
