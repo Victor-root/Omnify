@@ -651,6 +651,10 @@ interface AppDao {
     @Query("DELETE FROM app WHERE repoId = :repoId")
     suspend fun deleteByRepoId(repoId: Int)
 
+    /** Every repository that has at least one app in the catalogue. */
+    @Query("SELECT DISTINCT repoId FROM app")
+    suspend fun repoIds(): List<Int>
+
     @Query("SELECT name FROM localized_app_name WHERE appId = :id AND (locale = :locale OR locale = \'en-US\')")
     suspend fun name(id: Int, locale: String): String?
 

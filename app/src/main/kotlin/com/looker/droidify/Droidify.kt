@@ -21,6 +21,7 @@ import coil3.request.ImageResult
 import coil3.request.SuccessResult
 import coil3.request.crossfade
 import com.looker.droidify.compose.settings.SettingsViewModel
+import com.looker.droidify.data.RepoCatalogue
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.authorizationFor
 import com.looker.droidify.data.trailRepoIcon
@@ -86,6 +87,9 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
     lateinit var repoRepository: RepoRepository
 
     @Inject
+    lateinit var repoCatalogue: RepoCatalogue
+
+    @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
     override fun onCreate() {
@@ -99,6 +103,8 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
         updatePreference()
         scheduleDownloadStats()
         appScope.launch { installer() }
+        // Older builds let a sync outlive its repository being disabled and write its apps back.
+        appScope.launch { repoCatalogue.clearDisabled() }
     }
 
     override fun onTerminate() {

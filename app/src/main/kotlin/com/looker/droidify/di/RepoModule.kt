@@ -3,6 +3,7 @@ package com.looker.droidify.di
 import android.content.Context
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledRepository
+import com.looker.droidify.data.RepoCatalogue
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.encryption.EncryptionStorage
 import com.looker.droidify.data.local.dao.ApkLocaleCacheDao
@@ -36,6 +37,7 @@ object RepoModule {
         downloader: Downloader,
         @ApplicationContext context: Context,
         @IoDispatcher syncDispatcher: CoroutineDispatcher,
+        repoCatalogue: RepoCatalogue,
     ): RepoRepository = RepoRepository(
         encryptionStorage = encryptionStorage,
         downloader = downloader,
@@ -46,6 +48,7 @@ object RepoModule {
         authDao = authDao,
         indexDao = indexDao,
         settingsRepository = settingsRepository,
+        repoCatalogue = repoCatalogue,
     )
 
     @Provides

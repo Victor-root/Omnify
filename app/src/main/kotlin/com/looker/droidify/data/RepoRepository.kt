@@ -36,7 +36,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import java.io.File
 import javax.inject.Inject
 
 class RepoRepository @Inject constructor(
@@ -49,6 +48,7 @@ class RepoRepository @Inject constructor(
     private val indexDao: IndexDao,
     private val settingsRepository: SettingsRepository,
     private val appDao: AppDao,
+    private val repoCatalogue: RepoCatalogue,
 ) {
 
     private val v2Syncable = EntrySyncable(
@@ -228,22 +228,56 @@ class RepoRepository @Inject constructor(
         if (enable) {
             SyncWorker.syncRepo(context, repo.id)
         } else {
-            repoDao.resetTimestamp(repo.id)
-            runCatching {
-                val indexDir = File(context.cacheDir, "index")
-                if (indexDir.exists()) {
-                    indexDir.listFiles()?.forEach { file ->
-                        if (file.name.startsWith("repo_${repo.id}_")) {
-                            file.delete()
-                        }
-                    }
-                }
-            }
-            appDao.deleteByRepoId(repo.id)
+            repoCatalogue.clear(repo.id)
         }
     }
 
+    /**
+     * Downloads [repo]'s index and stores it, for as long as the repository stays enabled. Disabling it
+     * stops the download, and an index downloaded by then is dropped (see [RepoCatalogue]): neither is a
+     * failure, so both answer true and the worker doesn't retry a sync nobody wants any more.
+     */
     suspend fun sync(repo: Repo, onState: ((SyncState) -> Unit)? = null): Boolean {
+        val fetched = repoCatalogue.whileEnabled(repo.id) { fetchIndex(repo, onState) }
+        if (fetched == null) {
+            Log.i(TAG, "${repo.name} (id=${repo.id}) is disabled; sync skipped")
+            return true
+        }
+        val fingerprint = fetched.fingerprint
+        val index = fetched.index
+        if (index != null && fingerprint != null) {
+            try {
+                Log.i(TAG, "Saving index for ${repo.name} (id=${repo.id}): ${index.packages.size} packages")
+                // What the repository says its own logo is, straight out of the index and before
+                // anything here has touched it: the first place the answer can differ from what the
+                // owner expects, and the only one nothing in the app can put right.
+                trailRepoIcon {
+                    "sync: repo ${repo.id} index declares icon=${index.repo.icon} " +
+                        "name=${index.repo.name} address=${index.repo.address}"
+                }
+                if (!repoCatalogue.save(repo.id, fingerprint, index)) {
+                    Log.i(TAG, "${repo.name} (id=${repo.id}) was disabled during its sync; index dropped")
+                    return true
+                }
+                Log.i(TAG, "Saved ${repo.name} (id=${repo.id}); catalog now holds ${appDao.count()} apps")
+            } catch (t: Throwable) {
+                t.exceptCancellation()
+                // Saving the parsed index can fail (e.g. OOM while inserting a large index, or a DB
+                // error). Report it instead of letting the worker think the sync succeeded.
+                Log.e(TAG, "Saving the index failed for ${repo.name} (id=${repo.id})", t)
+                return false
+            }
+        } else {
+            Log.i(
+                TAG,
+                "No index to save for ${repo.name} (id=${repo.id}); " +
+                    "success=${fetched.success} (up to date or failed)",
+            )
+        }
+        return fetched.success
+    }
+
+    private suspend fun fetchIndex(repo: Repo, onState: ((SyncState) -> Unit)?): FetchedIndex {
         var success = false
         var parsedFingerprint: Fingerprint? = null
         var parsedIndex: IndexV2? = null
@@ -276,35 +310,7 @@ class RepoRepository @Inject constructor(
             trailRepoIcon { "sync: repo ${repo.id} has no v2 index, reading the v1 one" }
             v1Syncable.sync(repo, handleState)
         }
-        val fingerprint = parsedFingerprint
-        val index = parsedIndex
-        if (index != null && fingerprint != null) {
-            try {
-                Log.i(TAG, "Saving index for ${repo.name} (id=${repo.id}): ${index.packages.size} packages")
-                // What the repository says its own logo is, straight out of the index and before
-                // anything here has touched it: the first place the answer can differ from what the
-                // owner expects, and the only one nothing in the app can put right.
-                trailRepoIcon {
-                    "sync: repo ${repo.id} index declares icon=${index.repo.icon} " +
-                        "name=${index.repo.name} address=${index.repo.address}"
-                }
-                indexDao.insertIndex(
-                    fingerprint = fingerprint,
-                    index = index,
-                    expectedRepoId = repo.id,
-                )
-                Log.i(TAG, "Saved ${repo.name} (id=${repo.id}); catalog now holds ${appDao.count()} apps")
-            } catch (t: Throwable) {
-                t.exceptCancellation()
-                // Saving the parsed index can fail (e.g. OOM while inserting a large index, or a DB
-                // error). Report it instead of letting the worker think the sync succeeded.
-                Log.e(TAG, "Saving the index failed for ${repo.name} (id=${repo.id})", t)
-                return false
-            }
-        } else {
-            Log.i(TAG, "No index to save for ${repo.name} (id=${repo.id}); success=$success (up to date or failed)")
-        }
-        return success
+        return FetchedIndex(success = success, fingerprint = parsedFingerprint, index = parsedIndex)
     }
 
     suspend fun syncAll(): Boolean {
@@ -330,6 +336,13 @@ class RepoRepository @Inject constructor(
 
     private suspend fun getMirrors(repoId: Int): List<String> =
         repoDao.mirrors(repoId).map { it.url }
+
+    /** What [fetchIndex] read: [index] is null when the repository is up to date or the sync failed. */
+    private class FetchedIndex(
+        val success: Boolean,
+        val fingerprint: Fingerprint?,
+        val index: IndexV2?,
+    )
 
     private companion object {
         private const val TAG = "RepoRepository"
