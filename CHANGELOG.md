@@ -5,7 +5,7 @@
 A welcome page for a fresh install, and external sources that learn to handle repositories publishing several apps side by side, like ente (Auth, Photos, Locker) or Bitwarden (Password Manager, Authenticator).
 
 ### ✨ Added
-- **A welcome page on a fresh install.** Omnify no longer switches F-Droid and IzzyOnDroid on by itself and starts downloading thousands of apps. It first asks where your apps should come from: Omnify, F-Droid and IzzyOnDroid are ticked, a few other repositories are not, and one button ticks or clears them all. Continuing, even with nothing ticked, is a normal way in, and the first synchronisation only starts then. The Android TV version has its own layout, built for the remote. Updating Omnify never shows it.
+- **A welcome page on a fresh install.** Omnify no longer switches F-Droid and IzzyOnDroid on by itself and starts downloading thousands of apps. It first asks where your apps should come from: Omnify, F-Droid and IzzyOnDroid are ticked, every other repository Omnify ships is listed unticked, and one button ticks or clears them all. Everything fits one screen that never scrolls, with the sources in a card that scrolls inside itself, and a round button to go on. Continuing, even with nothing ticked, is a normal way in, and the first synchronisation only starts then. The Android TV version has its own layout, built for the remote, and also offers the apps made for TV. Updating Omnify never shows it.
 - **An empty home that says what to do** when no repository is switched on, with a button to the repositories, instead of waiting for a synchronisation that is not coming.
 - **Omnify asks which app you want** when a repository publishes several. Each one is listed with its latest version and APK, and the one you pick is the one the source follows from then on.
 - **A "Versions to keep" filter** on every external source, the opposite of "Excluded versions": only releases whose name contains one of its words are kept. The app picker fills it in for you, and it can be edited at any time.
@@ -14,6 +14,8 @@ A welcome page for a fresh install, and external sources that learn to handle re
 - **The permission to install apps is asked on the welcome page** instead of in a dialog on its own at the first start.
 
 ### 🐛 Fixed
+- **On Android TV, the External tab no longer lists sources that are switched off.** It showed Omnify's picks even with every source off, where the phone already hid them.
+- **No synchronisation is shown when there is nothing to synchronise.** With no source switched on, opening the home no longer lights up the sync button.
 - **A source no longer shows another app's release.** Omnify keeps looking further back for the right one instead of stopping at the first page, and never falls back to a release of another app when your APK filter is working.
 - **A clear message when nothing matches the "Versions to keep" filter**, instead of a generic "no release".
 

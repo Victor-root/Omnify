@@ -6,26 +6,37 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** What the welcome page offers, checked against what Omnify actually ships. A recommended address that
- *  matched no default repository would silently never show up in the list. */
+/** What the welcome page offers, checked against what Omnify actually ships. An address that matched no
+ *  default repository would silently never show up in the list. */
 class WelcomeCatalogTest {
 
-    private val repositoryIds = WelcomeCatalog.sources
-        .map { it.id }
-        .filter { it != ExternalApp.OMNIFY_REPO_KEY }
+    private val described = WelcomeCatalog.describedRepositories.map { it.address }
 
     @Test
-    fun `every recommended repository is one Omnify ships`() {
-        assertTrue(repositoryIds.isNotEmpty())
-        repositoryIds.forEach {
+    fun `every described repository is one Omnify ships`() {
+        assertTrue(described.isNotEmpty())
+        described.forEach {
             assertTrue(it in Repository.defaultAddresses, "$it is not one of the default repositories")
         }
     }
 
     @Test
-    fun `a source is listed once`() {
-        val ids = WelcomeCatalog.sources.map { it.id }
-        assertEquals(ids.distinct(), ids)
+    fun `a repository is described once`() {
+        assertEquals(described.distinct(), described)
+    }
+
+    @Test
+    fun `every repository Omnify ships is offered once, the described ones first`() {
+        val order = WelcomeCatalog.repositoryOrder
+        assertEquals(order.distinct(), order)
+        assertEquals(Repository.defaultAddresses, order.toSet())
+        assertEquals(described, order.take(described.size))
+    }
+
+    @Test
+    fun `the others keep the order Omnify lists them in`() {
+        val others = WelcomeCatalog.repositoryOrder.drop(described.size)
+        assertEquals(Repository.defaultAddresses.filter { it !in described }, others)
     }
 
     @Test

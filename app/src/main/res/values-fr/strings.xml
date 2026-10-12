@@ -33,7 +33,6 @@
     <string name="gms_cap_maps_v1_desc">Cette app utilise l\'ancienne bibliothèque Google Maps v1, absente des appareils dégooglisés et non fournie par microG (ses serveurs sont éteints depuis 2013). Les écrans de carte concernés risquent de planter.</string>
     <string name="google_services_detection_caveat">Détecté d\'après les autorisations déclarées dans le manifeste de l\'app. Une version dégooglisée obtenue en patchant le code d\'une app peut laisser une autorisation déclarée même après en avoir retiré ce qui l\'utilisait : une ligne ici ne signifie donc pas toujours que la fonction concernée est encore réellement accessible dans cette version précise.</string>
     <string name="allow_unknown_sources">Autoriser l\'installation d\'applis</string>
-    <string name="allow_unknown_sources_DESC">Omnify a besoin de l\'autorisation d\'installer des applis. Autorisez-la maintenant pour ne pas être interrompu lors de votre première installation.\n\nAprès l\'avoir activée dans les réglages, Android ferme Omnify pour appliquer ce changement (surtout sur TV) : c\'est normal, il suffit de rouvrir l\'appli.</string>
     <string name="allow">Autoriser</string>
     <string name="welcome_title">Bienvenue sur Omnify</string>
     <string name="welcome_subtitle">Choisissez d\'où viennent vos applis. Rien n\'est téléchargé avant que vous continuiez, et vous pourrez changer ce choix à tout moment dans Dépôts.</string>
@@ -42,6 +41,7 @@
     <string name="welcome_deselect_all">Tout décocher</string>
     <string name="welcome_continue">Continuer</string>
     <string name="welcome_continue_without_sources">Continuer sans source</string>
+    <string name="welcome_install_hint">Autorisez-le maintenant pour ne pas être interrompu lors de votre première installation. Android peut fermer Omnify à ce moment : il suffit de rouvrir l\'appli.</string>
     <string name="welcome_source_omnify">Les mises à jour d\'Omnify lui-même.</string>
     <string name="welcome_source_fdroid">Le catalogue de référence des applis libres et open source.</string>
     <string name="welcome_source_izzy">Des applis libres absentes de F-Droid, vérifiées plusieurs fois par semaine.</string>

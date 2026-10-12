@@ -393,6 +393,14 @@ data class ExternalApp(
 }
 
 /**
+ * The sources the External tab lists, on the phone and on the television alike: those switched on,
+ * minus the apps the user hid one by one ([hiddenKeys]). A disabled source stays out of the catalogue
+ * and the updates exactly like a disabled repository, so it must stay out of this list too.
+ */
+fun List<ExternalApp>.shownOnExternalTab(hiddenKeys: Set<String>): List<ExternalApp> =
+    filter { it.enabled && it.key !in hiddenKeys }
+
+/**
  * A repo's bare slug turned into something worth reading, for when a real app name (read from the
  * manifest's own `<application android:label>`) genuinely cannot be found: a repo that carries no
  * Android source at all, such as brave/brave-browser, whose own README says it exists only for

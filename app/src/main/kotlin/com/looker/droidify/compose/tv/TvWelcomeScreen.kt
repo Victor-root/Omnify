@@ -16,7 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -38,6 +39,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,8 +47,12 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.components.verticalScrollbar
 import com.looker.droidify.compose.repoList.AppLauncherIcon
+import com.looker.droidify.compose.settings.components.SettingHeader
 import com.looker.droidify.compose.welcome.WelcomeItem
+import com.looker.droidify.compose.welcome.WelcomeKind
+import com.looker.droidify.compose.welcome.WelcomeSourceDescription
 import com.looker.droidify.compose.welcome.WelcomeSourceIcon
 import com.looker.droidify.compose.welcome.WelcomeViewModel
 import com.looker.droidify.compose.welcome.rememberCanInstallApps
@@ -55,9 +61,11 @@ import kotlinx.coroutines.delay
 
 /**
  * The Android TV welcome page of a fresh install (see [com.looker.droidify.compose.welcome.WelcomeScreen]
- * for what it is for), laid out for a remote: the title and the two actions stay on the left, so
- * "Continue" never has to be scrolled to, and the sources fill the right, each a single focus stop
- * that OK ticks or clears. Focus starts on "Continue", so accepting the usual choices takes one press.
+ * for what it is for), laid out for a remote: everything but the sources stays on the left (the title,
+ * the two actions and, while it is still to be given, the permission to install apps), so "Continue"
+ * never has to be scrolled to and the sources get the whole height of the right. Each source is a single
+ * focus stop that OK ticks or clears, and the apps made for television follow the repositories. Focus
+ * starts on "Continue", so accepting the usual choices takes one press.
  * It is the same [WelcomeViewModel], so what it does is exactly what the phone page does. Never
  * composed off TV.
  */
@@ -101,21 +109,24 @@ fun TvWelcomeScreen(
                     .weight(0.4f)
                     .fillMaxHeight()
                     .focusGroup(),
+                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = spacedBy(12.dp, Alignment.CenterVertically),
             ) {
-                AppLauncherIcon(modifier = Modifier.size(96.dp))
-                Spacer(Modifier.height(8.dp))
+                AppLauncherIcon(modifier = Modifier.size(88.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.welcome_title),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
                 )
                 Text(
                     text = stringResource(R.string.welcome_subtitle),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = { viewModel.finish(onDone) },
                     enabled = !finishing,
@@ -149,27 +160,30 @@ fun TvWelcomeScreen(
                         ),
                     )
                 }
+                if (!canInstallApps) {
+                    TvInstallPermissionRow(onAllow = { context.openUnknownAppSourcesSettings() })
+                }
             }
+            val listState = rememberLazyListState()
+            // The apps made for television follow the repositories under a heading of their own.
+            val firstTvApp = items.indexOfFirst { it.kind is WelcomeKind.TvApp }
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .weight(0.6f)
                     .fillMaxHeight()
+                    .verticalScrollbar(listState)
                     .focusGroup(),
                 contentPadding = PaddingValues(vertical = 8.dp),
                 verticalArrangement = spacedBy(6.dp, Alignment.CenterVertically),
             ) {
-                items(items, key = { it.id }) { item ->
-                    TvWelcomeSourceRow(
-                        item = item,
-                        enabled = !finishing,
-                        onToggle = { viewModel.toggle(item.id) },
-                    )
-                }
-                if (!canInstallApps) {
-                    item(key = "install") {
-                        TvInstallPermissionRow(
-                            onAllow = { context.openUnknownAppSourcesSettings() },
-                            modifier = Modifier.padding(top = 16.dp),
+                itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                    Column {
+                        if (index == firstTvApp) SettingHeader(stringResource(R.string.discover_tv_apps))
+                        TvWelcomeSourceRow(
+                            item = item,
+                            enabled = !finishing,
+                            onToggle = { viewModel.toggle(item.id) },
                         )
                     }
                 }
@@ -178,8 +192,8 @@ fun TvWelcomeScreen(
     }
 }
 
-/** One recommended source. The whole row, tick included, is a single focus stop that flips the tick,
- *  the simplest interaction on a remote, as on the repositories screen's own rows. */
+/** One source. The whole row, tick included, is a single focus stop that flips the tick, the simplest
+ *  interaction on a remote, as on the repositories screen's own rows. */
 @Composable
 private fun TvWelcomeSourceRow(
     item: WelcomeItem,
@@ -199,7 +213,7 @@ private fun TvWelcomeSourceRow(
             )
             .padding(horizontal = 12.dp, vertical = 12.dp),
     ) {
-        WelcomeSourceIcon(item = item, modifier = Modifier.size(56.dp))
+        WelcomeSourceIcon(item = item, size = 56.dp)
         Spacer(Modifier.size(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -208,13 +222,7 @@ private fun TvWelcomeSourceRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                text = stringResource(item.description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            WelcomeSourceDescription(item = item, maxLines = 2)
         }
         Spacer(Modifier.size(12.dp))
         // Display-only: the row is the focus stop, so the tick is not a second one.
@@ -222,36 +230,38 @@ private fun TvWelcomeSourceRow(
     }
 }
 
-/** The permission to install apps, as one more focus stop under the sources. */
+/** The permission to install apps, as one more focus stop under the two buttons. */
 @Composable
-private fun TvInstallPermissionRow(onAllow: () -> Unit, modifier: Modifier = Modifier) {
+private fun TvInstallPermissionRow(onAllow: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .tvFocusFill(RoundedCornerShape(16.dp))
             .clickable(onClick = onAllow)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Icon(
             painter = painterResource(R.drawable.ic_apk_install),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(56.dp).padding(12.dp),
+            modifier = Modifier.size(32.dp),
         )
-        Spacer(Modifier.size(16.dp))
+        Spacer(Modifier.size(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(R.string.allow_unknown_sources),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
             )
             Text(
-                text = stringResource(R.string.allow_unknown_sources_DESC),
+                text = stringResource(R.string.welcome_install_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
             )
         }
-        Spacer(Modifier.size(12.dp))
+        Spacer(Modifier.size(8.dp))
         Text(
             text = stringResource(R.string.allow),
             style = MaterialTheme.typography.labelLarge,

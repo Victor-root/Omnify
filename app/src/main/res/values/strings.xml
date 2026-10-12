@@ -54,7 +54,6 @@
     <string name="gms_cap_maps_v1_desc">This app uses the legacy Google Maps v1 library, absent on de-Googled devices and not provided by microG (its servers were shut down in 2013). Map screens may crash.</string>
     <string name="google_services_detection_caveat">Detected from the permissions declared in the app\'s manifest. A de-Googled build made by patching an app\'s code can leave an unused permission declared even after removing what used it, so a row here does not always mean the capability is still actually reachable in this specific build.</string>
     <string name="allow_unknown_sources">Allow installing apps</string>
-    <string name="allow_unknown_sources_DESC">Omnify needs permission to install apps. Allow it now so you\'re not interrupted at your first install.\n\nAfter you enable it in settings, Android closes Omnify to apply the change (especially on TV). This is normal: just reopen the app.</string>
     <string name="allow">Allow</string>
     <string name="welcome_title">Welcome to Omnify</string>
     <string name="welcome_subtitle">Choose where your apps come from. Nothing is downloaded until you continue, and you can change this at any time in Repositories.</string>
@@ -63,6 +62,7 @@
     <string name="welcome_deselect_all">Deselect all</string>
     <string name="welcome_continue">Continue</string>
     <string name="welcome_continue_without_sources">Continue without sources</string>
+    <string name="welcome_install_hint">Allow it now so you are not interrupted at your first install. Android may close Omnify when you do: just reopen it.</string>
     <string name="welcome_source_omnify">Updates for Omnify itself.</string>
     <string name="welcome_source_fdroid">The reference catalogue of free and open source apps.</string>
     <string name="welcome_source_izzy">Free apps F-Droid doesn\'t carry, checked several times a week.</string>

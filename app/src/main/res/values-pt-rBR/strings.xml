@@ -265,7 +265,6 @@
     <string name="gms_cap_maps_v1_desc">Este app usa a antiga biblioteca Google Maps v1, ausente em dispositivos desgooglizados e não fornecida pelo microG (seus servidores foram desativados em 2013). As telas de mapa podem travar.</string>
     <string name="google_services_detection_caveat">Detectado a partir das permissões declaradas no manifesto do app. Uma compilação desgooglizada feita a partir de patches no código de um app pode manter uma permissão declarada mesmo depois de remover o que a usava, então uma linha aqui nem sempre significa que o recurso ainda esteja de fato acessível nesta compilação específica.</string>
     <string name="allow_unknown_sources">Permitir instalação de apps</string>
-    <string name="allow_unknown_sources_DESC">O Omnify precisa de permissão para instalar apps. Permita agora para não ser interrompido na sua primeira instalação.\n\nDepois de ativar isso nas configurações, o Android fecha o Omnify para aplicar a mudança (principalmente na TV). Isso é normal: basta reabrir o app.</string>
     <string name="allow">Permitir</string>
     <string name="by_author_FORMAT">por %1$s</string>
     <string name="backup_title">Backup</string>
