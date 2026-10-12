@@ -58,6 +58,10 @@ class ChannelMigration @Inject constructor(
         return context.packageManager.getPackageInfoCompat(packageName) != null
     }
 
+    /** Whether this is the stable build with a beta still installed next to it: the one situation in
+     *  which there is data to bring across ([importFromBeta]). */
+    fun canImportFromBeta(): Boolean = !ExternalApp.RUNNING_BUILD_IS_BETA && otherChannelInstalled()
+
     /** Opens the stable app. Called from a beta once the stable build is installed, since from that
      *  point everything left to do happens over there and nothing more happens here. */
     fun launchStable() {

@@ -1,13 +1,16 @@
 package com.looker.droidify.migration
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.BuildConfig
+import com.looker.droidify.compose.welcome.FirstRun
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.ExternalInstallOutcome
 import com.looker.droidify.external.ExternalInstaller
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -63,6 +66,7 @@ enum class ImportStep {
  */
 @HiltViewModel
 class MigrationViewModel @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val channelMigration: ChannelMigration,
     private val externalAppRepository: ExternalAppRepository,
     private val externalInstaller: ExternalInstaller,
@@ -95,6 +99,9 @@ class MigrationViewModel @Inject constructor(
     }
 
     private suspend fun resolve() {
+        // A fresh install offers this on its own welcome pages, where it is one way among others to
+        // bring data over, so the prompt would only say it twice. It comes back once they are done.
+        if (FirstRun.isWelcomePending(context)) return
         if (!BuildConfig.SIMULATE_CHANNEL_SWITCH && channelMigration.dismissed()) return
         _state.value = if (ExternalApp.RUNNING_BUILD_IS_BETA) betaSideState() else stableSideState()
     }
@@ -143,7 +150,7 @@ class MigrationViewModel @Inject constructor(
     }
 
     /** The stable build: a beta still installed is data waiting to be collected. */
-    private fun stableSideState(): MigrationState = if (channelMigration.otherChannelInstalled()) {
+    private fun stableSideState(): MigrationState = if (channelMigration.canImportFromBeta()) {
         MigrationState.ImportFromBeta(ImportStep.OFFERED)
     } else {
         MigrationState.None

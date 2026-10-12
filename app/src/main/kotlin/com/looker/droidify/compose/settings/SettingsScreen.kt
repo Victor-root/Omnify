@@ -71,6 +71,8 @@ import com.looker.droidify.compose.settings.SettingsViewModel.Companion.cleanUpI
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.localeCodesList
 import com.looker.droidify.compose.settings.components.ActionSettingItem
 import com.looker.droidify.compose.settings.components.BackupCategoryDialog
+import com.looker.droidify.compose.settings.components.RestoreCategoriesDialog
+import com.looker.droidify.compose.settings.components.rememberRestoreFilePicker
 import com.looker.droidify.compose.settings.components.CustomButtonsSettingItem
 import com.looker.droidify.compose.settings.components.SelectionSettingItem
 import com.looker.droidify.compose.settings.components.SettingHeader
@@ -103,15 +105,6 @@ import java.util.*
 import kotlin.time.Duration
 
 private const val BACKUP_MIME_TYPE = "application/zip"
-
-// Some file managers report a zip as application/octet-stream or application/x-zip-compressed instead
-// of application/zip — accept all three so a real backup file is never greyed out in the picker
-// (mirrors the same file-manager MIME-detection quirk the old per-category JSON import worked around).
-private val RESTORE_MIME_TYPES = arrayOf(
-    "application/zip",
-    "application/x-zip-compressed",
-    "application/octet-stream",
-)
 
 private fun defaultBackupFileName(): String =
     "omnify-backup-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".zip"
@@ -222,9 +215,6 @@ fun SettingsScreen(
         viewModel.updateBackgroundAccessState(context.isIgnoreBatteryEnabled())
     }
 
-    val pendingRestore by viewModel.pendingRestore.collectAsStateWithLifecycle()
-    val isRestoring by viewModel.isRestoring.collectAsStateWithLifecycle()
-
     // The category checkboxes are confirmed before the file even exists (CreateDocument creates it),
     // so the selection has to be held here until that picker returns a Uri to actually write to.
     var pendingBackupCategories by remember { mutableStateOf<Set<BackupCategory>?>(null) }
@@ -239,15 +229,7 @@ fun SettingsScreen(
         pendingBackupCategories = null
     }
 
-    val restoreLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri != null) {
-            viewModel.inspectRestoreFile(uri)
-        } else {
-            viewModel.showToast(R.string.file_format_error_DESC)
-        }
-    }
+    val pickRestoreFile = rememberRestoreFilePicker(viewModel.restore)
 
     var showBackupDialog by remember { mutableStateOf(false) }
     var showColorPicker by remember { mutableStateOf(false) }
@@ -708,7 +690,7 @@ fun SettingsScreen(
                     title = stringResource(R.string.restore_title),
                     description = stringResource(R.string.restore_row_DESC),
                     icon = painterResource(R.drawable.ic_download),
-                    onClick = { restoreLauncher.launch(RESTORE_MIME_TYPES) },
+                    onClick = pickRestoreFile,
                 )
             }
 
@@ -834,17 +816,7 @@ fun SettingsScreen(
         DeviceTransferReceiveDialog(onDismiss = { showTransferReceive = false })
     }
 
-    val restoreInspection = pendingRestore
-    if (restoreInspection != null) {
-        BackupCategoryDialog(
-            title = stringResource(R.string.restore_dialog_title),
-            confirmLabel = stringResource(R.string.restore_title),
-            availableCategories = restoreInspection.availableCategories,
-            onConfirm = { categories -> viewModel.confirmRestore(categories) },
-            onDismiss = { viewModel.cancelRestore() },
-            isProcessing = isRestoring,
-        )
-    }
+    RestoreCategoriesDialog(viewModel.restore)
 }
 
 /** The app version at the very bottom of the settings, as a normal settings row (icon + title +

@@ -73,16 +73,17 @@ import com.looker.droidify.compose.welcome.WelcomeSourceDescription
 import com.looker.droidify.compose.welcome.WelcomeSourceIcon
 import com.looker.droidify.compose.welcome.WelcomeStep
 import com.looker.droidify.compose.welcome.WelcomeViewModel
+import com.looker.droidify.compose.welcome.rememberRestoreSteps
 import com.looker.droidify.compose.welcome.rememberWelcomeSteps
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.utility.common.SdkCheck
 import kotlinx.coroutines.delay
 
-private const val PAGE_COUNT = 3
+private const val PAGE_COUNT = 4
 
 /**
  * The Android TV welcome of a fresh install (see [com.looker.droidify.compose.welcome.WelcomeScreen] for
- * what the three pages are for), laid out for a remote. Each page keeps its title and buttons on the left
+ * what the four pages are for), laid out for a remote. Each page keeps its title and buttons on the left
  * and its content on the right, so the button that goes on never has to be scrolled to, and focus
  * starts on it: accepting everything as it stands takes one press per page. Back steps to the page
  * before. It is the same [WelcomeViewModel], so what it does is exactly what the phone does. Never
@@ -123,8 +124,9 @@ fun TvWelcomeScreen(
             ) { target ->
                 when (target) {
                     0 -> TvSetupPage(viewModel = viewModel, onNext = { page = 1 })
-                    1 -> TvAppearancePage(viewModel = viewModel, onNext = { page = 2 }, onBack = { page = 0 })
-                    else -> TvSourcesPage(viewModel = viewModel, onBack = { page = 1 }, onDone = onDone)
+                    1 -> TvRestorePage(viewModel = viewModel, onNext = { page = 2 }, onBack = { page = 0 })
+                    2 -> TvAppearancePage(viewModel = viewModel, onNext = { page = 3 }, onBack = { page = 1 })
+                    else -> TvSourcesPage(viewModel = viewModel, onBack = { page = 2 }, onDone = onDone)
                 }
             }
             PageIndicator(
@@ -221,7 +223,7 @@ private fun TvStepRow(step: WelcomeStep) {
         modifier = Modifier
             .fillMaxWidth()
             .tvFocusFill(RoundedCornerShape(18.dp))
-            .clickable(enabled = !step.done, onClick = step.onClick)
+            .clickable(enabled = !step.done && step.enabled, onClick = step.onClick)
             .padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
         Icon(
@@ -243,20 +245,70 @@ private fun TvStepRow(step: WelcomeStep) {
         if (step.done) {
             Icon(
                 painter = painterResource(R.drawable.ic_check),
-                contentDescription = stringResource(R.string.welcome_allowed),
+                contentDescription = stringResource(step.doneLabel),
                 tint = MaterialTheme.colorScheme.primary,
             )
         } else {
             Text(
-                text = stringResource(R.string.allow),
+                text = stringResource(step.actionLabel),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = if (step.enabled) 1f else 0.38f),
             )
         }
     }
 }
 
-/** The second page: the question and the buttons on the left, the look on the right. */
+/** The second page: the question and the buttons on the left, the ways to bring data over on the right. */
+@Composable
+private fun TvRestorePage(viewModel: WelcomeViewModel, onNext: () -> Unit, onBack: () -> Unit) {
+    val steps = rememberRestoreSteps(viewModel)
+    val nextFocus = rememberEntryFocus()
+    Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = spacedBy(48.dp)) {
+        Column(
+            modifier = Modifier.weight(0.4f).fillMaxHeight().focusGroup(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = spacedBy(12.dp, Alignment.CenterVertically),
+        ) {
+            Text(
+                text = stringResource(R.string.welcome_restore_title),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = stringResource(R.string.welcome_restore_hint),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(8.dp))
+            Button(
+                onClick = onNext,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .tvFocusScale(1.05f)
+                    .focusRequester(nextFocus),
+            ) { Text(stringResource(R.string.welcome_next)) }
+            OutlinedButton(
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth().height(60.dp).tvFocusScale(1.05f),
+            ) { Text(stringResource(R.string.tv_back)) }
+        }
+        Column(
+            modifier = Modifier
+                .weight(0.6f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .focusGroup(),
+            verticalArrangement = spacedBy(6.dp, Alignment.CenterVertically),
+        ) {
+            steps.forEach { step -> TvStepRow(step) }
+        }
+    }
+}
+
+/** The third page: the question and the buttons on the left, the look on the right. */
 @Composable
 private fun TvAppearancePage(viewModel: WelcomeViewModel, onNext: () -> Unit, onBack: () -> Unit) {
     val appearance by viewModel.appearance.collectAsStateWithLifecycle()
@@ -323,7 +375,7 @@ private fun TvAppearancePage(viewModel: WelcomeViewModel, onNext: () -> Unit, on
     }
 }
 
-/** The third page: the question and the buttons on the left, the sources on the right. */
+/** The fourth page: the question and the buttons on the left, the sources on the right. */
 @Composable
 private fun TvSourcesPage(viewModel: WelcomeViewModel, onBack: () -> Unit, onDone: () -> Unit) {
     val items by viewModel.items.collectAsStateWithLifecycle()

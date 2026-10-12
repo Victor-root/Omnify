@@ -44,6 +44,15 @@
     <string name="welcome_install_title">Installer des applis</string>
     <string name="welcome_installer_hint">L\'installateur de session est l\'installateur par défaut.</string>
     <string name="welcome_previous">Précédent</string>
+    <string name="welcome_restore_title">Déjà une sauvegarde ?</string>
+    <string name="welcome_restore_hint">Reprenez vos dépôts, sources et réglages, ou continuez simplement pour partir de zéro.</string>
+    <string name="welcome_restore_file_title">Depuis un fichier de sauvegarde</string>
+    <string name="welcome_restore_file_hint">Choisissez un fichier créé par Omnify, puis ce qu\'il faut en restaurer.</string>
+    <string name="welcome_restore_file_action">Choisir</string>
+    <string name="welcome_restore_device_hint">Copiez les données d\'un autre appareil sur celui-ci, sur le même réseau.</string>
+    <string name="welcome_restore_device_action">Recevoir</string>
+    <string name="welcome_restore_beta_title">Omnify Beta détecté</string>
+    <string name="welcome_restored">Restauré</string>
     <string name="welcome_appearance_title">Personnalisez Omnify</string>
     <string name="welcome_appearance_hint">Choisissez l\'apparence d\'Omnify. Vous pourrez tout changer plus tard dans les réglages.</string>
     <string name="welcome_sources_page_title">D\'où viennent vos applis ?</string>

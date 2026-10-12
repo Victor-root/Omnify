@@ -90,7 +90,7 @@ private val ContentMaxWidth = 560.dp
 /** What the bar under the pages takes: the dots, then the way back and the way forward. */
 private val NavigationBarHeight = 84.dp
 
-private const val PAGE_COUNT = 3
+private const val PAGE_COUNT = 4
 
 /** How much of the header the screen's height leaves room for. */
 private enum class HeaderSize { Large, Medium, Small }
@@ -102,12 +102,13 @@ private fun headerSizeFor(height: Dp): HeaderSize = when {
 }
 
 /**
- * What a fresh install opens on, in three pages with a pager's dots under them.
+ * What a fresh install opens on, in four pages with a pager's dots under them.
  *
  * The first welcomes the person and asks, one button each, for what Omnify needs from the device:
  * notifications, the install of apps, and the installer to use. Nothing is asked out of the blue at
- * start-up any more. The second lets them pick the look of the app, each choice applying at once. The
- * third asks where the apps should come from, before anything is downloaded, instead of switching
+ * start-up any more. The second brings data over from a backup file, another device or an Omnify Beta,
+ * all of it optional. The third lets them pick the look of the app, each choice applying at once. The
+ * fourth asks where the apps should come from, before anything is downloaded, instead of switching
  * sources on by itself and starting to synchronise at once.
  *
  * No page scrolls as a page, whatever the screen: the sources sit in a card of their own that scrolls
@@ -126,6 +127,7 @@ fun WelcomeScreen(
     val installerType by viewModel.installerType.collectAsStateWithLifecycle()
     val appearance by viewModel.appearance.collectAsStateWithLifecycle()
     val steps = rememberWelcomeSteps()
+    val restoreSteps = rememberRestoreSteps(viewModel)
     val allChecked = items.isNotEmpty() && items.all { it.checked }
     val pagerState = rememberPagerState { PAGE_COUNT }
     val scope = rememberCoroutineScope()
@@ -168,7 +170,13 @@ fun WelcomeScreen(
                                 onInstallerSelected = viewModel::setInstaller,
                             )
 
-                            1 -> WelcomeAppearancePage(
+                            1 -> WelcomeRestorePage(
+                                wide = wide,
+                                headerSize = headerSize,
+                                steps = restoreSteps,
+                            )
+
+                            2 -> WelcomeAppearancePage(
                                 wide = wide,
                                 headerSize = headerSize,
                                 appearance = appearance,
@@ -246,7 +254,46 @@ private fun WelcomeSetupPage(
     }
 }
 
-/** The second page: how the app looks. */
+/** The second page: bringing data over from where it already is. Nothing here is required. */
+@Composable
+private fun WelcomeRestorePage(
+    wide: Boolean,
+    headerSize: HeaderSize,
+    steps: List<WelcomeStep>,
+) {
+    val compact = headerSize == HeaderSize.Small
+    if (wide) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.weight(0.4f)) {
+                WelcomePageHeading(
+                    title = R.string.welcome_restore_title,
+                    hint = R.string.welcome_restore_hint,
+                    compact = compact,
+                )
+            }
+            WelcomeRestoreCards(steps = steps, modifier = Modifier.weight(0.6f))
+        }
+    } else {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.widthIn(max = ContentMaxWidth).fillMaxSize().padding(16.dp),
+        ) {
+            WelcomePageHeading(
+                title = R.string.welcome_restore_title,
+                hint = R.string.welcome_restore_hint,
+                compact = compact,
+            )
+            Spacer(Modifier.height(16.dp))
+            WelcomeRestoreCards(steps = steps, modifier = Modifier.weight(1f, fill = false))
+        }
+    }
+}
+
+/** The third page: how the app looks. */
 @Composable
 private fun WelcomeAppearancePage(
     wide: Boolean,
@@ -303,7 +350,7 @@ private fun WelcomeAppearancePage(
     }
 }
 
-/** The third page: where the apps should come from. */
+/** The fourth page: where the apps should come from. */
 @Composable
 private fun WelcomeSourcesPage(
     wide: Boolean,
@@ -455,6 +502,18 @@ private fun WelcomeSetupCards(
     }
 }
 
+/** The ways to bring data over, a card each. Scrolls only if a very small screen or a very large font
+ *  leaves it no other way to fit. */
+@Composable
+private fun WelcomeRestoreCards(steps: List<WelcomeStep>, modifier: Modifier = Modifier) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier.verticalScroll(rememberScrollState()),
+    ) {
+        steps.forEach { step -> WelcomeStepCard(step) }
+    }
+}
+
 /** The look, a card each: the theme and the background as rows opening their lists, then the accent
  *  colours laid out to be tapped. Every choice applies at once, so the page itself shows the result.
  *  Scrolls only if a very small screen or a very large font leaves it no other way to fit. */
@@ -549,12 +608,14 @@ private fun WelcomeStepCard(step: WelcomeStep) {
                     if (step.done) {
                         Icon(
                             painter = painterResource(R.drawable.ic_check),
-                            contentDescription = stringResource(R.string.welcome_allowed),
+                            contentDescription = stringResource(step.doneLabel),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = 8.dp),
                         )
                     } else {
-                        FilledTonalButton(onClick = step.onClick) { Text(stringResource(R.string.allow)) }
+                        FilledTonalButton(onClick = step.onClick, enabled = step.enabled) {
+                            Text(stringResource(step.actionLabel))
+                        }
                     }
                 }
                 Text(

@@ -49,14 +49,13 @@ import kotlin.math.PI
  * rather than a screen's raw `contentPadding` for this specific composable's own modifier — see that
  * function's doc comment for why.
  *
- * Off on TV: a 10-foot UI already asks a lot of weaker set-top GPUs, and this is pure decoration
- * the user isn't looking closely at from the couch — not worth the extra always-on compositing.
+ * Off on TV unless [enableOnTelevision] is set, which [com.looker.droidify.compose.tv.TvAccentBackground]
+ * does: most TV screens paint their own solid surface and would only be covered by it.
  */
 @Composable
 fun FloatingAppCardsBackground(
     modifier: Modifier = Modifier,
-    // Off on TV by default (most TV screens paint their own solid surface); the TV screens opt in so
-    // their content area gets the same backdrop as the phone build.
+    // Off on TV by default; TvAccentBackground opts in so TV screens get the chosen backdrop.
     enableOnTelevision: Boolean = false,
     // Multiplies the strength of the decoration. TV sits ~1.7× the phone value so it reads clearly on
     // the big screen (its content is sparser and further away). Phone callers keep 1×.
