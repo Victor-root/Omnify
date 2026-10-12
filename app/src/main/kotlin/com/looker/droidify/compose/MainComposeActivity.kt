@@ -6,7 +6,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -78,7 +77,6 @@ import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.sdkAbove
 import com.looker.droidify.utility.common.deeplinkType
 import com.looker.droidify.utility.common.sharedSourceUrl
-import com.looker.droidify.utility.common.requestNotificationPermission
 import com.looker.droidify.utility.common.wallpaperAccentColor
 import com.looker.droidify.work.SyncWorker
 import dagger.hilt.EntryPoint
@@ -259,9 +257,6 @@ class MainComposeActivity : ComponentActivity() {
     }
 
     private val firstRunPrefs by lazy { FirstRun.prefs(this) }
-
-    private val notificationPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     @EntryPoint
     @InstallIn(SingletonComponent::class)
@@ -742,7 +737,6 @@ class MainComposeActivity : ComponentActivity() {
                 SyncWorker.enqueueUserSync(this@MainComposeActivity)
             }
         }
-        requestNotificationPermission(request = notificationPermission::launch)
         setContent {
             val darkTheme = when (themeState.theme) {
                 Theme.DARK, Theme.AMOLED -> true

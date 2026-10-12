@@ -26,12 +26,7 @@ import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.external.ExternalApi
-import com.looker.droidify.installer.installers.initSui
-import com.looker.droidify.installer.installers.isMagiskGranted
-import com.looker.droidify.installer.installers.isShizukuAlive
-import com.looker.droidify.installer.installers.isShizukuGranted
-import com.looker.droidify.installer.installers.isShizukuInstalled
-import com.looker.droidify.installer.installers.requestPermissionListener
+import com.looker.droidify.installer.InstallerSelection
 import com.looker.droidify.utility.common.SYSTEM_LANGUAGE
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.utility.common.extension.updateAsMutable
@@ -40,12 +35,10 @@ import com.looker.droidify.work.CleanUpWorker
 import com.looker.droidify.work.DownloadStatsWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
@@ -58,6 +51,7 @@ class SettingsViewModel @Inject constructor(
     private val backupRepository: BackupRepository,
     private val customButtonRepository: CustomButtonRepository,
     private val externalApi: ExternalApi,
+    private val installerSelection: InstallerSelection,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -187,49 +181,8 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setInstaller(context: Context, installerType: InstallerType) {
-        viewModelScope.launch {
-            when (installerType) {
-                InstallerType.SHIZUKU -> handleShizukuInstaller(context, installerType)
-                InstallerType.ROOT -> handleRootInstaller(installerType)
-                InstallerType.LEGACY -> {
-                    settingsRepository.setDeleteApkOnInstall(false)
-                    settingsRepository.setInstallerType(installerType)
-                }
-                else -> settingsRepository.setInstallerType(installerType)
-            }
-        }
-    }
-
-    private suspend fun handleShizukuInstaller(context: Context, installerType: InstallerType) {
-        if (isShizukuInstalled(context) || initSui(context)) {
-            when {
-                !isShizukuAlive() -> showToast(R.string.shizuku_not_alive)
-                isShizukuGranted() -> settingsRepository.setInstallerType(installerType)
-                else -> {
-                    if (requestPermissionListener()) {
-                        settingsRepository.setInstallerType(installerType)
-                    }
-                }
-            }
-        } else {
-            showToast(R.string.shizuku_not_installed)
-        }
-    }
-
-    private suspend fun handleRootInstaller(installerType: InstallerType) {
-        // isMagiskGranted() blocks synchronously on the root shell actually starting up — the first
-        // time, that includes waiting on the user to answer Magisk's own grant prompt. Run off the main
-        // thread (viewModelScope defaults to Main), or the whole app hangs and looks like an ANR
-        // ("Omnify ne répond pas") until root either grants or times out.
-        val granted = withContext(Dispatchers.IO) { isMagiskGranted() }
-        if (granted) {
-            settingsRepository.setInstallerType(installerType)
-        } else {
-            // Previously silent: nothing told the user why the switch didn't happen — it just looked
-            // like tapping "Root" did nothing, with only a logcat line (see isMagiskGranted) to go on.
-            showToast(R.string.root_not_granted)
-        }
+    fun setInstaller(installerType: InstallerType) {
+        viewModelScope.launch { installerSelection.select(installerType) }
     }
 
     fun setLegacyInstallerComponent(component: LegacyInstallerComponent?) {
