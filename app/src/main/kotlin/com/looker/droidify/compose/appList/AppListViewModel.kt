@@ -772,8 +772,9 @@ class AppListViewModel @Inject constructor(
      *  compliance. The category union surfaces those real, already-catalogued apps instead of leaving the
      *  carousel almost empty. Shown only on the TV build (the caller gates the UI too), so couch users
      *  get a row of apps that actually work with a remote. The query is skipped entirely off TV to spare
-     *  the work. */
-    val tvApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
+     *  the work. This is the whole list, capped like the "see all" page ([SECTION_PAGE_LIMIT]); the
+     *  carousel shows the first few of it ([tvApps]), and the TV-only grid all of it. */
+    val allTvApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
         .mapLatest { hidden ->
             if (!isTelevisionDevice) {
                 emptyList()
@@ -783,11 +784,17 @@ class AppListViewModel @Inject constructor(
                     featuresToInclude = listOf(LEANBACK_FEATURE),
                     categoriesToInclude = TV_RELEVANT_CATEGORIES,
                     featuresOrCategories = true,
-                ).excludingHidden(hidden).take(DISCOVER_ROW_COUNT)
+                ).excludingHidden(hidden).take(SECTION_PAGE_LIMIT)
             }
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyList())
+
+    /** The first [DISCOVER_ROW_COUNT] of [allTvApps]: the carousel's row. */
+    val tvApps: StateFlow<List<AppMinimal>> = allTvApps
+        .map { it.take(DISCOVER_ROW_COUNT) }
+        .distinctUntilChanged()
         .asStateFlow(emptyList())
 
     /** Full app list for the carousel page the user opened via "see all" (empty when none is open).
