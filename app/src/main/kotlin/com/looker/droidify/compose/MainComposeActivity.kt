@@ -122,6 +122,7 @@ class MainComposeActivity : ComponentActivity() {
         private const val KEY_OMNIFY_SEED = "omnify_seed_v6"
         private const val KEY_OMNIFY_CURATED_MIGRATED = "omnify_curated_migrated_v1"
         private const val KEY_TV_PACK_SEEDED_V1 = "tv_pack_seeded_v1"
+        private const val KEY_TV_PACK_SEEDED_V2 = "tv_pack_seeded_v2"
         private const val KEY_TV_PACK_ICONS_BACKFILLED_V1 = "tv_pack_icons_backfilled_v1"
         private const val KEY_TV_PACK_CURATEDTV_BACKFILLED_V1 = "tv_pack_curatedtv_backfilled_v1"
         private const val KEY_ADAPTIVE_ICON_RESCAN_V1 = "adaptive_icon_rescan_v1"
@@ -171,7 +172,7 @@ class MainComposeActivity : ComponentActivity() {
      * activity — apps with unclear FOSS status, no direct release APK, or a history of shipping malware
      * were deliberately left out even when otherwise popular.
      */
-    private fun curatedTvPack(): List<ExternalApp> = listOf(
+    private fun curatedTvPackV1(): List<ExternalApp> = listOf(
         ExternalApp(
             provider = SourceProvider.GITHUB,
             owner = "theothernt",
@@ -245,6 +246,43 @@ class MainComposeActivity : ComponentActivity() {
             curatedTv = true,
         ),
     )
+
+    /** Added to the pack after [KEY_TV_PACK_SEEDED_V1] had already run on existing installs, so it has a
+     *  flag of its own ([KEY_TV_PACK_SEEDED_V2]): re-seeding the whole pack would bring back what a
+     *  person had removed from it. Jellyfin's TV app is on F-Droid, but only shows in the TV list when
+     *  the catalogue marks it as made for TV, which it does not always do. */
+    private fun curatedTvPackV2(): List<ExternalApp> = listOf(
+        ExternalApp(
+            provider = SourceProvider.GITHUB,
+            owner = "jellyfin",
+            repo = "jellyfin-androidtv",
+            label = "Jellyfin",
+            enabled = false,
+            curated = true,
+            curatedTv = true,
+        ),
+    )
+
+    private fun curatedTvPack(): List<ExternalApp> = curatedTvPackV1() + curatedTvPackV2()
+
+    /** Stores [pack] as disabled entries, each with its real repo icon and TV support resolved first, in
+     *  parallel, so none sits on the owner-avatar fallback while waiting for a later refresh. */
+    private suspend fun seedCuratedTv(pack: List<ExternalApp>) {
+        val seededApps = coroutineScope {
+            pack.map { app ->
+                async(Dispatchers.IO) {
+                    val meta = runCatching { externalApi.fetchRepoMetadata(app) }.getOrNull()
+                    app.copy(
+                        repoIconUrl = meta?.iconCandidates?.firstOrNull(),
+                        iconChecked = meta != null,
+                        supportsTelevision = meta?.supportsTelevision ?: false,
+                        tvChecked = meta != null,
+                    )
+                }
+            }.awaitAll()
+        }
+        seededApps.forEach { externalAppRepository.addApp(it) }
+    }
 
     /** True when [repoIconUrl] looks like an adaptive-icon layer fragment rather than a real composed
      *  icon — the abbreviated ("_fore"/"_back"/"_fg"/"_bg") adaptive-layer suffixes that
@@ -562,21 +600,12 @@ class MainComposeActivity : ComponentActivity() {
             // check to once every 10 minutes, they'd then sit on the owner-avatar fallback for a while
             // after every fresh install, exactly as reported.
             if (!firstRunPrefs.getBoolean(KEY_TV_PACK_SEEDED_V1, false)) {
-                val seededApps = coroutineScope {
-                    curatedTvPack().map { app ->
-                        async(Dispatchers.IO) {
-                            val meta = runCatching { externalApi.fetchRepoMetadata(app) }.getOrNull()
-                            app.copy(
-                                repoIconUrl = meta?.iconCandidates?.firstOrNull(),
-                                iconChecked = meta != null,
-                                supportsTelevision = meta?.supportsTelevision ?: false,
-                                tvChecked = meta != null,
-                            )
-                        }
-                    }.awaitAll()
-                }
-                seededApps.forEach { externalAppRepository.addApp(it) }
+                seedCuratedTv(curatedTvPackV1())
                 firstRunPrefs.edit().putBoolean(KEY_TV_PACK_SEEDED_V1, true).apply()
+            }
+            if (!firstRunPrefs.getBoolean(KEY_TV_PACK_SEEDED_V2, false)) {
+                seedCuratedTv(curatedTvPackV2())
+                firstRunPrefs.edit().putBoolean(KEY_TV_PACK_SEEDED_V2, true).apply()
             }
 
             // One-time: backfill the real repo icon onto curated pack entries seeded by an earlier build

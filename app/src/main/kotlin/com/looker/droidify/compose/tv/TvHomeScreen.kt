@@ -127,6 +127,7 @@ fun TvHomeScreen(
     val recentlyUpdatedApps by viewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val mostDownloadedApps by viewModel.mostDownloadedApps.collectAsStateWithLifecycle()
     val tvApps by viewModel.tvApps.collectAsStateWithLifecycle()
+    val allTvApps by viewModel.allTvApps.collectAsStateWithLifecycle()
     val shizukuApps by viewModel.shizukuApps.collectAsStateWithLifecycle()
     val rootApps by viewModel.rootApps.collectAsStateWithLifecycle()
     val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
@@ -352,7 +353,7 @@ fun TvHomeScreen(
                 // The normal (all-apps) Explore below is untouched.
                 section == TvSection.EXPLORE && tvOnly -> TvAppGrid(
                     title = stringResource(R.string.discover_tv_apps),
-                    apps = tvApps,
+                    apps = allTvApps,
                     installedPackages = installedPackages,
                     onAppClick = openApp,
                     restoreFocusId = restoreFocusId,
