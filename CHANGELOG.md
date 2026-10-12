@@ -16,7 +16,7 @@ A welcome page for a fresh install, and external sources that learn to handle re
 
 ### 🐛 Fixed
 - **Omnify no longer closes by itself during a repository sync on some phones** (a native crash, SIGBUS, reported on a Realme GT Neo 3). The scheduled sync and a sync you start yourself could work on the same repository's index file at once, one downloading over it while the other read it. Syncs of one repository now take turns, and the index file is closed once read.
-- **On Android TV, the background you pick in Settings now shows.** Every TV screen kept the same fixed wash whatever the choice.
+- **On Android TV, the background you pick in Settings now shows.** Every TV screen kept the same fixed wash whatever the choice. It is darkened a little in the dark themes so the content stays readable, and it no longer tints the side rail.
 - **Closing the file picker without choosing a file no longer says the file is invalid** when restoring a backup from Settings.
 - **On Android TV, the External tab no longer lists sources that are switched off.** It showed Omnify's picks even with every source off, where the phone already hid them.
 - **No synchronisation is shown when there is nothing to synchronise.** With no source switched on, opening the home no longer lights up the sync button.
