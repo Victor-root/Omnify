@@ -16,6 +16,7 @@ A welcome page for a fresh install, and external sources that learn to handle re
 - **Omnify no longer asks for notifications, nor for the install of apps, out of the blue at the first start.** Both are asked on the welcome page, behind a button, and a notification dialog never pops up over a screen you are looking at any more.
 
 ### 🐛 Fixed
+- **On Android TV, the phone version of Jellyfin no longer shows in the TV apps list**, since Jellyfin has an app of its own for TV.
 - **On Android TV, the TV apps filter lists many more apps.** It only showed the 16 most recently updated ones, which hid well-known apps; it now shows up to 200, like the "see all" page.
 - **Omnify no longer closes by itself during a repository sync on some phones** (a native crash, SIGBUS, reported on a Realme GT Neo 3). The scheduled sync and a sync you start yourself could work on the same repository's index file at once, one downloading over it while the other read it. Syncs of one repository now take turns, and the index file is closed once read.
 - **On Android TV, the background you pick in Settings now shows.** Every TV screen kept the same fixed wash whatever the choice. It is darkened a little in the dark themes so the content stays readable, and it no longer tints the side rail.

@@ -784,7 +784,7 @@ class AppListViewModel @Inject constructor(
                     featuresToInclude = listOf(LEANBACK_FEATURE),
                     categoriesToInclude = TV_RELEVANT_CATEGORIES,
                     featuresOrCategories = true,
-                ).excludingHidden(hidden).take(SECTION_PAGE_LIMIT)
+                ).excludingHidden(hidden).withoutPhoneVersionsOfTvApps().take(SECTION_PAGE_LIMIT)
             }
         }
         .distinctUntilChanged()
@@ -816,7 +816,7 @@ class AppListViewModel @Inject constructor(
                         featuresToInclude = listOf(LEANBACK_FEATURE),
                         categoriesToInclude = TV_RELEVANT_CATEGORIES,
                         featuresOrCategories = true,
-                    ).excludingHidden(hidden).take(SECTION_PAGE_LIMIT)
+                    ).excludingHidden(hidden).withoutPhoneVersionsOfTvApps().take(SECTION_PAGE_LIMIT)
                     SECTION_SHIZUKU -> shizukuFirst(
                         appRepository.apps(
                             sortOrder = SortOrder.UPDATED,
@@ -905,6 +905,15 @@ private val TV_RELEVANT_CATEGORIES = listOf(
     "Emulator",
     "Remote Controller",
 )
+
+/** Phone apps whose project also publishes an app made for TV: their category passes the TV list's
+ *  filter ([TV_RELEVANT_CATEGORIES]), but the TV one is the right pick on a remote. */
+private val PHONE_APPS_WITH_A_TV_VERSION = setOf(
+    "org.jellyfin.mobile",
+)
+
+private fun List<AppMinimal>.withoutPhoneVersionsOfTvApps(): List<AppMinimal> =
+    filter { it.packageName.name !in PHONE_APPS_WITH_A_TV_VERSION }
 
 /** The manifest <uses-permission> an app declares to talk to Shizuku — our marker for "uses Shizuku". */
 private const val SHIZUKU_PERMISSION = "moe.shizuku.manager.permission.API_V23"
