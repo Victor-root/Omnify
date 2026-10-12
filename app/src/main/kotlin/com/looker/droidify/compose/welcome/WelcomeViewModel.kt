@@ -1,11 +1,14 @@
 package com.looker.droidify.compose.welcome
 
 import android.content.Context
+import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.compose.repoList.defaultRepoName
+import com.looker.droidify.compose.settings.RestoreSession
+import com.looker.droidify.data.backup.BackupRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.datastore.Settings
@@ -19,6 +22,8 @@ import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.installer.InstallerSelection
+import com.looker.droidify.migration.ChannelMigration
+import com.looker.droidify.migration.ImportStep
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.extension.asStateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,8 +32,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -69,8 +76,9 @@ sealed interface WelcomeKind {
 }
 
 /**
- * What the welcome pages of a fresh install need: the installer in use, for the first page, the look of
- * the app, for the second, the sources with their ticks, for the third, and the one action that ends it all by switching on whatever is
+ * What the welcome pages of a fresh install need: the installer in use, for the first page, the ways to
+ * bring data over, for the second, the look of the app, for the third, the sources with their ticks, for
+ * the fourth, and the one action that ends it all by switching on whatever is
  * still ticked, which is also what starts the first synchronisation.
  *
  * A phone is offered every repository Omnify ships, plus Omnify's own update channel and its
@@ -88,6 +96,8 @@ class WelcomeViewModel @Inject constructor(
     private val externalAppRepository: ExternalAppRepository,
     private val settingsRepository: SettingsRepository,
     private val installerSelection: InstallerSelection,
+    private val backupRepository: BackupRepository,
+    private val channelMigration: ChannelMigration,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -159,6 +169,56 @@ class WelcomeViewModel @Inject constructor(
 
     fun useWallpaperAccent() {
         viewModelScope.launch { settingsRepository.setDynamicTheme(true) }
+    }
+
+    /** The restore of a backup file, whose dialog the restore page shows. */
+    val restore = RestoreSession(backupRepository, viewModelScope) {
+        Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+    }
+
+    private val _fileRestored = MutableStateFlow(false)
+
+    /** True once a backup file has been restored on this page. */
+    val fileRestored: StateFlow<Boolean> = _fileRestored
+
+    fun onFileRestored() {
+        _fileRestored.value = true
+    }
+
+    private val _betaImport = MutableStateFlow(if (channelMigration.canImportFromBeta()) ImportStep.OFFERED else null)
+
+    /** Where the import of an Omnify Beta left on the device stands, or null when there is none to offer. */
+    val betaImport: StateFlow<ImportStep?> = _betaImport
+
+    fun importFromBeta() {
+        val step = _betaImport.value
+        if (step != ImportStep.OFFERED && step != ImportStep.FAILED) return
+        _betaImport.value = ImportStep.RUNNING
+        viewModelScope.launch {
+            val imported = channelMigration.importFromBeta().isSuccess
+            // Answered here, so the prompt that would offer it again on the home stays away.
+            if (imported) channelMigration.setDismissed()
+            _betaImport.value = if (imported) ImportStep.IMPORTED else ImportStep.FAILED
+        }
+    }
+
+    fun uninstallBeta() = channelMigration.uninstallBeta()
+
+    init {
+        // Repositories start out off, so one that is on was switched on by a restore, from whichever of
+        // the ways to bring data over. The sources page then shows it ticked, and only what the backup
+        // had on: the ticks offered by default would otherwise undo a backup that left F-Droid off.
+        viewModelScope.launch {
+            repoRepository.repos
+                .map { repos -> repos.filter { it.enabled }.map { it.address.trimEnd('/') } }
+                .distinctUntilChanged()
+                .collect { enabled -> if (enabled.isNotEmpty()) adoptEnabledRepositories(enabled) }
+        }
+    }
+
+    private fun adoptEnabledRepositories(enabled: List<String>) {
+        val shown = WelcomeCatalog.repositoryOrder.toSet()
+        setChecked(checkedIds.value.filter { it !in shown } + enabled.filter { it in shown })
     }
 
     private val _finishing = MutableStateFlow(false)

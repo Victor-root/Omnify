@@ -65,6 +65,15 @@
     <string name="welcome_install_title">Install apps</string>
     <string name="welcome_installer_hint">The session installer is the default installer.</string>
     <string name="welcome_previous">Previous</string>
+    <string name="welcome_restore_title">Already have a backup?</string>
+    <string name="welcome_restore_hint">Bring your repositories, sources and settings over, or just continue to start from scratch.</string>
+    <string name="welcome_restore_file_title">From a backup file</string>
+    <string name="welcome_restore_file_hint">Pick a file made by Omnify, then choose what to restore from it.</string>
+    <string name="welcome_restore_file_action">Choose</string>
+    <string name="welcome_restore_device_hint">Copy the data of another device onto this one, over the same network.</string>
+    <string name="welcome_restore_device_action">Receive</string>
+    <string name="welcome_restore_beta_title">Omnify Beta found</string>
+    <string name="welcome_restored">Restored</string>
     <string name="welcome_appearance_title">Make it yours</string>
     <string name="welcome_appearance_hint">Pick a look for Omnify. You can change all of this later in Settings.</string>
     <string name="welcome_sources_page_title">Where do your apps come from?</string>

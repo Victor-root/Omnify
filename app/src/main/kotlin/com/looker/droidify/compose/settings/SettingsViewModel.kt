@@ -12,7 +12,6 @@ import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.data.PrivacyRepository
 import com.looker.droidify.data.backup.BackupCategory
-import com.looker.droidify.data.backup.BackupInspection
 import com.looker.droidify.data.backup.BackupRepository
 import com.looker.droidify.datastore.CustomButtonRepository
 import com.looker.droidify.datastore.Settings
@@ -69,16 +68,8 @@ class SettingsViewModel @Inject constructor(
     private val _isBackgroundAllowed = MutableStateFlow(true)
     val isBackgroundAllowed = _isBackgroundAllowed.asStateFlow()
 
-    /** Set once a restore file has been picked and read, so the UI can show a checkbox dialog scoped to
-     *  exactly what that archive contains; null when no restore is in progress. */
-    private val _pendingRestore = MutableStateFlow<BackupInspection?>(null)
-    val pendingRestore: StateFlow<BackupInspection?> = _pendingRestore.asStateFlow()
-
-    /** True from the moment "Restaurer" is tapped until [BackupRepository.restoreBackup] returns, so the
-     *  dialog can disable its buttons instead of leaving a window where a second tap would start a
-     *  second, concurrent restore of the same archive. */
-    private val _isRestoring = MutableStateFlow(false)
-    val isRestoring: StateFlow<Boolean> = _isRestoring.asStateFlow()
+    /** The restore of a backup file, whose dialog the screen shows. */
+    val restore = RestoreSession(backupRepository, viewModelScope, ::showToast)
 
     fun updateBackgroundAccessState(allowed: Boolean) {
         _isBackgroundAllowed.value = allowed
@@ -320,41 +311,6 @@ class SettingsViewModel @Inject constructor(
                 onFailure = { showToast(R.string.backup_failed) },
             )
         }
-    }
-
-    /** Reads [uri] (an `OpenDocument`-picked file) and, on success, populates [pendingRestore] so the UI
-     *  can show a checkbox dialog scoped to what the archive actually contains. Shows an error directly
-     *  and leaves [pendingRestore] untouched if the file isn't a readable Omnify backup. */
-    fun inspectRestoreFile(uri: Uri) {
-        viewModelScope.launch {
-            backupRepository.inspectBackup(uri).fold(
-                onSuccess = { inspection -> _pendingRestore.value = inspection },
-                onFailure = { showToast(R.string.file_format_error_DESC) },
-            )
-        }
-    }
-
-    /** Applies exactly [categories] from the archive [pendingRestore] currently holds, then clears it.
-     *  Ignored while a restore is already running, rather than starting a second one on top of it. */
-    fun confirmRestore(categories: Set<BackupCategory>) {
-        val inspection = _pendingRestore.value ?: return
-        if (_isRestoring.value) return
-        _isRestoring.value = true
-        viewModelScope.launch {
-            backupRepository.restoreBackup(inspection, categories).fold(
-                onSuccess = { showToast(R.string.restore_success) },
-                onFailure = { showToast(R.string.restore_failed) },
-            )
-            _isRestoring.value = false
-            _pendingRestore.value = null
-        }
-    }
-
-    /** Dismisses the pending restore dialog without applying anything. Ignored while a restore is
-     *  already running: that choice was already made by tapping "Restaurer". */
-    fun cancelRestore() {
-        if (_isRestoring.value) return
-        _pendingRestore.value = null
     }
 
     fun addCustomButton(button: CustomButton) {
