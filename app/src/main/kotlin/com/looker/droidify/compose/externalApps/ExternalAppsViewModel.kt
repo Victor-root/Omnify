@@ -1530,12 +1530,15 @@ class ExternalAppsViewModel @Inject constructor(
 
     /** Screen-entry (and refresh-button) trigger for [ExternalRefresher.refresh], which is where the
      *  actual work and its throttle live so the scheduled background check can run the very same pass.
-     *  This only adds what the UI needs on top: [isRefreshing], and a guard against a forced pass
-     *  starting while one is already in flight. */
+     *  This only adds what the UI needs on top: [isRefreshing], which stays off while there is no
+     *  switched-on source to check (see [ExternalRefresher.hasSourcesToCheck]), and a guard against a
+     *  forced pass starting while one is already in flight. */
     fun refresh(force: Boolean = false) {
         if (refreshJob?.isActive == true) return
-        _isRefreshing.value = true
-        val job = viewModelScope.launch { externalRefresher.refresh(force) }
+        val job = viewModelScope.launch {
+            _isRefreshing.value = externalRefresher.hasSourcesToCheck()
+            externalRefresher.refresh(force)
+        }
         refreshJob = job
         job.invokeOnCompletion { _isRefreshing.value = false }
     }

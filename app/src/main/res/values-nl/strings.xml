@@ -262,7 +262,6 @@
     <string name="gms_cap_maps_v1_desc">Deze app gebruikt de verouderde Google Maps v1-bibliotheek, die niet aanwezig is op apparaten zonder Google en ook niet door microG wordt geboden (de servers ervan zijn in 2013 stopgezet). Kaartschermen kunnen hierdoor crashen.</string>
     <string name="google_services_detection_caveat">Gedetecteerd op basis van de rechten die in het manifest van de app zijn gedeclareerd. Een Google-vrije build die gemaakt is door de code van een app aan te passen, kan een ongebruikt recht gedeclareerd laten staan, ook nadat het onderdeel dat het gebruikte verwijderd is. Een vermelding hier betekent dus niet altijd dat de functie in deze specifieke build nog echt bereikbaar is.</string>
     <string name="allow_unknown_sources">Installeren van apps toestaan</string>
-    <string name="allow_unknown_sources_DESC">Omnify heeft toestemming nodig om apps te installeren. Sta dit nu toe, zodat je niet wordt onderbroken bij je eerste installatie.\n\nNadat je dit in de instellingen hebt ingeschakeld, sluit Android Omnify af om de wijziging toe te passen (vooral op tv). Dit is normaal: open de app gewoon opnieuw.</string>
     <string name="allow">Toestaan</string>
     <string name="by_author_FORMAT">door %1$s</string>
     <string name="backup_title">Back-up</string>

@@ -95,6 +95,14 @@ class ExternalRefresher @Inject constructor(
         }
     }
 
+    /**
+     * Whether a refresh would check anything for new releases: only switched-on sources are, as
+     * [refresh] explains. With none, a refresh is just the one-time housekeeping on sources nobody has
+     * switched on, which is no synchronisation worth showing a progress bar for.
+     */
+    suspend fun hasSourcesToCheck(): Boolean =
+        repository.getApps().any { it.enabled } || repository.getAccounts().any { it.enabled }
+
     private suspend fun refreshOne(app: ExternalApp) {
         // A release may not exist yet (e.g. the seeded Omnify source has no published release), or the
         // source may simply not be enabled yet. Either way we still scan the repo below for its icon /

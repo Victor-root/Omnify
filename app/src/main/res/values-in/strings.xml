@@ -296,7 +296,6 @@
     <string name="gms_cap_maps_v1_desc">Aplikasi ini menggunakan pustaka lama Google Maps v1 yang tidak ada pada perangkat tanpa Google dan tidak disediakan oleh microG (servernya dimatikan sejak 2013). Layar peta dapat berhenti mendadak.</string>
     <string name="google_services_detection_caveat">Terdeteksi dari perizinan yang dideklarasikan dalam manifest aplikasi. Versi tanpa Google yang dibuat dengan menambal kode aplikasi dapat meninggalkan izin yang tidak lagi dipakai tetap terdeklarasi walau bagian yang memakainya sudah dihapus, sehingga baris ini tidak selalu berarti kemampuan tersebut masih benar-benar dapat diakses pada versi ini.</string>
     <string name="allow_unknown_sources">Izinkan pemasangan aplikasi</string>
-    <string name="allow_unknown_sources_DESC">Omnify memerlukan izin untuk memasang aplikasi. Izinkan sekarang agar Anda tidak terganggu saat pemasangan pertama.\n\nSetelah Anda mengaktifkannya di pengaturan, Android akan menutup Omnify untuk menerapkan perubahan ini (terutama di TV). Ini normal: cukup buka kembali aplikasinya.</string>
     <string name="allow">Izinkan</string>
     <string name="by_author_FORMAT">oleh %1$s</string>
     <string name="backup_title">Pencadangan</string>

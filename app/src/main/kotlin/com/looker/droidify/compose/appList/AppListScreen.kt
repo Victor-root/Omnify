@@ -152,6 +152,7 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.shownOnExternalTab
 import com.looker.droidify.work.BatchUpdateProgress
 import kotlinx.coroutines.delay
 
@@ -327,7 +328,7 @@ fun AppListScreen(
     // Apps the user hid individually are excluded here too, so every list derived below (the grid, the
     // TV row, the Updates tab) never has to check hiddenExternalApps itself.
     val enabledExternalApps = remember(externalApps, hiddenExternalApps) {
-        externalApps.filter { it.enabled && it.key !in hiddenExternalApps }
+        externalApps.shownOnExternalTab(hiddenExternalApps)
     }
     // External sources whose repo manifest declares Android TV support — shown in the "Made for TV" row
     // alongside the F-Droid TV apps (TV only).

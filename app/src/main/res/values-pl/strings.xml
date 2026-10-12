@@ -306,7 +306,6 @@
     <string name="gms_cap_maps_v1_desc">Ta aplikacja korzysta ze starszej biblioteki Map Google v1, niedostępnej na odgooglowanych urządzeniach i niezapewnianej przez microG (jej serwery wyłączono w 2013 roku). Ekrany z mapą mogą ulegać awarii.</string>
     <string name="google_services_detection_caveat">Wykryto na podstawie uprawnień zadeklarowanych w manifeście aplikacji. Odgooglowana wersja utworzona przez modyfikację kodu aplikacji może pozostawić zadeklarowane, ale nieużywane uprawnienie, nawet po usunięciu tego, co z niego korzystało, więc dany wiersz nie zawsze oznacza, że dana funkcja jest wciąż faktycznie dostępna w tej konkretnej wersji.</string>
     <string name="allow_unknown_sources">Zezwól na instalowanie aplikacji</string>
-    <string name="allow_unknown_sources_DESC">Omnify potrzebuje uprawnienia do instalowania aplikacji. Zezwól na nie teraz, aby nie przerywać sobie pierwszej instalacji.\n\nPo włączeniu go w ustawieniach Android zamyka Omnify, aby zastosować zmianę (zwłaszcza na TV). To normalne: po prostu otwórz aplikację ponownie.</string>
     <string name="allow">Zezwól</string>
     <string name="by_author_FORMAT">autor: %1$s</string>
     <string name="backup_title">Kopia zapasowa</string>

@@ -88,6 +88,7 @@ import com.looker.droidify.compose.settings.components.InfoBanner
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.shownOnExternalTab
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
@@ -401,10 +402,10 @@ fun TvHomeScreen(
                 )
 
                 TvSection.EXTERNAL -> TvExternalGrid(
-                    // Same filter as the phone's External grid: narrow to TV-capable sources when on,
-                    // and drop apps the user hid individually.
-                    apps = (if (tvOnly) externalApps.filter { it.supportsTelevision } else externalApps)
-                        .filterNot { it.key in hiddenExternalApps },
+                    // Same filter as the phone's External grid: only the sources switched on, minus the apps
+                    // the user hid individually, narrowed to TV-capable sources when that toggle is on.
+                    apps = externalApps.shownOnExternalTab(hiddenExternalApps)
+                        .filter { !tvOnly || it.supportsTelevision },
                     installedKeys = externalInstalledKeys,
                     onAppClick = openExternal,
                     githubTokenInvalid = githubTokenInvalid,
