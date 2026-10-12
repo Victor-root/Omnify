@@ -1,13 +1,10 @@
 package com.looker.droidify.utility.common
 
-import android.Manifest
-import android.app.Activity
 import android.app.WallpaperManager
 import android.content.Context
-import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
-import androidx.core.content.ContextCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
 import com.looker.droidify.utility.common.extension.intent
 import com.looker.droidify.utility.common.extension.powerManager
@@ -56,28 +53,16 @@ fun Context.requestBatteryFreedom() {
     }
 }
 
-fun Activity.requestNotificationPermission(
-    request: (permission: String) -> Unit,
-    onGranted: () -> Unit = {},
-) {
-    when {
-        ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.POST_NOTIFICATIONS,
-        ) == PackageManager.PERMISSION_GRANTED -> {
-            onGranted()
-        }
+/** Whether Omnify may post notifications right now: the permission from Android 13, and the app's own
+ *  notification switch before it. */
+fun Context.areNotificationsEnabled(): Boolean =
+    NotificationManagerCompat.from(this).areNotificationsEnabled()
 
-        shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
-            sdkAbove(Build.VERSION_CODES.TIRAMISU) {
-                request(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-
-        else -> {
-            sdkAbove(Build.VERSION_CODES.TIRAMISU) {
-                request(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
+/** Opens the system page of this app's notifications, where they are switched on once Android will no
+ *  longer ask. Falls back to nothing (never throws) when a ROM has no such page. */
+fun Context.openNotificationSettings() {
+    val intent = intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS) {
+        putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
     }
+    runCatching { startActivity(intent) }
 }

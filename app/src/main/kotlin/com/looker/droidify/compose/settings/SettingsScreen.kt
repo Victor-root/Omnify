@@ -514,7 +514,7 @@ fun SettingsScreen(
                 InstallerTypeSetting(
                     icon = painterResource(R.drawable.ic_apk_install),
                     selectedInstaller = settings.installerType,
-                    onInstallerSelected = { viewModel.setInstaller(context, it) },
+                    onInstallerSelected = viewModel::setInstaller,
                 )
             }
 
@@ -1095,8 +1095,9 @@ private fun CleanUpIntervalSetting(
     )
 }
 
+/** The installer choice, as a row opening the list of installers. Also on the welcome page. */
 @Composable
-private fun InstallerTypeSetting(
+internal fun InstallerTypeSetting(
     icon: Painter,
     selectedInstaller: InstallerType,
     onInstallerSelected: (InstallerType) -> Unit,

@@ -8,9 +8,13 @@ import androidx.lifecycle.viewModelScope
 import com.looker.droidify.compose.repoList.defaultRepoName
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.Repo
+import com.looker.droidify.datastore.SettingsRepository
+import com.looker.droidify.datastore.get
+import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
+import com.looker.droidify.installer.InstallerSelection
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.extension.asStateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -51,9 +55,9 @@ sealed interface WelcomeKind {
 }
 
 /**
- * What the welcome page of a fresh install needs: the sources it offers with their ticks, and the one
- * action that ends the page by switching on whatever is still ticked, which is also what starts the
- * first synchronisation.
+ * What the welcome pages of a fresh install need: the installer in use, for the first page, the sources
+ * with their ticks, for the second, and the one action that ends it all by switching on whatever is
+ * still ticked, which is also what starts the first synchronisation.
  *
  * A phone is offered every repository Omnify ships, plus Omnify's own update channel and its
  * developer's account. A television is offered the main repositories and the apps made for it, which
@@ -68,6 +72,8 @@ class WelcomeViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val repoRepository: RepoRepository,
     private val externalAppRepository: ExternalAppRepository,
+    private val settingsRepository: SettingsRepository,
+    private val installerSelection: InstallerSelection,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -111,6 +117,14 @@ class WelcomeViewModel @Inject constructor(
             }
         }
     }.flowOn(Dispatchers.Default).asStateFlow(emptyList())
+
+    /** The installer in use, which the first page lets the person choose, as Settings does. */
+    val installerType: StateFlow<InstallerType> =
+        settingsRepository.get { installerType }.asStateFlow(InstallerType.Default)
+
+    fun setInstaller(installerType: InstallerType) {
+        viewModelScope.launch { installerSelection.select(installerType) }
+    }
 
     private val _finishing = MutableStateFlow(false)
 
