@@ -1,7 +1,6 @@
 package com.looker.droidify.compose.settings
 
 import android.net.Uri
-import androidx.annotation.StringRes
 import com.looker.droidify.R
 import com.looker.droidify.data.backup.BackupCategory
 import com.looker.droidify.data.backup.BackupInspection
@@ -17,12 +16,12 @@ import kotlinx.coroutines.launch
  * offer a checkbox list scoped to what the archive actually holds, then applying the categories that
  * were kept, leaving the rest alone. Shared by Settings and the welcome pages, so both behave the same.
  *
- * Tell the person how it went through [showMessage], with a string of its own.
+ * Tells the person how it went through [showMessage], which takes a string resource.
  */
 class RestoreSession(
     private val backupRepository: BackupRepository,
     private val scope: CoroutineScope,
-    private val showMessage: (@StringRes Int) -> Unit,
+    private val showMessage: (Int) -> Unit,
 ) {
     private val _pending = MutableStateFlow<BackupInspection?>(null)
 
