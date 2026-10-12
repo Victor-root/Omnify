@@ -41,7 +41,7 @@ class RepoCatalogue @Inject constructor(
     /** Runs [block] for as long as [repoId] stays enabled: null if it is disabled before or meanwhile. */
     suspend fun <T : Any> whileEnabled(repoId: Int, block: suspend () -> T): T? {
         if (!settingsRepository.isRepoEnabled(repoId)) return null
-        return merge(
+        return merge<T?>(
             flow { emit(block()) },
             settingsRepository.getEnabledRepoIds().filter { repoId !in it }.map { null },
         ).first()
