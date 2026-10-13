@@ -2,6 +2,7 @@ package com.looker.droidify.compose.welcome
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.looker.droidify.BuildConfig
 
 /**
  * The "first_run" preferences: one-off flags written once per install, so that start-up work which must
@@ -23,6 +24,9 @@ object FirstRun {
      * the answer survives the app being closed halfway through the page.
      */
     fun markIfFreshInstall(context: Context) {
+        // The test build goes to someone who reported a bug, to reproduce it as quickly as possible:
+        // it starts like an install from before the welcome page, with the default sources on.
+        if (BuildConfig.BUILD_TYPE == "trial") return
         val prefs = prefs(context)
         if (prefs.all.isEmpty()) prefs.edit().putBoolean(KEY_WELCOME_PENDING, true).apply()
     }

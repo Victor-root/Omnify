@@ -238,6 +238,13 @@ android {
                 name = "SIMULATE_CHANNEL_SWITCH",
                 value = (simulateChannelSwitch && name == "debug").toString(),
             )
+            // The in-app diagnostic log (see DiagnosticLog): the test build handed to a reporter and the
+            // debug build only. Never in release or beta, where the code behind it is stripped out.
+            buildConfigField(
+                type = "boolean",
+                name = "DIAGNOSTICS",
+                value = (name == "trial" || name == "debug").toString(),
+            )
         }
     }
 

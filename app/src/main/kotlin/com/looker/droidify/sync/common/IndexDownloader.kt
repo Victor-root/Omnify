@@ -3,8 +3,10 @@ package com.looker.droidify.sync.common
 import android.content.Context
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.network.Downloader
+import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.ProgressListener
 import com.looker.droidify.utility.common.cache.Cache
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -28,8 +30,11 @@ suspend fun Downloader.downloadIndex(
     // to start from an empty file. This is safe here because we only reach a full download when the
     // index actually changed (the entry/diff check already handled "up to date"), so the server
     // returns the whole index, never a 304.
+    DiagnosticLog.log(
+        "download ${indexFile.name}: ${indexFile.length()} bytes already there, clean=$clean, diff=$diff",
+    )
     if (clean) indexFile.delete()
-    downloadToFile(
+    val response = downloadToFile(
         url = url,
         target = indexFile,
         block = onProgress,
@@ -47,7 +52,18 @@ suspend fun Downloader.downloadIndex(
             }
         },
     )
+    DiagnosticLog.log("download ${indexFile.name}: ${response.describe()}, now ${indexFile.length()} bytes")
     indexFile
+}
+
+/** What a download answered, without the exception's message, which can quote a URL. */
+private fun NetworkResponse.describe(): String = when (this) {
+    is NetworkResponse.Success -> "HTTP $statusCode"
+    is NetworkResponse.Error.Http -> "HTTP error $statusCode"
+    is NetworkResponse.Error.ConnectionTimeout -> "connection timeout"
+    is NetworkResponse.Error.SocketTimeout -> "socket timeout"
+    is NetworkResponse.Error.IO -> "IO error ${exception.javaClass.simpleName}"
+    is NetworkResponse.Error.Unknown -> "error ${exception.javaClass.simpleName}"
 }
 
 const val INDEX_V1_NAME = "index-v1.jar"
