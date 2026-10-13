@@ -295,7 +295,7 @@ class RepoRepository @Inject constructor(
      * The locks live in the companion because this class is not a singleton: each worker gets an
      * instance of its own, and a lock per instance would never be shared by the two that collide.
      */
-    private fun fetchLock(repoId: Int): Mutex = fetchLocks.computeIfAbsent(repoId) { Mutex() }
+    private fun fetchLock(repoId: Int): Mutex = fetchLocks.getOrPut(repoId) { Mutex() }
 
     private suspend fun fetchIndex(repo: Repo, onState: ((SyncState) -> Unit)?): FetchedIndex {
         var success = false
