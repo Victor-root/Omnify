@@ -38,6 +38,7 @@ import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.getDrawableCompat
 import com.looker.droidify.utility.common.extension.getInstalledPackagesCompat
 import com.looker.droidify.utility.common.localeCodeForTag
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.extension.toInstalledItem
 import com.looker.droidify.work.AutoUpdateWorker
 import com.looker.droidify.work.CleanUpWorker
@@ -94,6 +95,7 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
 
     override fun onCreate() {
         super.onCreate()
+        DiagnosticLog.init(this)
 
         // A fresh install seeds its default repos from MainComposeActivity and syncs the ones picked on
         // the welcome page, so there's no legacy "database created -> full sync" step here any more.

@@ -138,6 +138,7 @@ import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.compose.components.AccentTabRow
 import com.looker.droidify.compose.components.CatalogOfflineState
+import com.looker.droidify.compose.components.DiagnosticLogDialog
 import com.looker.droidify.compose.components.NoSourcesState
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
@@ -1728,6 +1729,29 @@ private fun AppListMainTopBar(
         expandedHeight = HomeBarHeight,
         title = title,
         actions = {
+            // The test and debug builds only: the log a person reproducing a bug sends back.
+            if (BuildConfig.DIAGNOSTICS) {
+                var showDiagnostics by remember { mutableStateOf(false) }
+                IconButton(
+                    onClick = { showDiagnostics = true },
+                    modifier = Modifier
+                        .then(
+                            if (LocalIsTelevision.current) {
+                                Modifier.size(48.dp)
+                            } else {
+                                Modifier.size(smallContainerSize(Narrow))
+                            },
+                        )
+                        .tvFocusScale(),
+                ) {
+                    Icon(
+                        painterResource(R.drawable.ic_bug_report),
+                        contentDescription = stringResource(R.string.diagnostics_title),
+                    )
+                }
+                if (showDiagnostics) DiagnosticLogDialog(onDismiss = { showDiagnostics = false })
+                Spacer(Modifier.width(buttonSpacing))
+            }
             IconButton(
                 onClick = onToggleSearch,
                 modifier = Modifier

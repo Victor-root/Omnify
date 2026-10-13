@@ -26,6 +26,7 @@ import com.looker.droidify.sync.v1.V1Syncable
 import com.looker.droidify.sync.v2.EntrySyncable
 import com.looker.droidify.sync.v2.model.IndexV2
 import com.looker.droidify.utility.common.extension.exceptCancellation
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.work.SyncWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
@@ -243,10 +244,14 @@ class RepoRepository @Inject constructor(
     suspend fun sync(repo: Repo, onState: ((SyncState) -> Unit)? = null): Boolean {
         val fetched = repoCatalogue.whileEnabled(repo.id) {
             val lock = fetchLock(repo.id)
-            if (BuildConfig.DEBUG && lock.isLocked) {
-                Log.d(TAG, "${repo.name} (id=${repo.id}) is already being synced; waiting for that one")
+            val label = DiagnosticLog.repoLabel(repo)
+            if (lock.isLocked) DiagnosticLog.log("sync $label: already being synced, waiting for that one")
+            lock.withLock {
+                DiagnosticLog.log("sync $label: start")
+                fetchIndex(repo, onState).also {
+                    DiagnosticLog.log("sync $label: end, success=${it.success}, new index=${it.index != null}")
+                }
             }
-            lock.withLock { fetchIndex(repo, onState) }
         }
         if (fetched == null) {
             Log.i(TAG, "${repo.name} (id=${repo.id}) is disabled; sync skipped")
@@ -301,6 +306,7 @@ class RepoRepository @Inject constructor(
         var success = false
         var parsedFingerprint: Fingerprint? = null
         var parsedIndex: IndexV2? = null
+        val label = DiagnosticLog.repoLabel(repo)
         val handleState: (SyncState) -> Unit = { state ->
             onState?.invoke(state)
             when (state) {
@@ -311,12 +317,18 @@ class RepoRepository @Inject constructor(
                 }
                 // Surface failures instead of swallowing them — otherwise a sync that downloaded but
                 // couldn't parse/verify the index looks "successful" while the catalog stays empty.
-                is SyncState.IndexDownload.Failure ->
+                is SyncState.IndexDownload.Failure -> {
                     Log.e(TAG, "Index download failed for ${repo.name} (id=${repo.id})", state.error)
-                is SyncState.JarParsing.Failure ->
+                    DiagnosticLog.log("sync $label: download failed, ${state.error.javaClass.simpleName}")
+                }
+                is SyncState.JarParsing.Failure -> {
                     Log.e(TAG, "Index signature check failed for ${repo.name} (id=${repo.id})", state.error)
-                is SyncState.JsonParsing.Failure ->
+                    DiagnosticLog.log("sync $label: jar check failed, ${state.error.javaClass.simpleName}")
+                }
+                is SyncState.JsonParsing.Failure -> {
                     Log.e(TAG, "Index parse failed for ${repo.name} (id=${repo.id})", state.error)
+                    DiagnosticLog.log("sync $label: parse failed, ${state.error.javaClass.simpleName}")
+                }
                 else -> Unit
             }
         }

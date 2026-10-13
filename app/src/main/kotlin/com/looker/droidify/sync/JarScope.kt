@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import java.io.Closeable
 import java.io.File
 import java.util.jar.JarEntry
@@ -22,7 +23,10 @@ interface JarScope<out T> : Closeable {
 
 @OptIn(ExperimentalSerializationApi::class)
 inline fun <reified T> File.toJarScope(): JarScope<T> = object : JarScope<T> {
-    private val jarFile = JarFile(this@toJarScope, true)
+    private val jarFile = run {
+        DiagnosticLog.log("open jar ${this@toJarScope.name}: ${this@toJarScope.length()} bytes")
+        JarFile(this@toJarScope, true)
+    }
     private var isFingerprintSet = false
     private var internalFingerprint: Fingerprint? = null
 
@@ -42,7 +46,10 @@ inline fun <reified T> File.toJarScope(): JarScope<T> = object : JarScope<T> {
             return internalFingerprint
         }
 
-    override fun close() = jarFile.close()
+    override fun close() {
+        jarFile.close()
+        DiagnosticLog.log("closed jar ${this@toJarScope.name}")
+    }
 
     override suspend fun json(): T = withContext(Dispatchers.IO) {
         try {

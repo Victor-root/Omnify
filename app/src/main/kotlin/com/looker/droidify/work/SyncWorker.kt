@@ -30,6 +30,7 @@ import com.looker.droidify.sync.SyncState
 import com.looker.droidify.utility.common.createNotificationChannel
 import com.looker.droidify.utility.common.extension.exceptCancellation
 import com.looker.droidify.utility.common.toForegroundInfo
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.notifications.showUpdatesAvailableNotification
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -57,6 +58,10 @@ class SyncWorker @AssistedInject constructor(
             null
         }
         Log.i(TAG, "SyncWorker started (repoId=$repoId)")
+        DiagnosticLog.log(
+            "worker start: ${inputData.getString(KEY_TRIGGER) ?: "launch"} sync, repo=${repoId ?: "all"}, " +
+                "attempt ${runAttemptCount + 1}",
+        )
         try {
             val success = if (repoId != null) {
                 val repo = repoRepository.getRepo(repoId)
@@ -114,12 +119,15 @@ class SyncWorker @AssistedInject constructor(
             }
             if (success) {
                 Log.i(TAG, "Sync completed successfully (repoId=$repoId)")
+                DiagnosticLog.log("worker end: success")
                 Result.success()
             } else {
                 Log.w(TAG, "Sync reported failure (repoId=$repoId)")
+                DiagnosticLog.log("worker end: failure")
                 retryOrGiveUp(repoId)
             }
         } catch (t: Throwable) {
+            DiagnosticLog.log("worker stopped: ${t.javaClass.simpleName}")
             t.exceptCancellation()
             Log.e(TAG, "Sync failed with exception", t)
             retryOrGiveUp(repoId)
