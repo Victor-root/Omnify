@@ -14,7 +14,6 @@ import com.looker.droidify.data.model.Repo
 import com.looker.droidify.model.Repository
 import com.looker.droidify.utility.common.SdkCheck
 import java.io.File
-import java.net.URI
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -85,15 +84,12 @@ object DiagnosticLog {
         log("--- cleared")
     }
 
-    /** How [repo] appears in the log: its number, and its host only when it is one Omnify ships with. */
+    /** How [repo] appears in the log: its number, and its address only when it is one Omnify ships
+     *  with, public by nature. One the person added could be private, so it is never named. */
     fun repoLabel(repo: Repo): String {
         val address = repo.address.trimEnd('/')
-        val host = if (address in Repository.defaultAddresses) {
-            runCatching { URI(address).host }.getOrNull()
-        } else {
-            null
-        }
-        return "repo #${repo.id} (${host ?: "own repository"})"
+        val shown = if (address in Repository.defaultAddresses) address else "own repository"
+        return "repo #${repo.id} ($shown)"
     }
 
     /** SimpleDateFormat is not safe across threads, hence the lock. */
