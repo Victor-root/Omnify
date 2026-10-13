@@ -39,6 +39,9 @@ class EntrySyncable(
                 repo = repo,
                 url = repo.address.removeSuffix("/") + "/$ENTRY_V2_NAME",
                 fileName = ENTRY_V2_NAME,
+                // Always from an empty file: a jar left by a sync that was cut short is never worth
+                // resuming, and writing over it in place would shrink a file that may still be open.
+                clean = true,
                 onProgress = { bytes, total ->
                     val percent = (bytes percentBy total)
                     block(SyncState.IndexDownload.Progress(repo.id, percent))
