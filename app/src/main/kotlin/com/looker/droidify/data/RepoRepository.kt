@@ -66,8 +66,6 @@ class RepoRepository @Inject constructor(
         dispatcher = syncDispatcher,
     )
 
-    private val fetchLocks = ConcurrentHashMap<Int, Mutex>()
-
     private val settings = settingsRepository.data
     private val keyStream = encryptionStorage.key
     private val locale = settings.map { it.language }
@@ -293,6 +291,9 @@ class RepoRepository @Inject constructor(
      * workers and can reach the same repository together, and both work on the same cached index file.
      * One downloading over it while the other reads it makes the read hit a file that shrank under it,
      * which Android reports as a native crash (SIGBUS) that no try/catch can stop.
+     *
+     * The locks live in the companion because this class is not a singleton: each worker gets an
+     * instance of its own, and a lock per instance would never be shared by the two that collide.
      */
     private fun fetchLock(repoId: Int): Mutex = fetchLocks.computeIfAbsent(repoId) { Mutex() }
 
@@ -365,6 +366,8 @@ class RepoRepository @Inject constructor(
 
     private companion object {
         private const val TAG = "RepoRepository"
+
+        private val fetchLocks = ConcurrentHashMap<Int, Mutex>()
 
         /** Temporary: the add-a-repository trail's tag, shared with the screen so one Logcat filter
          *  covers the whole path from the form down to the write. Debug builds only, and it goes away
