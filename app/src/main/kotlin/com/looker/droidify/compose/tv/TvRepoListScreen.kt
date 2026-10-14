@@ -60,6 +60,7 @@ import com.looker.droidify.compose.externalApps.AddSourceState
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.PendingSharedSource
+import com.looker.droidify.compose.externalApps.rememberObtainiumImportPicker
 import com.looker.droidify.compose.repoList.AddExternalAccountDialog
 import com.looker.droidify.compose.repoList.AddExternalSourceDialog
 import com.looker.droidify.compose.repoList.AddSourceChooserDialog
@@ -101,6 +102,7 @@ fun TvRepoListScreen(
     // disable / add / remove). The apps themselves live on the External tab. Same singleton repositories
     // back both, so the lists stay in sync everywhere — exactly as on the phone screen.
     val externalViewModel: ExternalAppsViewModel = hiltViewModel()
+    val importObtainium = rememberObtainiumImportPicker(externalViewModel)
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
     val externalAccounts by externalViewModel.accounts.collectAsStateWithLifecycle()
     val scanningAccounts by externalViewModel.scanningAccounts.collectAsStateWithLifecycle()
@@ -345,6 +347,10 @@ fun TvRepoListScreen(
             onChooseAccount = {
                 showAddChooser = false
                 showAddAccount = true
+            },
+            onChooseObtainium = {
+                showAddChooser = false
+                importObtainium()
             },
         )
     }
