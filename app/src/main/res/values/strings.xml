@@ -639,6 +639,9 @@
     <string name="add_source_external_desc">Follow one app straight from its releases (GitHub, GitLab, Codeberg, or a self-hosted Gitea/Forgejo).</string>
     <string name="add_source_account">Whole account</string>
     <string name="add_source_account_desc">Add every app of an account at once (e.g. github.com/owner): one row that expands to all of its apps.</string>
+    <string name="add_source_obtainium">Import from Obtainium</string>
+    <string name="add_source_obtainium_desc">Follow the apps of an Obtainium export (GitHub, GitLab and Codeberg ones)</string>
+    <string name="obtainium_import_result">Obtainium: %1$d added, %2$d already followed, %3$d not supported</string>
     <string name="install_failed_signature_mismatch">%1$s is already installed from a different source. Uninstall it first, then install this version.</string>
     <string name="install_failed_version_downgrade">A newer version of %1$s is already installed. Uninstall it first, then install this older version.</string>
     <string name="signature_conflict_title">Uninstall required</string>

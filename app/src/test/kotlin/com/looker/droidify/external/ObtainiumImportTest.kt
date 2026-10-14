@@ -1,0 +1,117 @@
+package com.looker.droidify.external
+
+import com.looker.droidify.assets
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * An Obtainium export read into external sources. The export in the resources is written field for
+ * field the way Obtainium's own App.toJson and export schema write one, and holds the very entry the
+ * issue's author shared, alongside every kind of source Obtainium can follow.
+ */
+class ObtainiumImportTest {
+
+    private val import = parseObtainiumExport(assets("obtainium_export.json")!!.readText())
+
+    private fun app(path: String) = import.apps.single { it.path == path }
+
+    @Test
+    fun `keeps every GitHub, GitLab and Codeberg app once, and names the others`() {
+        assertEquals(
+            listOf(
+                "gezimos/inkOS",
+                "uazo/cromite",
+                "gkd-kit/gkd",
+                "group/sub/project",
+                "owner/forge-app",
+                "owner/app",
+                "team/apps/tool",
+                "owner/no-package-yet",
+            ),
+            import.apps.map { it.path },
+        )
+        assertEquals(
+            listOf("F-Droid", "Izzy App", "Mirror App", "HTML Tracked", "Direct APK"),
+            import.unsupported,
+        )
+    }
+
+    @Test
+    fun `a plain GitHub app keeps its name and package, and is switched on`() {
+        val inkOs = app("gezimos/inkOS")
+        assertEquals(SourceProvider.GITHUB, inkOs.provider)
+        assertEquals("", inkOs.host)
+        assertEquals("inkOS", inkOs.label)
+        assertFalse(inkOs.nameOverridden)
+        assertEquals("app.inkos", inkOs.packageName)
+        assertTrue(inkOs.enabled)
+        assertFalse(inkOs.includePrereleases)
+        assertNull(inkOs.apkFilter)
+        assertNull(inkOs.versionIncludeFilter)
+    }
+
+    @Test
+    fun `settings with a counterpart are carried over`() {
+        val cromite = app("uazo/cromite")
+        assertEquals("My Browser", cromite.label)
+        assertTrue(cromite.nameOverridden)
+        assertTrue(cromite.includePrereleases)
+        assertEquals("arm64", cromite.apkFilter)
+        assertEquals("stable", cromite.versionIncludeFilter)
+        assertEquals("beta,rc", app("owner/forge-app").versionIncludeFilter)
+    }
+
+    @Test
+    fun `settings Omnify cannot say are left out rather than turned into something else`() {
+        val gkd = app("gkd-kit/gkd")
+        // "Everything but x86" would become "only x86".
+        assertNull(gkd.apkFilter)
+        // A real pattern is not a list of words.
+        assertNull(gkd.versionIncludeFilter)
+    }
+
+    @Test
+    fun `nested GitLab groups stay part of the owner`() {
+        val nested = app("group/sub/project")
+        assertEquals(SourceProvider.GITLAB, nested.provider)
+        assertEquals("", nested.host)
+    }
+
+    @Test
+    fun `self-hosted Forgejo and GitLab keep their host`() {
+        val forgejo = app("owner/app")
+        assertEquals(SourceProvider.CODEBERG, forgejo.provider)
+        assertEquals("git.example.org", forgejo.host)
+        val gitlab = app("team/apps/tool")
+        assertEquals(SourceProvider.GITLAB, gitlab.provider)
+        assertEquals("gitlab.example.org", gitlab.host)
+    }
+
+    @Test
+    fun `a placeholder id is not taken for a package`() {
+        assertNull(app("owner/no-package-yet").packageName)
+    }
+
+    @Test
+    fun `reads the older shapes of an export`() {
+        val entry = """
+            {"id": "app.inkos", "url": "https://github.com/gezimos/inkOS", "author": "gezimos",
+             "name": "inkOS", "additionalSettings": "{\"includePrereleases\": true}"}
+        """.trimIndent()
+        val wrapped = parseObtainiumExport("""{"apps": [$entry]}""")
+        val bare = parseObtainiumExport("[$entry]")
+        assertEquals(listOf("gezimos/inkOS"), wrapped.apps.map { it.path })
+        assertEquals(wrapped, bare)
+        assertTrue(bare.apps.single().includePrereleases)
+    }
+
+    @Test
+    fun `a file that is not an export is refused`() {
+        assertFailsWith<IllegalArgumentException> { parseObtainiumExport("not json") }
+        assertFailsWith<IllegalArgumentException> { parseObtainiumExport("""{"settings": {}}""") }
+    }
+}

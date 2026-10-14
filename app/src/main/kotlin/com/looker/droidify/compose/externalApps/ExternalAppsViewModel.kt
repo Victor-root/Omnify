@@ -3,6 +3,7 @@ package com.looker.droidify.compose.externalApps
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
@@ -43,6 +44,7 @@ import com.looker.droidify.external.apkVersionToken
 import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.external.parseAccountSource
 import com.looker.droidify.external.parseExternalSource
+import com.looker.droidify.external.parseObtainiumExport
 import com.looker.droidify.external.prettifyRepoName
 import com.looker.droidify.external.publicHost
 import com.looker.droidify.external.releaseCacheFileName
@@ -1547,6 +1549,37 @@ class ExternalAppsViewModel @Inject constructor(
      *  from the External tab and the Updates tab, and skipped when checking for new releases. */
     fun setSourceEnabled(app: ExternalApp, enabled: Boolean) {
         viewModelScope.launch { repository.upsertApp(app.copy(enabled = enabled)) }
+    }
+
+    /** Adds every source an Obtainium export follows that Omnify can follow too (see
+     *  [parseObtainiumExport]), leaving alone the ones already here, then checks the new ones for their
+     *  release, icon and name, and says how it went. */
+    fun importObtainium(uri: Uri) {
+        viewModelScope.launch {
+            val import = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
+                        ?.let(::parseObtainiumExport)
+                }.getOrNull()
+            }
+            if (import == null) {
+                toast(context.getString(R.string.file_format_error_DESC))
+                return@launch
+            }
+            val known = repository.getApps().mapTo(mutableSetOf()) { it.key }
+            val added = import.apps.filter { it.key !in known }
+            repository.upsertApps(added)
+            toast(
+                context.getString(
+                    R.string.obtainium_import_result,
+                    added.size,
+                    import.apps.size - added.size,
+                    import.unsupported.size,
+                ),
+                long = true,
+            )
+            if (added.isNotEmpty()) refresh(force = true)
+        }
     }
 
     /** Applies edited per-source settings. Re-fetches the latest release when the pre-release setting,

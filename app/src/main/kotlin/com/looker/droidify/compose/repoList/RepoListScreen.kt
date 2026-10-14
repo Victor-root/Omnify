@@ -88,6 +88,7 @@ import com.looker.droidify.compose.externalApps.AddSourceState
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.PendingSharedSource
+import com.looker.droidify.compose.externalApps.rememberObtainiumImportPicker
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.trailRepoIcon
 import com.looker.droidify.external.ExternalAccount
@@ -131,6 +132,7 @@ fun RepoListScreen(
     }
 
     var showAddChooser by rememberSaveable { mutableStateOf(false) }
+    val importObtainium = rememberObtainiumImportPicker(externalViewModel)
     var showAddExternal by rememberSaveable { mutableStateOf(false) }
     var showAddAccount by rememberSaveable { mutableStateOf(false) }
     var editingExternal by remember { mutableStateOf<ExternalApp?>(null) }
@@ -421,6 +423,10 @@ fun RepoListScreen(
             onChooseAccount = {
                 showAddChooser = false
                 showAddAccount = true
+            },
+            onChooseObtainium = {
+                showAddChooser = false
+                importObtainium()
             },
         )
     }
@@ -1076,6 +1082,7 @@ internal fun AddSourceChooserDialog(
     onChooseFdroid: () -> Unit,
     onChooseExternal: () -> Unit,
     onChooseAccount: () -> Unit,
+    onChooseObtainium: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1101,6 +1108,13 @@ internal fun AddSourceChooserDialog(
                     title = stringResource(R.string.add_source_account),
                     description = stringResource(R.string.add_source_account_desc),
                     onClick = onChooseAccount,
+                )
+                Spacer(Modifier.height(8.dp))
+                AddSourceOption(
+                    iconRes = R.drawable.ic_download,
+                    title = stringResource(R.string.add_source_obtainium),
+                    description = stringResource(R.string.add_source_obtainium_desc),
+                    onClick = onChooseObtainium,
                 )
             }
         },
