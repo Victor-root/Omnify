@@ -89,6 +89,81 @@ internal class Backdrop(
     private val dotBuckets: List<List<Offset>> =
         if (style == BackgroundStyle.DOTS) dotGrid() else emptyList()
 
+    // What follows never moves with the phase, so it is built on the first frame that draws it and kept
+    // for every frame after: a gradient is a native shader, a path a native object. Only the style on
+    // screen ever builds its own, as this whole class is rebuilt for every size the backdrop takes.
+
+    /** Reused (rewound) for every shape drawn; the canvas keeps its own copy of each one it draws. */
+    private val path by fixed { Path() }
+    private val hairline by fixed { Stroke(width = density) }
+
+    private val contourGlows by fixed {
+        listOf(
+            glowAt(w * 0.1f, h * 0.05f, w * 1.1f, tones.tone(0f, tones.pick(0.35f, 0.8f), tones.pick(0.65f, 0.7f))),
+            glowAt(w * 0.95f, h * 0.9f, w, tones.tone(30f, tones.pick(0.32f, 0.84f), tones.pick(0.55f, 0.6f))),
+        )
+    }
+    private val haloVignette by fixed {
+        Brush.radialGradient(
+            0.2f to Color.Transparent,
+            1f to Color.Black.copy(alpha = 0.45f),
+            center = Offset(w / 2, h * 0.45f),
+            radius = h * 0.8f,
+        )
+    }
+    private val silkGlow by fixed {
+        glowAt(w * 0.9f, h * 0.1f, w * 1.1f, tones.tone(20f, tones.pick(0.3f, 0.85f), tones.pick(0.5f, 0.6f)))
+    }
+    private val silkRibbons by fixed {
+        List(5) { k ->
+            val brush = Brush.linearGradient(
+                0f to tones.tone(-20f + k * 8, tones.pick(0.45f, 0.7f), 0f),
+                0.45f to tones.tone(k * 6f, tones.pick(0.55f, 0.62f), tones.pick(0.32f, 0.3f) - k * 0.04f),
+                1f to tones.tone(30f, tones.pick(0.6f, 0.75f), 0f),
+                start = Offset(0f, h * 0.2f),
+                end = Offset(w, h * 0.8f),
+            )
+            val width = (46 - k * 6) * u
+            val passes = SilkPasses.map { (spread, alpha) -> Stroke(width * spread, cap = StrokeCap.Round) to alpha }
+            SilkRibbon(brush, passes)
+        }
+    }
+    private val dunesGlow by fixed {
+        glowAt(w * 0.3f, 0f, w * 1.2f, tones.tone(-10f, tones.pick(0.35f, 0.82f), tones.pick(0.55f, 0.6f)))
+    }
+    private val bokehGlow by fixed {
+        glowAt(w * 0.5f, h * 0.3f, w * 1.1f, tones.tone(0f, tones.pick(0.3f, 0.85f), tones.pick(0.5f, 0.55f)))
+    }
+    private val facetsGlow by fixed {
+        glowAt(w * 0.85f, h * 0.1f, w, tones.tone(15f, tones.pick(0.33f, 0.84f), tones.pick(0.55f, 0.6f)))
+    }
+    private val dotsGlow by fixed {
+        glowAt(w * 0.95f, h * 0.9f, w * 0.9f, tones.tone(30f, tones.pick(0.32f, 0.84f), tones.pick(0.45f, 0.5f)))
+    }
+    private val rippleOrigin = Offset(-0.1f * w, 1.05f * h)
+    private val rippleGlows by fixed {
+        listOf(
+            glowAt(
+                rippleOrigin.x, rippleOrigin.y, w * 1.1f,
+                tones.tone(0f, tones.pick(0.35f, 0.8f), tones.pick(0.65f, 0.65f)),
+            ),
+            glowAt(w, 0f, w, tones.tone(30f, tones.pick(0.3f, 0.85f), tones.pick(0.5f, 0.55f))),
+        )
+    }
+    private val flowGlows by fixed {
+        listOf(
+            glowAt(0f, h * 0.4f, w * 1.1f, tones.tone(-15f, tones.pick(0.33f, 0.82f), tones.pick(0.55f, 0.6f))),
+            glowAt(w, h * 0.85f, w, tones.tone(25f, tones.pick(0.3f, 0.85f), tones.pick(0.5f, 0.55f))),
+        )
+    }
+    private val flowBrush by fixed {
+        Brush.horizontalGradient(
+            0f to tones.tone(-25f, tones.pick(0.62f, 0.45f), tones.pick(0.08f, 0.06f)),
+            0.5f to tones.tone(0f, tones.pick(0.62f, 0.45f), tones.pick(0.22f, 0.18f)),
+            1f to tones.tone(25f, tones.pick(0.62f, 0.45f), tones.pick(0.08f, 0.06f)),
+        )
+    }
+
     fun DrawScope.drawBackdrop(phase: Float) {
         drawRect(tones.base)
         when (style) {
@@ -109,29 +184,28 @@ internal class Backdrop(
         if (!tones.black) drawRect(GrainBrush, alpha = tones.pick(0.05f, 0.035f))
     }
 
-    private fun DrawScope.glow(x: Float, y: Float, radius: Float, color: Color) {
-        val center = Offset(x, y)
-        drawCircle(Brush.radialGradient(listOf(color, color.copy(alpha = 0f)), center, radius), radius, center)
-    }
+    /** For the glows that drift with the phase, which are built again on every frame. */
+    private fun DrawScope.glow(x: Float, y: Float, radius: Float, color: Color) = drawGlow(glowAt(x, y, radius, color))
+
+    private fun DrawScope.drawGlow(glow: Glow) = drawCircle(glow.brush, glow.radius, glow.center)
 
     private fun DrawScope.contour(phase: Float) {
-        glow(w * 0.1f, h * 0.05f, w * 1.1f, tones.tone(0f, tones.pick(0.35f, 0.8f), tones.pick(0.65f, 0.7f)))
-        glow(w * 0.95f, h * 0.9f, w, tones.tone(30f, tones.pick(0.32f, 0.84f), tones.pick(0.55f, 0.6f)))
+        contourGlows.forEach { drawGlow(it) }
         val center = Offset(w * 0.78f, h * 0.22f)
-        val stroke = Stroke(width = density)
-        repeat(22) { k ->
-            val path = Path()
-            var angle = 0f
-            while (angle <= 2 * PI.toFloat()) {
-                val radius = (30 + k * 19) * u + 9 * u * sin(angle * 3 + k * 0.35f + phase) +
-                    6 * u * sin(angle * 5 - k * 0.2f)
-                val x = center.x + radius * cos(angle) * 1.1f
-                val y = center.y + radius * sin(angle)
-                if (angle == 0f) path.moveTo(x, y) else path.lineTo(x, y)
-                angle += 0.05f
+        val angles = ContourAngles
+        val cosines = ContourCos
+        val sines = ContourSin
+        repeat(ContourRings) { k ->
+            path.rewind()
+            val wave = ContourWaves[k]
+            angles.forEachIndexed { i, angle ->
+                val radius = (30 + k * 19) * u + 9 * u * sin(angle * 3 + k * 0.35f + phase) + 6 * u * wave[i]
+                val x = center.x + radius * cosines[i] * 1.1f
+                val y = center.y + radius * sines[i]
+                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
             path.close()
-            drawPath(path, tones.tone(k * 2f, tones.pick(0.65f, 0.4f), tones.pick(0.16f, 0.13f)), style = stroke)
+            drawPath(path, tones.tone(k * 2f, tones.pick(0.65f, 0.4f), tones.pick(0.16f, 0.13f)), style = hairline)
         }
     }
 
@@ -149,52 +223,34 @@ internal class Backdrop(
             w * 0.1f - drift * sin(phase), h * 0.95f - drift * cos(phase), w * 1.05f,
             tones.tone(-30f, tones.pick(0.36f, 0.82f), tones.pick(0.5f, 0.6f)),
         )
-        if (tones.dark) {
-            drawRect(
-                Brush.radialGradient(
-                    0.2f to Color.Transparent,
-                    1f to Color.Black.copy(alpha = 0.45f),
-                    center = Offset(w / 2, h * 0.45f),
-                    radius = h * 0.8f,
-                ),
-            )
-        }
+        if (tones.dark) drawRect(haloVignette)
     }
 
     private fun DrawScope.silk(phase: Float) {
-        glow(w * 0.9f, h * 0.1f, w * 1.1f, tones.tone(20f, tones.pick(0.3f, 0.85f), tones.pick(0.5f, 0.6f)))
-        repeat(5) { k ->
+        drawGlow(silkGlow)
+        silkRibbons.forEachIndexed { k, ribbon ->
             val offset = k * 0.042f * h
             val wobble = sin(phase + k * 0.7f) * 0.03f * h
-            val path = Path().apply {
-                moveTo(-0.13f * w, h * 0.62f + offset)
-                cubicTo(
-                    w * 0.35f, h * 0.3f + offset + wobble,
-                    w * 0.55f, h * 0.95f + offset * 0.5f - wobble,
-                    w * 1.13f, h * 0.4f + offset * 0.8f,
-                )
-            }
-            val brush = Brush.linearGradient(
-                0f to tones.tone(-20f + k * 8, tones.pick(0.45f, 0.7f), 0f),
-                0.45f to tones.tone(k * 6f, tones.pick(0.55f, 0.62f), tones.pick(0.32f, 0.3f) - k * 0.04f),
-                1f to tones.tone(30f, tones.pick(0.6f, 0.75f), 0f),
-                start = Offset(0f, h * 0.2f),
-                end = Offset(w, h * 0.8f),
+            path.rewind()
+            path.moveTo(-0.13f * w, h * 0.62f + offset)
+            path.cubicTo(
+                w * 0.35f, h * 0.3f + offset + wobble,
+                w * 0.55f, h * 0.95f + offset * 0.5f - wobble,
+                w * 1.13f, h * 0.4f + offset * 0.8f,
             )
-            val width = (46 - k * 6) * u
             // Wider, fainter passes under the ribbon itself soften its edges into a glow.
-            for ((spread, alpha) in SilkPasses) {
-                drawPath(path, brush, alpha = alpha, style = Stroke(width * spread, cap = StrokeCap.Round))
+            for ((stroke, alpha) in ribbon.passes) {
+                drawPath(path, ribbon.brush, alpha = alpha, style = stroke)
             }
         }
     }
 
     private fun DrawScope.dunes(phase: Float) {
-        glow(w * 0.3f, 0f, w * 1.2f, tones.tone(-10f, tones.pick(0.35f, 0.82f), tones.pick(0.55f, 0.6f)))
+        drawGlow(dunesGlow)
         val step = 8 * density
         repeat(5) { k ->
             val direction = if (k % 2 == 0) 1 else -1
-            val path = Path()
+            path.rewind()
             var x = 0f
             while (true) {
                 val y = h * (0.5f + 0.1f * k) +
@@ -214,18 +270,19 @@ internal class Backdrop(
     }
 
     private fun DrawScope.bokeh(phase: Float) {
-        glow(w * 0.5f, h * 0.3f, w * 1.1f, tones.tone(0f, tones.pick(0.3f, 0.85f), tones.pick(0.5f, 0.55f)))
-        val rim = Stroke(width = density)
+        drawGlow(bokehGlow)
         BokehSpots.forEachIndexed { index, spot ->
             val center = Offset(w * spot.x, h * spot.y + sin(phase + index) * 0.02f * h)
             val radius = w * spot.radius
             drawCircle(tones.tone(spot.shift, tones.pick(0.55f, 0.7f), spot.alpha), radius, center)
-            drawCircle(tones.tone(spot.shift, tones.pick(0.7f, 0.6f), spot.alpha * 0.8f), radius, center, style = rim)
+            drawCircle(
+                tones.tone(spot.shift, tones.pick(0.7f, 0.6f), spot.alpha * 0.8f), radius, center, style = hairline,
+            )
         }
     }
 
     private fun DrawScope.facets(phase: Float) {
-        glow(w * 0.85f, h * 0.1f, w, tones.tone(15f, tones.pick(0.33f, 0.84f), tones.pick(0.55f, 0.6f)))
+        drawGlow(facetsGlow)
         FacetSpecs.forEachIndexed { index, facet ->
             val side = w * facet.size
             val center = Offset(w * facet.x, h * facet.y)
@@ -246,7 +303,7 @@ internal class Backdrop(
             w * 0.2f + drift * sin(phase), h * 0.15f + drift * cos(phase), w * 1.1f,
             tones.tone(0f, tones.pick(0.35f, 0.8f), tones.pick(0.6f, 0.65f)),
         )
-        glow(w * 0.95f, h * 0.9f, w * 0.9f, tones.tone(30f, tones.pick(0.32f, 0.84f), tones.pick(0.45f, 0.5f)))
+        drawGlow(dotsGlow)
         dotBuckets.forEachIndexed { bucket, points ->
             if (bucket == 0 || points.isEmpty()) return@forEachIndexed
             drawPoints(
@@ -280,14 +337,11 @@ internal class Backdrop(
     }
 
     private fun DrawScope.ripples(phase: Float) {
-        val origin = Offset(-0.1f * w, 1.05f * h)
-        glow(origin.x, origin.y, w * 1.1f, tones.tone(0f, tones.pick(0.35f, 0.8f), tones.pick(0.65f, 0.65f)))
-        glow(w, 0f, w, tones.tone(30f, tones.pick(0.3f, 0.85f), tones.pick(0.5f, 0.55f)))
+        rippleGlows.forEach { drawGlow(it) }
         val step = 28 * density
         val reach = hypot(w * 1.1f, h * 1.05f) + step
         // The rings move outward by one spacing per cycle, so the loop restarts exactly where it began.
         val offset = phase / (2 * PI.toFloat()) * step
-        val stroke = Stroke(width = density)
         var k = 0
         while (true) {
             val radius = k * step + offset
@@ -295,27 +349,20 @@ internal class Backdrop(
             val fade = 1 - radius / reach
             drawCircle(
                 tones.tone(k * 1.5f, tones.pick(0.62f, 0.42f), tones.pick(0.22f, 0.18f) * fade),
-                radius, origin, style = stroke,
+                radius, rippleOrigin, style = hairline,
             )
             k++
         }
     }
 
     private fun DrawScope.flow(phase: Float) {
-        glow(0f, h * 0.4f, w * 1.1f, tones.tone(-15f, tones.pick(0.33f, 0.82f), tones.pick(0.55f, 0.6f)))
-        glow(w, h * 0.85f, w, tones.tone(25f, tones.pick(0.3f, 0.85f), tones.pick(0.5f, 0.55f)))
-        val brush = Brush.horizontalGradient(
-            0f to tones.tone(-25f, tones.pick(0.62f, 0.45f), tones.pick(0.08f, 0.06f)),
-            0.5f to tones.tone(0f, tones.pick(0.62f, 0.45f), tones.pick(0.22f, 0.18f)),
-            1f to tones.tone(25f, tones.pick(0.62f, 0.45f), tones.pick(0.08f, 0.06f)),
-        )
-        val stroke = Stroke(width = density)
+        flowGlows.forEach { drawGlow(it) }
         val step = 6 * density
         val lines = 28
         repeat(lines) { k ->
             val baseline = h * (0.12f + 0.028f * k)
             val amplitude = h * 0.05f * sin(PI.toFloat() * k / (lines - 1)) + h * 0.01f
-            val path = Path()
+            path.rewind()
             var x = 0f
             while (true) {
                 val turn = 2 * PI.toFloat() * x / w
@@ -325,9 +372,44 @@ internal class Backdrop(
                 if (x >= w) break
                 x = (x + step).coerceAtMost(w)
             }
-            drawPath(path, brush, style = stroke)
+            drawPath(path, flowBrush, style = hairline)
         }
     }
+}
+
+/** Built on first use only, by the style that draws it; drawing stays on the main thread. */
+private fun <T> fixed(initializer: () -> T): Lazy<T> = lazy(LazyThreadSafetyMode.NONE, initializer)
+
+/** A glow's gradient with where it is drawn. */
+private class Glow(val center: Offset, val radius: Float, val brush: Brush)
+
+private fun glowAt(x: Float, y: Float, radius: Float, color: Color): Glow {
+    val center = Offset(x, y)
+    return Glow(center, radius, Brush.radialGradient(listOf(color, color.copy(alpha = 0f)), center, radius))
+}
+
+/** One silk ribbon's gradient, and the stroke and alpha of each of its [SilkPasses]. */
+private class SilkRibbon(val brush: Brush, val passes: List<Pair<Stroke, Float>>)
+
+private const val ContourRings = 22
+
+/** The contour rings' angle steps, accumulated exactly as the drawing loop always did. */
+private val ContourAngles: FloatArray by lazy {
+    buildList {
+        var angle = 0f
+        while (angle <= 2 * PI.toFloat()) {
+            add(angle)
+            angle += 0.05f
+        }
+    }.toFloatArray()
+}
+
+// The rings' trigonometry that never moves with the phase, worked out once with the very same float
+// operations instead of again for every point of every frame.
+private val ContourCos: FloatArray by lazy { FloatArray(ContourAngles.size) { cos(ContourAngles[it]) } }
+private val ContourSin: FloatArray by lazy { FloatArray(ContourAngles.size) { sin(ContourAngles[it]) } }
+private val ContourWaves: List<FloatArray> by lazy {
+    List(ContourRings) { k -> FloatArray(ContourAngles.size) { sin(ContourAngles[it] * 5 - k * 0.2f) } }
 }
 
 /** (width multiplier, alpha) of each pass that draws one silk ribbon, widest and faintest first. */
