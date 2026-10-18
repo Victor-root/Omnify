@@ -263,16 +263,19 @@ class AppListViewModel @Inject constructor(
         AppQuery(searchQuery, categories, tvOnlyValue)
     }
         .combine(catalogChanges) { query, _ -> query }
-        .combine(tvPackageNames) { query, tvNames -> query to tvNames }
-        .combine(hiddenApps) { pair, hidden -> Triple(pair.first, pair.second, hidden) }
-        .mapLatest { (query, tvNames, hidden) ->
-            val items = appRepository.apps(
+        .combine(hiddenApps) { query, hidden -> query to hidden }
+        .mapLatest { (query, hidden) ->
+            query.tvOnly to appRepository.apps(
                 // The sort picker was removed; the main list always shows the freshest apps first.
                 sortOrder = SortOrder.UPDATED,
                 searchQuery = query.search,
                 categoriesToInclude = query.categories.toList(),
             ).excludingHidden(hidden)
-            if (query.tvOnly) items.filter { it.packageName.name in tvNames } else items
+        }
+        // Applied to the queried list rather than being part of what triggers the query: tvPackageNames
+        // only changes after a catalogue change that already re-ran it, notably filling in at cold start.
+        .combine(tvPackageNames) { (tvOnlyValue, items), tvNames ->
+            if (tvOnlyValue) items.filter { it.packageName.name in tvNames } else items
         }
         // Off the main thread, and skip re-emitting an identical list (the catalogue flow fires
         // repeatedly during a sync) so the grid doesn't needlessly re-diff and re-animate.
