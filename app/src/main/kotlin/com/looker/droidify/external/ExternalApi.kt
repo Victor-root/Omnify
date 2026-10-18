@@ -478,7 +478,7 @@ class ExternalApi @Inject constructor(
 
             SourceProvider.GITLAB -> fetchGitlabTreePaths(app)
         }
-        if (paths.isNotEmpty()) treeCache[cacheKey] = SystemClock.elapsedRealtime() to paths
+        if (paths.isNotEmpty()) treeCache.putFresh(cacheKey, paths)
         return paths
     }
 
@@ -755,7 +755,7 @@ class ExternalApi @Inject constructor(
         }
         val info = getText(url, github = app.provider == SourceProvider.GITHUB)
             ?.let { text -> runCatching { json.decodeFromString(RepoInfoDto.serializer(), text) }.getOrNull() }
-        if (info != null) repoInfoCache[cacheKey] = SystemClock.elapsedRealtime() to info
+        if (info != null) repoInfoCache.putFresh(cacheKey, info)
         return info
     }
 
@@ -1220,6 +1220,18 @@ private const val MAX_ICON_CANDIDATES = 12
  *  new translation or source file shows up again within the same day rather than staying cached forever.
  *  Matches [com.looker.droidify.compose.externalApps.ExternalAppsViewModel]'s own per-app caches. */
 private const val TREE_CACHE_TTL_MS = 15 * 60 * 1000L
+
+/** Stores [value] under [key] in one of [ExternalApi]'s timed caches, first dropping every entry older
+ *  than [TREE_CACHE_TTL_MS]. Reads already ignore those, so they would otherwise only keep their memory
+ *  (a whole repo tree each) for the life of the process. The two-argument remove leaves alone an entry
+ *  another thread has refreshed in the meantime. */
+private fun <V> ConcurrentHashMap<String, Pair<Long, V>>.putFresh(key: String, value: V) {
+    val now = SystemClock.elapsedRealtime()
+    for ((cachedKey, cached) in this) {
+        if (now - cached.first >= TREE_CACHE_TTL_MS) remove(cachedKey, cached)
+    }
+    this[key] = now to value
+}
 
 /** An `owner/repo` pair returned when listing a whole account's repositories. */
 data class RepoRef(val owner: String, val repo: String)
