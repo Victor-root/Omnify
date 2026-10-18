@@ -1,7 +1,11 @@
 package com.looker.droidify.compose.appList
 
+import android.content.Context
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.util.Log
+import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -36,15 +40,71 @@ import com.looker.droidify.compose.components.TileIconSize
 import com.looker.droidify.compose.components.TvTileIconSize
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.data.model.AppMinimal
+import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.toSafeBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** Square pixel size the system fallback icon is rendered at (generous so it stays crisp at any tile
  *  size, including the focus zoom). */
-private const val LauncherIconPx = 256
+internal const val LauncherIconPx = 256
 
 private const val TAG = "CatalogTile"
+
+/** Memory budget of [InstalledLauncherIcons]: 32 icons at [LauncherIconPx]. */
+private const val InstalledLauncherIconsBytes = 32 * LauncherIconPx * LauncherIconPx * 4
+
+/**
+ * Installed apps' launcher icons as [readInstalledLauncherIcon] renders them, so a tile coming back into
+ * view doesn't render the same icon again. Keyed per install (package and lastUpdateTime), and emptied
+ * when the configuration changes, which the icon's resources and the system's icon shape depend on.
+ */
+private object InstalledLauncherIcons {
+    private val icons = object : LruCache<String, ImageBitmap>(InstalledLauncherIconsBytes) {
+        override fun sizeOf(key: String, value: ImageBitmap) = value.asAndroidBitmap().byteCount
+    }
+    private var configuration: Configuration? = null
+
+    @Synchronized
+    fun get(configuration: Configuration, key: String): ImageBitmap? {
+        if (configuration != this.configuration) {
+            icons.evictAll()
+            this.configuration = configuration
+        }
+        return icons[key]
+    }
+
+    @Synchronized
+    fun put(configuration: Configuration, key: String, icon: ImageBitmap) {
+        if (configuration == this.configuration) icons.put(key, icon)
+    }
+}
+
+/**
+ * [packageName]'s launcher icon as installed on the device, rendered off the main thread at
+ * [LauncherIconPx] square; a failure (e.g. [PackageManager.NameNotFoundException] when it isn't
+ * installed) is left to the caller to report.
+ */
+internal suspend fun readInstalledLauncherIcon(context: Context, packageName: String): Result<ImageBitmap> =
+    withContext(Dispatchers.IO) {
+        runCatching {
+            val configuration = Configuration(context.resources.configuration)
+            val installed = context.packageManager.getPackageInfoCompat(packageName, signatureFlag = 0)
+                ?: throw PackageManager.NameNotFoundException(packageName)
+            val key = "$packageName:${installed.lastUpdateTime}"
+            InstalledLauncherIcons.get(configuration, key)
+                // Explicit size: toBitmap() with none uses the drawable's intrinsic size, which renders
+                // adaptive icons inconsistently across Android versions (fine on newer phones,
+                // cropped/squished on older TV builds), a square output normalises it everywhere.
+                // Explicit ARGB_8888 config: toBitmap()'s default (null) returns a BitmapDrawable's own
+                // bitmap unconverted whenever the requested size matches its intrinsic size, hardware
+                // config included, which then crashes reading pixels back out for colour extraction.
+                ?: context.packageManager.getApplicationIcon(packageName)
+                    .toBitmap(width = LauncherIconPx, height = LauncherIconPx, config = Bitmap.Config.ARGB_8888)
+                    .asImageBitmap()
+                    .also { InstalledLauncherIcons.put(configuration, key, it) }
+        }
+    }
 
 /**
  * A catalogue app's icon, in priority order:
@@ -140,19 +200,9 @@ private fun InstalledLauncherIcon(
 ) {
     val context = LocalContext.current
     val launcher by produceState<ImageBitmap?>(null, packageName) {
-        value = withContext(Dispatchers.IO) {
-            runCatching {
-                // Explicit size: toBitmap() with none uses the drawable's intrinsic size, which for
-                // adaptive icons renders inconsistently across Android versions (fine on newer phones,
-                // cropped/squished on older TV builds), a square output normalises it everywhere.
-                // Explicit ARGB_8888 config: toBitmap()'s default (null) returns a BitmapDrawable's own
-                // bitmap unconverted whenever the requested size matches its intrinsic size, hardware
-                // config included, which then crashes reading pixels back out for colour extraction.
-                context.packageManager.getApplicationIcon(packageName)
-                    .toBitmap(width = LauncherIconPx, height = LauncherIconPx, config = Bitmap.Config.ARGB_8888)
-                    .asImageBitmap()
-            }.onFailure { Log.e(TAG, "Unable to read $packageName's launcher icon", it) }.getOrNull()
-        }
+        value = readInstalledLauncherIcon(context, packageName)
+            .onFailure { Log.e(TAG, "Unable to read $packageName's launcher icon", it) }
+            .getOrNull()
     }
     val bitmap = launcher
     if (bitmap != null) {
