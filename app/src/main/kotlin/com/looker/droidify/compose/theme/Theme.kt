@@ -7,7 +7,6 @@ import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -25,11 +24,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
@@ -304,7 +304,10 @@ fun ScopedAccentColor(accent: IconAccent?, content: @Composable () -> Unit) {
         content()
         return
     }
-    val scopedColorScheme = MaterialTheme.colorScheme.withVividAccent(accentColor, overrideAccentRoles = true)
+    val baseColorScheme = MaterialTheme.colorScheme
+    val scopedColorScheme = remember(baseColorScheme, accentColor) {
+        baseColorScheme.withVividAccent(accentColor, overrideAccentRoles = true)
+    }
     // The system-bar chrome is drawn by DroidifyTheme above every screen, outside the scope below, so
     // publish the accent there too or the navigation bar keeps the app-wide colour while this screen's
     // header wears the icon's one. See [LocalScopedAccentBarColor].
@@ -366,27 +369,32 @@ fun DroidifyTheme(
     val wallpaperAccent = remember(useDynamic) {
         if (useDynamic) context.wallpaperAccentColor() else null
     }
-    val colorScheme = when {
-        useDynamic && wallpaperAccent != null ->
-            context.toComposeColorScheme(if (darkTheme) darkScheme else lightScheme)
-                .withVividAccent(wallpaperAccent)
+    // Kept across recompositions: ColorScheme compares by identity, so a fresh one on every pass (this
+    // recomposes while a header collapses or the system-bar colour animates) recomposed the whole app.
+    // Every theme setting change recreates the activity, so these keys cover everything read here.
+    val colorScheme = remember(context, darkTheme, amoled, useDynamic, wallpaperAccent, accentColor) {
+        when {
+            useDynamic && wallpaperAccent != null ->
+                context.toComposeColorScheme(if (darkTheme) darkScheme else lightScheme)
+                    .withVividAccent(wallpaperAccent)
 
-        useDynamic ->
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            useDynamic ->
+                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
 
-        // The activity theme is recolored from the chosen accent at runtime (see
-        // MainComposeActivity.applyAccentColor); read it back for the surface/container roles, but use
-        // the accent RAW (vivid) for primary instead of the muted tone-40 Material You derives from it
-        // — that washed-out tone is what made the colours look dull. Mirrors the MaterialFiles fork.
-        // Below Android 12 that recolouring never happens and the roles read back are styles.xml's
-        // own, so they are derived from the accent here instead (see withDerivedAccentRoles).
-        else -> context.toComposeColorScheme(if (darkTheme) darkScheme else lightScheme)
-            .withVividAccent(accentColor)
-            .let {
-                if (DynamicColors.isDynamicColorAvailable()) it
-                else it.withDerivedAccentRoles(accentColor, darkTheme)
-            }
-    }.withNeutralSurfaces(darkTheme, amoled)
+            // The activity theme is recolored from the chosen accent at runtime (see
+            // MainComposeActivity.applyAccentColor); read it back for the surface/container roles, but use
+            // the accent RAW (vivid) for primary instead of the muted tone-40 Material You derives from it;
+            // that washed-out tone is what made the colours look dull. Mirrors the MaterialFiles fork.
+            // Below Android 12 that recolouring never happens and the roles read back are styles.xml's
+            // own, so they are derived from the accent here instead (see withDerivedAccentRoles).
+            else -> context.toComposeColorScheme(if (darkTheme) darkScheme else lightScheme)
+                .withVividAccent(accentColor)
+                .let {
+                    if (DynamicColors.isDynamicColorAvailable()) it
+                    else it.withDerivedAccentRoles(accentColor, darkTheme)
+                }
+        }.withNeutralSurfaces(darkTheme, amoled)
+    }
 
     // The header and system bars use one fixed accent red in BOTH light and dark mode. Material 3
     // lightens `primary` in dark mode, but `inversePrimary` there is exactly the light-mode primary,
@@ -404,7 +412,7 @@ fun DroidifyTheme(
     // own header and content actually finish sliding away, so a hard cut there read as switching back
     // too soon; only that direction eases into the change, to hide that gap.
     val scopedTarget = scopedAccentBarColor.value
-    val systemBarColor by animateColorAsState(
+    val systemBarColor = animateColorAsState(
         targetValue = scopedTarget ?: barColor,
         animationSpec = if (scopedTarget == null) tween(durationMillis = 300) else snap(),
     )
@@ -412,30 +420,7 @@ fun DroidifyTheme(
     // A screen whose header has collapsed off the top says so here (see StatusBarContent).
     val statusBarContent = remember { StatusBarContent() }
 
-    // System-bar icons must stay legible. The status bar sits behind the accent-coloured top bar, so its
-    // icons contrast with the accent, except once a collapsing header has slid away and the screen's
-    // own content shows there instead, when they contrast with that background. The navigation bar is
-    // an opaque accent overlay when edge-to-edge is off (so its icons contrast with the accent), but
-    // transparent over the app background when on (so they must contrast with that background instead).
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        val accentIsDark = systemBarColor.luminance() <= 0.5f
-        val contentUnderStatusBar = statusBarContent.showsContent
-        SideEffect {
-            // Find the Activity safely (some OEM contexts are wrappers); never crash on a bad cast.
-            val window = generateSequence(view.context) { (it as? ContextWrapper)?.baseContext }
-                .filterIsInstance<Activity>()
-                .firstOrNull()
-                ?.window
-            if (window != null) {
-                val controller = WindowCompat.getInsetsController(window, view)
-                controller.isAppearanceLightStatusBars =
-                    if (contentUnderStatusBar) !darkTheme else !accentIsDark
-                controller.isAppearanceLightNavigationBars =
-                    if (edgeToEdge) !darkTheme else !accentIsDark
-            }
-        }
-    }
+    SystemBarAppearance(systemBarColor, statusBarContent, darkTheme, edgeToEdge)
 
     MaterialTheme(
         colorScheme = colorScheme,
@@ -480,9 +465,46 @@ fun DroidifyTheme(
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
                             .windowInsetsBottomHeight(WindowInsets.navigationBars)
-                            .background(systemBarColor),
+                            .drawBehind { drawRect(systemBarColor.value) },
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * System-bar icons must stay legible. The status bar sits behind the accent-coloured top bar, so its
+ * icons contrast with the accent, except once a collapsing header has slid away and the screen's
+ * own content shows there instead, when they contrast with that background. The navigation bar is
+ * an opaque accent overlay when edge-to-edge is off (so its icons contrast with the accent), but
+ * transparent over the app background when on (so they must contrast with that background instead).
+ *
+ * Its own scope, so the animated bar colour and the scrolling header only recompose this.
+ */
+@Composable
+private fun SystemBarAppearance(
+    systemBarColor: State<Color>,
+    statusBarContent: StatusBarContent,
+    darkTheme: Boolean,
+    edgeToEdge: Boolean,
+) {
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        val accentIsDark = systemBarColor.value.luminance() <= 0.5f
+        val contentUnderStatusBar = statusBarContent.showsContent
+        SideEffect {
+            // Find the Activity safely (some OEM contexts are wrappers); never crash on a bad cast.
+            val window = generateSequence(view.context) { (it as? ContextWrapper)?.baseContext }
+                .filterIsInstance<Activity>()
+                .firstOrNull()
+                ?.window
+            if (window != null) {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars =
+                    if (contentUnderStatusBar) !darkTheme else !accentIsDark
+                controller.isAppearanceLightNavigationBars =
+                    if (edgeToEdge) !darkTheme else !accentIsDark
             }
         }
     }
