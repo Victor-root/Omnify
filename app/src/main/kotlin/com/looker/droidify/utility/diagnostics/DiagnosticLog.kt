@@ -41,6 +41,10 @@ object DiagnosticLog {
     /** Beyond this the oldest half goes, so the file never grows without bound. */
     private const val MAX_BYTES = 256 * 1024
 
+    /** How much of a crash is written: the causes followed, and the frames kept of each. */
+    private const val MAX_CAUSES = 4
+    private const val MAX_FRAMES = 30
+
     private val lock = Any()
     private val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
     private var file: File? = null
@@ -55,7 +59,42 @@ object DiagnosticLog {
                 "${Build.MANUFACTURER} ${Build.MODEL}",
         )
         if (SdkCheck.isR) logPreviousExits(context)
+        logCrashes()
     }
+
+    /**
+     * Writes a crash that is about to end the app into the log, then lets it end the app as before.
+     * Android only keeps the trace of a crash somewhere a person needs a computer to read; written here,
+     * it is in the log that gets shared. Only a Java or Kotlin crash can be caught this way: a native one
+     * kills the app without running any code, and is still reported at the next start (see
+     * [logPreviousExits]).
+     */
+    private fun logCrashes() {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            runCatching { log("CRASH in thread ${thread.name}\n${describe(error)}") }
+            previous?.uncaughtException(thread, error)
+        }
+    }
+
+    /**
+     * An error as its types and the places in the code it passed through, never its message: a message
+     * can quote an address, a file name or what someone typed. The chain of causes is followed, since
+     * the one that matters is often the last.
+     */
+    private fun describe(error: Throwable): String = buildString {
+        var current: Throwable? = error
+        var depth = 0
+        while (current != null && depth < MAX_CAUSES) {
+            append(if (depth == 0) "" else "caused by ").append(current.javaClass.name).append('\n')
+            current.stackTrace.take(MAX_FRAMES).forEach { frame ->
+                append("    at ").append(frame.className).append('.').append(frame.methodName)
+                    .append('(').append(frame.fileName).append(':').append(frame.lineNumber).append(")\n")
+            }
+            current = current.cause?.takeIf { it !== current }
+            depth++
+        }
+    }.trimEnd()
 
     fun log(message: String) {
         if (!BuildConfig.DIAGNOSTICS) return
