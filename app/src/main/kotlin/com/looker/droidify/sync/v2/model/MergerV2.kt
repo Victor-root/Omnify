@@ -44,16 +44,13 @@ class IndexV2Merger(private val baseFile: File) : AutoCloseable {
         val tempFile = File.createTempFile("merged_", ".json")
 
         try {
-            val hasChanged = merge(baseFile, diff, tempFile)
+            val mergedTimestamp = merge(baseFile, diff, tempFile)
+            val hasChanged = mergedTimestamp != null
 
-            if (hasChanged) {
+            if (mergedTimestamp != null) {
                 // Save the merged result
                 tempFile.copyTo(baseFile, overwrite = true)
-                tempFile.inputStream().use { inputStream ->
-                    val mergedElement = json.decodeFromStream<JsonElement>(inputStream)
-                    val timestamp = getTimestamp(mergedElement)
-                    baseFile.setLastModified(timestamp)
-                }
+                baseFile.setLastModified(mergedTimestamp)
             }
 
             if (BuildConfig.DEBUG) {
@@ -65,7 +62,9 @@ class IndexV2Merger(private val baseFile: File) : AutoCloseable {
         }
     }
 
-    private fun merge(baseFile: File, diffStream: InputStream, outputFile: File): Boolean {
+    /** Writes [baseFile] patched by [diffStream] to [outputFile], and returns the merged index's
+     *  timestamp when that changed anything, or null when it didn't. */
+    private fun merge(baseFile: File, diffStream: InputStream, outputFile: File): Long? {
         val baseElement =
             runCatching { baseFile.inputStream().use { json.decodeFromStream<JsonElement>(it) } }
                 .fold(
@@ -88,7 +87,7 @@ class IndexV2Merger(private val baseFile: File) : AutoCloseable {
 
         if (diffTimestamp <= baseTimestamp) {
             baseFile.copyTo(outputFile, overwrite = true)
-            return false
+            return null
         }
 
         // Apply the merge patch
@@ -98,7 +97,7 @@ class IndexV2Merger(private val baseFile: File) : AutoCloseable {
         val mergedObj = mergedElement.jsonObject.toMutableMap()
         val repoObj = (mergedObj["repo"] as? JsonObject)?.toMutableMap() ?: run {
             baseFile.copyTo(outputFile, overwrite = true)
-            return false
+            return null
         }
 
         repoObj["timestamp"] = JsonPrimitive(diffTimestamp)
@@ -108,7 +107,7 @@ class IndexV2Merger(private val baseFile: File) : AutoCloseable {
             json.encodeToStream(finalResult, outputStream)
         }
 
-        return baseElement != finalResult
+        return diffTimestamp.takeIf { baseElement != finalResult }
     }
 
     /**
