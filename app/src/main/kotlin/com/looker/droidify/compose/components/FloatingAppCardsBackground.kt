@@ -124,8 +124,8 @@ private fun AuroraBackground(modifier: Modifier, accent: Color, dark: Boolean, i
     Canvas(
         modifier
             .fillMaxSize()
-            .clipToBounds()
-            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen),
+            // One layer for both: clipToBounds is itself a clipping graphicsLayer on the same bounds.
+            .graphicsLayer(clip = true, compositingStrategy = CompositingStrategy.Offscreen),
     ) {
         AURORA_BLOB_SPECS.forEachIndexed { index, spec ->
             val (driftX, driftY) = drifts[index]
