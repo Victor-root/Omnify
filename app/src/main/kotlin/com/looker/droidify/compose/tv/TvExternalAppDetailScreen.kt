@@ -24,11 +24,7 @@ import com.looker.droidify.compose.components.InstallConflictDialog
 import com.looker.droidify.migration.ChannelSwitchBanner
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.externalApps.ReleaseVersionItem
-import com.looker.droidify.external.apkDownloadUrl
-import com.looker.droidify.external.apkFileName
-import com.looker.droidify.external.apkFileSize
-import com.looker.droidify.external.apkUpdatedAt
-import com.looker.droidify.external.compareVersionStrings
+import com.looker.droidify.compose.externalApps.releaseVersionRows
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import androidx.compose.runtime.Composable
@@ -48,6 +44,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
+import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
@@ -59,6 +56,7 @@ import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
+import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.rememberIconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
@@ -109,7 +107,7 @@ fun TvExternalAppDetailScreen(
         viewModel.refreshInstalled()
     }
 
-    val app = apps.firstOrNull { it.key == appKey }
+    val app = remember(apps, appKey) { apps.firstOrNull { it.key == appKey } }
 
     if (app == null) {
         TvCentered { CircularProgressIndicator() }
@@ -289,18 +287,14 @@ fun TvExternalAppDetailScreen(
                         }
                         // Action buttons sharing the pane's width (same treatment as the catalogue detail
                         // screen), then the favourite and hide toggles, discreet since they are rarely used.
-                        ExternalLifecycleActions(
+                        TvExternalActions(
                             app = app,
-                            downloadStatus = downloads[appKey],
+                            viewModel = viewModel,
+                            downloadStatus = { downloads[appKey] },
                             installState = installStates[appKey],
                             isInstalled = isInstalled,
-                            onInstallOrUpdate = { viewModel.installOrUpdate(app) },
-                            onLaunch = { viewModel.launch(app) },
-                            onUninstall = { viewModel.uninstall(app) },
-                            onCancel = { viewModel.cancel(app) },
                             installedVersionName = installedVersion,
                             primaryActionFocusRequester = primaryFocus,
-                            fillWidth = true,
                         )
                         TvSecondaryActions(
                             isFavourite = app.key in favourites,
@@ -323,7 +317,7 @@ fun TvExternalAppDetailScreen(
                             app = app,
                             releases = releases,
                             installedVersion = installedVersion,
-                            sdkInfoByApkUrl = sdkInfoByApkUrl,
+                            sdkInfoByApkUrl = { sdkInfoByApkUrl },
                             onRequestSdkInfo = viewModel::loadSdkInfo,
                             onVersionClick = { versionToInstall = it },
                         )
@@ -350,10 +344,37 @@ fun TvExternalAppDetailScreen(
     }
 }
 
+/** [ExternalLifecycleActions] reading [downloadStatus] itself, so a download's progress ticks
+ *  recompose only these buttons instead of the whole pane around them. */
+@Composable
+private fun TvExternalActions(
+    app: ExternalApp,
+    viewModel: ExternalAppsViewModel,
+    downloadStatus: () -> DownloadStatus?,
+    installState: InstallState?,
+    isInstalled: Boolean,
+    installedVersionName: String?,
+    primaryActionFocusRequester: FocusRequester,
+) {
+    ExternalLifecycleActions(
+        app = app,
+        downloadStatus = downloadStatus(),
+        installState = installState,
+        isInstalled = isInstalled,
+        onInstallOrUpdate = { viewModel.installOrUpdate(app) },
+        onLaunch = { viewModel.launch(app) },
+        onUninstall = { viewModel.uninstall(app) },
+        onCancel = { viewModel.cancel(app) },
+        installedVersionName = installedVersionName,
+        primaryActionFocusRequester = primaryActionFocusRequester,
+        fillWidth = true,
+    )
+}
+
 /**
  * The external app's version list — the exact same engine as the phone screen (version label pulled
- * from the APK's own file name via [releaseVersionLabel], not the raw tag; installed match via
- * [compareVersionStrings] against the real on-device version; per-APK min/target SDK fetched lazily) and
+ * from the APK's own file name via [releaseVersionLabel], not the raw tag; installed match against the
+ * real on-device version, both from [releaseVersionRows]; per-APK min/target SDK fetched lazily) and
  * the exact same [ReleaseVersionItem] rows, so a version reads identically to the phone build. Only the
  * surrounding TV layout differs.
  */
@@ -362,28 +383,30 @@ private fun TvExternalVersionsList(
     app: ExternalApp,
     releases: List<Release>,
     installedVersion: String?,
-    sdkInfoByApkUrl: Map<String, ApkBinaryManifest.UsesSdk?>,
+    // Read here, not by the caller, so each APK's SDK info landing recomposes only this list.
+    sdkInfoByApkUrl: () -> Map<String, ApkBinaryManifest.UsesSdk?>,
     onRequestSdkInfo: (String) -> Unit,
     onVersionClick: (Release) -> Unit,
 ) {
+    val rows = remember(releases, app.apkFilter, installedVersion) {
+        releaseVersionRows(releases, app.apkFilter, installedVersion)
+    }
+    val sdkInfo = sdkInfoByApkUrl()
     Column(verticalArrangement = spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
-        releases.forEach { release ->
-            val apkName = release.apkFileName(filter = app.apkFilter)
-            val isInstalled = installedVersion != null &&
-                compareVersionStrings(releaseVersionLabel(apkName, release.tag), installedVersion) == 0
-            val apkUrl = release.apkDownloadUrl(filter = app.apkFilter)
+        rows.forEach { row ->
+            val apkUrl = row.apkUrl
             if (apkUrl != null) {
                 LaunchedEffect(apkUrl) { onRequestSdkInfo(apkUrl) }
             }
             ReleaseVersionItem(
-                release = release,
-                apkName = apkName,
-                apkSize = release.apkFileSize(filter = app.apkFilter),
-                apkDate = release.apkUpdatedAt(filter = app.apkFilter),
-                sdkInfo = apkUrl?.let { sdkInfoByApkUrl[it] },
-                isSuggested = release.tag == app.latestTag,
-                isInstalled = isInstalled,
-                onClick = { onVersionClick(release) },
+                release = row.release,
+                apkName = row.apkName,
+                apkSize = row.apkSize,
+                apkDate = row.apkDate,
+                sdkInfo = apkUrl?.let { sdkInfo[it] },
+                isSuggested = row.release.tag == app.latestTag,
+                isInstalled = row.isInstalled,
+                onClick = { onVersionClick(row.release) },
                 modifier = Modifier.tvBringIntoViewOnFocus(),
             )
         }

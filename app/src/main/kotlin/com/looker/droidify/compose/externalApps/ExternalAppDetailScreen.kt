@@ -122,11 +122,6 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
 import com.looker.droidify.installer.model.InstallState
-import com.looker.droidify.external.apkDownloadUrl
-import com.looker.droidify.external.apkFileName
-import com.looker.droidify.external.apkFileSize
-import com.looker.droidify.external.apkUpdatedAt
-import com.looker.droidify.external.compareVersionStrings
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
@@ -203,7 +198,7 @@ fun ExternalAppDetailScreen(
         viewModel.refreshInstalled()
     }
 
-    val app = apps.firstOrNull { it.key == appKey }
+    val app = remember(apps, appKey) { apps.firstOrNull { it.key == appKey } }
 
     // Make sure the app knows the package id it installs under, so a copy already on the device (installed
     // from any channel) is recognised as installed instead of showing "Install". Keyed on the resolved app
@@ -1360,27 +1355,27 @@ private fun ExternalVersionsSection(
             // list, so a long history doesn't turn the whole page into an endless scroll.
             var versionsExpanded by remember(app.key) { mutableStateOf(false) }
             val visibleCount = if (versionsExpanded) releaseHistory.size else VERSIONS_COLLAPSED_COUNT
-            releaseHistory.take(visibleCount).forEach { release ->
+            // Remembered so a progress tick only redoes the cheap per-row lookups below. Rows match
+            // the real live on-device version, see installedVersion's own doc comment.
+            val rows = remember(releaseHistory, visibleCount, app.apkFilter, installedVersion) {
+                releaseVersionRows(releaseHistory.take(visibleCount), app.apkFilter, installedVersion)
+            }
+            rows.forEach { row ->
+                val release = row.release
                 val isThisRowDownloading = activeDownloadTag == release.tag &&
                     (downloadStatus != null || installing)
-                val apkName = release.apkFileName(filter = app.apkFilter)
-                // See installedVersion's own doc comment: compares against the real live on-device
-                // version, not the possibly-stale app.installedTag, the same self-healing fallback
-                // hasUpdateGiven already relies on for the update banner above.
-                val isInstalled = installedVersion != null &&
-                    compareVersionStrings(releaseVersionLabel(apkName, release.tag), installedVersion) == 0
-                val apkUrl = release.apkDownloadUrl(filter = app.apkFilter)
+                val apkUrl = row.apkUrl
                 if (apkUrl != null) {
                     LaunchedEffect(apkUrl) { onRequestSdkInfo(apkUrl) }
                 }
                 ReleaseVersionItem(
                     release = release,
-                    apkName = apkName,
-                    apkSize = release.apkFileSize(filter = app.apkFilter),
-                    apkDate = release.apkUpdatedAt(filter = app.apkFilter),
+                    apkName = row.apkName,
+                    apkSize = row.apkSize,
+                    apkDate = row.apkDate,
                     sdkInfo = apkUrl?.let { sdkInfoByApkUrl[it] },
                     isSuggested = release.tag == app.latestTag,
-                    isInstalled = isInstalled,
+                    isInstalled = row.isInstalled,
                     onClick = { onVersionClick(release) },
                     downloadStatus = if (isThisRowDownloading) downloadStatus else null,
                     installing = isThisRowDownloading && downloadStatus == null,
