@@ -2,7 +2,6 @@ package com.looker.droidify.compose.externalApps
 
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -123,13 +122,12 @@ fun ExternalAppIcon(
     var avatarFailed by remember(app.iconUrl) { mutableStateOf(false) }
     // The real icon extracted from the app's APK (cached as a PNG), decoded once. Keyed on the file's
     // timestamp so it refreshes if re-extracted. Loaded as a bitmap (not via Coil) since this is a
-    // local file.
-    val extractedFile = ExternalIconCache.iconFile(context, app.key).takeIf { it.exists() }
-    val extractedAt = extractedFile?.lastModified()
+    // local file. lastModified() is 0 for a missing file, so one call tells both whether it exists and
+    // when it was written.
+    val extractedFile = remember(app.key) { ExternalIconCache.iconFile(context, app.key) }
+    val extractedAt = extractedFile.lastModified().takeIf { it != 0L }
     val extractedIcon = remember(app.key, extractedAt) {
-        extractedFile?.let {
-            runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull()
-        }
+        extractedAt?.let { ExternalIconCache.decodedIcon(context, extractedFile, it)?.asImageBitmap() }
     }
     // Icons shown in full (Fit, not Crop, so non-square ones aren't sliced). On TV every icon sits on the
     // same rounded card so the grid is uniform (a full-bleed icon covers it, a padded or round one sits
