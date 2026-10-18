@@ -247,18 +247,20 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
             .build()
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val memoryCache = MemoryCache.Builder()
-            .maxSizePercent(context, 0.25)
-            .build()
-
-        val diskCache = DiskCache.Builder()
-            .directory(Cache.getImagesDir(this))
-            .maxSizePercent(0.05)
-            .build()
-
+        // Built lazily so the disk cache's directory creation and free-space read happen on the first
+        // disk access (off the main thread) rather than on the first image's path.
         return ImageLoader.Builder(this)
-            .memoryCache(memoryCache)
-            .diskCache(diskCache)
+            .memoryCache {
+                MemoryCache.Builder()
+                    .maxSizePercent(context, 0.25)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(Cache.getImagesDir(this))
+                    .maxSizePercent(0.05)
+                    .build()
+            }
             .error(getDrawableCompat(R.drawable.ic_cannot_load).asImage())
             // No crossfade: while scrolling, icons load into view and each fade forces an offscreen
             // alpha layer per icon every frame — the main scroll stutter on slower devices. Icons just
@@ -298,8 +300,8 @@ private class RepoAuthInterceptor(
 ) : Interceptor {
     override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
         val url = chain.request.data as? String ?: return chain.proceed()
-        val authorization = authorizations.filterNotNull().first().authorizationFor(url)
-            ?: return chain.proceed()
+        val loaded = authorizations.value ?: authorizations.filterNotNull().first()
+        val authorization = loaded.authorizationFor(url) ?: return chain.proceed()
         val authorized = chain.request.newBuilder()
             .httpHeaders(
                 NetworkHeaders.Builder()
@@ -318,8 +320,11 @@ private class FallbackIconInterceptor : Interceptor {
 
         if (result is SuccessResult) return result
 
+        val url = request.data as? String ?: return result
+        val fallbackUrl = url.replaceAfterLast('/', "icon.png")
+        if (fallbackUrl == url) return result
         val fallbackIconUrl = request.newBuilder()
-            .data((request.data as String).replaceAfterLast('/', "icon.png"))
+            .data(fallbackUrl)
             .build()
         // Temporary: this stands one image in for another, silently, so a logo that simply failed to
         // load comes back as whatever icon.png holds beside it — on an fdroidserver repository that
