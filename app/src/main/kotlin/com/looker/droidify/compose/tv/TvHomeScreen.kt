@@ -143,15 +143,13 @@ fun TvHomeScreen(
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
     val externallyInstalled by viewModel.externallyInstalledPackages.collectAsStateWithLifecycle()
 
-    val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
-    val hiddenExternalApps by externalViewModel.hidden.collectAsStateWithLifecycle()
     val favouriteExternalApps by externalViewModel.favouriteApps.collectAsStateWithLifecycle()
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val isRefreshingExternal by externalViewModel.isRefreshing.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
-    val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
+    // Kept here rather than in TvExternalSection: it reads false until its first emission, so collecting
+    // it only on entering the section would flash the no-token banner each time.
     val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
-    val githubRateLimitRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
     // The TV-only filter (shared engine with the phone: viewModel.tvOnly / toggleTvOnly). It already
     // narrows the catalogue lists — Installed / Updates / Search all derive from the same filtered
     // appsState — so here it only additionally gates Explore (to the TV carousel) and the External grid.
@@ -406,16 +404,12 @@ fun TvHomeScreen(
                     restoreRequester = restoreRequester,
                 )
 
-                TvSection.EXTERNAL -> TvExternalGrid(
-                    // Same filter as the phone's External grid: only the sources switched on, minus the apps
-                    // the user hid individually, narrowed to TV-capable sources when that toggle is on.
-                    apps = externalApps.shownOnExternalTab(hiddenExternalApps)
-                        .filter { !tvOnly || it.supportsTelevision },
+                TvSection.EXTERNAL -> TvExternalSection(
+                    externalViewModel = externalViewModel,
+                    tvOnly = tvOnly,
                     installedKeys = externalInstalledKeys,
                     onAppClick = openExternal,
-                    githubTokenInvalid = githubTokenInvalid,
                     hasGithubToken = hasGithubToken,
-                    githubRateLimitRemaining = githubRateLimitRemaining,
                     onFixToken = onFixGithubToken,
                     restoreFocusId = restoreFocusId,
                     restoreRequester = restoreRequester,
@@ -921,6 +915,43 @@ private fun TvUpdates(
                 }
             }
         },
+    )
+}
+
+/** Collects what only the External section reads, so a refresh's per-response updates (the rate-limit
+ *  count, the app list) recompose this section instead of the whole home. [ExternalAppsViewModel.apps]
+ *  and [ExternalAppsViewModel.hidden] stay subscribed through the home's favourites and recently updated
+ *  rows, so their first value here is already current. */
+@Composable
+private fun TvExternalSection(
+    externalViewModel: ExternalAppsViewModel,
+    tvOnly: Boolean,
+    installedKeys: Set<String>,
+    onAppClick: (String) -> Unit,
+    hasGithubToken: Boolean,
+    onFixToken: () -> Unit,
+    restoreFocusId: String?,
+    restoreRequester: FocusRequester,
+) {
+    val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
+    val hiddenExternalApps by externalViewModel.hidden.collectAsStateWithLifecycle()
+    val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
+    val githubRateLimitRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
+    // Same filter as the phone's External grid: only the sources switched on, minus the apps the user hid
+    // individually, narrowed to TV-capable sources when that toggle is on.
+    val apps = remember(externalApps, hiddenExternalApps, tvOnly) {
+        externalApps.shownOnExternalTab(hiddenExternalApps).filter { !tvOnly || it.supportsTelevision }
+    }
+    TvExternalGrid(
+        apps = apps,
+        installedKeys = installedKeys,
+        onAppClick = onAppClick,
+        githubTokenInvalid = githubTokenInvalid,
+        hasGithubToken = hasGithubToken,
+        githubRateLimitRemaining = githubRateLimitRemaining,
+        onFixToken = onFixToken,
+        restoreFocusId = restoreFocusId,
+        restoreRequester = restoreRequester,
     )
 }
 
