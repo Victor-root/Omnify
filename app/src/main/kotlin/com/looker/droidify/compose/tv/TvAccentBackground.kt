@@ -9,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
+import com.looker.droidify.compose.theme.LocalBackgroundStyle
+import com.looker.droidify.datastore.model.BackgroundStyle
 
 /** The backdrop sits ~1.7x the phone's strength so it reads on a big screen, where the content is
  *  sparser and further away. */
@@ -28,7 +30,10 @@ private const val TV_BACKDROP_DIM = 0.35f
 @Composable
 fun TvAccentBackground(modifier: Modifier = Modifier) {
     val background = MaterialTheme.colorScheme.background
-    Box(modifier = modifier.fillMaxSize().background(background)) {
+    // Every style but Aurora starts by painting its own opaque base over the whole box, which would only
+    // cover this fill.
+    val fill = if (LocalBackgroundStyle.current == BackgroundStyle.AURORA) Modifier.background(background) else Modifier
+    Box(modifier = modifier.fillMaxSize().then(fill)) {
         FloatingAppCardsBackground(enableOnTelevision = true, intensity = TV_BACKDROP_INTENSITY)
         // Left alone in the light theme, where a darker backdrop would only cut the contrast of the
         // dark text on it.
