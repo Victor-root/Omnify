@@ -3,14 +3,20 @@ package com.looker.droidify.compose.components
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -20,11 +26,13 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.looker.droidify.R
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.extension.copyToClipboard
@@ -41,7 +49,8 @@ private const val SHOWN_CHARS = 8 * 1024
 
 /**
  * The diagnostic log ([DiagnosticLog]) with what can be done with it: clear it before reproducing a bug,
- * copy it, or share it to send along with a report. Opens on its most recent lines.
+ * copy it, or share it to send along with a report. Opens on its most recent lines. Its own layout rather
+ * than an AlertDialog, so the log gets the room a row of buttons and a confirm button would take.
  */
 @Composable
 fun DiagnosticLogDialog(onDismiss: () -> Unit) {
@@ -56,61 +65,77 @@ fun DiagnosticLogDialog(onDismiss: () -> Unit) {
     val scrollState = rememberScrollState()
     LaunchedEffect(log) { scrollState.scrollTo(scrollState.maxValue) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.diagnostics_title)) },
-        text = {
-            Column {
-                Text(
-                    text = stringResource(R.string.diagnostics_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = log?.ifEmpty { emptyText }?.tail(SHOWN_CHARS).orEmpty(),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 360.dp)
-                        .verticalScroll(scrollState),
-                )
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 6.dp,
+        ) {
+            Column(modifier = Modifier.padding(start = 24.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.diagnostics_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.close),
+                        )
+                    }
+                }
+                Column(modifier = Modifier.padding(end = 16.dp)) {
+                    Text(
+                        text = stringResource(R.string.diagnostics_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = log?.ifEmpty { emptyText }?.tail(SHOWN_CHARS).orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 420.dp)
+                            .verticalScroll(scrollState),
+                    )
+                }
+                Row(modifier = Modifier.fillMaxWidth().padding(end = 16.dp)) {
+                    TextButton(
+                        onClick = {
+                            DiagnosticLog.clear()
+                            version++
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.diagnostics_clear), maxLines = 1) }
+                    TextButton(
+                        onClick = {
+                            context.copyToClipboard(DiagnosticLog.read())
+                            // Android 13+ shows its own toast for a clipboard write.
+                            if (!SdkCheck.isTiramisu) {
+                                Toast.makeText(context, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        enabled = !log.isNullOrEmpty(),
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.diagnostics_copy), maxLines = 1) }
+                    TextButton(
+                        onClick = {
+                            val send = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, DiagnosticLog.read())
+                            }
+                            context.startActivity(Intent.createChooser(send, null))
+                        },
+                        enabled = !log.isNullOrEmpty(),
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.share), maxLines = 1) }
+                }
             }
-        },
-        // The flow row under a dialog wraps its buttons, so the four fit on a narrow phone too.
-        dismissButton = {
-            TextButton(
-                onClick = {
-                    DiagnosticLog.clear()
-                    version++
-                },
-            ) { Text(stringResource(R.string.diagnostics_clear)) }
-            TextButton(
-                onClick = {
-                    context.copyToClipboard(DiagnosticLog.read())
-                    // Android 13+ shows its own toast for a clipboard write.
-                    if (!SdkCheck.isTiramisu) {
-                        Toast.makeText(context, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
-                    }
-                },
-                enabled = !log.isNullOrEmpty(),
-            ) { Text(stringResource(R.string.diagnostics_copy)) }
-            TextButton(
-                onClick = {
-                    val send = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, DiagnosticLog.read())
-                    }
-                    context.startActivity(Intent.createChooser(send, null))
-                },
-                enabled = !log.isNullOrEmpty(),
-            ) { Text(stringResource(R.string.share)) }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
-        },
-    )
+        }
+    }
 }
 
 /** The last [count] characters, starting at the beginning of a line so the first one is not cut. */
