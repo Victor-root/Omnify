@@ -31,10 +31,13 @@ import com.looker.droidify.work.SyncWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -153,20 +156,21 @@ class RepoRepository @Inject constructor(
      *
      * Read from the credentials rather than from the repositories: nearly every repository has none,
      * and this table changes only when a login does, unlike the repository table which is written on
-     * every sync.
+     * every sync. With no login at all, the key is not even resolved: that can mean unlocking the
+     * Keystore, or creating and storing a key on a fresh install, and the first image waits on this.
      */
+    @OptIn(ExperimentalCoroutinesApi::class)
     val authorizations: Flow<Map<String, String>>
-        get() = combine(
-            authDao.stream(),
-            keyStream,
-        ) { credentials, key ->
-            if (credentials.isEmpty()) return@combine emptyMap<String, String>()
-            val addresses = repoDao.getAddressByIds(credentials.map { it.repoId })
-            credentials.mapNotNull { entity ->
-                val address = addresses[entity.repoId] ?: return@mapNotNull null
-                val authentication = entity.toAuthentication(key) ?: return@mapNotNull null
-                address to basicAuthorization(authentication.username, authentication.password)
-            }.toMap()
+        get() = authDao.stream().flatMapLatest { credentials ->
+            if (credentials.isEmpty()) return@flatMapLatest flowOf(emptyMap())
+            keyStream.map { key ->
+                val addresses = repoDao.getAddressByIds(credentials.map { it.repoId })
+                credentials.mapNotNull { entity ->
+                    val address = addresses[entity.repoId] ?: return@mapNotNull null
+                    val authentication = entity.toAuthentication(key) ?: return@mapNotNull null
+                    address to basicAuthorization(authentication.username, authentication.password)
+                }.toMap()
+            }
         }.distinctUntilChanged().flowOn(Dispatchers.Default)
 
     val addresses: Flow<Set<String>>
