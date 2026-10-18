@@ -14,6 +14,7 @@ A welcome page for a fresh install, and external sources that learn to handle re
 
 ### 🔄 Changed
 - **The Session installer is now listed first**, and stays the default, so someone who does not know what to pick lands on the right one. The welcome page says so in a line under the choice, and the whole installer card is tappable, not just its top.
+- **On Android TV, an app's page is now split in two, like on tablets.** The app itself (icon, name, Install and Launch, favourite, hide, certificate, versions) sits on the left, the screenshots and the description on the right, each scrolling on its own, instead of one long column with wide centred buttons.
 - **Omnify no longer asks for notifications, nor for the install of apps, out of the blue at the first start.** Both are asked on the welcome page, behind a button, and a notification dialog never pops up over a screen you are looking at any more.
 
 ### 🐛 Fixed

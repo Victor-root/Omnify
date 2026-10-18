@@ -13,9 +13,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
@@ -185,6 +185,7 @@ fun TvAppDetailScreen(
             // Hoisted so the startup focus burst below can pin the page back to the top: focusing the
             // action button nudges the scroll down a hair (bring-into-view), which was clipping the header.
             val pageScroll = rememberScrollState()
+            val detailScroll = rememberScrollState()
             // Once the user has pressed any key, focus is theirs — stop the startup burst below from
             // re-stealing it. Without this, installedInfo re-emitting (it changes on background catalogue/
             // network activity) re-ran the burst and yanked focus back to the action button every few
@@ -301,134 +302,145 @@ fun TvAppDetailScreen(
             // below can't steal D-pad focus from behind it.
             if (!showDescription) {
             TvAccentBackground()
-            CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
-            Column(
+            // Two panes like the tablet split view: the app itself (header, actions, certificate,
+            // versions) on the left, what it looks like and says (screenshots, description) on the right,
+            // each scrolling on its own so the actions stay close to the remote's starting point.
+            Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .onSizeChanged { viewportPx = it.height }
                     // Any key press marks startup focus as settled, so it's never re-stolen (see above).
                     .onPreviewKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown) userInteracted = true
                         false
-                    }
-                    // overscrollEffect = null: the description preview hosts a hardware-accelerated
-                    // WebView, and Android 12+'s stretch overscroll crashes RenderThread when it redraws
-                    // that WebView at the scroll boundary (same reason as the phone detail screen).
-                    .verticalScroll(pageScroll, overscrollEffect = null)
-                    .padding(horizontal = TvOverscan + 16.dp, vertical = TvOverscan),
-                verticalArrangement = spacedBy(24.dp),
+                    },
             ) {
-                Column(
-                    modifier = Modifier.focusGroup().onFocusChanged { headerHasFocus = it.hasFocus },
-                    verticalArrangement = spacedBy(24.dp),
-                ) {
-                    TvBackButton(onBackClick)
+                CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
+                    Column(
+                        modifier = Modifier
+                            .weight(0.4f)
+                            .fillMaxHeight()
+                            .verticalScroll(pageScroll, overscrollEffect = null)
+                            .padding(start = TvOverscan + 16.dp, end = 16.dp, top = TvOverscan, bottom = TvOverscan),
+                        verticalArrangement = spacedBy(24.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.focusGroup().onFocusChanged { headerHasFocus = it.hasFocus },
+                            verticalArrangement = spacedBy(20.dp),
+                        ) {
+                            TvBackButton(onBackClick)
 
-                    // Header: icon + name + author + meta chips.
-                    Row(horizontalArrangement = spacedBy(24.dp)) {
-                        AppMinimalIcon(
-                            app = app.minimal(),
-                            isInstalled = isInstalled,
-                            modifier = Modifier.size(120.dp).clip(RoundedCornerShape(24.dp)),
-                            onIconBitmap = { bitmap ->
-                                // Coil re-invokes this on every recomposition of the icon's AsyncImage,
-                                // not just once per real image load; skip it once a colour is already
-                                // known for this screen instance instead of redoing that work every time.
-                                if (iconAccent == null) {
-                                    iconAccent = bitmap.iconAccent()?.also {
-                                        IconAccentCache.put(iconAccentCacheKey, it)
-                                    }
-                                }
-                            },
-                        )
-                        Column(verticalArrangement = spacedBy(8.dp)) {
-                            Text(
-                                text = app.metadata.name,
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            app.author?.name?.takeIf { it.isNotBlank() }?.let {
-                                Text(
-                                    text = stringResource(R.string.by_author_FORMAT, it),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            // Header: icon + name + author + meta chips.
+                            Row(horizontalArrangement = spacedBy(20.dp)) {
+                                AppMinimalIcon(
+                                    app = app.minimal(),
+                                    isInstalled = isInstalled,
+                                    modifier = Modifier.size(96.dp).clip(RoundedCornerShape(20.dp)),
+                                    onIconBitmap = { bitmap ->
+                                        // Coil re-invokes this on every recomposition of the icon's AsyncImage,
+                                        // not just once per real image load; skip it once a colour is already
+                                        // known for this screen instance instead of redoing that work every time.
+                                        if (iconAccent == null) {
+                                            iconAccent = bitmap.iconAccent()?.also {
+                                                IconAccentCache.put(iconAccentCacheKey, it)
+                                            }
+                                        }
+                                    },
                                 )
+                                Column(verticalArrangement = spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = app.metadata.name,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    app.author?.name?.takeIf { it.isNotBlank() }?.let {
+                                        Text(
+                                            text = stringResource(R.string.by_author_FORMAT, it),
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    TvMetaChips(
+                                        category = app.categories.firstOrNull(),
+                                        version = app.metadata.suggestedVersionName.takeIf { it.isNotBlank() },
+                                        license = app.metadata.license.takeIf { it.isNotBlank() },
+                                    )
+                                }
                             }
-                            TvMetaChips(
-                                category = app.categories.firstOrNull(),
-                                version = app.metadata.suggestedVersionName.takeIf { it.isNotBlank() },
-                                license = app.metadata.license.takeIf { it.isNotBlank() },
+
+                            // Action buttons (Install/Update/Launch + Uninstall) sharing the pane's width,
+                            // then the favourite and hide toggles below them.
+                            PrimaryActions(
+                                packageName = app.metadata.packageName.name,
+                                isInstalled = isInstalled,
+                                updateAvailable = updateAvailable,
+                                installState = installState,
+                                downloadStatus = downloadStatus,
+                                installConfirmed = installConfirmed,
+                                onInstallOrUpdate = viewModel::installOrUpdate,
+                                onLaunch = viewModel::launch,
+                                onUninstall = viewModel::uninstall,
+                                onCancel = viewModel::cancel,
+                                primaryActionFocusRequester = primaryFocus,
+                                fillWidth = true,
+                            )
+                            TvFavouriteButton(
+                                isFavourite = isFavourite,
+                                onToggle = viewModel::toggleFavourite,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            TvHideButton(
+                                isHidden = isHidden,
+                                onToggle = viewModel::toggleHidden,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+
+                        if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
+                            CertificateSection(
+                                installedSigner = installedSignerRaw,
+                                expectedSigners = expectedSigners,
+                            )
+                        }
+
+                        if (packages.isNotEmpty()) {
+                            TvSectionTitle(stringResource(R.string.versions))
+                            TvVersionsList(
+                                packages = packages,
+                                suggestedVersionCode = app.metadata.suggestedVersionCode,
+                                onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
                             )
                         }
                     }
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(0.6f)
+                        .fillMaxHeight()
+                        .onSizeChanged { viewportPx = it.height }
+                        .focusGroup()
+                        // overscrollEffect = null: the description preview hosts a hardware-accelerated
+                        // WebView, and Android 12+'s stretch overscroll crashes RenderThread when it redraws
+                        // that WebView at the scroll boundary (same reason as the phone detail screen).
+                        .verticalScroll(detailScroll, overscrollEffect = null)
+                        .padding(start = 16.dp, end = TvOverscan + 16.dp, top = TvOverscan, bottom = TvOverscan),
+                    verticalArrangement = spacedBy(24.dp),
+                ) {
+                    if (screenshots.isNotEmpty()) {
+                        TvSectionTitle(stringResource(R.string.screenshot))
+                        ScreenshotsRow(screenshots)
+                    }
 
-                    // Action buttons (Install/Update/Launch + Uninstall) with the favourite alongside
-                    // them, the whole set sized to its content and centred as one group — so the
-                    // favourite reads as a peer next to the primary action instead of being flung to the
-                    // far screen edge.
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        // Wider gap so the focus scale-up of either button never overlaps its neighbour.
-                        horizontalArrangement = spacedBy(28.dp, Alignment.CenterHorizontally),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        PrimaryActions(
-                            packageName = app.metadata.packageName.name,
-                            isInstalled = isInstalled,
-                            updateAvailable = updateAvailable,
-                            installState = installState,
-                            downloadStatus = downloadStatus,
-                            installConfirmed = installConfirmed,
-                            onInstallOrUpdate = viewModel::installOrUpdate,
-                            onLaunch = viewModel::launch,
-                            onUninstall = viewModel::uninstall,
-                            onCancel = viewModel::cancel,
-                            primaryActionFocusRequester = primaryFocus,
-                            // Sized to its content (not stretched full-width) so the favourite sits right
-                            // next to it; the group is then centred by the row's arrangement above.
-                            modifier = Modifier.width(IntrinsicSize.Min),
+                    if (descriptionHtml.isNotBlank()) {
+                        TvSectionTitle(stringResource(R.string.description))
+                        TvReadmePreview(
+                            html = descriptionHtml,
+                            baseUrl = "",
+                            javaScriptEnabled = false,
+                            viewportPx = viewportPx,
+                            onOpenFull = { showDescription = true },
                         )
-                        TvFavouriteButton(isFavourite = isFavourite, onToggle = viewModel::toggleFavourite)
-                    }
-                    // Own row: keeps the action/favourite row above at its already-tuned width budget
-                    // instead of squeezing a third pill button into it.
-                    Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                        TvHideButton(isHidden = isHidden, onToggle = viewModel::toggleHidden)
                     }
                 }
-
-                if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
-                    CertificateSection(
-                        installedSigner = installedSignerRaw,
-                        expectedSigners = expectedSigners,
-                    )
-                }
-
-                if (screenshots.isNotEmpty()) {
-                    TvSectionTitle(stringResource(R.string.screenshot))
-                    ScreenshotsRow(screenshots)
-                }
-
-                if (descriptionHtml.isNotBlank()) {
-                    TvSectionTitle(stringResource(R.string.description))
-                    TvReadmePreview(
-                        html = descriptionHtml,
-                        baseUrl = "",
-                        javaScriptEnabled = false,
-                        viewportPx = viewportPx,
-                        onOpenFull = { showDescription = true },
-                    )
-                }
-
-                if (packages.isNotEmpty()) {
-                    TvSectionTitle(stringResource(R.string.versions))
-                    TvVersionsList(
-                        packages = packages,
-                        suggestedVersionCode = app.metadata.suggestedVersionCode,
-                        onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
-                    )
-                }
-            }
             }
             }
             }

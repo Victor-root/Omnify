@@ -599,6 +599,9 @@ internal fun PrimaryActions(
     onCancel: () -> Unit,
     primaryActionFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
+    // TV only: the buttons share the width they are given instead of keeping their wide minimum, for a
+    // narrow pane.
+    fillWidth: Boolean = false,
 ) {
     val installing = installState == InstallState.Pending ||
         installState == InstallState.Installing ||
@@ -630,19 +633,24 @@ internal fun PrimaryActions(
         else -> Row(
             modifier = modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(
-                if (isTelevision) 24.dp else 8.dp,
-                if (isTelevision || isTablet) Alignment.CenterHorizontally else Alignment.Start,
+                if (isTelevision && !fillWidth) 24.dp else if (fillWidth) 16.dp else 8.dp,
+                if ((isTelevision && !fillWidth) || isTablet) Alignment.CenterHorizontally else Alignment.Start,
             ),
         ) {
             // Big and centred on TV; capped to a reading width on tablet (see isTablet); full-width
             // (weight) on phones. The primary action also holds the startup focus (see
             // primaryActionFocusRequester).
             val tvPrimaryButton = when {
+                isTelevision && fillWidth -> Modifier.height(60.dp).weight(1f)
                 isTelevision -> Modifier.height(60.dp).widthIn(min = 340.dp)
                 isTablet -> Modifier.widthIn(min = 220.dp, max = 360.dp)
                 else -> Modifier.weight(1f)
             }.focusRequester(primaryActionFocusRequester)
-            val tvSecondaryButton = if (isTelevision) Modifier.height(60.dp).widthIn(min = 200.dp) else Modifier
+            val tvSecondaryButton = when {
+                isTelevision && fillWidth -> Modifier.height(60.dp).weight(1f)
+                isTelevision -> Modifier.height(60.dp).widthIn(min = 200.dp)
+                else -> Modifier
+            }
             when {
                 !isInstalled -> Button(
                     onClick = onInstallOrUpdate,
