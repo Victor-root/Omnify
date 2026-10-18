@@ -3,12 +3,10 @@ package com.looker.droidify.data
 import com.looker.droidify.di.ApplicationScope
 import com.looker.droidify.model.InstalledItem
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -50,24 +48,16 @@ fun signerMismatch(installedSigner: String?, declaredSigners: Collection<String>
 @Singleton
 class InstalledIdentityRepository @Inject constructor(
     installedRepository: InstalledRepository,
-    appRepository: AppRepository,
     @ApplicationScope scope: CoroutineScope,
 ) {
 
     /**
      * packageName -> the installed app's [InstalledItem], live: re-emits on any install/uninstall (via
-     * [InstalledRepository]'s stream, kept current by InstalledAppReceiver). Still combined with catalogue
-     * changes (kept as an input, though no longer used to filter) so a sync-triggered signer change
-     * doesn't leave a stale emission. Shared across every subscriber rather than recomputed per
-     * collector.
+     * [InstalledRepository]'s stream, kept current by InstalledAppReceiver). Shared across every
+     * subscriber rather than recomputed per collector.
      */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val verifiedInstalled: Flow<Map<String, InstalledItem>> = combine(
-        installedRepository.getAllStream(),
-        appRepository.catalogChanges.mapLatest { appRepository.suggestedVersions() },
-    ) { items, _ ->
-        items.associateBy { it.packageName }
-    }
+    val verifiedInstalled: Flow<Map<String, InstalledItem>> = installedRepository.getAllStream()
+        .map { items -> items.associateBy { it.packageName } }
         .distinctUntilChanged()
         .shareIn(scope, SharingStarted.WhileSubscribed(SHARE_TIMEOUT_MS), replay = 1)
 
