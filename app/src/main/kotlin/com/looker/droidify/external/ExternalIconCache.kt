@@ -49,11 +49,16 @@ object ExternalIconCache {
             ?.also { memoryCache?.set(cacheKey, MemoryCache.Value(it.asImage())) }
     }
 
+    /** Written beside the icon then renamed over it, as icons are saved off the main thread while
+     *  [decodedIcon] may be reading the same file for a tile on screen. */
     fun save(context: Context, key: String, bitmap: Bitmap) {
+        val target = iconFile(context, key)
         runCatching {
-            FileOutputStream(iconFile(context, key)).use {
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
-            }
+            val partial = File.createTempFile(target.name, ".tmp", target.parentFile)
+            runCatching {
+                FileOutputStream(partial).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                check(partial.renameTo(target))
+            }.onFailure { partial.delete() }
         }
     }
 }
