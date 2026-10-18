@@ -1818,39 +1818,45 @@ class ExternalAppsViewModel @Inject constructor(
                 return
             }
             // External APKs aren't pre-registered like F-Droid ones, so read the package name from
-            // the downloaded file to drive the installer and detect future updates.
-            val packageName = context.packageManager
-                .getPackageArchiveInfo(releaseFile.absolutePath, 0)
-                ?.packageName
+            // the downloaded file to drive the installer and detect future updates. Every read of the
+            // APK below parses the archive (the signer check verifies the whole file), so it runs off
+            // the main thread.
+            val packageName = withContext(Dispatchers.IO) {
+                context.packageManager
+                    .getPackageArchiveInfo(releaseFile.absolutePath, 0)
+                    ?.packageName
+            }
             if (packageName == null) {
                 toast(context.getString(R.string.external_invalid_apk))
                 return
             }
-            // Read the real icon + app name from the APK we just downloaded (releases carry neither).
-            val realLabel = cacheIconAndReadLabel(releaseFile.absolutePath, app.key)
-            if (context.packageManager.installedWithDifferentSignature(packageName, releaseFile)) {
-                // Different signer: Android can't update across keys. Ask the user to uninstall the
-                // existing copy first, same as the F-Droid catalogue's own dialog — and don't touch the
-                // tracked record at all, so it keeps correctly pointing at whatever's really installed.
-                _installConflict.value = InstallConflict(
-                    isSystemApp = isSystemApp(packageName),
-                    reason = InstallConflictReason.SIGNATURE,
-                    packageName = packageName,
-                    cacheFileName = cacheFileName,
-                )
-                return
+            val (realLabel, conflict) = withContext(Dispatchers.IO) {
+                // Read the real icon + app name from the APK we just downloaded (releases carry neither).
+                val label = cacheIconAndReadLabel(releaseFile.absolutePath, app.key)
+                val pm = context.packageManager
+                val reason = when {
+                    // Different signer: Android can't update across keys. Ask the user to uninstall the
+                    // existing copy first, same as the F-Droid catalogue's own dialog.
+                    pm.installedWithDifferentSignature(packageName, releaseFile) -> InstallConflictReason.SIGNATURE
+                    // Picking an older release from the version list (or a source whose latest briefly
+                    // pointed at a lower version code) hits Android's own downgrade guard. Same
+                    // uninstall-then-reinstall offer as the signature conflict, just for a different reason.
+                    pm.isVersionDowngrade(packageName, releaseFile) -> InstallConflictReason.VERSION_DOWNGRADE
+                    else -> null
+                }
+                label to reason?.let {
+                    InstallConflict(
+                        isSystemApp = isSystemApp(packageName),
+                        reason = it,
+                        packageName = packageName,
+                        cacheFileName = cacheFileName,
+                    )
+                }
             }
-            if (context.packageManager.isVersionDowngrade(packageName, releaseFile)) {
-                // Picking an older release from the version list (or a source whose latest briefly
-                // pointed at a lower version code) hits Android's own downgrade guard. Same
-                // uninstall-then-reinstall offer as the signature conflict above, just for a different
-                // reason — and likewise leaves the tracked record untouched.
-                _installConflict.value = InstallConflict(
-                    isSystemApp = isSystemApp(packageName),
-                    reason = InstallConflictReason.VERSION_DOWNGRADE,
-                    packageName = packageName,
-                    cacheFileName = cacheFileName,
-                )
+            if (conflict != null) {
+                // Either conflict leaves the tracked record untouched, so it keeps correctly pointing at
+                // whatever's really installed.
+                _installConflict.value = conflict
                 return
             }
             installManager.install(InstallItem(PackageName(packageName), cacheFileName))
