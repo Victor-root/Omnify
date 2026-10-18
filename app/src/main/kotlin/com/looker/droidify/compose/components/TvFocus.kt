@@ -55,12 +55,11 @@ val TvOverscan = 24.dp
  * underlying issue is found; not meant to ship long-term (labels are opt-in and default to null/no-op
  * everywhere they aren't explicitly passed, so leaving this in is otherwise inert).
  */
-private const val TV_FOCUS_DEBUG_TAG = "TvFocusDebug"
+internal const val TV_FOCUS_DEBUG_TAG = "TvFocusDebug"
 
-private fun tvFocusDebugLog(message: String) {
-    if (BuildConfig.DEBUG) {
-        Log.d(TV_FOCUS_DEBUG_TAG, message)
-    }
+/** Takes the message as a lambda so that outside debug builds it is never even built. */
+internal inline fun tvFocusDebugLog(message: () -> String) {
+    if (BuildConfig.DEBUG) Log.d(TV_FOCUS_DEBUG_TAG, message())
 }
 
 /**
@@ -70,11 +69,15 @@ private fun tvFocusDebugLog(message: String) {
  * correlate against the `tvFocus*` modifiers' own "gained focus" logs elsewhere on the same screen. See
  * [tvFocusDebugLog]. Never consumes the event (always returns false), so it can't change behavior.
  */
-fun Modifier.tvDpadKeyLog(screenLabel: String): Modifier = onPreviewKeyEvent { event ->
-    if (event.type == KeyEventType.KeyDown) {
-        tvFocusDebugLog("[$screenLabel] KEY ${event.key} at ${System.currentTimeMillis()}")
+fun Modifier.tvDpadKeyLog(screenLabel: String): Modifier = if (!BuildConfig.DEBUG) {
+    this
+} else {
+    onPreviewKeyEvent { event ->
+        if (event.type == KeyEventType.KeyDown) {
+            tvFocusDebugLog { "[$screenLabel] KEY ${event.key} at ${System.currentTimeMillis()}" }
+        }
+        false
     }
-    false
 }
 
 /**
@@ -109,7 +112,7 @@ fun Modifier.tvFocusScale(focusedScale: Float = 1.1f, debugLabel: String? = null
         .onFocusChanged {
             focused = it.isFocused
             if (it.isFocused && debugLabel != null) {
-                tvFocusDebugLog("FOCUS -> $debugLabel (tvFocusScale) at ${System.currentTimeMillis()}")
+                tvFocusDebugLog { "FOCUS -> $debugLabel (tvFocusScale) at ${System.currentTimeMillis()}" }
             }
         }
         .zIndex(if (focused) 1f else 0f)
@@ -143,7 +146,7 @@ fun Modifier.tvReadable(debugLabel: String? = null): Modifier {
         .onFocusChanged {
             focused = it.isFocused
             if (it.isFocused && debugLabel != null) {
-                tvFocusDebugLog("FOCUS -> $debugLabel (tvReadable) at ${System.currentTimeMillis()}")
+                tvFocusDebugLog { "FOCUS -> $debugLabel (tvReadable) at ${System.currentTimeMillis()}" }
             }
         }
         .background(MaterialTheme.colorScheme.primary.copy(alpha = alpha), shape)
@@ -151,9 +154,9 @@ fun Modifier.tvReadable(debugLabel: String? = null): Modifier {
             val blocked = event.type == KeyEventType.KeyDown &&
                 (event.key == Key.DirectionLeft || event.key == Key.DirectionRight)
             if (blocked && debugLabel != null) {
-                tvFocusDebugLog(
-                    "$debugLabel (tvReadable) blocks ${event.key} at ${System.currentTimeMillis()}",
-                )
+                tvFocusDebugLog {
+                    "$debugLabel (tvReadable) blocks ${event.key} at ${System.currentTimeMillis()}"
+                }
             }
             blocked
         }
@@ -210,19 +213,19 @@ fun Modifier.tvPageScroll(
                 false
             } else if (event.key == Key.DirectionDown && scrollState.value < scrollState.maxValue) {
                 if (debugLabel != null) {
-                    tvFocusDebugLog(
+                    tvFocusDebugLog {
                         "$debugLabel (tvPageScroll) consumes DOWN, scrollState=${scrollState.value}/" +
-                            "${scrollState.maxValue} at ${System.currentTimeMillis()}",
-                    )
+                            "${scrollState.maxValue} at ${System.currentTimeMillis()}"
+                    }
                 }
                 scope.launch { scrollState.animateScrollBy(stepPx.toFloat()) }
                 true
             } else if (event.key == Key.DirectionUp && scrollState.value > 0) {
                 if (debugLabel != null) {
-                    tvFocusDebugLog(
+                    tvFocusDebugLog {
                         "$debugLabel (tvPageScroll) consumes UP, scrollState=${scrollState.value}/" +
-                            "${scrollState.maxValue} at ${System.currentTimeMillis()}",
-                    )
+                            "${scrollState.maxValue} at ${System.currentTimeMillis()}"
+                    }
                 }
                 scope.launch { scrollState.animateScrollBy(-stepPx.toFloat()) }
                 true
@@ -236,10 +239,10 @@ fun Modifier.tvPageScroll(
                 val target = if (event.key == Key.DirectionDown) downTarget else upTarget
                 val moved = target?.let { runCatching { it.requestFocus() }.isSuccess } ?: false
                 if (debugLabel != null) {
-                    tvFocusDebugLog(
+                    tvFocusDebugLog {
                         "$debugLabel (tvPageScroll) at bound, requestFocus(${event.key})=$moved, scrollState=" +
-                            "${scrollState.value}/${scrollState.maxValue} at ${System.currentTimeMillis()}",
-                    )
+                            "${scrollState.value}/${scrollState.maxValue} at ${System.currentTimeMillis()}"
+                    }
                 }
                 true
             } else {
@@ -248,7 +251,7 @@ fun Modifier.tvPageScroll(
         }
         .onFocusChanged {
             if (it.isFocused && debugLabel != null) {
-                tvFocusDebugLog("FOCUS -> $debugLabel (tvPageScroll) at ${System.currentTimeMillis()}")
+                tvFocusDebugLog { "FOCUS -> $debugLabel (tvPageScroll) at ${System.currentTimeMillis()}" }
             }
         }
         .focusable()
@@ -266,10 +269,10 @@ fun Modifier.tvDpadDownTo(target: FocusRequester, debugLabel: String? = null): M
         if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
             val result = runCatching { target.requestFocus() }
             if (debugLabel != null) {
-                tvFocusDebugLog(
+                tvFocusDebugLog {
                     "$debugLabel (tvDpadDownTo) redirects DOWN, requestFocus success=" +
-                        "${result.isSuccess} at ${System.currentTimeMillis()}",
-                )
+                        "${result.isSuccess} at ${System.currentTimeMillis()}"
+                }
             }
             result.isSuccess
         } else {
@@ -302,7 +305,7 @@ fun Modifier.tvFocusFill(
         .onFocusChanged {
             focused = it.isFocused
             if (it.isFocused && debugLabel != null) {
-                tvFocusDebugLog("FOCUS -> $debugLabel (tvFocusFill) at ${System.currentTimeMillis()}")
+                tvFocusDebugLog { "FOCUS -> $debugLabel (tvFocusFill) at ${System.currentTimeMillis()}" }
             }
         }
         .background(color.copy(alpha = alpha), shape)
