@@ -79,6 +79,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -579,16 +580,16 @@ private fun shareApp(context: Context, packageName: String, repo: Repo) {
     context.startActivity(Intent.createChooser(sendIntent, null))
 }
 
-/** A soft red tonal button: it stands apart from the filled accent buttons of the main actions without
- *  shouting like them, and says what it does. Shared by both app detail screens. */
+/** The accent colour of the main buttons, muted towards the surface: it keeps the person's chosen colour
+ *  while standing apart from the filled main actions. Shared by both app detail screens. */
 @Composable
 internal fun UninstallButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     FilledTonalButton(
         onClick = onClick,
         modifier = modifier,
         colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+            containerColor = lerp(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.surface, 0.6f),
+            contentColor = MaterialTheme.colorScheme.onSurface,
         ),
     ) {
         Text(stringResource(R.string.uninstall), maxLines = 1)

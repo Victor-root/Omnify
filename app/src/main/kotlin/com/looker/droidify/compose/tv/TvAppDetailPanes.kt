@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +51,8 @@ import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.externalApps.ReadmeWebView
 import com.looker.droidify.data.model.FilePath
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
+import kotlinx.coroutines.delay
 
 /**
  * The two panes of an Android TV app detail page, shared by the catalogue and the external-source
@@ -99,6 +102,32 @@ internal fun TvAppDetailPanes(
             verticalArrangement = spacedBy(16.dp),
             content = right,
         )
+    }
+}
+
+/**
+ * Android TV: until the person presses a key, keeps the focus on the main action ([primary]), taking it
+ * back whenever it is anywhere else ([actionHasFocus] false). Landing once is not enough: the page keeps
+ * filling in after it opens (screenshots appear, the install state flips Install to Launch and replaces
+ * the button), and any of that can move the focus. Once a key is pressed the focus is the person's.
+ * [onLanded] runs after each landing.
+ */
+@Composable
+internal fun TvKeepFocusOnMainAction(
+    primary: FocusRequester,
+    actionHasFocus: () -> Boolean,
+    userInteracted: () -> Boolean,
+    onLanded: suspend () -> Unit = {},
+) {
+    LaunchedEffect(Unit) {
+        while (!userInteracted()) {
+            if (!actionHasFocus() && runCatching { primary.requestFocus() }.getOrDefault(false)) {
+                DiagnosticLog.log("TV app detail: focus put on the main action")
+                delay(50)
+                if (!userInteracted()) onLanded()
+            }
+            delay(100)
+        }
     }
 }
 
@@ -177,6 +206,18 @@ internal fun TvDescriptionPane(
             LoadingSpinner(modifier = Modifier.size(36.dp))
         }
     }
+}
+
+/** What the description area says when there is nothing to show, so an empty page is never mistaken for
+ *  one that has not loaded. */
+@Composable
+internal fun TvDescriptionMessage(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(16.dp),
+    )
 }
 
 /** The screenshots row, as one target [requester] can send the focus to (see [TvDescriptionPane]'s upTarget). */
