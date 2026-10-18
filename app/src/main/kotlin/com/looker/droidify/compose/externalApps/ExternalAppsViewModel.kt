@@ -331,25 +331,14 @@ class ExternalAppsViewModel @Inject constructor(
                 candidates.forEach { app ->
                     val pkg = app.packageName ?: return@forEach
                     val apkUrl = app.latestApkUrl ?: return@forEach
-                    val installedSigner = context.packageManager
-                        .getPackageInfoCompat(pkg)
-                        ?.singleSignature
-                        ?.calculateHash()
-                        ?.lowercase()
-                        ?: return@forEach
-                    // Deliberately not signerHashCache.getOrPut(apkUrl) { ... }: getOrPut only treats a
-                    // *missing* key as a cache miss, but a failed read is cached as a null *value* under
-                    // an already-present key — indistinguishable from "missing" to getOrPut, so it would
-                    // silently re-fetch over the network on every single re-evaluation instead of caching
-                    // the failure once, defeating the whole point of this cache for exactly the hosts most
-                    // likely to need it (ones that don't support range requests at all).
-                    val expectedSigners = if (signerHashCache.containsKey(apkUrl)) {
-                        signerHashCache.getValue(apkUrl)
-                    } else {
-                        ApkSigningBlockReader.fetchSignerHashes(downloader, apkUrl).also {
-                            signerHashCache[apkUrl] = it
-                        }
+                    val installedSigner = withContext(Dispatchers.Default) {
+                        context.packageManager
+                            .getPackageInfoCompat(pkg)
+                            ?.singleSignature
+                            ?.calculateHash()
+                            ?.lowercase()
                     } ?: return@forEach
+                    val expectedSigners = expectedSignerHashes(apkUrl) ?: return@forEach
                     // signerMismatch: the one shared definition of this comparison (see
                     // InstalledIdentityRepository) — same rule as the catalogue side, different source
                     // for the expected signers (the release APK's own signing block; there's no index
@@ -363,12 +352,31 @@ class ExternalAppsViewModel @Inject constructor(
                         )
                     }
                     if (mismatch) {
-                        mismatches[app.key] = isSystemApp(pkg)
+                        mismatches[app.key] = withContext(Dispatchers.Default) { isSystemApp(pkg) }
                     }
                 }
                 _signatureMismatches.value = mismatches
             }
     }
+
+    /**
+     * [apkUrl]'s declared signers, from [signerHashCache] or else read by [ApkSigningBlockReader]. The
+     * read runs on Dispatchers.Default, as it parses the signing block after each range request; the
+     * cache itself is only ever touched on the main thread.
+     *
+     * Deliberately not signerHashCache.getOrPut(apkUrl) { ... }: getOrPut only treats a *missing* key as
+     * a cache miss, but a failed read is cached as a null *value* under an already-present key,
+     * indistinguishable from "missing" to getOrPut, so it would silently re-fetch over the network on
+     * every single re-evaluation instead of caching the failure once, defeating the whole point of this
+     * cache for exactly the hosts most likely to need it (ones that don't support range requests at all).
+     */
+    private suspend fun expectedSignerHashes(apkUrl: String): Set<String>? =
+        if (signerHashCache.containsKey(apkUrl)) {
+            signerHashCache.getValue(apkUrl)
+        } else {
+            withContext(Dispatchers.Default) { ApkSigningBlockReader.fetchSignerHashes(downloader, apkUrl) }
+                .also { signerHashCache[apkUrl] = it }
+        }
 
     /** Keys of tracked apps the user has favourited — the same store the F-Droid catalogue's own
      *  favourites use ([SettingsRepository.toggleFavourites]/`favouriteApps`), keyed by [ExternalApp.key]
@@ -644,8 +652,10 @@ class ExternalAppsViewModel @Inject constructor(
     fun loadSdkInfo(apkUrl: String) {
         if (!sdkInfoRequested.add(apkUrl)) return
         viewModelScope.launch {
-            val manifest = RemoteApkManifestReader.fetchManifestBytes(downloader, apkUrl)
-            val sdk = manifest?.let(ApkBinaryManifest::usesSdk)
+            // Off the main thread: the reader inflates the manifest and this parses it.
+            val sdk = withContext(Dispatchers.Default) {
+                RemoteApkManifestReader.fetchManifestBytes(downloader, apkUrl)?.let(ApkBinaryManifest::usesSdk)
+            }
             _sdkInfoByApkUrl.update { it + (apkUrl to sdk) }
         }
     }
@@ -670,23 +680,26 @@ class ExternalAppsViewModel @Inject constructor(
     fun loadGoogleServicesInfo(app: ExternalApp, apkUrl: String) {
         if (!googleServicesRequested.add(apkUrl)) return
         viewModelScope.launch {
-            val packageId = app.packageName ?: externalApi.fetchPackageId(app)
-            val manifest = packageId?.let { RemoteApkManifestReader.fetchManifestBytes(downloader, apkUrl) }
-            val parsed = manifest?.let(ApkBinaryManifest::permissionsAndFeatures)
-            val dependencies = if (packageId != null && manifest != null && parsed != null) {
-                val detected =
-                    detectGoogleServicesDependencies(packageId, parsed.permissionNames, parsed.featureNames)
-                // Same precision refinement the catalogue applies: a merged manifest can still declare
-                // the push permission purely as a bundled Firebase/GCM library's own residue, with every
-                // app-authored component that would let it actually reach the app removed — see
-                // pushCapabilityIsVestigial's own doc comment.
-                if (pushCapabilityIsVestigial(manifest) == true) {
-                    detected.filterNot { it.labelRes == R.string.gms_cap_push }
+            // Off the main thread: the reader inflates the manifest and both checks below parse it.
+            val dependencies = withContext(Dispatchers.Default) {
+                val packageId = app.packageName ?: externalApi.fetchPackageId(app)
+                val manifest = packageId?.let { RemoteApkManifestReader.fetchManifestBytes(downloader, apkUrl) }
+                val parsed = manifest?.let(ApkBinaryManifest::permissionsAndFeatures)
+                if (packageId != null && manifest != null && parsed != null) {
+                    val detected =
+                        detectGoogleServicesDependencies(packageId, parsed.permissionNames, parsed.featureNames)
+                    // Same precision refinement the catalogue applies: a merged manifest can still declare
+                    // the push permission purely as a bundled Firebase/GCM library's own residue, with every
+                    // app-authored component that would let it actually reach the app removed (see
+                    // pushCapabilityIsVestigial's own doc comment).
+                    if (pushCapabilityIsVestigial(manifest) == true) {
+                        detected.filterNot { it.labelRes == R.string.gms_cap_push }
+                    } else {
+                        detected
+                    }
                 } else {
-                    detected
+                    emptyList()
                 }
-            } else {
-                emptyList()
             }
             _googleServicesByApkUrl.update { it + (apkUrl to dependencies) }
         }
@@ -713,11 +726,7 @@ class ExternalAppsViewModel @Inject constructor(
     fun loadExpectedSigners(apkUrl: String) {
         if (!expectedCertificateRequested.add(apkUrl)) return
         viewModelScope.launch {
-            val hashes = if (signerHashCache.containsKey(apkUrl)) {
-                signerHashCache.getValue(apkUrl)
-            } else {
-                ApkSigningBlockReader.fetchSignerHashes(downloader, apkUrl).also { signerHashCache[apkUrl] = it }
-            }
+            val hashes = expectedSignerHashes(apkUrl)
             _expectedSignersByApkUrl.update { it + (apkUrl to hashes) }
         }
     }
@@ -831,7 +840,14 @@ class ExternalAppsViewModel @Inject constructor(
             // SAME cross-check below, since a default-English-only result from an *installed* APK has
             // the identical known weakness as one read remotely (see ApkResourceLocales' own doc comment
             // on saf_stream) and was previously returned outright here, never reaching it.
-            val installedLocales = if (isInstalled) installedApkLocales(app.packageName) else emptyList()
+            // Both APK reads below run on Dispatchers.Default (opening and scanning the installed APK,
+            // inflating and parsing the release's resources.arsc); sourceLocalesCache stays on the main
+            // thread.
+            val installedLocales = if (isInstalled) {
+                withContext(Dispatchers.Default) { installedApkLocales(app.packageName) }
+            } else {
+                emptyList()
+            }
             val apkLocales = if (installedLocales.isNotEmpty()) {
                 installedLocales
             } else {
@@ -845,7 +861,9 @@ class ExternalAppsViewModel @Inject constructor(
                     // back to the download URL for providers that expose neither.
                     val cacheKey = release.apkVersionToken(filter = app.apkFilter) ?: asset.downloadUrl
                     appRepository.cachedApkLocales(cacheKey)
-                        ?: RemoteApkLocaleReader.fetchLocales(downloader, asset.downloadUrl)?.also {
+                        ?: withContext(Dispatchers.Default) {
+                            RemoteApkLocaleReader.fetchLocales(downloader, asset.downloadUrl)
+                        }?.also {
                             // An empty result is the one answer this check can't fully trust: unlike a
                             // real installed APK, a *download* coming back with zero locale-specific
                             // resource configs can just as easily mean the fetch/parse silently missed
