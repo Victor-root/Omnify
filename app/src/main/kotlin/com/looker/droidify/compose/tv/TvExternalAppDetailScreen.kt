@@ -108,6 +108,7 @@ fun TvExternalAppDetailScreen(
     }
 
     val app = remember(apps, appKey) { apps.firstOrNull { it.key == appKey } }
+    TvDetailOpenTiming("external app detail", ready = app != null)
 
     if (app == null) {
         TvCentered { CircularProgressIndicator() }

@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.tv
 
+import android.os.SystemClock
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.focusGroup
@@ -30,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -45,6 +47,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.ScreenshotsRow
 import com.looker.droidify.compose.components.LoadingSpinner
@@ -104,6 +107,22 @@ internal fun TvAppDetailPanes(
             verticalArrangement = spacedBy(16.dp),
             content = right,
         )
+    }
+}
+
+/**
+ * Diagnostics builds only (see [DiagnosticLog]): how long a TV detail [page] takes to open, from its
+ * first composition to [ready] (its content is known) and to the first frame drawn after that.
+ */
+@Composable
+internal fun TvDetailOpenTiming(page: String, ready: Boolean) {
+    if (!BuildConfig.DIAGNOSTICS) return
+    val openedAt = remember { SystemClock.elapsedRealtime() }
+    LaunchedEffect(ready) {
+        if (!ready) return@LaunchedEffect
+        DiagnosticLog.log("TV $page: content composed ${SystemClock.elapsedRealtime() - openedAt} ms after opening")
+        withFrameNanos { }
+        DiagnosticLog.log("TV $page: content on screen ${SystemClock.elapsedRealtime() - openedAt} ms after opening")
     }
 }
 

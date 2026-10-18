@@ -3,6 +3,7 @@ package com.looker.droidify.compose.externalApps
 import android.content.Context
 import android.graphics.Color as AndroidColor
 import android.os.Build
+import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -24,7 +25,9 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.viewinterop.AndroidView
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.compose.theme.LocalIsTelevision
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.text.ReadmeHtmlSanitizer
 import kotlinx.coroutines.launch
 
@@ -141,7 +144,12 @@ fun ReadmeWebView(
         // branch isn't taken even if some other effect ever promotes this subtree to a layer — the exact
         // mitigation react-native-webview shipped at scale for the same crash (their PR #2874).
         factory = { context ->
-            val web = NonScrollingWebView(context).apply {
+            val createdAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
+            val web = NonScrollingWebView(context).also {
+                if (BuildConfig.DIAGNOSTICS) {
+                    DiagnosticLog.log("WebView created in ${SystemClock.elapsedRealtime() - createdAt} ms")
+                }
+            }.apply {
                 settings.apply {
                     // Explicit `this.`: a bare `javaScriptEnabled` here still binds to the outer
                     // Composable parameter of the same name (a val, hence "val cannot be reassigned")
