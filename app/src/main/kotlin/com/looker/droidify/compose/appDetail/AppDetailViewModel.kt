@@ -557,13 +557,16 @@ class AppDetailViewModel @Inject constructor(
         // Both read state (declared above) directly; trackSourceLocaleCrossCheck also reads
         // baseSupportedLanguages, just declared above this block — a property is only assigned once its
         // own initializer line runs, so this init block must come after it, not before (a launch{} body
-        // runs eagerly enough on viewModelScope's default dispatcher to hit that gap immediately: a real
-        // NullPointerException from combine() reading baseSupportedLanguages while it was still null,
-        // confirmed via a real crash log, when this init block was placed above it instead).
-        viewModelScope.launch { trackRemoteApkLocales() }
-        viewModelScope.launch { trackSourceLocaleCrossCheck() }
-        viewModelScope.launch { trackPushComponentVerification() }
-        viewModelScope.launch { trackRemoteIcon() }
+        // can start right away and hit that gap: a real NullPointerException from combine() reading
+        // baseSupportedLanguages while it was still null, confirmed via a real crash log, when this init
+        // block was placed above it instead).
+        // On Dispatchers.Default: each of them resumes after its network reads to scan ZIP central
+        // directories, inflate and parse APK entries, query the package manager and read or write local
+        // files, none of which belongs on the main thread. They only write MutableStateFlows.
+        viewModelScope.launch(Dispatchers.Default) { trackRemoteApkLocales() }
+        viewModelScope.launch(Dispatchers.Default) { trackSourceLocaleCrossCheck() }
+        viewModelScope.launch(Dispatchers.Default) { trackPushComponentVerification() }
+        viewModelScope.launch(Dispatchers.Default) { trackRemoteIcon() }
     }
 
     /**
