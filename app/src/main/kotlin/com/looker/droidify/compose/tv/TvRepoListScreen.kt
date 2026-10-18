@@ -201,7 +201,7 @@ fun TvRepoListScreen(
         ),
         verticalArrangement = spacedBy(6.dp),
     ) {
-        item(key = "header") {
+        item(key = "header", contentType = "title") {
             Column(verticalArrangement = spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -228,9 +228,9 @@ fun TvRepoListScreen(
         }
 
         // External sources / accounts the user added themselves.
-        item(key = "external-header") { SettingHeader(stringResource(R.string.repo_section_external)) }
+        item(key = "external-header", contentType = "header") { SettingHeader(stringResource(R.string.repo_section_external)) }
         if (regularAccounts.isEmpty() && regularExternalApps.isEmpty()) {
-            item(key = "external-empty") {
+            item(key = "external-empty", contentType = "empty") {
                 Text(
                     text = stringResource(R.string.external_empty_hint),
                     style = MaterialTheme.typography.bodyMedium,
@@ -239,7 +239,7 @@ fun TvRepoListScreen(
                 )
             }
         }
-        items(regularAccounts, key = { "acc-${it.key}" }) { account ->
+        items(regularAccounts, key = { "acc-${it.key}" }, contentType = { "account" }) { account ->
             TvAccountRow(
                 account = account,
                 appCount = accountAppCounts[account.key] ?: 0,
@@ -250,7 +250,7 @@ fun TvRepoListScreen(
                 onRemove = { externalViewModel.removeAccount(account) },
             )
         }
-        items(regularExternalApps, key = { "ext-${it.key}" }) { app ->
+        items(regularExternalApps, key = { "ext-${it.key}" }, contentType = { "source" }) { app ->
             TvSourceRow(
                 app = app,
                 isInstalled = app.key in externalInstalledKeys,
@@ -262,8 +262,8 @@ fun TvRepoListScreen(
         }
 
         // F-Droid repositories.
-        item(key = "repos-header") { SettingHeader(stringResource(R.string.repo_section_fdroid)) }
-        items(sortedRepos, key = { "repo-${it.id}" }) { repo ->
+        item(key = "repos-header", contentType = "header") { SettingHeader(stringResource(R.string.repo_section_fdroid)) }
+        items(sortedRepos, key = { "repo-${it.id}" }, contentType = { "repo" }) { repo ->
             TvRepoRow(
                 repo = repo,
                 isSyncing = repo.id in syncingRepoIds,
@@ -273,10 +273,10 @@ fun TvRepoListScreen(
         }
 
         // Omnify's own curated picks (the repo, the Victor-root account, and the Made-for-TV pack).
-        item(key = "omnify-picks-header") {
+        item(key = "omnify-picks-header", contentType = "header") {
             SettingHeader(stringResource(R.string.repo_section_omnify_picks))
         }
-        items(curatedExternalApps, key = { "cur-ext-${it.key}" }) { app ->
+        items(curatedExternalApps, key = { "cur-ext-${it.key}" }, contentType = { "source" }) { app ->
             TvSourceRow(
                 app = app,
                 isInstalled = app.key in externalInstalledKeys,
@@ -287,7 +287,7 @@ fun TvRepoListScreen(
                 brandWithAppIcon = app.key == ExternalApp.OMNIFY_REPO_KEY,
             )
         }
-        items(curatedAccounts, key = { "cur-acc-${it.key}" }) { account ->
+        items(curatedAccounts, key = { "cur-acc-${it.key}" }, contentType = { "account" }) { account ->
             TvAccountRow(
                 account = account,
                 appCount = accountAppCounts[account.key] ?: 0,
@@ -299,7 +299,7 @@ fun TvRepoListScreen(
             )
         }
         if (curatedTvApps.isNotEmpty()) {
-            item(key = "omnify-picks-tv-subheader") {
+            item(key = "omnify-picks-tv-subheader", contentType = "subheader") {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp),
@@ -318,7 +318,7 @@ fun TvRepoListScreen(
                     )
                 }
             }
-            items(curatedTvApps, key = { "cur-tv-${it.key}" }) { app ->
+            items(curatedTvApps, key = { "cur-tv-${it.key}" }, contentType = { "source" }) { app ->
                 TvSourceRow(
                     app = app,
                     isInstalled = app.key in externalInstalledKeys,
@@ -585,7 +585,7 @@ private fun TvRepoRow(
         subtitle = {
             if (repo.description.isNotEmpty()) {
                 Text(
-                    text = repo.description.toAnnotatedString { },
+                    text = remember(repo.description) { repo.description.toAnnotatedString { } },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,

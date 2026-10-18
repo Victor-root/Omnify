@@ -274,7 +274,7 @@ fun RepoListScreen(
             // occupying a reserved slot under the top bar, so the whole header stays about a sync as
             // briefly as the sync itself does.
             if (isSyncing) {
-                item(key = "sync-banner") {
+                item(key = "sync-banner", contentType = "sync-banner") {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                         Text(
                             text = stringResource(R.string.syncing),
@@ -287,7 +287,7 @@ fun RepoListScreen(
                 }
             }
             val externalCollapsed = SECTION_KEY_EXTERNAL in collapsedSections
-            item(key = "external-header") {
+            item(key = "external-header", contentType = "header") {
                 SectionHeader(
                     title = stringResource(R.string.repo_section_external),
                     collapsed = externalCollapsed,
@@ -296,7 +296,7 @@ fun RepoListScreen(
             }
             if (!externalCollapsed) {
                 if (regularAccounts.isEmpty() && regularExternalApps.isEmpty()) {
-                    item(key = "external-empty") {
+                    item(key = "external-empty", contentType = "empty") {
                         Text(
                             text = stringResource(R.string.external_empty_hint),
                             style = MaterialTheme.typography.bodyMedium,
@@ -305,7 +305,7 @@ fun RepoListScreen(
                         )
                     }
                 }
-                items(regularAccounts, key = { "acc-${it.key}" }) { account ->
+                items(regularAccounts, key = { "acc-${it.key}" }, contentType = { "account" }) { account ->
                     ExternalAccountItem(
                         account = account,
                         appCount = accountAppCounts[account.key] ?: 0,
@@ -316,7 +316,7 @@ fun RepoListScreen(
                         onRemove = { externalViewModel.removeAccount(account) },
                     )
                 }
-                items(regularExternalApps, key = { "ext-${it.key}" }) { app ->
+                items(regularExternalApps, key = { "ext-${it.key}" }, contentType = { "source" }) { app ->
                     ExternalSourceItem(
                         app = app,
                         isInstalled = app.key in externalInstalledKeys,
@@ -329,7 +329,7 @@ fun RepoListScreen(
             }
 
             val fdroidCollapsed = SECTION_KEY_FDROID in collapsedSections
-            item(key = "repos-header") {
+            item(key = "repos-header", contentType = "header") {
                 SectionHeader(
                     title = stringResource(R.string.repo_section_fdroid),
                     collapsed = fdroidCollapsed,
@@ -337,7 +337,7 @@ fun RepoListScreen(
                 )
             }
             if (!fdroidCollapsed) {
-                items(sortedRepos, key = { "repo-${it.id}" }) { repo ->
+                items(sortedRepos, key = { "repo-${it.id}" }, contentType = { "repo" }) { repo ->
                     RepoItem(
                         onClick = { onRepoClick(repo.id) },
                         onToggle = { viewModel.toggleRepo(repo) },
@@ -351,7 +351,7 @@ fun RepoListScreen(
             // separate from anything the user added themselves — disabled by default (aside from
             // Omnify's own update channel, seeded active), left entirely to the user to opt into.
             val omnifyPicksCollapsed = SECTION_KEY_OMNIFY_PICKS in collapsedSections
-            item(key = "omnify-picks-header") {
+            item(key = "omnify-picks-header", contentType = "header") {
                 SectionHeader(
                     title = stringResource(R.string.repo_section_omnify_picks),
                     collapsed = omnifyPicksCollapsed,
@@ -362,7 +362,7 @@ fun RepoListScreen(
             // of its own author) right below it — both are curated, but the repo is the one people
             // actually want first (it's Omnify's own update channel).
             if (!omnifyPicksCollapsed) {
-                items(curatedExternalApps, key = { "ext-${it.key}" }) { app ->
+                items(curatedExternalApps, key = { "ext-${it.key}" }, contentType = { "source" }) { app ->
                     ExternalSourceItem(
                         app = app,
                         isInstalled = app.key in externalInstalledKeys,
@@ -375,7 +375,7 @@ fun RepoListScreen(
                         brandWithAppIcon = app.key == ExternalApp.OMNIFY_REPO_KEY,
                     )
                 }
-                items(curatedAccounts, key = { "acc-${it.key}" }) { account ->
+                items(curatedAccounts, key = { "acc-${it.key}" }, contentType = { "account" }) { account ->
                     ExternalAccountItem(
                         account = account,
                         appCount = accountAppCounts[account.key] ?: 0,
@@ -391,10 +391,10 @@ fun RepoListScreen(
                 // curatedTvApps) — just enough separation that a phone/tablet user scanning past several
                 // TV-only apps understands why they're grouped, without another top-level toggle to manage.
                 if (curatedTvApps.isNotEmpty()) {
-                    item(key = "omnify-picks-tv-subheader") {
+                    item(key = "omnify-picks-tv-subheader", contentType = "subheader") {
                         TvPackSubHeader()
                     }
-                    items(curatedTvApps, key = { "ext-${it.key}" }) { app ->
+                    items(curatedTvApps, key = { "ext-${it.key}" }, contentType = { "source" }) { app ->
                         ExternalSourceItem(
                             app = app,
                             isInstalled = app.key in externalInstalledKeys,
@@ -810,7 +810,7 @@ private fun RepoItem(
                     )
                     if (repo.description.isNotEmpty()) {
                         Text(
-                            text = repo.description.toAnnotatedString { },
+                            text = remember(repo.description) { repo.description.toAnnotatedString { } },
                             overflow = TextOverflow.Ellipsis,
                             maxLines = 4,
                             style = MaterialTheme.typography.bodySmall,
