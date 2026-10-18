@@ -86,7 +86,10 @@ fun ReleaseVersionItem(
             // Same treatment as the hero card, only for the one suggested release — that's the
             // pick this screen wants to draw the eye to, not every entry in a long version list,
             // which would drown the highlight out.
-            .then(if (isSuggested) premiumCardBorder(cardShape) else Modifier),
+            .then(if (isSuggested) premiumCardBorder(cardShape) else Modifier)
+            // TV only: visible focus ring (no-op on touch), on the same bounds as the card's own border
+            // so it covers it instead of sitting beside it.
+            .tvFocusOutline(cardShape),
     ) {
         Surface(
             shape = cardShape,
@@ -97,8 +100,6 @@ fun ReleaseVersionItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(cardShape)
-                // TV only: visible focus ring (no-op on touch).
-                .tvFocusOutline(cardShape)
                 .clickable(onClick = onClick, role = Role.Button),
         ) {
             Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)) {

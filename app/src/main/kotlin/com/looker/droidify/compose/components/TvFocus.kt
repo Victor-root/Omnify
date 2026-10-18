@@ -323,6 +323,8 @@ fun Modifier.tvFocusOutline(
     var focused by remember { mutableStateOf(false) }
     val alpha by animateFloatAsState(if (focused) 1f else 0f, label = "tvFocusOutline")
     return this
-        .onFocusChanged { focused = it.isFocused }
+        // hasFocus rather than isFocused, so the outline can sit on a wrapper (a card with its own
+        // border) and still light up when the focusable inside it is focused.
+        .onFocusChanged { focused = it.hasFocus }
         .border(width, color.copy(alpha = alpha), shape)
 }

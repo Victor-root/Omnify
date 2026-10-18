@@ -33,7 +33,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.MutedButton
 import com.looker.droidify.compose.components.PageIndicator
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvFocusFill
@@ -290,7 +290,7 @@ private fun TvRestorePage(viewModel: WelcomeViewModel, onNext: () -> Unit, onBac
                     .tvFocusScale(1.05f)
                     .focusRequester(nextFocus),
             ) { Text(stringResource(R.string.welcome_next)) }
-            OutlinedButton(
+            MutedButton(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth().height(60.dp).tvFocusScale(1.05f),
             ) { Text(stringResource(R.string.tv_back)) }
@@ -340,7 +340,7 @@ private fun TvAppearancePage(viewModel: WelcomeViewModel, onNext: () -> Unit, on
                     .tvFocusScale(1.05f)
                     .focusRequester(nextFocus),
             ) { Text(stringResource(R.string.welcome_next)) }
-            OutlinedButton(
+            MutedButton(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth().height(60.dp).tvFocusScale(1.05f),
             ) { Text(stringResource(R.string.tv_back)) }
@@ -420,7 +420,7 @@ private fun TvSourcesPage(viewModel: WelcomeViewModel, onBack: () -> Unit, onDon
                     ),
                 )
             }
-            OutlinedButton(
+            MutedButton(
                 onClick = { viewModel.setAll(!allChecked) },
                 enabled = !finishing,
                 modifier = Modifier.fillMaxWidth().height(60.dp).tvFocusScale(1.05f),
@@ -431,7 +431,7 @@ private fun TvSourcesPage(viewModel: WelcomeViewModel, onBack: () -> Unit, onDon
                     ),
                 )
             }
-            OutlinedButton(
+            MutedButton(
                 onClick = onBack,
                 enabled = !finishing,
                 modifier = Modifier.fillMaxWidth().height(60.dp).tvFocusScale(1.05f),

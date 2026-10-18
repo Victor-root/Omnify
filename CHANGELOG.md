@@ -15,7 +15,8 @@ A welcome page for a fresh install, and external sources that learn to handle re
 ### 🔄 Changed
 - **The Session installer is now listed first**, and stays the default, so someone who does not know what to pick lands on the right one. The welcome page says so in a line under the choice, and the whole installer card is tappable, not just its top.
 - **On Android TV, an app's page is now split in two, like on tablets,** for apps from the catalogue and for external sources alike. The app itself (icon, name, Install and Launch, certificate, versions) sits on the left, with favourite and hide as small discreet buttons side by side. The screenshots and the whole description sit on the right: no more "See more" button, the description is one stop for the remote and scrolls on its own. Install keeps the focus until you press a key, even when screenshots show up afterwards.
-- **A prettier Uninstall button.** It takes your accent colour, muted towards the background, instead of a grey outline: it stands apart from the main actions without a colour of its own. On every screen that shows it, phone and TV.
+- **A prettier secondary button.** Uninstall, Previous, Select all and the like take your accent colour, muted towards the background, instead of a grey outline: they stand apart from the main actions without a colour of their own. Phone and TV.
+- **On Android TV, the focus ring on a version no longer sits beside the card's own border.** It now covers it.
 - **"Match accent to app icon" is available on every Android version.** It was hidden below Android 12 although it works there.
 - **On Android TV, an app page with no description says so** instead of leaving an empty area that looks like it did not load.
 - **On Android TV, the Back button at the top of every screen is gone.** The remote has its own Back key, and the button only got in the way.

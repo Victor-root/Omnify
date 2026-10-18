@@ -18,7 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
-import com.looker.droidify.compose.appDetail.UninstallButton
+import com.looker.droidify.compose.components.MutedButton
 import com.looker.droidify.compose.components.AppTile
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.InstallingRow
@@ -152,7 +152,9 @@ fun ExternalLifecycleActions(
                 ) { Text(stringResource(R.string.launch)) }
             }
             if (isInstalled) {
-                UninstallButton(onClick = onUninstall, modifier = secondaryButtonModifier)
+                MutedButton(onClick = onUninstall, modifier = secondaryButtonModifier) {
+                    Text(stringResource(R.string.uninstall), maxLines = 1)
+                }
                 // "App info" now lives as a gear on the hero card itself (top-start, mirroring the
                 // favourite heart) — see HeroCard's onManageClick, wired from ExternalAppDetailScreen —
                 // same as the F-Droid catalogue detail screen, freeing this row for the primary/
