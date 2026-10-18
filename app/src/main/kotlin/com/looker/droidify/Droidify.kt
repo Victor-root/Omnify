@@ -321,10 +321,8 @@ private class FallbackIconInterceptor : Interceptor {
         if (result is SuccessResult) return result
 
         val url = request.data as? String ?: return result
-        val fallbackUrl = url.replaceAfterLast('/', "icon.png")
-        if (fallbackUrl == url) return result
         val fallbackIconUrl = request.newBuilder()
-            .data(fallbackUrl)
+            .data(url.replaceAfterLast('/', "icon.png"))
             .build()
         // Temporary: this stands one image in for another, silently, so a logo that simply failed to
         // load comes back as whatever icon.png holds beside it — on an fdroidserver repository that
