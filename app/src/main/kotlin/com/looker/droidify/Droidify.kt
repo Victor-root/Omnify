@@ -116,11 +116,13 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
     }
 
     private fun listenApplications() {
-        val installedItems = packageManager
-            .getInstalledPackagesCompat()
-            ?.map { it.toInstalledItem() }
-        if (installedItems != null) {
-            appScope.launch { installedRepository.putAll(installedItems) }
+        // Every installed package with its signing certificates, each hashed: a large binder call and
+        // real CPU work, kept off the main thread so it no longer delays the first frame.
+        appScope.launch(Dispatchers.IO) {
+            packageManager
+                .getInstalledPackagesCompat()
+                ?.map { it.toInstalledItem() }
+                ?.let { installedRepository.putAll(it) }
         }
         appScope.launch {
             registerReceiver(
