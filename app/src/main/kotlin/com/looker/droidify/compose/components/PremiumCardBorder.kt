@@ -3,6 +3,7 @@ package com.looker.droidify.compose.components
 import androidx.compose.foundation.border
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -22,22 +23,24 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun premiumCardBorder(shape: Shape, width: Dp = 1.dp): Modifier {
     val accent = MaterialTheme.colorScheme.primary
-    val hsv = FloatArray(3)
-    android.graphics.Color.colorToHSV(accent.toArgb(), hsv)
-    // A wide hue swing (70°, not the original 35°) so the two ends of the gradient actually read
-    // as two different colours rather than a single flat tone with a barely-perceptible shift —
-    // confirmed too subtle on a saturated green accent, where a 35° shift still looks like plain
-    // green. A touch less saturation/value on the sibling too, so it doesn't just look like a
-    // brighter or dimmer version of the same hue.
-    val sibling = Color(
-        android.graphics.Color.HSVToColor(
-            floatArrayOf(
-                (hsv[0] + 70f).mod(360f),
-                (hsv[1] * 0.85f).coerceIn(0f, 1f),
-                (hsv[2] * 0.9f).coerceIn(0f, 1f),
+    val brush = remember(accent) {
+        val hsv = FloatArray(3)
+        android.graphics.Color.colorToHSV(accent.toArgb(), hsv)
+        // A wide hue swing (70°, not the original 35°) so the two ends of the gradient actually read
+        // as two different colours rather than a single flat tone with a barely-perceptible shift:
+        // confirmed too subtle on a saturated green accent, where a 35° shift still looks like plain
+        // green. A touch less saturation/value on the sibling too, so it doesn't just look like a
+        // brighter or dimmer version of the same hue.
+        val sibling = Color(
+            android.graphics.Color.HSVToColor(
+                floatArrayOf(
+                    (hsv[0] + 70f).mod(360f),
+                    (hsv[1] * 0.85f).coerceIn(0f, 1f),
+                    (hsv[2] * 0.9f).coerceIn(0f, 1f),
+                ),
             ),
-        ),
-    )
-    val brush = Brush.linearGradient(colors = listOf(accent, sibling, accent))
+        )
+        Brush.linearGradient(colors = listOf(accent, sibling, accent))
+    }
     return Modifier.border(width = width, brush = brush, shape = shape)
 }
