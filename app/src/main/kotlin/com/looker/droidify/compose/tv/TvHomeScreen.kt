@@ -82,6 +82,7 @@ import com.looker.droidify.compose.components.DiagnosticLogDialog
 import com.looker.droidify.compose.components.CatalogOfflineState
 import com.looker.droidify.compose.components.NoSourcesState
 import com.looker.droidify.compose.components.TvOverscan
+import com.looker.droidify.compose.components.animatedBackground
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
@@ -1120,7 +1121,7 @@ internal fun TvAppCard(
                 // A rounded accent panel drawn behind everything (not clipped, so the label's corners are
                 // never shaved — that was clipping the first letter of long names). The 8dp padding frames
                 // the icon and label inside it while keeping the card's footprint at CardWidth.
-                .background(accent.copy(alpha = fillAlpha), shape)
+                .animatedBackground(shape) { accent.copy(alpha = fillAlpha) }
                 .padding(8.dp),
         ) {
             Box(
