@@ -103,6 +103,7 @@ fun TvAppDetailScreen(
     )
 
     BackHandler { onBackClick() }
+    TvDetailOpenTiming("app detail", ready = state is AppDetailState.Success)
 
     when (val current = state) {
         is AppDetailState.Loading -> TvCentered { CircularProgressIndicator() }
