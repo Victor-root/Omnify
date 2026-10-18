@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.CircularProgressIndicator
@@ -48,6 +49,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.CertificateSection
+import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -58,11 +60,9 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
 import com.looker.droidify.utility.common.IconAccentCache
-import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
-import kotlinx.coroutines.delay
 
 /**
  * The Android TV detail screen for a tracked external (GitHub/GitLab/…) app — a lean presentation over
@@ -92,6 +92,7 @@ fun TvExternalAppDetailScreen(
     val expectedSignersByApkUrl by viewModel.expectedSignersByApkUrl.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
     val hiddenApps by viewModel.hidden.collectAsStateWithLifecycle()
+    val readmeError by viewModel.readmeError.collectAsStateWithLifecycle()
     val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
 
@@ -188,19 +189,6 @@ fun TvExternalAppDetailScreen(
 
     val primaryFocus = remember { FocusRequester() }
     var userInteracted by remember { mutableStateOf(false) }
-    // Land focus on the action button when the screen opens; stop once the user takes over (same intent
-    // as the catalogue TV detail screen).
-    LaunchedEffect(app.key, installedVersion) {
-        if (userInteracted) return@LaunchedEffect
-        repeat(20) { attempt ->
-            if (runCatching { primaryFocus.requestFocus() }.getOrDefault(false)) {
-                DiagnosticLog.log("TV external app detail: focus on the main action after ${attempt + 1} tries")
-                return@LaunchedEffect
-            }
-            delay(50)
-        }
-    }
-
     // The header (back button, icon/name/chips, action buttons + favourite) is guaranteed to already fit
     // in the initial viewport, so navigating the D-pad within it should never scroll the page — only
     // leaving it, into the description/versions below, should. Compose's own "scroll the newly focused
@@ -210,7 +198,7 @@ fun TvExternalAppDetailScreen(
     // at the top — the same fix already shipped for the phone hero card (see AppDetailScreen), never
     // ported to this separate TV screen when it was split out.
     val pageScroll = rememberScrollState()
-    var headerHasFocus by remember { mutableStateOf(true) }
+    var headerHasFocus by remember { mutableStateOf(false) }
     val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
     val bringIntoViewSpec = remember(defaultBringIntoViewSpec) {
         object : BringIntoViewSpec {
@@ -225,6 +213,12 @@ fun TvExternalAppDetailScreen(
             }
         }
     }
+
+    TvKeepFocusOnMainAction(
+        primary = primaryFocus,
+        actionHasFocus = { headerHasFocus },
+        userInteracted = { userInteracted },
+    )
 
     // Scoped to just this screen: when the setting is on and a colour has been sampled from the app's own
     // icon, it overrides the accent for every MaterialTheme.colorScheme.primary use inside (e.g. the
@@ -338,15 +332,19 @@ fun TvExternalAppDetailScreen(
                     }
                 },
                 right = {
-                    readme?.takeIf { it.isNotBlank() }?.let { readmeHtml ->
-                        TvSectionTitle(stringResource(R.string.description))
-                        TvDescriptionPane(
+                    TvSectionTitle(stringResource(R.string.description))
+                    val readmeHtml = readme
+                    when {
+                        !readmeHtml.isNullOrBlank() -> TvDescriptionPane(
                             html = readmeHtml,
                             baseUrl = app.readmeWebBaseUrl,
                             javaScriptEnabled = readmeJavaScriptEnabled,
                             webUrl = app.webUrl,
                             modifier = Modifier.weight(1f).fillMaxWidth(),
                         )
+                        readmeError != null -> TvDescriptionMessage(readmeError.orEmpty())
+                        readmeHtml != null -> TvDescriptionMessage(stringResource(R.string.no_description_available_DESC))
+                        else -> LoadingSpinner(modifier = Modifier.padding(16.dp).size(32.dp))
                     }
                 },
             )

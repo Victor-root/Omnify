@@ -67,12 +67,10 @@ import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.utility.common.IconAccentCache
-import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.common.iconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
-import kotlinx.coroutines.delay
 
 /**
  * The Android TV app-detail screen — a lean, couch-friendly presentation over the same
@@ -169,31 +167,8 @@ fun TvAppDetailScreen(
             // Hoisted so the startup focus burst below can pin the page back to the top: focusing the
             // action button nudges the scroll down a hair (bring-into-view), which was clipping the header.
             val pageScroll = rememberScrollState()
-            val detailScroll = rememberScrollState()
-            // Once the user has pressed any key, focus is theirs — stop the startup burst below from
-            // re-stealing it. Without this, installedInfo re-emitting (it changes on background catalogue/
-            // network activity) re-ran the burst and yanked focus back to the action button every few
-            // seconds while the user was browsing the page.
+            // Once the user has pressed any key, focus is theirs: see TvKeepFocusOnMainAction.
             var userInteracted by remember { mutableStateOf(false) }
-            // Land focus on the main action button when the screen opens, retrying until it's laid out
-            // (its node is swapped when installedInfo resolves and flips Install -> Launch). Skipped once
-            // the user has taken over. Same intent as the phone TV path.
-            LaunchedEffect(app.metadata.packageName.name, installedInfo) {
-                if (userInteracted) return@LaunchedEffect
-                repeat(20) { attempt ->
-                    if (runCatching { primaryFocus.requestFocus() }.getOrDefault(false)) {
-                        DiagnosticLog.log("TV app detail: focus on the main action after ${attempt + 1} tries")
-                        // Focusing the action button can bring-into-view scroll the column down a touch,
-                        // clipping the header; the button is above the fold anyway, so snap back to the
-                        // top once (unless the user already grabbed the scroll).
-                        delay(50)
-                        if (!userInteracted) runCatching { pageScroll.scrollTo(0) }
-                        return@LaunchedEffect
-                    }
-                    delay(50)
-                }
-            }
-
             val screenshots = remember(app.screenshots) {
                 (app.screenshots?.tv?.takeIf { it.isNotEmpty() } ?: app.screenshots?.phone).orEmpty()
             }
@@ -260,7 +235,7 @@ fun TvAppDetailScreen(
             // outright while focus is inside the header and the page is still at the top — the same fix
             // already shipped for the phone hero card (see AppDetailScreen), never ported to this separate
             // TV screen when it was split out.
-            var headerHasFocus by remember { mutableStateOf(true) }
+            var headerHasFocus by remember { mutableStateOf(false) }
             val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
             val bringIntoViewSpec = remember(defaultBringIntoViewSpec) {
                 object : BringIntoViewSpec {
@@ -275,6 +250,15 @@ fun TvAppDetailScreen(
                     }
                 }
             }
+
+            // Focusing the action button can bring-into-view scroll the column down a touch, clipping the
+            // header; the button is above the fold anyway, so snap back to the top after each landing.
+            TvKeepFocusOnMainAction(
+                primary = primaryFocus,
+                actionHasFocus = { headerHasFocus },
+                userInteracted = { userInteracted },
+                onLanded = { runCatching { pageScroll.scrollTo(0) } },
+            )
 
             // Scoped to just this screen: when the setting is on and a colour has been sampled from the
             // app's own icon, it overrides the accent for every MaterialTheme.colorScheme.primary use
@@ -374,8 +358,10 @@ fun TvAppDetailScreen(
                         },
                         right = {
                             if (screenshots.isNotEmpty()) TvScreenshots(screenshots, screenshotsFocus)
-                            if (descriptionHtml.isNotBlank()) {
-                                TvSectionTitle(stringResource(R.string.description))
+                            TvSectionTitle(stringResource(R.string.description))
+                            if (descriptionHtml.isBlank()) {
+                                TvDescriptionMessage(stringResource(R.string.no_description_available_DESC))
+                            } else {
                                 TvDescriptionPane(
                                     html = descriptionHtml,
                                     baseUrl = "",

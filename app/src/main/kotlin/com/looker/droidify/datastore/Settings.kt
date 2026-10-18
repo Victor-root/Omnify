@@ -107,8 +107,8 @@ data class Settings(
      *  collapsing one is remembered across app restarts, same as any other setting. */
     val collapsedRepoSections: Set<String> = emptySet(),
     /** On an app's detail page (catalogue or external), derive the accent color from that app's own icon
-     *  instead of [themeColor], reverting everywhere else. Needs API 31+ (WallpaperColors.fromBitmap);
-     *  harmless to leave on below that, it simply has no effect. */
+     *  instead of [themeColor], reverting everywhere else. The colour is read from the icon's pixels, so it works on every Android
+     *  version. */
     val accentMatchesAppIcon: Boolean = false,
     /** Whether a project handed to Omnify from outside it (a "Get it on Omnify" badge, or a link
      *  shared into the app) opens the add dialog for a last look before adding, rather than being
