@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.repoList
 
 import android.content.Context
+import android.content.res.Configuration
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -64,8 +65,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -659,18 +662,25 @@ private fun MonogramAvatar(name: String) {
     }
 }
 
+/** The last [AppLauncherIcon] rendered and the configuration it was rendered under, shared by every
+ *  row and screen showing it so the same picture isn't read and drawn again on the main thread each
+ *  time one composes. Only touched from composition, i.e. the main thread. */
+private var appLauncherIconCache: Pair<Configuration, ImageBitmap>? = null
+
 /** The app's own launcher icon, rendered from the package manager (always present and correct across
  *  Android versions). Used to brand the built-in Omnify account row (and its detail screen). */
 @Composable
 internal fun AppLauncherIcon(modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
     val shape = MaterialTheme.shapes.large
     val icon = remember {
-        runCatching {
-            context.packageManager.getApplicationIcon(context.packageName)
-                .toBitmap(width = 192, height = 192)
-                .asImageBitmap()
-        }.getOrNull()
+        appLauncherIconCache?.takeIf { it.first == configuration }?.second
+            ?: runCatching {
+                context.packageManager.getApplicationIcon(context.packageName)
+                    .toBitmap(width = 192, height = 192)
+                    .asImageBitmap()
+            }.getOrNull()?.also { appLauncherIconCache = Configuration(configuration) to it }
     }
     Box(modifier = modifier.clip(shape), contentAlignment = Alignment.Center) {
         if (icon != null) {
