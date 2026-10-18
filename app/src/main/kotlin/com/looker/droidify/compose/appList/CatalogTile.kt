@@ -113,13 +113,17 @@ internal suspend fun readInstalledLauncherIcon(context: Context, packageName: St
  *     Magisk on F-Droid, whose repo entry has no icon) — this is what the F-Droid client shows;
  *  3. the system default app icon.
  * Shared by every app tile so the icon looks the same everywhere.
+ *
+ * [onIconBitmap] receives each picture of the app's icon as it shows, with a key naming where it came
+ * from and a way to read it as a bitmap (null if it can't be), slow enough to only be called off the
+ * main thread.
  */
 @Composable
 fun AppMinimalIcon(
     app: AppMinimal,
     isInstalled: Boolean,
     modifier: Modifier = Modifier,
-    onIconBitmap: ((Bitmap) -> Unit)? = null,
+    onIconBitmap: ((source: String, bitmap: () -> Bitmap?) -> Unit)? = null,
 ) {
     val isTelevision = LocalIsTelevision.current
     var repoIcon by remember(app.appId) { mutableStateOf(app.icon?.path) }
@@ -162,7 +166,7 @@ fun AppMinimalIcon(
                 },
                 onSuccess = onIconBitmap?.let { callback ->
                     { state: AsyncImagePainter.State.Success ->
-                        state.toSafeBitmap(LauncherIconPx)?.let(callback)
+                        callback("repo:$repoIcon") { state.toSafeBitmap(LauncherIconPx) }
                     }
                 },
                 contentDescription = null,
@@ -196,7 +200,7 @@ private fun InstalledLauncherIcon(
     imageModifier: Modifier,
     shape: androidx.compose.ui.graphics.Shape,
     isTelevision: Boolean,
-    onIconBitmap: ((Bitmap) -> Unit)? = null,
+    onIconBitmap: ((source: String, bitmap: () -> Bitmap?) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val launcher by produceState<ImageBitmap?>(null, packageName) {
@@ -206,7 +210,7 @@ private fun InstalledLauncherIcon(
     }
     val bitmap = launcher
     if (bitmap != null) {
-        LaunchedEffect(bitmap) { onIconBitmap?.invoke(bitmap.asAndroidBitmap()) }
+        LaunchedEffect(bitmap) { onIconBitmap?.invoke("launcher:$packageName") { bitmap.asAndroidBitmap() } }
         Image(
             bitmap = bitmap,
             contentDescription = null,

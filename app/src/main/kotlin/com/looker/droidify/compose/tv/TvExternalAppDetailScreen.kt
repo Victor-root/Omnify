@@ -59,7 +59,7 @@ import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
-import com.looker.droidify.utility.common.IconAccentCache
+import com.looker.droidify.utility.common.rememberIconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
@@ -135,10 +135,13 @@ fun TvExternalAppDetailScreen(
     }
     // Set as the hero icon loads (see the ExternalAppIcon call below); reset per screen
     // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
-    // Seeded from IconAccentCache so revisiting the same app doesn't wait for the icon to decode
-    // and get quantized all over again.
-    val iconAccentCacheKey = "ext:$appKey"
-    var iconAccent by remember { mutableStateOf(IconAccentCache.get(iconAccentCacheKey)) }
+    // Follows the picture on screen: the app's own icon read off the device replaces the one shown before
+    // it, and the accent has to follow it.
+    val iconAccent = rememberIconAccent(
+        cacheKey = "ext:$appKey",
+        followsPicture = true,
+        enabled = accentMatchesAppIcon,
+    )
 
     // Make sure the app knows the package id it installs under, so a copy already on the device (installed
     // from any channel) is recognised as installed instead of showing "Install". Keyed on the resolved app
@@ -223,7 +226,7 @@ fun TvExternalAppDetailScreen(
     // Scoped to just this screen: when the setting is on and a colour has been sampled from the app's own
     // icon, it overrides the accent for every MaterialTheme.colorScheme.primary use inside (e.g. the
     // favourite heart, the primary action button), without touching the app-wide theme.
-    ScopedAccentColor(if (accentMatchesAppIcon) iconAccent else null) {
+    ScopedAccentColor(if (accentMatchesAppIcon) iconAccent.accent else null) {
         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             TvAccentBackground()
             TvAppDetailPanes(
@@ -252,12 +255,7 @@ fun TvExternalAppDetailScreen(
                                     app = app,
                                     isInstalled = isInstalled,
                                     size = 96.dp,
-                                    onIconBitmap = { source, bitmap ->
-                                        // Follows the picture on screen: the app's own icon read off the
-                                        // device replaces the one shown before it, and the accent has to
-                                        // follow it.
-                                        iconAccent = IconAccentCache.accentOf(iconAccentCacheKey, source, bitmap)
-                                    },
+                                    onIconBitmap = iconAccent.onIconBitmap,
                                 )
                             }
                             Column(verticalArrangement = spacedBy(8.dp), modifier = Modifier.weight(1f)) {

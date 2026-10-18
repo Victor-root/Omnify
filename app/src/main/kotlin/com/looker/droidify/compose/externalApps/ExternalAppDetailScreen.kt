@@ -130,8 +130,8 @@ import com.looker.droidify.external.compareVersionStrings
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
-import com.looker.droidify.utility.common.IconAccentCache
 import com.looker.droidify.utility.common.RootDetection
+import com.looker.droidify.utility.common.rememberIconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.isInstalledFromGooglePlay
@@ -184,10 +184,13 @@ fun ExternalAppDetailScreen(
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
     // Set as the hero icon loads (see the ExternalAppIcon call below); reset per screen
     // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
-    // Seeded from IconAccentCache so revisiting the same app doesn't wait for the icon to decode
-    // and get quantized all over again.
-    val iconAccentCacheKey = "ext:$appKey"
-    var iconAccent by remember { mutableStateOf(IconAccentCache.get(iconAccentCacheKey)) }
+    // Follows the picture on screen: the app's own icon read off the device replaces the one shown before
+    // it, and the accent has to follow it.
+    val iconAccent = rememberIconAccent(
+        cacheKey = "ext:$appKey",
+        followsPicture = true,
+        enabled = accentMatchesAppIcon,
+    )
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -365,7 +368,7 @@ fun ExternalAppDetailScreen(
     // Scoped to just this screen: when the setting is on and a colour has been sampled from the app's own
     // icon (see the ExternalAppIcon call below), it overrides the accent for the top bar and every
     // MaterialTheme.colorScheme.primary use inside, without touching the app-wide theme.
-    ScopedAccentColor(if (accentMatchesAppIcon) iconAccent else null) {
+    ScopedAccentColor(if (accentMatchesAppIcon) iconAccent.accent else null) {
     Scaffold(
         // TV only: the remote's alternate "menu" key (e.g. the Nvidia Shield's, which opens Android TV's
         // own quick settings from the home screen) opens this app's Android "App info" management page —
@@ -616,11 +619,7 @@ fun ExternalAppDetailScreen(
                         app = app,
                         isInstalled = isInstalled,
                         size = 88.dp,
-                        onIconBitmap = { source, bitmap ->
-                            // Follows the picture on screen: the app's own icon read off the device
-                            // replaces the one shown before it, and the accent has to follow it.
-                            iconAccent = IconAccentCache.accentOf(iconAccentCacheKey, source, bitmap)
-                        },
+                        onIconBitmap = iconAccent.onIconBitmap,
                     )
                 },
                 name = app.label,
