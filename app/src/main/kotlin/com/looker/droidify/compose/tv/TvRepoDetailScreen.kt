@@ -185,7 +185,7 @@ fun TvRepoDetailScreen(
                                     )
                                 }
                             }
-                            gridItems(apps, key = { it.appId }) { app ->
+                            gridItems(apps, key = { it.appId }, contentType = { "app-tile" }) { app ->
                                 CatalogAppTile(
                                     app = app,
                                     isInstalled = app.packageName.name in installedPackages,
