@@ -7,13 +7,14 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -82,36 +83,44 @@ fun OutlineWavyProgressIndicator(
         ),
         label = "sweep",
     )
-    Canvas(modifier = modifier.fillMaxSize()) {
-        val strokePx = RingStroke.toPx()
-        val amplitudePx = WaveAmplitude.toPx()
-        val outset = strokePx / 2 + amplitudePx
-        val bounds = Rect(-outset, -outset, size.width + outset, size.height + outset)
-        val radius = (cornerSize.toPx(size, this) + outset).coerceIn(0f, bounds.minDimension / 2)
-        val outline = roundedRectPath(bounds, radius)
-        val stroke = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
-        drawPath(outline, trackColor, style = stroke)
+    // Everything but the animated values is worked out once per size, not on every frame.
+    Spacer(
+        modifier = modifier
+            .fillMaxSize()
+            .drawWithCache {
+                val strokePx = RingStroke.toPx()
+                val amplitudePx = WaveAmplitude.toPx()
+                val outset = strokePx / 2 + amplitudePx
+                val bounds = Rect(-outset, -outset, size.width + outset, size.height + outset)
+                val radius = (cornerSize.toPx(size, this) + outset).coerceIn(0f, bounds.minDimension / 2)
+                val outline = roundedRectPath(bounds, radius)
+                val stroke = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val measure = PathMeasure().apply { setPath(outline, true) }
+                val wavelengthPx = WaveLength.toPx()
+                val stepPx = WaveStep.toPx()
+                val wave = Path()
+                onDrawBehind {
+                    drawPath(outline, trackColor, style = stroke)
 
-        val measure = PathMeasure().apply { setPath(outline, true) }
-        val fraction = progress?.invoke()?.coerceIn(0f, 1f)
-        val from: Float
-        val to: Float
-        val amplitude: Float
-        if (fraction == null) {
-            from = spin * measure.length
-            to = from + sweep * measure.length
-            amplitude = amplitudePx
-        } else {
-            from = 0f
-            to = fraction * measure.length
-            amplitude = amplitudePx * minOf(1f, fraction / FlatEdge, (1f - fraction) / FlatEdge)
-        }
-        drawPath(
-            path = wavyPath(measure, from, to, amplitude, WaveLength.toPx(), wavePhase, WaveStep.toPx()),
-            color = color,
-            style = stroke,
-        )
-    }
+                    val fraction = progress?.invoke()?.coerceIn(0f, 1f)
+                    val from: Float
+                    val to: Float
+                    val amplitude: Float
+                    if (fraction == null) {
+                        from = spin * measure.length
+                        to = from + sweep * measure.length
+                        amplitude = amplitudePx
+                    } else {
+                        from = 0f
+                        to = fraction * measure.length
+                        amplitude = amplitudePx * minOf(1f, fraction / FlatEdge, (1f - fraction) / FlatEdge)
+                    }
+                    wave.rewind()
+                    wave.traceWave(measure, from, to, amplitude, wavelengthPx, wavePhase, stepPx)
+                    drawPath(path = wave, color = color, style = stroke)
+                }
+            },
+    )
 }
 
 /** A rounded rectangle traced clockwise from the middle of its top edge. */
@@ -130,11 +139,11 @@ private fun roundedRectPath(bounds: Rect, radius: Float): Path = Path().apply {
 }
 
 /**
- * The stretch of [measure]'s outline between the distances [from] and [to], bent into a sine wave
- * across the outline. [to] may run past the outline's length: the stretch then wraps around the start,
- * and the wave stays continuous across it.
+ * Adds to this path the stretch of [measure]'s outline between the distances [from] and [to], bent into
+ * a sine wave across the outline. [to] may run past the outline's length: the stretch then wraps around
+ * the start, and the wave stays continuous across it.
  */
-private fun wavyPath(
+private fun Path.traceWave(
     measure: PathMeasure,
     from: Float,
     to: Float,
@@ -142,8 +151,7 @@ private fun wavyPath(
     wavelength: Float,
     phase: Float,
     step: Float,
-): Path {
-    val path = Path()
+) {
     var distance = from
     while (true) {
         val d = minOf(distance, to)
@@ -152,9 +160,8 @@ private fun wavyPath(
         val tangent = measure.getTangent(at)
         val offset = amplitude * sin(2 * PI.toFloat() * d / wavelength + phase)
         val point = Offset(position.x - tangent.y * offset, position.y + tangent.x * offset)
-        if (d == from) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
+        if (d == from) moveTo(point.x, point.y) else lineTo(point.x, point.y)
         if (d >= to) break
         distance += step
     }
-    return path
 }
