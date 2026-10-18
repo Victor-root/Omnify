@@ -31,6 +31,13 @@ interface InstalledDao {
     fun streamAll(): Flow<List<InstalledEntity>>
 
     /**
+     * Get all installed apps.
+     * @return A list of all installed apps.
+     */
+    @Query("SELECT * FROM installed")
+    suspend fun getAll(): List<InstalledEntity>
+
+    /**
      * Get an installed app by package name.
      * @param packageName The package name of the app.
      * @return The installed app or null if not found.
@@ -53,11 +60,13 @@ interface InstalledDao {
     suspend fun insertAll(installedEntities: List<InstalledEntity>)
 
     /**
-     * Replace all installed apps with a new list.
+     * Replace all installed apps with a new list. Left untouched when it already holds exactly these
+     * rows: a rewrite would still invalidate the table and re-run every query observing it.
      * @param installedEntities The new list of installed apps.
      */
     @Transaction
     suspend fun replaceAll(installedEntities: List<InstalledEntity>) {
+        if (getAll().toSet() == installedEntities.toSet()) return
         deleteAll()
         insertAll(installedEntities)
     }

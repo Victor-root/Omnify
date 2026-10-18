@@ -147,6 +147,28 @@ class InstalledDaoTest : BaseDatabaseTest() {
     }
 
     @Test
+    fun replaceAllWritesAChangeInAnyColumn() = runDbTest {
+        // Given
+        val entity = InstalledEntity(
+            packageName = "com.example.app",
+            version = "1.0.0",
+            versionCode = 100,
+            signature = "abcdef123456",
+        )
+        installedDao.insertAll(listOf(entity))
+
+        // When the same rows come back, then a re-signed copy of the same version
+        installedDao.replaceAll(listOf(entity))
+        val unchanged = installedDao.getAll()
+        val resigned = entity.copy(signature = "ghijkl789012")
+        installedDao.replaceAll(listOf(resigned))
+
+        // Then
+        assertEquals(listOf(entity), unchanged)
+        assertEquals(listOf(resigned), installedDao.getAll())
+    }
+
+    @Test
     fun deleteRemovesEntity() = runDbTest {
         // Given
         val entity = InstalledEntity(
