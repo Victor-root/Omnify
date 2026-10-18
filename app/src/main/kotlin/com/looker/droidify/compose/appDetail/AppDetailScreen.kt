@@ -160,10 +160,7 @@ import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.RootDetection
 import com.looker.droidify.utility.common.rememberIconAccent
-import com.looker.droidify.utility.common.extension.calculateHash
-import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.openAppInfo
-import com.looker.droidify.utility.common.extension.singleSignature
 import com.looker.droidify.utility.common.extension.toSafeBitmap
 import com.looker.droidify.utility.common.shareUrl
 import com.looker.droidify.utility.text.toAnnotatedString
@@ -799,7 +796,6 @@ private fun AppDetail(
         !catalogueBuildIsOlder(installedInfo.version, installablePackage.manifest.versionName) &&
         installedInfo.versionCode < installablePackage.manifest.versionCode
     val isTelevision = LocalIsTelevision.current
-    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     // Where the versions section actually lands once composed (in the scrolling Column's own
     // coordinate space), so the hero card's "see all versions" link can jump straight to it.
@@ -821,16 +817,9 @@ private fun AppDetail(
     // The installed APK's actual signing certificate (lowercase hex): not the catalogue entry's own
     // claim (just whatever the index says), but the real, on-device signature, so it can be shown,
     // compared, and copied, e.g. against a build the user just compiled themselves. Null when not
-    // installed, or on the rare PackageManager read failure. Recomputed whenever install state changes.
-    val installedSignerRaw = remember(installedInfo, app.metadata.packageName.name) {
-        if (installedInfo == null) {
-            null
-        } else {
-            context.packageManager.getPackageInfoCompat(app.metadata.packageName.name)
-                ?.singleSignature
-                ?.calculateHash()
-        }
-    }
+    // installed, or on the rare PackageManager read failure. Read off the main thread along with the
+    // rest of installedInfo (see InstalledInfo.signer).
+    val installedSignerRaw = installedInfo?.signer
     // The certificate(s) the repository index declares for the version we'd actually install/update to,
     // known the moment the catalogue is synced, whether or not the app is installed yet, unlike
     // [installedSignerRaw]. Lets a never-installed app still be checked before installing.
