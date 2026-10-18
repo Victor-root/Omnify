@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.AppDetailState
 import com.looker.droidify.compose.appDetail.AppDetailViewModel
+import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.appDetail.PrimaryActions
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appDetail.components.PackageItem
@@ -57,6 +58,7 @@ import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
+import com.looker.droidify.installer.model.InstallState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import com.looker.droidify.compose.components.CertificateSection
@@ -118,6 +120,7 @@ fun TvAppDetailScreen(
             val context = LocalContext.current
 
             val installedPackage = remember(packages) { packages.map { it.first }.firstOrNull { it.installed } }
+            val appMinimal = remember(app) { app.minimal() }
             // installedInfo (real PackageManager state), not installedPackage (an exact catalogue
             // versionCode match): an app installed from a different channel that's ahead of this repo,
             // Google Play shipping a build newer than the repo's own top release, say, has no matching
@@ -280,7 +283,7 @@ fun TvAppDetailScreen(
                                 // Header: icon + name + author + meta chips.
                                 Row(horizontalArrangement = spacedBy(20.dp)) {
                                     AppMinimalIcon(
-                                        app = app.minimal(),
+                                        app = appMinimal,
                                         isInstalled = isInstalled,
                                         modifier = Modifier.size(96.dp).clip(RoundedCornerShape(20.dp)),
                                         onIconBitmap = iconAccent.onIconBitmap,
@@ -308,19 +311,15 @@ fun TvAppDetailScreen(
 
                                 // Action buttons (Install/Update/Launch + Uninstall) sharing the pane's width,
                                 // then the favourite and hide toggles, discreet since they are rarely used.
-                                PrimaryActions(
+                                TvPrimaryActions(
+                                    viewModel = viewModel,
                                     packageName = app.metadata.packageName.name,
                                     isInstalled = isInstalled,
                                     updateAvailable = updateAvailable,
                                     installState = installState,
-                                    downloadStatus = downloadStatus,
+                                    downloadStatus = { downloadStatus },
                                     installConfirmed = installConfirmed,
-                                    onInstallOrUpdate = viewModel::installOrUpdate,
-                                    onLaunch = viewModel::launch,
-                                    onUninstall = viewModel::uninstall,
-                                    onCancel = viewModel::cancel,
                                     primaryActionFocusRequester = primaryFocus,
-                                    fillWidth = true,
                                 )
                                 TvSecondaryActions(
                                     isFavourite = isFavourite,
@@ -367,6 +366,35 @@ fun TvAppDetailScreen(
             }
         }
     }
+}
+
+/** [PrimaryActions] reading [downloadStatus] itself, so a download's progress ticks recompose only
+ *  these buttons instead of the whole pane around them. */
+@Composable
+private fun TvPrimaryActions(
+    viewModel: AppDetailViewModel,
+    packageName: String,
+    isInstalled: Boolean,
+    updateAvailable: Boolean,
+    installState: InstallState?,
+    downloadStatus: () -> DownloadStatus?,
+    installConfirmed: Boolean,
+    primaryActionFocusRequester: FocusRequester,
+) {
+    PrimaryActions(
+        packageName = packageName,
+        isInstalled = isInstalled,
+        updateAvailable = updateAvailable,
+        installState = installState,
+        downloadStatus = downloadStatus(),
+        installConfirmed = installConfirmed,
+        onInstallOrUpdate = viewModel::installOrUpdate,
+        onLaunch = viewModel::launch,
+        onUninstall = viewModel::uninstall,
+        onCancel = viewModel::cancel,
+        primaryActionFocusRequester = primaryActionFocusRequester,
+        fillWidth = true,
+    )
 }
 
 /**
