@@ -83,6 +83,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -100,6 +101,7 @@ import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import coil3.size.Dimension
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
@@ -1958,13 +1960,24 @@ private fun App.hasLinks(): Boolean = listOfNotNull(
 @Composable
 internal fun ScreenshotsRow(screenshots: List<FilePath>) {
     var fullscreenIndex by remember { mutableStateOf<Int?>(null) }
+    val context = LocalContext.current
+    // Decoded no taller than the image is declared (the 180dp box caps it lower still), not at the
+    // screenshot's full resolution: Coil only ever downsamples, so this is never less sharp on screen.
+    val imageHeight = 200.dp
+    val imageHeightPx = with(LocalDensity.current) { imageHeight.roundToPx() }
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         itemsIndexed(screenshots, key = { _, file -> file.path }) { index, file ->
-            val painter = rememberAsyncImagePainter(file.path)
+            val request = remember(file.path, imageHeightPx) {
+                ImageRequest.Builder(context)
+                    .data(file.path)
+                    .size(Dimension.Undefined, Dimension(imageHeightPx))
+                    .build()
+            }
+            val painter = rememberAsyncImagePainter(request)
             val imageState by painter.state.collectAsStateWithLifecycle()
             Box(
                 contentAlignment = Alignment.Center,
@@ -1989,7 +2002,7 @@ internal fun ScreenshotsRow(screenshots: List<FilePath>) {
                         Image(
                             painter = painter,
                             contentDescription = stringResource(R.string.screenshot),
-                            modifier = Modifier.height(200.dp),
+                            modifier = Modifier.height(imageHeight),
                             contentScale = ContentScale.FillHeight,
                         )
                     }
@@ -2024,6 +2037,7 @@ private fun ScreenshotViewer(
         val pagerState = rememberPagerState(initialPage = startIndex) { screenshots.size }
         val isTelevision = LocalIsTelevision.current
         val coroutineScope = rememberCoroutineScope()
+        val context = LocalContext.current
         // Android TV must always have a focused element: this dialog opens no other focusable node, so
         // the close button is it. Also lets left/right page through the screenshots, since the pager
         // otherwise relies on a swipe gesture the remote can't produce. No effect on touch.
@@ -2067,8 +2081,13 @@ private fun ScreenshotViewer(
                 modifier = Modifier.fillMaxSize(),
                 userScrollEnabled = !isTelevision,
             ) { page ->
+                val path = screenshots[page].path
                 AsyncImage(
-                    model = screenshots[page].path,
+                    // Decoded at screen size, so the row's smaller thumbnail (cached under the same key)
+                    // stands in while it loads instead of an empty page.
+                    model = remember(path) {
+                        ImageRequest.Builder(context).data(path).placeholderMemoryCacheKey(path).build()
+                    },
                     contentDescription = "screenshot",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
