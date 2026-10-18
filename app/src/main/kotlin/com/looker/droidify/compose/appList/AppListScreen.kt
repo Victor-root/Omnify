@@ -90,6 +90,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -208,8 +209,11 @@ fun AppListScreen(
     val header = rememberCollapsibleHeader()
     var searchExpanded by rememberSaveable { mutableStateOf(false) }
     // The Explore tab shows the Discover home (3 curated carousels + the categories list) by default;
-    // once the user is searching or has opened a category, it shows a flat list of apps instead.
-    val isSearching = viewModel.searchQuery.text.isNotBlank()
+    // once the user is searching or has opened a category, it shows a flat list of apps instead. Derived
+    // so a keystroke only recomposes the screen when this flips, not on every character.
+    val isSearching = remember(viewModel.searchQuery) {
+        derivedStateOf { viewModel.searchQuery.text.isNotBlank() }
+    }.value
     // A curated carousel's "see all" opens it as its own page (a flat list of the whole section);
     // null means we're on the Discover home. Categories, by contrast, expand inline in the accordion.
     val sectionView = openedSection != null
