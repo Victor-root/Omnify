@@ -536,7 +536,7 @@ class MainComposeActivity : ComponentActivity() {
             // used to do, silently turned a default repo the user had disabled back on at the next cold
             // start: once the repos exist, "disabled by the user" and "not switched on yet" are the same
             // state, and nothing here could tell them apart.
-            if (repository.repos.first().isEmpty()) {
+            if (!repository.hasRepos()) {
                 Repository.defaultRepositories.forEach {
                     repository.insertRepo(it.address, it.fingerprint, null, null, it.name, it.description)
                 }

@@ -130,6 +130,10 @@ class RepoRepository @Inject constructor(
         repoDao.delete(id)
     }
 
+    /** Whether any repository exists at all: [repos] would also read each one's name, description and
+     *  icon just to answer that. */
+    suspend fun hasRepos(): Boolean = repoDao.hasAny()
+
     val repos: Flow<List<Repo>> = combine(
         repoDao.stream(),
         settings.map { it.enabledRepoIds },
