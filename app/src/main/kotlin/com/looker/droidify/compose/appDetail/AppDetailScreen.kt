@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
@@ -139,6 +138,7 @@ import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvDpadKeyLog
+import com.looker.droidify.compose.components.tvFocusDebugLog
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
@@ -188,13 +188,6 @@ private const val ICON_ACCENT_SAMPLE_PX = 256
 /** Versions shown before the "show more" toggle, so an app with a long history doesn't turn the whole
  *  page into an endless scroll by default. */
 private const val VERSIONS_COLLAPSED_COUNT = 5
-
-// Temporary TV D-pad diagnostics, see TvFocus.kt's own debug-logging doc comment. Debug builds only.
-private fun tvFocusDebugLog(message: String) {
-    if (BuildConfig.DEBUG) {
-        Log.d("TvFocusDebug", message)
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -258,9 +251,11 @@ fun AppDetailScreen(
     // that happens WITHOUT one (e.g. a stray BringIntoView call, or something scrolling as a side effect
     // rather than a direct consequence of a logged focus move) would otherwise be invisible. Temporary,
     // see TvFocus.kt's own debug-logging doc comment.
-    LaunchedEffect(Unit) {
-        snapshotFlow { scrollState.value }.collect { value ->
-            tvFocusDebugLog("AppDetailScreen scrollState -> $value at ${System.currentTimeMillis()}")
+    if (BuildConfig.DEBUG) {
+        LaunchedEffect(Unit) {
+            snapshotFlow { scrollState.value }.collect { value ->
+                tvFocusDebugLog { "AppDetailScreen scrollState -> $value at ${System.currentTimeMillis()}" }
+            }
         }
     }
 
@@ -320,10 +315,10 @@ fun AppDetailScreen(
             if (successPackageName != null) {
                 repeat(20) {
                     val result = runCatching { primaryActionFocusRequester.requestFocus() }
-                    tvFocusDebugLog(
+                    tvFocusDebugLog {
                         "AppDetailScreen startup retry #$it: primaryActionFocusRequester.requestFocus() " +
-                            "success=${result.isSuccess} at ${System.currentTimeMillis()}",
-                    )
+                            "success=${result.isSuccess} at ${System.currentTimeMillis()}"
+                    }
                     if (result.isSuccess) return@LaunchedEffect
                     delay(50)
                 }
@@ -350,10 +345,10 @@ fun AppDetailScreen(
                         // Marks startup focus as "settled" — see userInteracted and the TopAppBar's own
                         // onFocusChanged below, which stop correcting focus the moment this is true.
                         if (!userInteracted) {
-                            tvFocusDebugLog(
+                            tvFocusDebugLog {
                                 "AppDetailScreen-root: userInteracted set true by ${event.key} at " +
-                                    "${System.currentTimeMillis()}",
-                            )
+                                    "${System.currentTimeMillis()}"
+                            }
                         }
                         userInteracted = true
                     }
@@ -377,10 +372,10 @@ fun AppDetailScreen(
                     .onPreviewKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
                             val result = runCatching { primaryActionFocusRequester.requestFocus() }
-                            tvFocusDebugLog(
+                            tvFocusDebugLog {
                                 "TopAppBar: DOWN bridges to primaryActionFocusRequester, success=" +
-                                    "${result.isSuccess} at ${System.currentTimeMillis()}",
-                            )
+                                    "${result.isSuccess} at ${System.currentTimeMillis()}"
+                            }
                             result.isSuccess
                         } else {
                             false
@@ -404,15 +399,15 @@ fun AppDetailScreen(
                         val stuckAtStartup = !userInteracted
                         val teleportedFromDeepContent = userInteracted && scrollState.value > 0
                         if (isTelevision && focusState.hasFocus) {
-                            tvFocusDebugLog(
+                            tvFocusDebugLog {
                                 "TopAppBar: hasFocus=true, userInteracted=$userInteracted, scrollState=" +
                                     "${scrollState.value} at ${System.currentTimeMillis()}" +
                                     if (stuckAtStartup || teleportedFromDeepContent) {
                                         " -> self-healing back to primary action"
                                     } else {
                                         ""
-                                    },
-                            )
+                                    }
+                            }
                         }
                         if (isTelevision && focusState.hasFocus && (stuckAtStartup || teleportedFromDeepContent)) {
                             runCatching { primaryActionFocusRequester.requestFocus() }
@@ -1043,10 +1038,10 @@ private fun AppDetail(
                     modifier = if (isTelevision) {
                         Modifier.focusGroup().onFocusChanged {
                             if (it.hasFocus != heroCardHasFocus) {
-                                tvFocusDebugLog(
+                                tvFocusDebugLog {
                                     "heroCardHasFocus: $heroCardHasFocus -> ${it.hasFocus}, " +
-                                        "scrollState=${scrollState.value} at ${System.currentTimeMillis()}",
-                                )
+                                        "scrollState=${scrollState.value} at ${System.currentTimeMillis()}"
+                                }
                             }
                             heroCardHasFocus = it.hasFocus
                         }
@@ -1418,10 +1413,10 @@ private fun VersionsSection(
                     .tvBringIntoViewOnFocus()
                     .onFocusChanged {
                         if (it.isFocused) {
-                            tvFocusDebugLog(
+                            tvFocusDebugLog {
                                 "FOCUS -> version-row[$index] (${pkg.manifest.versionName}) at " +
-                                    "${System.currentTimeMillis()}",
-                            )
+                                    "${System.currentTimeMillis()}"
+                            }
                         }
                     },
                 highlighted = isSuggested,

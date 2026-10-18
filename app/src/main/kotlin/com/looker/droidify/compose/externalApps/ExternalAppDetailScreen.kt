@@ -2,7 +2,6 @@ package com.looker.droidify.compose.externalApps
 
 import android.content.Intent
 import android.content.res.Configuration
-import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.focusGroup
@@ -111,6 +110,7 @@ import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvDpadKeyLog
+import com.looker.droidify.compose.components.tvFocusDebugLog
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.settings.components.WarningBanner
@@ -139,13 +139,6 @@ import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.singleSignature
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-// Temporary TV D-pad diagnostics, see TvFocus.kt's own debug-logging doc comment. Debug builds only.
-private fun tvFocusDebugLog(message: String) {
-    if (BuildConfig.DEBUG) {
-        Log.d("TvFocusDebug", message)
-    }
-}
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -287,11 +280,13 @@ fun ExternalAppDetailScreen(
     // that happens WITHOUT one (e.g. a stray BringIntoView call, or something scrolling as a side effect
     // rather than a direct consequence of a logged focus move) would otherwise be invisible. Temporary,
     // see TvFocus.kt's own debug-logging doc comment.
-    LaunchedEffect(Unit) {
-        snapshotFlow { scrollState.value }.collect { value ->
-            tvFocusDebugLog(
-                "ExternalAppDetailScreen scrollState -> $value at ${System.currentTimeMillis()}",
-            )
+    if (BuildConfig.DEBUG) {
+        LaunchedEffect(Unit) {
+            snapshotFlow { scrollState.value }.collect { value ->
+                tvFocusDebugLog {
+                    "ExternalAppDetailScreen scrollState -> $value at ${System.currentTimeMillis()}"
+                }
+            }
         }
     }
     val coroutineScope = rememberCoroutineScope()
@@ -357,10 +352,10 @@ fun ExternalAppDetailScreen(
         LaunchedEffect(app?.key) {
             repeat(20) {
                 val result = runCatching { primaryActionFocusRequester.requestFocus() }
-                tvFocusDebugLog(
+                tvFocusDebugLog {
                     "ExternalAppDetailScreen startup retry #$it: primaryActionFocusRequester.requestFocus() " +
-                        "success=${result.isSuccess} at ${System.currentTimeMillis()}",
-                )
+                        "success=${result.isSuccess} at ${System.currentTimeMillis()}"
+                }
                 if (result.isSuccess) return@LaunchedEffect
                 delay(50)
             }
@@ -386,10 +381,10 @@ fun ExternalAppDetailScreen(
                         // Marks startup focus as "settled" — see userInteracted and the TopAppBar's own
                         // onFocusChanged below, which stop correcting focus the moment this is true.
                         if (!userInteracted) {
-                            tvFocusDebugLog(
+                            tvFocusDebugLog {
                                 "ExternalAppDetailScreen-root: userInteracted set true by ${event.key} at " +
-                                    "${System.currentTimeMillis()}",
-                            )
+                                    "${System.currentTimeMillis()}"
+                            }
                         }
                         userInteracted = true
                     }
@@ -445,7 +440,7 @@ fun ExternalAppDetailScreen(
                             val stuckAtStartup = !userInteracted
                             val teleportedFromDeepContent = userInteracted && scrollState.value > 0
                             if (focusState.hasFocus) {
-                                tvFocusDebugLog(
+                                tvFocusDebugLog {
                                     "ExternalAppDetailScreen TopAppBar: hasFocus=true, userInteracted=" +
                                         "$userInteracted, scrollState=${scrollState.value} at " +
                                         "${System.currentTimeMillis()}" +
@@ -453,8 +448,8 @@ fun ExternalAppDetailScreen(
                                             " -> self-healing back to primary action"
                                         } else {
                                             ""
-                                        },
-                                )
+                                        }
+                                }
                             }
                             if (focusState.hasFocus && (stuckAtStartup || teleportedFromDeepContent)) {
                                 runCatching { primaryActionFocusRequester.requestFocus() }
@@ -900,11 +895,11 @@ fun ExternalAppDetailScreen(
                         modifier = if (isTelevision) {
                             Modifier.focusGroup().onFocusChanged {
                                 if (it.hasFocus != heroCardHasFocus) {
-                                    tvFocusDebugLog(
+                                    tvFocusDebugLog {
                                         "ExternalAppDetailScreen heroCardHasFocus: $heroCardHasFocus -> " +
                                             "${it.hasFocus}, scrollState=${scrollState.value} at " +
-                                            "${System.currentTimeMillis()}",
-                                    )
+                                            "${System.currentTimeMillis()}"
+                                    }
                                 }
                                 heroCardHasFocus = it.hasFocus
                             }
@@ -1088,11 +1083,11 @@ private fun ExternalAppDetailBody(
                 translucentBackground = true,
                 onContentHeight = {
                     if (it != readmeHeightPx) {
-                        tvFocusDebugLog(
+                        tvFocusDebugLog {
                             "ExternalAppDetailScreen readmeHeightPx: $readmeHeightPx -> $it, " +
                                 "scrollState=${scrollState.value}/${scrollState.maxValue} at " +
-                                "${System.currentTimeMillis()}",
-                        )
+                                "${System.currentTimeMillis()}"
+                        }
                     }
                     readmeHeightPx = it
                 },
@@ -1393,10 +1388,10 @@ private fun ExternalVersionsSection(
                     onCancel = if (isThisRowDownloading) onCancel else null,
                     modifier = Modifier.onFocusChanged {
                         if (it.isFocused) {
-                            tvFocusDebugLog(
+                            tvFocusDebugLog {
                                 "FOCUS -> external-version-row (${release.tag}) at " +
-                                    "${System.currentTimeMillis()}",
-                            )
+                                    "${System.currentTimeMillis()}"
+                            }
                         }
                     },
                 )
@@ -1416,9 +1411,9 @@ private fun ExternalVersionsSection(
                     },
                     modifier = Modifier.onFocusChanged {
                         if (it.isFocused) {
-                            tvFocusDebugLog(
-                                "FOCUS -> external-versions-show-more at ${System.currentTimeMillis()}",
-                            )
+                            tvFocusDebugLog {
+                                "FOCUS -> external-versions-show-more at ${System.currentTimeMillis()}"
+                            }
                         }
                     },
                 )
