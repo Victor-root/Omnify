@@ -297,7 +297,8 @@ fun TvHomeScreen(
         }
     }
 
-    Row(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    // No fill of its own: the opaque rail and the content's TvAccentBackground cover every pixel of it.
+    Row(modifier = Modifier.fillMaxSize()) {
         TvNavRail(
             section = section,
             // Both halves of the Updates grid, so the badge counts what that grid lists.
