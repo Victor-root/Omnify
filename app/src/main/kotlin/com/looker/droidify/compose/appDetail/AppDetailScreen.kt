@@ -156,9 +156,8 @@ import com.looker.droidify.data.model.isInstallableOnDevice
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.installer.model.InstallState
-import com.looker.droidify.utility.common.IconAccentCache
 import com.looker.droidify.utility.common.RootDetection
-import com.looker.droidify.utility.common.iconAccent
+import com.looker.droidify.utility.common.rememberIconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.openAppInfo
@@ -215,10 +214,11 @@ fun AppDetailScreen(
     val showIncompatibleVersions by viewModel.showIncompatibleVersions.collectAsStateWithLifecycle()
     // Set once the hero icon actually loads (see AppHeaderCard's onIconBitmap); reset per screen instance,
     // i.e. per app, since a different app's detail page is a fresh composition of this whole screen.
-    // Seeded from IconAccentCache so revisiting the same app doesn't wait for the icon to decode
-    // and get quantized all over again.
-    val iconAccentCacheKey = "pkg:${viewModel.packageName}"
-    var iconAccent by remember { mutableStateOf(IconAccentCache.get(iconAccentCacheKey)) }
+    val iconAccent = rememberIconAccent(
+        cacheKey = "pkg:${viewModel.packageName}",
+        followsPicture = false,
+        enabled = accentMatchesAppIcon,
+    )
     val successState = state as? AppDetailState.Success
     // The what's-new shown is the device-suitable release's text (falling back to the first package).
     // Translate the same text so the toggle covers the whole description area, not just summary + body.
@@ -329,7 +329,7 @@ fun AppDetailScreen(
     // Scoped to just this screen: when the setting is on and a colour has been sampled from the app's own
     // icon (see AppHeaderCard's onIconBitmap below), it overrides the accent for the top bar and every
     // MaterialTheme.colorScheme.primary use inside, without touching the app-wide theme.
-    ScopedAccentColor(if (accentMatchesAppIcon) iconAccent else null) {
+    ScopedAccentColor(if (accentMatchesAppIcon) iconAccent.accent else null) {
     Scaffold(
         // TV only: the remote's alternate "menu" key (e.g. the Nvidia Shield's, which opens Android TV's
         // own quick settings from the home screen) opens this app's Android "App info" management page —
@@ -534,17 +534,7 @@ fun AppDetailScreen(
                     useSplitView = useSplitView,
                     showIncompatibleVersions = showIncompatibleVersions,
                     modifier = Modifier.padding(padding),
-                    onIconBitmap = { bitmap ->
-                        // Coil re-invokes this on every recomposition of the icon's AsyncImage, not just
-                        // once per real image load (confirmed by logcat: the same colour got decoded and
-                        // quantized twice, ~150ms apart, for one screen visit). Skip it once a colour is
-                        // already known for this screen instance instead of redoing that work every time.
-                        if (iconAccent == null) {
-                            iconAccent = bitmap.iconAccent()?.also {
-                                IconAccentCache.put(iconAccentCacheKey, it)
-                            }
-                        }
-                    },
+                    onIconBitmap = iconAccent.onIconBitmap,
                 )
             }
         }
@@ -730,7 +720,7 @@ private fun AppDetail(
     useSplitView: Boolean,
     showIncompatibleVersions: Boolean,
     modifier: Modifier = Modifier,
-    onIconBitmap: ((Bitmap) -> Unit)? = null,
+    onIconBitmap: ((source: String, bitmap: () -> Bitmap?) -> Unit)? = null,
 ) {
     // Not app.packages: that's only the single repo apps.first() picked as "the" app (see the ViewModel's
     // state builder), so when the installed version is offered by a *different* repo than that one (e.g.
@@ -1511,7 +1501,7 @@ private fun AppHeaderCard(
     primaryActionFocusRequester: FocusRequester,
     onViewVersionsClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
-    onIconBitmap: ((Bitmap) -> Unit)? = null,
+    onIconBitmap: ((source: String, bitmap: () -> Bitmap?) -> Unit)? = null,
 ) {
     // Reuse the list tile's icon logic so the header falls back the same way: repo icon, then the
     // repo's generic icon.png, then the installed app's own launcher icon, then a placeholder. Repos
@@ -1563,7 +1553,7 @@ private fun AppHeaderCard(
                     model = remoteIconModel,
                     onSuccess = onIconBitmap?.let { callback ->
                         { state: AsyncImagePainter.State.Success ->
-                            state.toSafeBitmap(ICON_ACCENT_SAMPLE_PX)?.let(callback)
+                            callback("remote:${remoteIcon.path}") { state.toSafeBitmap(ICON_ACCENT_SAMPLE_PX) }
                         }
                     },
                     contentDescription = null,

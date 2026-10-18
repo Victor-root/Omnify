@@ -58,8 +58,9 @@ private class LauncherIconRead(val bitmap: ImageBitmap?)
  * management list.
  *
  * [onIconBitmap] receives each picture of the app's own icon as it shows, with a key naming where it
- * came from, so a caller can tell a new picture from a repeat of the same one. The avatar is never
- * passed on: it is the developer's logo, not the app's.
+ * came from, so a caller can tell a new picture from a repeat of the same one, and a way to read it as
+ * a bitmap (null if it can't be), slow enough to only be called off the main thread. The avatar is
+ * never passed on: it is the developer's logo, not the app's.
  *
  * [isInstalled] is a hint, not a gate: the device is asked for the app's own icon whenever its package
  * is known, and a change of [isInstalled] only asks again.
@@ -70,7 +71,7 @@ fun ExternalAppIcon(
     isInstalled: Boolean,
     size: Dp,
     modifier: Modifier = Modifier,
-    onIconBitmap: ((source: String, bitmap: Bitmap) -> Unit)? = null,
+    onIconBitmap: ((source: String, bitmap: () -> Bitmap?) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val packageName = app.packageName
@@ -148,7 +149,7 @@ fun ExternalAppIcon(
         // stops the pre-install icon from looking worse than the real one it's standing in for.
         when {
             launcher != null -> {
-                LaunchedEffect(launcher) { onIconBitmap?.invoke("launcher:$packageName", launcher.asAndroidBitmap()) }
+                LaunchedEffect(launcher) { onIconBitmap?.invoke("launcher:$packageName") { launcher.asAndroidBitmap() } }
                 Image(
                     bitmap = launcher,
                     contentDescription = null,
@@ -160,7 +161,7 @@ fun ExternalAppIcon(
 
             extractedIcon != null -> {
                 LaunchedEffect(extractedIcon) {
-                    onIconBitmap?.invoke("file:$extractedAt", extractedIcon.asAndroidBitmap())
+                    onIconBitmap?.invoke("file:$extractedAt") { extractedIcon.asAndroidBitmap() }
                 }
                 Image(
                     bitmap = extractedIcon,
@@ -178,7 +179,7 @@ fun ExternalAppIcon(
                 onError = { repoIconFailed = true },
                 onSuccess = onIconBitmap?.let { callback ->
                     { state: AsyncImagePainter.State.Success ->
-                        state.toSafeBitmap(LauncherIconPx)?.let { callback("repo:${app.repoIconUrl}", it) }
+                        callback("repo:${app.repoIconUrl}") { state.toSafeBitmap(LauncherIconPx) }
                     }
                 },
                 contentDescription = null,
