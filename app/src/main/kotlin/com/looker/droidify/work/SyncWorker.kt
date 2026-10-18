@@ -1,5 +1,6 @@
 package com.looker.droidify.work
 
+import android.app.PendingIntent
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
@@ -66,6 +67,13 @@ class SyncWorker @AssistedInject constructor(
             val success = if (repoId != null) {
                 val repo = repoRepository.getRepo(repoId)
                 if (repo != null) {
+                    // Once for the whole sync rather than in createForegroundInfo, which runs on every
+                    // progress update below.
+                    applicationContext.createNotificationChannel(
+                        id = SYNC_CHANNEL_ID,
+                        name = "Sync channel",
+                        showBadge = true,
+                    )
                     setForeground(createForegroundInfo(repo.name, -1))
                     // The progress callback fires on every downloaded chunk; refreshing the foreground
                     // notification each time floods WorkManager (it logs a "move to foreground" per
@@ -168,27 +176,22 @@ class SyncWorker @AssistedInject constructor(
         applicationContext.showUpdatesAvailableNotification(pendingUpdates.allAsEntries())
     }
 
+    /** The notification's cancel action, the same for every progress update of this worker. */
+    private val cancelIntent: PendingIntent by lazy {
+        WorkManager.getInstance(applicationContext).createCancelPendingIntent(id)
+    }
+
     private fun createForegroundInfo(name: String, percent: Int): ForegroundInfo {
-        val id = "sync_channel"
         val title = "Syncing: $name"
         val cancel = applicationContext.getString(R.string.cancel)
-        val intent = WorkManager
-            .getInstance(applicationContext)
-            .createCancelPendingIntent(getId())
 
-        applicationContext.createNotificationChannel(
-            id = id,
-            name = "Sync channel",
-            showBadge = true,
-        )
-
-        val notification = NotificationCompat.Builder(applicationContext, id)
+        val notification = NotificationCompat.Builder(applicationContext, SYNC_CHANNEL_ID)
             .setContentTitle(title)
             .setTicker(title)
             .setProgress(100, percent, percent == -1)
             .setSmallIcon(R.drawable.ic_sync)
             .setOngoing(true)
-            .addAction(R.drawable.ic_cancel, cancel, intent)
+            .addAction(R.drawable.ic_cancel, cancel, cancelIntent)
             .build()
 
         return notification.toForegroundInfo(124)
@@ -196,6 +199,7 @@ class SyncWorker @AssistedInject constructor(
 
     companion object {
         private const val TAG = "SyncWorker"
+        private const val SYNC_CHANNEL_ID = "sync_channel"
         // Total tries (initial + retries) before a failing sync gives up so it can't block the ones
         // chained behind it.
         private const val MAX_SYNC_ATTEMPTS = 3
