@@ -224,10 +224,30 @@
             android:exported="false"
             android:grantUriPermissions="true" />
 
+        <!--
+          Kept for the profile installer alone, which writes the bundled baseline profile for ART. The
+          store installs this app comes from (GitHub, IzzyOnDroid, F-Droid) never do that themselves,
+          so without it the profile shipped in the APK is never used. Every other library initializer
+          stays switched off, as when the whole provider was removed.
+        -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
-            tools:node="remove" />
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                tools:node="remove" />
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                tools:node="remove" />
+            <meta-data
+                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+                tools:node="remove" />
+            <meta-data
+                android:name="okhttp3.internal.platform.PlatformInitializer"
+                tools:node="remove" />
+        </provider>
 
         <!--
           Google ML Kit (on-device translation and language detection) reports usage statistics to
