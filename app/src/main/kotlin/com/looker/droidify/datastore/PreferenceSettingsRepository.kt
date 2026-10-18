@@ -48,7 +48,21 @@ class PreferenceSettingsRepository(
             } else {
                 throw exception
             }
-        }.map(::mapSettings)
+        }.map(::sharedSettings)
+
+    /**
+     * The last [mapSettings] result, with the [Preferences] instance it was read from. Every collector of
+     * [data] receives that same instance for one DataStore emission (it can no longer change once
+     * emitted), so they all share one mapping instead of each re-reading every key and re-decoding
+     * [FAVOURITED_AT]. Two threads racing here at worst map the same emission twice.
+     */
+    @Volatile
+    private var lastMapped: Pair<Preferences, Settings>? = null
+
+    private fun sharedSettings(preferences: Preferences): Settings {
+        lastMapped?.let { (source, settings) -> if (source === preferences) return settings }
+        return mapSettings(preferences).also { lastMapped = preferences to it }
+    }
 
     override suspend fun getInitial(): Settings {
         return data.first()
