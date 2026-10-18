@@ -33,7 +33,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -63,6 +62,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.MutedButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.PageIndicator
 import com.looker.droidify.compose.components.premiumCardBorder
@@ -740,7 +740,7 @@ private fun WelcomeNavigationBar(
             modifier = Modifier.widthIn(max = ContentMaxWidth).fillMaxWidth(),
         ) {
             val padding = PaddingValues(horizontal = 12.dp)
-            OutlinedButton(
+            MutedButton(
                 onClick = onPrevious,
                 enabled = currentPage > 0 && enabled,
                 contentPadding = padding,

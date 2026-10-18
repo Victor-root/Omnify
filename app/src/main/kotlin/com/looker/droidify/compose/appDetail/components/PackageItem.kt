@@ -70,7 +70,10 @@ fun PackageItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .then(if (highlighted) premiumCardBorder(shape) else Modifier),
+            .then(if (highlighted) premiumCardBorder(shape) else Modifier)
+            // TV only: visible focus ring (no-op on touch), on the same bounds as the card's own border
+            // so it covers it instead of sitting beside it.
+            .tvFocusOutline(shape),
     ) {
         Surface(
             shape = shape,
@@ -78,8 +81,6 @@ fun PackageItem(
             modifier = modifier
                 .fillMaxWidth()
                 .clip(shape)
-                // TV only: visible focus ring (no-op on touch).
-                .tvFocusOutline(shape)
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,

@@ -50,7 +50,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -79,7 +78,6 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -111,6 +109,7 @@ import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.components.AccentScrollableTabRow
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.CertificateSection
+import com.looker.droidify.compose.components.MutedButton
 import com.looker.droidify.compose.components.CountBadge
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
@@ -580,22 +579,6 @@ private fun shareApp(context: Context, packageName: String, repo: Repo) {
     context.startActivity(Intent.createChooser(sendIntent, null))
 }
 
-/** The accent colour of the main buttons, muted towards the surface: it keeps the person's chosen colour
- *  while standing apart from the filled main actions. Shared by both app detail screens. */
-@Composable
-internal fun UninstallButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    FilledTonalButton(
-        onClick = onClick,
-        modifier = modifier,
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = lerp(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.surface, 0.6f),
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ),
-    ) {
-        Text(stringResource(R.string.uninstall), maxLines = 1)
-    }
-}
-
 @Composable
 internal fun PrimaryActions(
     packageName: String,
@@ -706,10 +689,12 @@ internal fun PrimaryActions(
                 ) { Text(stringResource(R.string.launch)) }
             }
             if (isInstalled) {
-                UninstallButton(
+                MutedButton(
                     onClick = onUninstall,
                     modifier = tvSecondaryButton.tvFocusScale(1.10f, debugLabel = "secondary-uninstall-button"),
-                )
+                ) {
+                    Text(stringResource(R.string.uninstall), maxLines = 1)
+                }
                 // "App info" now lives as a gear on the hero card itself (top-start, mirroring the
                 // favourite heart) — see HeroCard's onManageClick — freeing this row for the primary/
                 // uninstall buttons alone, since a long localised label (e.g. French "Mettre à jour")
