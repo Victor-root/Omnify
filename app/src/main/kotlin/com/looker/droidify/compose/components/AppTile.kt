@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import java.text.NumberFormat
+import java.util.Locale
 
 /** The icon size shared by every catalogue/external app tile (touch). */
 val TileIconSize = 72.dp
@@ -110,32 +111,13 @@ fun AppTile(
     // item. No effect on touch (flag is false).
     val isTelevision = LocalIsTelevision.current
     var focused by remember { mutableStateOf(false) }
-    // Only build the animations on TV, so the touch path is exactly as before (no animation objects).
-    val scale = if (isTelevision) {
-        animateFloatAsState(if (focused) TvFocusedScale else 1f, label = "tvTileScale").value
-    } else {
-        1f
-    }
-    // The focused tile also gains a soft green fill and a solid green outline (the theme accent), so it
-    // reads clearly even at a glance from across the room. Both fade with focus; off on touch.
-    val accent = MaterialTheme.colorScheme.primary
-    val fillAlpha = if (isTelevision) {
-        animateFloatAsState(if (focused) 0.18f else 0f, label = "tvTileFill").value
-    } else {
-        0f
-    }
-    val borderAlpha = if (isTelevision) {
-        animateFloatAsState(if (focused) 1f else 0f, label = "tvTileBorder").value
-    } else {
-        0f
-    }
     // The update ring follows the icon's outline: a rounded square, or a circle for a round logo. The
     // icon is a caller-supplied slot with no shape to read, so it is recorded here and its corners are
     // looked at when the update starts.
     val iconLayer = rememberGraphicsLayer()
     var roundIcon by remember { mutableStateOf(false) }
-    LaunchedEffect(isUpdating) {
-        if (isUpdating) {
+    if (isUpdating) {
+        LaunchedEffect(Unit) {
             // A tile that appears mid-update has not drawn its icon yet: wait for that first frame.
             withFrameNanos { }
             roundIcon = iconLayer.size != IntSize.Zero && iconLayer.toImageBitmap().isRoundLogo()
@@ -176,15 +158,7 @@ fun AppTile(
             // original vertical padding.
             .then(
                 if (isTelevision) {
-                    Modifier
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                        }
-                        .padding(4.dp)
-                        .border(2.dp, accent.copy(alpha = borderAlpha), TvTileShape)
-                        .background(accent.copy(alpha = fillAlpha), TvTileShape)
-                        .padding(horizontal = 4.dp, vertical = 8.dp)
+                    Modifier.tvTileFocusBox(focused)
                 } else {
                     Modifier.padding(vertical = 8.dp)
                 },
@@ -215,7 +189,8 @@ fun AppTile(
                         // through the digits. The circle is sized once for the widest reading (100 %), so
                         // it keeps the same size as the number climbs. Truncated like the ring, so it
                         // never reads 100 % before the ring is full.
-                        val percent = NumberFormat.getPercentInstance()
+                        val locale = Locale.getDefault(Locale.Category.FORMAT)
+                        val percent = remember(locale) { NumberFormat.getPercentInstance(locale) }
                         val style = MaterialTheme.typography.labelSmall
                         val textMeasurer = rememberTextMeasurer()
                         val diameter = with(LocalDensity.current) {
@@ -265,4 +240,26 @@ fun AppTile(
             modifier = Modifier.fillMaxWidth(),
         )
     }
+}
+
+/**
+ * Android TV only (so the touch path builds no animation objects): the draw-only zoom, then the focus
+ * box that scales up with it. The focused tile gains a soft green fill and a solid green outline (the
+ * theme accent), so it reads clearly even at a glance from across the room. Both fade with focus.
+ */
+@Composable
+private fun Modifier.tvTileFocusBox(focused: Boolean): Modifier {
+    val scale by animateFloatAsState(if (focused) TvFocusedScale else 1f, label = "tvTileScale")
+    val accent = MaterialTheme.colorScheme.primary
+    val fillAlpha by animateFloatAsState(if (focused) 0.18f else 0f, label = "tvTileFill")
+    val borderAlpha by animateFloatAsState(if (focused) 1f else 0f, label = "tvTileBorder")
+    return this
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .padding(4.dp)
+        .border(2.dp, accent.copy(alpha = borderAlpha), TvTileShape)
+        .animatedBackground(TvTileShape) { accent.copy(alpha = fillAlpha) }
+        .padding(horizontal = 4.dp, vertical = 8.dp)
 }
