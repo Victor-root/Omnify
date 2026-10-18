@@ -15,6 +15,8 @@ import com.looker.droidify.datastore.Settings
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.SettingsSerializer
 import com.looker.droidify.datastore.migration.ProtoToPreferenceMigration
+import com.looker.droidify.datastore.model.BackgroundStyle
+import com.looker.droidify.utility.common.device.isTelevision
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -70,5 +72,11 @@ object DatastoreModule {
     @Provides
     fun provideSettingsRepository(
         dataStore: DataStore<Preferences>,
-    ): SettingsRepository = PreferenceSettingsRepository(dataStore)
+        @ApplicationContext context: Context,
+    ): SettingsRepository = PreferenceSettingsRepository(
+        dataStore = dataStore,
+        // Halo suits a television; everywhere else the default stays Dunes. A choice already made
+        // (or restored from a backup) always wins.
+        defaultBackgroundStyle = if (context.isTelevision()) BackgroundStyle.HALO else BackgroundStyle.DUNES,
+    )
 }

@@ -37,6 +37,8 @@ import kotlin.time.ExperimentalTime
 @OptIn(ExperimentalTime::class)
 class PreferenceSettingsRepository(
     private val dataStore: DataStore<Preferences>,
+    /** The backdrop until the person picks one: it differs by device (see DatastoreModule). */
+    private val defaultBackgroundStyle: BackgroundStyle = BackgroundStyle.DUNES,
 ) : SettingsRepository {
 
     override val data: Flow<Settings> = dataStore.data
@@ -299,8 +301,8 @@ class PreferenceSettingsRepository(
         val themeColor = preferences[THEME_COLOR] ?: DEFAULT_THEME_COLOR
         val edgeToEdge = preferences[EDGE_TO_EDGE] ?: false
         val backgroundStyle = runCatching {
-            BackgroundStyle.valueOf(preferences[BACKGROUND_STYLE] ?: BackgroundStyle.DUNES.name)
-        }.getOrDefault(BackgroundStyle.DUNES)
+            BackgroundStyle.valueOf(preferences[BACKGROUND_STYLE] ?: defaultBackgroundStyle.name)
+        }.getOrDefault(defaultBackgroundStyle)
         val autoUpdate = preferences[AUTO_UPDATE] ?: false
         val autoSync = AutoSync.valueOf(preferences[AUTO_SYNC] ?: AutoSync.WIFI_ONLY.name)
         val sortOrder = SortOrder.valueOf(preferences[SORT_ORDER] ?: SortOrder.UPDATED.name)
