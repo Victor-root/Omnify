@@ -76,8 +76,9 @@ class RepoRepository @Inject constructor(
 
     suspend fun getRepo(id: Int): Repo? {
         val repoEntity = repoDao.getRepo(id) ?: return null
-        val key = keyStream.first()
-        val auth = authDao.authFor(id)?.toAuthentication(key)
+        // The key only for a repository with a login: resolving it can mean unlocking the Keystore, and
+        // every app detail page reads its repositories through here.
+        val auth = authDao.authFor(id)?.toAuthentication(keyStream.first())
         val currentLocale = locale.first()
         val enabled = id in settings.first().enabledRepoIds
         val mirrors = getMirrors(id)
@@ -103,9 +104,9 @@ class RepoRepository @Inject constructor(
     fun repo(id: Int): Flow<Repo?> = combine(
         repoDao.repo(id),
         settings.map { it.enabledRepoIds },
-        keyStream,
-    ) { repo, enabled, key ->
-        val auth = authDao.authFor(id)?.toAuthentication(key)
+    ) { repo, enabled ->
+        // Same as getRepo: the key only once there is a login to open with it.
+        val auth = authDao.authFor(id)?.toAuthentication(keyStream.first())
         val mirrors = getMirrors(id)
         val currentLocale = locale.first()
         val name = repoDao.name(id, currentLocale) ?: repo?.address ?: "Unknown"
