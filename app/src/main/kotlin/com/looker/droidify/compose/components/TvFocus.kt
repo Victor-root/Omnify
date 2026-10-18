@@ -3,7 +3,6 @@ package com.looker.droidify.compose.components
 import android.util.Log
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.animateScrollBy
@@ -20,11 +19,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -141,6 +144,7 @@ fun Modifier.tvReadable(debugLabel: String? = null): Modifier {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(8.dp)
     val alpha by animateFloatAsState(if (focused) 0.10f else 0f, label = "tvReadable")
+    val primary = MaterialTheme.colorScheme.primary
     return this
         .clip(shape)
         .onFocusChanged {
@@ -149,7 +153,7 @@ fun Modifier.tvReadable(debugLabel: String? = null): Modifier {
                 tvFocusDebugLog { "FOCUS -> $debugLabel (tvReadable) at ${System.currentTimeMillis()}" }
             }
         }
-        .background(MaterialTheme.colorScheme.primary.copy(alpha = alpha), shape)
+        .animatedBackground(shape) { primary.copy(alpha = alpha) }
         .onPreviewKeyEvent { event ->
             val blocked = event.type == KeyEventType.KeyDown &&
                 (event.key == Key.DirectionLeft || event.key == Key.DirectionRight)
@@ -308,8 +312,23 @@ fun Modifier.tvFocusFill(
                 tvFocusDebugLog { "FOCUS -> $debugLabel (tvFocusFill) at ${System.currentTimeMillis()}" }
             }
         }
-        .background(color.copy(alpha = alpha), shape)
+        .animatedBackground(shape) { color.copy(alpha = alpha) }
 }
+
+/**
+ * Draws exactly what [androidx.compose.foundation.background] draws, but reads [color] at draw time: an
+ * animated colour then only redraws this node, instead of recomposing whoever builds the modifier on
+ * every frame of the animation.
+ */
+fun Modifier.animatedBackground(shape: Shape = RectangleShape, color: () -> Color): Modifier =
+    if (shape === RectangleShape) {
+        drawBehind { drawRect(color()) }
+    } else {
+        drawWithCache {
+            val outline = shape.createOutline(size, layoutDirection, this)
+            onDrawBehind { drawOutline(outline, color()) }
+        }
+    }
 
 /**
  * Android TV only: draws an accent outline around a focused composable. Layout-neutral, so it is safe
