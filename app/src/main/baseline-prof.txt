@@ -31,3 +31,13 @@ HSPLcoil3/**->**(**)**
 
 # --- Kotlin coroutines / flows: the StateFlow pipeline behind every screen ---
 HSPLkotlinx/coroutines/**->**(**)**
+
+# --- Start-up and sync libraries that ship no profile of their own (checked in their AARs/JARs) ---
+# Settings read before the first frame, the database behind every list, dependency injection, the
+# index parser and the HTTP client.
+HSPLandroidx/datastore/**->**(**)**
+HSPLandroidx/room/**->**(**)**
+HSPLandroidx/sqlite/**->**(**)**
+HSPLdagger/**->**(**)**
+HSPLkotlinx/serialization/**->**(**)**
+HSPLio/ktor/**->**(**)**
