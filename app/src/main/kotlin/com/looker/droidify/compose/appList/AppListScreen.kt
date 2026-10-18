@@ -460,15 +460,16 @@ fun AppListScreen(
     // it was — including a Discover carousel tile (see [DiscoverCarousel]'s own restoreFocusId param),
     // since those are just as reachable a starting point as the flat grid. Anything not currently visible
     // at all (e.g. the tile scrolled off-screen, or a section was just entered/left) falls back to the
-    // top of the content grid, then the tabs.
+    // top of the content grid, then the tabs. Only ever written on TV: touch has no focus to restore, and
+    // each write recomposes every visible tile that reads it, right as navigation starts.
     var restoreFocusId by rememberSaveable { mutableStateOf<String?>(null) }
     val restoreRequester = remember { FocusRequester() }
     val openApp: (String) -> Unit = { packageName ->
-        restoreFocusId = "app:$packageName"
+        if (isTelevision) restoreFocusId = "app:$packageName"
         onAppClick(packageName)
     }
     val openExternalApp: (String) -> Unit = { key ->
-        restoreFocusId = "ext:$key"
+        if (isTelevision) restoreFocusId = "ext:$key"
         onExternalAppClick(key)
     }
     // The Installed tab lists what is on the device, so a package installed from a tracked source
@@ -478,7 +479,7 @@ fun AppListScreen(
     val openInstalledApp: (String) -> Unit = { packageName ->
         // The tile that was opened is this tab's own catalogue tile whichever page it leads to, so that
         // is what focus comes back to (TV).
-        restoreFocusId = "app:$packageName"
+        if (isTelevision) restoreFocusId = "app:$packageName"
         val externalKey = externallyInstalled[packageName]
         if (externalKey != null) onExternalAppClick(externalKey) else onAppClick(packageName)
     }
