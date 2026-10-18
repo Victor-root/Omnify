@@ -448,7 +448,11 @@ internal fun TvSecondaryActions(
     isHidden: Boolean,
     onToggleHidden: () -> Unit,
 ) {
-    FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
+    FlowRow(
+        horizontalArrangement = spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalArrangement = spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         TvSecondaryAction(
             icon = Icons.Filled.Favorite,
             label = stringResource(R.string.favourites),
