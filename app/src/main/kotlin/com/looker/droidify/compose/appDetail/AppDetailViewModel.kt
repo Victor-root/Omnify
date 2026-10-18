@@ -1093,13 +1093,18 @@ class AppDetailViewModel @Inject constructor(
             when (result) {
                 DownloadResult.Ready -> {
                     val releaseFile = Cache.getReleaseFile(context, cacheFileName)
-                    if (context.packageManager.installedWithDifferentSignature(packageName, releaseFile)) {
+                    // Off the main thread: reading the archive's signing certificates verifies the
+                    // whole APK's signature.
+                    val differentSigner = withContext(Dispatchers.IO) {
+                        context.packageManager.installedWithDifferentSignature(packageName, releaseFile)
+                    }
+                    if (differentSigner) {
                         // Different signer: Android can't update across keys. The detail screen shows a
                         // dialog — offering to uninstall the existing copy first, unless it's a system
                         // app, which can't be removed (so there's nothing the user can do, and we must
                         // not keep telling them to uninstall in a loop).
                         _signatureConflict.value = InstallConflict(
-                            isSystemApp = isSystemApp(packageName),
+                            isSystemApp = withContext(Dispatchers.IO) { isSystemApp(packageName) },
                             packageName = packageName,
                             cacheFileName = cacheFileName,
                         )
