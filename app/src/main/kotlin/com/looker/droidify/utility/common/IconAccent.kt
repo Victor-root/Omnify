@@ -52,6 +52,11 @@ private const val MAX_LIGHTNESS = 0.90f
  */
 private const val BUCKET_SHIFT = 5
 
+/** What [BUCKET_SHIFT] leaves of each 8-bit channel, and the number of buckets those make. */
+private const val BUCKET_BITS = 8 - BUCKET_SHIFT
+private const val BUCKET_MASK = (1 shl BUCKET_BITS) - 1
+private const val BUCKET_COUNT = 1 shl (3 * BUCKET_BITS)
+
 /** This icon's accent, or null when the bitmap has no opaque pixels at all (nothing to read). */
 fun Bitmap.iconAccent(): IconAccent? {
     val pixels = IntArray(width * height)
@@ -74,8 +79,12 @@ fun Bitmap.iconAccent(): IconAccent? {
  * with the real ones; here a transparent pixel is simply not a vote.
  */
 internal fun iconAccentOf(pixels: IntArray): IconAccent? {
-    val populations = HashMap<Int, Int>()
-    val sums = HashMap<Int, LongArray>()
+    // Counted in arrays, one slot per bucket, rather than in maps: a map boxed every pixel's bucket and
+    // count, tens of thousands of times per icon.
+    val populations = IntArray(BUCKET_COUNT)
+    val sums = LongArray(BUCKET_COUNT * 3)
+    val firstSeen = IntArray(BUCKET_COUNT)
+    var distinct = 0
     var opaque = 0
     for (pixel in pixels) {
         if (pixel ushr 24 < OPAQUE_ALPHA_THRESHOLD) continue
@@ -83,29 +92,39 @@ internal fun iconAccentOf(pixels: IntArray): IconAccent? {
         val red = pixel shr 16 and 0xFF
         val green = pixel shr 8 and 0xFF
         val blue = pixel and 0xFF
-        val bucket = (red shr BUCKET_SHIFT shl 16) or
-            (green shr BUCKET_SHIFT shl 8) or
+        val bucket = (red shr BUCKET_SHIFT shl (2 * BUCKET_BITS)) or
+            (green shr BUCKET_SHIFT shl BUCKET_BITS) or
             (blue shr BUCKET_SHIFT)
-        populations[bucket] = (populations[bucket] ?: 0) + 1
-        val sum = sums.getOrPut(bucket) { LongArray(3) }
-        sum[0] += red
-        sum[1] += green
-        sum[2] += blue
+        if (populations[bucket]++ == 0) firstSeen[distinct++] = bucket
+        sums[bucket * 3] += red
+        sums[bucket * 3 + 1] += green
+        sums[bucket * 3 + 2] += blue
     }
     if (opaque == 0) return null
 
-    val accent = populations.entries
-        .sortedByDescending { it.value }
-        .map { (bucket, count) -> averageColour(sums.getValue(bucket), count) }
+    // Equally common buckets rank in the iteration order of a HashMap keyed by the bucket's channels at
+    // bits 16/8/0, the map this used to count into. Filling one with the same keys in the same
+    // first-seen order rebuilds that order exactly, so ties still break the way they always have.
+    val ranking = HashMap<Int, Int>()
+    for (index in 0 until distinct) {
+        val bucket = firstSeen[index]
+        val key = (bucket shr (2 * BUCKET_BITS) shl 16) or
+            (bucket shr BUCKET_BITS and BUCKET_MASK shl 8) or
+            (bucket and BUCKET_MASK)
+        ranking[key] = bucket
+    }
+    val accent = ranking.values
+        .sortedByDescending { populations[it] }
+        .map { averageColour(sums, it, populations[it]) }
         .firstOrNull(::isUsableAccent)
     return if (accent != null) IconAccent.Colour(accent) else IconAccent.Monochrome
 }
 
 /** A bucket's real colour: the mean of every pixel counted into it, not the bucket's own coordinates. */
-private fun averageColour(sums: LongArray, count: Int): Int {
-    val red = (sums[0] / count).toInt()
-    val green = (sums[1] / count).toInt()
-    val blue = (sums[2] / count).toInt()
+private fun averageColour(sums: LongArray, bucket: Int, count: Int): Int {
+    val red = (sums[bucket * 3] / count).toInt()
+    val green = (sums[bucket * 3 + 1] / count).toInt()
+    val blue = (sums[bucket * 3 + 2] / count).toInt()
     return (0xFF shl 24) or (red shl 16) or (green shl 8) or blue
 }
 
