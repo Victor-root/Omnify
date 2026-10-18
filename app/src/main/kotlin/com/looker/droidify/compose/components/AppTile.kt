@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import java.text.NumberFormat
-import java.util.Locale
 
 /** The icon size shared by every catalogue/external app tile (touch). */
 val TileIconSize = 72.dp
@@ -189,8 +188,8 @@ fun AppTile(
                         // through the digits. The circle is sized once for the widest reading (100 %), so
                         // it keeps the same size as the number climbs. Truncated like the ring, so it
                         // never reads 100 % before the ring is full.
-                        val locale = Locale.getDefault(Locale.Category.FORMAT)
-                        val percent = remember(locale) { NumberFormat.getPercentInstance(locale) }
+                        // A locale change recreates the activity, so one instance per tile is enough.
+                        val percent = remember { NumberFormat.getPercentInstance() }
                         val style = MaterialTheme.typography.labelSmall
                         val textMeasurer = rememberTextMeasurer()
                         val diameter = with(LocalDensity.current) {
