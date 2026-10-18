@@ -81,11 +81,13 @@ class CatalogueUpdatePropertiesTest {
                     signers = if (rnd.nextBoolean()) emptySet() else setOf(signers.random(rnd) ?: "aa11"),
                 )
             }
+            val installedSigner = signers.random(rnd)
+            val systemApp = rnd.nextBoolean()
             val update = hasCatalogueUpdate(
                 installedVersionCode = installedCode,
                 installedVersionName = installedName,
-                installedSigner = signers.random(rnd),
-                isSystemApp = rnd.nextBoolean(),
+                installedSigner = installedSigner,
+                isSystemApp = { systemApp },
                 installedFromExternalSource = rnd.nextInt(4) == 0,
                 suggested = suggested,
             )
@@ -125,7 +127,7 @@ class CatalogueUpdatePropertiesTest {
                     installedVersionCode = installedCode,
                     installedVersionName = installedName,
                     installedSigner = "aa11",
-                    isSystemApp = false,
+                    isSystemApp = { false },
                     installedFromExternalSource = false,
                     suggested = SuggestedVersion(installedCode + 1, catalogueName, setOf("aa11")),
                 ),

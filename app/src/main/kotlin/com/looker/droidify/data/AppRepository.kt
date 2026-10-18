@@ -333,13 +333,14 @@ fun externalSourceOwns(ownsInstalled: Boolean, catalogueDidNotSignIt: Boolean): 
  * the two can't disagree about what counts as updatable.
  *
  * [installedVersionCode] is null when the package isn't installed at all, and [suggested] is null when
- * the catalogue has no device-compatible build of it. Neither is an update.
+ * the catalogue has no device-compatible build of it. Neither is an update. [isSystemApp] is only asked
+ * for a signer conflict, since it costs a package manager call.
  */
 fun hasCatalogueUpdate(
     installedVersionCode: Long?,
     installedVersionName: String?,
     installedSigner: String?,
-    isSystemApp: Boolean,
+    isSystemApp: () -> Boolean,
     installedFromExternalSource: Boolean,
     suggested: SuggestedVersion?,
 ): Boolean {
@@ -348,7 +349,7 @@ fun hasCatalogueUpdate(
     if (catalogueBuildIsOlder(installedVersionName, suggested.versionName)) return false
     if (suggested.versionCode <= installedVersionCode) return false
     // signerMismatch is the one shared definition of this comparison (see InstalledIdentityRepository).
-    return !(signerMismatch(installedSigner, suggested.signers) && isSystemApp)
+    return !(signerMismatch(installedSigner, suggested.signers) && isSystemApp())
 }
 
 /** Bumped whenever [com.looker.droidify.utility.apk.ApkResourceLocales]'s parsing logic changes in a

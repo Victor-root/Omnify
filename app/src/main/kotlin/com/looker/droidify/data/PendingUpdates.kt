@@ -115,7 +115,7 @@ class PendingUpdates @Inject constructor(
                         installedVersionCode = installed.versionCode,
                         installedVersionName = installed.version,
                         installedSigner = installed.signature,
-                        isSystemApp = isSystemApp(installed.packageName),
+                        isSystemApp = { isSystemApp(installed.packageName) },
                         installedFromExternalSource = installed.packageName in externallyOwned,
                         suggested = suggested[installed.packageName],
                     )
