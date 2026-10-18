@@ -56,7 +56,7 @@
     <string name="allow">Allow</string>
     <string name="diagnostics_short">Log</string>
     <string name="diagnostics_title">Diagnostic log</string>
-    <string name="diagnostics_hint">What Omnify did, to send with a bug report. It holds no personal data: no app names, no address of a repository you added, no account details.</string>
+    <string name="diagnostics_hint">What Omnify did, to attach to a bug report. No personal data.</string>
     <string name="diagnostics_empty">Nothing recorded yet.</string>
     <string name="diagnostics_copy">Copy</string>
     <string name="diagnostics_clear">Clear</string>

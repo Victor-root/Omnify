@@ -35,7 +35,7 @@
     <string name="allow">Autoriser</string>
     <string name="diagnostics_short">Journal</string>
     <string name="diagnostics_title">Journal de diagnostic</string>
-    <string name="diagnostics_hint">Ce qu\'a fait Omnify, à joindre à un signalement de bug. Il ne contient aucune donnée personnelle : aucun nom d\'appli, aucune adresse d\'un dépôt que vous avez ajouté, aucun compte.</string>
+    <string name="diagnostics_hint">Ce qu\'a fait Omnify, à joindre à un bug. Aucune donnée personnelle.</string>
     <string name="diagnostics_empty">Rien d\'enregistré pour l\'instant.</string>
     <string name="diagnostics_copy">Copier</string>
     <string name="diagnostics_clear">Effacer</string>
