@@ -50,7 +50,7 @@ object DatastoreModule {
         oldDatastore: DataStore<Settings>,
     ): DataStore<Preferences> = PreferenceDataStoreFactory.create(
         migrations = listOf(
-            ProtoToPreferenceMigration(oldDatastore),
+            ProtoToPreferenceMigration(oldDatastore, context.defaultBackgroundStyle()),
         ),
     ) {
         context.preferencesDataStoreFile(SETTINGS)
@@ -75,8 +75,11 @@ object DatastoreModule {
         @ApplicationContext context: Context,
     ): SettingsRepository = PreferenceSettingsRepository(
         dataStore = dataStore,
-        // Halo suits a television; everywhere else the default stays Dunes. A choice already made
-        // (or restored from a backup) always wins.
-        defaultBackgroundStyle = if (context.isTelevision()) BackgroundStyle.HALO else BackgroundStyle.DUNES,
+        defaultBackgroundStyle = context.defaultBackgroundStyle(),
     )
+
+    /** Halo suits a television; everywhere else the default stays Dunes. A choice already made (or
+     *  restored from a backup) always wins. */
+    private fun Context.defaultBackgroundStyle() =
+        if (isTelevision()) BackgroundStyle.HALO else BackgroundStyle.DUNES
 }
