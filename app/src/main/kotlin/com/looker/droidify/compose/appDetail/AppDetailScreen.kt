@@ -729,7 +729,7 @@ private fun AppDetail(
     // installed from IzzyOnDroid while F-Droid's own build became the primary app), it wouldn't be found
     // and the button would wrongly offer "Install" even though a version is plainly marked installed
     // further down in the (correctly cross-repo) version list below. Search across every repo instead.
-    val installedPackage = packages.map { it.first }.firstOrNull { it.installed }
+    val installedPackage = remember(packages) { packages.map { it.first }.firstOrNull { it.installed } }
     // Mirrors PrimaryActions' own installing check (including its Installed-but-not-yet-confirmed
     // extension — see that function's own doc comment) — whether the version list should show progress
     // on a row at all (combined with downloadTargetVersionCode to know which one).
@@ -1509,7 +1509,7 @@ private fun AppHeaderCard(
     // repo's generic icon.png, then the installed app's own launcher icon, then a placeholder. Repos
     // like TwinHelix ship no icon in their index, so without the launcher-icon fallback the header
     // showed a blank placeholder even though the list (which has this fallback) showed the real logo.
-    val minimal = app?.minimal()
+    val minimal = remember(app) { app?.minimal() }
     val version = app?.metadata?.suggestedVersionName?.nonBlank()
     val size = installablePackage?.apk?.size?.toString()
     val heroContext = LocalContext.current
