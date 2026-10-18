@@ -86,10 +86,11 @@ fun ReleaseVersionItem(
             // Same treatment as the hero card, only for the one suggested release — that's the
             // pick this screen wants to draw the eye to, not every entry in a long version list,
             // which would drown the highlight out.
-            .then(if (isSuggested) premiumCardBorder(cardShape) else Modifier)
-            // TV only: visible focus ring (no-op on touch), on the same bounds as the card's own border
-            // so it covers it instead of sitting beside it.
-            .tvFocusOutline(cardShape),
+            // TV only: visible focus ring (no-op on touch), on the same bounds as the card's own border.
+            // First in the chain, because a modifier earlier in the chain draws after (over) the ones
+            // below it: the ring then covers the border instead of letting it show on top.
+            .tvFocusOutline(cardShape)
+            .then(if (isSuggested) premiumCardBorder(cardShape) else Modifier),
     ) {
         Surface(
             shape = cardShape,
