@@ -28,21 +28,17 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
-import androidx.core.graphics.drawable.toBitmap
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import com.looker.droidify.R
+import com.looker.droidify.compose.appList.LauncherIconPx
+import com.looker.droidify.compose.appList.readInstalledLauncherIcon
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalIconCache
 import com.looker.droidify.utility.common.extension.toSafeBitmap
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-
-/** Square pixel size the system fallback icon is rendered at (generous so it stays crisp at any size). */
-private const val LauncherIconPx = 256
 
 private const val TAG = "ExternalAppIcon"
 
@@ -97,24 +93,11 @@ fun ExternalAppIcon(
     // for it showed the developer's avatar on an installed app's page before the real icon replaced it.
     val launcherIcon by produceState<LauncherIconRead?>(null, packageName, isInstalled) {
         val bitmap = packageName?.let { pkg ->
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    // Explicit size: toBitmap() with none uses the drawable's intrinsic size, which
-                    // renders adaptive icons inconsistently across Android versions (fine on newer
-                    // phones, cropped/squished on older TV builds), a square output normalises it
-                    // everywhere. Explicit ARGB_8888 config: toBitmap()'s default (null) returns a
-                    // BitmapDrawable's own bitmap unconverted whenever the requested size matches its
-                    // intrinsic size, hardware config included, which then crashes reading pixels back
-                    // out for colour extraction.
-                    context.packageManager.getApplicationIcon(pkg)
-                        .toBitmap(width = LauncherIconPx, height = LauncherIconPx, config = Bitmap.Config.ARGB_8888)
-                        .asImageBitmap()
-                }.onFailure {
-                    if (it !is PackageManager.NameNotFoundException) {
-                        Log.e(TAG, "Unable to read $pkg's launcher icon", it)
-                    }
-                }.getOrNull()
-            }
+            readInstalledLauncherIcon(context, pkg).onFailure {
+                if (it !is PackageManager.NameNotFoundException) {
+                    Log.e(TAG, "Unable to read $pkg's launcher icon", it)
+                }
+            }.getOrNull()
         }
         value = LauncherIconRead(bitmap)
     }
