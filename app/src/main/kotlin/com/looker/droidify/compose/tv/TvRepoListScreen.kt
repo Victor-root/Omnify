@@ -228,7 +228,9 @@ fun TvRepoListScreen(
         }
 
         // External sources / accounts the user added themselves.
-        item(key = "external-header", contentType = "header") { SettingHeader(stringResource(R.string.repo_section_external)) }
+        item(key = "external-header", contentType = "header") {
+            SettingHeader(stringResource(R.string.repo_section_external))
+        }
         if (regularAccounts.isEmpty() && regularExternalApps.isEmpty()) {
             item(key = "external-empty", contentType = "empty") {
                 Text(
@@ -262,7 +264,9 @@ fun TvRepoListScreen(
         }
 
         // F-Droid repositories.
-        item(key = "repos-header", contentType = "header") { SettingHeader(stringResource(R.string.repo_section_fdroid)) }
+        item(key = "repos-header", contentType = "header") {
+            SettingHeader(stringResource(R.string.repo_section_fdroid))
+        }
         items(sortedRepos, key = { "repo-${it.id}" }, contentType = { "repo" }) { repo ->
             TvRepoRow(
                 repo = repo,
