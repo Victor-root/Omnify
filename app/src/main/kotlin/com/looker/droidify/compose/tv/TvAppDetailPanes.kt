@@ -34,7 +34,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
@@ -134,8 +136,10 @@ internal fun TvKeepFocusOnMainAction(
 /**
  * An app's description, all of it, filling the room it is given: the page does not scroll for it, the
  * description does, one D-pad focus stop that pages up and down (see [tvPageScroll]) with a faint
- * highlight while it holds focus. Left and right leave it for the other pane; [upTarget] is where "up"
- * goes once at the top. A WebView renders it, so emojis, images, tables and links all show properly.
+ * highlight while it holds focus. Left goes back to [leftTarget] (the page's main action) rather than to
+ * whatever sits nearest in the left pane, which on a tall description was the versions list; right is
+ * left to the default search; [upTarget] is where "up" goes once at the top. A WebView renders it, so
+ * emojis, images, tables and links all show properly.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -147,6 +151,7 @@ internal fun TvDescriptionPane(
     webUrl: String,
     modifier: Modifier = Modifier,
     upTarget: FocusRequester? = null,
+    leftTarget: FocusRequester? = null,
 ) {
     var rendererGone by remember(html) { mutableStateOf(false) }
     if (rendererGone) {
@@ -179,6 +184,11 @@ internal fun TvDescriptionPane(
         modifier = modifier
             .onSizeChanged { viewportPx = it.height }
             .tvFocusFill(shape)
+            .onPreviewKeyEvent { event ->
+                // Falls back to the default search if the main action can't take the focus right now.
+                leftTarget != null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft &&
+                    runCatching { leftTarget.requestFocus() }.getOrDefault(false)
+            }
             .tvPageScroll(scrollState, (viewportPx * 0.85f).toInt(), upTarget = upTarget)
             // overscrollEffect = null: see TvAppDetailPanes.
             .verticalScroll(scrollState, overscrollEffect = null),
