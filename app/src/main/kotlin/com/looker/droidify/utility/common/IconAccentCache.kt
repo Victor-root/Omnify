@@ -8,10 +8,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withContext
 
 /**
@@ -57,7 +55,12 @@ class IconAccentState internal constructor(
     var accent by mutableStateOf(IconAccentCache.get(cacheKey))
         private set
 
-    private var picture by mutableStateOf<Picture?>(null)
+    /** Every picture shown, in order: each is read in turn, as each was when this ran on the main
+     *  thread, so an unreadable later picture never loses the accent of the one before it. */
+    private val pictures = Channel<Picture>(Channel.UNLIMITED)
+
+    /** Only touched on the main thread, by [onIconBitmap]. */
+    private var lastSource: String? = null
 
     /**
      * For the icon to pass each picture it shows, with a source naming it and a way to read it as a
@@ -70,16 +73,18 @@ class IconAccentState internal constructor(
      */
     val onIconBitmap: ((source: String, bitmap: () -> Bitmap?) -> Unit)? =
         if (followsPicture || accent == null) {
-            { source, bitmap -> if (picture?.source != source) picture = Picture(source, bitmap) }
+            { source, bitmap ->
+                if (lastSource != source) {
+                    lastSource = source
+                    pictures.trySend(Picture(source, bitmap))
+                }
+            }
         } else {
             null
         }
 
     internal suspend fun follow() {
-        val pictures = snapshotFlow { picture }.filterNotNull()
-        // Following, a newer picture cancels the work on the one before (never stored, then). Otherwise
-        // each picture is seen through in turn, so the first one readable is still the one that counts.
-        if (followsPicture) pictures.collectLatest(::read) else pictures.collect(::read)
+        for (picture in pictures) read(picture)
     }
 
     private suspend fun read(picture: Picture) {
