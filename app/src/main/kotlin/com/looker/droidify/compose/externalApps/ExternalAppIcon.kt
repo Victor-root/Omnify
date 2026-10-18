@@ -149,7 +149,9 @@ fun ExternalAppIcon(
         // stops the pre-install icon from looking worse than the real one it's standing in for.
         when {
             launcher != null -> {
-                LaunchedEffect(launcher) { onIconBitmap?.invoke("launcher:$packageName") { launcher.asAndroidBitmap() } }
+                LaunchedEffect(launcher) {
+                    onIconBitmap?.invoke("launcher:$packageName") { launcher.asAndroidBitmap() }
+                }
                 Image(
                     bitmap = launcher,
                     contentDescription = null,
