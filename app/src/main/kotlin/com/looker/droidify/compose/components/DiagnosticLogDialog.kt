@@ -32,9 +32,12 @@ import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** The end of the log shown on screen: enough to read what just happened, without laying out the whole
- *  file. Copy and Share always take all of it. */
-private const val SHOWN_CHARS = 64 * 1024
+/** The end of the log shown on screen: enough to read what just happened. Copy and Share always take
+ *  all of it. Kept short on purpose: a dialog measures its text once at a width of zero, where every
+ *  character is a line of its own, and Compose cannot lay out a text taller than 262,143 pixels (a first
+ *  version showing 64K characters crashed there), so 8K characters at about 20 pixels a line stay well
+ *  under it. */
+private const val SHOWN_CHARS = 8 * 1024
 
 /**
  * The diagnostic log ([DiagnosticLog]) with what can be done with it: clear it before reproducing a bug,
@@ -65,7 +68,7 @@ fun DiagnosticLogDialog(onDismiss: () -> Unit) {
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = log?.ifEmpty { emptyText }?.takeLast(SHOWN_CHARS).orEmpty(),
+                    text = log?.ifEmpty { emptyText }?.tail(SHOWN_CHARS).orEmpty(),
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier
@@ -108,4 +111,11 @@ fun DiagnosticLogDialog(onDismiss: () -> Unit) {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
         },
     )
+}
+
+/** The last [count] characters, starting at the beginning of a line so the first one is not cut. */
+private fun String.tail(count: Int): String {
+    if (length <= count) return this
+    val cut = indexOf('\n', length - count)
+    return if (cut < 0) takeLast(count) else substring(cut + 1)
 }
