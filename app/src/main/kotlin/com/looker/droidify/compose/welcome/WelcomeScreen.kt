@@ -48,7 +48,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -62,7 +61,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
-import coil3.size.Precision
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.MutedButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
@@ -772,16 +770,8 @@ private fun WelcomeNavigationBar(
     }
 }
 
-/** The largest a repository's logo is drawn anywhere ([RepoIcon] in the TV repository page's header). */
-private val LargestRepoIconSize = 72.dp
-
-/**
- * The request for a source's logo when it comes from the network, cached under the very key
- * [WelcomeSourceIcon] then looks up. A repository's logo is decoded at [repoLogoPx] (no smaller than
- * any [RepoIcon] sharing that key draws it, and never upscaled) rather than at its full resolution;
- * an app's icon keeps its full size, being drawn far larger elsewhere.
- */
-private fun WelcomeItem.logoRequest(context: Context, repoLogoPx: Int): ImageRequest? = when (val kind = kind) {
+/** The request for a source's logo when it comes from the network, the very one [WelcomeSourceIcon] makes. */
+private fun WelcomeItem.logoRequest(context: Context): ImageRequest? = when (val kind = kind) {
     WelcomeKind.OmnifySource, WelcomeKind.OmnifyAccount -> null
     is WelcomeKind.FdroidRepository -> {
         val address = kind.repo.address
@@ -791,10 +781,6 @@ private fun WelcomeItem.logoRequest(context: Context, repoLogoPx: Int): ImageReq
         } else {
             (defaultRepoIcon(address)?.takeIf { it.isNotBlank() } ?: kind.repo.icon?.path)
                 ?.let { repoIconRequest(context, it, kind.repo.versionInfo?.timestamp) }
-                ?.newBuilder()
-                ?.size(repoLogoPx)
-                ?.precision(Precision.INEXACT)
-                ?.build()
         }
     }
 
@@ -809,11 +795,10 @@ private fun WelcomeItem.logoRequest(context: Context, repoLogoPx: Int): ImageReq
 @Composable
 internal fun PrefetchWelcomeLogos(items: List<WelcomeItem>) {
     val context = LocalContext.current
-    val repoLogoPx = with(LocalDensity.current) { LargestRepoIconSize.roundToPx() }
     val ids = items.map { it.id }
     LaunchedEffect(ids) {
         val loader = SingletonImageLoader.get(context)
-        items.forEach { item -> item.logoRequest(context, repoLogoPx)?.let { loader.enqueue(it) } }
+        items.forEach { item -> item.logoRequest(context)?.let { loader.enqueue(it) } }
     }
 }
 
