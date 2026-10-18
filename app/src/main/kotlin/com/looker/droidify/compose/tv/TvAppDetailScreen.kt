@@ -345,6 +345,7 @@ fun TvAppDetailScreen(
                                     webUrl = app.links?.webSite ?: app.links?.sourceCode ?: "",
                                     modifier = Modifier.weight(1f).fillMaxWidth(),
                                     upTarget = screenshotsFocus.takeIf { screenshots.isNotEmpty() },
+                                    leftTarget = primaryFocus,
                                 )
                             }
                         },

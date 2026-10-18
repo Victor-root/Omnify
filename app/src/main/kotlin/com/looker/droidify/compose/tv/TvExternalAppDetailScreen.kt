@@ -333,6 +333,7 @@ fun TvExternalAppDetailScreen(
                             javaScriptEnabled = readmeJavaScriptEnabled,
                             webUrl = app.webUrl,
                             modifier = Modifier.weight(1f).fillMaxWidth(),
+                            leftTarget = primaryFocus,
                         )
                         readmeError != null -> TvDescriptionMessage(readmeError.orEmpty())
                         readmeHtml != null -> TvDescriptionMessage(stringResource(R.string.no_description_available_DESC))
