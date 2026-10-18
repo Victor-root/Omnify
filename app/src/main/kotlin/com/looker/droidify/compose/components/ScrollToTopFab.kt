@@ -12,6 +12,9 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -28,8 +31,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun ScrollToTopFab(scrollState: ScrollState) {
     val coroutineScope = rememberCoroutineScope()
+    // Derived, so scrolling only recomposes this when the threshold is crossed, not on every pixel.
+    val scrolledFar by remember(scrollState) { derivedStateOf { scrollState.value > 800 } }
     AnimatedVisibility(
-        visible = scrollState.value > 800,
+        visible = scrolledFar,
         enter = fadeIn() + scaleIn(),
         exit = fadeOut() + scaleOut(),
     ) {
