@@ -247,7 +247,6 @@
     <string name="downloading_rb_logs">正在下载可复现性日志</string>
     <string name="downloading_download_stats">正在下载下载统计</string>
     <string name="tv_back">返回</string>
-    <string name="tv_view_description">显示更多</string>
     <string name="tv_press_back_again">再次按返回键退出</string>
     <string name="tv_filter_tv_only">电视应用</string>
     <string name="tv_filter_all">所有应用</string>

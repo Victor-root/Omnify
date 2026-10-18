@@ -272,7 +272,6 @@
     <string name="custom_button_icon">İkon</string>
     <string name="custom_button_delete_confirmation">\"%1$s\" butonu silinsin mi?</string>
     <string name="tv_back">Geri</string>
-    <string name="tv_view_description">Daha fazlasını gör</string>
     <string name="tv_press_back_again">Çıkmak için tekrar Geri\'ye basın</string>
     <string name="tv_filter_tv_only">TV uygulamaları</string>
     <string name="tv_filter_all">Tüm uygulamalar</string>

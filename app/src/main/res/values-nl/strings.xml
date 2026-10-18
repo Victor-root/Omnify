@@ -234,7 +234,6 @@
     <string name="always_choose">Altijd kiezen</string>
     <string name="label_sdk_version">Doel: Android %1$s | Minimaal: Android %2$s</string>
     <string name="tv_back">Terug</string>
-    <string name="tv_view_description">Meer bekijken</string>
     <string name="tv_press_back_again">Druk nogmaals op Terug om af te sluiten</string>
     <string name="tv_filter_tv_only">Tv-apps</string>
     <string name="tv_filter_all">Alle apps</string>

@@ -43,12 +43,10 @@ import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
-import com.looker.droidify.compose.components.TvOverscan
+import com.looker.droidify.compose.components.TvInitialFocus
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.tv.TvAccentBackground
-import com.looker.droidify.compose.tv.TvBackButton
-import kotlinx.coroutines.delay
 
 /**
  * A hidden, purely-for-fun full-screen reveal: repeatedly tapping the version row in Settings (see
@@ -94,16 +92,9 @@ fun EasterEggScreen(onBackClick: () -> Unit) {
         spin.animateTo(spinTarget, animationSpec = tween(600, easing = FastOutSlowInEasing))
     }
 
-    // TV must always hold focus somewhere; the back button is the only other focusable element here.
-    val backFocus = remember { FocusRequester() }
-    if (isTelevision) {
-        LaunchedEffect(Unit) {
-            repeat(20) {
-                if (runCatching { backFocus.requestFocus() }.isSuccess) return@LaunchedEffect
-                delay(50)
-            }
-        }
-    }
+    // TV must always hold focus somewhere; the logo is the only focusable element there.
+    val logoFocus = remember { FocusRequester() }
+    TvInitialFocus(logoFocus)
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         if (isTelevision) {
@@ -114,15 +105,7 @@ fun EasterEggScreen(onBackClick: () -> Unit) {
             FloatingAppCardsBackground(intensity = 1.4f)
         }
 
-        if (isTelevision) {
-            TvBackButton(
-                onBackClick = onBackClick,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(TvOverscan)
-                    .focusRequester(backFocus),
-            )
-        } else {
+        if (!isTelevision) {
             BackButton(
                 onClick = onBackClick,
                 modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
@@ -149,6 +132,7 @@ fun EasterEggScreen(onBackClick: () -> Unit) {
                         rotationZ = entranceRotation + spin.value
                     }
                     .tvFocusScale()
+                    .focusRequester(logoFocus)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,

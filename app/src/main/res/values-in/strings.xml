@@ -268,7 +268,6 @@
     <string name="custom_button_icon">Ikon</string>
     <string name="custom_button_delete_confirmation">Hapus tombol \"%1$s\"?</string>
     <string name="tv_back">Kembali</string>
-    <string name="tv_view_description">Lihat selengkapnya</string>
     <string name="tv_press_back_again">Tekan Kembali sekali lagi untuk keluar</string>
     <string name="tv_filter_tv_only">Aplikasi TV</string>
     <string name="tv_filter_all">Semua aplikasi</string>

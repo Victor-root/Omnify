@@ -3,17 +3,13 @@ package com.looker.droidify.compose.tv
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
-import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,43 +17,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
@@ -66,7 +50,6 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.AppDetailState
 import com.looker.droidify.compose.appDetail.AppDetailViewModel
 import com.looker.droidify.compose.appDetail.PrimaryActions
-import com.looker.droidify.compose.appDetail.ScreenshotsRow
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appDetail.components.PackageItem
 import com.looker.droidify.compose.components.InstallConflictDialog
@@ -75,17 +58,16 @@ import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import androidx.compose.foundation.layout.Arrangement
-import com.looker.droidify.compose.externalApps.ReadmeWebView
+import androidx.compose.foundation.layout.Arrangement.spacedBy
 import com.looker.droidify.compose.components.CertificateSection
-import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
-import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.utility.common.IconAccentCache
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.common.iconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
@@ -94,8 +76,10 @@ import kotlinx.coroutines.delay
 
 /**
  * The Android TV app-detail screen — a lean, couch-friendly presentation over the same
- * [AppDetailViewModel] the phone screen uses: icon + name + a few meta chips, one big Install / Update /
- * Launch button that holds the startup focus, a screenshots row, the description, and the version list.
+ * [AppDetailViewModel] the phone screen uses, in two panes like the tablet split view: on the left icon +
+ * name + a few meta chips, one big Install / Update / Launch button that holds the startup focus, the
+ * discreet favourite and hide toggles, the certificate and the version list; on the right the screenshots
+ * and the whole description (see [TvAppDetailPanes]).
  * The heavy install lifecycle is reused verbatim ([PrimaryActions]), so behaviour matches the phone
  * build exactly; only the layout is TV-specific. Never composed off TV.
  */
@@ -196,8 +180,9 @@ fun TvAppDetailScreen(
             // the user has taken over. Same intent as the phone TV path.
             LaunchedEffect(app.metadata.packageName.name, installedInfo) {
                 if (userInteracted) return@LaunchedEffect
-                repeat(20) {
+                repeat(20) { attempt ->
                     if (runCatching { primaryFocus.requestFocus() }.getOrDefault(false)) {
+                        DiagnosticLog.log("TV app detail: focus on the main action after ${attempt + 1} tries")
                         // Focusing the action button can bring-into-view scroll the column down a touch,
                         // clipping the header; the button is above the fold anyway, so snap back to the
                         // top once (unless the user already grabbed the scroll).
@@ -212,12 +197,11 @@ fun TvAppDetailScreen(
             val screenshots = remember(app.screenshots) {
                 (app.screenshots?.tv?.takeIf { it.isNotEmpty() } ?: app.screenshots?.phone).orEmpty()
             }
-            // The catalogue description is HTML; shown (rendered) in a full-screen reader on demand — see
-            // TvOpenDescriptionButton — so it looks the same as an external app's README.
+            // The catalogue description is HTML, rendered in the right pane (see TvDescriptionPane) so it
+            // looks the same as an external app's README.
             val descriptionHtml = app.metadata.description.raw
-            var showDescription by remember(app.metadata.packageName.name) { mutableStateOf(false) }
-            // Screen height, so the README preview can fill from its top down to the bottom edge.
-            var viewportPx by remember { mutableStateOf(0) }
+            // Where "up" from the description goes: back to the screenshots above it.
+            val screenshotsFocus = remember { FocusRequester() }
 
             // Tapping a version confirms, then installs that exact release — the same engine
             // (viewModel.installVersion) and confirm/downgrade flow the phone screen uses.
@@ -297,197 +281,125 @@ fun TvAppDetailScreen(
             // inside (e.g. the favourite heart, the primary action button), without touching the app-wide
             // theme.
             ScopedAccentColor(if (accentMatchesAppIcon) iconAccent else null) {
-            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            // The full description reader replaces the whole page (not an overlay) so the detail's cards
-            // below can't steal D-pad focus from behind it.
-            if (!showDescription) {
-            TvAccentBackground()
-            // Two panes like the tablet split view: the app itself (header, actions, certificate,
-            // versions) on the left, what it looks like and says (screenshots, description) on the right,
-            // each scrolling on its own so the actions stay close to the remote's starting point.
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    // Any key press marks startup focus as settled, so it's never re-stolen (see above).
-                    .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown) userInteracted = true
-                        false
-                    },
-            ) {
-                CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
-                    Column(
-                        modifier = Modifier
-                            .weight(0.4f)
-                            .fillMaxHeight()
-                            .verticalScroll(pageScroll, overscrollEffect = null)
-                            .padding(start = TvOverscan + 16.dp, end = 16.dp, top = TvOverscan, bottom = TvOverscan),
-                        verticalArrangement = spacedBy(24.dp),
-                    ) {
-                        Column(
-                            modifier = Modifier.focusGroup().onFocusChanged { headerHasFocus = it.hasFocus },
-                            verticalArrangement = spacedBy(20.dp),
-                        ) {
-                            TvBackButton(onBackClick)
-
-                            // Header: icon + name + author + meta chips.
-                            Row(horizontalArrangement = spacedBy(20.dp)) {
-                                AppMinimalIcon(
-                                    app = app.minimal(),
-                                    isInstalled = isInstalled,
-                                    modifier = Modifier.size(96.dp).clip(RoundedCornerShape(20.dp)),
-                                    onIconBitmap = { bitmap ->
-                                        // Coil re-invokes this on every recomposition of the icon's AsyncImage,
-                                        // not just once per real image load; skip it once a colour is already
-                                        // known for this screen instance instead of redoing that work every time.
-                                        if (iconAccent == null) {
-                                            iconAccent = bitmap.iconAccent()?.also {
-                                                IconAccentCache.put(iconAccentCacheKey, it)
+                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                    TvAccentBackground()
+                    TvAppDetailPanes(
+                        leftScroll = pageScroll,
+                        leftBringIntoViewSpec = bringIntoViewSpec,
+                        // Any key press marks startup focus as settled, so it's never re-stolen (see above).
+                        onKeyDown = { userInteracted = true },
+                        left = {
+                            Column(
+                                modifier = Modifier.focusGroup().onFocusChanged { headerHasFocus = it.hasFocus },
+                                verticalArrangement = spacedBy(20.dp),
+                            ) {
+                                // Header: icon + name + author + meta chips.
+                                Row(horizontalArrangement = spacedBy(20.dp)) {
+                                    AppMinimalIcon(
+                                        app = app.minimal(),
+                                        isInstalled = isInstalled,
+                                        modifier = Modifier.size(96.dp).clip(RoundedCornerShape(20.dp)),
+                                        onIconBitmap = { bitmap ->
+                                            // Coil re-invokes this on every recomposition of the icon's
+                                            // AsyncImage, not just once per real image load; skip it once a
+                                            // colour is already known for this screen instance instead of
+                                            // redoing that work every time.
+                                            if (iconAccent == null) {
+                                                iconAccent = bitmap.iconAccent()?.also {
+                                                    IconAccentCache.put(iconAccentCacheKey, it)
+                                                }
                                             }
-                                        }
-                                    },
-                                )
-                                Column(verticalArrangement = spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = app.metadata.name,
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        fontWeight = FontWeight.Bold,
+                                        },
                                     )
-                                    app.author?.name?.takeIf { it.isNotBlank() }?.let {
+                                    Column(verticalArrangement = spacedBy(8.dp), modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = stringResource(R.string.by_author_FORMAT, it),
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            text = app.metadata.name,
+                                            style = MaterialTheme.typography.headlineSmall,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        app.author?.name?.takeIf { it.isNotBlank() }?.let {
+                                            Text(
+                                                text = stringResource(R.string.by_author_FORMAT, it),
+                                                style = MaterialTheme.typography.titleSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                        TvMetaChips(
+                                            category = app.categories.firstOrNull(),
+                                            version = app.metadata.suggestedVersionName.takeIf { it.isNotBlank() },
+                                            license = app.metadata.license.takeIf { it.isNotBlank() },
                                         )
                                     }
-                                    TvMetaChips(
-                                        category = app.categories.firstOrNull(),
-                                        version = app.metadata.suggestedVersionName.takeIf { it.isNotBlank() },
-                                        license = app.metadata.license.takeIf { it.isNotBlank() },
-                                    )
                                 }
+
+                                // Action buttons (Install/Update/Launch + Uninstall) sharing the pane's width,
+                                // then the favourite and hide toggles, discreet since they are rarely used.
+                                PrimaryActions(
+                                    packageName = app.metadata.packageName.name,
+                                    isInstalled = isInstalled,
+                                    updateAvailable = updateAvailable,
+                                    installState = installState,
+                                    downloadStatus = downloadStatus,
+                                    installConfirmed = installConfirmed,
+                                    onInstallOrUpdate = viewModel::installOrUpdate,
+                                    onLaunch = viewModel::launch,
+                                    onUninstall = viewModel::uninstall,
+                                    onCancel = viewModel::cancel,
+                                    primaryActionFocusRequester = primaryFocus,
+                                    fillWidth = true,
+                                )
+                                TvSecondaryActions(
+                                    isFavourite = isFavourite,
+                                    onToggleFavourite = viewModel::toggleFavourite,
+                                    isHidden = isHidden,
+                                    onToggleHidden = viewModel::toggleHidden,
+                                )
                             }
 
-                            // Action buttons (Install/Update/Launch + Uninstall) sharing the pane's width,
-                            // then the favourite and hide toggles below them.
-                            PrimaryActions(
-                                packageName = app.metadata.packageName.name,
-                                isInstalled = isInstalled,
-                                updateAvailable = updateAvailable,
-                                installState = installState,
-                                downloadStatus = downloadStatus,
-                                installConfirmed = installConfirmed,
-                                onInstallOrUpdate = viewModel::installOrUpdate,
-                                onLaunch = viewModel::launch,
-                                onUninstall = viewModel::uninstall,
-                                onCancel = viewModel::cancel,
-                                primaryActionFocusRequester = primaryFocus,
-                                fillWidth = true,
-                            )
-                            TvFavouriteButton(
-                                isFavourite = isFavourite,
-                                onToggle = viewModel::toggleFavourite,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            TvHideButton(
-                                isHidden = isHidden,
-                                onToggle = viewModel::toggleHidden,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
+                            if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
+                                CertificateSection(
+                                    installedSigner = installedSignerRaw,
+                                    expectedSigners = expectedSigners,
+                                )
+                            }
 
-                        if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
-                            CertificateSection(
-                                installedSigner = installedSignerRaw,
-                                expectedSigners = expectedSigners,
-                            )
-                        }
-
-                        if (packages.isNotEmpty()) {
-                            TvSectionTitle(stringResource(R.string.versions))
-                            TvVersionsList(
-                                packages = packages,
-                                suggestedVersionCode = app.metadata.suggestedVersionCode,
-                                onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
-                            )
-                        }
-                    }
+                            if (packages.isNotEmpty()) {
+                                TvSectionTitle(stringResource(R.string.versions))
+                                TvVersionsList(
+                                    packages = packages,
+                                    suggestedVersionCode = app.metadata.suggestedVersionCode,
+                                    onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+                                )
+                            }
+                        },
+                        right = {
+                            if (screenshots.isNotEmpty()) TvScreenshots(screenshots, screenshotsFocus)
+                            if (descriptionHtml.isNotBlank()) {
+                                TvSectionTitle(stringResource(R.string.description))
+                                TvDescriptionPane(
+                                    html = descriptionHtml,
+                                    baseUrl = "",
+                                    javaScriptEnabled = false,
+                                    webUrl = app.links?.webSite ?: app.links?.sourceCode ?: "",
+                                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                                    upTarget = screenshotsFocus.takeIf { screenshots.isNotEmpty() },
+                                )
+                            }
+                        },
+                    )
                 }
-                Column(
-                    modifier = Modifier
-                        .weight(0.6f)
-                        .fillMaxHeight()
-                        .onSizeChanged { viewportPx = it.height }
-                        .focusGroup()
-                        // overscrollEffect = null: the description preview hosts a hardware-accelerated
-                        // WebView, and Android 12+'s stretch overscroll crashes RenderThread when it redraws
-                        // that WebView at the scroll boundary (same reason as the phone detail screen).
-                        .verticalScroll(detailScroll, overscrollEffect = null)
-                        .padding(start = 16.dp, end = TvOverscan + 16.dp, top = TvOverscan, bottom = TvOverscan),
-                    verticalArrangement = spacedBy(24.dp),
-                ) {
-                    if (screenshots.isNotEmpty()) {
-                        TvSectionTitle(stringResource(R.string.screenshot))
-                        ScreenshotsRow(screenshots)
-                    }
-
-                    if (descriptionHtml.isNotBlank()) {
-                        TvSectionTitle(stringResource(R.string.description))
-                        TvReadmePreview(
-                            html = descriptionHtml,
-                            baseUrl = "",
-                            javaScriptEnabled = false,
-                            viewportPx = viewportPx,
-                            onOpenFull = { showDescription = true },
-                        )
-                    }
-                }
-            }
-            }
-            }
-
-            if (showDescription) {
-                // Rendered as a full-screen sibling; the content above isn't composed while it's open.
-                TvReadmeScreen(
-                    title = stringResource(R.string.description),
-                    html = descriptionHtml,
-                    unavailable = false,
-                    unavailableMessage = "",
-                    baseUrl = "",
-                    javaScriptEnabled = false,
-                    webUrl = app.links?.webSite ?: app.links?.sourceCode ?: "",
-                    onBack = { showDescription = false },
-                )
-            }
             }
         }
     }
 }
 
-@Composable
-internal fun TvBackButton(onBackClick: () -> Unit, modifier: Modifier = Modifier) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = spacedBy(8.dp),
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .tvFocusFill(RoundedCornerShape(50))
-            .tvBringIntoViewOnFocus()
-            .clickable(onClick = onBackClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-    ) {
-        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-        Text(stringResource(R.string.tv_back), style = MaterialTheme.typography.titleMedium)
-    }
-}
-
 /**
- * A TV screen header: a back affordance above a large title tinted with the theme accent. Used in place
- * of the phone's solid accent app-bar on the TV settings / repo-detail / repo-edit screens so they match
- * the rest of the TV UI while still nodding to the accent colour. Pass a [Modifier] carrying
- * `tvDpadDownTo(...)` so "down" drops from the header into the list below.
+ * A TV screen header: a large title tinted with the theme accent. Used in place of the phone's solid
+ * accent app-bar on the TV settings screens so they match the rest of the TV UI while still nodding to
+ * the accent colour. There is no back button: a remote has its own back key.
  */
 @Composable
-internal fun TvAccentHeader(title: String, onBackClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun TvAccentHeader(title: String, modifier: Modifier = Modifier) {
     // Transparent (no solid fill) so the screen's accent background flows continuously behind it — a
     // solid header band left a hard seam where it met the wash.
     Column(
@@ -495,8 +407,6 @@ internal fun TvAccentHeader(title: String, onBackClick: () -> Unit, modifier: Mo
             .fillMaxWidth()
             .padding(start = TvOverscan + 8.dp, end = TvOverscan, top = TvOverscan, bottom = 8.dp),
     ) {
-        TvBackButton(onBackClick)
-        Spacer(Modifier.height(8.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.headlineMedium,
@@ -528,43 +438,48 @@ internal fun TvChip(text: String) {
     )
 }
 
-/** The favourite toggle button (heart + label), sat at the right end of the action row next to
- *  Uninstall. Accent heart when on, muted when off. Shared by both TV detail screens. */
+/** The favourite and hide toggles, side by side and discreet (text buttons, muted): they are rarely
+ *  used on an app's page, so they must not compete with the install button. Shared by both TV detail
+ *  screens. */
 @Composable
-internal fun TvFavouriteButton(isFavourite: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
-    // A solid tonal button (not a hairline outline) so it reads as a real peer next to the filled primary
-    // action instead of a lonely ghost button. The heart fills with the accent when the app is a
-    // favourite.
-    FilledTonalButton(
-        onClick = onToggle,
-        // Scales on focus like the primary action, so it's obvious when the remote is on it.
-        modifier = modifier.height(60.dp).widthIn(min = 200.dp).tvFocusScale(1.10f).tvBringIntoViewOnFocus(),
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Favorite,
-            contentDescription = null,
-            tint = if (isFavourite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+internal fun TvSecondaryActions(
+    isFavourite: Boolean,
+    onToggleFavourite: () -> Unit,
+    isHidden: Boolean,
+    onToggleHidden: () -> Unit,
+) {
+    FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
+        TvSecondaryAction(
+            icon = Icons.Filled.Favorite,
+            label = stringResource(R.string.favourites),
+            active = isFavourite,
+            onClick = onToggleFavourite,
         )
-        Spacer(Modifier.width(10.dp))
-        Text(stringResource(R.string.favourites))
+        TvSecondaryAction(
+            icon = if (isHidden) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+            label = stringResource(if (isHidden) R.string.unhide_app else R.string.hide_app),
+            active = isHidden,
+            onClick = onToggleHidden,
+        )
     }
 }
 
-/** The hide/unhide toggle button (eye + label). See [com.looker.droidify.datastore.Settings.hiddenApps].
- *  Crossed-out eye and muted tint once hidden. Shared by both TV detail screens. */
+/** Accent icon when on, muted when off. */
 @Composable
-internal fun TvHideButton(isHidden: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
-    FilledTonalButton(
-        onClick = onToggle,
-        modifier = modifier.height(60.dp).widthIn(min = 200.dp).tvFocusScale(1.10f).tvBringIntoViewOnFocus(),
+private fun TvSecondaryAction(icon: ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.height(44.dp).tvFocusScale(1.05f).tvBringIntoViewOnFocus(),
+        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
     ) {
         Icon(
-            imageVector = if (isHidden) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+            imageVector = icon,
             contentDescription = null,
-            tint = if (isHidden) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
         )
-        Spacer(Modifier.width(10.dp))
-        Text(stringResource(if (isHidden) R.string.unhide_app else R.string.hide_app))
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
     }
 }
 
@@ -644,92 +559,6 @@ internal fun TvSectionTitle(text: String) {
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.Bold,
     )
-}
-
-/**
- * A rendered preview of an app's description / README on a TV detail screen: the real content (in a
- * [ReadmeWebView], so emojis/images/tables/links all show properly), clipped to run from where it starts
- * down to the bottom of the screen ([viewportPx] minus its own top), followed by a "View description"
- * control that opens the full reader. Shared by the catalogue and external screens so both read alike.
- *
- * The WebView is drawn at its real height and clipped by the box, switching to a hardware layer once it's
- * taller than a screen (a software layer would render blank past ~one screenful) — same handling as the
- * reader dialog and the phone build.
- *
- * A big README (heavy markdown, network images) can take a visible moment to lay out; until the WebView
- * reports its first real content height, a spinner sits over the otherwise-blank area instead of leaving
- * the couch user staring at empty space wondering if it's stuck.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-internal fun TvReadmePreview(
-    html: String,
-    baseUrl: String,
-    javaScriptEnabled: Boolean,
-    viewportPx: Int,
-    onOpenFull: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val density = LocalDensity.current
-    var topY by remember(html) { mutableStateOf(0) }
-    var contentHeightPx by remember(html) { mutableStateOf(0) }
-    val previewHeight = if (viewportPx > 0 && topY in 1 until viewportPx) {
-        with(density) { (viewportPx - topY).coerceAtLeast(PREVIEW_MIN_PX).toDp() }
-    } else {
-        PREVIEW_FALLBACK_HEIGHT
-    }
-    val scroll = rememberScrollState()
-    Column(
-        verticalArrangement = spacedBy(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .onGloballyPositioned { topY = it.positionInParent().y.toInt() }
-                .height(previewHeight)
-                .clipToBounds(),
-        ) {
-            ReadmeWebView(
-                html = html,
-                baseUrl = baseUrl,
-                javaScriptEnabled = javaScriptEnabled,
-                onContentHeight = { contentHeightPx = it },
-                scrollState = scroll,
-                // Translucent so the screen's accent wash shows through instead of a hard white block.
-                translucentBackground = true,
-                forceSoftwareLayer = viewportPx <= 0 || contentHeightPx <= viewportPx,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(if (contentHeightPx > 0) with(density) { contentHeightPx.toDp() } else 600.dp),
-            )
-            if (contentHeightPx <= 0) {
-                LoadingSpinner(modifier = Modifier.size(32.dp))
-            }
-        }
-        TvOpenDescriptionButton(onClick = onOpenFull)
-    }
-}
-
-private val PREVIEW_FALLBACK_HEIGHT = 260.dp
-private const val PREVIEW_MIN_PX = 160
-
-/**
- * The "View description" control on a TV detail screen: opens the app's description / README as a
- * full TV page ([TvReadmeScreen]), so emojis, images, tables and links all show properly and the couch
- * UI stays sober. Shared by the catalogue and external detail screens so both kinds of app open their
- * description the same way.
- */
-@Composable
-internal fun TvOpenDescriptionButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.height(52.dp).widthIn(min = 240.dp).tvBringIntoViewOnFocus(),
-    ) {
-        Text(stringResource(R.string.tv_view_description))
-    }
 }
 
 @Composable

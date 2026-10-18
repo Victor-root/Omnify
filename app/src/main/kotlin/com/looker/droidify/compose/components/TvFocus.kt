@@ -12,6 +12,7 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.compose.theme.LocalIsTelevision
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -73,6 +75,22 @@ fun Modifier.tvDpadKeyLog(screenLabel: String): Modifier = onPreviewKeyEvent { e
         tvFocusDebugLog("[$screenLabel] KEY ${event.key} at ${System.currentTimeMillis()}")
     }
     false
+}
+
+/**
+ * Android TV only: lands the D-pad focus on [requester] when the screen opens, retrying briefly until its
+ * node is laid out. Android TV must always hold focus somewhere, or a remote press with nothing focused
+ * times out input dispatch. A no-op on touch.
+ */
+@Composable
+fun TvInitialFocus(requester: FocusRequester) {
+    if (!LocalIsTelevision.current) return
+    LaunchedEffect(Unit) {
+        repeat(20) {
+            if (runCatching { requester.requestFocus() }.getOrDefault(false)) return@LaunchedEffect
+            delay(50)
+        }
+    }
 }
 
 /**

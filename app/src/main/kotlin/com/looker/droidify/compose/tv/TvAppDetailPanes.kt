@@ -1,0 +1,191 @@
+package com.looker.droidify.compose.tv
+
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.layout.Arrangement.spacedBy
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.looker.droidify.R
+import com.looker.droidify.compose.appDetail.ScreenshotsRow
+import com.looker.droidify.compose.components.LoadingSpinner
+import com.looker.droidify.compose.components.TvOverscan
+import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.components.tvPageScroll
+import com.looker.droidify.compose.externalApps.ReadmeWebView
+import com.looker.droidify.data.model.FilePath
+
+/**
+ * The two panes of an Android TV app detail page, shared by the catalogue and the external-source
+ * screens so both read alike, like the tablet split view: what the app is and what can be done with it
+ * on the left ([left], scrolling on its own), what it looks like and says on the right ([right], which
+ * does not scroll as a whole: its description scrolls by itself, see [TvDescriptionPane]).
+ *
+ * [onKeyDown] is told of every key press, so a screen can stop landing focus on its own once the person
+ * has taken over. [leftBringIntoViewSpec] only applies to the left pane.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun TvAppDetailPanes(
+    leftScroll: ScrollState,
+    leftBringIntoViewSpec: BringIntoViewSpec,
+    onKeyDown: () -> Unit,
+    left: @Composable ColumnScope.() -> Unit,
+    right: @Composable ColumnScope.() -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) onKeyDown()
+                false
+            },
+    ) {
+        CompositionLocalProvider(LocalBringIntoViewSpec provides leftBringIntoViewSpec) {
+            Column(
+                modifier = Modifier
+                    .weight(0.4f)
+                    .fillMaxHeight()
+                    // overscrollEffect = null: Android 12+'s stretch overscroll crashes RenderThread when it
+                    // redraws a hardware-accelerated WebView at a scroll boundary, and the screens host one
+                    // (same reason as the phone detail screen).
+                    .verticalScroll(leftScroll, overscrollEffect = null)
+                    .padding(start = TvOverscan + 16.dp, end = 16.dp, top = TvOverscan, bottom = TvOverscan),
+                verticalArrangement = spacedBy(24.dp),
+                content = left,
+            )
+        }
+        Column(
+            modifier = Modifier
+                .weight(0.6f)
+                .fillMaxHeight()
+                .padding(start = 16.dp, end = TvOverscan + 16.dp, top = TvOverscan, bottom = TvOverscan),
+            verticalArrangement = spacedBy(16.dp),
+            content = right,
+        )
+    }
+}
+
+/**
+ * An app's description, all of it, filling the room it is given: the page does not scroll for it, the
+ * description does, one D-pad focus stop that pages up and down (see [tvPageScroll]) with a faint
+ * highlight while it holds focus. Left and right leave it for the other pane; [upTarget] is where "up"
+ * goes once at the top. A WebView renders it, so emojis, images, tables and links all show properly.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun TvDescriptionPane(
+    html: String,
+    baseUrl: String,
+    javaScriptEnabled: Boolean,
+    // The app's own web page, opened if the WebView's renderer process dies mid-render.
+    webUrl: String,
+    modifier: Modifier = Modifier,
+    upTarget: FocusRequester? = null,
+) {
+    var rendererGone by remember(html) { mutableStateOf(false) }
+    if (rendererGone) {
+        val uriHandler = LocalUriHandler.current
+        Column(
+            modifier = modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.readme_render_failed),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Button(onClick = { runCatching { uriHandler.openUri(webUrl) } }) {
+                Text(stringResource(R.string.source_code))
+            }
+        }
+        return
+    }
+
+    val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+    var heightPx by remember(html) { mutableStateOf(0) }
+    var viewportPx by remember { mutableStateOf(0) }
+    val shape = RoundedCornerShape(16.dp)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .onSizeChanged { viewportPx = it.height }
+            .tvFocusFill(shape)
+            .tvPageScroll(scrollState, (viewportPx * 0.85f).toInt(), upTarget = upTarget)
+            // overscrollEffect = null: see TvAppDetailPanes.
+            .verticalScroll(scrollState, overscrollEffect = null),
+    ) {
+        ReadmeWebView(
+            html = html,
+            baseUrl = baseUrl,
+            javaScriptEnabled = javaScriptEnabled,
+            onContentHeight = { heightPx = it },
+            scrollState = scrollState,
+            // Translucent so the screen's accent wash shows through instead of a hard white block.
+            translucentBackground = true,
+            // A software layer only holds about one screen of pixels; taller content needs a hardware
+            // layer or it renders blank (see ReadmeWebView).
+            forceSoftwareLayer = viewportPx <= 0 || heightPx <= viewportPx,
+            onRendererGone = { rendererGone = true },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .height(if (heightPx > 0) with(density) { heightPx.toDp() } else 600.dp),
+        )
+        // A big description takes a moment to lay out in the WebView (network images, heavy markdown):
+        // the spinner stays up until it reports its first real content height.
+        if (heightPx <= 0) {
+            LoadingSpinner(modifier = Modifier.size(36.dp))
+        }
+    }
+}
+
+/** The screenshots row, as one target [requester] can send the focus to (see [TvDescriptionPane]'s upTarget). */
+@Composable
+internal fun TvScreenshots(
+    screenshots: List<FilePath>,
+    requester: FocusRequester,
+) {
+    Box(modifier = Modifier.fillMaxWidth().focusRequester(requester).focusGroup()) {
+        ScreenshotsRow(screenshots)
+    }
+}

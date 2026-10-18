@@ -278,7 +278,6 @@
     <string name="custom_buttons_description">Dodaj szybkie linki do usług zewnętrznych w szczegółach aplikacji</string>
     <string name="custom_buttons_section">Linki dotyczące szczegółów aplikacji</string>
     <string name="tv_back">Wstecz</string>
-    <string name="tv_view_description">Pokaż więcej</string>
     <string name="tv_press_back_again">Naciśnij ponownie Wstecz, aby wyjść</string>
     <string name="tv_filter_tv_only">Aplikacje TV</string>
     <string name="tv_filter_all">Wszystkie aplikacje</string>

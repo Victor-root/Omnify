@@ -275,7 +275,6 @@
     <string name="copied_to_clipboard">Copiado</string>
     <string name="custom_button_url_hint">https://example.com/{{package_name}}</string>
     <string name="tv_back">Atrás</string>
-    <string name="tv_view_description">Ver más</string>
     <string name="tv_press_back_again">Pulsa Atrás de nuevo para salir</string>
     <string name="tv_filter_tv_only">Apps de TV</string>
     <string name="tv_filter_all">Todas las apps</string>

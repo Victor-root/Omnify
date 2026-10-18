@@ -83,7 +83,6 @@ fun TvExternalAccountDetailScreen(
         // Header spans the whole width; the app cards flow beneath it.
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = spacedBy(12.dp)) {
-                TvBackButton(onBackClick)
                 Text(
                     text = account.label,
                     style = MaterialTheme.typography.headlineMedium,
