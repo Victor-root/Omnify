@@ -46,6 +46,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -1032,10 +1033,12 @@ private fun TvSearch(
     restoreFocusId: String? = null,
     restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
+    // Derived so a keystroke only recomposes this screen when the field turns empty or non-empty.
+    val queryEmpty by remember(query) { derivedStateOf { query.text.isEmpty() } }
     Column(modifier = Modifier.fillMaxSize().padding(top = TvOverscan)) {
-        TvSearchField(query)
+        TvSearchField(query, queryEmpty)
         Spacer(Modifier.height(16.dp))
-        if (query.text.isEmpty()) {
+        if (queryEmpty) {
             TvEmpty(stringResource(R.string.search))
         } else if (results.isEmpty()) {
             TvEmpty(stringResource(R.string.no_applications_available))
@@ -1065,7 +1068,7 @@ private fun TvSearch(
 }
 
 @Composable
-private fun TvSearchField(query: TextFieldState) {
+private fun TvSearchField(query: TextFieldState, queryEmpty: Boolean) {
     var focused by remember { mutableStateOf(false) }
     val border = if (focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
     Row(
@@ -1081,7 +1084,7 @@ private fun TvSearchField(query: TextFieldState) {
     ) {
         Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Box(modifier = Modifier.weight(1f)) {
-            if (query.text.isEmpty()) {
+            if (queryEmpty) {
                 Text(
                     text = stringResource(R.string.search),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
