@@ -16,6 +16,9 @@ interface RepoDao {
     @Query("SELECT * FROM repository")
     fun stream(): Flow<List<RepoEntity>>
 
+    @Query("SELECT EXISTS (SELECT 1 FROM repository)")
+    suspend fun hasAny(): Boolean
+
     @Query("SELECT * FROM repository WHERE id = :repoId")
     fun repo(repoId: Int): Flow<RepoEntity?>
 

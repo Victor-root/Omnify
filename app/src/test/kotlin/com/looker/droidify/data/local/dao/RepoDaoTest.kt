@@ -50,6 +50,13 @@ class RepoDaoTest : BaseDatabaseTest() {
     }
 
     @Test
+    fun hasAnyFollowsWhetherARepoExists() = runDbTest {
+        assertEquals(false, repoDao.hasAny())
+        insertTestRepo()
+        assertEquals(true, repoDao.hasAny())
+    }
+
+    @Test
     fun streamReturnsAllRepos() = runDbTest {
         insertTestRepo(address = "https://repo1.org/repo", fingerprint = "FP1")
         insertTestRepo(address = "https://repo2.org/repo", fingerprint = "FP2")
