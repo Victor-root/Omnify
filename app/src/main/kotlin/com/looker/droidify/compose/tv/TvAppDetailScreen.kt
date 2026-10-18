@@ -41,7 +41,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
@@ -69,9 +68,6 @@ import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.utility.common.rememberIconAccent
-import com.looker.droidify.utility.common.extension.calculateHash
-import com.looker.droidify.utility.common.extension.getPackageInfoCompat
-import com.looker.droidify.utility.common.extension.singleSignature
 
 /**
  * The Android TV app-detail screen — a lean, couch-friendly presentation over the same
@@ -117,7 +113,6 @@ fun TvAppDetailScreen(
         is AppDetailState.Success -> {
             val app = current.app
             val packages = current.packages
-            val context = LocalContext.current
 
             val installedPackage = remember(packages) { packages.map { it.first }.firstOrNull { it.installed } }
             val appMinimal = remember(app) { app.minimal() }
@@ -135,17 +130,9 @@ fun TvAppDetailScreen(
             // The installed APK's actual signing certificate (lowercase hex): not the catalogue entry's
             // own claim (just whatever the index says), but the real, on-device signature, so it can be
             // shown, compared, and copied, e.g. against a build the user just compiled themselves. Null
-            // when not installed, or on the rare PackageManager read failure. Recomputed whenever install
-            // state changes.
-            val installedSignerRaw = remember(installedInfo, app.metadata.packageName.name) {
-                if (installedInfo == null) {
-                    null
-                } else {
-                    context.packageManager.getPackageInfoCompat(app.metadata.packageName.name)
-                        ?.singleSignature
-                        ?.calculateHash()
-                }
-            }
+            // when not installed, or on the rare PackageManager read failure. Read off the main thread
+            // along with the rest of installedInfo (see InstalledInfo.signer).
+            val installedSignerRaw = installedInfo?.signer
             val installable = remember(packages, app.metadata.suggestedVersionCode) {
                 packages.selectForDevice(app.metadata.suggestedVersionCode)
             }

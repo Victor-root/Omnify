@@ -1145,11 +1145,16 @@ class AppDetailViewModel @Inject constructor(
         // used as a fallback only when it's still the version actually on the device right now, so a
         // package later reinstalled by something else still shows its real source.
         val knownInstalledByOmnify = installedRepository.confirmedInstallVersionCode(packageName) == versionCode
+        val signer = context.packageManager
+            .getPackageInfoCompat(packageName)
+            ?.singleSignature
+            ?.calculateHash()
         return InstalledInfo(
             version = info.versionName.orEmpty(),
             versionCode = versionCode,
             source = context.installerSourceLabel(packageName, knownInstalledByOmnify),
-            signatureMismatch = isSignatureMismatch(currentState),
+            signer = signer,
+            signatureMismatch = isSignatureMismatch(currentState, signer),
             isSystemApp = isSystemApp(packageName),
             looksLikeGenuineGoogleServices = isGoogleServicesProviderPackage(packageName) &&
                 context.isInstalledFromGooglePlay(packageName),
@@ -1164,14 +1169,11 @@ class AppDetailViewModel @Inject constructor(
      * [com.looker.droidify.data.InstalledIdentityRepository]); this call site only differs from the
      * shared verified-installed flow in scope — it compares against EVERY known version's signers (not
      * just the suggested one), since being a build of any version of this entry counts here.
+     * [installedSigner] is that installed copy's certificate, as [readInstalledInfo] read it.
      */
-    private fun isSignatureMismatch(currentState: AppDetailState): Boolean {
+    private fun isSignatureMismatch(currentState: AppDetailState, installedSigner: String?): Boolean {
         val success = currentState as? AppDetailState.Success ?: return false
         val expectedSigners = success.packages.flatMapTo(mutableSetOf()) { (pkg, _) -> pkg.manifest.signer }
-        val installedSigner = context.packageManager
-            .getPackageInfoCompat(packageName)
-            ?.singleSignature
-            ?.calculateHash()
         return signerMismatch(installedSigner, expectedSigners)
     }
 
@@ -1185,7 +1187,9 @@ class AppDetailViewModel @Inject constructor(
  *  release this catalogue entry's own version history doesn't list (installed from a different
  *  channel that's ahead of, or otherwise not covered by, the tracked repo), unlike matching against
  *  a specific catalogue [com.looker.droidify.data.model.Package] by exact versionCode, which misses
- *  that case entirely. [signatureMismatch] true means this isn't actually a build of the catalogue
+ *  that case entirely. [signer] is the installed APK's own signing certificate (lowercase hex), the
+ *  real on-device signature rather than anything the index claims; null on the rare PackageManager
+ *  read failure. [signatureMismatch] true means this isn't actually a build of the catalogue
  *  entry showing it, see [AppDetailViewModel.isSignatureMismatch]. [isSystemApp] tells the mismatch
  *  message whether to offer uninstalling at all, see [AppDetailViewModel.isSystemApp].
  *  [looksLikeGenuineGoogleServices] narrows that message further, for a catalogue entry like microG
@@ -1195,6 +1199,7 @@ data class InstalledInfo(
     val version: String,
     val versionCode: Long,
     val source: String,
+    val signer: String? = null,
     val signatureMismatch: Boolean = false,
     val isSystemApp: Boolean = false,
     val looksLikeGenuineGoogleServices: Boolean = false,
