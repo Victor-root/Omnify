@@ -115,9 +115,11 @@ class EntrySyncable(
                                     }
                                 }
                             }
-                            JsonParser.decodeFromString<IndexV2>(
-                                indexFile.readBytes().decodeToString(),
-                            )
+                            // Streamed for the same reason as the full index below: the merged index
+                            // is just as large.
+                            indexFile.inputStream().buffered().use { stream ->
+                                JsonParser.decodeFromStream<IndexV2>(stream)
+                            }
                         }
                 } catch (t: Throwable) {
                     block(SyncState.JsonParsing.Failure(repo.id, t))
