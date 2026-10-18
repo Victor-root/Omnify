@@ -31,7 +31,9 @@ import com.looker.droidify.compose.components.CompactInstallProgressRow
 import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.external.Release
+import com.looker.droidify.external.compareVersionStrings
 import com.looker.droidify.external.releaseVersionLabel
+import com.looker.droidify.external.selectApkAsset
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.common.sdkName
@@ -41,6 +43,41 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Date
+
+/** What a [ReleaseVersionItem] shows about [release], worked out once per release rather than on every
+ *  recomposition of the list: the APK this device would get from it (one [selectApkAsset] pick shared by
+ *  every field) and whether that is the version installed. */
+class ReleaseVersionRow(
+    val release: Release,
+    val apkName: String?,
+    val apkUrl: String?,
+    val apkSize: Long?,
+    val apkDate: String?,
+    val isInstalled: Boolean,
+)
+
+/**
+ * [ReleaseVersionRow]s for [releases] under an app's [apkFilter], for both the phone and TV version lists.
+ * [installedVersion] is the real on-device versionName, not the possibly stale ExternalApp.installedTag:
+ * the same self-healing fallback ExternalApp.hasUpdateGiven relies on for the update banner. Meant to be
+ * remembered on these inputs.
+ */
+fun releaseVersionRows(
+    releases: List<Release>,
+    apkFilter: String?,
+    installedVersion: String?,
+): List<ReleaseVersionRow> = releases.map { release ->
+    val apk = selectApkAsset(release.assets, filter = apkFilter, releaseTag = release.tag)
+    ReleaseVersionRow(
+        release = release,
+        apkName = apk?.name,
+        apkUrl = apk?.downloadUrl,
+        apkSize = apk?.size,
+        apkDate = apk?.updatedAt,
+        isInstalled = installedVersion != null &&
+            compareVersionStrings(releaseVersionLabel(apk?.name, release.tag), installedVersion) == 0,
+    )
+}
 
 /**
  * One release in the external app's version list — the same shape, chips (SUGGESTED/INSTALLED) and
