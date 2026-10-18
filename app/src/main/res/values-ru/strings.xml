@@ -278,7 +278,6 @@
     <string name="custom_button_delete_confirmation">Удалить кнопку \"%1$s\"?</string>
     <string name="copied_to_clipboard">Скопировано</string>
     <string name="tv_back">Назад</string>
-    <string name="tv_view_description">Подробнее</string>
     <string name="tv_press_back_again">Нажмите \"Назад\" ещё раз, чтобы выйти</string>
     <string name="tv_filter_tv_only">Приложения для ТВ</string>
     <string name="tv_filter_all">Все приложения</string>

@@ -213,7 +213,6 @@
     <string name="require_background_access">バックグラウンドのアクセスが必要です</string>
     <string name="require_background_access_DESC">バックグラウンドでの使用を可能にするには、バックグランドのアクセスを許可する必要があります</string>
     <string name="tv_back">戻る</string>
-    <string name="tv_view_description">さらに表示</string>
     <string name="tv_press_back_again">もう一度「戻る」を押すと終了します</string>
     <string name="tv_filter_tv_only">TV向けアプリ</string>
     <string name="tv_filter_all">すべてのアプリ</string>

@@ -65,6 +65,7 @@ import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
+import com.looker.droidify.compose.components.TvInitialFocus
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.cleanUpIntervals
@@ -240,6 +241,7 @@ fun SettingsScreen(
 
     // TV / D-pad: drop focus from the header into the settings list (the top bar won't on its own).
     val contentFocusRequester = remember { FocusRequester() }
+    TvInitialFocus(contentFocusRequester)
     val header = rememberCollapsibleHeader()
 
     // On TV the accent wash spans the whole screen (behind the header too, so there's no seam), so the
@@ -252,13 +254,8 @@ fun SettingsScreen(
         containerColor = if (isTelevision) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             if (isTelevision) {
-                // Match the other TV screens (a back affordance + a large accent title) instead of the
-                // phone's solid accent bar.
-                TvAccentHeader(
-                    title = stringResource(R.string.settings),
-                    onBackClick = onBackClick,
-                    modifier = Modifier.tvDpadDownTo(contentFocusRequester),
-                )
+                // Match the other TV screens (a large accent title) instead of the phone's solid accent bar.
+                TvAccentHeader(title = stringResource(R.string.settings))
             } else {
                 TopAppBar(
                     colors = accentTopAppBarColors(),

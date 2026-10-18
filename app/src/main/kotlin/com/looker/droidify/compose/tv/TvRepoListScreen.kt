@@ -203,7 +203,6 @@ fun TvRepoListScreen(
     ) {
         item(key = "header") {
             Column(verticalArrangement = spacedBy(12.dp)) {
-                TvBackButton(onBackClick)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = stringResource(R.string.repositories),

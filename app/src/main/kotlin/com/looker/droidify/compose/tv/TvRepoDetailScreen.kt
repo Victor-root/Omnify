@@ -38,6 +38,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -50,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.appList.CatalogAppTile
 import com.looker.droidify.compose.components.FingerprintCard
+import com.looker.droidify.compose.components.TvInitialFocus
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
@@ -100,6 +103,9 @@ fun TvRepoDetailScreen(
         )
     }
 
+    val contentFocus = remember { FocusRequester() }
+    TvInitialFocus(contentFocus)
+
     val currentRepo = repo
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TvAccentBackground()
@@ -112,7 +118,6 @@ fun TvRepoDetailScreen(
                     .fillMaxWidth()
                     .padding(start = TvOverscan + 8.dp, end = TvOverscan, top = TvOverscan, bottom = 4.dp),
             ) {
-                TvBackButton(onBackClick)
                 Spacer(Modifier.weight(1f))
                 if (currentRepo != null) {
                     IconButton(
@@ -132,7 +137,7 @@ fun TvRepoDetailScreen(
 
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(150.dp),
-                modifier = Modifier.fillMaxSize().focusGroup(),
+                modifier = Modifier.fillMaxSize().focusRequester(contentFocus).focusGroup(),
                 contentPadding = PaddingValues(
                     start = TvOverscan + 8.dp,
                     end = TvOverscan + 8.dp,

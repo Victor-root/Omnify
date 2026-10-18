@@ -272,7 +272,6 @@
     <string name="copied_to_clipboard">Kopiert</string>
     <string name="title_activity_main_compose">MainComposeActivity</string>
     <string name="tv_back">Zurück</string>
-    <string name="tv_view_description">Mehr anzeigen</string>
     <string name="tv_press_back_again">Drücke erneut Zurück, um die App zu beenden</string>
     <string name="tv_filter_tv_only">TV-Apps</string>
     <string name="tv_filter_all">Alle Apps</string>

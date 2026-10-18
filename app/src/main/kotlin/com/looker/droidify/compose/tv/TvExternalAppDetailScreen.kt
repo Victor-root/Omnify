@@ -6,19 +6,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,20 +31,14 @@ import com.looker.droidify.external.compareVersionStrings
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -57,7 +48,6 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.CertificateSection
-import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -68,6 +58,7 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
 import com.looker.droidify.utility.common.IconAccentCache
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
@@ -77,9 +68,9 @@ import kotlinx.coroutines.delay
  * The Android TV detail screen for a tracked external (GitHub/GitLab/…) app — a lean presentation over
  * the same [ExternalAppsViewModel] the phone screen uses: icon + name + source + version, the one big
  * Install / Update / Open / Uninstall control (reused verbatim as [ExternalLifecycleActions], so the whole
- * download/install lifecycle matches the phone build), a favourite toggle, the README (opened in a
- * full-screen reader, see [TvOpenDescriptionButton]) and the release history — the same content a
- * catalogue app shows, so the two kinds read alike. Never composed off TV.
+ * download/install lifecycle matches the phone build), the discreet favourite and hide toggles, the README
+ * and the release history, in the same two panes as a catalogue app (see [TvAppDetailPanes]), so the two
+ * kinds read alike. Never composed off TV.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -168,23 +159,6 @@ fun TvExternalAppDetailScreen(
         viewModel.loadReadme(app)
         viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET)
     }
-    var showDescription by remember(app.key) { mutableStateOf(false) }
-    if (showDescription && readme != null) {
-        ScopedAccentColor(if (accentMatchesAppIcon) iconAccent else null) {
-            TvReadmeScreen(
-                title = stringResource(R.string.description),
-                html = readme,
-                unavailable = false,
-                unavailableMessage = "",
-                baseUrl = app.readmeWebBaseUrl,
-                javaScriptEnabled = readmeJavaScriptEnabled,
-                webUrl = app.webUrl,
-                onBack = { showDescription = false },
-            )
-        }
-        return
-    }
-
     // Tapping a version asks to confirm, then installs that exact release — the same engine
     // (viewModel.installVersion) and confirmation dialog the phone screen uses.
     var versionToInstall by remember(app.key) { mutableStateOf<Release?>(null) }
@@ -214,14 +188,15 @@ fun TvExternalAppDetailScreen(
 
     val primaryFocus = remember { FocusRequester() }
     var userInteracted by remember { mutableStateOf(false) }
-    // Screen height, so the README preview can fill from its top down to the bottom edge.
-    var viewportPx by remember { mutableStateOf(0) }
     // Land focus on the action button when the screen opens; stop once the user takes over (same intent
     // as the catalogue TV detail screen).
     LaunchedEffect(app.key, installedVersion) {
         if (userInteracted) return@LaunchedEffect
-        repeat(20) {
-            if (runCatching { primaryFocus.requestFocus() }.getOrDefault(false)) return@LaunchedEffect
+        repeat(20) { attempt ->
+            if (runCatching { primaryFocus.requestFocus() }.getOrDefault(false)) {
+                DiagnosticLog.log("TV external app detail: focus on the main action after ${attempt + 1} tries")
+                return@LaunchedEffect
+            }
             delay(50)
         }
     }
@@ -255,150 +230,127 @@ fun TvExternalAppDetailScreen(
     // icon, it overrides the accent for every MaterialTheme.colorScheme.primary use inside (e.g. the
     // favourite heart, the primary action button), without touching the app-wide theme.
     ScopedAccentColor(if (accentMatchesAppIcon) iconAccent else null) {
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-    TvAccentBackground()
-    CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { viewportPx = it.height }
-            .onPreviewKeyEvent { event ->
-                if (event.type == KeyEventType.KeyDown) userInteracted = true
-                false
-            }
-            // overscrollEffect = null: the README preview hosts a hardware-accelerated WebView, and
-            // Android 12+'s stretch overscroll crashes RenderThread when redrawing it at the scroll
-            // boundary (same reason as the phone detail screen).
-            .verticalScroll(pageScroll, overscrollEffect = null)
-            .padding(horizontal = TvOverscan + 16.dp, vertical = TvOverscan),
-        verticalArrangement = spacedBy(24.dp),
-    ) {
-        // A token GitHub is actively rejecting silently stops this very source from refreshing (see
-        // ExternalAppsViewModel.refresh), with nothing else on this page otherwise showing anything is
-        // wrong. Kept outside the focus-group Column below: it's a separate D-pad stop, not part of the
-        // header block the BringIntoViewSpec above suppresses scroll for.
-        if (githubTokenInvalid) {
-            WarningBanner(
-                title = stringResource(R.string.external_token_invalid_title),
-                description = stringResource(R.string.external_token_invalid_DESC),
-                onClick = onFixGithubToken,
-            )
-        }
-        Column(
-            modifier = Modifier.focusGroup().onFocusChanged { headerHasFocus = it.hasFocus },
-            verticalArrangement = spacedBy(24.dp),
-        ) {
-            TvBackButton(onBackClick)
-
-            Row(horizontalArrangement = spacedBy(24.dp)) {
-                Box(modifier = Modifier.padding(top = 4.dp)) {
-                    ExternalAppIcon(
-                        app = app,
-                        isInstalled = isInstalled,
-                        size = 112.dp,
-                        onIconBitmap = { source, bitmap ->
-                            // Follows the picture on screen: the app's own icon read off the device
-                            // replaces the one shown before it, and the accent has to follow it.
-                            iconAccent = IconAccentCache.accentOf(iconAccentCacheKey, source, bitmap)
-                        },
-                    )
-                }
-                Column(verticalArrangement = spacedBy(8.dp)) {
-                    Text(
-                        text = app.label,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = "${app.owner}/${app.repo}",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
-                        // Same version as the version list below: pulled from the latest APK's file name
-                        // (releaseVersionLabel), falling back to the tag — NOT the raw GitHub tag, which
-                        // can differ from the APK's real version. Mirrors the phone screen's hero version.
-                        releaseVersionLabel(app.latestApkName, app.latestTag).takeIf { it.isNotBlank() }
-                            ?.let { TvChip(it) }
-                        TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
-                        if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            TvAccentBackground()
+            TvAppDetailPanes(
+                leftScroll = pageScroll,
+                leftBringIntoViewSpec = bringIntoViewSpec,
+                onKeyDown = { userInteracted = true },
+                left = {
+                    // A token GitHub is actively rejecting silently stops this very source from refreshing
+                    // (see ExternalAppsViewModel.refresh), with nothing else on this page otherwise showing
+                    // anything is wrong. Kept outside the focus-group Column below: it's a separate D-pad
+                    // stop, not part of the header block the BringIntoViewSpec above suppresses scroll for.
+                    if (githubTokenInvalid) {
+                        WarningBanner(
+                            title = stringResource(R.string.external_token_invalid_title),
+                            description = stringResource(R.string.external_token_invalid_DESC),
+                            onClick = onFixGithubToken,
+                        )
                     }
-                }
-            }
+                    Column(
+                        modifier = Modifier.focusGroup().onFocusChanged { headerHasFocus = it.hasFocus },
+                        verticalArrangement = spacedBy(20.dp),
+                    ) {
+                        Row(horizontalArrangement = spacedBy(20.dp)) {
+                            Box(modifier = Modifier.padding(top = 4.dp)) {
+                                ExternalAppIcon(
+                                    app = app,
+                                    isInstalled = isInstalled,
+                                    size = 96.dp,
+                                    onIconBitmap = { source, bitmap ->
+                                        // Follows the picture on screen: the app's own icon read off the
+                                        // device replaces the one shown before it, and the accent has to
+                                        // follow it.
+                                        iconAccent = IconAccentCache.accentOf(iconAccentCacheKey, source, bitmap)
+                                    },
+                                )
+                            }
+                            Column(verticalArrangement = spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = app.label,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    text = "${app.owner}/${app.repo}",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
+                                    // Same version as the version list below: pulled from the latest APK's
+                                    // file name (releaseVersionLabel), falling back to the tag — NOT the raw
+                                    // GitHub tag, which can differ from the APK's real version. Mirrors the
+                                    // phone screen's hero version.
+                                    releaseVersionLabel(app.latestApkName, app.latestTag).takeIf { it.isNotBlank() }
+                                        ?.let { TvChip(it) }
+                                    TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
+                                    if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
+                                }
+                            }
+                        }
 
-            // The built-in Omnify source offering the other release channel: an install, not an update,
-            // and the action row below deliberately no longer offers it.
-            if (app.offersStableSwitch) {
-                ChannelSwitchBanner(onInstallStable = { viewModel.installOrUpdate(app) })
-            }
-            // Action buttons with the favourite alongside, sized to content and centred as one group
-            // (same treatment as the catalogue detail screen) so the favourite reads as a peer, not an
-            // outlier.
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = spacedBy(28.dp, Alignment.CenterHorizontally),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                ExternalLifecycleActions(
-                    app = app,
-                    downloadStatus = downloads[appKey],
-                    installState = installStates[appKey],
-                    isInstalled = isInstalled,
-                    onInstallOrUpdate = { viewModel.installOrUpdate(app) },
-                    onLaunch = { viewModel.launch(app) },
-                    onUninstall = { viewModel.uninstall(app) },
-                    onCancel = { viewModel.cancel(app) },
-                    modifier = Modifier.width(IntrinsicSize.Min),
-                    installedVersionName = installedVersion,
-                    primaryActionFocusRequester = primaryFocus,
-                )
-                TvFavouriteButton(
-                    isFavourite = app.key in favourites,
-                    onToggle = { viewModel.toggleFavourite(app) },
-                )
-            }
-            // Own row: keeps the action/favourite row above at its already-tuned width budget instead of
-            // squeezing a third pill button into it.
-            Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                TvHideButton(
-                    isHidden = app.key in hiddenApps,
-                    onToggle = { viewModel.toggleHidden(app) },
-                )
-            }
-        }
+                        // The built-in Omnify source offering the other release channel: an install, not an
+                        // update, and the action row below deliberately no longer offers it.
+                        if (app.offersStableSwitch) {
+                            ChannelSwitchBanner(onInstallStable = { viewModel.installOrUpdate(app) })
+                        }
+                        // Action buttons sharing the pane's width (same treatment as the catalogue detail
+                        // screen), then the favourite and hide toggles, discreet since they are rarely used.
+                        ExternalLifecycleActions(
+                            app = app,
+                            downloadStatus = downloads[appKey],
+                            installState = installStates[appKey],
+                            isInstalled = isInstalled,
+                            onInstallOrUpdate = { viewModel.installOrUpdate(app) },
+                            onLaunch = { viewModel.launch(app) },
+                            onUninstall = { viewModel.uninstall(app) },
+                            onCancel = { viewModel.cancel(app) },
+                            installedVersionName = installedVersion,
+                            primaryActionFocusRequester = primaryFocus,
+                            fillWidth = true,
+                        )
+                        TvSecondaryActions(
+                            isFavourite = app.key in favourites,
+                            onToggleFavourite = { viewModel.toggleFavourite(app) },
+                            isHidden = app.key in hiddenApps,
+                            onToggleHidden = { viewModel.toggleHidden(app) },
+                        )
+                    }
 
-        if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
-            CertificateSection(
-                installedSigner = installedSignerRaw,
-                expectedSigners = expectedSigners,
+                    if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
+                        CertificateSection(
+                            installedSigner = installedSignerRaw,
+                            expectedSigners = expectedSigners,
+                        )
+                    }
+
+                    releaseHistory?.takeIf { it.isNotEmpty() }?.let { releases ->
+                        TvSectionTitle(stringResource(R.string.versions))
+                        TvExternalVersionsList(
+                            app = app,
+                            releases = releases,
+                            installedVersion = installedVersion,
+                            sdkInfoByApkUrl = sdkInfoByApkUrl,
+                            onRequestSdkInfo = viewModel::loadSdkInfo,
+                            onVersionClick = { versionToInstall = it },
+                        )
+                    }
+                },
+                right = {
+                    readme?.takeIf { it.isNotBlank() }?.let { readmeHtml ->
+                        TvSectionTitle(stringResource(R.string.description))
+                        TvDescriptionPane(
+                            html = readmeHtml,
+                            baseUrl = app.readmeWebBaseUrl,
+                            javaScriptEnabled = readmeJavaScriptEnabled,
+                            webUrl = app.webUrl,
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                        )
+                    }
+                },
             )
         }
-
-        readme?.takeIf { it.isNotBlank() }?.let { readmeHtml ->
-            TvSectionTitle(stringResource(R.string.description))
-            TvReadmePreview(
-                html = readmeHtml,
-                baseUrl = app.readmeWebBaseUrl,
-                javaScriptEnabled = readmeJavaScriptEnabled,
-                viewportPx = viewportPx,
-                onOpenFull = { showDescription = true },
-            )
-        }
-
-        releaseHistory?.takeIf { it.isNotEmpty() }?.let { releases ->
-            TvSectionTitle(stringResource(R.string.versions))
-            TvExternalVersionsList(
-                app = app,
-                releases = releases,
-                installedVersion = installedVersion,
-                sdkInfoByApkUrl = sdkInfoByApkUrl,
-                onRequestSdkInfo = viewModel::loadSdkInfo,
-                onVersionClick = { versionToInstall = it },
-            )
-        }
-    }
-    }
-    }
     }
 }
 

@@ -275,7 +275,6 @@
     <string name="custom_button_icon">Icona</string>
     <string name="custom_button_delete_confirmation">Eliminare il bottone \"%1$s\"?</string>
     <string name="tv_back">Indietro</string>
-    <string name="tv_view_description">Vedi altro</string>
     <string name="tv_press_back_again">Premi di nuovo Indietro per uscire</string>
     <string name="tv_filter_tv_only">App per TV</string>
     <string name="tv_filter_all">Tutte le app</string>

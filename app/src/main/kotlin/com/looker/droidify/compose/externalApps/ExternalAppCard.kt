@@ -83,6 +83,9 @@ fun ExternalLifecycleActions(
     // in progress), mirroring the F-Droid catalogue detail screen's primaryActionFocusRequester. Null off
     // TV / for callers that don't need it (e.g. the tile card).
     primaryActionFocusRequester: FocusRequester? = null,
+    // TV only: the buttons share the width they are given instead of keeping their wide minimum, for a
+    // narrow pane.
+    fillWidth: Boolean = false,
 ) {
     val installing =
         installState == InstallState.Pending || installState == InstallState.Installing
@@ -109,21 +112,22 @@ fun ExternalLifecycleActions(
         else -> Row(
             modifier = modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(
-                if (isTelevision) 24.dp else 8.dp,
-                if (isTelevision || isTablet) Alignment.CenterHorizontally else Alignment.Start,
+                if (isTelevision && !fillWidth) 24.dp else if (fillWidth) 16.dp else 8.dp,
+                if ((isTelevision && !fillWidth) || isTablet) Alignment.CenterHorizontally else Alignment.Start,
             ),
         ) {
             val primaryButtonModifier = when {
+                isTelevision && fillWidth -> Modifier.height(60.dp).weight(1f)
                 isTelevision -> Modifier.height(60.dp).widthIn(min = 340.dp)
                 isTablet -> Modifier.widthIn(min = 220.dp, max = 360.dp)
                 else -> Modifier.weight(1f)
             }.tvFocusScale(1.10f, debugLabel = "external-primary-button").let {
                 if (primaryActionFocusRequester != null) it.focusRequester(primaryActionFocusRequester) else it
             }
-            val secondaryButtonModifier = if (isTelevision) {
-                Modifier.height(60.dp).widthIn(min = 200.dp)
-            } else {
-                Modifier
+            val secondaryButtonModifier = when {
+                isTelevision && fillWidth -> Modifier.height(60.dp).weight(1f)
+                isTelevision -> Modifier.height(60.dp).widthIn(min = 200.dp)
+                else -> Modifier
             }.tvFocusScale(1.10f, debugLabel = "external-secondary-button")
             when {
                 !isInstalled -> Button(
