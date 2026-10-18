@@ -89,10 +89,11 @@ internal suspend fun readInstalledLauncherIcon(context: Context, packageName: St
     withContext(Dispatchers.IO) {
         runCatching {
             val configuration = Configuration(context.resources.configuration)
-            val installed = context.packageManager.getPackageInfoCompat(packageName, signatureFlag = 0)
-                ?: throw PackageManager.NameNotFoundException(packageName)
-            val key = "$packageName:${installed.lastUpdateTime}"
-            InstalledLauncherIcons.get(configuration, key)
+            // Without it (not installed, or unreadable) there is nothing to key on, and getApplicationIcon
+            // below then throws the very error the caller reports.
+            val key = context.packageManager.getPackageInfoCompat(packageName, signatureFlag = 0)
+                ?.let { "$packageName:${it.lastUpdateTime}" }
+            key?.let { InstalledLauncherIcons.get(configuration, it) }
                 // Explicit size: toBitmap() with none uses the drawable's intrinsic size, which renders
                 // adaptive icons inconsistently across Android versions (fine on newer phones,
                 // cropped/squished on older TV builds), a square output normalises it everywhere.
@@ -102,7 +103,7 @@ internal suspend fun readInstalledLauncherIcon(context: Context, packageName: St
                 ?: context.packageManager.getApplicationIcon(packageName)
                     .toBitmap(width = LauncherIconPx, height = LauncherIconPx, config = Bitmap.Config.ARGB_8888)
                     .asImageBitmap()
-                    .also { InstalledLauncherIcons.put(configuration, key, it) }
+                    .also { if (key != null) InstalledLauncherIcons.put(configuration, key, it) }
         }
     }
 
