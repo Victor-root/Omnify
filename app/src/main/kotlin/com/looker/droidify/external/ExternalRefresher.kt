@@ -2,11 +2,13 @@ package com.looker.droidify.external
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.os.SystemClock
 import android.util.Log
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.utility.apk.ApkBinaryManifest
+import com.looker.droidify.utility.apk.RemoteApkIconReader
 import com.looker.droidify.utility.apk.RemoteApkManifestReader
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.sync.Mutex
@@ -227,6 +229,28 @@ class ExternalRefresher @Inject constructor(
                 ),
             )
         }
+        repository.getApps().firstOrNull { it.key == app.key }?.let { readApkIcon(it) }
+    }
+
+    /**
+     * Reads [app]'s launcher icon straight out of its latest APK ([RemoteApkIconReader], a few range
+     * requests rather than the whole file) into [ExternalIconCache], when nothing else would show one
+     * before it is installed: no icon found in the repository, none picked by the user, none composed or
+     * read already, and the app not installed (its own icon is then used). A repository holding no app
+     * source at all, such as nullcpy/rvb which only publishes built APKs, otherwise shows the account's
+     * avatar for every app in it. Each APK is read once ([ExternalApp.apkIconFrom]), whatever came of it.
+     */
+    suspend fun readApkIcon(app: ExternalApp) {
+        val apkUrl = app.latestApkUrl ?: return
+        if (app.apkIconFrom == apkUrl || app.repoIconUrl != null || app.iconOverridden) return
+        if (app.packageName?.let(::isInstalled) == true) return
+        if (ExternalIconCache.iconFile(context, app.key).exists()) return
+        val bitmap = RemoteApkIconReader.fetchIconBytes(downloader, apkUrl)
+            ?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+        if (BuildConfig.DEBUG) Log.d(TAG, "icon read from the APK of ${app.key}: ${bitmap != null}")
+        bitmap?.let { ExternalIconCache.save(context, app.key, it) }
+        val current = repository.getApps().firstOrNull { it.key == app.key } ?: return
+        repository.upsertApp(current.copy(apkIconFrom = apkUrl))
     }
 
     /**

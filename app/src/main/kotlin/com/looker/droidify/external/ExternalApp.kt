@@ -131,6 +131,10 @@ data class ExternalApp(
      *  Set once when the source is added and never edited afterwards, so the key stays stable even
      *  when the filters pinning the app are changed. */
     val variant: String = "",
+    /** The APK whose launcher icon was last read into [ExternalIconCache] for want of any other picture
+     *  before installing (see ExternalRefresher.readApkIcon): set whether or not that worked, so the same
+     *  APK is never read twice, and only a new release is tried again. */
+    val apkIconFrom: String? = null,
 ) {
     /** The host actually called: [host] when set, otherwise the provider's public default. */
     val effectiveHost: String
