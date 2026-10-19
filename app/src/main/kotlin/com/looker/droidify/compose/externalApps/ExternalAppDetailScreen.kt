@@ -152,6 +152,7 @@ fun ExternalAppDetailScreen(
     val downloadTargetTag by viewModel.downloadTargetTag.collectAsStateWithLifecycle()
     val installStates by viewModel.installStates.collectAsStateWithLifecycle()
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
+    val deviceVersions by viewModel.deviceVersions.collectAsStateWithLifecycle()
     val installSources by viewModel.installSources.collectAsStateWithLifecycle()
     val signatureMismatches by viewModel.signatureMismatches.collectAsStateWithLifecycle()
     val installConflict by viewModel.installConflict.collectAsStateWithLifecycle()
@@ -232,14 +233,10 @@ fun ExternalAppDetailScreen(
 
     val installedVersion = installedVersions[appKey]
     // True when whatever's actually installed under this package name isn't a build of this tracked
-    // source at all (see viewModel.signatureMismatches) — a different app happens to share the package
-    // name (most commonly: the same app installed from a different distribution channel). Used to word
-    // the footer as a warning instead of implying the shown version/source is this app's own state.
-    // Deliberately NOT folded into isInstalled below: a signer difference doesn't make the app any less
-    // installed (Launch/Manage/Update all still work — Android's actual "can't update across signers"
-    // constraint only bites once an update is downloaded, and that flow already asks to uninstall first),
-    // it just means the update dialog may ask for an uninstall — the warning covers that, not a
-    // fake-"not installed" state.
+    // source at all (see viewModel.signatureMismatches): another app shares the package name (a modified
+    // app published under the original's, or the same app from a different distribution channel). This
+    // source's app then isn't installed (installedVersions leaves it out), and the footer says what holds
+    // the package instead, and that installing this one means uninstalling it first.
     val signatureMismatch = appKey in signatureMismatches
     // A system app can't be uninstalled, so the footer below shouldn't tell the user to do it (the same
     // distinction the installConflict dialog above already makes).
@@ -260,9 +257,9 @@ fun ExternalAppDetailScreen(
     // could claim, this reads the real, on-device signature), so it can be shown, compared, and copied,
     // e.g. against a build the user just compiled themselves. Null when not installed, the package id
     // isn't known yet, or on the rare PackageManager read failure.
-    val installedSignerRaw = remember(isInstalled, app?.packageName) {
+    val installedSignerRaw = remember(isInstalled, signatureMismatch, app?.packageName) {
         val packageName = app?.packageName
-        if (!isInstalled || packageName == null) {
+        if (!(isInstalled || signatureMismatch) || packageName == null) {
             null
         } else {
             context.packageManager.getPackageInfoCompat(packageName)
@@ -585,7 +582,7 @@ fun ExternalAppDetailScreen(
         // signatureMismatch (computed above) means whatever that is belongs to a different app that
         // happens to share this package name, not to this tracked source — say so instead of implying
         // the version/source shown is this app's own state.
-        val footerText = installedVersion?.let { version ->
+        val footerText = (if (signatureMismatch) deviceVersions[appKey] else installedVersion)?.let { version ->
             val source = installSources[appKey] ?: stringResource(R.string.installer_unknown)
             when {
                 isMismatchedGenuineGoogleServices ->

@@ -23,7 +23,6 @@ import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.model.PackageName
-import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
@@ -69,12 +68,10 @@ import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.apk.RemoteApkManifestReader
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.asStateFlow
-import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
 import com.looker.droidify.utility.common.extension.installerSourceLabel
 import com.looker.droidify.utility.common.extension.isVersionDowngrade
-import com.looker.droidify.utility.common.extension.singleSignature
 import com.looker.droidify.work.BatchUpdateProgress
 import com.looker.droidify.work.UpdateAllWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -225,9 +222,10 @@ class ExternalAppsViewModel @Inject constructor(
     // uninstall from this very screen updates the button without a resume-timing race.
     private val installedChanges = installedRepository.getAllStream()
 
-    /** Per-app real installed versionName (read from the package manager), keyed by
-     *  [ExternalApp.key] — so the detail shows the version actually on the device vs. the repo's. */
-    val installedVersions: StateFlow<Map<String, String>> = combine(
+    /** Per-app versionName of whatever is installed under its package name (read from the package
+     *  manager), keyed by [ExternalApp.key], this source's own build or another one: what the detail
+     *  screen names when warning that another build holds the package ([signatureMismatches]). */
+    val deviceVersions: StateFlow<Map<String, String>> = combine(
         repository.apps,
         installManager.state,
         installedRefresh,
@@ -250,13 +248,40 @@ class ExternalAppsViewModel @Inject constructor(
         }.toMap()
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
 
+    /**
+     * Keys ([ExternalApp.key]) whose package name is held on the device by another build than the
+     * source's own: one none of the source's APK signers signed ([ExternalApp.isForeignCopy]), such as
+     * Google's own Gboard next to a source publishing a modified one under the same package name. A
+     * package name alone isn't proof of identity. The value is whether that installed app is a system
+     * app, i.e. can't actually be uninstalled. A key is absent while either signer is unknown.
+     */
+    val signatureMismatches: StateFlow<Map<String, Boolean>> = combine(
+        repository.apps,
+        deviceVersions,
+    ) { apps, versions ->
+        apps.mapNotNull { app ->
+            val pkg = app.packageName?.takeIf { app.key in versions && app.latestApkSigners.isNotEmpty() }
+                ?: return@mapNotNull null
+            if (!app.isForeignCopy(externalRefresher.installedSigner(pkg))) return@mapNotNull null
+            app.key to isSystemApp(pkg)
+        }.toMap()
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
+
+    /** Per-app real installed versionName of the source's own build, keyed by [ExternalApp.key]: so the
+     *  detail shows the version actually on the device vs. the repo's. Another build holding the package
+     *  name ([signatureMismatches]) isn't this app installed, and is left out. */
+    val installedVersions: StateFlow<Map<String, String>> = combine(deviceVersions, signatureMismatches) {
+            versions, mismatches ->
+        versions - mismatches.keys
+    }.distinctUntilChanged().asStateFlow(emptyMap())
+
     /** Where each installed tracked app actually came from (Play, F-Droid, this app…), keyed by
      *  [ExternalApp.key] — shown next to the installed version so a mismatch with what Omnify expects
      *  (e.g. a copy installed by another client, which can't be updated across signing keys in place)
      *  is visible instead of silently offering "Launch" with no explanation. Derived from
-     *  [installedVersions] so a key only ever appears here once it's confirmed installed. */
+     *  [deviceVersions] so a key only ever appears here once something is installed under it. */
     val installSources: StateFlow<Map<String, String>> = combine(
-        installedVersions,
+        deviceVersions,
         repository.apps,
     ) { versions, apps ->
         val byKey = apps.associateBy { it.key }
@@ -275,110 +300,14 @@ class ExternalAppsViewModel @Inject constructor(
         }.toMap()
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
 
-    /**
-     * Keys ([ExternalApp.key]) whose installed app's real signing certificate doesn't match any signer
-     * declared by the latest known release's own APK — read via [ApkSigningBlockReader], a cheap HTTP
-     * range read, never a full download. A package name alone isn't proof of identity: Android lets a
-     * completely different app claim the same package name a tracked source uses (a de-Googled fork
-     * sharing an app's real package id, say) as long as it got there first — the same collision risk
-     * [com.looker.droidify.data.local.model.toPackages] documents for the F-Droid catalogue, just without
-     * an index to cross-check against ahead of time here. A key simply absent from this map (rather than
-     * mapped to any value) means either there's nothing to compare yet or the check hasn't completed —
-     * treat "absent" the same as "no mismatch", never block on it. The value is whether that installed
-     * app is a system app, i.e. can't actually be uninstalled. See [trackSignatureMismatches].
-     */
-    private val _signatureMismatches = MutableStateFlow<Map<String, Boolean>>(emptyMap())
-    val signatureMismatches: StateFlow<Map<String, Boolean>> = _signatureMismatches
-
-    /** Keys of tracked apps that are currently installed on the device, by package name — deliberately
-     *  NOT excluding [signatureMismatches]: a differently-signed install (most commonly, the same app
-     *  from a different distribution channel) still counts as installed here, matching the detail
-     *  screen's own [ExternalAppDetailScreen] `isInstalled`. Drives the Explorer/account grid tiles'
-     *  "installed" badge, so it always agrees with the detail screen for the same app. */
+    /** Keys of tracked apps whose own build is installed on the device ([installedVersions]), matching
+     *  the detail screen's own [ExternalAppDetailScreen] `isInstalled`. Drives the Explorer/account grid
+     *  tiles' "installed" badge, so it always agrees with the detail screen for the same app. */
     val installedKeys: StateFlow<Set<String>> = installedVersions
         .map { it.keys }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptySet())
-
-    /** In-memory cache of [ApkSigningBlockReader] results, keyed by APK URL — a source's latestApkUrl
-     *  rarely changes between refreshes, so this avoids re-reading the signing block over the network
-     *  every time the installed set is merely re-evaluated (e.g. on screen resume). Not persisted:
-     *  losing it on process death just means the next check re-reads once, the same cost as the very
-     *  first check ever. */
-    private val signerHashCache = mutableMapOf<String, Set<String>?>()
-
-    init {
-        viewModelScope.launch { trackSignatureMismatches() }
-    }
-
-    /**
-     * Keeps [signatureMismatches] current: for every tracked app that's both installed and has a known
-     * latest-release APK URL, compares the installed signing certificate (read live from the package
-     * manager, same as everywhere else this comparison is made) against [ApkSigningBlockReader]'s
-     * reading of that URL. Runs sequentially and in the background — this is a bonus safety signal, not
-     * something any button waits on — and never flags a mismatch when either side can't be determined
-     * (don't warn on uncertainty, same philosophy as the F-Droid catalogue's own version of this check).
-     */
-    private suspend fun trackSignatureMismatches() {
-        combine(repository.apps, installedVersions) { apps, installed -> apps to installed }
-            .distinctUntilChanged()
-            .collectLatest { (apps, installed) ->
-                val candidates = apps.filter { it.key in installed.keys && it.latestApkUrl != null }
-                if (candidates.isEmpty()) {
-                    _signatureMismatches.value = emptyMap()
-                    return@collectLatest
-                }
-                val mismatches = mutableMapOf<String, Boolean>()
-                candidates.forEach { app ->
-                    val pkg = app.packageName ?: return@forEach
-                    val apkUrl = app.latestApkUrl ?: return@forEach
-                    val installedSigner = withContext(Dispatchers.Default) {
-                        context.packageManager
-                            .getPackageInfoCompat(pkg)
-                            ?.singleSignature
-                            ?.calculateHash()
-                            ?.lowercase()
-                    } ?: return@forEach
-                    val expectedSigners = expectedSignerHashes(apkUrl) ?: return@forEach
-                    // signerMismatch: the one shared definition of this comparison (see
-                    // InstalledIdentityRepository) — same rule as the catalogue side, different source
-                    // for the expected signers (the release APK's own signing block; there's no index
-                    // declaring them ahead of time here).
-                    val mismatch = signerMismatch(installedSigner, expectedSigners)
-                    if (BuildConfig.DEBUG) {
-                        Log.d(
-                            TAG,
-                            "signature check ${app.key}: apkUrl=$apkUrl installed=$installedSigner " +
-                                "expected=$expectedSigners mismatch=$mismatch",
-                        )
-                    }
-                    if (mismatch) {
-                        mismatches[app.key] = withContext(Dispatchers.Default) { isSystemApp(pkg) }
-                    }
-                }
-                _signatureMismatches.value = mismatches
-            }
-    }
-
-    /**
-     * [apkUrl]'s declared signers, from [signerHashCache] or else read by [ApkSigningBlockReader]. The
-     * read runs on Dispatchers.Default, as it parses the signing block after each range request; the
-     * cache itself is only ever touched on the main thread.
-     *
-     * Deliberately not signerHashCache.getOrPut(apkUrl) { ... }: getOrPut only treats a *missing* key as
-     * a cache miss, but a failed read is cached as a null *value* under an already-present key,
-     * indistinguishable from "missing" to getOrPut, so it would silently re-fetch over the network on
-     * every single re-evaluation instead of caching the failure once, defeating the whole point of this
-     * cache for exactly the hosts most likely to need it (ones that don't support range requests at all).
-     */
-    private suspend fun expectedSignerHashes(apkUrl: String): Set<String>? =
-        if (signerHashCache.containsKey(apkUrl)) {
-            signerHashCache.getValue(apkUrl)
-        } else {
-            withContext(Dispatchers.Default) { ApkSigningBlockReader.fetchSignerHashes(downloader, apkUrl) }
-                .also { signerHashCache[apkUrl] = it }
-        }
 
     /** Keys of tracked apps the user has favourited — the same store the F-Droid catalogue's own
      *  favourites use ([SettingsRepository.toggleFavourites]/`favouriteApps`), keyed by [ExternalApp.key]
@@ -709,11 +638,9 @@ class ExternalAppsViewModel @Inject constructor(
     /** The detail screen's "expected certificate" card: the release APK's own declared signer(s), read
      *  via [ApkSigningBlockReader] straight from [apkUrl], the only source available for an app that
      *  isn't installed yet (there's no F-Droid-style index declaring it ahead of time here), keyed by APK
-     *  download URL and populated lazily like [sdkInfoByApkUrl]. Shares [signerHashCache]'s reads (same
-     *  reader, same URL identity) with [trackSignatureMismatches], so an app already checked there (any
-     *  installed source) costs nothing extra here, and this doesn't cost [trackSignatureMismatches]
-     *  anything either the other way around. A key present with a null value means the block couldn't be
-     *  read (see the reader's own doc comment); a key absent means it hasn't been requested yet. Kept as
+     *  download URL and populated lazily like [sdkInfoByApkUrl]. A key present with a null value means
+     *  the block couldn't be read (see the reader's own doc comment); a key absent means it hasn't been
+     *  requested yet. Kept as
      *  the raw signer set (not narrowed to a single displayed fingerprint) so the detail screen's
      *  [com.looker.droidify.compose.components.CertificateSection] can run the real
      *  [com.looker.droidify.data.signerMismatch] check against every declared signer, not just the first. */
@@ -727,7 +654,10 @@ class ExternalAppsViewModel @Inject constructor(
     fun loadExpectedSigners(apkUrl: String) {
         if (!expectedCertificateRequested.add(apkUrl)) return
         viewModelScope.launch {
-            val hashes = expectedSignerHashes(apkUrl)
+            // On Dispatchers.Default: the signing block is parsed after each range request.
+            val hashes = withContext(Dispatchers.Default) {
+                ApkSigningBlockReader.fetchSignerHashes(downloader, apkUrl)
+            }
             _expectedSignersByApkUrl.update { it + (apkUrl to hashes) }
         }
     }
@@ -1329,7 +1259,11 @@ class ExternalAppsViewModel @Inject constructor(
         // Resolve the package id (repo build.gradle, else the release APK's own manifest) so an app
         // that's already installed is matched and shows its real on-device name + icon right away,
         // before the user installs it through us.
-        val packageId = externalRefresher.resolvePackageId(app, release.apkDownloadUrl(filter = app.apkFilter))
+        val apkUrl = release.apkDownloadUrl(filter = app.apkFilter)
+        val packageId = externalRefresher.resolvePackageId(app, apkUrl)
+        // With the APK's signers when a copy is already installed, so another build of that package (a
+        // modified app published under the original's name) isn't taken for this one.
+        val resolved = externalRefresher.withApkSigners(app.copy(packageName = packageId, latestApkUrl = apkUrl))
         // Pull the app's real launcher icon AND its real name from the repo (Obtainium-style), so the
         // card shows both before anything is installed.
         val meta = externalApi.fetchRepoMetadata(app)
@@ -1337,12 +1271,12 @@ class ExternalAppsViewModel @Inject constructor(
         // installed, so it becomes this source's icon from the moment it is added (see
         // ExternalIconCache) rather than the flat pre-Android-8 raster.
         meta?.adaptiveIcon?.let { ExternalIconCache.save(context, app.key, it) }
-        // Name priority: a name the user typed, else the on-device name if it's already installed, else
-        // the real name read from the repo manifest, else the repo name. The manifest is skipped for one
-        // app among several: the repository's name is not this app's.
+        // Name priority: a name the user typed, else the on-device name if this app is already installed,
+        // else the real name read from the repo manifest, else the repo name. The manifest is skipped for
+        // one app among several: the repository's name is not this app's.
         val resolvedLabel = when {
             app.nameOverridden -> app.label
-            else -> packageId?.let { externalRefresher.installedLabel(it) }
+            else -> externalRefresher.installedLabelOf(resolved)
                 ?: meta?.appName?.takeIf { app.variant.isEmpty() }
                 ?: app.label
         }
@@ -1355,8 +1289,7 @@ class ExternalAppsViewModel @Inject constructor(
                     "size=$addApkSize rawAssetSizes=${release.assets.map { it.name to it.size }}",
             )
         }
-        val added = app.copy(
-            packageName = packageId,
+        val added = resolved.copy(
             label = resolvedLabel,
             repoIconUrl = meta?.iconCandidates?.firstOrNull(),
             // Only mark scanned when the repo was actually read, so a transient failure re-scans on
@@ -1369,7 +1302,6 @@ class ExternalAppsViewModel @Inject constructor(
             latestApkToken = release.apkVersionToken(filter = app.apkFilter),
             latestApkName = release.apkFileName(filter = app.apkFilter),
             latestApkSize = addApkSize,
-            latestApkUrl = release.apkDownloadUrl(filter = app.apkFilter),
             latestReleaseAt = release.apkUpdatedAtMillis(filter = app.apkFilter),
         )
         val stored = repository.addApp(added)
@@ -1693,9 +1625,7 @@ class ExternalAppsViewModel @Inject constructor(
             val overridden = trimmedName.isNotEmpty()
             val label = when {
                 overridden -> trimmedName
-                app.packageName != null -> externalRefresher.installedLabel(app.packageName)
-                    ?: prettifyRepoName(app.repo)
-                else -> prettifyRepoName(app.repo)
+                else -> externalRefresher.installedLabelOf(app) ?: app.defaultLabel
             }
             val trimmedFilter = apkFilter.trim().ifEmpty { null }
             val trimmedIncludeFilter = versionIncludeFilter.trim().ifEmpty { null }
@@ -1761,8 +1691,7 @@ class ExternalAppsViewModel @Inject constructor(
             val updated = withContext(Dispatchers.Default) {
                 apps.value.mapNotNull { app ->
                     if (app.nameOverridden) return@mapNotNull null
-                    val pkg = app.packageName ?: return@mapNotNull null
-                    val realLabel = externalRefresher.installedLabel(pkg) ?: return@mapNotNull null
+                    val realLabel = externalRefresher.installedLabelOf(app) ?: return@mapNotNull null
                     if (realLabel != app.label) app.copy(label = realLabel) else null
                 }
             }

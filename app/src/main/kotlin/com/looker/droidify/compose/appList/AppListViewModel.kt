@@ -358,6 +358,9 @@ class AppListViewModel @Inject constructor(
         externalApps.mapNotNull { app ->
             val pkg = app.packageName ?: return@mapNotNull null
             if (pkg !in installed.versions) return@mapNotNull null
+            // Another build holding the package name (a modified app published under the original's)
+            // is not what this source installs.
+            if (app.isForeignCopy(installed.signatures[pkg])) return@mapNotNull null
             val owns = externalSourceOwns(
                 ownsInstalled = app.ownsInstalled(installedNames[pkg]),
                 installedSigner = installed.signatures[pkg],

@@ -38,7 +38,10 @@ import com.looker.droidify.compose.appList.readInstalledLauncherIcon
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalIconCache
+import com.looker.droidify.utility.common.extension.installedSignerHash
 import com.looker.droidify.utility.common.extension.toSafeBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private const val TAG = "ExternalAppIcon"
 
@@ -92,8 +95,17 @@ fun ExternalAppIcon(
     //
     // Not gated on [isInstalled]: a screen learns its install state a moment after it opens, and waiting
     // for it showed the developer's avatar on an installed app's page before the real icon replaced it.
-    val launcherIcon by produceState<LauncherIconRead?>(null, packageName, isInstalled) {
-        val bitmap = packageName?.let { pkg ->
+    //
+    // Not another build's icon either: a modified app published under the original's package name shows
+    // its own picture, not the original's that is installed ([ExternalApp.isForeignCopy]).
+    val launcherIcon by produceState<LauncherIconRead?>(null, packageName, isInstalled, app.latestApkSigners) {
+        val ownPackage = packageName?.takeUnless { pkg ->
+            // Without the source's signers there is nothing to compare, and nothing to ask the device.
+            app.latestApkSigners.isNotEmpty() && withContext(Dispatchers.IO) {
+                app.isForeignCopy(context.packageManager.installedSignerHash(pkg))
+            }
+        }
+        val bitmap = ownPackage?.let { pkg ->
             readInstalledLauncherIcon(context, pkg).onFailure {
                 if (it !is PackageManager.NameNotFoundException) {
                     Log.e(TAG, "Unable to read $pkg's launcher icon", it)

@@ -1,6 +1,7 @@
 package com.looker.droidify.external
 
 import com.looker.droidify.BuildConfig
+import com.looker.droidify.data.signerMismatch
 import kotlinx.serialization.Serializable
 
 /**
@@ -135,6 +136,13 @@ data class ExternalApp(
      *  before installing (see ExternalRefresher.readApkIcon): set whether or not that worked, so the same
      *  APK is never read twice, and only a new release is tried again. */
     val apkIconFrom: String? = null,
+    /** The signing certificates (SHA-256, lower-case hex) of the APK at [apkSignersFrom], read from its
+     *  signing block. Empty while unknown. What tells this source's own build from another one installed
+     *  under the same package name: see [isForeignCopy]. */
+    val latestApkSigners: List<String> = emptyList(),
+    /** The APK [latestApkSigners] was read from (or tried, should the read have failed), so the same APK
+     *  is never read twice. */
+    val apkSignersFrom: String? = null,
 ) {
     /** The host actually called: [host] when set, otherwise the provider's public default. */
     val effectiveHost: String
@@ -153,6 +161,10 @@ data class ExternalApp(
         } else {
             "${provider.name}/$host/$owner/$repo"
         }
+
+    /** The name shown when there is nothing better: the app's own within its repository for one app
+     *  among several ([variant]), the repository's otherwise, both made readable. */
+    val defaultLabel: String get() = prettifyRepoName(variant.ifEmpty { repo })
 
     /** "owner/repo", shown in the UI. */
     val path: String get() = "$owner/$repo"
@@ -279,6 +291,15 @@ data class ExternalApp(
         (installedApkToken != null || installedTag != null) &&
             currentInstalledVersionName != null &&
             currentInstalledVersionName == installedVersionName
+
+    /**
+     * Whether the copy installed under [packageName], signed by [installedSigner], is another build than
+     * this source's: none of [latestApkSigners] signed it. A modified app published under the original's
+     * package name (nullcpy/rvb's Gboard, next to Google's own) is the common case. Such a copy is not
+     * this source's app: it neither lends it its name and icon nor counts as installed for it, and
+     * installing this source's build asks to uninstall it first. False while either side is unknown.
+     */
+    fun isForeignCopy(installedSigner: String?): Boolean = signerMismatch(installedSigner, latestApkSigners)
 
     /**
      * Same as [hasUpdate], but also catches a record that doesn't actually reflect what's on the

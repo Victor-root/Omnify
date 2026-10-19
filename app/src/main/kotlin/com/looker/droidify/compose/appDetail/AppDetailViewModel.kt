@@ -305,6 +305,7 @@ class AppDetailViewModel @Inject constructor(
     ) { externalApps, installed ->
         installed != null && externalApps.any { app ->
             app.packageName == packageName &&
+                !app.isForeignCopy(installed.signer) &&
                 externalSourceOwns(
                     ownsInstalled = app.ownsInstalled(installed.version),
                     catalogueDidNotSignIt = installed.signatureMismatch,

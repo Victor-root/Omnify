@@ -28,6 +28,11 @@ val PackageInfo.singleSignature: Signature?
 
 fun Signature.calculateHash() = sha256(toByteArray()).hex()
 
+/** The lower-case SHA-256 of the certificate [packageName] is installed with: null when it isn't
+ *  installed, can't be read, or is signed by several. */
+fun PackageManager.installedSignerHash(packageName: String): String? =
+    getPackageInfoCompat(packageName)?.singleSignature?.calculateHash()?.lowercase()
+
 @Suppress("DEPRECATION")
 val PackageInfo.versionCodeCompat: Long
     get() = if (SdkCheck.isPie) longVersionCode else versionCode.toLong()
