@@ -24,6 +24,7 @@ import com.looker.droidify.compose.components.InstallConflictDialog
 import com.looker.droidify.migration.ChannelSwitchBanner
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.externalApps.ReleaseVersionItem
+import com.looker.droidify.compose.externalApps.RepositoryReadmeNote
 import com.looker.droidify.compose.externalApps.releaseVersionRows
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.utility.apk.ApkBinaryManifest
@@ -326,7 +327,13 @@ fun TvExternalAppDetailScreen(
                 },
                 right = {
                     TvSectionTitle(stringResource(R.string.description))
-                    val readmeHtml = readme
+                    val readmeHtml = readme?.html
+                    if (!readmeHtml.isNullOrBlank() && readme?.ofRepository == true) {
+                        RepositoryReadmeNote(
+                            repoPath = app.path,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
                     when {
                         !readmeHtml.isNullOrBlank() -> TvDescriptionPane(
                             html = readmeHtml,

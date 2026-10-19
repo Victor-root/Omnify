@@ -492,7 +492,7 @@ fun ExternalAppDetailScreen(
                     if (translationEnabled && readme != null) {
                         TranslateAction(
                             translation = readmeTranslation,
-                            onTranslate = { readme?.let(viewModel::translateReadme) },
+                            onTranslate = { readme?.html?.let(viewModel::translateReadme) },
                             onShowOriginal = viewModel::showOriginalReadme,
                         )
                     }
@@ -549,7 +549,7 @@ fun ExternalAppDetailScreen(
         // ExternalAppDetailBody) so it can be sized exactly instead of owning a second, separate scroll.
         // Show the translated HTML when present, otherwise the original. Both render in the WebView so a
         // translation keeps the README's images, headings, lists and links.
-        val readmeHtml = (readmeTranslation as? DescriptionTranslation.Translated)?.description ?: readme
+        val readmeHtml = (readmeTranslation as? DescriptionTranslation.Translated)?.description ?: readme?.html
         // scrollState is hoisted above the Scaffold (used by the page-scroll TV modifier below and by
         // the scroll-to-top FAB). viewportPx drives the page step for TV D-pad paging.
         var viewportPx by remember { mutableStateOf(0) }
@@ -777,6 +777,7 @@ fun ExternalAppDetailScreen(
                         isInstalled = isInstalled,
                         installedVersion = installedVersion,
                         readmeHtml = readmeHtml,
+                        readmeOfRepository = readme?.ofRepository == true,
                         readmeError = readmeError,
                         readmeJavaScriptEnabled = readmeJavaScriptEnabled,
                         viewportPx = viewportPx,
@@ -905,6 +906,7 @@ fun ExternalAppDetailScreen(
                         isInstalled = isInstalled,
                         installedVersion = installedVersion,
                         readmeHtml = readmeHtml,
+                        readmeOfRepository = readme?.ofRepository == true,
                         readmeError = readmeError,
                         readmeJavaScriptEnabled = readmeJavaScriptEnabled,
                         viewportPx = viewportPx,
@@ -958,6 +960,8 @@ private fun ExternalAppDetailBody(
     // app.installedTag, is the reliable source.
     installedVersion: String?,
     readmeHtml: String?,
+    // The README shown presents the repository this app is one of several in, not the app itself.
+    readmeOfRepository: Boolean,
     readmeError: String?,
     readmeJavaScriptEnabled: Boolean,
     viewportPx: Int,
@@ -1024,6 +1028,12 @@ private fun ExternalAppDetailBody(
     // README — sized to its content (it doesn't scroll itself) so it scrolls with the rest.
     // GitHub leaves repo-relative image paths un-rewritten, so the WebView resolves them
     // against the raw content host. While it loads, show a spinner instead of empty space.
+    if (readmeHtml != null && readmeOfRepository) {
+        RepositoryReadmeNote(
+            repoPath = app.path,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+    }
     if (readmeHtml != null && !readmeRendererGone) {
         // Collapsed to a multiple of the space left below it down to the bottom of the screen (see
         // README_COLLAPSED_VIEWPORTS), so the preview scales with the device the way the F-Droid
@@ -1482,6 +1492,33 @@ private fun PreInstallNotice(modifier: Modifier = Modifier) {
             Text(
                 text = notice,
                 style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+/** Says that the README below presents the repository [repoPath], one app of which this source
+ *  follows, rather than the app itself: see [com.looker.droidify.external.ExternalReadme.ofRepository]. */
+@Composable
+internal fun RepositoryReadmeNote(repoPath: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Info,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = stringResource(R.string.external_repository_readme_title, repoPath),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                text = stringResource(R.string.external_repository_readme_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

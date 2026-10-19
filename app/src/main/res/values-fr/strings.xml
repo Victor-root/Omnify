@@ -545,6 +545,8 @@
     <string name="external_no_token_description">Vous êtes limité à 60 requêtes par heure. Si une source n\'affiche pas sa dernière version, la limite a probablement été atteinte. Ajoutez un jeton gratuit dans Paramètres › Sources externes pour passer à 5000.</string>
     <string name="external_no_token_description_remaining">Il vous reste %1$d requêtes sur 60 cette heure. Si une source n\'affiche pas sa dernière version, la limite a probablement été atteinte. Ajoutez un jeton gratuit dans Paramètres › Sources externes pour passer à 5000.</string>
     <string name="external_readme_unavailable">Impossible de charger le README.</string>
+    <string name="external_repository_readme_title">À propos du dépôt %1$s</string>
+    <string name="external_repository_readme_note">Cette app est l\'une des apps publiées par ce dépôt. Le texte ci-dessous présente le dépôt, pas l\'app elle-même.</string>
     <string name="external_github_limit_hint">Astuce : sans jeton GitHub, vous êtes limité à 60 requêtes par heure. Ajoutez-en un gratuitement dans Paramètres › Sources externes pour passer à 5000.</string>
     <string name="external_github_limit_hint_remaining">Astuce : sans jeton GitHub, il vous reste %1$d requêtes sur 60 cette heure. Ajoutez-en un gratuitement dans Paramètres › Sources externes pour passer à 5000.</string>
     <string name="external_remove">Retirer</string>
