@@ -138,6 +138,8 @@ class PendingUpdates @Inject constructor(
         .mapNotNullTo(mutableSetOf()) { app ->
             val pkg = app.packageName ?: return@mapNotNullTo null
             if (pkg !in installedSigners) return@mapNotNullTo null
+            // Another build holding the package name isn't this source's to update.
+            if (app.isForeignCopy(installedSigners[pkg])) return@mapNotNullTo null
             val owns = externalSourceOwns(
                 ownsInstalled = app.ownsInstalled(externalRefresher.installedVersionName(pkg)),
                 installedSigner = installedSigners[pkg],
@@ -159,8 +161,8 @@ class PendingUpdates @Inject constructor(
         val hidden = settingsRepository.get { hiddenApps }.first()
         return externalAppRepository.getApps().filter { app ->
             if (app.key in hidden) return@filter false
-            val onDevice = app.packageName?.let(externalRefresher::installedVersionName)
-            app.isUpdatePending(onDevice)
+            // Another build holding the package name isn't this app installed (see installedVersionOf).
+            app.isUpdatePending(externalRefresher.installedVersionOf(app))
         }
     }
 

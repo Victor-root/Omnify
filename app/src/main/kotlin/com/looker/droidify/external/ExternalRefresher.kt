@@ -8,8 +8,10 @@ import android.util.Log
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.utility.apk.ApkBinaryManifest
+import com.looker.droidify.utility.apk.ApkSigningBlockReader
 import com.looker.droidify.utility.apk.RemoteApkIconReader
 import com.looker.droidify.utility.apk.RemoteApkManifestReader
+import com.looker.droidify.utility.common.extension.installedSignerHash
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -105,7 +107,8 @@ class ExternalRefresher @Inject constructor(
     suspend fun hasSourcesToCheck(): Boolean =
         repository.getApps().any { it.enabled } || repository.getAccounts().any { it.enabled }
 
-    private suspend fun refreshOne(app: ExternalApp) {
+    private suspend fun refreshOne(tracked: ExternalApp) {
+        val app = withApkSigners(tracked)
         // A release may not exist yet (e.g. the seeded Omnify source has no published release), or the
         // source may simply not be enabled yet. Either way we still scan the repo below for its icon /
         // name / TV support, which don't depend on a downloadable APK, and simply keep the existing
@@ -171,7 +174,7 @@ class ExternalRefresher @Inject constructor(
         // raster above (see ExternalIconCache). Not written while the app is installed: the cache then
         // already holds the icon read straight out of its APK, which is the same picture from a more
         // direct source and must not be replaced by a re-drawing of it.
-        val installedNow = app.packageName?.let(::isInstalled) == true
+        val installedNow = hasOwnCopyInstalled(app)
         if (needsAdaptiveIcon && meta?.adaptiveIcon != null && !installedNow) {
             if (BuildConfig.DEBUG) Log.d(TAG, "caching composed adaptive icon for ${app.key}")
             ExternalIconCache.save(context, app.key, meta.adaptiveIcon)
@@ -180,7 +183,7 @@ class ExternalRefresher @Inject constructor(
         // Only replace the label while it's still an automatic default (never a user/on-device one):
         // either the bare repo name from before prettifying it existed, or the prettified version of it.
         val stillDefaultLabel = !app.nameOverridden &&
-            app.packageName?.let { isInstalled(it) } != true &&
+            !hasOwnCopyInstalled(app) &&
             (app.label == app.repo || app.label == prettifyRepoName(app.repo))
         val resolvedLabel = when {
             !stillDefaultLabel -> app.label
@@ -201,6 +204,7 @@ class ExternalRefresher @Inject constructor(
             repoIcon != app.repoIconUrl ||
             resolvedLabel != app.label ||
             supportsTv != app.supportsTelevision ||
+            app.apkSignersFrom != tracked.apkSignersFrom ||
             (needsMeta && scanned)
         ) {
             // Re-read the current record instead of copying from `app` (a snapshot taken before this
@@ -226,11 +230,52 @@ class ExternalRefresher @Inject constructor(
                         (needsAdaptiveIcon && meta?.adaptiveIconSettled == true),
                     supportsTelevision = supportsTv,
                     tvChecked = current.tvChecked || (needsTv && scanned),
+                    latestApkSigners = app.latestApkSigners,
+                    apkSignersFrom = app.apkSignersFrom,
                 ),
             )
         }
         repository.getApps().firstOrNull { it.key == app.key }?.let { readApkIcon(it) }
     }
+
+    /**
+     * [app] with the signers of its latest APK ([ExternalApp.latestApkSigners]) read from its signing
+     * block, a small range request, when something is installed under its package name to compare them
+     * with and that APK hasn't been read yet. Nothing is stored here: the caller saves the answer with
+     * the rest of the record. A failed read keeps the signers known from the previous APK, which a new
+     * release almost always shares.
+     */
+    suspend fun withApkSigners(app: ExternalApp): ExternalApp {
+        val apkUrl = app.latestApkUrl ?: return app
+        val pkg = app.packageName ?: return app
+        if (app.apkSignersFrom == apkUrl || !isInstalled(pkg)) return app
+        val signers = ApkSigningBlockReader.fetchSignerHashes(downloader, apkUrl)
+        if (BuildConfig.DEBUG) Log.d(TAG, "signers of the APK of ${app.key}: $signers")
+        return app.copy(
+            latestApkSigners = signers?.map { it.lowercase() }?.sorted() ?: app.latestApkSigners,
+            apkSignersFrom = apkUrl,
+        )
+    }
+
+    /** The lower-case SHA-256 of the certificate [packageName] is installed with, null when it isn't. */
+    fun installedSigner(packageName: String): String? = context.packageManager.installedSignerHash(packageName)
+
+    /** Whether [app]'s own build is what's installed under its package name: something is, and it isn't
+     *  another build of the same package ([ExternalApp.isForeignCopy]). */
+    fun hasOwnCopyInstalled(app: ExternalApp): Boolean {
+        val pkg = app.packageName ?: return false
+        return isInstalled(pkg) && !app.isForeignCopy(installedSigner(pkg))
+    }
+
+    /** The versionName of [app]'s own build on the device, null when it isn't there: nothing installed
+     *  under its package name, or another build of it ([hasOwnCopyInstalled]). */
+    fun installedVersionOf(app: ExternalApp): String? =
+        app.packageName?.takeIf { hasOwnCopyInstalled(app) }?.let(::installedVersionName)
+
+    /** The on-device name of [app]'s own build, null when it isn't installed ([hasOwnCopyInstalled]):
+     *  another build's name is that other app's. */
+    fun installedLabelOf(app: ExternalApp): String? =
+        app.packageName?.takeIf { hasOwnCopyInstalled(app) }?.let(::installedLabel)
 
     /**
      * Reads [app]'s launcher icon straight out of its latest APK ([RemoteApkIconReader], a few range
@@ -243,7 +288,7 @@ class ExternalRefresher @Inject constructor(
     suspend fun readApkIcon(app: ExternalApp) {
         val apkUrl = app.latestApkUrl ?: return
         if (app.apkIconFrom == apkUrl || app.repoIconUrl != null || app.iconOverridden) return
-        if (app.packageName?.let(::isInstalled) == true) return
+        if (hasOwnCopyInstalled(app)) return
         if (ExternalIconCache.iconFile(context, app.key).exists()) return
         val bitmap = RemoteApkIconReader.fetchIconBytes(downloader, apkUrl)
             ?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
@@ -338,10 +383,10 @@ class ExternalRefresher @Inject constructor(
             // really draw, so a newly discovered account app gets it straight away rather than showing
             // the stale flat raster until something else happens to refresh it.
             meta?.adaptiveIcon?.let { ExternalIconCache.save(context, candidate.key, it) }
-            val resolvedLabel = packageId?.let { installedLabel(it) } ?: meta?.appName ?: candidate.label
-            result += candidate.copy(
-                packageName = packageId,
-                label = resolvedLabel,
+            val apkUrl = release.apkDownloadUrl(filter = candidate.apkFilter)
+            val found = withApkSigners(candidate.copy(packageName = packageId, latestApkUrl = apkUrl))
+            result += found.copy(
+                label = installedLabelOf(found) ?: meta?.appName ?: candidate.label,
                 repoIconUrl = meta?.iconCandidates?.firstOrNull(),
                 iconChecked = meta != null,
                 adaptiveIconChecked = meta?.adaptiveIconSettled == true,
@@ -351,7 +396,6 @@ class ExternalRefresher @Inject constructor(
                 latestApkToken = release.apkVersionToken(filter = candidate.apkFilter),
                 latestApkName = release.apkFileName(filter = candidate.apkFilter),
                 latestApkSize = release.apkFileSize(filter = candidate.apkFilter),
-                latestApkUrl = release.apkDownloadUrl(filter = candidate.apkFilter),
                 latestReleaseAt = release.apkUpdatedAtMillis(filter = candidate.apkFilter),
             )
         }
