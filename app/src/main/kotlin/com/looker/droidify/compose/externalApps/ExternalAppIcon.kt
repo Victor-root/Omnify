@@ -3,6 +3,11 @@ package com.looker.droidify.compose.externalApps
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.util.Log
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -12,6 +17,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -21,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -114,6 +123,10 @@ fun ExternalAppIcon(
         }
         value = LauncherIconRead(bitmap)
     }
+    // Only this tile's own answer is read here, so the list's tiles don't all recompose each time one
+    // source among them is done.
+    val pendingKeys = ExternalIconCache.pending.collectAsState()
+    val iconPending by remember(app.key) { derivedStateOf { app.key in pendingKeys.value } }
     var repoIconFailed by remember(app.repoIconUrl) { mutableStateOf(false) }
     var avatarFailed by remember(app.iconUrl) { mutableStateOf(false) }
     // The real icon extracted from the app's APK (cached as a PNG), decoded once. Keyed on the file's
@@ -202,6 +215,8 @@ fun ExternalAppIcon(
                 modifier = imageModifier,
             )
 
+            iconPending -> IconSkeleton(shape = shape, isTelevision = isTelevision)
+
             app.iconUrl != null && !avatarFailed -> AsyncImage(
                 model = app.iconUrl,
                 onError = { avatarFailed = true },
@@ -234,3 +249,28 @@ fun ExternalAppIcon(
         }
     }
 }
+
+/**
+ * Stands in for an icon still being looked for ([ExternalIconCache.pending]): the tile's shape, gently
+ * pulsing, so a slow lookup reads as under way rather than as no icon at all. The pulse only changes
+ * the layer's alpha while drawing, so it never recomposes or lays the tile out again.
+ */
+@Composable
+private fun IconSkeleton(shape: Shape, isTelevision: Boolean) {
+    val pulse = rememberInfiniteTransition(label = "iconSkeleton")
+    val alpha by pulse.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = 800), RepeatMode.Reverse),
+        label = "iconSkeletonAlpha",
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer { this.alpha = alpha }
+            // The card is the tile's own background on TV; off TV the skeleton draws it.
+            .then(if (isTelevision) Modifier else Modifier.clip(shape))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+    )
+}
+

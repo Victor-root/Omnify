@@ -92,7 +92,14 @@ class ExternalRefresher @Inject constructor(
                 lastRefreshAt = 0L
                 return
             }
-            tracked.forEach { app -> refreshOne(app) }
+            ExternalIconCache.markPending(tracked.filter(::iconStillToFind).map { it.key })
+            tracked.forEach { app ->
+                try {
+                    refreshOne(app)
+                } finally {
+                    ExternalIconCache.clearPending(app.key)
+                }
+            }
             // Once a day, re-scan each enabled account for newly published apps (the apps it already
             // found are refreshed by the loop above). Disabled accounts and never-scanned ones (handled
             // by the ViewModel's init watcher) are skipped, so this barely adds to the API cost.
@@ -298,9 +305,21 @@ class ExternalRefresher @Inject constructor(
      * Each APK is read once ([ExternalApp.apkReadFrom]), whatever came of it.
      */
     suspend fun readApkIconAndName(app: ExternalApp) {
-        readApk(app)
+        if (iconStillToFind(app)) ExternalIconCache.markPending(listOf(app.key))
+        try {
+            readApk(app)
+        } finally {
+            ExternalIconCache.clearPending(app.key)
+        }
         applyApkLabels(app.repoKey)
     }
+
+    /** Whether [app] has no icon of its own yet that a refresh may still find: in its repository, not
+     *  scanned yet, or in an APK not read yet, including the one of a release not looked up yet. */
+    private fun iconStillToFind(app: ExternalApp): Boolean =
+        app.repoIconUrl == null && !app.iconOverridden &&
+            !ExternalIconCache.iconFile(context, app.key).exists() &&
+            (!app.iconChecked || app.apkReadFrom != app.latestApkUrl || (app.latestApkUrl == null && app.enabled))
 
     private suspend fun readApk(app: ExternalApp) {
         val apkUrl = app.latestApkUrl ?: return
