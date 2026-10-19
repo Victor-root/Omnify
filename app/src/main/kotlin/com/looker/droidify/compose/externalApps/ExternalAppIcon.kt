@@ -259,8 +259,8 @@ fun ExternalAppIcon(
 private fun IconSkeleton(shape: Shape, isTelevision: Boolean) {
     val pulse = rememberInfiniteTransition(label = "iconSkeleton")
     val alpha by pulse.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.8f,
+        initialValue = 0.10f,
+        targetValue = 0.28f,
         animationSpec = infiniteRepeatable(tween(durationMillis = 800), RepeatMode.Reverse),
         label = "iconSkeletonAlpha",
     )
@@ -270,7 +270,9 @@ private fun IconSkeleton(shape: Shape, isTelevision: Boolean) {
             .graphicsLayer { this.alpha = alpha }
             // The card is the tile's own background on TV; off TV the skeleton draws it.
             .then(if (isTelevision) Modifier else Modifier.clip(shape))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            // The text colour, faded: stands out on any background, light or dark, where a surface tone
+            // nearly matched the list behind it.
+            .background(MaterialTheme.colorScheme.onSurface),
     )
 }
 
