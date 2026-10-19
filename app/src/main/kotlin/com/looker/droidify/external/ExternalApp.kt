@@ -123,14 +123,27 @@ data class ExternalApp(
      *  repositories screen, rather than mixed in alphabetically with every other curated pick. Meaningless
      *  when [curated] is false. */
     val curatedTv: Boolean = false,
+    /** Which app of the repository this source follows, when the repository publishes several and more
+     *  than one is followed (ente-io/ente's Auth and Photos, or nullcpy/rvb whose every release carries
+     *  APKs of a dozen different apps). Part of [key], so each followed app is a source of its own,
+     *  with its own install, updates, favourite and hidden state. Empty for a source following the
+     *  repository as a whole, which is every source added before this existed: their key is unchanged.
+     *  Set once when the source is added and never edited afterwards, so the key stays stable even
+     *  when the filters pinning the app are changed. */
+    val variant: String = "",
 ) {
     /** The host actually called: [host] when set, otherwise the provider's public default. */
     val effectiveHost: String
         get() = host.ifEmpty { publicHost(provider) }
 
     /** Stable identity for lists / de-duplication (provider- and host-scoped, so the same owner/repo on
-     *  two instances stays distinct). Keeps the old format for public sources so existing data matches. */
+     *  two instances stays distinct, and [variant]-scoped, so two apps followed in one repository do
+     *  too). Keeps the old format for public sources so existing data matches. */
     val key: String
+        get() = if (variant.isEmpty()) repoKey else "$repoKey$VARIANT_SEPARATOR$variant"
+
+    /** [key] without the [variant]: the repository itself, shared by every app followed in it. */
+    val repoKey: String
         get() = if (host.isEmpty()) {
             "${provider.name}/$owner/$repo"
         } else {
@@ -372,6 +385,10 @@ data class ExternalApp(
          *  the sources list and only toggleable (no edit/remove) since it's the app's own channel. */
         const val OMNIFY_REPO_KEY = "GITHUB/Victor-root/Omnify"
 
+        /** Between [repoKey] and [variant] in [key]. Never part of a repository path, so a key can
+         *  always be told apart from the repository's own. */
+        const val VARIANT_SEPARATOR = "#"
+
         /** What marks a build, a tag or an APK file name as belonging to the beta channel. Gradle puts
          *  it there itself (the build type's versionNameSuffix, which the APK file name is derived
          *  from), so it is never typed by hand at release time. */
@@ -411,6 +428,15 @@ fun List<ExternalApp>.shownOnExternalTab(hiddenKeys: Set<String>): List<External
  * reads as a deliberately chosen style rather than a raw slug; only a plain lowercase one gets its
  * first letter capitalised.
  */
+/**
+ * [name] as an [ExternalApp.variant]: lower case, every run of anything but letters and digits turned
+ * into a single hyphen ("Photos Desktop" and "photos_desktop" both become "photos-desktop").
+ */
+fun variantOf(name: String): String =
+    name.lowercase().replace(NON_VARIANT_CHARS, "-").trim('-')
+
+private val NON_VARIANT_CHARS = Regex("[^a-z0-9]+")
+
 internal fun prettifyRepoName(repo: String): String = when {
     repo.any { it == '-' || it == '_' } -> repo.split('-', '_')
         .filter { it.isNotEmpty() }

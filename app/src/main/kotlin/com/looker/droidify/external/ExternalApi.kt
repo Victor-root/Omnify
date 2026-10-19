@@ -162,6 +162,7 @@ class ExternalApi @Inject constructor(
             !nonPrerelease.isNullOrEmpty() &&
                 nonPrerelease.all { it.matchesExcludeFilter(app.versionExcludeFilter) } ->
                 ReleaseLookup.AllExcludedByFilter
+            releases.missApkFilter(app) -> ReleaseLookup.NoneMatchApkFilter
             else -> ReleaseLookup.NoCompatibleApk
         }
         if (lookup !is ReleaseLookup.Found) {
@@ -179,12 +180,12 @@ class ExternalApi @Inject constructor(
     }
 
     /**
-     * The apps published side by side in [app]'s release stream (see [releaseFamilies]), among the
-     * releases its current settings could offer. Fewer than two means there is nothing to choose
+     * The apps [app]'s repository publishes (see [appFamilies]), among the releases its current settings
+     * could offer. Fewer than two means there is nothing to choose
      * between. Samples past the first page, since one app can crowd the others out of it. Empty on
      * failure.
      */
-    suspend fun releaseFamiliesFor(app: ExternalApp): List<ReleaseFamily> = withContext(Dispatchers.IO) {
+    suspend fun appFamiliesFor(app: ExternalApp): List<ReleaseFamily> = withContext(Dispatchers.IO) {
         val releases = runCatching {
             fetchReleases(
                 app.provider, app.effectiveHost, app.owner, app.repo,
@@ -192,7 +193,7 @@ class ExternalApi @Inject constructor(
                 isQualifying = { it.isOfferableFor(app) },
             )
         }.getOrNull().orEmpty()
-        releaseFamilies(releases.filter { it.isOfferableFor(app) }, unmarkedName = prettifyRepoName(app.repo))
+        appFamilies(releases.filter { it.isOfferableFor(app) }, unmarkedName = prettifyRepoName(app.repo))
     }
 
     /**
@@ -789,6 +790,8 @@ class ExternalApi @Inject constructor(
     private suspend fun genuineReleaseNotes(app: ExternalApp): List<Release> {
         val notes = fetchReleases(app.provider, app.effectiveHost, app.owner, app.repo)
             .filterNot { it.body.isNullOrBlank() }
+            // One app among several in the repository: the other apps' notes aren't its changelog.
+            .filter { app.variant.isEmpty() || it.isOfferableFor(app) }
             .take(CHANGELOG_RELEASE_NOTES_LIMIT)
         val looksGenuine = notes.size <= 1 || notes.map { it.body }.distinct().size > 1
         return if (looksGenuine) notes else emptyList()
@@ -861,7 +864,7 @@ class ExternalApi @Inject constructor(
      * excluded (several unstable channels sharing one repo, e.g. a browser's Nightly/Beta/Stable)
      * still surfaces real candidates instead of giving up after the first page. Returns everything
      * fetched, not just the qualifying ones, so callers keep their own filtering/ordering logic.
-     * Shared by [latestReleaseLookup] (pick one to offer), [releaseFamiliesFor] (tell apps apart) and
+     * Shared by [latestReleaseLookup] (pick one to offer), [appFamiliesFor] (tell apps apart) and
      * [releaseHistory] (lists them for the user to choose from) with a matching [isQualifying], and by
      * [genuineReleaseNotes] (default arguments: any single non-empty page is "enough"). Empty (not
      * null/throwing) when the very first request fails.
@@ -1037,19 +1040,27 @@ class ExternalApi @Inject constructor(
         isAllowedBy(app.includePrereleases, app.versionIncludeFilter, app.versionExcludeFilter) &&
             hasApkMatchingFilter(app.apkFilter)
 
+    /** Whether the releases [app]'s settings allow ship APKs, none of them matching its APK filter. */
+    private fun List<Release>.missApkFilter(app: ExternalApp): Boolean {
+        val allowed = allowedBy(app.includePrereleases, app.versionIncludeFilter, app.versionExcludeFilter)
+        return allowed.any { it.hasApkMatchingFilter(null) } &&
+            allowed.none { it.hasApkMatchingFilter(app.apkFilter) }
+    }
+
     /**
      * From a newest-first list of releases, picks the newest [app] allows that ships an APK this device
      * can actually install, honouring its APK name filter. Failing that, the newest whose APK matches
      * the filter at all, whatever its architecture: in a repository publishing several apps, that is
-     * still the right app, where any other release may not be. Only when the filter matches nothing in
-     * the whole window (a typo) does it degrade to the newest release shipping *any* APK, so a typo
-     * never leaves the user with nothing. Releases with no APK at all are ignored.
+     * still the right app, where any other release may not be. Never a release whose APKs all miss the
+     * filter: in a repository publishing several apps (nullcpy/rvb carries a dozen in every release),
+     * that is another app altogether, and offering it would install something the person never asked
+     * for. A filter that matches nothing is reported instead ([ReleaseLookup.NoneMatchApkFilter]), so a
+     * typo shows up as one. Releases with no APK at all are ignored.
      */
     private fun List<Release>.pickInstallable(app: ExternalApp): Release? {
         val candidates = allowedBy(app.includePrereleases, app.versionIncludeFilter, app.versionExcludeFilter)
         return candidates.firstOrNull { it.hasCompatibleApk(filter = app.apkFilter) }
             ?: candidates.firstOrNull { it.hasApkMatchingFilter(app.apkFilter) }
-            ?: candidates.firstOrNull { it.hasApkMatchingFilter(null) }
     }
 
     /**
@@ -1172,7 +1183,7 @@ class ExternalApi @Inject constructor(
          *  (several unstable channels sharing one repo, e.g. a browser's Nightly/Beta/Stable). */
         const val RELEASE_FETCH_MAX_PAGES = 5
 
-        /** How many offerable releases [releaseFamiliesFor] looks through before deciding which apps a
+        /** How many offerable releases [appFamiliesFor] looks through before deciding which apps a
          *  repository publishes: enough to reach past one app crowding the others out of the first page. */
         const val RELEASE_FAMILY_SAMPLE = 50
 

@@ -396,7 +396,7 @@ fun TvRepoListScreen(
     if (showAddExternal) {
         val addState by externalViewModel.addState.collectAsStateWithLifecycle()
         val addError by externalViewModel.addError.collectAsStateWithLifecycle()
-        val releaseFamilies by externalViewModel.releaseFamilies.collectAsStateWithLifecycle()
+        val appFamilies by externalViewModel.appFamilies.collectAsStateWithLifecycle()
         val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
         val githubRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
         LaunchedEffect(addState) {
@@ -409,7 +409,7 @@ fun TvRepoListScreen(
         AddExternalSourceDialog(
             isLoading = addState != AddSourceState.IDLE,
             errorMessage = addError,
-            releaseFamilies = releaseFamilies,
+            appFamilies = appFamilies,
             hasGithubToken = hasGithubToken,
             githubRemaining = githubRemaining,
             initialUrl = prefillUrl,
@@ -418,18 +418,8 @@ fun TvRepoListScreen(
                 prefillUrl = ""
                 externalViewModel.consumeAddState()
             },
-            onAdd = { url, includePrereleases, customName, muteUpdates, apkFilter, versionIncludeFilter,
-                versionExcludeFilter ->
-                externalViewModel.addSource(
-                    url = url,
-                    includePrereleases = includePrereleases,
-                    customName = customName,
-                    muteUpdates = muteUpdates,
-                    apkFilter = apkFilter,
-                    versionIncludeFilter = versionIncludeFilter,
-                    versionExcludeFilter = versionExcludeFilter,
-                )
-            },
+            onAdd = externalViewModel::addSource,
+            onAddFamilies = externalViewModel::addFamilies,
         )
     }
     editingExternal?.let { app ->

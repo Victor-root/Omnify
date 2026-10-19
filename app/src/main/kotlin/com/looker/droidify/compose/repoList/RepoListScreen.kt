@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -53,6 +54,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -72,6 +74,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
@@ -88,6 +91,7 @@ import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.externalApps.AddSourceState
+import com.looker.droidify.compose.externalApps.AppFamilyChoice
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.PendingSharedSource
@@ -98,7 +102,6 @@ import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ReleaseFamily
 import com.looker.droidify.external.apkFileName
-import com.looker.droidify.external.keywordFiltersFor
 import com.looker.droidify.model.Repository
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -474,7 +477,7 @@ fun RepoListScreen(
     if (showAddExternal) {
         val addState by externalViewModel.addState.collectAsStateWithLifecycle()
         val addError by externalViewModel.addError.collectAsStateWithLifecycle()
-        val releaseFamilies by externalViewModel.releaseFamilies.collectAsStateWithLifecycle()
+        val appFamilies by externalViewModel.appFamilies.collectAsStateWithLifecycle()
         val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
         val githubRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
         // Keep the dialog up (with a spinner) until the add actually finishes, then close on success —
@@ -492,7 +495,7 @@ fun RepoListScreen(
             // frame before closing — a visible flash, most obvious with a pre-filled shared URL.
             isLoading = addState != AddSourceState.IDLE,
             errorMessage = addError,
-            releaseFamilies = releaseFamilies,
+            appFamilies = appFamilies,
             hasGithubToken = hasGithubToken,
             githubRemaining = githubRemaining,
             initialUrl = prefillUrl,
@@ -501,18 +504,8 @@ fun RepoListScreen(
                 prefillUrl = ""
                 externalViewModel.consumeAddState()
             },
-            onAdd = { url, includePrereleases, customName, muteUpdates, apkFilter, versionIncludeFilter,
-                versionExcludeFilter ->
-                externalViewModel.addSource(
-                    url = url,
-                    includePrereleases = includePrereleases,
-                    customName = customName,
-                    muteUpdates = muteUpdates,
-                    apkFilter = apkFilter,
-                    versionIncludeFilter = versionIncludeFilter,
-                    versionExcludeFilter = versionExcludeFilter,
-                )
-            },
+            onAdd = externalViewModel::addSource,
+            onAddFamilies = externalViewModel::addFamilies,
         )
     }
     editingExternal?.let { app ->
@@ -1198,12 +1191,22 @@ private fun GithubLimitHint(remaining: Int?) {
 internal fun AddExternalSourceDialog(
     isLoading: Boolean,
     errorMessage: String?,
-    releaseFamilies: List<ReleaseFamily>,
+    appFamilies: List<AppFamilyChoice>,
     hasGithubToken: Boolean,
     githubRemaining: Int?,
     onDismiss: () -> Unit,
     onAdd: (
         url: String,
+        includePrereleases: Boolean,
+        customName: String,
+        muteUpdates: Boolean,
+        apkFilter: String,
+        versionIncludeFilter: String,
+        versionExcludeFilter: String,
+    ) -> Unit,
+    onAddFamilies: (
+        url: String,
+        families: List<ReleaseFamily>,
         includePrereleases: Boolean,
         customName: String,
         muteUpdates: Boolean,
@@ -1231,7 +1234,21 @@ internal fun AddExternalSourceDialog(
             versionExcludeFilter,
         )
     }
-    val pickingFamily = !isLoading && releaseFamilies.isNotEmpty()
+    val pickingFamily = !isLoading && appFamilies.isNotEmpty()
+    // The apps ticked in the picker, by variant. Reset whenever a new repository's apps come in.
+    val picked = remember(appFamilies) { mutableStateListOf<String>() }
+    val submitFamilies = {
+        onAddFamilies(
+            url,
+            appFamilies.map { it.family }.filter { it.variant in picked },
+            includePrereleases,
+            name,
+            muteUpdates,
+            apkFilter,
+            versionIncludeFilter,
+            versionExcludeFilter,
+        )
+    }
     AlertDialog(
         // Stay cancellable even while loading, so a slow/stuck request can't trap the user.
         onDismissRequest = onDismiss,
@@ -1256,21 +1273,11 @@ internal fun AddExternalSourceDialog(
                     )
                 }
             } else if (pickingFamily) {
-                // The form's own filters are what pins the source to the picked app, so they are
-                // updated before submitting again: a later failure brings the form back showing them.
-                ReleaseFamilyPicker(
-                    families = releaseFamilies,
-                    apkFilter = apkFilter,
-                    onPick = { family ->
-                        val (include, exclude) = releaseFamilies.keywordFiltersFor(
-                            family,
-                            include = versionIncludeFilter,
-                            exclude = versionExcludeFilter,
-                        )
-                        versionIncludeFilter = include
-                        versionExcludeFilter = exclude
-                        submit()
-                    },
+                AppFamilyPicker(
+                    choices = appFamilies,
+                    picked = picked,
+                    errorMessage = errorMessage,
+                    onToggle = { variant -> if (!picked.remove(variant)) picked += variant },
                 )
             } else {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -1315,10 +1322,10 @@ internal fun AddExternalSourceDialog(
             }
         },
         confirmButton = {
-            if (!isLoading && !pickingFamily) {
+            if (!isLoading) {
                 TextButton(
-                    onClick = submit,
-                    enabled = url.isNotBlank(),
+                    onClick = if (pickingFamily) submitFamilies else submit,
+                    enabled = if (pickingFamily) picked.isNotEmpty() else url.isNotBlank(),
                 ) {
                     Text(stringResource(R.string.external_add))
                 }
@@ -1331,40 +1338,64 @@ internal fun AddExternalSourceDialog(
 }
 
 /**
- * Asks which app to follow in a repository publishing several in the same release stream: one row per
- * app, with its newest release's tag and APK so it can be told apart even when its name is cryptic.
- * Picking one submits at once, like the app's other single-choice dialogs.
+ * Asks which apps to follow in a repository publishing several: one row per app, ticked or not, with its
+ * newest release's tag and APK so it can be told apart even when its name is cryptic. An app a source
+ * already follows stays ticked and can't be picked again.
  */
 @Composable
-private fun ReleaseFamilyPicker(
-    families: List<ReleaseFamily>,
-    apkFilter: String,
-    onPick: (ReleaseFamily) -> Unit,
+private fun AppFamilyPicker(
+    choices: List<AppFamilyChoice>,
+    picked: List<String>,
+    errorMessage: String?,
+    onToggle: (variant: String) -> Unit,
 ) {
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         Text(
-            text = stringResource(R.string.external_pick_release_family),
+            text = stringResource(R.string.external_pick_app_families),
             style = MaterialTheme.typography.bodyMedium,
         )
+        // A failure for one of the picked apps, shown here since the picker stays up for another try.
+        if (errorMessage != null) {
+            Spacer(Modifier.size(8.dp))
+            Text(
+                text = errorMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
         Spacer(Modifier.size(8.dp))
-        families.forEach { family ->
-            Column(
+        choices.forEach { (family, followed) ->
+            val variant = family.variant
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
                     // TV only: a soft accent fill behind the focused option (no-op on touch).
                     .tvFocusFill(RoundedCornerShape(8.dp))
-                    .clickable { onPick(family) }
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                    .toggleable(
+                        value = followed || variant in picked,
+                        enabled = !followed,
+                        role = Role.Checkbox,
+                        onValueChange = { onToggle(variant) },
+                    )
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
             ) {
-                Text(text = family.name, style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    text = listOfNotNull(family.latest.tag, family.latest.apkFileName(filter = apkFilter))
-                        .joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Checkbox(checked = followed || variant in picked, onCheckedChange = null, enabled = !followed)
+                Column(modifier = Modifier.padding(start = 8.dp)) {
+                    Text(text = family.name, style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = if (followed) {
+                            stringResource(R.string.external_family_followed)
+                        } else {
+                            val apkName = family.latest.apkFileName(filter = family.apkFilter)
+                            listOfNotNull(family.latest.tag, apkName).joinToString(" · ")
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

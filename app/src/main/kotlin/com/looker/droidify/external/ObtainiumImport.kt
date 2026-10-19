@@ -34,6 +34,11 @@ data class ObtainiumImport(
  *  - `appName`, the name the person gave the app, which stays theirs.
  * Anything else, `trackOnly` among it, has no counterpart and is left out.
  *
+ * Obtainium can follow one repository several times, each time for another app told apart by those
+ * settings (nullcpy/rvb carries a dozen apps in every release, each followed with its own APK filter).
+ * Each becomes a source of its own, an [ExternalApp.variant] named after the app; the same repository
+ * followed twice with the very same settings is one source.
+ *
  * Throws [IllegalArgumentException] when the text is not an Obtainium export at all.
  */
 fun parseObtainiumExport(text: String): ObtainiumImport {
@@ -45,17 +50,38 @@ fun parseObtainiumExport(text: String): ObtainiumImport {
         else -> null
     } ?: throw IllegalArgumentException("No app list")
 
-    val apps = LinkedHashMap<String, ExternalApp>()
+    val apps = mutableListOf<ExternalApp>()
     val unsupported = mutableListOf<String>()
     entries.filterIsInstance<JsonObject>().forEach { entry ->
         val app = entry.toExternalApp()
         if (app == null) {
             unsupported += entry.string("name") ?: entry.string("url") ?: "?"
-        } else {
-            apps.putIfAbsent(app.key, app)
+        } else if (apps.none { it.repoKey == app.repoKey && it.followsSameAppAs(app) }) {
+            apps += app
         }
     }
-    return ObtainiumImport(apps.values.toList(), unsupported)
+    return ObtainiumImport(apps.withVariants(), unsupported)
+}
+
+/** Whether two sources of one repository pick the same releases and APKs, and so are the same app. */
+private fun ExternalApp.followsSameAppAs(other: ExternalApp): Boolean =
+    apkFilter == other.apkFilter &&
+        versionIncludeFilter == other.versionIncludeFilter &&
+        includePrereleases == other.includePrereleases
+
+/** Gives every app of a repository followed more than once a [ExternalApp.variant] of its own, from its
+ *  name, numbered when two share one. */
+private fun List<ExternalApp>.withVariants(): List<ExternalApp> {
+    val shared = groupingBy { it.repoKey }.eachCount().filterValues { it > 1 }.keys
+    val taken = mutableSetOf<String>()
+    return map { app ->
+        if (app.repoKey !in shared) return@map app
+        val base = variantOf(app.label).ifEmpty { "app" }
+        val variant = generateSequence(1) { it + 1 }
+            .map { if (it == 1) base else "$base-$it" }
+            .first { taken.add("${app.repoKey}${ExternalApp.VARIANT_SEPARATOR}$it") }
+        app.copy(variant = variant)
+    }
 }
 
 private fun JsonObject.toExternalApp(): ExternalApp? {
