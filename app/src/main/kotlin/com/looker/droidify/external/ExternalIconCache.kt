@@ -7,6 +7,10 @@ import coil3.BitmapImage
 import coil3.SingletonImageLoader
 import coil3.asImage
 import coil3.memory.MemoryCache
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import java.io.File
 import java.io.FileOutputStream
 
@@ -19,6 +23,17 @@ import java.io.FileOutputStream
 object ExternalIconCache {
 
     private val unsafeChars = Regex("[^A-Za-z0-9._-]")
+
+    private val _pending = MutableStateFlow<Set<String>>(emptySet())
+
+    /** Keys of the sources whose icon is being looked for right now ([ExternalRefresher]), so their tile
+     *  can show one is on its way rather than settle on the account's avatar, which on a slow connection
+     *  looked like the icon had failed. */
+    val pending: StateFlow<Set<String>> = _pending.asStateFlow()
+
+    fun markPending(keys: Collection<String>) = _pending.update { it + keys }
+
+    fun clearPending(key: String) = _pending.update { it - key }
 
     /** Created once per process (nothing ever removes it) rather than on every [iconFile] call, which
      *  every external app icon shown makes on the main thread. */
