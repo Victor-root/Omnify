@@ -1077,8 +1077,9 @@ private fun ExternalAccountItem(
     }
 }
 
-/** Asks which kind of source to add: an F-Droid repository, a single external repo/app, or a whole
- *  external account (all of its apps), explaining each, then routes to the matching add flow. */
+/** Asks which kind of source to add: an F-Droid repository, a single external repo/app, a whole
+ *  external account (all of its apps) or an Obtainium export, explaining each, then routes to the
+ *  matching add flow. */
 @Composable
 internal fun AddSourceChooserDialog(
     onDismiss: () -> Unit,
@@ -1091,7 +1092,9 @@ internal fun AddSourceChooserDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.add_source_title)) },
         text = {
-            Column {
+            // Scrolls: the dialog caps its height, and on a small or large-font screen the last options
+            // would otherwise be squeezed out of sight.
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 AddSourceOption(
                     iconRes = R.drawable.ic_tabler_box,
                     title = stringResource(R.string.add_source_fdroid),
