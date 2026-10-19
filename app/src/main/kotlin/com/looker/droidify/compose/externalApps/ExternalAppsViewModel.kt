@@ -1314,7 +1314,7 @@ class ExternalAppsViewModel @Inject constructor(
             return null
         }
         // In the background: the dialog doesn't wait on it, and the icon shows up once read.
-        viewModelScope.launch { externalRefresher.readApkIcon(added) }
+        viewModelScope.launch { externalRefresher.readApkIconAndName(added) }
         return resolvedLabel
     }
 
@@ -1626,7 +1626,7 @@ class ExternalAppsViewModel @Inject constructor(
             val overridden = trimmedName.isNotEmpty()
             val label = when {
                 overridden -> trimmedName
-                else -> externalRefresher.installedLabelOf(app) ?: app.defaultLabel
+                else -> externalRefresher.installedLabelOf(app) ?: app.uninstalledLabel(apps.value)
             }
             val trimmedFilter = apkFilter.trim().ifEmpty { null }
             val trimmedIncludeFilter = versionIncludeFilter.trim().ifEmpty { null }

@@ -132,10 +132,13 @@ data class ExternalApp(
      *  Set once when the source is added and never edited afterwards, so the key stays stable even
      *  when the filters pinning the app are changed. */
     val variant: String = "",
-    /** The APK whose launcher icon was last drawn into [ExternalIconCache] for want of any other picture
-     *  before installing (see ExternalRefresher.readApkIcon): set whether or not that worked, so the same
-     *  APK is never read twice, and only a new release is tried again. */
-    val apkIconRenderedFrom: String? = null,
+    /** The APK last read for an icon to draw into [ExternalIconCache] and a name ([apkLabel]) for want
+     *  of anything better before installing (see ExternalRefresher.readApkIconAndName): set whether or
+     *  not that worked, so the same APK is never read twice, and only a new release is tried again. */
+    val apkReadFrom: String? = null,
+    /** The app's own name, as its APK declares it in the device's language ("Ricardo nem lopot" where
+     *  the file only says rikardo-nemlopot-smart123s). Null until read. See [uninstalledLabel]. */
+    val apkLabel: String? = null,
     /** The signing certificates (SHA-256, lower-case hex) of the APK at [apkSignersFrom], read from its
      *  signing block. Empty while unknown. What tells this source's own build from another one installed
      *  under the same package name: see [isForeignCopy]. */
@@ -165,6 +168,25 @@ data class ExternalApp(
     /** The name shown when there is nothing better: the app's own within its repository for one app
      *  among several ([variant]), the repository's otherwise, both made readable. */
     val defaultLabel: String get() = prettifyRepoName(variant.ifEmpty { repo })
+
+    /** Whether [label] is still one Omnify picked rather than the user or the installed app: then
+     *  [uninstalledLabel] may replace it. */
+    val hasAutomaticLabel: Boolean
+        get() = !nameOverridden && (label == defaultLabel || label == apkLabel)
+
+    /**
+     * The name to show while the app isn't installed: its own ([apkLabel]), unless another app followed
+     * in the same repository already goes by it, which would leave them impossible to tell apart
+     * (nullcpy/rvb's three Google Maps builds all call themselves "Ungoogled Maps"). [defaultLabel],
+     * read off the file names, otherwise.
+     */
+    fun uninstalledLabel(followed: List<ExternalApp>): String {
+        val name = apkLabel ?: return defaultLabel
+        val taken = followed
+            .filter { it.repoKey == repoKey && it.key != key }
+            .any { name.equals(it.apkLabel, ignoreCase = true) || name.equals(it.label, ignoreCase = true) }
+        return if (taken) defaultLabel else name
+    }
 
     /** "owner/repo", shown in the UI. */
     val path: String get() = "$owner/$repo"

@@ -242,7 +242,7 @@ class ExternalRefresher @Inject constructor(
                 ),
             )
         }
-        repository.getApps().firstOrNull { it.key == app.key }?.let { readApkIcon(it) }
+        repository.getApps().firstOrNull { it.key == app.key }?.let { readApkIconAndName(it) }
     }
 
     /**
@@ -285,51 +285,89 @@ class ExternalRefresher @Inject constructor(
         app.packageName?.takeIf { hasOwnCopyInstalled(app) }?.let(::installedLabel)
 
     /**
-     * Reads [app]'s launcher icon out of its latest APK ([renderApkIcon], a few range requests rather
-     * than the whole file) into [ExternalIconCache], when nothing else would show one before it is
-     * installed: no icon found in the repository, none picked by the user, none composed or read
-     * already, and the app not installed (its own icon is then used). A repository holding no app source
-     * at all, such as nullcpy/rvb which only publishes built APKs, otherwise shows the account's avatar
-     * for every app in it. Each APK is read once ([ExternalApp.apkIconRenderedFrom]), whatever came of it.
+     * Reads [app]'s launcher icon and name out of its latest APK ([readApk], a few range requests rather
+     * than the whole file), for want of anything better before it is installed, then names the apps
+     * followed in its repository after their APKs where that tells them apart
+     * ([ExternalApp.uninstalledLabel]). A repository holding no app source at all, such as nullcpy/rvb
+     * which only publishes built APKs, otherwise shows the account's avatar for every app in it, under a
+     * name read off its file names.
+     *
+     * The icon is read into [ExternalIconCache] when there is none found in the repository, picked by
+     * the user, composed or read already; the name ([ExternalApp.apkLabel]) once, while the label is
+     * still Omnify's own pick. Neither while the app is installed: its own icon and name are used then.
+     * Each APK is read once ([ExternalApp.apkReadFrom]), whatever came of it.
      */
-    suspend fun readApkIcon(app: ExternalApp) {
-        val apkUrl = app.latestApkUrl ?: return
-        if (app.apkIconRenderedFrom == apkUrl || app.repoIconUrl != null || app.iconOverridden) return
-        if (hasOwnCopyInstalled(app)) return
-        if (ExternalIconCache.iconFile(context, app.key).exists()) return
-        val bitmap = renderApkIcon(apkUrl)
-        if (BuildConfig.DEBUG) Log.d(TAG, "icon read from the APK of ${app.key}: ${bitmap != null}")
-        bitmap?.let { ExternalIconCache.save(context, app.key, it) }
-        val current = repository.getApps().firstOrNull { it.key == app.key } ?: return
-        repository.upsertApp(current.copy(apkIconRenderedFrom = apkUrl))
+    suspend fun readApkIconAndName(app: ExternalApp) {
+        readApk(app)
+        applyApkLabels(app.repoKey)
     }
 
+    private suspend fun readApk(app: ExternalApp) {
+        val apkUrl = app.latestApkUrl ?: return
+        if (app.apkReadFrom == apkUrl || hasOwnCopyInstalled(app)) return
+        val needsIcon = app.repoIconUrl == null && !app.iconOverridden &&
+            !ExternalIconCache.iconFile(context, app.key).exists()
+        val needsName = app.apkLabel == null && app.hasAutomaticLabel
+        if (!needsIcon && !needsName) return
+        val read = fetchApkIconAndName(apkUrl)
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "read from the APK of ${app.key}: icon=${read?.icon != null} name=${read?.label}")
+        }
+        if (needsIcon) read?.icon?.let { ExternalIconCache.save(context, app.key, it) }
+        val current = repository.getApps().firstOrNull { it.key == app.key } ?: return
+        repository.upsertApp(
+            current.copy(
+                apkReadFrom = apkUrl,
+                apkLabel = read?.label ?: current.apkLabel,
+            ),
+        )
+    }
+
+    /** Names each app followed in [repoKey] whose label is still Omnify's own pick after its APK, or
+     *  back after its files when another one now goes by the same name ([ExternalApp.uninstalledLabel]). */
+    private suspend fun applyApkLabels(repoKey: String) {
+        val followed = repository.getApps()
+        val relabelled = followed
+            .filter { it.repoKey == repoKey && it.hasAutomaticLabel && !hasOwnCopyInstalled(it) }
+            .mapNotNull { app ->
+                app.uninstalledLabel(followed).takeIf { it != app.label }?.let { app.copy(label = it) }
+            }
+        repository.upsertApps(relabelled)
+    }
+
+    /** What [fetchApkIconAndName] found in an APK; either may be missing. */
+    private class ApkIconAndName(val icon: Bitmap?, val label: String?)
+
     /**
-     * [apkUrl]'s launcher icon drawn by Android itself, from a copy of the APK holding only what the
-     * icon is made of ([RemoteApkIconReader.fetchIconArchive]): an adaptive icon comes out composed and
-     * shaped as the device's launcher draws it, which is also the only way to show an app shipping no
-     * plain image of its icon at all, such as the Google Maps builds of nullcpy/rvb.
+     * [apkUrl]'s launcher icon and name, drawn and read by Android itself from a copy of the APK holding
+     * only what the icon is made of ([RemoteApkIconReader.fetchIconArchive]) and the resource table the
+     * name comes from: an adaptive icon comes out composed and shaped as the device's launcher draws it,
+     * which is also the only way to show an app shipping no plain image of its icon at all, such as the
+     * Google Maps builds of nullcpy/rvb; the name comes in the device's language.
      */
-    private suspend fun renderApkIcon(apkUrl: String): Bitmap? = withContext(Dispatchers.IO) {
+    private suspend fun fetchApkIconAndName(apkUrl: String): ApkIconAndName? = withContext(Dispatchers.IO) {
         val archive = runCatching { File.createTempFile("apk_icon", ".apk", context.cacheDir) }.getOrNull()
             ?: return@withContext null
         try {
             if (!RemoteApkIconReader.fetchIconArchive(downloader, apkUrl, archive)) return@withContext null
             val pm = context.packageManager
-            val info = pm.archiveApplicationInfo(archive.path)?.takeIf { it.icon != 0 }
-                ?: return@withContext null.also {
-                    if (BuildConfig.DEBUG) Log.d(TAG, "icon copy of $apkUrl not readable by Android")
-                }
-            runCatching {
-                ResourcesCompat.getDrawableForDensity(
-                    pm.getResourcesForApplication(info),
-                    info.icon,
-                    DisplayMetrics.DENSITY_XXXHIGH,
-                    null,
-                )?.toBitmap(ICON_SIZE_PX, ICON_SIZE_PX, Bitmap.Config.ARGB_8888)
+            val info = pm.archiveApplicationInfo(archive.path)
+            val resources = info?.let { runCatching { pm.getResourcesForApplication(it) }.getOrNull() }
+            if (info == null || resources == null) {
+                if (BuildConfig.DEBUG) Log.d(TAG, "icon copy of $apkUrl not readable by Android")
+                return@withContext null
+            }
+            val icon = runCatching {
+                ResourcesCompat.getDrawableForDensity(resources, info.icon, DisplayMetrics.DENSITY_XXXHIGH, null)
+                    ?.toBitmap(ICON_SIZE_PX, ICON_SIZE_PX, Bitmap.Config.ARGB_8888)
             }.onFailure {
                 if (BuildConfig.DEBUG) Log.d(TAG, "icon of $apkUrl not drawable", it)
             }.getOrNull()
+            // Not loadLabel(), which answers the package name when there is no name to read.
+            val label = runCatching {
+                info.nonLocalizedLabel?.toString() ?: resources.getString(info.labelRes)
+            }.getOrNull()?.trim()?.takeIf { it.isNotEmpty() }
+            ApkIconAndName(icon, label)
         } finally {
             archive.delete()
         }
