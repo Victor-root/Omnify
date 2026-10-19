@@ -371,12 +371,13 @@ class BackupRepository @Inject constructor(
 
     private suspend fun restoreExternalSources(backup: ExternalSourcesBackup) {
         val existingAppKeys = externalAppRepository.getApps().mapTo(mutableSetOf()) { it.key }
-        // The composed adaptive icon is a file of its own (ExternalIconCache) that a backup doesn't carry,
-        // so each restored source is marked for composing it again rather than left on the fallback.
+        // The composed adaptive icon and the icon read from the APK are files of their own
+        // (ExternalIconCache) that a backup doesn't carry, so each restored source is marked for working
+        // them out again rather than left on the fallback.
         externalAppRepository.upsertApps(
             backup.apps
                 .filter { it.key !in existingAppKeys }
-                .map { it.copy(adaptiveIconChecked = false) },
+                .map { it.copy(adaptiveIconChecked = false, apkIconFrom = null) },
         )
         val existingAccountKeys = externalAppRepository.getAccounts().mapTo(mutableSetOf()) { it.key }
         backup.accounts

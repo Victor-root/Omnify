@@ -1355,25 +1355,24 @@ class ExternalAppsViewModel @Inject constructor(
                     "size=$addApkSize rawAssetSizes=${release.assets.map { it.name to it.size }}",
             )
         }
-        val stored = repository.addApp(
-            app.copy(
-                packageName = packageId,
-                label = resolvedLabel,
-                repoIconUrl = meta?.iconCandidates?.firstOrNull(),
-                // Only mark scanned when the repo was actually read, so a transient failure re-scans on
-                // a later refresh instead of caching an empty / non-TV result.
-                iconChecked = meta != null,
-                adaptiveIconChecked = meta?.adaptiveIconSettled == true,
-                supportsTelevision = meta?.supportsTelevision ?: false,
-                tvChecked = meta != null,
-                latestTag = release.tag,
-                latestApkToken = release.apkVersionToken(filter = app.apkFilter),
-                latestApkName = release.apkFileName(filter = app.apkFilter),
-                latestApkSize = addApkSize,
-                latestApkUrl = release.apkDownloadUrl(filter = app.apkFilter),
-                latestReleaseAt = release.apkUpdatedAtMillis(filter = app.apkFilter),
-            ),
+        val added = app.copy(
+            packageName = packageId,
+            label = resolvedLabel,
+            repoIconUrl = meta?.iconCandidates?.firstOrNull(),
+            // Only mark scanned when the repo was actually read, so a transient failure re-scans on
+            // a later refresh instead of caching an empty / non-TV result.
+            iconChecked = meta != null,
+            adaptiveIconChecked = meta?.adaptiveIconSettled == true,
+            supportsTelevision = meta?.supportsTelevision ?: false,
+            tvChecked = meta != null,
+            latestTag = release.tag,
+            latestApkToken = release.apkVersionToken(filter = app.apkFilter),
+            latestApkName = release.apkFileName(filter = app.apkFilter),
+            latestApkSize = addApkSize,
+            latestApkUrl = release.apkDownloadUrl(filter = app.apkFilter),
+            latestReleaseAt = release.apkUpdatedAtMillis(filter = app.apkFilter),
         )
+        val stored = repository.addApp(added)
         // The list can gain this key while the lookups above are running: an account scan finishing,
         // another add, a restore. Saying "Added" on a write that did not happen is worse than saying it
         // was already there, which it now is either way.
@@ -1381,6 +1380,8 @@ class ExternalAppsViewModel @Inject constructor(
             failAdd(context.getString(R.string.external_already_added, app.path))
             return null
         }
+        // In the background: the dialog doesn't wait on it, and the icon shows up once read.
+        viewModelScope.launch { externalRefresher.readApkIcon(added) }
         return resolvedLabel
     }
 
