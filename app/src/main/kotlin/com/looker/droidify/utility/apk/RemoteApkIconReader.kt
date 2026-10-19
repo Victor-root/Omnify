@@ -87,6 +87,17 @@ object RemoteApkIconReader {
         apkUrl: String,
         expectedTotalSize: Long? = null,
         headers: HeadersBuilder.() -> Unit = {},
+    ): ByteArray? = try {
+        fetchRasterIcon(downloader, apkUrl, expectedTotalSize, headers)
+    } catch (e: DownloadFailed) {
+        null
+    }
+
+    private suspend fun fetchRasterIcon(
+        downloader: Downloader,
+        apkUrl: String,
+        expectedTotalSize: Long?,
+        headers: HeadersBuilder.() -> Unit,
     ): ByteArray? {
         val apk = openIconResources(downloader, apkUrl, expectedTotalSize, headers) ?: return null
         val iconPath = resolveRasterIconPath(apk.table, apk.iconResId)
@@ -102,19 +113,45 @@ object RemoteApkIconReader {
      * an `<inset>`'s drawable…). This is what an app shipping its icon only as an adaptive icon needs,
      * the case [fetchIconBytes] can't serve: confirmed on the Google Maps builds of nullcpy/rvb, whose
      * `mipmap-anydpi/ungoogled_legacy_icon.xml` has no raster config at all, its layers being rasters of
-     * other resources. False, with [target] left incomplete for the caller to delete, when anything
-     * couldn't be read or the icon reaches more than [MAX_ICON_FILES] files or [MAX_ICON_BYTES] in all.
+     * other resources. Anything but [IconArchive.WRITTEN] leaves [target] incomplete, for the caller to
+     * delete.
      */
     suspend fun fetchIconArchive(
         downloader: Downloader,
         apkUrl: String,
         target: File,
         headers: HeadersBuilder.() -> Unit = {},
-    ): Boolean {
-        val apk = openIconResources(downloader, apkUrl, expectedTotalSize = null, headers) ?: return false
-        val files = collectIconFiles(apk)
-            ?: return false.also { logD("$apkUrl: icon resource ${apk.iconResId.toString(16)} not collected") }
-        return runCatching {
+    ): IconArchive = try {
+        writeIconArchive(downloader, apkUrl, target, headers)
+    } catch (e: DownloadFailed) {
+        logD("$apkUrl: a download failed, worth trying again")
+        IconArchive.FAILED
+    }
+
+    /** What [fetchIconArchive] came to. */
+    enum class IconArchive {
+        WRITTEN,
+
+        /** A final answer for this APK: it couldn't be read as one, or its icon reaches more than
+         *  [MAX_ICON_FILES] files or [MAX_ICON_BYTES] in all. */
+        UNAVAILABLE,
+
+        /** A download failed (a dropped or timed-out connection, say): the APK may well be fine. */
+        FAILED,
+    }
+
+    private suspend fun writeIconArchive(
+        downloader: Downloader,
+        apkUrl: String,
+        target: File,
+        headers: HeadersBuilder.() -> Unit,
+    ): IconArchive {
+        val apk = openIconResources(downloader, apkUrl, expectedTotalSize = null, headers)
+            ?: return IconArchive.UNAVAILABLE
+        val files = collectIconFiles(apk) ?: return IconArchive.UNAVAILABLE.also {
+            logD("$apkUrl: icon resource ${apk.iconResId.toString(16)} not collected")
+        }
+        val written = runCatching {
             ZipOutputStream(target.outputStream().buffered()).use { zip ->
                 // First and uncompressed: Android then maps the table straight from the file rather than
                 // inflating a copy in memory, its data starting 4-byte aligned right after this header.
@@ -133,6 +170,13 @@ object RemoteApkIconReader {
                 }
             }
         }.isSuccess
+        return if (written) IconArchive.WRITTEN else IconArchive.UNAVAILABLE
+    }
+
+    /** Thrown on a download that failed rather than answered, so a passing network problem isn't taken
+     *  for a final answer about the APK. */
+    private class DownloadFailed : Exception() {
+        override fun fillInStackTrace(): Throwable = this
     }
 
     /** The remote APK's pieces both [fetchIconBytes] and [fetchIconArchive] start from, with [entry]
@@ -166,8 +210,9 @@ object RemoteApkIconReader {
                 }
                 tailResult.bytes
             }
-            RangeResult.RangeNotSupported, is RangeResult.Failed ->
-                return null.also { logD("$apkUrl: tail fetch failed (range not supported or network error)") }
+            RangeResult.RangeNotSupported ->
+                return null.also { logD("$apkUrl: tail fetch failed (range not supported)") }
+            is RangeResult.Failed -> throw DownloadFailed()
         }
         val centralDir = ApkZipLocator.findCentralDirectory(tail)
             ?: return null.also { logD("$apkUrl: no End-Of-Central-Directory found in ${tail.size}B tail") }
@@ -466,7 +511,8 @@ object RemoteApkIconReader {
         headers: HeadersBuilder.() -> Unit,
     ): ByteArray? = when (val result = downloader.getRange(url, headers)) {
         is RangeResult.Success -> result.bytes
-        RangeResult.RangeNotSupported, is RangeResult.Failed -> null
+        RangeResult.RangeNotSupported -> null
+        is RangeResult.Failed -> throw DownloadFailed()
     }
 
     /** Inflates raw (headerless) DEFLATE data — mirrors [RemoteApkLocaleReader]/[RemoteApkManifestReader]'s
