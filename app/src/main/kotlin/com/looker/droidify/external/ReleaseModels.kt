@@ -45,6 +45,10 @@ sealed class ReleaseLookup {
      *  [ExternalApp.versionIncludeFilter], within the whole window searched. */
     data object NoneMatchIncludeFilter : ReleaseLookup()
 
+    /** No release the source's settings allow ships an APK whose name matches its
+     *  [ExternalApp.apkFilter], within the whole window searched. */
+    data object NoneMatchApkFilter : ReleaseLookup()
+
     /** Releases were found (and, if relevant, pre-releases are allowed) but none of them ships an APK
      *  this device can install. */
     data object NoCompatibleApk : ReleaseLookup()
@@ -296,9 +300,8 @@ private fun ReleaseAsset.isForeignAbi(deviceAbis: List<String>): Boolean {
  * looking down the list for one this device can install. [filter] is applied strictly (see
  * [applyApkFilter]): a release whose assets don't match a real, working filter isn't "compatible", so
  * a release belonging to a different app entirely (a monorepo publishing more than one) can't slip past
- * a filter meant to exclude it. [ExternalApi.pickInstallable]'s own graceful "pick the newest release
- * with any APK at all" fallback still applies typo-tolerance across the whole release window, so this
- * strictness never strands the user over a genuine typo — only over a filter that's actually working.
+ * a filter meant to exclude it. A filter matching nothing at all is reported as such by
+ * [ExternalApi.latestReleaseLookup] rather than worked around with another app's APK.
  */
 fun Release.hasCompatibleApk(
     deviceAbis: List<String> = Build.SUPPORTED_ABIS.toList(),

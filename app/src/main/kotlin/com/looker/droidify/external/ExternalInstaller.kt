@@ -198,6 +198,11 @@ private const val INSTALL_CONFIRM_TIMEOUT_MS = 90_000L
 private val UNSAFE_FILE_CHARS = Regex("[^A-Za-z0-9._-]")
 
 /** Cache file name for a source's release APK. One definition, so the foreground and background install
- *  paths address the same file instead of each downloading its own copy under a slightly different name. */
-internal fun releaseCacheFileName(app: ExternalApp, tag: String?): String =
-    "${app.provider.name}_${app.owner}_${app.repo}_${tag.orEmpty()}.apk".replace(UNSAFE_FILE_CHARS, "_")
+ *  paths address the same file instead of each downloading its own copy under a slightly different name.
+ *  Carries the [ExternalApp.variant]: two apps followed in one repository can share a release (nullcpy/rvb
+ *  publishes a dozen in each), and one must never be installed from the file downloaded for the other. */
+internal fun releaseCacheFileName(app: ExternalApp, tag: String?): String {
+    val variant = app.variant.takeIf { it.isNotEmpty() }?.let { "_$it" }.orEmpty()
+    return "${app.provider.name}_${app.owner}_${app.repo}${variant}_${tag.orEmpty()}.apk"
+        .replace(UNSAFE_FILE_CHARS, "_")
+}

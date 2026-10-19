@@ -34,6 +34,8 @@ import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.external.ExternalAccountRef
 import com.looker.droidify.external.Release
 import com.looker.droidify.external.ReleaseFamily
+import com.looker.droidify.external.filtersFor
+import com.looker.droidify.external.isFollowedBy
 import com.looker.droidify.external.ReleaseLookup
 import com.looker.droidify.external.RepoRef
 import com.looker.droidify.external.apkDownloadUrl
@@ -557,11 +559,10 @@ class ExternalAppsViewModel @Inject constructor(
     private val _addError = MutableStateFlow<String?>(null)
     val addError: StateFlow<String?> = _addError
 
-    /** The apps found side by side in the release stream of the repository being added (see
-     *  [ExternalApi.releaseFamiliesFor]), for the Add dialog to ask which one to follow. Empty unless
-     *  the last add stopped on exactly that question. */
-    private val _releaseFamilies = MutableStateFlow<List<ReleaseFamily>>(emptyList())
-    val releaseFamilies: StateFlow<List<ReleaseFamily>> = _releaseFamilies
+    /** The apps the repository being added publishes (see [ExternalApi.appFamiliesFor]), for the Add
+     *  dialog to ask which ones to follow. Empty unless the last add stopped on exactly that question. */
+    private val _appFamilies = MutableStateFlow<List<AppFamilyChoice>>(emptyList())
+    val appFamilies: StateFlow<List<AppFamilyChoice>> = _appFamilies
 
     /** Acknowledge a finished add so the dialog state resets (called once the dialog has closed). If the
      *  dialog was dismissed while still adding, cancel the in-flight work so a late success can't leave a
@@ -570,7 +571,7 @@ class ExternalAppsViewModel @Inject constructor(
         if (_addState.value == AddSourceState.LOADING) addJob?.cancel()
         _addState.value = AddSourceState.IDLE
         _addError.value = null
-        _releaseFamilies.value = emptyList()
+        _appFamilies.value = emptyList()
     }
 
     private val downloadJobs = mutableMapOf<String, Job>()
@@ -1149,7 +1150,8 @@ class ExternalAppsViewModel @Inject constructor(
         externalApi.fetchIconCandidates(app)
 
     /** Adds a project from a GitHub, GitLab, Codeberg or self-hosted Gitea/Forgejo URL after
-     *  confirming it has a release. */
+     *  confirming it has a release. A repository publishing several apps stops on the question of which
+     *  to follow ([appFamilies]), answered through [addFamilies]. */
     fun addSource(
         url: String,
         includePrereleases: Boolean,
@@ -1160,23 +1162,102 @@ class ExternalAppsViewModel @Inject constructor(
         versionExcludeFilter: String = "",
     ) {
         _addError.value = null
-        _releaseFamilies.value = emptyList()
-        // Shown inline by the dialog, and toasted too: addSource is also reachable with no dialog open
-        // (a "Get it on Omnify" badge tap with the confirmation prompt turned off in Settings), and
-        // that path has nothing else to surface a failure with.
-        fun fail(message: String, long: Boolean = false) {
-            _addError.value = message
-            toast(message, long)
+        _appFamilies.value = emptyList()
+        val trimmedName = customName.trim()
+        launchAdd(url) { base ->
+            val app = base.copy(
+                includePrereleases = includePrereleases,
+                muteUpdates = muteUpdates,
+                apkFilter = apkFilter.trim().ifEmpty { null },
+                versionIncludeFilter = versionIncludeFilter.trim().ifEmpty { null },
+                versionExcludeFilter = versionExcludeFilter.trim().ifEmpty { null },
+                label = trimmedName.ifEmpty { prettifyRepoName(base.repo) },
+                nameOverridden = trimmedName.isNotEmpty(),
+            )
+            // Asked of the repository rather than of [apps]. That flow holds a real list only while
+            // a screen is collecting it and starts out empty, so an add arriving from a badge link,
+            // before any list has been on screen, was checked against nothing at all and no
+            // duplicate was ever found.
+            val followed = repository.getApps().filter { it.repoKey == app.repoKey }
+            var added: String? = null
+            withBusy(app.key) {
+                // A repository publishing several apps (ente-io/ente, or nullcpy/rvb with a dozen in
+                // every release) would otherwise be added as whichever of them released last. The
+                // dialog asks which ones to follow and submits them through addFamilies.
+                val families = externalApi.appFamiliesFor(app)
+                if (families.size > 1) {
+                    val choices = families.map { AppFamilyChoice(it, followed.any(it::isFollowedBy)) }
+                    if (choices.all { it.followed }) {
+                        failAdd(context.getString(R.string.external_already_added, app.path))
+                    } else {
+                        _appFamilies.value = choices
+                    }
+                    return@withBusy
+                }
+                if (followed.isNotEmpty()) {
+                    failAdd(context.getString(R.string.external_already_added, app.path))
+                    return@withBusy
+                }
+                added = addResolved(app)
+            }
+            listOfNotNull(added)
         }
+    }
+
+    /**
+     * Adds the apps picked among [AppFamilyChoice]s the last [addSource] stopped on, each as a source of
+     * its own ([ExternalApp.variant]) pinned to its app by the filters [filtersFor] gives, on top of the
+     * options typed in the dialog. A name typed there is only taken when a single app is picked: two
+     * apps can't both bear it.
+     */
+    fun addFamilies(
+        url: String,
+        families: List<ReleaseFamily>,
+        includePrereleases: Boolean,
+        customName: String,
+        muteUpdates: Boolean,
+        apkFilter: String,
+        versionIncludeFilter: String,
+        versionExcludeFilter: String,
+    ) {
+        val all = _appFamilies.value.map { it.family }
+        _addError.value = null
+        val trimmedName = customName.trim().takeIf { families.size == 1 }.orEmpty()
+        launchAdd(url) { base ->
+            families.mapNotNull { family ->
+                val (apk, include, exclude) =
+                    all.filtersFor(family, apkFilter, versionIncludeFilter, versionExcludeFilter)
+                val app = base.copy(
+                    variant = family.variant,
+                    includePrereleases = includePrereleases,
+                    muteUpdates = muteUpdates,
+                    apkFilter = apk.trim().ifEmpty { null },
+                    versionIncludeFilter = include.trim().ifEmpty { null },
+                    versionExcludeFilter = exclude.trim().ifEmpty { null },
+                    label = trimmedName.ifEmpty { family.name },
+                    nameOverridden = trimmedName.isNotEmpty(),
+                )
+                var added: String? = null
+                withBusy(app.key) { added = addResolved(app) }
+                added
+            }.also { if (it.isNotEmpty()) _appFamilies.value = emptyList() }
+        }
+    }
+
+    /**
+     * Runs an add for [url] with the dialog's spinner up: [block] gets the repository as a bare source
+     * and answers with the names of the apps it added. Closes the dialog when it added any, says which,
+     * and leaves it open on whatever [failAdd] reported otherwise.
+     */
+    private fun launchAdd(url: String, block: suspend (base: ExternalApp) -> List<String>) {
         val ref = parseExternalSource(url)
         if (ref == null) {
-            fail(context.getString(R.string.external_invalid_url))
+            failAdd(context.getString(R.string.external_invalid_url))
             return
         }
-        val trimmedName = customName.trim()
         addJob = viewModelScope.launch {
             _addState.value = AddSourceState.LOADING
-            var added = false
+            var added = emptyList<String>()
             try {
                 // Known public hosts already carry their provider; any other host is probed to see
                 // whether it's a self-hosted Gitea/Forgejo instance.
@@ -1185,130 +1266,122 @@ class ExternalAppsViewModel @Inject constructor(
                     else -> null
                 }
                 if (provider == null) {
-                    fail(context.getString(R.string.external_unsupported_host))
+                    failAdd(context.getString(R.string.external_unsupported_host))
                     return@launch
                 }
-                val app = ExternalApp(
-                    provider = provider,
-                    host = ref.host,
-                    owner = ref.owner,
-                    repo = ref.repo,
-                    includePrereleases = includePrereleases,
-                    muteUpdates = muteUpdates,
-                    apkFilter = apkFilter.trim().ifEmpty { null },
-                    versionIncludeFilter = versionIncludeFilter.trim().ifEmpty { null },
-                    versionExcludeFilter = versionExcludeFilter.trim().ifEmpty { null },
-                    label = trimmedName.ifEmpty { prettifyRepoName(ref.repo) },
-                    nameOverridden = trimmedName.isNotEmpty(),
-                )
-                // Asked of the repository rather than of [apps]. That flow holds a real list only while
-                // a screen is collecting it and starts out empty, so an add arriving from a badge link,
-                // before any list has been on screen, was checked against nothing at all and no
-                // duplicate was ever found.
-                if (repository.getApps().any { it.key == app.key }) {
-                    fail(context.getString(R.string.external_already_added, app.path))
-                    return@launch
-                }
-                withBusy(app.key) {
-                    // A repository publishing several apps in one release stream (ente-io/ente) would
-                    // otherwise be added as whichever of them released last. The dialog asks which one
-                    // to follow, and submits again pinned to it, which finds a single app this time.
-                    val families = externalApi.releaseFamiliesFor(app)
-                    if (families.size > 1) {
-                        _releaseFamilies.value = families
-                        return@withBusy
-                    }
-                    // A plain null release here used to collapse every failure — the GitHub rate limit,
-                    // a repo that only publishes pre-releases (e.g. ReVanced Manager) with the option
-                    // off, or genuinely nothing installable — into one misleading "no release" message.
-                    // latestReleaseLookup reports which one it actually was.
-                    val release = when (val lookup = externalApi.latestReleaseLookup(app)) {
-                        is ReleaseLookup.Found -> lookup.release
-                        ReleaseLookup.FetchFailed -> {
-                            val (message, urgent) = githubFailureMessage(
-                                context.getString(R.string.external_no_release, app.path),
-                            )
-                            fail(message, urgent)
-                            return@withBusy
-                        }
-                        ReleaseLookup.OnlyPrereleasesExcluded -> {
-                            fail(context.getString(R.string.external_only_prereleases, app.path))
-                            return@withBusy
-                        }
-                        ReleaseLookup.AllExcludedByFilter -> {
-                            fail(context.getString(R.string.external_all_excluded_by_filter, app.path))
-                            return@withBusy
-                        }
-                        ReleaseLookup.NoneMatchIncludeFilter -> {
-                            fail(context.getString(R.string.external_none_match_include_filter, app.path))
-                            return@withBusy
-                        }
-                        ReleaseLookup.NoCompatibleApk -> {
-                            fail(context.getString(R.string.external_no_release, app.path))
-                            return@withBusy
-                        }
-                    }
-                    // Resolve the package id (repo build.gradle, else the release APK's own manifest) so an
-                    // app that's already installed is matched and shows its real on-device name + icon right
-                    // away, before the user installs it through us.
-                    val packageId = externalRefresher
-                        .resolvePackageId(app, release.apkDownloadUrl(filter = app.apkFilter))
-                    // Pull the app's real launcher icon AND its real name from the repo (Obtainium-style),
-                    // so the card shows both before anything is installed.
-                    val meta = externalApi.fetchRepoMetadata(app)
-                    // When the repo ships an adaptive icon, that composed image is what Android itself
-                    // will draw once installed, so it becomes this source's icon from the moment it is
-                    // added (see ExternalIconCache) rather than the flat pre-Android-8 raster.
-                    meta?.adaptiveIcon?.let { ExternalIconCache.save(context, app.key, it) }
-                    // Name priority: a name the user typed, else the on-device name if it's already
-                    // installed, else the real name read from the repo manifest, else the repo name.
-                    val resolvedLabel = when {
-                        app.nameOverridden -> app.label
-                        else -> packageId?.let { externalRefresher.installedLabel(it) } ?: meta?.appName ?: app.label
-                    }
-                    val addApkSize = release.apkFileSize(filter = app.apkFilter)
-                    if (BuildConfig.DEBUG) {
-                        Log.d(
-                            TAG,
-                            "addApp ${app.key}: asset=" +
-                                "${selectApkAsset(release.assets, filter = app.apkFilter, releaseTag = release.tag)?.name} " +
-                                "size=$addApkSize rawAssetSizes=${release.assets.map { it.name to it.size }}",
-                        )
-                    }
-                    val stored = repository.addApp(
-                        app.copy(
-                            packageName = packageId,
-                            label = resolvedLabel,
-                            repoIconUrl = meta?.iconCandidates?.firstOrNull(),
-                            // Only mark scanned when the repo was actually read, so a transient failure
-                            // re-scans on a later refresh instead of caching an empty / non-TV result.
-                            iconChecked = meta != null,
-                            adaptiveIconChecked = meta?.adaptiveIconSettled == true,
-                            supportsTelevision = meta?.supportsTelevision ?: false,
-                            tvChecked = meta != null,
-                            latestTag = release.tag,
-                            latestApkToken = release.apkVersionToken(filter = app.apkFilter),
-                            latestApkName = release.apkFileName(filter = app.apkFilter),
-                            latestApkSize = addApkSize,
-                            latestApkUrl = release.apkDownloadUrl(filter = app.apkFilter),
-                            latestReleaseAt = release.apkUpdatedAtMillis(filter = app.apkFilter),
-                        ),
-                    )
-                    // The list can gain this key while the lookups above are running: an account scan
-                    // finishing, another add, a restore. Saying "Added" on a write that did not happen
-                    // is worse than saying it was already there, which it now is either way.
-                    if (!stored) {
-                        fail(context.getString(R.string.external_already_added, app.path))
-                        return@withBusy
-                    }
-                    toast(context.getString(R.string.external_added, resolvedLabel))
-                    added = true
-                }
+                val base = ExternalApp(provider = provider, host = ref.host, owner = ref.owner, repo = ref.repo)
+                added = block(base)
+                if (added.isNotEmpty()) toast(context.getString(R.string.external_added, added.joinToString()))
             } finally {
-                // Success closes the dialog; any failure leaves it open (with the error snackbar shown).
-                _addState.value = if (added) AddSourceState.SUCCESS else AddSourceState.IDLE
+                // Success closes the dialog; any failure leaves it open (with the error shown in it).
+                _addState.value = if (added.isNotEmpty()) AddSourceState.SUCCESS else AddSourceState.IDLE
             }
         }
+    }
+
+    /** Shown inline by the Add dialog, and toasted too: an add is also reachable with no dialog open (a
+     *  "Get it on Omnify" badge tap with the confirmation prompt turned off in Settings), and that path
+     *  has nothing else to surface a failure with. */
+    private fun failAdd(message: String, long: Boolean = false) {
+        _addError.value = message
+        toast(message, long)
+    }
+
+    /**
+     * Looks up [app]'s release, package id, icon and name, and stores it. Answers with the name it was
+     * stored under, or null after reporting why it wasn't ([failAdd]).
+     */
+    private suspend fun addResolved(app: ExternalApp): String? {
+        // A plain null release here used to collapse every failure (the GitHub rate limit, a repo that
+        // only publishes pre-releases, e.g. ReVanced Manager, with the option off, or genuinely nothing
+        // installable) into one misleading "no release" message. latestReleaseLookup reports which one
+        // it actually was.
+        val release = when (val lookup = externalApi.latestReleaseLookup(app)) {
+            is ReleaseLookup.Found -> lookup.release
+            ReleaseLookup.FetchFailed -> {
+                val (message, urgent) = githubFailureMessage(
+                    context.getString(R.string.external_no_release, app.path),
+                )
+                failAdd(message, urgent)
+                return null
+            }
+            ReleaseLookup.OnlyPrereleasesExcluded -> {
+                failAdd(context.getString(R.string.external_only_prereleases, app.path))
+                return null
+            }
+            ReleaseLookup.AllExcludedByFilter -> {
+                failAdd(context.getString(R.string.external_all_excluded_by_filter, app.path))
+                return null
+            }
+            ReleaseLookup.NoneMatchIncludeFilter -> {
+                failAdd(context.getString(R.string.external_none_match_include_filter, app.path))
+                return null
+            }
+            ReleaseLookup.NoneMatchApkFilter -> {
+                failAdd(context.getString(R.string.external_none_match_apk_filter, app.path))
+                return null
+            }
+            ReleaseLookup.NoCompatibleApk -> {
+                failAdd(context.getString(R.string.external_no_release, app.path))
+                return null
+            }
+        }
+        // Resolve the package id (repo build.gradle, else the release APK's own manifest) so an app
+        // that's already installed is matched and shows its real on-device name + icon right away,
+        // before the user installs it through us.
+        val packageId = externalRefresher.resolvePackageId(app, release.apkDownloadUrl(filter = app.apkFilter))
+        // Pull the app's real launcher icon AND its real name from the repo (Obtainium-style), so the
+        // card shows both before anything is installed.
+        val meta = externalApi.fetchRepoMetadata(app)
+        // When the repo ships an adaptive icon, that composed image is what Android itself will draw once
+        // installed, so it becomes this source's icon from the moment it is added (see
+        // ExternalIconCache) rather than the flat pre-Android-8 raster.
+        meta?.adaptiveIcon?.let { ExternalIconCache.save(context, app.key, it) }
+        // Name priority: a name the user typed, else the on-device name if it's already installed, else
+        // the real name read from the repo manifest, else the repo name. The manifest is skipped for one
+        // app among several: the repository's name is not this app's.
+        val resolvedLabel = when {
+            app.nameOverridden -> app.label
+            else -> packageId?.let { externalRefresher.installedLabel(it) }
+                ?: meta?.appName?.takeIf { app.variant.isEmpty() }
+                ?: app.label
+        }
+        val addApkSize = release.apkFileSize(filter = app.apkFilter)
+        if (BuildConfig.DEBUG) {
+            Log.d(
+                TAG,
+                "addApp ${app.key}: asset=" +
+                    "${selectApkAsset(release.assets, filter = app.apkFilter, releaseTag = release.tag)?.name} " +
+                    "size=$addApkSize rawAssetSizes=${release.assets.map { it.name to it.size }}",
+            )
+        }
+        val stored = repository.addApp(
+            app.copy(
+                packageName = packageId,
+                label = resolvedLabel,
+                repoIconUrl = meta?.iconCandidates?.firstOrNull(),
+                // Only mark scanned when the repo was actually read, so a transient failure re-scans on
+                // a later refresh instead of caching an empty / non-TV result.
+                iconChecked = meta != null,
+                adaptiveIconChecked = meta?.adaptiveIconSettled == true,
+                supportsTelevision = meta?.supportsTelevision ?: false,
+                tvChecked = meta != null,
+                latestTag = release.tag,
+                latestApkToken = release.apkVersionToken(filter = app.apkFilter),
+                latestApkName = release.apkFileName(filter = app.apkFilter),
+                latestApkSize = addApkSize,
+                latestApkUrl = release.apkDownloadUrl(filter = app.apkFilter),
+                latestReleaseAt = release.apkUpdatedAtMillis(filter = app.apkFilter),
+            ),
+        )
+        // The list can gain this key while the lookups above are running: an account scan finishing,
+        // another add, a restore. Saying "Added" on a write that did not happen is worse than saying it
+        // was already there, which it now is either way.
+        if (!stored) {
+            failAdd(context.getString(R.string.external_already_added, app.path))
+            return null
+        }
+        return resolvedLabel
     }
 
     /**
@@ -1403,10 +1476,10 @@ class ExternalAppsViewModel @Inject constructor(
                     return@launch
                 }
                 // Don't absorb a repo the user already tracks as its own single-repo source (e.g. the
-                // built-in Omnify repo): leave it standalone.
+                // built-in Omnify repo), or one app of it: leave it standalone.
                 val standaloneKeys = repository.getApps()
                     .filter { it.accountKey == null }
-                    .map { it.key }
+                    .map { it.repoKey }
                     .toSet()
                 val discovered = externalRefresher.discoverAccountApps(
                     account = account,
@@ -1783,6 +1856,10 @@ class ExternalAppsViewModel @Inject constructor(
                     toast(context.getString(R.string.external_none_match_include_filter, app.path))
                     return
                 }
+                ReleaseLookup.NoneMatchApkFilter -> {
+                    toast(context.getString(R.string.external_none_match_apk_filter, app.path))
+                    return
+                }
                 ReleaseLookup.NoCompatibleApk -> {
                     toast(context.getString(R.string.external_no_apk, app.repo))
                     return
@@ -1989,6 +2066,10 @@ class ExternalAppsViewModel @Inject constructor(
 
 /** State of an in-progress "add external source" action, driving the dialog's loading UI. */
 enum class AddSourceState { IDLE, LOADING, SUCCESS }
+
+/** One app the Add dialog offers in a repository publishing several, and whether a source already
+ *  follows it (then shown ticked and not offered again). */
+data class AppFamilyChoice(val family: ReleaseFamily, val followed: Boolean)
 
 /** Max characters per translation request (keeps the Google endpoint's URL within limits). */
 private const val TAG = "ExternalAppsViewModel"

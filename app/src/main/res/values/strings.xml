@@ -589,7 +589,6 @@
     <string name="external_version_exclude_filter_hint">Words separated by commas, e.g. nightly, beta. Versions containing one of them are skipped.</string>
     <string name="external_version_include_filter">Versions to keep (optional)</string>
     <string name="external_version_include_filter_hint">Words separated by commas, e.g. auth-v. Only versions containing one of them are kept.</string>
-    <string name="external_pick_release_family">This repository publishes several apps. Which one do you want to follow?</string>
     <string name="external_icon_label">Icon</string>
     <string name="external_icon_searching">Looking for icons in the repository…</string>
     <string name="external_mute_updates">Don\'t show updates for this source</string>
@@ -598,6 +597,9 @@
     <string name="external_empty_tab">No external apps yet.\nAdd sources from the Repositories screen.</string>
     <string name="external_invalid_url">Not a valid project URL (GitHub, GitLab or Codeberg)</string>
     <string name="external_unsupported_host">Unsupported host. Use GitHub, GitLab, Codeberg, or a self-hosted Gitea/Forgejo instance.</string>
+    <string name="external_pick_app_families">This repository publishes several apps. Tick the ones you want to follow.</string>
+    <string name="external_family_followed">Already followed</string>
+    <string name="external_none_match_apk_filter">No recent release of %s has an APK whose name matches your APK filter. Clear or adjust it.</string>
     <string name="external_already_added">%1$s is already in your list</string>
     <string name="external_no_release">No release found for %1$s (or rate-limited)</string>
     <string name="external_added">Added %1$s</string>

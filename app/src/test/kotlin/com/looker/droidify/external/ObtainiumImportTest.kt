@@ -110,6 +110,33 @@ class ObtainiumImportTest {
     }
 
     @Test
+    fun `apps followed in one repository each become a source of their own`() {
+        // The export the second person on the issue shared: three apps of nullcpy/rvb, a repository
+        // whose every release carries a dozen, each followed with its own APK filter.
+        val nullStore = parseObtainiumExport(assets("obtainium_export_nullstore.json")!!.readText())
+        assertEquals(listOf("nullcpy/rvb"), nullStore.apps.map { it.path }.distinct())
+        assertEquals(
+            listOf(
+                "GITHUB/nullcpy/rvb#offline-games",
+                "GITHUB/nullcpy/rvb#meesho",
+                "GITHUB/nullcpy/rvb#instagram-clone",
+            ),
+            nullStore.apps.map { it.key },
+        )
+        assertEquals(setOf("GITHUB/nullcpy/rvb"), nullStore.apps.map { it.repoKey }.toSet())
+        assertEquals(listOf("Offline Games", "Meesho", "Instagram Clone"), nullStore.apps.map { it.label })
+        assertEquals("^meesho-debakarr-v.*\\.apk$", nullStore.apps[1].apkFilter)
+        assertEquals("com.meesho.supply", nullStore.apps[1].packageName)
+        assertTrue(nullStore.unsupported.isEmpty())
+    }
+
+    @Test
+    fun `a repository followed alone keeps its plain key`() {
+        assertEquals("GITHUB/gezimos/inkOS", app("gezimos/inkOS").key)
+        assertEquals("", app("gezimos/inkOS").variant)
+    }
+
+    @Test
     fun `a file that is not an export is refused`() {
         assertFailsWith<IllegalArgumentException> { parseObtainiumExport("not json") }
         assertFailsWith<IllegalArgumentException> { parseObtainiumExport("""{"settings": {}}""") }

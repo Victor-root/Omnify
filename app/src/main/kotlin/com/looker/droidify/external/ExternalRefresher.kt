@@ -246,10 +246,10 @@ class ExternalRefresher @Inject constructor(
         var discoveredCount = 0
         if (repos.isNotEmpty()) {
             // Skip repos already tracked: this account's existing apps, plus any standalone single-repo
-            // source (so the account never absorbs e.g. the built-in Omnify repo).
+            // source or app of one (so the account never absorbs e.g. the built-in Omnify repo).
             val skipKeys = repository.getApps()
                 .filter { it.accountKey == null || it.accountKey == account.key }
-                .map { it.key }
+                .map { it.repoKey }
                 .toSet()
             val discovered = discoverAccountApps(
                 account = account,
@@ -271,9 +271,10 @@ class ExternalRefresher @Inject constructor(
     }
 
     /**
-     * For each repo of [account] not already tracked ([skipKeys]), keeps those that ship an installable
-     * APK release and builds an [ExternalApp] for them (with package id, icon, name and TV support read
-     * from the repo, like a single-repo source). Sequential to pace the provider's rate limit.
+     * For each repo of [account] not already tracked ([skipKeys], as [ExternalApp.repoKey]s), keeps those
+     * that ship an installable APK release and builds an [ExternalApp] for them (with package id, icon,
+     * name and TV support read from the repo, like a single-repo source). Sequential to pace the
+     * provider's rate limit.
      */
     suspend fun discoverAccountApps(
         account: ExternalAccount,
@@ -349,7 +350,9 @@ class ExternalRefresher @Inject constructor(
         apkUrl: String? = app.latestApkUrl,
     ): String? {
         app.packageName?.let { return it }
-        val gradleId = externalApi.fetchPackageId(app)
+        // One app among several in a repository: the repository's build file, if any, is another app's
+        // as likely as this one's, so only the APK itself is asked.
+        val gradleId = if (app.variant.isEmpty()) externalApi.fetchPackageId(app) else null
         // Fast path: the source-tree id is already the installed one, no need to touch the APK.
         if (gradleId != null && isInstalled(gradleId)) return gradleId
         val apkId = apkUrl?.let { readApkPackageId(it) }

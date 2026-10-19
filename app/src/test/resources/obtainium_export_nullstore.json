@@ -1,0 +1,50 @@
+{
+    "schemaVersion": 2,
+    "exportedAt": "2026-10-19T08:40:55.594516",
+    "appVersion": "0.0.0",
+    "apps": [
+        {
+            "id": "com.JindoBlu.OfflineGames",
+            "url": "https://github.com/nullcpy/rvb",
+            "author": "nullcpy",
+            "name": "Offline Games",
+            "installedVersion": "260251",
+            "latestVersion": "260251",
+            "additionalSettings": "{\"includePrereleases\":false,\"fallbackToOlderReleases\":true,\"filterReleaseTitlesByRegEx\":\"\",\"apkFilterRegEx\":\"^offline-games-ggyasin-v.*\\\\.apk$\",\"invertAPKFilter\":false,\"autoApkFilterByArch\":true,\"appName\":\"\",\"trackOnly\":false}",
+            "pinned": false,
+            "categories": [],
+            "releaseUrl": null,
+            "overrideSource": null,
+            "allowIdChange": false
+        },
+        {
+            "id": "com.meesho.supply",
+            "url": "https://github.com/nullcpy/rvb",
+            "author": "nullcpy",
+            "name": "Meesho",
+            "installedVersion": "260256",
+            "latestVersion": "260256",
+            "additionalSettings": "{\"includePrereleases\":false,\"fallbackToOlderReleases\":true,\"filterReleaseTitlesByRegEx\":\"\",\"apkFilterRegEx\":\"^meesho-debakarr-v.*\\\\.apk$\",\"invertAPKFilter\":false,\"autoApkFilterByArch\":true,\"appName\":\"\",\"trackOnly\":false}",
+            "pinned": false,
+            "categories": [],
+            "releaseUrl": null,
+            "overrideSource": null,
+            "allowIdChange": false
+        },
+        {
+            "id": "com.instagram.android.hush",
+            "url": "https://github.com/nullcpy/rvb",
+            "author": "nullcpy",
+            "name": "Instagram Clone",
+            "installedVersion": "260293",
+            "latestVersion": "260293",
+            "additionalSettings": "{\"includePrereleases\":false,\"fallbackToOlderReleases\":true,\"filterReleaseTitlesByRegEx\":\"\",\"apkFilterRegEx\":\"^instagram-hushgram-clone-v.*\\\\.apk$\",\"invertAPKFilter\":false,\"autoApkFilterByArch\":true,\"appName\":\"\",\"trackOnly\":false}",
+            "pinned": false,
+            "categories": [],
+            "releaseUrl": null,
+            "overrideSource": null,
+            "allowIdChange": false
+        }
+    ],
+    "settings": null
+}

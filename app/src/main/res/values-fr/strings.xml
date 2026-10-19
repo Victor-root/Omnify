@@ -567,7 +567,6 @@
     <string name="external_version_exclude_filter_hint">Mots séparés par une virgule, ex. : nightly, beta. Les versions qui en contiennent un sont ignorées.</string>
     <string name="external_version_include_filter">Versions à garder (facultatif)</string>
     <string name="external_version_include_filter_hint">Mots séparés par une virgule, ex. : auth-v. Seules les versions qui en contiennent un sont gardées.</string>
-    <string name="external_pick_release_family">Ce dépôt publie plusieurs applications. Laquelle voulez-vous suivre ?</string>
     <string name="external_icon_label">Icône</string>
     <string name="external_icon_searching">Recherche d\'icônes dans le dépôt…</string>
     <string name="external_mute_updates">Ne pas afficher les mises à jour de ce dépôt</string>
@@ -576,9 +575,12 @@
     <string name="external_empty_tab">Aucune app externe pour l\'instant.\nAjoutez des sources depuis l\'écran Dépôts.</string>
     <string name="external_invalid_url">URL de projet invalide (GitHub, GitLab ou Codeberg)</string>
     <string name="external_unsupported_host">Hébergeur non pris en charge. Utilisez GitHub, GitLab, Codeberg ou une instance Gitea/Forgejo auto-hébergée.</string>
+    <string name="external_pick_app_families">Ce dépôt publie plusieurs applications. Cochez celles que vous voulez suivre.</string>
+    <string name="external_family_followed">Déjà suivie</string>
+    <string name="external_none_match_apk_filter">Aucune version récente de %s n\'a d\'APK dont le nom correspond à votre filtre d\'APK. Modifiez-le ou videz-le.</string>
     <string name="external_already_added">%1$s est déjà dans votre liste</string>
     <string name="external_no_release">Aucune release trouvée pour %1$s (ou limite d\'API atteinte)</string>
-    <string name="external_added">%1$s ajouté</string>
+    <string name="external_added">Ajouté : %1$s</string>
     <string name="external_account_added">Compte ajouté : %1$s (%2$d apps)</string>
     <string name="external_account_already_added">Le compte %1$s est déjà dans votre liste</string>
     <string name="external_account_no_repos">Impossible de lister les dépôts de %1$s (ou limite d\'API atteinte)</string>
