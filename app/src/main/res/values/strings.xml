@@ -567,6 +567,8 @@
     <string name="external_no_token_description">You\'re limited to 60 requests/hour. If a source doesn\'t show its latest release, the limit was likely reached. Add a free token in Settings › External sources to raise it to 5000.</string>
     <string name="external_no_token_description_remaining">%1$d of 60 requests remain this hour. If a source doesn\'t show its latest release, the limit was likely reached. Add a free token in Settings › External sources to raise it to 5000.</string>
     <string name="external_readme_unavailable">Couldn\'t load the README.</string>
+    <string name="external_repository_readme_title">About the %1$s repository</string>
+    <string name="external_repository_readme_note">This app is one of several published by this repository. The text below presents the repository, not the app itself.</string>
     <string name="external_github_limit_hint">Tip: without a GitHub token you\'re limited to 60 requests/hour. Add one for free in Settings › External sources to raise it to 5000.</string>
     <string name="external_github_limit_hint_remaining">Tip: without a GitHub token, %1$d of 60 requests remain this hour. Add one for free in Settings › External sources to raise it to 5000.</string>
     <string name="external_remove">Remove</string>

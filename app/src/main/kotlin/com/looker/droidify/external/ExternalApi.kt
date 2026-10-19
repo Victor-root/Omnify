@@ -680,12 +680,31 @@ class ExternalApi @Inject constructor(
      * images are fetched here and inlined as data URIs, since a raw host serves either the file or an
      * HTML viewer page depending on request headers the WebView doesn't send for sub-resources. Returns
      * null on any failure or when there is no README.
+     *
+     * For one app among several in its repository, the app's own README comes first when there is one
+     * ([appReadmePath]); the repository's otherwise, flagged as such ([ExternalReadme.ofRepository]),
+     * since it presents the repository rather than the app.
      */
-    suspend fun readmeHtml(app: ExternalApp): String? = withContext(Dispatchers.IO) {
+    suspend fun readme(app: ExternalApp): ExternalReadme? = withContext(Dispatchers.IO) {
         runCatching {
+            if (app.variant.isNotEmpty()) {
+                appReadme(app)?.let { return@runCatching ExternalReadme(it, ofRepository = false) }
+            }
             val markdown = fetchRawReadme(app) ?: return@runCatching null
-            inlineRelativeImages(renderMarkdownToHtml(markdown), app)
+            ExternalReadme(
+                html = inlineRelativeImages(renderMarkdownToHtml(markdown), app),
+                ofRepository = app.variant.isNotEmpty(),
+            )
         }.getOrNull()
+    }
+
+    /** The README of the folder [appReadmePath] finds for [app], its relative links and images made
+     *  relative to the repository root that the page and [inlineRelativeImages] resolve them against. */
+    private suspend fun appReadme(app: ExternalApp): String? {
+        val path = appReadmePath(fetchTreePaths(app), app.variant) ?: return null
+        val markdown = getText(app.readmeBaseUrl + path) ?: return null
+        val html = rebaseRelativeUrls(renderMarkdownToHtml(markdown), path.substringBeforeLast('/'))
+        return inlineRelativeImages(html, app)
     }
 
     /** Fetches a project's raw README Markdown by trying the common file names against the provider's
@@ -1529,6 +1548,55 @@ internal suspend fun HttpResponse.bodyTextAtMost(limit: Int): String? =
 /** Captures the `src` of an `<img>` tag (CommonMark output and any raw HTML in the README). */
 private val IMG_SRC_REGEX = Regex("""<img\b[^>]*?\bsrc="([^"]+)"[^>]*>""", RegexOption.IGNORE_CASE)
 
+/**
+ * The README of [variant]'s own folder in a repository publishing several apps: one directly inside a
+ * folder named after it, such as ente-io/ente's `mobile/apps/auth/README.md` for Auth. A folder on the
+ * Android side wins when the app has one per platform (ente's Ensu: `android/apps/ensu`, then
+ * `apple/apps/ensu` and `rust/apps/ensu`), the shallowest otherwise. Null when there is none.
+ */
+internal fun appReadmePath(treePaths: List<String>, variant: String): String? = treePaths
+    .filter { path ->
+        val folder = path.substringBeforeLast('/', "")
+        folder.isNotEmpty() && path.substringAfterLast('/') in README_NAMES &&
+            variantOf(folder.substringAfterLast('/')) == variant
+    }
+    .minWithOrNull(
+        compareBy<String> { path -> if (path.split('/').any { it in ANDROID_FOLDERS }) 0 else 1 }
+            .thenBy { path -> path.count { it == '/' } },
+    )
+
+/** Folder names marking the Android side of a repository holding one app per platform. */
+private val ANDROID_FOLDERS = setOf("android", "mobile")
+
+/**
+ * [html] with each relative `href`/`src` taken from a file in [folder] made relative to the repository
+ * root instead (`../assets/logo.png` read in `mobile/apps/auth` becomes `mobile/apps/assets/logo.png`).
+ * A README page resolves those against the root, so they'd otherwise point at the wrong files. Links
+ * to an anchor, to the root (`/…`) or to another site are left as they are.
+ */
+internal fun rebaseRelativeUrls(html: String, folder: String): String =
+    RELATIVE_URL_ATTR_REGEX.replace(html) { match ->
+        val (attribute, url) = match.destructured
+        if (url.startsWith("#") || url.startsWith("/") || URL_SCHEME_REGEX.containsMatchIn(url)) {
+            return@replace match.value
+        }
+        val segments = folder.split('/').filter { it.isNotEmpty() }.toMutableList()
+        for (segment in url.split('/')) {
+            when (segment) {
+                ".", "" -> Unit
+                ".." -> segments.removeLastOrNull()
+                else -> segments += segment
+            }
+        }
+        val trailing = if (url.endsWith("/")) "/" else ""
+        "$attribute=\"${segments.joinToString("/")}$trailing\""
+    }
+
+private val RELATIVE_URL_ATTR_REGEX = Regex("""\b(href|src)="([^"]*)"""", RegexOption.IGNORE_CASE)
+
+/** A URL starting with a scheme (`https:`, `mailto:`, `data:`…) or protocol-relative (`//host`). */
+private val URL_SCHEME_REGEX = Regex("""^(?:[A-Za-z][A-Za-z0-9+.-]*:|//)""")
+
 /** README file names tried in order against a repo's branchless raw base. */
 private val README_NAMES = listOf(
     "README.md", "readme.md", "Readme.md", "README.markdown", "README.MD", "README", "readme",
@@ -1657,6 +1725,12 @@ private fun extractAlertBlockquotes(markdown: String): Pair<String, Map<String, 
 
 /** Icon candidates + the real app name detected from a source repo, shown before install, plus whether
  *  the repo's manifest declares Android TV support. */
+/** A source's README as shown on its page. [ofRepository] is true for one app among several in its
+ *  repository shown the repository's README, for want of one of its own: the text then presents the
+ *  repository, not the app. */
+@Serializable
+data class ExternalReadme(val html: String, val ofRepository: Boolean)
+
 data class RepoMetadata(
     val iconCandidates: List<String> = emptyList(),
     /** The repository's adaptive launcher icon, already composed and masked the way Android will draw

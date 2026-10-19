@@ -59,7 +59,8 @@ class OfflineApiTest {
 
     @Test
     fun `the page's own content lookups answer`() = runTest {
-        assertNull(api.readmeHtml(app))
+        assertNull(api.readme(app))
+        assertNull(api.readme(app.copy(variant = "auth")))
         assertNull(api.fetchPackageId(app))
         assertNull(api.fetchSourceLocales(app))
         assertNull(api.detectBaseLanguage(app))

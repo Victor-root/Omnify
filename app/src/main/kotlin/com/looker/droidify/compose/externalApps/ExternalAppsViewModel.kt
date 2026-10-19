@@ -29,6 +29,7 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.ExternalIconCache
 import com.looker.droidify.external.ExternalInstaller
+import com.looker.droidify.external.ExternalReadme
 import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.external.ExternalAccountRef
 import com.looker.droidify.external.Release
@@ -509,9 +510,9 @@ class ExternalAppsViewModel @Inject constructor(
     /** The in-flight "add source" coroutine, so it can be cancelled if the dialog is dismissed mid-add. */
     private var addJob: Job? = null
 
-    /** README (HTML) of the app shown on the detail screen, or null while loading / when none. */
-    private val _readme = MutableStateFlow<String?>(null)
-    val readme: StateFlow<String?> = _readme
+    /** README of the app shown on the detail screen, or null while loading / when none. */
+    private val _readme = MutableStateFlow<ExternalReadme?>(null)
+    val readme: StateFlow<ExternalReadme?> = _readme
 
     /** Set once loading the README has genuinely failed (nothing cached, nothing fresh), so the screen
      *  can explain why instead of spinning forever — most often the GitHub anonymous rate limit, which a
@@ -921,7 +922,7 @@ class ExternalAppsViewModel @Inject constructor(
             val isFresh = cached != null &&
                 withContext(Dispatchers.IO) { ReadmeCache.isFresh(context, app.key, README_FRESHNESS_MS) }
             if (isFresh) return@launch
-            val fresh = externalApi.readmeHtml(app)
+            val fresh = externalApi.readme(app)
             if (fresh != null) {
                 _readme.value = fresh
                 withContext(Dispatchers.IO) { ReadmeCache.save(context, app.key, fresh) }
