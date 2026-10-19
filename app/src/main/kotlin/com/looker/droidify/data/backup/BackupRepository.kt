@@ -377,7 +377,7 @@ class BackupRepository @Inject constructor(
         externalAppRepository.upsertApps(
             backup.apps
                 .filter { it.key !in existingAppKeys }
-                .map { it.copy(adaptiveIconChecked = false, apkIconFrom = null) },
+                .map { it.copy(adaptiveIconChecked = false, apkIconRenderedFrom = null) },
         )
         val existingAccountKeys = externalAppRepository.getAccounts().mapTo(mutableSetOf()) { it.key }
         backup.accounts

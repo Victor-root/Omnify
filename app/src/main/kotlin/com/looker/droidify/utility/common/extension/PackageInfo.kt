@@ -141,6 +141,14 @@ fun PackageManager.getPackageArchiveInfoCompat(
     null
 }
 
+/** The application info of the APK file at [filePath], pointed at that file so its own resources
+ *  (icon, label) load from it. Null when the file can't be parsed. */
+fun PackageManager.archiveApplicationInfo(filePath: String): ApplicationInfo? =
+    getPackageArchiveInfoCompat(filePath, signatureFlag = 0)?.applicationInfo?.apply {
+        sourceDir = filePath
+        publicSourceDir = filePath
+    }
+
 const val PLAY_STORE_PACKAGE_NAME = "com.android.vending"
 
 private fun Context.rawInstallerPackageName(packageName: String): String? = runCatching {

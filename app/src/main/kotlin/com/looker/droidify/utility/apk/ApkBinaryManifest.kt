@@ -187,6 +187,22 @@ object ApkBinaryManifest {
     }.getOrNull()
 
     /**
+     * Every resource id referenced by an attribute of [xml], any compiled XML resource rather than only a
+     * manifest (an `<adaptive-icon>`'s layers, an `<inset>`'s drawable…), for [RemoteApkIconReader] to
+     * follow an icon to every file it is drawn from. Null when the bytes aren't parseable binary XML.
+     */
+    fun referencedResourceIds(xml: ByteArray): List<Int>? = runCatching {
+        val ids = mutableListOf<Int>()
+        val parsed = walkElements(
+            xml,
+            onStart = { element -> ids.addAll(element.referenceAttributes.values) },
+            onEnd = {},
+        )
+        if (!parsed) return@runCatching null
+        ids
+    }.getOrNull()
+
+    /**
      * Every `<uses-permission>`/`<uses-permission-sdk-23>`/`<uses-feature>` name declared in [manifest],
      * or null when the bytes can't be parsed at all — same "couldn't determine" contract as [components]
      * and [usesSdk]. Feeds [com.looker.droidify.compose.appDetail.detectGoogleServicesDependencies] for a
