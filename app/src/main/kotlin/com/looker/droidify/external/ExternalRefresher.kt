@@ -2,19 +2,26 @@ package com.looker.droidify.external
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
+import android.graphics.Bitmap
 import android.os.SystemClock
+import android.util.DisplayMetrics
 import android.util.Log
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.drawable.toBitmap
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.apk.ApkSigningBlockReader
 import com.looker.droidify.utility.apk.RemoteApkIconReader
 import com.looker.droidify.utility.apk.RemoteApkManifestReader
+import com.looker.droidify.utility.common.extension.archiveApplicationInfo
 import com.looker.droidify.utility.common.extension.installedSignerHash
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -278,24 +285,54 @@ class ExternalRefresher @Inject constructor(
         app.packageName?.takeIf { hasOwnCopyInstalled(app) }?.let(::installedLabel)
 
     /**
-     * Reads [app]'s launcher icon straight out of its latest APK ([RemoteApkIconReader], a few range
-     * requests rather than the whole file) into [ExternalIconCache], when nothing else would show one
-     * before it is installed: no icon found in the repository, none picked by the user, none composed or
-     * read already, and the app not installed (its own icon is then used). A repository holding no app
-     * source at all, such as nullcpy/rvb which only publishes built APKs, otherwise shows the account's
-     * avatar for every app in it. Each APK is read once ([ExternalApp.apkIconFrom]), whatever came of it.
+     * Reads [app]'s launcher icon out of its latest APK ([renderApkIcon], a few range requests rather
+     * than the whole file) into [ExternalIconCache], when nothing else would show one before it is
+     * installed: no icon found in the repository, none picked by the user, none composed or read
+     * already, and the app not installed (its own icon is then used). A repository holding no app source
+     * at all, such as nullcpy/rvb which only publishes built APKs, otherwise shows the account's avatar
+     * for every app in it. Each APK is read once ([ExternalApp.apkIconRenderedFrom]), whatever came of it.
      */
     suspend fun readApkIcon(app: ExternalApp) {
         val apkUrl = app.latestApkUrl ?: return
-        if (app.apkIconFrom == apkUrl || app.repoIconUrl != null || app.iconOverridden) return
+        if (app.apkIconRenderedFrom == apkUrl || app.repoIconUrl != null || app.iconOverridden) return
         if (hasOwnCopyInstalled(app)) return
         if (ExternalIconCache.iconFile(context, app.key).exists()) return
-        val bitmap = RemoteApkIconReader.fetchIconBytes(downloader, apkUrl)
-            ?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+        val bitmap = renderApkIcon(apkUrl)
         if (BuildConfig.DEBUG) Log.d(TAG, "icon read from the APK of ${app.key}: ${bitmap != null}")
         bitmap?.let { ExternalIconCache.save(context, app.key, it) }
         val current = repository.getApps().firstOrNull { it.key == app.key } ?: return
-        repository.upsertApp(current.copy(apkIconFrom = apkUrl))
+        repository.upsertApp(current.copy(apkIconRenderedFrom = apkUrl))
+    }
+
+    /**
+     * [apkUrl]'s launcher icon drawn by Android itself, from a copy of the APK holding only what the
+     * icon is made of ([RemoteApkIconReader.fetchIconArchive]): an adaptive icon comes out composed and
+     * shaped as the device's launcher draws it, which is also the only way to show an app shipping no
+     * plain image of its icon at all, such as the Google Maps builds of nullcpy/rvb.
+     */
+    private suspend fun renderApkIcon(apkUrl: String): Bitmap? = withContext(Dispatchers.IO) {
+        val archive = runCatching { File.createTempFile("apk_icon", ".apk", context.cacheDir) }.getOrNull()
+            ?: return@withContext null
+        try {
+            if (!RemoteApkIconReader.fetchIconArchive(downloader, apkUrl, archive)) return@withContext null
+            val pm = context.packageManager
+            val info = pm.archiveApplicationInfo(archive.path)?.takeIf { it.icon != 0 }
+                ?: return@withContext null.also {
+                    if (BuildConfig.DEBUG) Log.d(TAG, "icon copy of $apkUrl not readable by Android")
+                }
+            runCatching {
+                ResourcesCompat.getDrawableForDensity(
+                    pm.getResourcesForApplication(info),
+                    info.icon,
+                    DisplayMetrics.DENSITY_XXXHIGH,
+                    null,
+                )?.toBitmap(ICON_SIZE_PX, ICON_SIZE_PX, Bitmap.Config.ARGB_8888)
+            }.onFailure {
+                if (BuildConfig.DEBUG) Log.d(TAG, "icon of $apkUrl not drawable", it)
+            }.getOrNull()
+        } finally {
+            archive.delete()
+        }
     }
 
     /**

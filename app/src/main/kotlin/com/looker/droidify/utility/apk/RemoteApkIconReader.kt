@@ -5,7 +5,11 @@ import com.looker.droidify.BuildConfig
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.RangeResult
 import com.looker.droidify.network.header.HeadersBuilder
+import java.io.File
+import java.util.zip.CRC32
 import java.util.zip.Inflater
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 /**
  * Fetches a remote, not-yet-downloaded APK's real launcher icon — via HTTP range requests against its
@@ -15,8 +19,8 @@ import java.util.zip.Inflater
  * the app plainly having one). Reads only the few small pieces actually needed, never the whole APK
  * (tens to hundreds of MB for a modern app).
  *
- * Deliberately narrow in what it resolves: [ApkBinaryManifest.applicationIconResourceId] gives the
- * `<application android:icon>` reference, then [resolveRasterIconPath] resolves it against
+ * [fetchIconBytes] is deliberately narrow in what it resolves: [ApkBinaryManifest.applicationIconResourceId]
+ * gives the `<application android:icon>` reference, then [resolveRasterIconPath] resolves it against
  * `resources.arsc` to the highest-density RASTER (`.png`/`.webp`/`.jpg`) file among that resource id's
  * configs — deliberately skipping any config whose value is an adaptive-icon XML (`density == 0xFFFE`,
  * Android's "any density" qualifier: an `<adaptive-icon>` combining a background and foreground
@@ -24,6 +28,7 @@ import java.util.zip.Inflater
  * both, so there is nearly always a raster fallback to pick up; the rare app shipping ONLY an adaptive
  * icon (no raster densities at all) returns null here — display falls back to whatever this repo/catalog
  * screen already does for "no icon" (installed launcher icon, then a placeholder), never a guess.
+ * [fetchIconArchive] covers that case instead, by handing Android itself what it needs to draw the icon.
  *
  * Byte layout reference: same as [ApkBinaryManifest] (binary XML) and [ApkResourceLocales]
  * (`resources.arsc`'s chunk/string-pool format) — this reader's own resource-id resolution
@@ -38,6 +43,7 @@ object RemoteApkIconReader {
     private const val TAG = "RemoteApkIconReader"
     private const val MANIFEST_ENTRY_NAME = "AndroidManifest.xml"
     private const val ARSC_ENTRY_NAME = "resources.arsc"
+    private const val RES_DIRECTORY = "res/"
 
     private fun logD(message: String) {
         if (BuildConfig.DEBUG) {
@@ -54,9 +60,14 @@ object RemoteApkIconReader {
     private const val MAX_ARSC_BYTES = 64L * 1024 * 1024
 
     /** A launcher icon is a few KB to, at the very most, a few hundred KB (a large adaptive-icon
-     *  foreground PNG, say) — this only guards against reading an unreasonable amount of data for a
-     *  pathological or adversarial file, not a size a real icon is expected to approach. */
+     *  foreground PNG, say), every file it is drawn from included. This only guards against reading an
+     *  unreasonable amount of data for a pathological or adversarial file, not a size a real icon is
+     *  expected to approach. */
     private const val MAX_ICON_BYTES = 4L * 1024 * 1024
+
+    /** Files [fetchIconArchive] follows an icon to, at most: Google Maps' adaptive icon reaches 12, its
+     *  two layers' five densities each plus two XML files. */
+    private const val MAX_ICON_FILES = 64
 
     /** Same tail window the sibling readers use to find the EOCD. */
     private const val TAIL_FETCH_BYTES = 128L * 1024
@@ -77,6 +88,69 @@ object RemoteApkIconReader {
         expectedTotalSize: Long? = null,
         headers: HeadersBuilder.() -> Unit = {},
     ): ByteArray? {
+        val apk = openIconResources(downloader, apkUrl, expectedTotalSize, headers) ?: return null
+        val iconPath = resolveRasterIconPath(apk.table, apk.iconResId)
+            ?: return null.also { logD("$apkUrl: icon resource ${apk.iconResId.toString(16)} has no raster config") }
+        return apk.entry(iconPath, MAX_ICON_BYTES)
+            ?: return null.also { logD("$apkUrl: icon file $iconPath fetch failed") }
+    }
+
+    /**
+     * Writes to [target] a stripped-down copy of the APK holding only what Android needs to draw its
+     * launcher icon itself: the manifest, `resources.arsc`, and every file the icon resource reaches,
+     * followed through each config and each reference an XML file makes (an `<adaptive-icon>`'s layers,
+     * an `<inset>`'s drawable…). This is what an app shipping its icon only as an adaptive icon needs,
+     * the case [fetchIconBytes] can't serve: confirmed on the Google Maps builds of nullcpy/rvb, whose
+     * `mipmap-anydpi/ungoogled_legacy_icon.xml` has no raster config at all, its layers being rasters of
+     * other resources. False, with [target] left incomplete for the caller to delete, when anything
+     * couldn't be read or the icon reaches more than [MAX_ICON_FILES] files or [MAX_ICON_BYTES] in all.
+     */
+    suspend fun fetchIconArchive(
+        downloader: Downloader,
+        apkUrl: String,
+        target: File,
+        headers: HeadersBuilder.() -> Unit = {},
+    ): Boolean {
+        val apk = openIconResources(downloader, apkUrl, expectedTotalSize = null, headers) ?: return false
+        val files = collectIconFiles(apk)
+            ?: return false.also { logD("$apkUrl: icon resource ${apk.iconResId.toString(16)} not collected") }
+        return runCatching {
+            ZipOutputStream(target.outputStream().buffered()).use { zip ->
+                // First and uncompressed: Android then maps the table straight from the file rather than
+                // inflating a copy in memory, its data starting 4-byte aligned right after this header.
+                zip.putNextEntry(
+                    ZipEntry(ARSC_ENTRY_NAME).apply {
+                        method = ZipEntry.STORED
+                        size = apk.arsc.size.toLong()
+                        compressedSize = size
+                        crc = CRC32().apply { update(apk.arsc) }.value
+                    },
+                )
+                zip.write(apk.arsc)
+                for ((name, bytes) in mapOf(MANIFEST_ENTRY_NAME to apk.manifest) + files) {
+                    zip.putNextEntry(ZipEntry(name))
+                    zip.write(bytes)
+                }
+            }
+        }.isSuccess
+    }
+
+    /** The remote APK's pieces both [fetchIconBytes] and [fetchIconArchive] start from, with [entry]
+     *  reading any further file out of it. */
+    private class IconResources(
+        val manifest: ByteArray,
+        val arsc: ByteArray,
+        val table: ResourceTable,
+        val iconResId: Int,
+        val entry: suspend (name: String, maxBytes: Long) -> ByteArray?,
+    )
+
+    private suspend fun openIconResources(
+        downloader: Downloader,
+        apkUrl: String,
+        expectedTotalSize: Long?,
+        headers: HeadersBuilder.() -> Unit,
+    ): IconResources? {
         val tailResult = downloader.getRange(apkUrl) {
             inRangeSuffix(TAIL_FETCH_BYTES)
             headers()
@@ -105,24 +179,61 @@ object RemoteApkIconReader {
             inRange(centralDir.offset, centralDir.offset + centralDir.size - 1)
             headers()
         } ?: return null.also { logD("$apkUrl: central directory fetch failed") }
+        val entry: suspend (String, Long) -> ByteArray? = { name, maxBytes ->
+            fetchEntry(downloader, apkUrl, centralDirectoryBytes, name, maxBytes, headers)
+        }
 
-        val manifest = fetchEntry(downloader, apkUrl, centralDirectoryBytes, MANIFEST_ENTRY_NAME, MAX_MANIFEST_BYTES, headers)
+        val manifest = entry(MANIFEST_ENTRY_NAME, MAX_MANIFEST_BYTES)
             ?: return null.also { logD("$apkUrl: $MANIFEST_ENTRY_NAME fetch failed") }
         val iconResId = ApkBinaryManifest.applicationIconResourceId(manifest)
             ?: return null.also { logD("$apkUrl: no <application android:icon> reference in manifest") }
 
-        val arsc = fetchEntry(downloader, apkUrl, centralDirectoryBytes, ARSC_ENTRY_NAME, MAX_ARSC_BYTES, headers)
+        val arsc = entry(ARSC_ENTRY_NAME, MAX_ARSC_BYTES)
             ?: return null.also { logD("$apkUrl: $ARSC_ENTRY_NAME fetch failed") }
-        val iconPath = resolveRasterIconPath(arsc, iconResId)
-            ?: return null.also { logD("$apkUrl: icon resource ${iconResId.toString(16)} has no raster config") }
-
-        return fetchEntry(downloader, apkUrl, centralDirectoryBytes, iconPath, MAX_ICON_BYTES, headers)
-            ?: return null.also { logD("$apkUrl: icon file $iconPath fetch failed") }
+        val table = ResourceTable.parse(arsc)
+            ?: return null.also { logD("$apkUrl: $ARSC_ENTRY_NAME couldn't be parsed") }
+        return IconResources(manifest, arsc, table, iconResId, entry)
     }
 
-    /** Fetches and decompresses one named ZIP entry, given the already-fetched Central Directory bytes
-     *  — the shared last step [fetchIconBytes] needs three times (manifest, resources.arsc, the icon
-     *  file itself) once the Central Directory is in hand. Null on any failure or size-bound violation,
+    /**
+     * Every file [IconResources.iconResId] is drawn from, by path, or null when one couldn't be read or
+     * the caps are passed. Only the app's own resources are followed: a framework one (package 0x01) is
+     * already on the device.
+     */
+    private suspend fun collectIconFiles(apk: IconResources): Map<String, ByteArray>? {
+        val packageId = apk.iconResId ushr 24
+        val files = LinkedHashMap<String, ByteArray>()
+        val pending = ArrayDeque(listOf(apk.iconResId))
+        val seen = HashSet<Int>()
+        var totalBytes = 0L
+        while (pending.isNotEmpty()) {
+            val resourceId = pending.removeFirst()
+            if (resourceId ushr 24 != packageId || !seen.add(resourceId)) continue
+            for (value in apk.table.values(resourceId)) {
+                if (value.dataType == TYPE_REFERENCE) {
+                    pending.add(value.data)
+                    continue
+                }
+                if (value.dataType != TYPE_STRING) continue
+                val path = apk.table.strings.getOrNull(value.data)
+                    ?.takeIf { it.startsWith(RES_DIRECTORY) && it !in files }
+                    ?: continue
+                if (files.size >= MAX_ICON_FILES) return null
+                val bytes = apk.entry(path, MAX_ICON_BYTES) ?: return null
+                totalBytes += bytes.size
+                if (totalBytes > MAX_ICON_BYTES) return null
+                files[path] = bytes
+                if (path.endsWith(".xml", ignoreCase = true)) {
+                    pending.addAll(ApkBinaryManifest.referencedResourceIds(bytes) ?: return null)
+                }
+            }
+        }
+        return files.takeIf { it.isNotEmpty() }
+    }
+
+    /** Fetches and decompresses one named ZIP entry, given the already-fetched Central Directory bytes:
+     *  the shared step for every file read once the Central Directory is in hand (manifest,
+     *  resources.arsc, the icon's own files). Null on any failure or size-bound violation,
      *  same "couldn't determine" contract as the sibling readers. */
     private suspend fun fetchEntry(
         downloader: Downloader,
@@ -154,85 +265,87 @@ object RemoteApkIconReader {
     }
 
     /**
-     * Resolves [resourceId] (packageId<<24 | typeId<<16 | entryId, as read off `<application
-     * android:icon>`) against [arsc]'s package/type/config chunks to the file path of its
-     * highest-density RASTER config, or null when there's no populated config for it at all, or every
-     * populated config is an adaptive-icon XML (`density` == [DENSITY_ANY]) rather than a plain image —
-     * see this object's own doc comment for why that case isn't chased further. Never throws (wrapped
-     * by [fetchIconBytes]'s callers already treating any failure here the same way).
+     * The highest-density RASTER config of [resourceId] (packageId<<24 | typeId<<16 | entryId, as read
+     * off `<application android:icon>`), or null when there's no populated config for it at all, or every
+     * populated config is an adaptive-icon XML (`density` == [DENSITY_ANY]) rather than a plain image:
+     * that case is [fetchIconArchive]'s.
      */
-    private fun resolveRasterIconPath(arsc: ByteArray, resourceId: Int): String? {
-        if (arsc.size < 8 || u16(arsc, 0) != RES_TABLE_TYPE) return null
-        val targetPackageId = (resourceId ushr 24) and 0xFF
-        val targetTypeId = (resourceId ushr 16) and 0xFF
-        val targetEntryId = resourceId and 0xFFFF
-        val topHeaderSize = u16(arsc, 2)
-        val topSize = u32(arsc, 4)
-        var pos = topHeaderSize.toLong()
-        val end = minOf(topSize, arsc.size.toLong())
-        var globalPool: List<String>? = null
-        var best: Pair<Int, String>? = null // (density, path)
-        while (pos + 8 <= end) {
-            val chunkType = u16(arsc, pos.toInt())
-            val chunkSize = u32(arsc, pos.toInt() + 4)
-            if (chunkSize <= 0 || pos + chunkSize > end) break
-            when (chunkType) {
-                RES_STRING_POOL_TYPE -> if (globalPool == null) globalPool = parseStringPool(arsc, pos.toInt())
-                RES_TABLE_PACKAGE_TYPE -> {
-                    val pool = globalPool
-                    if (pool != null && u32(arsc, pos.toInt() + 8).toInt() == targetPackageId) {
-                        val found = resolveInPackage(arsc, pos, pos + chunkSize, targetTypeId, targetEntryId, pool)
-                        for (candidate in found) {
-                            if (best == null || candidate.first > best.first) best = candidate
-                        }
+    private fun resolveRasterIconPath(table: ResourceTable, resourceId: Int): String? =
+        table.values(resourceId)
+            .filter { it.density != DENSITY_ANY && it.dataType == TYPE_STRING }
+            .mapNotNull { value ->
+                table.strings.getOrNull(value.data)
+                    ?.takeIf { RASTER_EXTENSION_REGEX.containsMatchIn(it) }
+                    ?.let { value.density to it }
+            }
+            .maxByOrNull { it.first }
+            ?.second
+
+    /** One config's plain value of a resource: [data] is a global-string-pool index when [dataType] is
+     *  [TYPE_STRING] (a file path), another resource's id when it is [TYPE_REFERENCE]. */
+    private class ResourceValue(val density: Int, val dataType: Int, val data: Int)
+
+    /** `resources.arsc`, read once: its global string pool and where each package's chunk lies. */
+    private class ResourceTable(
+        private val arsc: ByteArray,
+        val strings: List<String>,
+        private val packages: Map<Int, LongRange>,
+    ) {
+
+        /** Every config's plain value of [resourceId], walking the `ResTable_type` children of its
+         *  package chunk, one per density/locale/etc. config its type ships. */
+        fun values(resourceId: Int): List<ResourceValue> {
+            val bounds = packages[(resourceId ushr 24) and 0xFF] ?: return emptyList()
+            val targetTypeId = (resourceId ushr 16) and 0xFF
+            val targetEntryId = resourceId and 0xFFFF
+            val pkgHeaderSize = u16(arsc, bounds.first.toInt() + 2)
+            var pos = bounds.first + pkgHeaderSize
+            val results = mutableListOf<ResourceValue>()
+            while (pos + 8 <= bounds.last + 1) {
+                val chunkType = u16(arsc, pos.toInt())
+                val chunkSize = u32(arsc, pos.toInt() + 4)
+                if (chunkSize <= 0) break
+                if (chunkType == RES_TABLE_TYPE_TYPE) {
+                    val typeId = arsc[(pos + 8).toInt()].toInt() and 0xFF
+                    if (typeId == targetTypeId) {
+                        readEntryValue(arsc, pos, targetEntryId)?.let(results::add)
                     }
                 }
+                pos += chunkSize
             }
-            pos += chunkSize
+            return results
         }
-        return best?.second
-    }
 
-    /** Every raster (density, path) candidate for [targetEntryId] of [targetTypeId] within one
-     *  `ResTable_package` chunk — walking its `ResTable_type` children, one per density/locale/etc.
-     *  config that type ships, skipping any whose value isn't a plain string (a complex/bag entry, or a
-     *  non-string typed value) or whose density is [DENSITY_ANY] (an adaptive-icon XML, not a raster). */
-    private fun resolveInPackage(
-        arsc: ByteArray,
-        pkgStart: Long,
-        pkgEnd: Long,
-        targetTypeId: Int,
-        targetEntryId: Int,
-        globalPool: List<String>,
-    ): List<Pair<Int, String>> {
-        val pkgHeaderSize = u16(arsc, pkgStart.toInt() + 2)
-        var pos = pkgStart + pkgHeaderSize
-        val results = mutableListOf<Pair<Int, String>>()
-        while (pos + 8 <= pkgEnd) {
-            val chunkType = u16(arsc, pos.toInt())
-            val chunkSize = u32(arsc, pos.toInt() + 4)
-            if (chunkSize <= 0) break
-            if (chunkType == RES_TABLE_TYPE_TYPE) {
-                val typeId = arsc[(pos + 8).toInt()].toInt() and 0xFF
-                if (typeId == targetTypeId) {
-                    readRasterEntry(arsc, pos, targetEntryId, globalPool)?.let { results.add(it) }
+        companion object {
+            fun parse(arsc: ByteArray): ResourceTable? {
+                if (arsc.size < 8 || u16(arsc, 0) != RES_TABLE_TYPE) return null
+                val topHeaderSize = u16(arsc, 2)
+                val topSize = u32(arsc, 4)
+                var pos = topHeaderSize.toLong()
+                val end = minOf(topSize, arsc.size.toLong())
+                var globalPool: List<String>? = null
+                val packages = HashMap<Int, LongRange>()
+                while (pos + 8 <= end) {
+                    val chunkType = u16(arsc, pos.toInt())
+                    val chunkSize = u32(arsc, pos.toInt() + 4)
+                    if (chunkSize <= 0 || pos + chunkSize > end) break
+                    when (chunkType) {
+                        RES_STRING_POOL_TYPE -> if (globalPool == null) globalPool = parseStringPool(arsc, pos.toInt())
+                        RES_TABLE_PACKAGE_TYPE ->
+                            packages.getOrPut(u32(arsc, pos.toInt() + 8).toInt()) { pos until pos + chunkSize }
+                    }
+                    pos += chunkSize
                 }
+                return ResourceTable(arsc, globalPool ?: return null, packages)
             }
-            pos += chunkSize
         }
-        return results
     }
 
-    /** One `ResTable_type` chunk's (density, path) for [targetEntryId], or null when that entry isn't
-     *  populated in this particular config, isn't a plain string value, or this config is
-     *  [DENSITY_ANY]. Offsets-array encoding (dense/sparse/offset16) mirrors [ApkResourceLocales]'
-     *  [readTypeChunk]-equivalent decoding — see its doc comment for the byte-format rationale. */
-    private fun readRasterEntry(
-        arsc: ByteArray,
-        chunkStart: Long,
-        targetEntryId: Int,
-        globalPool: List<String>,
-    ): Pair<Int, String>? {
+    /** One `ResTable_type` chunk's value for [targetEntryId], or null when that entry isn't populated in
+     *  this particular config or isn't a plain value (a complex/bag entry). Offsets-array encoding
+     *  (dense/sparse/offset16) mirrors [ApkResourceLocales]' [readTypeChunk]-equivalent decoding (see
+     *  its doc comment for the byte-format rationale). */
+    private fun readEntryValue(arsc: ByteArray, chunkStart: Long, targetEntryId: Int): ResourceValue? {
         val flags = arsc[(chunkStart + 9).toInt()].toInt() and 0xFF
         if ((flags and (FLAG_SPARSE or FLAG_OFFSET16).inv()) != 0) return null
         val sparse = (flags and FLAG_SPARSE) != 0
@@ -247,7 +360,6 @@ object RemoteApkIconReader {
         if (configSize < 16) return null
         // ResTable_config: size(4) + imsi(4) + locale(4) + orientation(1)+touchscreen(1)+density(2).
         val density = u16(arsc, configStart + 12 + 2)
-        if (density == DENSITY_ANY) return null
         val offsetsStart = configStart + configSize.toInt()
         val entryCountInt = entryCount.toInt()
         val entryOffset: Long = when {
@@ -285,11 +397,7 @@ object RemoteApkIconReader {
         val valueStart = entryDataStart.toInt() + 8
         if (valueStart + 8 > arsc.size) return null
         val valueDataType = arsc[valueStart + 3].toInt() and 0xFF
-        if (valueDataType != TYPE_STRING) return null
-        val valueData = u32(arsc, valueStart + 4).toInt()
-        val path = globalPool.getOrNull(valueData) ?: return null
-        if (!RASTER_EXTENSION_REGEX.containsMatchIn(path)) return null
-        return density to path
+        return ResourceValue(density, valueDataType, u32(arsc, valueStart + 4).toInt())
     }
 
     /** Parses a `ResStringPool` chunk — same format [ApkResourceLocales]' own pool reader uses (kept
@@ -412,6 +520,9 @@ object RemoteApkIconReader {
      *  style or array) rather than a plain value — a launcher icon is never one of these, so such an
      *  entry is skipped rather than misread as a plain `Res_value`. */
     private const val FLAG_COMPLEX = 0x0001
+
+    /** `Res_value.dataType` for a reference to another resource, by id. */
+    private const val TYPE_REFERENCE = 0x01
 
     /** `Res_value.dataType` for a string: `data` is a global-string-pool index — what a plain file-path
      *  resource value (an image, or an XML drawable) always compiles to. */

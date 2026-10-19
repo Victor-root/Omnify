@@ -132,10 +132,10 @@ data class ExternalApp(
      *  Set once when the source is added and never edited afterwards, so the key stays stable even
      *  when the filters pinning the app are changed. */
     val variant: String = "",
-    /** The APK whose launcher icon was last read into [ExternalIconCache] for want of any other picture
+    /** The APK whose launcher icon was last drawn into [ExternalIconCache] for want of any other picture
      *  before installing (see ExternalRefresher.readApkIcon): set whether or not that worked, so the same
      *  APK is never read twice, and only a new release is tried again. */
-    val apkIconFrom: String? = null,
+    val apkIconRenderedFrom: String? = null,
     /** The signing certificates (SHA-256, lower-case hex) of the APK at [apkSignersFrom], read from its
      *  signing block. Empty while unknown. What tells this source's own build from another one installed
      *  under the same package name: see [isForeignCopy]. */

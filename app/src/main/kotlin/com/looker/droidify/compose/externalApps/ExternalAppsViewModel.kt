@@ -67,6 +67,7 @@ import com.looker.droidify.utility.apk.InstalledApkLocaleReader
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.apk.RemoteApkManifestReader
 import com.looker.droidify.utility.common.cache.Cache
+import com.looker.droidify.utility.common.extension.archiveApplicationInfo
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
@@ -1953,11 +1954,7 @@ class ExternalAppsViewModel @Inject constructor(
      *  app label (e.g. "GlassKeep"), so the UI isn't stuck with the repo name. Null on failure. */
     private fun cacheIconAndReadLabel(apkPath: String, key: String): String? {
         val pm = context.packageManager
-        val info = runCatching { pm.getPackageArchiveInfo(apkPath, 0) }.getOrNull() ?: return null
-        val appInfo = info.applicationInfo?.apply {
-            sourceDir = apkPath
-            publicSourceDir = apkPath
-        } ?: return null
+        val appInfo = pm.archiveApplicationInfo(apkPath) ?: return null
         runCatching { appInfo.loadIcon(pm).toBitmap() }.getOrNull()?.let {
             ExternalIconCache.save(context, key, it)
         }
