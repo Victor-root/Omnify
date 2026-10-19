@@ -13,6 +13,7 @@ import com.looker.droidify.network.Downloader
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.apk.ApkSigningBlockReader
 import com.looker.droidify.utility.apk.RemoteApkIconReader
+import com.looker.droidify.utility.apk.RemoteApkIconReader.IconArchive
 import com.looker.droidify.utility.apk.RemoteApkManifestReader
 import com.looker.droidify.utility.common.extension.archiveApplicationInfo
 import com.looker.droidify.utility.common.extension.installedSignerHash
@@ -330,14 +331,20 @@ class ExternalRefresher @Inject constructor(
         if (!needsIcon && !needsName) return
         val read = fetchApkIconAndName(apkUrl)
         if (BuildConfig.DEBUG) {
-            Log.d(TAG, "read from the APK of ${app.key}: icon=${read?.icon != null} name=${read?.label}")
+            Log.d(
+                TAG,
+                "read from the APK of ${app.key}: retry=${read == null} icon=${read?.icon != null} name=${read?.label}",
+            )
         }
-        if (needsIcon) read?.icon?.let { ExternalIconCache.save(context, app.key, it) }
+        // A download failed: not marked as read, so the next refresh tries again rather than settling on
+        // the avatar for good over a dropped connection.
+        if (read == null) return
+        if (needsIcon) read.icon?.let { ExternalIconCache.save(context, app.key, it) }
         val current = repository.getApps().firstOrNull { it.key == app.key } ?: return
         repository.upsertApp(
             current.copy(
                 apkReadFrom = apkUrl,
-                apkLabel = read?.label ?: current.apkLabel,
+                apkLabel = read.label ?: current.apkLabel,
             ),
         )
     }
@@ -354,11 +361,13 @@ class ExternalRefresher @Inject constructor(
         repository.upsertApps(relabelled)
     }
 
-    /** What [fetchApkIconAndName] found in an APK; either may be missing. */
+    /** What [fetchApkIconAndName] found in an APK; either may be missing, both for an APK it couldn't
+     *  read at all. */
     private class ApkIconAndName(val icon: Bitmap?, val label: String?)
 
     /**
-     * [apkUrl]'s launcher icon and name, drawn and read by Android itself from a copy of the APK holding
+     * [apkUrl]'s launcher icon and name, or null when a download failed and it's worth asking again,
+     * drawn and read by Android itself from a copy of the APK holding
      * only what the icon is made of ([RemoteApkIconReader.fetchIconArchive]) and the resource table the
      * name comes from: an adaptive icon comes out composed and shaped as the device's launcher draws it,
      * which is also the only way to show an app shipping no plain image of its icon at all, such as the
@@ -368,13 +377,17 @@ class ExternalRefresher @Inject constructor(
         val archive = runCatching { File.createTempFile("apk_icon", ".apk", context.cacheDir) }.getOrNull()
             ?: return@withContext null
         try {
-            if (!RemoteApkIconReader.fetchIconArchive(downloader, apkUrl, archive)) return@withContext null
+            when (RemoteApkIconReader.fetchIconArchive(downloader, apkUrl, archive)) {
+                IconArchive.WRITTEN -> Unit
+                IconArchive.UNAVAILABLE -> return@withContext ApkIconAndName(icon = null, label = null)
+                IconArchive.FAILED -> return@withContext null
+            }
             val pm = context.packageManager
             val info = pm.archiveApplicationInfo(archive.path)
             val resources = info?.let { runCatching { pm.getResourcesForApplication(it) }.getOrNull() }
             if (info == null || resources == null) {
                 if (BuildConfig.DEBUG) Log.d(TAG, "icon copy of $apkUrl not readable by Android")
-                return@withContext null
+                return@withContext ApkIconAndName(icon = null, label = null)
             }
             val icon = runCatching {
                 ResourcesCompat.getDrawableForDensity(resources, info.icon, DisplayMetrics.DENSITY_XXXHIGH, null)
