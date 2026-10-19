@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialogDefaults
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -1080,6 +1082,7 @@ private fun ExternalAccountItem(
 /** Asks which kind of source to add: an F-Droid repository, a single external repo/app, a whole
  *  external account (all of its apps) or an Obtainium export, explaining each, then routes to the
  *  matching add flow. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AddSourceChooserDialog(
     onDismiss: () -> Unit,
@@ -1088,47 +1091,68 @@ internal fun AddSourceChooserDialog(
     onChooseAccount: () -> Unit,
     onChooseObtainium: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.add_source_title)) },
-        text = {
-            // Scrolls: the dialog caps its height, and on a small or large-font screen the last options
-            // would otherwise be squeezed out of sight.
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                AddSourceOption(
-                    iconRes = R.drawable.ic_tabler_box,
-                    title = stringResource(R.string.add_source_fdroid),
-                    description = stringResource(R.string.add_source_fdroid_desc),
-                    onClick = onChooseFdroid,
+    // Laid out here rather than by AlertDialog, whose fixed margins around its buttons left a wide band
+    // between the scrolling options and Cancel, cutting the list off well above the dialog's bottom.
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = AlertDialogDefaults.shape,
+            color = AlertDialogDefaults.containerColor,
+            tonalElevation = AlertDialogDefaults.TonalElevation,
+        ) {
+            Column(modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)) {
+                Text(
+                    text = stringResource(R.string.add_source_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = AlertDialogDefaults.titleContentColor,
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 16.dp),
                 )
-                Spacer(Modifier.height(8.dp))
-                AddSourceOption(
-                    iconRes = R.drawable.ic_apk_install,
-                    title = stringResource(R.string.add_source_external),
-                    description = stringResource(R.string.add_source_external_desc),
-                    onClick = onChooseExternal,
-                )
-                Spacer(Modifier.height(8.dp))
-                AddSourceOption(
-                    iconRes = R.drawable.ic_person,
-                    title = stringResource(R.string.add_source_account),
-                    description = stringResource(R.string.add_source_account_desc),
-                    onClick = onChooseAccount,
-                )
-                Spacer(Modifier.height(8.dp))
-                AddSourceOption(
-                    iconRes = R.drawable.ic_download,
-                    title = stringResource(R.string.add_source_obtainium),
-                    description = stringResource(R.string.add_source_obtainium_desc),
-                    onClick = onChooseObtainium,
-                )
+                // Scrolls: the dialog caps its height, and on a small or large-font screen the last options
+                // would otherwise be squeezed out of sight.
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp),
+                ) {
+                    AddSourceOption(
+                        iconRes = R.drawable.ic_tabler_box,
+                        title = stringResource(R.string.add_source_fdroid),
+                        description = stringResource(R.string.add_source_fdroid_desc),
+                        onClick = onChooseFdroid,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    AddSourceOption(
+                        iconRes = R.drawable.ic_apk_install,
+                        title = stringResource(R.string.add_source_external),
+                        description = stringResource(R.string.add_source_external_desc),
+                        onClick = onChooseExternal,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    AddSourceOption(
+                        iconRes = R.drawable.ic_person,
+                        title = stringResource(R.string.add_source_account),
+                        description = stringResource(R.string.add_source_account_desc),
+                        onClick = onChooseAccount,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    AddSourceOption(
+                        iconRes = R.drawable.ic_download,
+                        title = stringResource(R.string.add_source_obtainium),
+                        description = stringResource(R.string.add_source_obtainium_desc),
+                        onClick = onChooseObtainium,
+                    )
+                }
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .padding(top = 4.dp, end = 16.dp),
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    )
+        }
+    }
 }
 
 /** One tappable option (icon + bold title + explanation) in the add-source chooser. */
