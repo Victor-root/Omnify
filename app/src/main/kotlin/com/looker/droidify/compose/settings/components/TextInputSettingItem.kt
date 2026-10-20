@@ -5,6 +5,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,9 +38,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.animatedBackground
+import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvFocusFill
-import com.looker.droidify.compose.components.tvKeyboardOnOk
-import com.looker.droidify.compose.components.tvKeyboardOptions
+import com.looker.droidify.compose.components.tvTypeOnOk
 
 @Composable
 fun TextInputSettingItem(
@@ -163,12 +164,14 @@ private fun TextInputDialog(
         title = { Text(text = title) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                val typing = rememberTvTyping()
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
                     singleLine = true,
-                    keyboardOptions = tvKeyboardOptions(),
-                    modifier = Modifier.tvKeyboardOnOk()
+                    keyboardActions = KeyboardActions(onAny = { typing.stop() }),
+                    readOnly = typing.readOnly,
+                    modifier = Modifier.tvTypeOnOk(typing)
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
                 )

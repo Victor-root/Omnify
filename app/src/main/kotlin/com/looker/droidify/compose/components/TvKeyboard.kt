@@ -1,56 +1,58 @@
 package com.looker.droidify.compose.components
 
-import android.view.Window
-import android.view.WindowManager
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.window.DialogWindowProvider
 import com.looker.droidify.compose.theme.LocalIsTelevision
 
 /**
- * Android TV only: a text field's keyboard opens when OK is pressed on it, not as soon as the remote
- * lands on it, which threw the keyboard up over the screen whenever the focus merely passed through a
- * field. Goes with [tvKeyboardOptions], which keeps the keyboard shut on focus. OK is used up here, so it
- * never reaches the field as a typed line break. A no-op on touch.
+ * Android TV only: whether a text field may be typed into. It stays read-only, so no keyboard comes up
+ * for it, until OK is pressed on it ([tvTypeOnOk]): otherwise the keyboard was thrown up over the screen
+ * whenever the remote's focus merely reached a field, which no keyboard setting on the field or its window
+ * prevented on a television. Turning it editable is what brings the keyboard up, at the right moment,
+ * so the keyboard itself is never shown or hidden by hand. Off TV the field is always editable.
  */
-@Composable
-fun Modifier.tvKeyboardOnOk(): Modifier {
-    if (!LocalIsTelevision.current) return this
-    val keyboard = LocalSoftwareKeyboardController.current
-    // A dialog is a window of its own, which Android would open the keyboard for on showing it (see
-    // keepKeyboardShutOnFocus); the activity's own window is set once, in MainComposeActivity.
-    val view = LocalView.current
-    SideEffect { (view.parent as? DialogWindowProvider)?.window?.keepKeyboardShutOnFocus() }
-    return onPreviewKeyEvent { event ->
-        val ok = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
-        if (ok && event.type == KeyEventType.KeyUp) keyboard?.show()
-        ok
+@Stable
+class TvTyping internal constructor(internal val television: Boolean) {
+    internal var active by mutableStateOf(false)
+
+    /** The field's `readOnly`. */
+    val readOnly: Boolean get() = television && !active
+
+    /** Back to read-only once the keyboard's own action (done, search…) is used. */
+    fun stop() {
+        active = false
     }
 }
 
-/** [options] with the keyboard kept shut when the field gains focus on Android TV: see [tvKeyboardOnOk]. */
 @Composable
-fun tvKeyboardOptions(options: KeyboardOptions = KeyboardOptions.Default): KeyboardOptions =
-    if (LocalIsTelevision.current) options.copy(showKeyboardOnFocus = false) else options
+fun rememberTvTyping(): TvTyping {
+    val television = LocalIsTelevision.current
+    return remember(television) { TvTyping(television) }
+}
 
 /**
- * Stops Android opening the keyboard by itself when this window shows with a text field focused: on a
- * television, a large screen to it, it does so for any window that resizes around the keyboard, before
- * the app has any say. The keyboard then only ever opens when asked ([tvKeyboardOnOk]). The rest of the
- * window's keyboard behaviour (resizing around it) is kept.
+ * Makes the text field editable when OK is pressed on it, and read-only again once the focus leaves it:
+ * see [TvTyping]. It turns editable when OK is released, not pressed: otherwise the release reaches the
+ * field just opened, which some television keyboards take for a validation. OK is used up while the
+ * field is read-only, so it never reaches it. A no-op off TV.
  */
-fun Window.keepKeyboardShutOnFocus() {
-    val mode = attributes.softInputMode
-    val shut = (mode and WindowManager.LayoutParams.SOFT_INPUT_MASK_STATE.inv()) or
-        WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
-    if (shut != mode) setSoftInputMode(shut)
+fun Modifier.tvTypeOnOk(typing: TvTyping): Modifier {
+    if (!typing.television) return this
+    return onPreviewKeyEvent { event ->
+        val ok = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
+        if (typing.active || !ok) return@onPreviewKeyEvent false
+        if (event.type == KeyEventType.KeyUp) typing.active = true
+        true
+    }.onFocusChanged { if (!it.isFocused) typing.active = false }
 }

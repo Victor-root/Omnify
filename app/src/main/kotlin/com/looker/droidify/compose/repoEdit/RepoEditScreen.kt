@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -48,10 +49,10 @@ import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
+import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusScale
-import com.looker.droidify.compose.components.tvKeyboardOnOk
-import com.looker.droidify.compose.components.tvKeyboardOptions
+import com.looker.droidify.compose.components.tvTypeOnOk
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
@@ -173,6 +174,7 @@ fun RepoEditScreen(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     val hasAddressError by remember { derivedStateOf { errorState.addressError != null } }
+                    val addressTyping = rememberTvTyping()
                     OutlinedTextField(
                         value = viewModel.addressState.text.toString(),
                         onValueChange = { viewModel.addressState.edit { replace(0, length, it) } },
@@ -180,8 +182,9 @@ fun RepoEditScreen(
                         isError = hasAddressError,
                         supportingText = { errorState.addressError?.let { Text(stringResource(it)) } },
                         singleLine = true,
-                        keyboardOptions = tvKeyboardOptions(),
-                        modifier = Modifier.tvKeyboardOnOk()
+                        keyboardActions = KeyboardActions(onAny = { addressTyping.stop() }),
+                        readOnly = addressTyping.readOnly,
+                        modifier = Modifier.tvTypeOnOk(addressTyping)
                             .fillMaxWidth()
                             .focusRequester(contentFocusRequester),
                     )
@@ -189,14 +192,16 @@ fun RepoEditScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     val hasFingerprintError by remember { derivedStateOf { errorState.fingerprintError != null } }
+                    val fingerprintTyping = rememberTvTyping()
                     OutlinedTextField(
                         value = viewModel.fingerprintState.text.toString(),
                         onValueChange = { viewModel.fingerprintState.edit { replace(0, length, it) } },
                         label = { Text(stringResource(R.string.fingerprint)) },
                         isError = hasFingerprintError,
                         supportingText = { errorState.fingerprintError?.let { Text(stringResource(it)) } },
-                        keyboardOptions = tvKeyboardOptions(),
-                        modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
+                        keyboardActions = KeyboardActions(onAny = { fingerprintTyping.stop() }),
+                        readOnly = fingerprintTyping.readOnly,
+                        modifier = Modifier.tvTypeOnOk(fingerprintTyping).fillMaxWidth(),
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -218,6 +223,7 @@ fun RepoEditScreen(
                             Spacer(modifier = Modifier.height(16.dp))
 
                             val hasUsernameError by remember { derivedStateOf { errorState.usernameError != null } }
+                            val usernameTyping = rememberTvTyping()
                             OutlinedTextField(
                                 value = viewModel.usernameState.text.toString(),
                                 onValueChange = { viewModel.usernameState.edit { replace(0, length, it) } },
@@ -225,13 +231,15 @@ fun RepoEditScreen(
                                 isError = hasUsernameError,
                                 supportingText = { errorState.usernameError?.let { Text(stringResource(it)) } },
                                 singleLine = true,
-                                keyboardOptions = tvKeyboardOptions(),
-                                modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
+                                keyboardActions = KeyboardActions(onAny = { usernameTyping.stop() }),
+                                readOnly = usernameTyping.readOnly,
+                                modifier = Modifier.tvTypeOnOk(usernameTyping).fillMaxWidth(),
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
                             val hasPasswordError by remember { derivedStateOf { errorState.passwordError != null } }
+                            val passwordTyping = rememberTvTyping()
                             OutlinedTextField(
                                 value = viewModel.passwordState.text.toString(),
                                 onValueChange = { viewModel.passwordState.edit { replace(0, length, it) } },
@@ -239,9 +247,11 @@ fun RepoEditScreen(
                                 isError = hasPasswordError,
                                 supportingText = { errorState.passwordError?.let { Text(stringResource(it)) } },
                                 visualTransformation = PasswordVisualTransformation(),
-                                keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.Password)),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                                 singleLine = true,
-                                modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
+                                keyboardActions = KeyboardActions(onAny = { passwordTyping.stop() }),
+                                readOnly = passwordTyping.readOnly,
+                                modifier = Modifier.tvTypeOnOk(passwordTyping).fillMaxWidth(),
                             )
                         }
                     }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -33,12 +34,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.rememberTvTyping
+import com.looker.droidify.compose.components.tvTypeOnOk
 import com.looker.droidify.compose.settings.components.BackupCategoryChecklist
 import com.looker.droidify.compose.settings.components.backupCategoryLabel
 import com.looker.droidify.data.backup.BackupCategory
 import com.looker.droidify.transfer.TransferFailure
-import com.looker.droidify.compose.components.tvKeyboardOnOk
-import com.looker.droidify.compose.components.tvKeyboardOptions
 
 /**
  * Receiving: this device shows a code and holds it there until the sending device types it, then
@@ -200,6 +201,7 @@ fun DeviceTransferSendDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(Modifier.height(16.dp))
+                        val codeTyping = rememberTvTyping()
                         OutlinedTextField(
                             value = typed,
                             // Digits only, so nothing a numeric keypad cannot produce ever reaches
@@ -207,9 +209,11 @@ fun DeviceTransferSendDialog(
                             onValueChange = { entered -> typed = entered.filter { it.isDigit() } },
                             singleLine = true,
                             label = { Text(stringResource(R.string.transfer_code_label)) },
-                            keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.Number)),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             isError = current.error != null,
-                            modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
+                            keyboardActions = KeyboardActions(onAny = { codeTyping.stop() }),
+                            readOnly = codeTyping.readOnly,
+                            modifier = Modifier.tvTypeOnOk(codeTyping).fillMaxWidth(),
                         )
                         current.error?.let { failure ->
                             Spacer(Modifier.height(8.dp))

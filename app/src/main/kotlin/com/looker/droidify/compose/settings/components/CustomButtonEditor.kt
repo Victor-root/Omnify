@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
@@ -35,10 +36,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
-import com.looker.droidify.compose.components.tvKeyboardOnOk
-import com.looker.droidify.compose.components.tvKeyboardOptions
+import com.looker.droidify.compose.components.tvTypeOnOk
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.datastore.model.CustomButtonIcon
 import java.util.*
@@ -74,18 +75,21 @@ fun CustomButtonEditor(
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
             ) {
+                val labelTyping = rememberTvTyping()
                 OutlinedTextField(
                     value = label,
                     onValueChange = { label = it },
                     label = { Text(stringResource(R.string.custom_button_label)) },
                     placeholder = { Text(stringResource(R.string.custom_button_label_hint)) },
                     singleLine = true,
-                    keyboardOptions = tvKeyboardOptions(),
-                    modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
+                    keyboardActions = KeyboardActions(onAny = { labelTyping.stop() }),
+                    readOnly = labelTyping.readOnly,
+                    modifier = Modifier.tvTypeOnOk(labelTyping).fillMaxWidth(),
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                val urlTyping = rememberTvTyping()
                 OutlinedTextField(
                     value = urlTemplate,
                     onValueChange = { urlTemplate = it },
@@ -94,8 +98,9 @@ fun CustomButtonEditor(
                     supportingText = {
                         Text(stringResource(R.string.custom_button_url_description))
                     },
-                    keyboardOptions = tvKeyboardOptions(),
-                    modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
+                    keyboardActions = KeyboardActions(onAny = { urlTyping.stop() }),
+                    readOnly = urlTyping.readOnly,
+                    modifier = Modifier.tvTypeOnOk(urlTyping).fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4,
                 )

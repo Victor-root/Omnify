@@ -34,7 +34,6 @@ import com.looker.droidify.compose.appList.PendingAppListTab
 import com.looker.droidify.compose.appList.navigation.AppList
 import com.looker.droidify.compose.appList.navigation.appList
 import com.looker.droidify.compose.appList.navigation.navigateToAppList
-import com.looker.droidify.compose.components.keepKeyboardShutOnFocus
 import com.looker.droidify.compose.easterEgg.navigation.easterEgg
 import com.looker.droidify.compose.easterEgg.navigation.navigateToEasterEgg
 import com.looker.droidify.compose.repoDetail.navigation.navigateToRepoDetail
@@ -79,7 +78,6 @@ import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.model.Repository
 import com.looker.droidify.utility.common.DeeplinkType
 import com.looker.droidify.utility.common.SdkCheck
-import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.sdkAbove
 import com.looker.droidify.utility.common.deeplinkType
 import com.looker.droidify.utility.common.sharedSourceUrl
@@ -510,9 +508,6 @@ class MainComposeActivity : ComponentActivity() {
         val themeState = collectThemeChanges()
         super.onCreate(savedInstanceState)
         applyAccentColor(themeState)
-        // A television opens the keyboard by itself whenever a screen shows with a text field focused;
-        // there it only opens when OK is pressed on the field (see tvKeyboardOnOk).
-        if (isTelevision()) window.keepKeyboardShutOnFocus()
         // Always draw edge-to-edge at the window level (reliable on every version, including the
         // Android 15+ forced enforcement). The "Edge-to-edge" setting is honoured purely in Compose:
         // when off, DroidifyTheme paints an opaque accent bar over the navigation bar so it looks like
