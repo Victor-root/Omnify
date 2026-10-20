@@ -20,6 +20,7 @@ A welcome page for a fresh install, and external sources that learn to handle re
 ### 🔄 Changed
 - **The Session installer is now listed first**, and stays the default, so someone who does not know what to pick lands on the right one. The welcome page says so in a line under the choice, and the whole installer card is tappable, not just its top.
 - **A "None" background**: plain white in the light theme, plain black in the dark ones, for those who'd rather have no decoration at all.
+- **On Android TV, a repository's page is laid out like an app's**: the repository in a card on the left (enable switch, edit and delete, description, fingerprint), its apps on the right.
 - **On Android TV, the keyboard opens when you press OK on a field**, no longer as soon as the remote passes over one.
 - **The whole app moves up above the keyboard**, so a field or button is never left hidden under it.
 - **On Android TV, the repositories screen starts on the first row's switch**, and moving up or down lands on the switches rather than on the buttons at the rows' end.
