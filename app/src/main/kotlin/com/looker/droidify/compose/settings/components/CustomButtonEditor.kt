@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.components.tvKeyboardOnOk
+import com.looker.droidify.compose.components.tvKeyboardOptions
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.datastore.model.CustomButtonIcon
 import java.util.*
@@ -78,7 +80,8 @@ fun CustomButtonEditor(
                     label = { Text(stringResource(R.string.custom_button_label)) },
                     placeholder = { Text(stringResource(R.string.custom_button_label_hint)) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = tvKeyboardOptions(),
+                    modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -91,7 +94,8 @@ fun CustomButtonEditor(
                     supportingText = {
                         Text(stringResource(R.string.custom_button_url_description))
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = tvKeyboardOptions(),
+                    modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4,
                 )

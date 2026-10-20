@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.animatedBackground
 import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.components.tvKeyboardOnOk
+import com.looker.droidify.compose.components.tvKeyboardOptions
 
 @Composable
 fun TextInputSettingItem(
@@ -165,7 +167,8 @@ private fun TextInputDialog(
                     value = text,
                     onValueChange = { text = it },
                     singleLine = true,
-                    modifier = Modifier
+                    keyboardOptions = tvKeyboardOptions(),
+                    modifier = Modifier.tvKeyboardOnOk()
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
                 )

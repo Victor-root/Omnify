@@ -92,6 +92,8 @@ import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.components.tvKeyboardOnOk
+import com.looker.droidify.compose.components.tvKeyboardOptions
 import com.looker.droidify.compose.externalApps.AddSourceState
 import com.looker.droidify.compose.externalApps.AppFamilyChoice
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
@@ -1314,7 +1316,8 @@ internal fun AddExternalSourceDialog(
                         label = { Text(stringResource(R.string.external_source_url_label)) },
                         singleLine = true,
                         isError = errorMessage != null,
-                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = tvKeyboardOptions(),
+                        modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
                     )
                     // The failure reason shown inline (a snackbar would sit behind the dialog scrim).
                     if (errorMessage != null) {
@@ -1486,7 +1489,8 @@ internal fun AddExternalAccountDialog(
                         onValueChange = { url = it },
                         label = { Text(stringResource(R.string.external_account_url_label)) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = tvKeyboardOptions(),
+                        modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
                     )
                     // Discovering a whole account is the single heaviest external-source action (one
                     // call per repo just to check for a release), so this is exactly where running low
@@ -1757,7 +1761,8 @@ private fun SourceOptionFields(
             null
         },
         singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = tvKeyboardOptions(),
+        modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
     )
     Spacer(Modifier.size(4.dp))
     CheckboxRow(
@@ -1827,7 +1832,8 @@ private fun FilterField(
         label = { Text(stringResource(label)) },
         supportingText = { Text(stringResource(hint)) },
         singleLine = true,
-        modifier = Modifier
+        keyboardOptions = tvKeyboardOptions(),
+        modifier = Modifier.tvKeyboardOnOk()
             .fillMaxWidth()
             .padding(bottom = 4.dp),
     )

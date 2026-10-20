@@ -20,6 +20,9 @@ A welcome page for a fresh install, and external sources that learn to handle re
 ### 🔄 Changed
 - **The Session installer is now listed first**, and stays the default, so someone who does not know what to pick lands on the right one. The welcome page says so in a line under the choice, and the whole installer card is tappable, not just its top.
 - **A "None" background**: plain white in the light theme, plain black in the dark ones, for those who'd rather have no decoration at all.
+- **On Android TV, the keyboard opens when you press OK on a field**, no longer as soon as the remote passes over one.
+- **The whole app moves up above the keyboard**, so a field or button is never left hidden under it.
+- **On Android TV, the repositories screen starts on the first row's switch**, and moving up or down lands on the switches rather than on the buttons at the rows' end.
 - **On Android TV, the home starts on the apps made for TV**, and remembers your choice when you switch to all apps: it used to start on all apps every time, forgetting it had been switched.
 - **An app's page on Android TV shows what the phone's does**: its permissions, the languages it supports, the "Root" badge, and, once installed, a button to open its Android settings.
 - **On Android TV, each repository you added gets its own row on the home screen**, with all its apps: a private repository's apps could only be found by opening it from the repositories screen. Its apps made for TV also come first in the TV apps list, where one not updated lately used to sink out of sight.

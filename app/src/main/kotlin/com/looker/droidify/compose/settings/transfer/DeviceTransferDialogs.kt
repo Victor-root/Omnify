@@ -37,6 +37,8 @@ import com.looker.droidify.compose.settings.components.BackupCategoryChecklist
 import com.looker.droidify.compose.settings.components.backupCategoryLabel
 import com.looker.droidify.data.backup.BackupCategory
 import com.looker.droidify.transfer.TransferFailure
+import com.looker.droidify.compose.components.tvKeyboardOnOk
+import com.looker.droidify.compose.components.tvKeyboardOptions
 
 /**
  * Receiving: this device shows a code and holds it there until the sending device types it, then
@@ -205,9 +207,9 @@ fun DeviceTransferSendDialog(
                             onValueChange = { entered -> typed = entered.filter { it.isDigit() } },
                             singleLine = true,
                             label = { Text(stringResource(R.string.transfer_code_label)) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.Number)),
                             isError = current.error != null,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
                         )
                         current.error?.let { failure ->
                             Spacer(Modifier.height(8.dp))
