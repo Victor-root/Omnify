@@ -1,6 +1,7 @@
 package com.looker.droidify.network
 
 import com.looker.droidify.network.header.HeadersBuilder
+import kotlinx.coroutines.delay
 import java.io.File
 
 interface Downloader {
@@ -30,6 +31,45 @@ interface Downloader {
 }
 
 typealias ProgressListener = suspend (bytesReceived: DataSize, contentLength: DataSize?) -> Unit
+
+/**
+ * [Downloader.downloadToFile], tried again after a transient, connection-level failure (a stall past
+ * the socket timeout, a dropped connection), each attempt resuming by Range from what [target] already
+ * holds. An HTTP error or an unrecognised exception would fail the exact same way again, so it is
+ * returned at once.
+ *
+ * Confirmed on GitHub, Codeberg and GitLab release assets: asking the same release URL again
+ * later follows a fresh redirect to the file and honours the Range, and the joined parts match the
+ * file byte for byte. A host that ignores the Range sends the whole file, which the downloader writes
+ * from the start instead of appending.
+ */
+suspend fun Downloader.downloadToFileWithRetry(
+    url: String,
+    target: File,
+    headers: HeadersBuilder.() -> Unit = {},
+    block: ProgressListener? = null,
+): NetworkResponse {
+    var retryDelay = FIRST_RETRY_DELAY_MS
+    repeat(MAX_DOWNLOAD_ATTEMPTS - 1) {
+        val response = downloadToFile(url, target, headers, block)
+        if (!response.isTransientFailure()) return response
+        delay(retryDelay)
+        retryDelay *= 2
+    }
+    return downloadToFile(url, target, headers, block)
+}
+
+private fun NetworkResponse.isTransientFailure(): Boolean =
+    this is NetworkResponse.Error.SocketTimeout ||
+        this is NetworkResponse.Error.ConnectionTimeout ||
+        this is NetworkResponse.Error.IO
+
+/** Total attempts, the first one included. Each retry resumes rather than restarts, so a few more of
+ *  them cost nothing but time, and the doubling delays (2, 4, 8, 16 s) span a Wi-Fi handoff or a
+ *  short loss of signal. */
+private const val MAX_DOWNLOAD_ATTEMPTS = 5
+
+private const val FIRST_RETRY_DELAY_MS = 2_000L
 
 sealed interface RangeResult {
 
