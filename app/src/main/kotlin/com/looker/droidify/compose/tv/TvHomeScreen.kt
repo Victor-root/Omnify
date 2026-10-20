@@ -75,7 +75,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.appList.AppListViewModel
-import com.looker.droidify.compose.appList.RepositoryApps
+import com.looker.droidify.compose.appList.AppRow
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appList.AppTab
 import com.looker.droidify.compose.appList.PendingAppListTab
@@ -136,6 +136,7 @@ fun TvHomeScreen(
     val tvApps by viewModel.tvApps.collectAsStateWithLifecycle()
     val allTvApps by viewModel.allTvApps.collectAsStateWithLifecycle()
     val ownRepositoryApps by viewModel.ownRepositoryApps.collectAsStateWithLifecycle()
+    val tvAppRows by viewModel.tvAppRows.collectAsStateWithLifecycle()
     val shizukuApps by viewModel.shizukuApps.collectAsStateWithLifecycle()
     val rootApps by viewModel.rootApps.collectAsStateWithLifecycle()
     val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
@@ -355,9 +356,18 @@ fun TvHomeScreen(
                 // Cold start: show a loader instead of empty carousels while the first sync runs.
                 catalogLoading && section != TvSection.EXTERNAL -> TvLoading()
 
-                // TV-only mode: there are only a handful of made-for-TV apps, so lay them all out in a
-                // wrapping grid (everything on screen at once) rather than a single horizontal carousel.
-                // The normal (all-apps) Explore below is untouched.
+                // TV-only mode: the apps made for TV in rows, like the full catalogue's (see
+                // AppListViewModel.tvAppRows).
+                section == TvSection.EXPLORE && tvOnly && tvAppRows.isNotEmpty() -> TvAppRows(
+                    rows = tvAppRows,
+                    installedPackages = installedPackages,
+                    onAppClick = openApp,
+                    restoreFocusId = restoreFocusId,
+                    restoreRequester = restoreRequester,
+                )
+
+                // Rows still being worked out, or nothing for TV at all: the plain grid, with its own
+                // empty state.
                 section == TvSection.EXPLORE && tvOnly -> TvAppGrid(
                     title = stringResource(R.string.discover_tv_apps),
                     apps = allTvApps,
@@ -671,7 +681,7 @@ private fun TvRailButton(
 private fun TvExplore(
     favouriteApps: List<AppMinimal>,
     favouriteExternalApps: List<ExternalApp>,
-    ownRepositoryApps: List<RepositoryApps>,
+    ownRepositoryApps: List<AppRow>,
     newApps: List<AppMinimal>,
     recentlyUpdatedApps: List<AppMinimal>,
     mostDownloadedApps: List<AppMinimal>,
@@ -740,6 +750,28 @@ private fun TvExplore(
         }
         if (rootApps.isNotEmpty()) {
             TvCarousel(stringResource(R.string.discover_root), rootApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
+        }
+    }
+}
+
+/** The TV-only home: one carousel per row of [AppListViewModel.tvAppRows]. */
+@Composable
+private fun TvAppRows(
+    rows: List<AppRow>,
+    installedPackages: Set<String>,
+    onAppClick: (String) -> Unit,
+    restoreFocusId: String?,
+    restoreRequester: FocusRequester,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(top = TvOverscan + 12.dp, bottom = TvOverscan),
+        verticalArrangement = spacedBy(28.dp),
+    ) {
+        rows.forEach { row ->
+            TvCarousel(row.name, row.apps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
         }
     }
 }
