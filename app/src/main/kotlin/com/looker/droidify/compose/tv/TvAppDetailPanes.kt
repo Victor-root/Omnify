@@ -35,7 +35,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -107,6 +109,7 @@ internal fun TvAppDetailPanes(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .stayWithinPaneVertically()
                             // overscrollEffect = null: Android 12+'s stretch overscroll crashes RenderThread
                             // when it redraws a hardware-accelerated WebView at a scroll boundary, and the
                             // screens host one (same reason as the phone detail screen).
@@ -122,12 +125,26 @@ internal fun TvAppDetailPanes(
             modifier = Modifier
                 .weight(0.6f)
                 .fillMaxHeight()
+                .stayWithinPaneVertically()
                 .padding(start = 16.dp, end = TvOverscan + 16.dp, top = TvOverscan, bottom = TvOverscan),
             verticalArrangement = spacedBy(16.dp),
             content = right,
         )
     }
 }
+
+/**
+ * Keeps up and down within the pane: from its top or bottom edge they used to carry on into the other
+ * pane (up from the left pane's top landed on the screenshots), when only right and left are meant to
+ * cross between the two.
+ */
+private fun Modifier.stayWithinPaneVertically(): Modifier = focusProperties {
+    onExit = {
+        if (requestedFocusDirection == FocusDirection.Up || requestedFocusDirection == FocusDirection.Down) {
+            cancelFocusChange()
+        }
+    }
+}.focusGroup()
 
 /**
  * Diagnostics builds only (see [DiagnosticLog]): how long a TV detail [page] takes to open, from its
