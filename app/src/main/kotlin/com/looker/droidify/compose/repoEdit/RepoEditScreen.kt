@@ -161,7 +161,7 @@ fun RepoEditScreen(
             if (!isTelevision) FloatingAppCardsBackground(
                 Modifier.padding(paddingValues.forFloatingBackground()),
             )
-            // The keyboard is kept clear of by the app's root (see MainComposeActivity), for every screen.
+            // The keyboard is kept clear of by the window itself panning (adjustPan, see the manifest).
             Box(
                 modifier = Modifier
                     .fillMaxSize()
