@@ -71,6 +71,8 @@ data class Settings(
      *  carousel only actually appears once a favourite exists, so this only matters once the user has
      *  explicitly hidden it via the overflow menu ("Hide favourites"). */
     val showFavouritesCarousel: Boolean = true,
+    /** Android TV: the home lists only apps made for TV. On by default on a television. */
+    val tvOnly: Boolean = false,
     val enabledRepoIds: Set<Int> = emptySet(),
     val deleteApkOnInstall: Boolean = false,
     /** Shizuku and root installs record Google Play, instead of Omnify, as the app's installer. */

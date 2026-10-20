@@ -50,7 +50,7 @@ object DatastoreModule {
         oldDatastore: DataStore<Settings>,
     ): DataStore<Preferences> = PreferenceDataStoreFactory.create(
         migrations = listOf(
-            ProtoToPreferenceMigration(oldDatastore, context.defaultBackgroundStyle()),
+            ProtoToPreferenceMigration(oldDatastore, context.defaultBackgroundStyle(), context.isTelevision()),
         ),
     ) {
         context.preferencesDataStoreFile(SETTINGS)
@@ -76,6 +76,8 @@ object DatastoreModule {
     ): SettingsRepository = PreferenceSettingsRepository(
         dataStore = dataStore,
         defaultBackgroundStyle = context.defaultBackgroundStyle(),
+        // A television starts on the apps made for it; the person's own choice is kept from then on.
+        defaultTvOnly = context.isTelevision(),
     )
 
     /** Halo suits a television; everywhere else the default stays Dunes. A choice already made (or

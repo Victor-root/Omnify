@@ -206,10 +206,9 @@ class AppListViewModel @Inject constructor(
     // carousel). See AppMinimal.excludingHidden, applied at each list-producing flow below.
     private val hiddenApps: Flow<Set<String>> = settingsRepository.get { hiddenApps }.distinctUntilChanged()
 
-    // TV-only filter (Android TV only, see AppListScreen's header toggle). Session-only, not
-    // persisted: it's a "just for this browsing session" narrowing, not a lasting preference.
-    private val _tvOnly = MutableStateFlow(false)
-    val tvOnly: StateFlow<Boolean> = _tvOnly
+    // TV-only filter (Android TV only, see AppListScreen's header toggle). Kept across launches, and on
+    // by default on a television (see DatastoreModule).
+    val tvOnly: StateFlow<Boolean> = settingsRepository.get { tvOnly }.asStateFlow(false)
 
     /** Whether a left/right swipe on the home grid switches tab (user setting, off by default). */
     val homeScreenSwiping = settingsRepository.get { homeScreenSwiping }.asStateFlow(false)
@@ -495,10 +494,10 @@ class AppListViewModel @Inject constructor(
     }
 
     fun toggleTvOnly() {
-        _tvOnly.value = !_tvOnly.value
+        viewModelScope.launch { settingsRepository.setTvOnly(!tvOnly.value) }
     }
 
-    // How the favourites full page is sorted right now. Session-only like tvOnly above, and scoped to
+    // How the favourites full page is sorted right now. Session-only and scoped to
     // that one page: it never touches favouriteApps' own order, so leaving the page resets nothing and
     // affects nothing else.
     private val _favouritesSortOrder = MutableStateFlow(FavouritesSortOrder.FAVOURITED_AT)

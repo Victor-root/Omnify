@@ -10,6 +10,8 @@ class ProtoToPreferenceMigration(
     // The old store knows nothing of backgrounds, so what it holds is only the built-in default: the
     // device's own default is written instead, or a fresh install would be pinned to it.
     private val defaultBackgroundStyle: BackgroundStyle,
+    // Likewise unknown to the old store, and likewise device-dependent.
+    private val defaultTvOnly: Boolean,
 ) : androidx.datastore.core.DataMigration<androidx.datastore.preferences.core.Preferences> {
     override suspend fun cleanUp() {
     }
@@ -21,7 +23,7 @@ class ProtoToPreferenceMigration(
     override suspend fun migrate(currentData: androidx.datastore.preferences.core.Preferences): androidx.datastore.preferences.core.Preferences {
         val settings = oldDataStore.data.first()
         val preferences = currentData.toMutablePreferences()
-        preferences.setting(settings.copy(backgroundStyle = defaultBackgroundStyle))
+        preferences.setting(settings.copy(backgroundStyle = defaultBackgroundStyle, tvOnly = defaultTvOnly))
         return preferences
     }
 }
