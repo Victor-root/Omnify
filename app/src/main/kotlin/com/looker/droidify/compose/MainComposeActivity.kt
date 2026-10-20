@@ -8,8 +8,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -814,7 +818,13 @@ class MainComposeActivity : ComponentActivity() {
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 ) { innerPadding ->
                     NavHost(
-                        modifier = Modifier.padding(innerPadding),
+                        // Every screen moves up above the keyboard, the whole of it: drawn edge-to-edge,
+                        // the window no longer resizes around the keyboard on its own, which left fields
+                        // and buttons under it. The navigation bar part is left out, as each screen's
+                        // own Scaffold already keeps clear of it; what is added is the rest of the keyboard.
+                        modifier = Modifier
+                            .padding(innerPadding)
+                            .windowInsetsPadding(WindowInsets.ime.exclude(WindowInsets.navigationBars)),
                         navController = navController,
                         startDestination = if (welcomePending) Welcome else AppList,
                     ) {

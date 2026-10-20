@@ -7,11 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -160,16 +158,11 @@ fun RepoEditScreen(
             if (!isTelevision) FloatingAppCardsBackground(
                 Modifier.padding(paddingValues.forFloatingBackground()),
             )
-            // The keyboard covers the form otherwise, with nothing to scroll: the window is drawn
-            // edge-to-edge, so it no longer resizes itself around the keyboard and the fields underneath
-            // it simply stay there, out of reach. consumeWindowInsets says the bars are already paid for
-            // just above, so what imePadding adds is the keyboard alone rather than the two stacked.
+            // The keyboard is kept clear of by the app's root (see MainComposeActivity), for every screen.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .consumeWindowInsets(paddingValues)
-                    .imePadding(),
+                    .padding(paddingValues),
             ) {
                 Column(
                     modifier = Modifier

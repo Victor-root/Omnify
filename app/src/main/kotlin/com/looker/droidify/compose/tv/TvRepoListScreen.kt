@@ -498,9 +498,9 @@ private fun TvManagementRow(
             .fillMaxWidth()
             .focusProperties {
                 onEnter = {
-                    if (requestedFocusDirection == FocusDirection.Up || requestedFocusDirection == FocusDirection.Down) {
-                        toggleFocus.requestFocus()
-                    }
+                    val vertical = requestedFocusDirection == FocusDirection.Up ||
+                        requestedFocusDirection == FocusDirection.Down
+                    if (vertical) toggleFocus.requestFocus()
                 }
             }
             .focusGroup(),
