@@ -314,6 +314,7 @@ fun TvAppDetailScreen(
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
+                                        if (isRootCompatible) RootBadge()
                                     }
                                 }
                                 // Under the icon, across the card: beside it, the column was too narrow for
@@ -321,7 +322,6 @@ fun TvAppDetailScreen(
                                 TvMetaChips(
                                     category = app.categories.firstOrNull(),
                                     license = app.metadata.license.takeIf { it.isNotBlank() },
-                                    rootCompatible = isRootCompatible,
                                 )
                                 // Version and size as the phone's card shows them, not as tags.
                                 HeroStatsRow(
@@ -454,15 +454,10 @@ internal fun TvAccentHeader(title: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun TvMetaChips(category: String?, license: String?, rootCompatible: Boolean) {
-    FlowRow(
-        horizontalArrangement = spacedBy(8.dp),
-        verticalArrangement = spacedBy(8.dp),
-        itemVerticalAlignment = Alignment.CenterVertically,
-    ) {
+private fun TvMetaChips(category: String?, license: String?) {
+    FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
         category?.let { TvChip(it) }
         license?.let { TvChip(it) }
-        if (rootCompatible) RootBadge()
     }
 }
 

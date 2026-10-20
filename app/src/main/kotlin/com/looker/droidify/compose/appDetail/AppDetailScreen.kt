@@ -141,6 +141,7 @@ import com.looker.droidify.compose.components.tvDpadKeyLog
 import com.looker.droidify.compose.components.tvFocusDebugLog
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusOutline
+import com.looker.droidify.compose.components.tvActionFocusScale
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.theme.LocalIsTelevision
@@ -636,7 +637,7 @@ internal fun PrimaryActions(
             when {
                 !isInstalled -> Button(
                     onClick = onInstallOrUpdate,
-                    modifier = tvPrimaryButton.tvFocusScale(1.10f, debugLabel = "primary-install-button"),
+                    modifier = tvPrimaryButton.tvActionFocusScale(fillWidth, "primary-install-button"),
                     // Slimmer than the default (which reserves generous side margins for text-only
                     // buttons): with an icon and a longer localised label (e.g. "Mettre à jour"), the
                     // default padding pushed the label onto two lines on a normal-width button.
@@ -653,7 +654,7 @@ internal fun PrimaryActions(
 
                 updateAvailable -> Button(
                     onClick = onInstallOrUpdate,
-                    modifier = tvPrimaryButton.tvFocusScale(1.10f, debugLabel = "primary-update-button"),
+                    modifier = tvPrimaryButton.tvActionFocusScale(fillWidth, "primary-update-button"),
                     contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                 ) {
                     Icon(
@@ -667,13 +668,13 @@ internal fun PrimaryActions(
 
                 else -> Button(
                     onClick = onLaunch,
-                    modifier = tvPrimaryButton.tvFocusScale(1.10f, debugLabel = "primary-launch-button"),
+                    modifier = tvPrimaryButton.tvActionFocusScale(fillWidth, "primary-launch-button"),
                 ) { Text(stringResource(R.string.launch)) }
             }
             if (isInstalled) {
                 MutedButton(
                     onClick = onUninstall,
-                    modifier = tvSecondaryButton.tvFocusScale(1.10f, debugLabel = "secondary-uninstall-button"),
+                    modifier = tvSecondaryButton.tvActionFocusScale(fillWidth, "secondary-uninstall-button"),
                 ) {
                     Text(stringResource(R.string.uninstall), maxLines = 1)
                 }
