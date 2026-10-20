@@ -24,7 +24,7 @@ import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.TileIconSize
 import com.looker.droidify.compose.components.TvTileIconSize
-import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.components.tvActionFocusScale
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.installer.model.InstallState
@@ -121,14 +121,14 @@ fun ExternalLifecycleActions(
                 isTelevision -> Modifier.height(60.dp).widthIn(min = 340.dp)
                 isTablet -> Modifier.widthIn(min = 220.dp, max = 360.dp)
                 else -> Modifier.weight(1f)
-            }.tvFocusScale(1.10f, debugLabel = "external-primary-button").let {
+            }.tvActionFocusScale(fillWidth, "external-primary-button").let {
                 if (primaryActionFocusRequester != null) it.focusRequester(primaryActionFocusRequester) else it
             }
             val secondaryButtonModifier = when {
                 isTelevision && fillWidth -> Modifier.height(60.dp).weight(1f)
                 isTelevision -> Modifier.height(60.dp).widthIn(min = 200.dp)
                 else -> Modifier
-            }.tvFocusScale(1.10f, debugLabel = "external-secondary-button")
+            }.tvActionFocusScale(fillWidth, "external-secondary-button")
             when {
                 !isInstalled -> Button(
                     onClick = onInstallOrUpdate,

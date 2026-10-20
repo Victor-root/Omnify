@@ -107,10 +107,15 @@ fun TvInitialFocus(requester: FocusRequester) {
  * suited to full-width rows, whose scaled width would overflow the screen — use [tvFocusFill] there.
  */
 @Composable
-fun Modifier.tvFocusScale(focusedScale: Float = 1.1f, debugLabel: String? = null): Modifier {
+fun Modifier.tvFocusScale(
+    focusedScale: Float = 1.1f,
+    debugLabel: String? = null,
+    // The scale while not focused: below 1 for an element that grows back to its own size on focus.
+    restingScale: Float = 1f,
+): Modifier {
     if (!LocalIsTelevision.current) return this
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) focusedScale else 1f, label = "tvFocusScale")
+    val scale by animateFloatAsState(if (focused) focusedScale else restingScale, label = "tvFocusScale")
     return this
         .onFocusChanged {
             focused = it.isFocused
@@ -124,6 +129,20 @@ fun Modifier.tvFocusScale(focusedScale: Float = 1.1f, debugLabel: String? = null
             scaleY = scale
         }
 }
+
+/**
+ * [tvFocusScale] for an app page's action buttons. In a row filling its pane ([fillWidth]) a button
+ * rests a little smaller and grows back to its own size on focus: grown past it, it spilled out of the
+ * pane's card. Elsewhere it grows past its size as usual.
+ */
+@Composable
+fun Modifier.tvActionFocusScale(fillWidth: Boolean, debugLabel: String): Modifier = if (fillWidth) {
+    tvFocusScale(focusedScale = 1f, debugLabel = debugLabel, restingScale = FILL_WIDTH_RESTING_SCALE)
+} else {
+    tvFocusScale(1.10f, debugLabel = debugLabel)
+}
+
+private const val FILL_WIDTH_RESTING_SCALE = 0.92f
 
 /**
  * Android TV only: turns a non-interactive block (a long description paragraph, the what's-new text…)

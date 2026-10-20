@@ -40,7 +40,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -294,18 +293,14 @@ fun TvExternalAppDetailScreen(
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                if (isRootCompatible) RootBadge()
                             }
                         }
                         // Under the icon, across the card: beside it, the column was too narrow for two of
                         // them and each landed on a line of its own.
-                        FlowRow(
-                            horizontalArrangement = spacedBy(8.dp),
-                            verticalArrangement = spacedBy(8.dp),
-                            itemVerticalAlignment = Alignment.CenterVertically,
-                        ) {
+                        FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
                             TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
                             if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
-                            if (isRootCompatible) RootBadge()
                         }
                         // Version and size as the phone's card shows them, not as tags. The version is the
                         // latest APK's own (releaseVersionLabel), as in the version list below, not the raw
