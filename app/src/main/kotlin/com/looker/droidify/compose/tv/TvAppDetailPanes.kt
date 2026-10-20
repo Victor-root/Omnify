@@ -78,6 +78,9 @@ internal fun TvAppDetailPanes(
     leftScroll: ScrollState,
     leftBringIntoViewSpec: BringIntoViewSpec,
     onKeyDown: () -> Unit,
+    // Where moving right into the right pane lands, its screenshots say, rather than whatever sits
+    // level with the focus on the left; null leaves it to the default search.
+    rightEntry: FocusRequester? = null,
     left: @Composable ColumnScope.() -> Unit,
     right: @Composable ColumnScope.() -> Unit,
 ) {
@@ -125,7 +128,7 @@ internal fun TvAppDetailPanes(
             modifier = Modifier
                 .weight(0.6f)
                 .fillMaxHeight()
-                .stayWithinPaneVertically()
+                .stayWithinPaneVertically(entry = rightEntry)
                 .padding(start = 16.dp, end = TvOverscan + 16.dp, top = TvOverscan, bottom = TvOverscan),
             verticalArrangement = spacedBy(16.dp),
             content = right,
@@ -136,9 +139,12 @@ internal fun TvAppDetailPanes(
 /**
  * Keeps up and down within the pane: from its top or bottom edge they used to carry on into the other
  * pane (up from the left pane's top landed on the screenshots), when only right and left are meant to
- * cross between the two.
+ * cross between the two. Moving right into the pane lands on [entry] when given.
  */
-private fun Modifier.stayWithinPaneVertically(): Modifier = focusProperties {
+private fun Modifier.stayWithinPaneVertically(entry: FocusRequester? = null): Modifier = focusProperties {
+    onEnter = {
+        if (entry != null && requestedFocusDirection == FocusDirection.Right) entry.requestFocus()
+    }
     onExit = {
         if (requestedFocusDirection == FocusDirection.Up || requestedFocusDirection == FocusDirection.Down) {
             cancelFocusChange()
