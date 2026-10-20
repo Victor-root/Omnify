@@ -1,5 +1,9 @@
 package com.looker.droidify.compose.tv
 
+import com.looker.droidify.compose.components.RootBadge
+import com.looker.droidify.compose.components.SupportedLanguagesSection
+import com.looker.droidify.utility.common.RootDetection
+import com.looker.droidify.utility.common.extension.openAppInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -85,6 +89,7 @@ fun TvExternalAppDetailScreen(
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
     val installConflict by viewModel.installConflict.collectAsStateWithLifecycle()
     val readme by viewModel.readme.collectAsStateWithLifecycle()
+    val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
@@ -155,6 +160,11 @@ fun TvExternalAppDetailScreen(
     }
     val expectedSigners = app.latestApkUrl?.let { expectedSignersByApkUrl[it] }
 
+    // Read off the same text as the phone screen's badge: the app's name and its README.
+    val isRootCompatible = remember(app.key, readme) {
+        RootDetection.textIndicatesRoot("${app.label} ${readme?.html.orEmpty()}")
+    }
+
     // Same content the phone screen loads, so an external app's page is as rich as a catalogue one
     // (Omnify deliberately blurs the line between the two). Unlike the phone screen, TV's version
     // list has no "show more" (see TvExternalVersionsList below), so it asks for the full ceiling
@@ -163,6 +173,9 @@ fun TvExternalAppDetailScreen(
         viewModel.loadReadme(app)
         viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET)
     }
+    // Re-checked when the install state changes, like the phone screen: right after an install it
+    // switches from the remote check to the installed APK's own locales.
+    LaunchedEffect(app.key, isInstalled) { viewModel.loadSupportedLanguages(app, isInstalled) }
     // Tapping a version asks to confirm, then installs that exact release — the same engine
     // (viewModel.installVersion) and confirmation dialog the phone screen uses.
     var versionToInstall by remember(app.key) { mutableStateOf<Release?>(null) }
@@ -279,6 +292,7 @@ fun TvExternalAppDetailScreen(
                                     TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
                                     if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
                                 }
+                                if (isRootCompatible) RootBadge()
                             }
                         }
 
@@ -303,8 +317,13 @@ fun TvExternalAppDetailScreen(
                             onToggleFavourite = { viewModel.toggleFavourite(app) },
                             isHidden = app.key in hiddenApps,
                             onToggleHidden = { viewModel.toggleHidden(app) },
+                            onManageClick = app.packageName?.takeIf { isInstalled }?.let { packageName ->
+                                { context.openAppInfo(packageName) }
+                            },
                         )
                     }
+
+                    supportedLanguages?.let { SupportedLanguagesSection(languages = it) }
 
                     if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
                         CertificateSection(

@@ -1,5 +1,12 @@
 package com.looker.droidify.compose.tv
 
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.ui.platform.LocalContext
+import com.looker.droidify.compose.appDetail.PermissionsSection
+import com.looker.droidify.compose.appDetail.isRootCompatible
+import com.looker.droidify.compose.components.RootBadge
+import com.looker.droidify.compose.components.SupportedLanguagesSection
+import com.looker.droidify.utility.common.extension.openAppInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -94,6 +101,8 @@ fun TvAppDetailScreen(
     val externallySourced by viewModel.externallySourced.collectAsStateWithLifecycle()
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
     val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
+    val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     // Set once the hero icon actually loads (see the AppMinimalIcon call below); reset per screen
     // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
     val iconAccent = rememberIconAccent(
@@ -142,6 +151,12 @@ fun TvAppDetailScreen(
             // update to, known the moment the catalogue is synced, whether or not the app is installed
             // yet, unlike [installedSignerRaw].
             val expectedSigners = installablePackage?.manifest?.signer
+            // The same lookups the phone page makes, so both show the same things.
+            val suggestedPackage = installablePackage ?: packages.firstOrNull()?.first
+            val permissions = remember(suggestedPackage) { suggestedPackage?.manifest?.permissions.orEmpty() }
+            val isRootCompatible = remember(app, installablePackage, installedPackage) {
+                app.isRootCompatible(installablePackage ?: installedPackage)
+            }
             // externallySourced: mirrors the phone screen, see AppDetailViewModel's own property. A copy
             // a tracked external source is responsible for is not this catalogue entry's to update, and
             // the comparison below says nothing about which build is newer across two numberings.
@@ -294,6 +309,7 @@ fun TvAppDetailScreen(
                                             version = app.metadata.suggestedVersionName.takeIf { it.isNotBlank() },
                                             license = app.metadata.license.takeIf { it.isNotBlank() },
                                         )
+                                        if (isRootCompatible) RootBadge()
                                     }
                                 }
 
@@ -314,9 +330,18 @@ fun TvAppDetailScreen(
                                     onToggleFavourite = viewModel::toggleFavourite,
                                     isHidden = isHidden,
                                     onToggleHidden = viewModel::toggleHidden,
+                                    onManageClick = if (isInstalled) {
+                                        { context.openAppInfo(app.metadata.packageName.name) }
+                                    } else {
+                                        null
+                                    },
                                 )
                             }
 
+                            if (permissions.isNotEmpty()) PermissionsSection(permissions = permissions)
+                            if (supportedLanguages.codes.isNotEmpty()) {
+                                SupportedLanguagesSection(languages = supportedLanguages)
+                            }
                             if (installedSignerRaw != null || !expectedSigners.isNullOrEmpty()) {
                                 CertificateSection(
                                     installedSigner = installedSignerRaw,
@@ -440,6 +465,8 @@ internal fun TvSecondaryActions(
     onToggleFavourite: () -> Unit,
     isHidden: Boolean,
     onToggleHidden: () -> Unit,
+    // Android's own page for the installed app (permissions, storage, notifications…); null hides it.
+    onManageClick: (() -> Unit)?,
 ) {
     FlowRow(
         horizontalArrangement = spacedBy(8.dp, Alignment.CenterHorizontally),
@@ -458,6 +485,14 @@ internal fun TvSecondaryActions(
             active = isHidden,
             onClick = onToggleHidden,
         )
+        onManageClick?.let { onClick ->
+            TvSecondaryAction(
+                icon = Icons.Filled.Settings,
+                label = stringResource(R.string.manage),
+                active = false,
+                onClick = onClick,
+            )
+        }
     }
 }
 
