@@ -149,6 +149,8 @@ import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.components.tvKeyboardOnOk
+import com.looker.droidify.compose.components.tvKeyboardOptions
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
@@ -1548,7 +1550,8 @@ fun SearchBar(
         lineLimits = TextFieldLineLimits.SingleLine,
         textStyle = LocalTextStyle.current,
         interactionSource = interactionSource,
-        modifier = Modifier
+        keyboardOptions = tvKeyboardOptions(),
+        modifier = Modifier.tvKeyboardOnOk()
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .graphicsLayer {
@@ -1637,9 +1640,9 @@ private fun SearchTopBar(
                 cursorBrush = SolidColor(LocalOnAccentBarColor.current),
                 // The keyboard's "search" key just dismisses the keyboard (results already filter live);
                 // the query stays so the user sees what they searched.
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
                 onKeyboardAction = { focusManager.clearFocus() },
-                modifier = Modifier
+                modifier = Modifier.tvKeyboardOnOk()
                     .fillMaxWidth()
                     .focusRequester(focusRequester),
                 decorator = { inner ->

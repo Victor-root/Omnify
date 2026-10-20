@@ -87,6 +87,8 @@ import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.animatedBackground
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.components.tvKeyboardOnOk
+import com.looker.droidify.compose.components.tvKeyboardOptions
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.settings.components.InfoBanner
@@ -1105,7 +1107,8 @@ private fun TvSearchField(query: TextFieldState, queryEmpty: Boolean) {
                 textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
                 lineLimits = androidx.compose.foundation.text.input.TextFieldLineLimits.SingleLine,
-                modifier = Modifier
+                keyboardOptions = tvKeyboardOptions(),
+                modifier = Modifier.tvKeyboardOnOk()
                     .fillMaxWidth()
                     .tvBringIntoViewOnFocus()
                     .onFocusChanged { focused = it.isFocused },

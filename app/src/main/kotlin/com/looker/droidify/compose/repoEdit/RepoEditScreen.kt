@@ -50,6 +50,8 @@ import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.components.tvKeyboardOnOk
+import com.looker.droidify.compose.components.tvKeyboardOptions
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
@@ -178,7 +180,8 @@ fun RepoEditScreen(
                         isError = hasAddressError,
                         supportingText = { errorState.addressError?.let { Text(stringResource(it)) } },
                         singleLine = true,
-                        modifier = Modifier
+                        keyboardOptions = tvKeyboardOptions(),
+                        modifier = Modifier.tvKeyboardOnOk()
                             .fillMaxWidth()
                             .focusRequester(contentFocusRequester),
                     )
@@ -192,7 +195,8 @@ fun RepoEditScreen(
                         label = { Text(stringResource(R.string.fingerprint)) },
                         isError = hasFingerprintError,
                         supportingText = { errorState.fingerprintError?.let { Text(stringResource(it)) } },
-                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = tvKeyboardOptions(),
+                        modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -221,7 +225,8 @@ fun RepoEditScreen(
                                 isError = hasUsernameError,
                                 supportingText = { errorState.usernameError?.let { Text(stringResource(it)) } },
                                 singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = tvKeyboardOptions(),
+                                modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
@@ -234,9 +239,9 @@ fun RepoEditScreen(
                                 isError = hasPasswordError,
                                 supportingText = { errorState.passwordError?.let { Text(stringResource(it)) } },
                                 visualTransformation = PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.Password)),
                                 singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
                             )
                         }
                     }
