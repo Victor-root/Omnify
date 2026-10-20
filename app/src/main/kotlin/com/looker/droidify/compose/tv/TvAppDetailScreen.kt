@@ -512,9 +512,9 @@ internal fun TvSecondaryActions(
     }
 }
 
-/** Accent icon when on, muted when off. */
+/** Accent icon when on, muted when off. Also the repository page's edit and delete. */
 @Composable
-private fun TvSecondaryAction(icon: ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
+internal fun TvSecondaryAction(icon: ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
     TextButton(
         onClick = onClick,
         modifier = Modifier.height(44.dp).tvFocusScale(1.05f).tvBringIntoViewOnFocus(),

@@ -2,6 +2,9 @@ package com.looker.droidify.compose.tv
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -17,7 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,10 +28,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,7 +42,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -53,9 +51,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appList.CatalogAppTile
 import com.looker.droidify.compose.components.FingerprintCard
 import com.looker.droidify.compose.components.TvInitialFocus
-import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvFocusFill
-import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.repoDetail.DeleteRepositoryDialog
 import com.looker.droidify.compose.repoDetail.InstallAllButton
@@ -69,13 +65,12 @@ import com.looker.droidify.compose.repoList.defaultRepoIconRes
 import com.looker.droidify.utility.text.toAnnotatedString
 
 /**
- * The Android TV repository detail screen — the same [RepoDetailViewModel] as the phone screen, but a
- * single scrolling page (the phone's Info / Apps tab row read poorly on a 10-foot screen) laid out in
- * the TV visual language: a large header with the repo's identity, description, last-updated, fingerprint
- * and enable toggle, then the repo's apps as the usual catalogue tile grid beneath. Never composed off
- * TV.
+ * The Android TV repository detail screen — the same [RepoDetailViewModel] as the phone screen, laid out
+ * like an app's page ([TvAppDetailPanes]): the repository in a card on the left (identity, enable switch,
+ * edit and delete, description, last update, fingerprint), its apps as the usual catalogue tile grid on
+ * the right. Never composed off TV.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TvRepoDetailScreen(
     onBackClick: () -> Unit,
@@ -103,88 +98,57 @@ fun TvRepoDetailScreen(
         )
     }
 
-    val contentFocus = remember { FocusRequester() }
-    TvInitialFocus(contentFocus)
+    // The enable switch holds the startup focus, the main thing to do with a repository from here.
+    val toggleFocus = remember { FocusRequester() }
+    TvInitialFocus(toggleFocus)
+    val leftScroll = rememberScrollState()
 
     val currentRepo = repo
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TvAccentBackground()
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Header row: back on the left, edit / delete on the right — the actions the phone screen's
-            // top bar carried, kept as focus-scaled icon buttons in the TV style.
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = TvOverscan + 8.dp, end = TvOverscan, top = TvOverscan, bottom = 4.dp),
-            ) {
-                Spacer(Modifier.weight(1f))
-                if (currentRepo != null) {
-                    IconButton(
-                        onClick = { onEditClick(viewModel.repoId) },
-                        modifier = Modifier.tvFocusScale(),
-                    ) {
-                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit))
-                    }
-                    IconButton(
-                        onClick = { showDeleteDialog = true },
-                        modifier = Modifier.tvFocusScale(),
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete))
-                    }
-                }
-            }
+        if (currentRepo == null) return@Box
+        // Laid out like an app's page: the repository itself in a card on the left, its apps on the right.
+        TvAppDetailPanes(
+            leftScroll = leftScroll,
+            leftBringIntoViewSpec = LocalBringIntoViewSpec.current,
+            onKeyDown = {},
+            left = {
+                TvRepoCard(
+                    repo = currentRepo,
+                    toggleFocus = toggleFocus,
+                    onToggle = viewModel::enableRepository,
+                    onEdit = { onEditClick(viewModel.repoId) },
+                    onDelete = { showDeleteDialog = true },
+                )
+            },
+            right = {
+                TvSectionTitle(stringResource(R.string.repo_tab_apps))
+                when {
+                    !currentRepo.enabled -> UnsyncedRepoState(
+                        onEnableClick = { viewModel.enableRepository(true) },
+                        address = currentRepo.address,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    )
 
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(150.dp),
-                modifier = Modifier.fillMaxSize().focusRequester(contentFocus).focusGroup(),
-                contentPadding = PaddingValues(
-                    start = TvOverscan + 8.dp,
-                    end = TvOverscan + 8.dp,
-                    top = 8.dp,
-                    bottom = TvOverscan + 24.dp,
-                ),
-                horizontalArrangement = spacedBy(12.dp),
-                verticalArrangement = spacedBy(12.dp),
-            ) {
-                if (currentRepo != null) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "header") {
-                        TvRepoHeader(
-                            repo = currentRepo,
-                            onToggle = viewModel::enableRepository,
-                        )
-                    }
+                    apps.isEmpty() && isSyncing -> TvRepoAppsMessage(loading = true)
 
-                    when {
-                        !currentRepo.enabled -> item(span = { GridItemSpan(maxLineSpan) }, key = "disabled") {
-                            UnsyncedRepoState(
-                                onEnableClick = { viewModel.enableRepository(true) },
-                                address = currentRepo.address,
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    apps.isEmpty() -> TvRepoAppsMessage(loading = false)
+
+                    else -> {
+                        if (notInstalledCount > 0) {
+                            InstallAllButton(
+                                count = notInstalledCount,
+                                isInstalling = isInstallingAll,
+                                onClick = viewModel::installAll,
                             )
                         }
-
-                        apps.isEmpty() && isSyncing -> item(span = { GridItemSpan(maxLineSpan) }, key = "syncing") {
-                            TvRepoAppsMessage(loading = true)
-                        }
-
-                        apps.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }, key = "empty") {
-                            TvRepoAppsMessage(loading = false)
-                        }
-
-                        else -> {
-                            item(span = { GridItemSpan(maxLineSpan) }, key = "apps-title") {
-                                TvSectionTitle(stringResource(R.string.repo_tab_apps))
-                            }
-                            if (notInstalledCount > 0) {
-                                item(span = { GridItemSpan(maxLineSpan) }, key = "install-all") {
-                                    InstallAllButton(
-                                        count = notInstalledCount,
-                                        isInstalling = isInstallingAll,
-                                        onClick = viewModel::installAll,
-                                    )
-                                }
-                            }
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(150.dp),
+                            modifier = Modifier.weight(1f).fillMaxWidth().focusGroup(),
+                            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+                            horizontalArrangement = spacedBy(12.dp),
+                            verticalArrangement = spacedBy(12.dp),
+                        ) {
                             gridItems(apps, key = { it.appId }, contentType = { "app-tile" }) { app ->
                                 CatalogAppTile(
                                     app = app,
@@ -195,100 +159,108 @@ fun TvRepoDetailScreen(
                         }
                     }
                 }
-            }
-        }
+            },
+        )
     }
 }
 
-/** The repo's identity block: icon, name, its address as a focusable link, description, last-updated,
- *  fingerprint and the enable toggle — the phone Info tab's content, in one TV header. */
+/** The repository's own card: icon, name, its address as a focusable link, the enable switch, edit and
+ *  delete, then its description, last update and fingerprint, the phone's Info tab in one card. */
 @Composable
-private fun TvRepoHeader(
+private fun TvRepoCard(
     repo: com.looker.droidify.data.model.Repo,
+    toggleFocus: FocusRequester,
     onToggle: (Boolean) -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+    val handler = LocalUriHandler.current
+    Row(horizontalArrangement = spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
         RepoIcon(
             iconUrl = repo.icon?.path,
             fallbackUrl = defaultRepoIcon(repo.address),
             name = repo.name,
-            modifier = Modifier.size(72.dp),
+            modifier = Modifier.size(96.dp),
             fallbackRes = defaultRepoIconRes(repo.address),
         )
-        Spacer(Modifier.height(10.dp))
-        Text(text = repo.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(4.dp))
-        val handler = LocalUriHandler.current
-        Text(
-            text = repo.address,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary,
-            textDecoration = TextDecoration.Underline,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .tvFocusFill(RoundedCornerShape(8.dp))
-                .clickable { runCatching { handler.openUri(repo.address) } }
-                .padding(vertical = 4.dp),
-        )
-
-        if (repo.description.isNotEmpty()) {
-            Spacer(Modifier.height(14.dp))
-            val description = remember(repo.description) {
-                repo.description.toAnnotatedString(onUrlClick = { runCatching { handler.openUri(it) } })
-            }
+        Column(verticalArrangement = spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+            Text(text = repo.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
-                text = description,
+                text = repo.address,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.tvReadable(),
+                color = MaterialTheme.colorScheme.primary,
+                textDecoration = TextDecoration.Underline,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .tvFocusFill(RoundedCornerShape(8.dp))
+                    .clickable { runCatching { handler.openUri(repo.address) } }
+                    .padding(vertical = 4.dp),
             )
         }
-
-        if (repo.versionInfo != null) {
-            Spacer(Modifier.height(14.dp))
-            LastUpdatedCard(repo.versionInfo.timestamp)
-        }
-
-        Spacer(Modifier.height(14.dp))
-        FingerprintCard(title = stringResource(R.string.fingerprint), content = formatFingerprint(repo))
-
-        Spacer(Modifier.height(14.dp))
-        // The enable toggle as a single-button row (click anywhere flips it) — same interaction as the
-        // repo list rows.
-        Surface(
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier
-                .fillMaxWidth()
-                .tvFocusScale(1.02f)
-                .tvFocusFill(MaterialTheme.shapes.large)
-                .clickable { onToggle(!repo.enabled) },
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.repo_enabled_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = if (repo.enabled) {
-                            stringResource(R.string.repo_enabled_desc_on)
-                        } else {
-                            stringResource(R.string.repo_enabled_desc_off)
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Spacer(Modifier.size(12.dp))
-                Switch(checked = repo.enabled, onCheckedChange = null)
-            }
-        }
     }
+
+    // The enable switch as one row (click anywhere flips it), the same interaction as the repository
+    // list's rows.
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(toggleFocus)
+            .tvFocusFill(MaterialTheme.shapes.large)
+            .clickable { onToggle(!repo.enabled) }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.repo_enabled_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = if (repo.enabled) {
+                    stringResource(R.string.repo_enabled_desc_on)
+                } else {
+                    stringResource(R.string.repo_enabled_desc_off)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.size(12.dp))
+        Switch(checked = repo.enabled, onCheckedChange = null)
+    }
+
+    // Edit and delete, discreet like an app's favourite and hide.
+    Row(horizontalArrangement = spacedBy(8.dp, Alignment.CenterHorizontally), modifier = Modifier.fillMaxWidth()) {
+        TvSecondaryAction(
+            icon = Icons.Default.Edit,
+            label = stringResource(R.string.edit),
+            active = false,
+            onClick = onEdit,
+        )
+        TvSecondaryAction(
+            icon = Icons.Default.Delete,
+            label = stringResource(R.string.delete),
+            active = false,
+            onClick = onDelete,
+        )
+    }
+
+    if (repo.description.isNotEmpty()) {
+        val description = remember(repo.description) {
+            repo.description.toAnnotatedString(onUrlClick = { runCatching { handler.openUri(it) } })
+        }
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.tvReadable(),
+        )
+    }
+
+    if (repo.versionInfo != null) LastUpdatedCard(repo.versionInfo.timestamp)
+
+    FingerprintCard(title = stringResource(R.string.fingerprint), content = formatFingerprint(repo))
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
