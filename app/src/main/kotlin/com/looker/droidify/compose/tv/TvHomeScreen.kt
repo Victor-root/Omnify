@@ -75,6 +75,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.appList.AppListViewModel
+import com.looker.droidify.compose.appList.RepositoryApps
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appList.AppTab
 import com.looker.droidify.compose.appList.PendingAppListTab
@@ -132,6 +133,7 @@ fun TvHomeScreen(
     val mostDownloadedApps by viewModel.mostDownloadedApps.collectAsStateWithLifecycle()
     val tvApps by viewModel.tvApps.collectAsStateWithLifecycle()
     val allTvApps by viewModel.allTvApps.collectAsStateWithLifecycle()
+    val ownRepositoryApps by viewModel.ownRepositoryApps.collectAsStateWithLifecycle()
     val shizukuApps by viewModel.shizukuApps.collectAsStateWithLifecycle()
     val rootApps by viewModel.rootApps.collectAsStateWithLifecycle()
     val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
@@ -367,6 +369,7 @@ fun TvHomeScreen(
                 TvSection.EXPLORE -> TvExplore(
                     favouriteApps = favouriteApps,
                     favouriteExternalApps = favouriteExternalApps,
+                    ownRepositoryApps = ownRepositoryApps,
                     newApps = newApps,
                     recentlyUpdatedApps = recentlyUpdatedApps,
                     mostDownloadedApps = mostDownloadedApps,
@@ -666,6 +669,7 @@ private fun TvRailButton(
 private fun TvExplore(
     favouriteApps: List<AppMinimal>,
     favouriteExternalApps: List<ExternalApp>,
+    ownRepositoryApps: List<RepositoryApps>,
     newApps: List<AppMinimal>,
     recentlyUpdatedApps: List<AppMinimal>,
     mostDownloadedApps: List<AppMinimal>,
@@ -701,6 +705,11 @@ private fun TvExplore(
                 restoreFocusId = restoreFocusId,
                 restoreRequester = restoreRequester,
             )
+        }
+        // Next, a row per repository the user added: the only way to come across their apps here, TV's
+        // Explore having no categories to browse them through.
+        ownRepositoryApps.forEach { repository ->
+            TvCarousel(repository.name, repository.apps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
         }
         if (tvApps.isNotEmpty()) {
             TvCarousel(stringResource(R.string.discover_tv_apps), tvApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)

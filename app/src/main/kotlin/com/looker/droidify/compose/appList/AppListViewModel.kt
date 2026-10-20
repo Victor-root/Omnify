@@ -1,21 +1,26 @@
 package com.looker.droidify.compose.appList
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.CATALOG_REFRESH_MS
 import com.looker.droidify.data.InstalledIdentityRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.PendingUpdateSet
 import com.looker.droidify.data.PendingUpdates
+import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.SuggestedVersion
 import com.looker.droidify.data.externalSourceOwns
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
+import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.excludingHidden
+import com.looker.droidify.model.Repository
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
@@ -146,6 +151,7 @@ private val RECOMMENDED_CATALOGUE_PACKAGES: List<String> =
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class AppListViewModel @Inject constructor(
     private val appRepository: AppRepository,
+    repoRepository: RepoRepository,
     private val installedRepository: InstalledRepository,
     installedIdentityRepository: InstalledIdentityRepository,
     externalAppRepository: ExternalAppRepository,
@@ -770,6 +776,12 @@ class AppListViewModel @Inject constructor(
         return listOf(shizuku) + apps.filter { it.packageName.name != SHIZUKU_PACKAGE }
     }
 
+    /** The enabled repositories the user added, rather than one Omnify ships. */
+    private val ownRepos: StateFlow<List<Repo>> = repoRepository.getEnabledRepos()
+        .map { repos -> repos.filter { it.address.trimEnd('/') !in Repository.defaultAddresses } }
+        .distinctUntilChanged()
+        .asStateFlow(emptyList())
+
     /** "Made for TV" carousel — apps that declare the Android TV (leanback) launcher feature, OR are
      *  tagged with a genuinely TV-relevant category (see [TV_RELEVANT_CATEGORIES]). The manifest feature
      *  alone is nearly unused across the whole F-Droid catalogue (checked against the live index: 3
@@ -780,17 +792,53 @@ class AppListViewModel @Inject constructor(
      *  get a row of apps that actually work with a remote. The query is skipped entirely off TV to spare
      *  the work. This is the whole list, capped like the "see all" page ([SECTION_PAGE_LIMIT]); the
      *  carousel shows the first few of it ([tvApps]), and the TV-only grid all of it. */
-    val allTvApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
-        .mapLatest { hidden ->
+    val allTvApps: StateFlow<List<AppMinimal>> = combine(catalogChanges, hiddenApps, ownRepos) { _, hidden, own ->
+        hidden to own
+    }
+        .mapLatest { (hidden, own) ->
             if (!isTelevisionDevice) {
                 emptyList()
             } else {
-                appRepository.apps(
+                // The user's own repositories' TV apps first: ordered by update date among the whole
+                // catalogue's, one not updated lately sank out of sight.
+                val fromOwnRepos = own.flatMap { repo ->
+                    appRepository.apps(
+                        sortOrder = SortOrder.UPDATED,
+                        repoId = repo.id,
+                        featuresToInclude = listOf(LEANBACK_FEATURE),
+                    )
+                }
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "TV apps of own repositories: ${fromOwnRepos.map { it.packageName.name }}")
+                }
+                val catalogue = appRepository.apps(
                     sortOrder = SortOrder.UPDATED,
                     featuresToInclude = listOf(LEANBACK_FEATURE),
                     categoriesToInclude = TV_RELEVANT_CATEGORIES,
                     featuresOrCategories = true,
-                ).excludingHidden(hidden).withoutPhoneVersionsOfTvApps().take(SECTION_PAGE_LIMIT)
+                )
+                (fromOwnRepos + catalogue).distinctBy { it.packageName }
+                    .excludingHidden(hidden).withoutPhoneVersionsOfTvApps().take(SECTION_PAGE_LIMIT)
+            }
+        }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyList())
+
+    /**
+     * Each of [ownRepos] with its apps, newest first, for a TV carousel of its own: TV's Explore has no
+     * categories to reach them through, so a private repository's apps only ever showed by chance among
+     * the whole catalogue's newest, and otherwise had to be dug out of the repositories screen.
+     */
+    val ownRepositoryApps: StateFlow<List<RepositoryApps>> =
+        combine(catalogChanges, hiddenApps, ownRepos) { _, hidden, own -> hidden to own }
+        .mapLatest { (hidden, own) ->
+            if (!isTelevisionDevice) return@mapLatest emptyList()
+            own.mapNotNull { repo ->
+                appRepository.apps(sortOrder = SortOrder.UPDATED, repoId = repo.id)
+                    .excludingHidden(hidden)
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { RepositoryApps(repo.name, it.take(SECTION_PAGE_LIMIT)) }
             }
         }
         .distinctUntilChanged()
@@ -876,6 +924,8 @@ class AppListViewModel @Inject constructor(
 
 private const val DISCOVER_ROW_COUNT = 16
 
+private const val TAG = "AppListViewModel"
+
 /** How long a typed search query is debounced before it re-queries; see [AppListViewModel]'s
  *  searchQueryStream, which skips this for the untyped/empty query. */
 private const val SEARCH_DEBOUNCE_MS = 300L
@@ -911,6 +961,9 @@ private val TV_RELEVANT_CATEGORIES = listOf(
     "Emulator",
     "Remote Controller",
 )
+
+/** A repository's apps, shown as a row under its [name]. */
+data class RepositoryApps(val name: String, val apps: List<AppMinimal>)
 
 /** Phone apps whose project also publishes an app made for TV: their category passes the TV list's
  *  filter ([TV_RELEVANT_CATEGORIES]), but the TV one is the right pick on a remote. */
