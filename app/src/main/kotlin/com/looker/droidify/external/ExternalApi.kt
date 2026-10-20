@@ -1142,7 +1142,7 @@ class ExternalApi @Inject constructor(
         }
         if (response.status == HttpStatusCode.NotModified && cached != null) {
             responseCache.markStillFresh(url)
-            if (BuildConfig.DEBUG) Log.d(TAG, "GET $url -> 304, unchanged (no quota spent)")
+            if (BuildConfig.TRACES) Log.d(TAG, "GET $url -> 304, unchanged (no quota spent)")
             return cached.body
         }
         if (!response.status.isSuccess()) {

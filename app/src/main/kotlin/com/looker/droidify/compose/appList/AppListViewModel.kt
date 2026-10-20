@@ -808,7 +808,7 @@ class AppListViewModel @Inject constructor(
                         featuresToInclude = listOf(LEANBACK_FEATURE),
                     )
                 }
-                if (BuildConfig.DEBUG) {
+                if (BuildConfig.TRACES) {
                     Log.d(TAG, "TV apps of own repositories: ${fromOwnRepos.map { it.packageName.name }}")
                 }
                 val catalogue = appRepository.apps(

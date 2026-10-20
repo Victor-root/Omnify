@@ -25,7 +25,7 @@ object RemoteApkLocaleReader {
     private const val ENTRY_NAME = "resources.arsc"
 
     private fun logD(message: String) {
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             Log.d(TAG, message)
         }
     }

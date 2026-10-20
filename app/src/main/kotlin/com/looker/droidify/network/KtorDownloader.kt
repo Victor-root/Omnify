@@ -188,7 +188,7 @@ internal class KtorDownloader(
         startedAt: Long,
         transfer: Transfer,
     ) {
-        if (!BuildConfig.DEBUG || transfer.bytes <= 0 || transfer.firstByteAt == 0L) return
+        if (!BuildConfig.TRACES || transfer.bytes <= 0 || transfer.firstByteAt == 0L) return
         val now = System.nanoTime()
         val ttfbMs = (transfer.firstByteAt - startedAt) / 1_000_000
         val transferMs = (now - transfer.firstByteAt) / 1_000_000
@@ -236,7 +236,7 @@ internal class KtorDownloader(
             result.totalSize?.let { totalSizeByUrl[url] = it }
             return@withContext result
         }
-        if (result is RangeResult.Failed && BuildConfig.DEBUG) {
+        if (result is RangeResult.Failed && BuildConfig.TRACES) {
             Log.d(TAG, "$url: range request failed (${result.error})")
         }
         // Only a refusal teaches anything: a host that answers 200 ignores the Range header outright,
@@ -259,7 +259,7 @@ internal class KtorDownloader(
             ?: contentLength(url, headers)?.also { totalSizeByUrl[url] = it }
         if (totalSize == null || totalSize <= 0) return null
         val start = (totalSize - suffixLength).coerceAtLeast(0)
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             Log.d(TAG, "$url: suffix range unsupported, asking for bytes=$start-${totalSize - 1}")
         }
         val explicitRequest = request(url, headers = headers)

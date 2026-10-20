@@ -249,7 +249,7 @@ fun AppDetailScreen(
     // that happens WITHOUT one (e.g. a stray BringIntoView call, or something scrolling as a side effect
     // rather than a direct consequence of a logged focus move) would otherwise be invisible. Temporary,
     // see TvFocus.kt's own debug-logging doc comment.
-    if (BuildConfig.DEBUG) {
+    if (BuildConfig.TRACES) {
         LaunchedEffect(Unit) {
             snapshotFlow { scrollState.value }.collect { value ->
                 tvFocusDebugLog { "AppDetailScreen scrollState -> $value at ${System.currentTimeMillis()}" }

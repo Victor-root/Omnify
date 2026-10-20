@@ -35,7 +35,7 @@ object RemoteApkManifestReader {
     private const val ENTRY_NAME = "AndroidManifest.xml"
 
     private fun logD(message: String) {
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             Log.d(TAG, message)
         }
     }

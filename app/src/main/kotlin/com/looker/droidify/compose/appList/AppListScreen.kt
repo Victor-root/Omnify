@@ -445,7 +445,7 @@ fun AppListScreen(
     // TEMP DEBUG, remove once the header title flicker is diagnosed: logs every change to the three
     // signals headerSyncing is built from, to catch it dropping true mid-sync and see which one did it.
     // Debug builds only, never beta or release.
-    if (BuildConfig.DEBUG) {
+    if (BuildConfig.TRACES) {
         LaunchedEffect(isSyncing, isRefreshingExternal, catalogLoading, headerSyncing) {
             Log.d(
                 "HeaderSyncDebug",

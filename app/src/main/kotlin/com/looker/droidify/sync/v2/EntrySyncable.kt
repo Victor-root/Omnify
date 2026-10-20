@@ -107,7 +107,7 @@ class EntrySyncable(
                                 merger.processDiff(
                                     diffFile.inputStream(),
                                 ).let {
-                                    if (BuildConfig.DEBUG) {
+                                    if (BuildConfig.TRACES) {
                                         Log.d(
                                             "EntrySyncable",
                                             "merged diff file $diffFile, success = $it, indexFile = $indexFile.",

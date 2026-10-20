@@ -139,11 +139,14 @@ android {
     }
 
     buildTypes {
-        release {
+        // Shared by every build type, debug included, so debug runs as smoothly as release: same R8
+        // pass, same rules, same key. Any rule a library needs in proguard.pro is needed for debug too.
+        configureEach {
             isMinifyEnabled = true
             isShrinkResources = true
             // Signed only when keystore.properties is present (see top of file). Without it the
-            // release APK is unsigned — fine for an F-Droid/IzzyOnDroid build that signs on their end.
+            // release APK is unsigned (fine for an F-Droid/IzzyOnDroid build that signs on their end)
+            // and debug keeps Android Studio's own debug key.
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -151,6 +154,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard.pro",
             )
+        }
+        release {
+            // Carried over to beta and trial by their initWith.
+            buildConfigField("boolean", "TRACES", "false")
         }
         // A throwaway build for a specific bug report: identical to release (same optimizations, same
         // signing when a local keystore is present) so it actually reproduces what a real user would
@@ -208,12 +215,13 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = ".d"
-            // Same custom key as release/beta/trial when available, so a debug build's signature
-            // still matches the expected fingerprint instead of Android Studio's auto-generated
-            // debug keystore.
-            if (hasReleaseSigning) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            // Not debuggable, so ART runs it as fast as release; profileable, so it can still be
+            // traced. BuildConfig.DEBUG follows isDebuggable and would turn false here: the code reads
+            // TRACES instead for what only this build should do (logs, test menus and addresses,
+            // StrictMode).
+            isDebuggable = false
+            isProfileable = true
+            buildConfigField("boolean", "TRACES", "true")
         }
         all {
             // Only the beta channel's own pre-release tag belongs in VERSION_NAME (see the "beta"

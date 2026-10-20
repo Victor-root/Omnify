@@ -76,7 +76,7 @@ class PendingUpdates @Inject constructor(
     ) { _, _, _, _ -> }
         .mapLatest {
             PendingUpdateSet(cataloguePackages(), externalApps()).also { pending ->
-                if (BuildConfig.DEBUG) {
+                if (BuildConfig.TRACES) {
                     Log.d(TAG, "pending: ${pending.cataloguePackages} + ${pending.external.map { it.key }}")
                 }
             }

@@ -75,7 +75,7 @@ class DownloadStatsWorker @AssistedInject constructor(
             val lastModified = settings.lastModifiedDownloadStats
             val fileNames = generateMonthlyFileNames(lastModified)
 
-            if (BuildConfig.DEBUG) {
+            if (BuildConfig.TRACES) {
                 Log.d(TAG, "Fetching ${fileNames.size} monthly files")
             }
             for (fileName in fileNames) {
@@ -131,7 +131,7 @@ class DownloadStatsWorker @AssistedInject constructor(
         }
         privacyRepository.save(downloadStats)
         settingsRepo.updateLastModifiedDownloadStats(response.lastModified ?: Date())
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             Log.d(TAG, "Processed updated file: $fileName")
         }
     }

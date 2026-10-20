@@ -174,7 +174,7 @@ class ExternalInstaller @Inject constructor(
         // What this install leaves on record. An update wrongly offered straight after one is these
         // three not lining up with the latest* half logged by the refresher, and the absence of this
         // line means the record was never written at all.
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             Log.d(TAG, "installed $key: tag=$tag token=$token version=$versionName")
         }
         repository.upsertApp(

@@ -237,12 +237,12 @@ class ExternalAppsViewModel @Inject constructor(
         apps.mapNotNull { app ->
             val pkg = app.packageName
             if (pkg == null) {
-                if (BuildConfig.DEBUG) Log.d(TAG, "installedVersions ${app.key}: no packageName on record")
+                if (BuildConfig.TRACES) Log.d(TAG, "installedVersions ${app.key}: no packageName on record")
                 return@mapNotNull null
             }
             val version = externalRefresher.installedVersionName(pkg)
             if (version == null) {
-                if (BuildConfig.DEBUG) {
+                if (BuildConfig.TRACES) {
                     Log.d(TAG, "installedVersions ${app.key}: pkg=$pkg but not found by the package manager")
                 }
                 return@mapNotNull null
@@ -1284,7 +1284,7 @@ class ExternalAppsViewModel @Inject constructor(
                 ?: app.label
         }
         val addApkSize = release.apkFileSize(filter = app.apkFilter)
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             Log.d(
                 TAG,
                 "addApp ${app.key}: asset=" +

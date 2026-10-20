@@ -20,5 +20,5 @@ internal const val REPO_ICON_TAG = "OmnifyIcon"
  * it once the reports stop.
  */
 internal inline fun trailRepoIcon(message: () -> String) {
-    if (BuildConfig.DEBUG) Log.d(REPO_ICON_TAG, message())
+    if (BuildConfig.TRACES) Log.d(REPO_ICON_TAG, message())
 }

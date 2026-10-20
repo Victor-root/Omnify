@@ -21,5 +21,5 @@ internal const val UPDATES_NAV_TAG = "OmnifyUpdatesNav"
  * it once the report is understood.
  */
 internal inline fun trailUpdatesNav(message: () -> String) {
-    if (BuildConfig.DEBUG) Log.d(UPDATES_NAV_TAG, message())
+    if (BuildConfig.TRACES) Log.d(UPDATES_NAV_TAG, message())
 }
