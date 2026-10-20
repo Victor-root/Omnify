@@ -13,6 +13,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -482,13 +484,22 @@ private fun TvNavRail(
     onRepos: () -> Unit,
     onSettings: () -> Unit,
 ) {
-    Column(
+    // Scrolls once its buttons outgrow the screen (a TV's short effective height, plus the debug
+    // build's Journal, pushed Settings out of reach), while filling at least the whole height so the
+    // flexible spacer below still sends the last group to the bottom when everything fits. Focus
+    // moving down scrolls it along, through each button's tvBringIntoViewOnFocus.
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxHeight()
             .width(RailWidth)
             .background(RailNeutralBg)
             .then(modifier)
-            .focusGroup()
+            .focusGroup(),
+    ) {
+    Column(
+        modifier = Modifier
+            .verticalScroll(rememberScrollState())
+            .heightIn(min = maxHeight)
             .padding(horizontal = 12.dp, vertical = TvOverscan),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = spacedBy(4.dp),
@@ -596,6 +607,7 @@ private fun TvNavRail(
             false,
             modifier = Modifier.restoreFocusTarget(restoreFocusId == "rail:settings", restoreRequester),
         ) { onSettings() }
+    }
     }
 }
 
