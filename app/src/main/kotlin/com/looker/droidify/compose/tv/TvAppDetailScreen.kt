@@ -68,6 +68,7 @@ import com.looker.droidify.installer.model.InstallState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import com.looker.droidify.compose.components.CertificateSection
+import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusScale
@@ -310,9 +311,14 @@ fun TvAppDetailScreen(
                                 // two of them and each landed on a line of its own.
                                 TvMetaChips(
                                     category = app.categories.firstOrNull(),
-                                    version = app.metadata.suggestedVersionName.takeIf { it.isNotBlank() },
                                     license = app.metadata.license.takeIf { it.isNotBlank() },
                                     rootCompatible = isRootCompatible,
+                                )
+                                // Version and size as the phone's card shows them, not as tags.
+                                HeroStatsRow(
+                                    version = app.metadata.suggestedVersionName.takeIf { it.isNotBlank() },
+                                    size = installablePackage?.apk?.size?.toString(),
+                                    onSourceCodeClick = null,
                                 )
 
                                 // Action buttons (Install/Update/Launch + Uninstall) sharing the pane's width,
@@ -437,13 +443,12 @@ internal fun TvAccentHeader(title: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun TvMetaChips(category: String?, version: String?, license: String?, rootCompatible: Boolean) {
+private fun TvMetaChips(category: String?, license: String?, rootCompatible: Boolean) {
     FlowRow(
         horizontalArrangement = spacedBy(8.dp),
         verticalArrangement = spacedBy(8.dp),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
-        version?.let { TvChip("v$it") }
         category?.let { TvChip(it) }
         license?.let { TvChip(it) }
         if (rootCompatible) RootBadge()

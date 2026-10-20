@@ -1,5 +1,7 @@
 package com.looker.droidify.compose.tv
 
+import com.looker.droidify.compose.components.HeroStatsRow
+import com.looker.droidify.network.DataSize
 import com.looker.droidify.compose.components.RootBadge
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.utility.common.RootDetection
@@ -292,16 +294,18 @@ fun TvExternalAppDetailScreen(
                             verticalArrangement = spacedBy(8.dp),
                             itemVerticalAlignment = Alignment.CenterVertically,
                         ) {
-                            // Same version as the version list below: pulled from the latest APK's
-                            // file name (releaseVersionLabel), falling back to the tag — NOT the raw
-                            // GitHub tag, which can differ from the APK's real version. Mirrors the
-                            // phone screen's hero version.
-                            releaseVersionLabel(app.latestApkName, app.latestTag).takeIf { it.isNotBlank() }
-                                ?.let { TvChip(it) }
                             TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
                             if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
                             if (isRootCompatible) RootBadge()
                         }
+                        // Version and size as the phone's card shows them, not as tags. The version is the
+                        // latest APK's own (releaseVersionLabel), as in the version list below, not the raw
+                        // tag, which can differ from it.
+                        HeroStatsRow(
+                            version = releaseVersionLabel(app.latestApkName, app.latestTag).takeIf { it.isNotBlank() },
+                            size = app.latestApkSize?.let { DataSize(it).toString() },
+                            onSourceCodeClick = null,
+                        )
 
                         // The built-in Omnify source offering the other release channel: an install, not an
                         // update, and the action row below deliberately no longer offers it.
