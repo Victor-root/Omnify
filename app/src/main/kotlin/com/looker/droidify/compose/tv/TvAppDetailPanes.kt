@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -52,6 +53,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.ScreenshotsRow
 import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.components.TvOverscan
+import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.externalApps.ReadmeWebView
@@ -85,19 +87,36 @@ internal fun TvAppDetailPanes(
                 false
             },
     ) {
-        CompositionLocalProvider(LocalBringIntoViewSpec provides leftBringIntoViewSpec) {
-            Column(
-                modifier = Modifier
-                    .weight(0.4f)
-                    .fillMaxHeight()
-                    // overscrollEffect = null: Android 12+'s stretch overscroll crashes RenderThread when it
-                    // redraws a hardware-accelerated WebView at a scroll boundary, and the screens host one
-                    // (same reason as the phone detail screen).
-                    .verticalScroll(leftScroll, overscrollEffect = null)
-                    .padding(start = TvOverscan + 16.dp, end = 16.dp, top = TvOverscan, bottom = TvOverscan),
-                verticalArrangement = spacedBy(24.dp),
-                content = left,
-            )
+        // The left pane sits in a card like the phone's hero card, the same plain surface and accent
+        // border, so the app and its actions read as one block apart from the description beside it.
+        val cardShape = MaterialTheme.shapes.large
+        Box(
+            modifier = Modifier
+                .weight(0.4f)
+                .fillMaxHeight()
+                .padding(start = TvOverscan + 16.dp, end = 16.dp, top = TvOverscan, bottom = TvOverscan)
+                .then(premiumCardBorder(cardShape)),
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shape = cardShape,
+            ) {
+                CompositionLocalProvider(LocalBringIntoViewSpec provides leftBringIntoViewSpec) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            // overscrollEffect = null: Android 12+'s stretch overscroll crashes RenderThread
+                            // when it redraws a hardware-accelerated WebView at a scroll boundary, and the
+                            // screens host one (same reason as the phone detail screen).
+                            .verticalScroll(leftScroll, overscrollEffect = null)
+                            .padding(20.dp),
+                        verticalArrangement = spacedBy(24.dp),
+                        content = left,
+                    )
+                }
+            }
         }
         Column(
             modifier = Modifier
