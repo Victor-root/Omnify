@@ -24,6 +24,7 @@ import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.installer.InstallerSelection
 import com.looker.droidify.migration.ChannelMigration
 import com.looker.droidify.migration.ImportStep
+import com.looker.droidify.model.Repository
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.extension.asStateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -115,11 +116,18 @@ class WelcomeViewModel @Inject constructor(
         checkedIds,
     ) { repos, externalApps, accounts, checked ->
         val reposByAddress = repos.associateBy { it.address.trimEnd('/') }
-        val addresses = if (isTelevision) {
+        val offered = if (isTelevision) {
             WelcomeCatalog.describedRepositories.map { it.address }
         } else {
             WelcomeCatalog.repositoryOrder
         }
+        // Then whatever a restore brought that the page does not offer of itself: a repository the
+        // person had added, or one Omnify ships that the backup had on. Left out, it stayed invisible
+        // here, and on for good whatever was ticked.
+        val restored = repos.map { it.address.trimEnd('/') }
+            .filter { it !in offered }
+            .filter { it !in Repository.defaultAddresses || reposByAddress.getValue(it).enabled }
+        val addresses = offered + restored
         buildList<WelcomeItem> {
             externalApps.firstOrNull { it.key == ExternalApp.OMNIFY_REPO_KEY }?.let {
                 add(WelcomeItem(it.key, it.label, it.key in checked, WelcomeKind.OmnifySource))
@@ -210,15 +218,19 @@ class WelcomeViewModel @Inject constructor(
         // had on: the ticks offered by default would otherwise undo a backup that left F-Droid off.
         viewModelScope.launch {
             repoRepository.repos
-                .map { repos -> repos.filter { it.enabled }.map { it.address.trimEnd('/') } }
+                .map { repos ->
+                    val addresses = repos.map { it.address.trimEnd('/') }
+                    addresses to addresses.filterIndexed { index, _ -> repos[index].enabled }
+                }
                 .distinctUntilChanged()
-                .collect { enabled -> if (enabled.isNotEmpty()) adoptEnabledRepositories(enabled) }
+                .collect { (all, enabled) -> if (enabled.isNotEmpty()) adoptEnabledRepositories(all.toSet(), enabled) }
         }
     }
 
-    private fun adoptEnabledRepositories(enabled: List<String>) {
-        val shown = WelcomeCatalog.repositoryOrder.toSet()
-        setChecked(checkedIds.value.filter { it !in shown } + enabled.filter { it in shown })
+    /** Ticks exactly the repositories [enabled] among [all] of them, the other ticks (Omnify's own
+     *  sources, the TV apps) left as they are. */
+    private fun adoptEnabledRepositories(all: Set<String>, enabled: List<String>) {
+        setChecked(checkedIds.value.filter { it !in all } + enabled)
     }
 
     private val _finishing = MutableStateFlow(false)
@@ -246,9 +258,13 @@ class WelcomeViewModel @Inject constructor(
             try {
                 val checked = checkedIds.value
                 val reposByAddress = repoRepository.repos.first().associateBy { it.address.trimEnd('/') }
-                checked.mapNotNull { reposByAddress[it] }.forEach {
-                    repoRepository.enableRepository(it, enable = true)
-                }
+                // Every repository the page shows ends as ticked, off as well as on: one a restore had
+                // switched on otherwise stayed on, unticked or not.
+                items.value.filter { it.kind is WelcomeKind.FdroidRepository }
+                    .mapNotNull { item -> reposByAddress[item.id]?.let { it to (item.id in checked) } }
+                    .forEach { (repo, wanted) ->
+                        if (repo.enabled != wanted) repoRepository.enableRepository(repo, enable = wanted)
+                    }
                 externalAppRepository.getApps()
                     .filter { it.key == ExternalApp.OMNIFY_REPO_KEY || it.curatedTv }
                     .forEach { app ->

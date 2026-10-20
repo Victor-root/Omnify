@@ -24,6 +24,7 @@ A welcome page for a fresh install, and external sources that learn to handle re
 - **On Android TV, the keyboard opens when you press OK on a field**, no longer as soon as the remote passes over one.
 - **The whole app moves up above the keyboard**, just enough to keep the field you are typing into visible, however low on the screen it sits.
 - **On Android TV, the repositories screen starts on the first row's switch**, and moving up or down lands on the switches rather than on the buttons at the rows' end.
+- **The welcome page's sources follow a backup restored a step earlier**: the repositories it brought, your own included, show up ticked as they were, and unticking one leaves it off. They used to be left out, and stayed on whatever was ticked.
 - **On Android TV, the TV apps home is laid out in rows** like the full catalogue's: favourites, your repositories, the newest, the recently updated, then a row per category, with the smallest ones gathered under "Other". It was one grid of everything.
 - **On Android TV, the home starts on the apps made for TV**, and remembers your choice when you switch to all apps: it used to start on all apps every time, forgetting it had been switched.
 - **An app's page on Android TV shows what the phone's does**: its permissions, the languages it supports, the "Root" badge, and, once installed, a button to open its Android settings.
