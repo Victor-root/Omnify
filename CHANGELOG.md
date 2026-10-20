@@ -2,57 +2,34 @@
 
 ## 🚀 v1.0.7-beta.8 (Unreleased)
 
-A welcome page for a fresh install, and external sources that learn to handle repositories publishing several apps side by side, like ente (Auth, Photos, Locker) or Bitwarden (Password Manager, Authenticator).
+A welcome page for a fresh install, Obtainium import, and external sources that handle repositories publishing several apps.
 
 ### ✨ Added
-- **Import from Obtainium.** In Repositories, "+" then "Import from Obtainium": pick an Obtainium export and every app it follows on GitHub, GitLab or Codeberg (self-hosted ones included) becomes an external source, with its pre-release choice, APK filter and custom name. Apps already followed are left as they are, and the ones Obtainium follows elsewhere (F-Droid, APKMirror, direct links) are counted as not supported. Several apps followed in the same repository, each with its own APK filter (as for the apps of NullStore), each become a source of their own.
-- **Jellyfin joins the Android TV picks** (Omnify's picks, Made for TV), off by default like the others. Existing installs get it too, without bringing back anything removed from the pack.
-- **A welcome in two pages on a fresh install.** Omnify no longer switches F-Droid and IzzyOnDroid on by itself and starts downloading thousands of apps. The first page welcomes you and asks, with a button each, for notifications, for the install of apps and for the installer to use, as in Settings. The second brings your data over, all of it optional: from a backup file (you pick what to restore and what to leave out), from another device on the same network, or from an Omnify Beta still installed. The sources page then shows what the restore switched on. The third lets you pick the theme, the background and the accent colour, each applied as soon as you tap it. The fourth asks where your apps should come from: Omnify, F-Droid and IzzyOnDroid are ticked, every other repository Omnify ships is listed unticked, and one button ticks or clears them all. Previous and Next buttons under a row of dots move between the pages (swiping works too), and neither page scrolls: the sources sit in a card that scrolls inside itself, with a scrollbar in your accent colour. Logos are loaded while you read the first page, so they are already there on the second. Continuing, even with nothing ticked, is a normal way in, and the first synchronisation only starts then. The Android TV version has its own layout, built for the remote, and also offers the apps made for TV. Updating Omnify never shows it.
-- **An empty home that says what to do** when no repository is switched on, with a button to the repositories, instead of waiting for a synchronisation that is not coming.
-- **Follow several apps of one repository.** When a repository publishes several apps, Omnify lists them with a box to tick for each, along with its latest version and APK, and every app you tick becomes a source of its own, with its own install, updates, favourite and hidden state. This covers repositories releasing one app at a time (ente: Auth, Photos, Locker; Bitwarden: Password Manager, Authenticator) as well as those putting many apps in every release, told apart by their file names (NullStore). Apps you already follow are shown ticked, so adding the same repository again offers only the others.
-- **External sources show their real icon before you install them**, read straight out of the APK when the repository itself has none to offer (NullStore only publishes built APKs, so every app of it showed the same account picture). Android draws it itself, so an app whose icon is only an adaptive one, like Google Maps, gets it too, shaped like the launcher's. Only the pieces of the file the icon is made of are fetched, once per release, never the whole APK.
-- **External sources show the app's real name before you install them**, read from the APK along with the icon: "Ricardo nem lopot" instead of "Rikardo Nemlopot Smart123s", taken from the file name. When several apps followed in one repository call themselves the same (NullStore's three Google Maps builds are all "Ungoogled Maps"), they keep the names of their files so they can still be told apart. A name you picked yourself is never replaced.
-- **An external source's icon shows a gentle pulsing placeholder while Omnify is still fetching it**, instead of the account's picture, which on a slow connection looked like the icon had failed.
-- **An app among several in one repository shows its own description when it has one**: ente's Auth and Photos each get their own page instead of the repository's. When there is none, as with NullStore, the repository's description stays, under a note saying it presents the repository and not the app.
-- **An app installed from elsewhere under the same package name is no longer taken for a source's own.** A source publishing a modified Gboard, say, next to Google's own Gboard on the phone, kept that one's name and icon and counted it as installed, ready to offer it an update Android would refuse. Omnify now compares signatures: such a copy leaves the source showing Install, its own name and icon, and a note saying another build holds the package and has to be uninstalled first.
-- **A "Versions to keep" filter** on every external source, the opposite of "Excluded versions": only releases whose name contains one of its words are kept. The app picker fills it in for you, and it can be edited at any time.
+- **Import from Obtainium**: apps followed on GitHub, GitLab or Codeberg become external sources, with their settings.
+- **A welcome page on a fresh install**: permissions, data import (backup, another device, Omnify Beta), theme and sources to enable. Nothing syncs before you continue.
+- **Follow several apps of one repository** (ente, Bitwarden, NullStore…), each with its own install and updates.
+- **External sources show their real icon and name before install**, read from the APK.
+- **A "Versions to keep" filter** on external sources.
+- **Pull down on a repository's apps to sync it again.**
+- **An empty home that says what to do** when no repository is enabled.
+- **Jellyfin joins the Android TV picks.**
 
 ### 🔄 Changed
-- **Pull down on a repository's apps to sync it again**, handy for a private repository whose new build should show right away.
-- **A first install from an external source shows "Installing" until it is done.** The button went back to Install while Android was still installing, and tapping it again downloaded the whole APK a second time.
-- **A download cut short picks up where it stopped.** When the connection drops or stalls, Omnify tries again on its own up to four times, waiting a little longer each time, and carries on from the bytes already received instead of starting over. External sources (GitHub, GitLab, Codeberg) used to give up and start from zero at the first cut, and so did "Update all" and the other background installs.
-- **The Session installer is now listed first**, and stays the default, so someone who does not know what to pick lands on the right one. The welcome page says so in a line under the choice, and the whole installer card is tappable, not just its top.
-- **A "None" background**: plain white in the light theme, plain black in the dark ones, for those who'd rather have no decoration at all.
-- **On Android TV, a repository's page is laid out like an app's**: the repository in a card on the left (enable switch, edit and delete, description, fingerprint), its apps on the right.
-- **On Android TV, the keyboard opens when you press OK on a field**, no longer as soon as the remote passes over one.
-- **The whole app moves up above the keyboard**, just enough to keep the field you are typing into visible, however low on the screen it sits.
-- **On Android TV, the repositories screen starts on the first row's switch**, and moving up or down lands on the switches rather than on the buttons at the rows' end.
-- **The welcome page's sources follow a backup restored a step earlier**: the repositories it brought, your own included, show up ticked as they were, and unticking one leaves it off. They used to be left out, and stayed on whatever was ticked.
-- **On Android TV, the TV apps home is laid out in rows** like the full catalogue's: favourites, your repositories, the newest, the recently updated, then a row per category, with the smallest ones gathered under "Other". It was one grid of everything.
-- **On Android TV, the home starts on the apps made for TV**, and remembers your choice when you switch to all apps: it used to start on all apps every time, forgetting it had been switched.
-- **An app's page on Android TV shows what the phone's does**: its permissions, the languages it supports, the "Root" badge, and, once installed, a button to open its Android settings.
-- **On Android TV, each repository you added gets its own row on the home screen**, with all its apps: a private repository's apps could only be found by opening it from the repositories screen. Its apps made for TV also come first in the TV apps list, where one not updated lately used to sink out of sight.
-- **On Android TV, an app's page is now split in two, like on tablets,** for apps from the catalogue and for external sources alike. The app itself (icon, name, Install and Launch, certificate, versions) sits on the left, in a card like the phone's, with favourite and hide as small discreet buttons side by side. The screenshots and the whole description sit on the right: no more "See more" button, the description is one stop for the remote and scrolls on its own. Install keeps the focus until you press a key, even when screenshots show up afterwards.
-- **A prettier secondary button.** Uninstall, Previous, Select all and the like take your accent colour, muted towards the background, instead of a grey outline: they stand apart from the main actions without a colour of their own. Phone and TV.
-- **On Android TV, the background is Halo by default.** Other devices keep Dunes, and a background you already picked, or restored from a backup, is left alone.
-- **On Android TV, the focus ring on a version no longer sits beside the card's own border.** It now covers it.
-- **"Match accent to app icon" is available on every Android version.** It was hidden below Android 12 although it works there.
-- **On Android TV, an app page with no description says so** instead of leaving an empty area that looks like it did not load.
-- **On Android TV, the Back button at the top of every screen is gone.** The remote has its own Back key, and the button only got in the way.
-- **Omnify no longer asks for notifications, nor for the install of apps, out of the blue at the first start.** Both are asked on the welcome page, behind a button, and a notification dialog never pops up over a screen you are looking at any more.
+- **Interrupted downloads resume** where they stopped, with automatic retries, external sources included.
+- **Session installer listed first**, and a **"None" background**.
+- **Prettier secondary buttons**, and the app moves above the keyboard.
+- **"Match accent to app icon"** available on every Android version.
+- **No more permission prompts at first start**: they are on the welcome page.
+- **Android TV**: redesigned home (rows, one per repository, starts on TV apps), two-pane app and repository pages, Halo background by default, keyboard only on OK, and many focus fixes.
 
 ### 🐛 Fixed
-- **Editing a repository saves it again.** Changing a private repository's password (or anything else about one) was refused as "Already exists", and would otherwise have added a second copy instead of updating it. The changes are now written over the repository itself, which is synced again with them.
-- **On Android TV, the phone version of Jellyfin no longer shows in the TV apps list**, since Jellyfin has an app of its own for TV.
-- **On Android TV, the TV apps filter lists many more apps.** It only showed the 16 most recently updated ones, which hid well-known apps; it now shows up to 200, like the "see all" page.
-- **Omnify no longer closes by itself during a repository sync on some phones** (a native crash, SIGBUS, reported on a Realme GT Neo 3). The scheduled sync and a sync you start yourself could work on the same repository's index file at once, one downloading over it while the other read it. Syncs of one repository now take turns, the index file is closed once read, and each sync starts from a fresh file instead of writing over one left by an earlier, interrupted sync.
-- **On Android TV, the background you pick in Settings now shows.** Every TV screen kept the same fixed wash whatever the choice. It is darkened a little in the dark themes so the content stays readable, and it no longer tints the side rail.
-- **Closing the file picker without choosing a file no longer says the file is invalid** when restoring a backup from Settings.
-- **On Android TV, the External tab no longer lists sources that are switched off.** It showed Omnify's picks even with every source off, where the phone already hid them.
-- **No synchronisation is shown when there is nothing to synchronise.** With no source switched on, opening the home no longer lights up the sync button.
-- **A source no longer shows another app's release.** Omnify keeps looking further back for the right one instead of stopping at the first page, and never falls back to a release of another app when your APK filter is working.
-- **A clear message when nothing matches the "Versions to keep" filter**, instead of a generic "no release".
-- **A source with an APK filter is never offered another app's APK.** When no recent release has an APK matching the filter, Omnify now says so, where it used to fall back on the newest APK of the repository, which in a repository publishing several apps could be a different app altogether.
+- **Editing a repository** no longer fails with "Already exists" (e.g. after changing a private repository's password).
+- **A first external install** no longer lets you start a second download while installing.
+- **No more crash during a repository sync** on some phones (SIGBUS).
+- **An external source never shows or offers another app's release.**
+- **Restore**: closing the file picker no longer says the file is invalid.
+- **No sync shown** when no source is enabled.
+- **Android TV**: chosen background shows, disabled sources hidden, TV apps list complete.
 
 ---
 
