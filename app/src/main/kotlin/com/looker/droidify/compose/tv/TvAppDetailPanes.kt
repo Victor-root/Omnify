@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.tv
 
 import android.os.SystemClock
+import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.focusGroup
@@ -153,6 +154,45 @@ private fun Modifier.stayWithinPaneVertically(entry: FocusRequester? = null): Mo
 }.focusGroup()
 
 /**
+ * How the left pane of a TV detail page scrolls a newly focused element into view.
+ *
+ * While [headerHasFocus], the pane goes back to its top: the whole header fits the screen, and bringing
+ * just the focused button into view left the icon and name above it cut off, with nothing focusable up
+ * there to reach them by. Anywhere else the platform's own rule applies, which on a TV aims to set the
+ * focused element at a fixed height on the screen. Near either end of the pane that height can't be
+ * reached, so the distance is held to what [scroll] can actually move rather than asking for a scroll
+ * that never completes. One spec for both TV detail screens, which used to carry a copy each.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun rememberTvLeftPaneBringIntoViewSpec(
+    scroll: ScrollState,
+    headerHasFocus: () -> Boolean,
+): BringIntoViewSpec {
+    val defaultSpec = LocalBringIntoViewSpec.current
+    return remember(defaultSpec, scroll) {
+        object : BringIntoViewSpec {
+            override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+                if (headerHasFocus()) return -scroll.value.toFloat()
+                val wanted = defaultSpec.calculateScrollDistance(offset, size, containerSize)
+                val reachable = wanted.coerceIn(
+                    -scroll.value.toFloat(),
+                    (scroll.maxValue - scroll.value).toFloat(),
+                )
+                if (BuildConfig.TRACES) {
+                    Log.d(
+                        TAG,
+                        "left pane: child $offset+$size in $containerSize, wanted $wanted, " +
+                            "scrolling $reachable (scroll ${scroll.value}/${scroll.maxValue})",
+                    )
+                }
+                return reachable
+            }
+        }
+    }
+}
+
+/**
  * Diagnostics builds only (see [DiagnosticLog]): how long a TV detail [page] takes to open, from its
  * first composition to [ready] (its content is known) and to the first frame drawn after that.
  */
@@ -301,3 +341,5 @@ internal fun TvScreenshots(
         ScreenshotsRow(screenshots)
     }
 }
+
+private const val TAG = "TvAppDetailPanes"

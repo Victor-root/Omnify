@@ -11,8 +11,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
-import androidx.compose.foundation.gestures.BringIntoViewSpec
-import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -246,23 +244,7 @@ fun TvAppDetailScreen(
             // The action buttons alone, not the whole header: the favourite and hide toggles sit in it too,
             // and focus landing on one of those was taken for having reached Install.
             var actionsHaveFocus by remember { mutableStateOf(false) }
-            val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
-            val bringIntoViewSpec = remember(defaultBringIntoViewSpec) {
-                object : BringIntoViewSpec {
-                    override fun calculateScrollDistance(
-                        offset: Float,
-                        size: Float,
-                        containerSize: Float,
-                    ): Float = if (headerHasFocus) {
-                        // The whole header fits the screen, so it is always shown from the pane's top: coming back
-                        // up into it from further down, bringing just the focused button into view left the icon
-                        // and name above it cut off, with nothing focusable up there to reach them by.
-                        -pageScroll.value.toFloat()
-                    } else {
-                        defaultBringIntoViewSpec.calculateScrollDistance(offset, size, containerSize)
-                    }
-                }
-            }
+            val bringIntoViewSpec = rememberTvLeftPaneBringIntoViewSpec(pageScroll) { headerHasFocus }
 
             // Focusing the action button can bring-into-view scroll the column down a touch, clipping the
             // header; the button is above the fold anyway, so snap back to the top after each landing.
@@ -563,7 +545,6 @@ private fun TvVersionsList(
                 repo = repo,
                 onClick = { onVersionClick(pkg, repo) },
                 onLongClick = {},
-                modifier = Modifier.tvBringIntoViewOnFocus(),
                 highlighted = isSuggested,
             ) {
                 // Both chips can apply at once (the installed version is also the suggested one).
