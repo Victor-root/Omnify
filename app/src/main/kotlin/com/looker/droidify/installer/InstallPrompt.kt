@@ -174,7 +174,7 @@ class InstallPrompt @Inject constructor(
                 isUpdate = context.packageManager.getPackageInfoCompat(packageName) != null,
             ),
         )
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             log("Held install confirmation for $packageName", TAG, Log.INFO)
         }
     }

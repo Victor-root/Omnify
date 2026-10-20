@@ -13,7 +13,7 @@
 # no-argument constructor. firebase-components ships a rule that keeps those classes, but not that
 # constructor, and R8's full mode (the default here) is free to drop a constructor nothing calls.
 # The class then survives with no way to build it, translation finds no engine registered, and every
-# translation fails in release while debug, which shrinks nothing, works perfectly.
+# translation fails in every build R8 shrinks, debug included.
 -keep class * implements com.google.firebase.components.ComponentRegistrar {
     <init>();
 }

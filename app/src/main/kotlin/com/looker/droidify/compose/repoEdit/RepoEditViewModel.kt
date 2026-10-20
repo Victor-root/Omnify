@@ -141,7 +141,7 @@ class RepoEditViewModel @Inject constructor(
         val username = usernameState.text.toString().takeIf { it.isNotEmpty() }
         val password = passwordState.text.toString().takeIf { it.isNotEmpty() }
 
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             Log.d(
                 TAG,
                 "save: skipCheck=$skipCheck address=$address " +
@@ -175,11 +175,11 @@ class RepoEditViewModel @Inject constructor(
             checkAddress(address, username, password)
         } catch (e: Exception) {
             e.exceptCancellation()
-            if (BuildConfig.DEBUG) Log.d(TAG, "check: threw", e)
+            if (BuildConfig.TRACES) Log.d(TAG, "check: threw", e)
             reportAddressError(R.string.repository_unreachable)
             return null
         }
-        if (BuildConfig.DEBUG) Log.d(TAG, "check: settled on ${found ?: "nothing"}")
+        if (BuildConfig.TRACES) Log.d(TAG, "check: settled on ${found ?: "nothing"}")
         if (found == null) reportAddressError(R.string.repository_not_found)
         return found
     }
@@ -198,14 +198,14 @@ class RepoEditViewModel @Inject constructor(
         password: String?,
     ) {
         try {
-            if (BuildConfig.DEBUG) Log.d(TAG, "insert: writing $address")
+            if (BuildConfig.TRACES) Log.d(TAG, "insert: writing $address")
             val id = repoRepository.insertRepo(
                 address = address,
                 fingerprint = fingerprint.ifEmpty { null },
                 username = username,
                 password = password,
             )
-            if (BuildConfig.DEBUG) {
+            if (BuildConfig.TRACES) {
                 Log.d(TAG, "insert: written as row $id; tracked now ${repoRepository.addresses.first()}")
             }
             // Switched on straight away, which also syncs it. A repository is added to be used, and
@@ -215,7 +215,7 @@ class RepoEditViewModel @Inject constructor(
             _saved.value = true
         } catch (e: Exception) {
             e.exceptCancellation()
-            if (BuildConfig.DEBUG) Log.d(TAG, "insert: threw", e)
+            if (BuildConfig.TRACES) Log.d(TAG, "insert: threw", e)
             reportAddressError(R.string.repository_save_failed)
         }
     }
@@ -244,7 +244,7 @@ class RepoEditViewModel @Inject constructor(
                         }
                     },
                 )
-                if (BuildConfig.DEBUG) Log.d(TAG, "probe: $url -> ${response.describe()}")
+                if (BuildConfig.TRACES) Log.d(TAG, "probe: $url -> ${response.describe()}")
                 if (response is NetworkResponse.Success) return@withContext address
             }
         null
@@ -303,7 +303,7 @@ class RepoEditViewModel @Inject constructor(
      * all. Remove it once the reports stop.
      */
     private fun logForm(state: RepoEditErrorState, form: RepoForm) {
-        if (!BuildConfig.DEBUG) return
+        if (!BuildConfig.TRACES) return
         val address = when (state.addressError) {
             null -> "ok"
             R.string.already_exists -> "already tracked"

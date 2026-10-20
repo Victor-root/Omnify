@@ -4,7 +4,7 @@ import android.util.Log
 import com.looker.droidify.BuildConfig
 
 fun logQuery(vararg param: Pair<String, Any?>) {
-    if (!BuildConfig.DEBUG) return
+    if (!BuildConfig.TRACES) return
     val message = buildString {
         appendLine("(")
         param.forEach { (key, value) ->

@@ -46,7 +46,7 @@ object RemoteApkIconReader {
     private const val RES_DIRECTORY = "res/"
 
     private fun logD(message: String) {
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             Log.d(TAG, message)
         }
     }

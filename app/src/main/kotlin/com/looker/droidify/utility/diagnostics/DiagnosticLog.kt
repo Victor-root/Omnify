@@ -98,7 +98,7 @@ object DiagnosticLog {
 
     fun log(message: String) {
         if (!BuildConfig.DIAGNOSTICS) return
-        if (BuildConfig.DEBUG) Log.d(TAG, message)
+        if (BuildConfig.TRACES) Log.d(TAG, message)
         val target = file ?: return
         synchronized(lock) {
             runCatching {

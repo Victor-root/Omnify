@@ -34,7 +34,7 @@ object ApkSigningBlockReader {
     private const val TAG = "ApkSigningBlockReader"
 
     private fun logD(message: String) {
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             Log.d(TAG, message)
         }
     }

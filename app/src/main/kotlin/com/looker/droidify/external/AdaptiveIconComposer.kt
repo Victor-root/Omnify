@@ -50,7 +50,7 @@ internal class AdaptiveIconComposer(
         return try {
             composeInternal(treePaths, sizePx)?.let(AdaptiveIconResult::Composed) ?: AdaptiveIconResult.Unavailable
         } catch (e: UnreadableIconFile) {
-            if (BuildConfig.DEBUG) Log.d(TAG, "could not download ${e.path}, the icon will be composed again later")
+            if (BuildConfig.TRACES) Log.d(TAG, "could not download ${e.path}, the icon will be composed again later")
             AdaptiveIconResult.ReadFailed
         } catch (e: CancellationException) {
             throw e
@@ -82,7 +82,7 @@ internal class AdaptiveIconComposer(
         val definitionPath = findAdaptiveIconPath(treePaths) ?: return null
         val definition = download(definitionPath, readFile).withoutXmlComments()
         val layers = parseAdaptiveIcon(definition) ?: return null
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             Log.d(TAG, "adaptive icon at $definitionPath -> bg=${layers.background} fg=${layers.foreground}")
         }
         // A foreground is what carries the artwork; without one there is nothing worth showing that the
@@ -94,7 +94,7 @@ internal class AdaptiveIconComposer(
         val composed = AdaptiveIconDrawable(background, foreground)
             .toBitmap(width = sizePx, height = sizePx, config = Bitmap.Config.ARGB_8888)
         if (composed.isFullyTransparent()) {
-            if (BuildConfig.DEBUG) Log.d(TAG, "composed icon came out empty, keeping the raster instead")
+            if (BuildConfig.TRACES) Log.d(TAG, "composed icon came out empty, keeping the raster instead")
             return null
         }
         return composed
@@ -123,7 +123,7 @@ internal class AdaptiveIconComposer(
             val xml = download(path, readFile)
             renderVector(xml.withoutXmlComments(), sizePx)?.let { return BitmapDrawable(null, it) }
         }
-        if (BuildConfig.DEBUG) Log.d(TAG, "could not resolve icon layer $reference")
+        if (BuildConfig.TRACES) Log.d(TAG, "could not resolve icon layer $reference")
         return null
     }
 

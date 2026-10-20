@@ -218,11 +218,11 @@ class RepoRepository @Inject constructor(
                 listOf(LocalizedRepoDescriptionEntity(id.toInt(), "en-US", description)),
             )
         }
-        if (BuildConfig.DEBUG) Log.d(TRACE_TAG, "insertRepo: $address stored as row $id")
+        if (BuildConfig.TRACES) Log.d(TRACE_TAG, "insertRepo: $address stored as row $id")
         if (password != null && username != null) {
-            if (BuildConfig.DEBUG) Log.d(TRACE_TAG, "insertRepo: resolving the encryption key")
+            if (BuildConfig.TRACES) Log.d(TRACE_TAG, "insertRepo: resolving the encryption key")
             val key = keyStream.first()
-            if (BuildConfig.DEBUG) Log.d(TRACE_TAG, "insertRepo: key resolved, encrypting the password")
+            if (BuildConfig.TRACES) Log.d(TRACE_TAG, "insertRepo: key resolved, encrypting the password")
             val (encrypted, iv) = key.encrypt(password)
             val authEntity = AuthenticationEntity(
                 password = encrypted,
@@ -231,7 +231,7 @@ class RepoRepository @Inject constructor(
                 repoId = id.toInt(),
             )
             authDao.insert(authEntity)
-            if (BuildConfig.DEBUG) Log.d(TRACE_TAG, "insertRepo: credentials stored for row $id")
+            if (BuildConfig.TRACES) Log.d(TRACE_TAG, "insertRepo: credentials stored for row $id")
         }
         return id.toInt()
     }

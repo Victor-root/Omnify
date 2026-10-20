@@ -53,7 +53,7 @@ class IndexV2Merger(private val baseFile: File) : AutoCloseable {
                 baseFile.setLastModified(mergedTimestamp)
             }
 
-            if (BuildConfig.DEBUG) {
+            if (BuildConfig.TRACES) {
                 Log.d("IndexV2Merger", "Merged a diff JSON into the base: $hasChanged")
             }
             hasChanged

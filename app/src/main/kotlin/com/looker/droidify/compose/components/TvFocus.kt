@@ -62,7 +62,7 @@ internal const val TV_FOCUS_DEBUG_TAG = "TvFocusDebug"
 
 /** Takes the message as a lambda so that outside debug builds it is never even built. */
 internal inline fun tvFocusDebugLog(message: () -> String) {
-    if (BuildConfig.DEBUG) Log.d(TV_FOCUS_DEBUG_TAG, message())
+    if (BuildConfig.TRACES) Log.d(TV_FOCUS_DEBUG_TAG, message())
 }
 
 /**
@@ -72,7 +72,7 @@ internal inline fun tvFocusDebugLog(message: () -> String) {
  * correlate against the `tvFocus*` modifiers' own "gained focus" logs elsewhere on the same screen. See
  * [tvFocusDebugLog]. Never consumes the event (always returns false), so it can't change behavior.
  */
-fun Modifier.tvDpadKeyLog(screenLabel: String): Modifier = if (!BuildConfig.DEBUG) {
+fun Modifier.tvDpadKeyLog(screenLabel: String): Modifier = if (!BuildConfig.TRACES) {
     this
 } else {
     onPreviewKeyEvent { event ->

@@ -143,7 +143,7 @@ class ExternalRefresher @Inject constructor(
         // lookup succeeded, since a source keeping its previous values because the provider couldn't be
         // reached is itself worth seeing.
         val onDevice = app.packageName?.let(::installedVersionName)
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             Log.d(
                 TAG,
                 "refresh ${app.key}: fetched=${release != null} | " +
@@ -191,7 +191,7 @@ class ExternalRefresher @Inject constructor(
         // direct source and must not be replaced by a re-drawing of it.
         val installedNow = hasOwnCopyInstalled(app)
         if (needsAdaptiveIcon && meta?.adaptiveIcon != null && !installedNow) {
-            if (BuildConfig.DEBUG) Log.d(TAG, "caching composed adaptive icon for ${app.key}")
+            if (BuildConfig.TRACES) Log.d(TAG, "caching composed adaptive icon for ${app.key}")
             ExternalIconCache.save(context, app.key, meta.adaptiveIcon)
         }
         val supportsTv = if (needsTv) meta?.supportsTelevision ?: app.supportsTelevision else app.supportsTelevision
@@ -265,7 +265,7 @@ class ExternalRefresher @Inject constructor(
         val pkg = app.packageName ?: return app
         if (app.apkSignersFrom == apkUrl || !isInstalled(pkg)) return app
         val signers = ApkSigningBlockReader.fetchSignerHashes(downloader, apkUrl)
-        if (BuildConfig.DEBUG) Log.d(TAG, "signers of the APK of ${app.key}: $signers")
+        if (BuildConfig.TRACES) Log.d(TAG, "signers of the APK of ${app.key}: $signers")
         return app.copy(
             latestApkSigners = signers?.map { it.lowercase() }?.sorted() ?: app.latestApkSigners,
             apkSignersFrom = apkUrl,
@@ -330,7 +330,7 @@ class ExternalRefresher @Inject constructor(
         val needsName = app.apkLabel == null && app.hasAutomaticLabel
         if (!needsIcon && !needsName) return
         val read = fetchApkIconAndName(apkUrl)
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.TRACES) {
             Log.d(
                 TAG,
                 "read from the APK of ${app.key}: retry=${read == null} icon=${read?.icon != null} name=${read?.label}",
@@ -386,14 +386,14 @@ class ExternalRefresher @Inject constructor(
             val info = pm.archiveApplicationInfo(archive.path)
             val resources = info?.let { runCatching { pm.getResourcesForApplication(it) }.getOrNull() }
             if (info == null || resources == null) {
-                if (BuildConfig.DEBUG) Log.d(TAG, "icon copy of $apkUrl not readable by Android")
+                if (BuildConfig.TRACES) Log.d(TAG, "icon copy of $apkUrl not readable by Android")
                 return@withContext ApkIconAndName(icon = null, label = null)
             }
             val icon = runCatching {
                 ResourcesCompat.getDrawableForDensity(resources, info.icon, DisplayMetrics.DENSITY_XXXHIGH, null)
                     ?.toBitmap(ICON_SIZE_PX, ICON_SIZE_PX, Bitmap.Config.ARGB_8888)
             }.onFailure {
-                if (BuildConfig.DEBUG) Log.d(TAG, "icon of $apkUrl not drawable", it)
+                if (BuildConfig.TRACES) Log.d(TAG, "icon of $apkUrl not drawable", it)
             }.getOrNull()
             // Not loadLabel(), which answers the package name when there is no name to read.
             val label = runCatching {
