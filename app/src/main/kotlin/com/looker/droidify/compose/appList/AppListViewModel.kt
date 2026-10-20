@@ -847,18 +847,22 @@ class AppListViewModel @Inject constructor(
 
     /**
      * The TV-only home, in rows like the full catalogue's rather than one grid of everything: favourites,
-     * each repository the user added, the newest and the recently updated, then a row per category, the
+     * each repository the user added ([ownRepositoryApps], all its apps), the newest and the recently updated, then a row per category, the
      * most populated first. A category with fewer than [MIN_CATEGORY_ROW] apps for TV goes into a last
      * "Other" row instead of a row of its own. Apps made for TV are, as for [allTvApps], those declaring
      * the leanback feature, plus every app of a category that is about TV in itself
      * ([TV_RELEVANT_CATEGORIES]).
      */
     val tvAppRows: StateFlow<List<AppRow>> =
-        combine(allTvApps, favouriteApps, ownRepos, categories, hiddenApps) { tvApps, favourites, own, cats, hidden ->
-            TvRowsInput(tvApps, favourites, own, cats, hidden)
-        }
+        combine(
+            allTvApps,
+            favouriteApps,
+            ownRepositoryApps,
+            categories,
+            hiddenApps,
+        ) { tv, favourites, own, cats, hidden -> TvRowsInput(tv, favourites, own, cats, hidden) }
             .mapLatest { input ->
-                if (!isTelevisionDevice || input.tvApps.isEmpty()) return@mapLatest emptyList()
+                if (!isTelevisionDevice) return@mapLatest emptyList()
                 val tvPackages = input.tvApps.mapTo(HashSet()) { it.packageName }
                 val tvOnlyQuery: suspend (SortOrder, Boolean) -> List<AppMinimal> = { order, updatedOnly ->
                     appRepository.apps(
@@ -881,14 +885,9 @@ class AppListViewModel @Inject constructor(
                 buildList {
                     input.favourites.filter { it.packageName in tvPackages }.takeIf { it.isNotEmpty() }
                         ?.let { add(AppRow(context.getString(R.string.favourites), it)) }
-                    input.ownRepos.forEach { repo ->
-                        appRepository.apps(
-                            sortOrder = SortOrder.UPDATED,
-                            repoId = repo.id,
-                            featuresToInclude = listOf(LEANBACK_FEATURE),
-                        ).excludingHidden(input.hidden).takeIf { it.isNotEmpty() }
-                            ?.let { add(AppRow(repo.name, it)) }
-                    }
+                    // All their apps, not only those declared for TV: a repository someone added is theirs to
+                    // browse, and its index often says nothing of TV even for an app made for it.
+                    addAll(input.ownRepositories)
                     add(AppRow(context.getString(R.string.discover_new_apps), tvOnlyQuery(SortOrder.ADDED, false)))
                     add(
                         AppRow(
@@ -1026,7 +1025,7 @@ private val TV_RELEVANT_CATEGORIES = listOf(
 private data class TvRowsInput(
     val tvApps: List<AppMinimal>,
     val favourites: List<AppMinimal>,
-    val ownRepos: List<Repo>,
+    val ownRepositories: List<AppRow>,
     val categories: List<CatalogCategory>,
     val hidden: Set<String>,
 )
