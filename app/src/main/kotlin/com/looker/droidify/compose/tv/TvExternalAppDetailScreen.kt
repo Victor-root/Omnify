@@ -10,8 +10,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
-import androidx.compose.foundation.gestures.BringIntoViewSpec
-import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,7 +52,6 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.LoadingSpinner
-import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.ExternalLifecycleActions
@@ -220,23 +217,7 @@ fun TvExternalAppDetailScreen(
     // The action buttons alone, not the whole header: the favourite and hide toggles sit in it too, and
     // focus landing on one of those was taken for having reached Install.
     var actionsHaveFocus by remember { mutableStateOf(false) }
-    val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
-    val bringIntoViewSpec = remember(defaultBringIntoViewSpec) {
-        object : BringIntoViewSpec {
-            override fun calculateScrollDistance(
-                offset: Float,
-                size: Float,
-                containerSize: Float,
-            ): Float = if (headerHasFocus) {
-                // The whole header fits the screen, so it is always shown from the pane's top: coming back
-                // up into it from further down, bringing just the focused button into view left the icon
-                // and name above it cut off, with nothing focusable up there to reach them by.
-                -pageScroll.value.toFloat()
-            } else {
-                defaultBringIntoViewSpec.calculateScrollDistance(offset, size, containerSize)
-            }
-        }
-    }
+    val bringIntoViewSpec = rememberTvLeftPaneBringIntoViewSpec(pageScroll) { headerHasFocus }
 
     TvKeepFocusOnMainAction(
         primary = primaryFocus,
@@ -449,7 +430,6 @@ private fun TvExternalVersionsList(
                 isSuggested = row.release.tag == app.latestTag,
                 isInstalled = row.isInstalled,
                 onClick = { onVersionClick(row.release) },
-                modifier = Modifier.tvBringIntoViewOnFocus(),
             )
         }
     }
