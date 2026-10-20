@@ -366,13 +366,22 @@ class ExternalAppsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.toggleOmnifyInstallSource(packageName) }
     }
 
+    /**
+     * Package id of each source whose install has been handed to the installer from this screen but
+     * not yet confirmed, keyed by [ExternalApp.key]. A first install has no [ExternalApp.packageName]
+     * until it is confirmed, so without this its install state reached nothing on screen: the button
+     * went back to Install mid-install, and a second tap downloaded the whole APK again.
+     */
+    private val pendingInstallPackages = MutableStateFlow<Map<String, String>>(emptyMap())
+
     /** Per-app system install state (Pending/Installing/…), keyed by [ExternalApp.key]. */
     val installStates: StateFlow<Map<String, InstallState>> = combine(
         repository.apps,
         installManager.state,
-    ) { apps, states ->
+        pendingInstallPackages,
+    ) { apps, states, pending ->
         apps.mapNotNull { app ->
-            val pkg = app.packageName ?: return@mapNotNull null
+            val pkg = app.packageName ?: pending[app.key] ?: return@mapNotNull null
             val state = states[PackageName(pkg)] ?: return@mapNotNull null
             app.key to state
         }.toMap()
@@ -1541,7 +1550,8 @@ class ExternalAppsViewModel @Inject constructor(
             // that hasn't reached it. Stopping the batch is what makes the button do what it says. It
             // stops the whole run, not just this source: see UpdateAllWorker.cancel.
             batchProgress.state.value?.packageName == app.key -> UpdateAllWorker.cancel(context)
-            else -> app.packageName?.let { installManager.cancel(PackageName(it)) }
+            else -> (app.packageName ?: pendingInstallPackages.value[app.key])
+                ?.let { installManager.cancel(PackageName(it)) }
         }
     }
 
@@ -1887,6 +1897,7 @@ class ExternalAppsViewModel @Inject constructor(
                 _installConflict.value = conflict
                 return
             }
+            pendingInstallPackages.update { it + (app.key to packageName) }
             installManager.install(InstallItem(PackageName(packageName), cacheFileName))
             // Record which APK file this release would install (its identity), so future update checks
             // compare the APK, not the tag — and what the latest release now is. Deliberately installing
@@ -1936,12 +1947,16 @@ class ExternalAppsViewModel @Inject constructor(
             // pass records through, so the two can't write a source's install state differently. This
             // runs as its own job so it isn't cut short by this function's own finally block below.
             viewModelScope.launch {
-                externalInstaller.awaitAndRecordInstall(
-                    key = app.key,
-                    packageName = packageName,
-                    tag = release.tag,
-                    token = token,
-                )
+                try {
+                    externalInstaller.awaitAndRecordInstall(
+                        key = app.key,
+                        packageName = packageName,
+                        tag = release.tag,
+                        token = token,
+                    )
+                } finally {
+                    pendingInstallPackages.update { it - app.key }
+                }
             }
         } catch (e: CancellationException) {
             throw e
