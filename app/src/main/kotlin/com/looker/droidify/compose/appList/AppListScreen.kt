@@ -131,6 +131,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.rememberTvTyping
+import com.looker.droidify.compose.components.tvTypeOnOk
 import com.looker.droidify.compose.trailUpdatesNav
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -149,8 +151,6 @@ import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
-import com.looker.droidify.compose.components.tvKeyboardOnOk
-import com.looker.droidify.compose.components.tvKeyboardOptions
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
@@ -1545,13 +1545,15 @@ fun SearchBar(
     val pressedShape by pressedTransition.animateDp(label = "pressedShape") { isPressed ->
         if (isPressed) 20.dp else 32.dp
     }
+    val searchTyping = rememberTvTyping()
     BasicTextField(
         state = state,
         lineLimits = TextFieldLineLimits.SingleLine,
         textStyle = LocalTextStyle.current,
         interactionSource = interactionSource,
-        keyboardOptions = tvKeyboardOptions(),
-        modifier = Modifier.tvKeyboardOnOk()
+        onKeyboardAction = { searchTyping.stop() },
+        readOnly = searchTyping.readOnly,
+        modifier = Modifier.tvTypeOnOk(searchTyping)
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .graphicsLayer {
@@ -1632,6 +1634,7 @@ private fun SearchTopBar(
             }
         },
         title = {
+            val searchTyping = rememberTvTyping()
             BasicTextField(
                 state = state,
                 lineLimits = TextFieldLineLimits.SingleLine,
@@ -1640,9 +1643,13 @@ private fun SearchTopBar(
                 cursorBrush = SolidColor(LocalOnAccentBarColor.current),
                 // The keyboard's "search" key just dismisses the keyboard (results already filter live);
                 // the query stays so the user sees what they searched.
-                keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
-                onKeyboardAction = { focusManager.clearFocus() },
-                modifier = Modifier.tvKeyboardOnOk()
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                onKeyboardAction = {
+                    searchTyping.stop()
+                    focusManager.clearFocus()
+                },
+                readOnly = searchTyping.readOnly,
+                modifier = Modifier.tvTypeOnOk(searchTyping)
                     .fillMaxWidth()
                     .focusRequester(focusRequester),
                 decorator = { inner ->

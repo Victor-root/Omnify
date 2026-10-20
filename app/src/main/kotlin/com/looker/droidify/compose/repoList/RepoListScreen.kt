@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -89,11 +90,11 @@ import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
+import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
-import com.looker.droidify.compose.components.tvKeyboardOnOk
-import com.looker.droidify.compose.components.tvKeyboardOptions
+import com.looker.droidify.compose.components.tvTypeOnOk
 import com.looker.droidify.compose.externalApps.AddSourceState
 import com.looker.droidify.compose.externalApps.AppFamilyChoice
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
@@ -1310,14 +1311,16 @@ internal fun AddExternalSourceDialog(
                 )
             } else {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    val urlTyping = rememberTvTyping()
                     OutlinedTextField(
                         value = url,
                         onValueChange = { url = it },
                         label = { Text(stringResource(R.string.external_source_url_label)) },
                         singleLine = true,
                         isError = errorMessage != null,
-                        keyboardOptions = tvKeyboardOptions(),
-                        modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
+                        keyboardActions = KeyboardActions(onAny = { urlTyping.stop() }),
+                        readOnly = urlTyping.readOnly,
+                        modifier = Modifier.tvTypeOnOk(urlTyping).fillMaxWidth(),
                     )
                     // The failure reason shown inline (a snackbar would sit behind the dialog scrim).
                     if (errorMessage != null) {
@@ -1484,13 +1487,15 @@ internal fun AddExternalAccountDialog(
                 }
             } else {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    val urlTyping = rememberTvTyping()
                     OutlinedTextField(
                         value = url,
                         onValueChange = { url = it },
                         label = { Text(stringResource(R.string.external_account_url_label)) },
                         singleLine = true,
-                        keyboardOptions = tvKeyboardOptions(),
-                        modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
+                        keyboardActions = KeyboardActions(onAny = { urlTyping.stop() }),
+                        readOnly = urlTyping.readOnly,
+                        modifier = Modifier.tvTypeOnOk(urlTyping).fillMaxWidth(),
                     )
                     // Discovering a whole account is the single heaviest external-source action (one
                     // call per repo just to check for a release), so this is exactly where running low
@@ -1751,6 +1756,7 @@ private fun SourceOptionFields(
             apkFilter.isNotBlank() || versionIncludeFilter.isNotBlank() || versionExcludeFilter.isNotBlank(),
         )
     }
+    val nameTyping = rememberTvTyping()
     OutlinedTextField(
         value = name,
         onValueChange = onNameChange,
@@ -1761,8 +1767,9 @@ private fun SourceOptionFields(
             null
         },
         singleLine = true,
-        keyboardOptions = tvKeyboardOptions(),
-        modifier = Modifier.tvKeyboardOnOk().fillMaxWidth(),
+        keyboardActions = KeyboardActions(onAny = { nameTyping.stop() }),
+        readOnly = nameTyping.readOnly,
+        modifier = Modifier.tvTypeOnOk(nameTyping).fillMaxWidth(),
     )
     Spacer(Modifier.size(4.dp))
     CheckboxRow(
@@ -1826,14 +1833,16 @@ private fun FilterField(
     @StringRes label: Int,
     @StringRes hint: Int,
 ) {
+    val typing = rememberTvTyping()
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(stringResource(label)) },
         supportingText = { Text(stringResource(hint)) },
         singleLine = true,
-        keyboardOptions = tvKeyboardOptions(),
-        modifier = Modifier.tvKeyboardOnOk()
+        keyboardActions = KeyboardActions(onAny = { typing.stop() }),
+        readOnly = typing.readOnly,
+        modifier = Modifier.tvTypeOnOk(typing)
             .fillMaxWidth()
             .padding(bottom = 4.dp),
     )
