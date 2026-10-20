@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -282,18 +283,24 @@ fun TvExternalAppDetailScreen(
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
-                                    // Same version as the version list below: pulled from the latest APK's
-                                    // file name (releaseVersionLabel), falling back to the tag — NOT the raw
-                                    // GitHub tag, which can differ from the APK's real version. Mirrors the
-                                    // phone screen's hero version.
-                                    releaseVersionLabel(app.latestApkName, app.latestTag).takeIf { it.isNotBlank() }
-                                        ?.let { TvChip(it) }
-                                    TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
-                                    if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
-                                }
-                                if (isRootCompatible) RootBadge()
                             }
+                        }
+                        // Under the icon, across the card: beside it, the column was too narrow for two of
+                        // them and each landed on a line of its own.
+                        FlowRow(
+                            horizontalArrangement = spacedBy(8.dp),
+                            verticalArrangement = spacedBy(8.dp),
+                            itemVerticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            // Same version as the version list below: pulled from the latest APK's
+                            // file name (releaseVersionLabel), falling back to the tag — NOT the raw
+                            // GitHub tag, which can differ from the APK's real version. Mirrors the
+                            // phone screen's hero version.
+                            releaseVersionLabel(app.latestApkName, app.latestTag).takeIf { it.isNotBlank() }
+                                ?.let { TvChip(it) }
+                            TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
+                            if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
+                            if (isRootCompatible) RootBadge()
                         }
 
                         // The built-in Omnify source offering the other release channel: an install, not an

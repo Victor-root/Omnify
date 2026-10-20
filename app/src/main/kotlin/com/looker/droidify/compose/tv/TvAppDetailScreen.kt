@@ -304,14 +304,16 @@ fun TvAppDetailScreen(
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
-                                        TvMetaChips(
-                                            category = app.categories.firstOrNull(),
-                                            version = app.metadata.suggestedVersionName.takeIf { it.isNotBlank() },
-                                            license = app.metadata.license.takeIf { it.isNotBlank() },
-                                        )
-                                        if (isRootCompatible) RootBadge()
                                     }
                                 }
+                                // Under the icon, across the card: beside it, the column was too narrow for
+                                // two of them and each landed on a line of its own.
+                                TvMetaChips(
+                                    category = app.categories.firstOrNull(),
+                                    version = app.metadata.suggestedVersionName.takeIf { it.isNotBlank() },
+                                    license = app.metadata.license.takeIf { it.isNotBlank() },
+                                    rootCompatible = isRootCompatible,
+                                )
 
                                 // Action buttons (Install/Update/Launch + Uninstall) sharing the pane's width,
                                 // then the favourite and hide toggles, discreet since they are rarely used.
@@ -435,11 +437,16 @@ internal fun TvAccentHeader(title: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun TvMetaChips(category: String?, version: String?, license: String?) {
-    FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
+private fun TvMetaChips(category: String?, version: String?, license: String?, rootCompatible: Boolean) {
+    FlowRow(
+        horizontalArrangement = spacedBy(8.dp),
+        verticalArrangement = spacedBy(8.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
         version?.let { TvChip("v$it") }
         category?.let { TvChip(it) }
         license?.let { TvChip(it) }
+        if (rootCompatible) RootBadge()
     }
 }
 
