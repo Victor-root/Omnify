@@ -176,8 +176,8 @@ internal class Backdrop(
             BackgroundStyle.DOTS -> dots(phase)
             BackgroundStyle.RIPPLES -> ripples(phase)
             BackgroundStyle.FLOW -> flow(phase)
-            // Drawn by its own composable on the neutral background, never through here.
-            BackgroundStyle.AURORA -> Unit
+            // Drawn by FloatingAppCardsBackground itself, never through here.
+            BackgroundStyle.AURORA, BackgroundStyle.NONE -> Unit
         }
         // A fine grain keeps the large smooth gradients from looking like plastic. Left off on the black
         // theme, whose whole point is pixels that stay off.

@@ -11,6 +11,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -71,6 +72,10 @@ fun FloatingAppCardsBackground(
     // muted derived tone — see DroidifyTheme.withVividAccent) as the seed for every colour.
     val accent = MaterialTheme.colorScheme.primary
     val style = LocalBackgroundStyle.current
+    if (style == BackgroundStyle.NONE) {
+        Spacer(modifier.fillMaxSize().background(if (dark) Color.Black else Color.White))
+        return
+    }
     if (style == BackgroundStyle.AURORA) {
         AuroraBackground(modifier, accent, dark, intensity)
         return

@@ -19,6 +19,7 @@ A welcome page for a fresh install, and external sources that learn to handle re
 
 ### 🔄 Changed
 - **The Session installer is now listed first**, and stays the default, so someone who does not know what to pick lands on the right one. The welcome page says so in a line under the choice, and the whole installer card is tappable, not just its top.
+- **A "None" background**: plain white in the light theme, plain black in the dark ones, for those who'd rather have no decoration at all.
 - **On Android TV, each repository you added gets its own row on the home screen**, with all its apps: a private repository's apps could only be found by opening it from the repositories screen. Its apps made for TV also come first in the TV apps list, where one not updated lately used to sink out of sight.
 - **On Android TV, an app's page is now split in two, like on tablets,** for apps from the catalogue and for external sources alike. The app itself (icon, name, Install and Launch, certificate, versions) sits on the left, with favourite and hide as small discreet buttons side by side. The screenshots and the whole description sit on the right: no more "See more" button, the description is one stop for the remote and scrolls on its own. Install keeps the focus until you press a key, even when screenshots show up afterwards.
 - **A prettier secondary button.** Uninstall, Previous, Select all and the like take your accent colour, muted towards the background, instead of a grey outline: they stand apart from the main actions without a colour of their own. Phone and TV.

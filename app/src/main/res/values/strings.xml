@@ -535,6 +535,7 @@
     <string name="theme_color">Theme color</string>
     <string name="theme_color_DESC">Choose the accent color of the app</string>
     <string name="background_style">Background</string>
+    <string name="background_style_none">None</string>
     <string name="background_style_halo">Halo</string>
     <string name="background_style_silk">Silk</string>
     <string name="background_style_contour">Contour lines</string>
