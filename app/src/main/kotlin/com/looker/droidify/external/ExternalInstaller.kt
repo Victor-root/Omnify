@@ -10,6 +10,7 @@ import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.ProgressListener
+import com.looker.droidify.network.downloadToFileWithRetry
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
 import com.looker.droidify.utility.common.extension.isVersionDowngrade
@@ -88,12 +89,11 @@ class ExternalInstaller @Inject constructor(
         val url = app.latestApkUrl ?: return ExternalInstallOutcome.NO_RELEASE
         val cacheFileName = releaseCacheFileName(app, app.latestTag)
         val releaseFile = Cache.getReleaseFile(context, cacheFileName)
-        // Download to a partial file and promote it on success. The Downloader resumes by Range against
-        // the target's current size, so a previously-completed file would make it request past EOF ->
-        // HTTP 416 -> failure. Start each download fresh (asset URLs are one-shot CDN links anyway).
+        // Download to a partial file and promote it on success. Started fresh, then resumed across
+        // retries, for the reasons given on ExternalAppsViewModel's own download.
         val partial = Cache.getPartialReleaseFile(context, cacheFileName)
         partial.delete()
-        val response = downloader.downloadToFile(url = url, target = partial, block = onDownload)
+        val response = downloader.downloadToFileWithRetry(url = url, target = partial, block = onDownload)
         if (response !is NetworkResponse.Success) {
             partial.delete()
             Log.w(TAG, "Download failed for ${app.key}")

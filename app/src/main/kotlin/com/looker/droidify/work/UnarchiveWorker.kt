@@ -24,6 +24,7 @@ import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
+import com.looker.droidify.network.downloadToFileWithRetry
 import com.looker.droidify.utility.common.cache.Cache
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -109,7 +110,7 @@ class UnarchiveWorker @AssistedInject constructor(
         // never Uri.appendPath() which would percent-encode the leading slash.
         val url = repo.address.removeSuffix("/") + "/" + pkg.apk.name.removePrefix("/")
         val partialFile = Cache.getPartialReleaseFile(applicationContext, cacheFileName)
-        val response = downloader.downloadToFile(
+        val response = downloader.downloadToFileWithRetry(
             url = url,
             target = partialFile,
             headers = {

@@ -61,6 +61,7 @@ import com.looker.droidify.datastore.installSourceChoice
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
+import com.looker.droidify.network.downloadToFileWithRetry
 import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.apk.ApkSigningBlockReader
@@ -1805,10 +1806,10 @@ class ExternalAppsViewModel @Inject constructor(
             val cacheFileName = releaseCacheFileName(app, release.tag)
             val releaseFile = Cache.getReleaseFile(context, cacheFileName)
             val response = withContext(Dispatchers.IO) {
-                // Download to a partial file and promote it on success. The Downloader resumes by
-                // Range against the target's current size, so a previously-completed file would make
-                // it request past EOF -> HTTP 416 -> failure. Start each download fresh (asset URLs
-                // are one-shot CDN links anyway, so resuming wouldn't help).
+                // Download to a partial file and promote it on success. Each download starts fresh, then
+                // resumes within itself across retries: a leftover from an earlier one could be a whole
+                // file (a Range past its end answers 416) or bytes of an asset re-uploaded since under
+                // the same tag, and nothing here has a hash to catch that.
                 val partial = Cache.getPartialReleaseFile(context, cacheFileName)
                 partial.delete()
                 // Sliding-window speed estimate + throttled UI updates (the callback fires very
@@ -1817,7 +1818,7 @@ class ExternalAppsViewModel @Inject constructor(
                 var windowStartBytes = 0L
                 var speed = 0L
                 var lastEmit = 0L
-                val result = downloader.downloadToFile(
+                val result = downloader.downloadToFileWithRetry(
                     url = asset.downloadUrl,
                     target = partial,
                 ) { read, total ->
