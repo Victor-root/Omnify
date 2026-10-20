@@ -1517,17 +1517,8 @@ private fun AppHeaderCard(
     val onSourceCodeClick: (() -> Unit)? = sourceCodeUrl?.let { url ->
         { runCatching { uriHandler.openUri(url) } }
     }
-    // Fuzzy but shared with the Discover home's "For rooted devices" carousel (see RootDetection): the
-    // legacy superuser permission, or strong root phrasing (Magisk/KernelSU/"requires root"…) in the
-    // app's own name/summary/description, minus an explicit negation ("works without root"…).
     val isRootCompatible = remember(app, installablePackage, installedPackage) {
-        app != null && (
-            RootDetection.textIndicatesRoot(
-                "${app.metadata.name} ${app.metadata.summary} ${app.metadata.description.raw}",
-            ) ||
-                (installablePackage ?: installedPackage)?.manifest?.permissions
-                    ?.any { it.name == RootDetection.PERMISSION } == true
-            )
+        app != null && app.isRootCompatible(installablePackage ?: installedPackage)
     }
 
     HeroCard(
@@ -1886,8 +1877,18 @@ private fun antiFeatureLabel(tag: String): String = when (tag) {
     else -> tag
 }
 
+/**
+ * Whether [this] app is meant for rooted devices, shown as [RootBadge]. Fuzzy but shared with the
+ * Discover home's "For rooted devices" carousel (see RootDetection): the legacy superuser permission
+ * declared by [pkg], or strong root phrasing (Magisk/KernelSU/"requires root"…) in the app's own
+ * name/summary/description, minus an explicit negation ("works without root"…).
+ */
+internal fun App.isRootCompatible(pkg: Package?): Boolean =
+    RootDetection.textIndicatesRoot("${metadata.name} ${metadata.summary} ${metadata.description.raw}") ||
+        pkg?.manifest?.permissions?.any { it.name == RootDetection.PERMISSION } == true
+
 @Composable
-private fun PermissionsSection(permissions: List<Permission>) {
+internal fun PermissionsSection(permissions: List<Permission>) {
     var expanded by remember { mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
