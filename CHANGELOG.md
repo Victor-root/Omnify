@@ -18,6 +18,7 @@ A welcome page for a fresh install, and external sources that learn to handle re
 - **A "Versions to keep" filter** on every external source, the opposite of "Excluded versions": only releases whose name contains one of its words are kept. The app picker fills it in for you, and it can be edited at any time.
 
 ### 🔄 Changed
+- **A first install from an external source shows "Installing" until it is done.** The button went back to Install while Android was still installing, and tapping it again downloaded the whole APK a second time.
 - **A download cut short picks up where it stopped.** When the connection drops or stalls, Omnify tries again on its own up to four times, waiting a little longer each time, and carries on from the bytes already received instead of starting over. External sources (GitHub, GitLab, Codeberg) used to give up and start from zero at the first cut, and so did "Update all" and the other background installs.
 - **The Session installer is now listed first**, and stays the default, so someone who does not know what to pick lands on the right one. The welcome page says so in a line under the choice, and the whole installer card is tappable, not just its top.
 - **A "None" background**: plain white in the light theme, plain black in the dark ones, for those who'd rather have no decoration at all.
