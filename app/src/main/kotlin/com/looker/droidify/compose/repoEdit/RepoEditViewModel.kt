@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -51,6 +50,10 @@ class RepoEditViewModel @Inject constructor(
     private val _saved = MutableStateFlow(false)
     val saved: StateFlow<Boolean> = _saved
 
+    /** The address and mirrors of the repository being edited, which are its own and so never "taken":
+     *  counting them made every edit fail as a duplicate of itself. Empty when adding one. */
+    private val editedAddresses = MutableStateFlow<Set<String>>(emptySet())
+
     /**
      * Every address already tracked, each without the repository path ending it may carry, so that one
      * repository can't be added twice under its two spellings.
@@ -59,8 +62,8 @@ class RepoEditViewModel @Inject constructor(
      * while subscribed, with nothing ever subscribing to it, its value stayed the empty set forever and
      * this check silently passed everything.
      */
-    private val takenAddresses = repoRepository.addresses.map { addresses ->
-        addresses.map { address -> stripRepoPathSuffix(address) }.toSet()
+    private val takenAddresses = combine(repoRepository.addresses, editedAddresses) { addresses, own ->
+        (addresses - own).map { address -> stripRepoPathSuffix(address) }.toSet()
     }
 
     private val formFlow = combine(
@@ -90,6 +93,7 @@ class RepoEditViewModel @Inject constructor(
             _repoId.value = repoId
             val repo = repoRepository.getRepo(repoId)
             repo?.let {
+                editedAddresses.value = it.mirrors.toSet() + it.address
                 addressState.edit { this.append(it.address) }
                 it.fingerprint?.let { fingerprint ->
                     fingerprintState.edit { this.append(formatFingerprint(fingerprint.value)) }
@@ -197,6 +201,11 @@ class RepoEditViewModel @Inject constructor(
         username: String?,
         password: String?,
     ) {
+        val editedId = _repoId.value
+        if (editedId != null) {
+            update(editedId, address, fingerprint, username, password)
+            return
+        }
         try {
             if (BuildConfig.TRACES) Log.d(TAG, "insert: writing $address")
             val id = repoRepository.insertRepo(
@@ -216,6 +225,37 @@ class RepoEditViewModel @Inject constructor(
         } catch (e: Exception) {
             e.exceptCancellation()
             if (BuildConfig.TRACES) Log.d(TAG, "insert: threw", e)
+            reportAddressError(R.string.repository_save_failed)
+        }
+    }
+
+    /**
+     * Writes the edits over the repository [id] instead of adding a second one, then syncs it again
+     * when it is switched on, so a changed login or address is put to use straight away.
+     */
+    private suspend fun update(
+        id: Int,
+        address: String,
+        fingerprint: String,
+        username: String?,
+        password: String?,
+    ) {
+        try {
+            if (BuildConfig.TRACES) Log.d(TAG, "update: writing row $id as $address")
+            repoRepository.updateRepo(
+                id = id,
+                address = address,
+                fingerprint = fingerprint.ifEmpty { null },
+                username = username,
+                password = password,
+            )
+            repoRepository.getRepo(id)?.takeIf { it.enabled }?.let {
+                repoRepository.enableRepository(it, enable = true)
+            }
+            _saved.value = true
+        } catch (e: Exception) {
+            e.exceptCancellation()
+            if (BuildConfig.TRACES) Log.d(TAG, "update: threw", e)
             reportAddressError(R.string.repository_save_failed)
         }
     }

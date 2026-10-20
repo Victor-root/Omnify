@@ -219,21 +219,52 @@ class RepoRepository @Inject constructor(
             )
         }
         if (BuildConfig.TRACES) Log.d(TRACE_TAG, "insertRepo: $address stored as row $id")
-        if (password != null && username != null) {
-            if (BuildConfig.TRACES) Log.d(TRACE_TAG, "insertRepo: resolving the encryption key")
-            val key = keyStream.first()
-            if (BuildConfig.TRACES) Log.d(TRACE_TAG, "insertRepo: key resolved, encrypting the password")
-            val (encrypted, iv) = key.encrypt(password)
-            val authEntity = AuthenticationEntity(
-                password = encrypted,
-                username = username,
-                initializationVector = iv,
-                repoId = id.toInt(),
-            )
-            authDao.insert(authEntity)
-            if (BuildConfig.TRACES) Log.d(TRACE_TAG, "insertRepo: credentials stored for row $id")
-        }
+        if (password != null && username != null) storeCredentials(id.toInt(), username, password)
         return id.toInt()
+    }
+
+    /**
+     * Writes an edited repository over row [id]: its address, fingerprint and login. The login is
+     * replaced, or removed when [username] or [password] is left out. The index timestamp is cleared,
+     * so the next sync reads the index in full with whatever changed here.
+     */
+    suspend fun updateRepo(
+        id: Int,
+        address: String,
+        fingerprint: String?,
+        username: String?,
+        password: String?,
+    ) {
+        val current = repoDao.getRepo(id) ?: return
+        indexDao.updateRepo(
+            current.copy(
+                address = address,
+                webBaseUrl = address,
+                fingerprint = Fingerprint(fingerprint.orEmpty()),
+                timestamp = null,
+            ),
+        )
+        if (BuildConfig.TRACES) Log.d(TRACE_TAG, "updateRepo: row $id now $address")
+        if (password != null && username != null) {
+            storeCredentials(id, username, password)
+        } else {
+            authDao.delete(id)
+        }
+    }
+
+    private suspend fun storeCredentials(repoId: Int, username: String, password: String) {
+        if (BuildConfig.TRACES) Log.d(TRACE_TAG, "storeCredentials: resolving the encryption key")
+        val key = keyStream.first()
+        if (BuildConfig.TRACES) Log.d(TRACE_TAG, "storeCredentials: key resolved, encrypting the password")
+        val (encrypted, iv) = key.encrypt(password)
+        val authEntity = AuthenticationEntity(
+            password = encrypted,
+            username = username,
+            initializationVector = iv,
+            repoId = repoId,
+        )
+        authDao.insert(authEntity)
+        if (BuildConfig.TRACES) Log.d(TRACE_TAG, "storeCredentials: credentials stored for row $repoId")
     }
 
     suspend fun enableRepository(repo: Repo, enable: Boolean) {

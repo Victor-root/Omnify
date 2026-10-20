@@ -15,6 +15,9 @@ interface AuthDao {
     @Query("SELECT * FROM authentication WHERE repoId = :repoId")
     suspend fun authFor(repoId: Int): AuthenticationEntity?
 
+    @Query("DELETE FROM authentication WHERE repoId = :repoId")
+    suspend fun delete(repoId: Int)
+
     /** Every stored login, re-read whenever one is added, changed or removed. */
     @Query("SELECT * FROM authentication")
     fun stream(): Flow<List<AuthenticationEntity>>
