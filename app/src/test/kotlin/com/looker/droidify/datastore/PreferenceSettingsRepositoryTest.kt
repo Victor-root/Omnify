@@ -156,6 +156,29 @@ class PreferenceSettingsRepositoryTest {
     }
 
     @Test
+    fun `tvOnly is off by default and kept once set`() = runTest {
+        assertFalse(repository.getInitial().tvOnly)
+
+        repository.setTvOnly(true)
+        assertTrue(repository.getInitial().tvOnly)
+    }
+
+    @Test
+    fun `tvOnly starts on where the device default says so, until changed`() = runTest {
+        val television = PreferenceSettingsRepository(
+            PreferenceDataStoreFactory.create(
+                scope = testScope,
+                produceFile = { File(tmpFolder.newFolder(), "tv_settings.preferences_pb") },
+            ),
+            defaultTvOnly = true,
+        )
+        assertTrue(television.getInitial().tvOnly)
+
+        television.setTvOnly(false)
+        assertFalse(television.getInitial().tvOnly)
+    }
+
+    @Test
     fun `setDeleteApkOnInstall updates setting`() = runTest {
         repository.setDeleteApkOnInstall(true)
         val settings = repository.getInitial()

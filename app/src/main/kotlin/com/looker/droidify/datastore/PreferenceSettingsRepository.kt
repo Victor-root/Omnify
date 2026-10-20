@@ -39,6 +39,8 @@ class PreferenceSettingsRepository(
     private val dataStore: DataStore<Preferences>,
     /** The backdrop until the person picks one: it differs by device (see DatastoreModule). */
     private val defaultBackgroundStyle: BackgroundStyle = BackgroundStyle.DUNES,
+    /** Whether the home starts on apps made for TV until the person says otherwise: on a television. */
+    private val defaultTvOnly: Boolean = false,
 ) : SettingsRepository {
 
     override val data: Flow<Settings> = dataStore.data
@@ -168,6 +170,9 @@ class PreferenceSettingsRepository(
 
     override suspend fun setShowFavouritesCarousel(value: Boolean) =
         SHOW_FAVOURITES_CAROUSEL.update(value)
+
+    override suspend fun setTvOnly(value: Boolean) =
+        TV_ONLY.update(value)
 
     override suspend fun toggleFavourites(packageName: String) {
         dataStore.edit { preference ->
@@ -334,6 +339,7 @@ class PreferenceSettingsRepository(
         val hiddenApps = preferences[HIDDEN_APPS] ?: emptySet()
         val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: false
         val showFavouritesCarousel = preferences[SHOW_FAVOURITES_CAROUSEL] ?: true
+        val tvOnly = preferences[TV_ONLY] ?: defaultTvOnly
         val enabledRepoIds =
             preferences[ENABLED_REPO_IDS]?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
         val deleteApkOnInstall = preferences[DELETE_APK_ON_INSTALL] ?: false
@@ -378,6 +384,7 @@ class PreferenceSettingsRepository(
             hiddenApps = hiddenApps,
             homeScreenSwiping = homeScreenSwiping,
             showFavouritesCarousel = showFavouritesCarousel,
+            tvOnly = tvOnly,
             enabledRepoIds = enabledRepoIds,
             deleteApkOnInstall = deleteApkOnInstall,
             playStoreInstallSource = playStoreInstallSource,
@@ -422,6 +429,7 @@ class PreferenceSettingsRepository(
         val HIDDEN_APPS = stringSetPreferencesKey("key_hidden_apps")
         val HOME_SCREEN_SWIPING = booleanPreferencesKey("key_home_swiping")
         val SHOW_FAVOURITES_CAROUSEL = booleanPreferencesKey("key_show_favourites_carousel")
+        val TV_ONLY = booleanPreferencesKey("key_tv_only")
         val DELETE_APK_ON_INSTALL = booleanPreferencesKey("key_delete_apk_on_install")
         val PLAY_STORE_INSTALL_SOURCE = booleanPreferencesKey("key_play_store_install_source")
         val OMNIFY_INSTALL_SOURCE_APPS = stringSetPreferencesKey("key_omnify_install_source_apps")
@@ -502,6 +510,7 @@ class PreferenceSettingsRepository(
             set(HIDDEN_APPS, settings.hiddenApps)
             set(HOME_SCREEN_SWIPING, settings.homeScreenSwiping)
             set(SHOW_FAVOURITES_CAROUSEL, settings.showFavouritesCarousel)
+            set(TV_ONLY, settings.tvOnly)
             set(ENABLED_REPO_IDS, settings.enabledRepoIds.map { it.toString() }.toSet())
             set(DELETE_APK_ON_INSTALL, settings.deleteApkOnInstall)
             set(PLAY_STORE_INSTALL_SOURCE, settings.playStoreInstallSource)
