@@ -7,6 +7,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.BuildConfig
+import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.CATALOG_REFRESH_MS
 import com.looker.droidify.data.InstalledIdentityRepository
@@ -829,7 +830,7 @@ class AppListViewModel @Inject constructor(
      * categories to reach them through, so a private repository's apps only ever showed by chance among
      * the whole catalogue's newest, and otherwise had to be dug out of the repositories screen.
      */
-    val ownRepositoryApps: StateFlow<List<RepositoryApps>> =
+    val ownRepositoryApps: StateFlow<List<AppRow>> =
         combine(catalogChanges, hiddenApps, ownRepos) { _, hidden, own -> hidden to own }
         .mapLatest { (hidden, own) ->
             if (!isTelevisionDevice) return@mapLatest emptyList()
@@ -837,12 +838,72 @@ class AppListViewModel @Inject constructor(
                 appRepository.apps(sortOrder = SortOrder.UPDATED, repoId = repo.id)
                     .excludingHidden(hidden)
                     .takeIf { it.isNotEmpty() }
-                    ?.let { RepositoryApps(repo.name, it.take(SECTION_PAGE_LIMIT)) }
+                    ?.let { AppRow(repo.name, it.take(SECTION_PAGE_LIMIT)) }
             }
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
+
+    /**
+     * The TV-only home, in rows like the full catalogue's rather than one grid of everything: favourites,
+     * each repository the user added, the newest and the recently updated, then a row per category, the
+     * most populated first. A category with fewer than [MIN_CATEGORY_ROW] apps for TV goes into a last
+     * "Other" row instead of a row of its own. Apps made for TV are, as for [allTvApps], those declaring
+     * the leanback feature, plus every app of a category that is about TV in itself
+     * ([TV_RELEVANT_CATEGORIES]).
+     */
+    val tvAppRows: StateFlow<List<AppRow>> =
+        combine(allTvApps, favouriteApps, ownRepos, categories, hiddenApps) { tvApps, favourites, own, cats, hidden ->
+            TvRowsInput(tvApps, favourites, own, cats, hidden)
+        }
+            .mapLatest { input ->
+                if (!isTelevisionDevice || input.tvApps.isEmpty()) return@mapLatest emptyList()
+                val tvPackages = input.tvApps.mapTo(HashSet()) { it.packageName }
+                val tvOnlyQuery: suspend (SortOrder, Boolean) -> List<AppMinimal> = { order, updatedOnly ->
+                    appRepository.apps(
+                        sortOrder = order,
+                        featuresToInclude = listOf(LEANBACK_FEATURE),
+                        categoriesToInclude = TV_RELEVANT_CATEGORIES,
+                        featuresOrCategories = true,
+                        updatedOnly = updatedOnly,
+                    ).excludingHidden(input.hidden).withoutPhoneVersionsOfTvApps().take(DISCOVER_ROW_COUNT)
+                }
+                val categoryRows = input.categories.map { category ->
+                    val tvCategory = category.defaultName in TV_RELEVANT_CATEGORIES
+                    category.name to appRepository.apps(
+                        sortOrder = SortOrder.UPDATED,
+                        categoriesToInclude = listOf(category.defaultName),
+                        featuresToInclude = if (tvCategory) null else listOf(LEANBACK_FEATURE),
+                    ).excludingHidden(input.hidden).withoutPhoneVersionsOfTvApps()
+                }.filter { it.second.isNotEmpty() }
+                val (full, small) = categoryRows.partition { it.second.size >= MIN_CATEGORY_ROW }
+                buildList {
+                    input.favourites.filter { it.packageName in tvPackages }.takeIf { it.isNotEmpty() }
+                        ?.let { add(AppRow(context.getString(R.string.favourites), it)) }
+                    input.ownRepos.forEach { repo ->
+                        appRepository.apps(
+                            sortOrder = SortOrder.UPDATED,
+                            repoId = repo.id,
+                            featuresToInclude = listOf(LEANBACK_FEATURE),
+                        ).excludingHidden(input.hidden).takeIf { it.isNotEmpty() }
+                            ?.let { add(AppRow(repo.name, it)) }
+                    }
+                    add(AppRow(context.getString(R.string.discover_new_apps), tvOnlyQuery(SortOrder.ADDED, false)))
+                    add(
+                        AppRow(
+                            context.getString(R.string.discover_recently_updated),
+                            tvOnlyQuery(SortOrder.UPDATED, true),
+                        ),
+                    )
+                    full.sortedByDescending { it.second.size }.forEach { (name, apps) -> add(AppRow(name, apps)) }
+                    small.flatMap { it.second }.distinctBy { it.packageName }.takeIf { it.isNotEmpty() }
+                        ?.let { add(AppRow(context.getString(R.string.other), it)) }
+                }.filter { it.apps.isNotEmpty() }
+            }
+            .distinctUntilChanged()
+            .flowOn(Dispatchers.Default)
+            .asStateFlow(emptyList())
 
     /** The first [DISCOVER_ROW_COUNT] of [allTvApps]: the carousel's row. */
     val tvApps: StateFlow<List<AppMinimal>> = allTvApps
@@ -961,8 +1022,20 @@ private val TV_RELEVANT_CATEGORIES = listOf(
     "Remote Controller",
 )
 
-/** A repository's apps, shown as a row under its [name]. */
-data class RepositoryApps(val name: String, val apps: List<AppMinimal>)
+/** What [AppListViewModel.tvAppRows] is built from. */
+private data class TvRowsInput(
+    val tvApps: List<AppMinimal>,
+    val favourites: List<AppMinimal>,
+    val ownRepos: List<Repo>,
+    val categories: List<CatalogCategory>,
+    val hidden: Set<String>,
+)
+
+/** A category with fewer apps for TV than this goes into the TV home's "Other" row. */
+private const val MIN_CATEGORY_ROW = 3
+
+/** Apps shown as a row under its [name]: a repository's, a category's… */
+data class AppRow(val name: String, val apps: List<AppMinimal>)
 
 /** Phone apps whose project also publishes an app made for TV: their category passes the TV list's
  *  filter ([TV_RELEVANT_CATEGORIES]), but the TV one is the right pick on a remote. */
