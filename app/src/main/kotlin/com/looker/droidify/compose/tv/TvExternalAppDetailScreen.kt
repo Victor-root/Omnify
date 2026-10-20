@@ -220,12 +220,6 @@ fun TvExternalAppDetailScreen(
     // The action buttons alone, not the whole header: the favourite and hide toggles sit in it too, and
     // focus landing on one of those was taken for having reached Install.
     var actionsHaveFocus by remember { mutableStateOf(false) }
-    // Coming back up into the header from further down the pane: bringing just the focused button into
-    // view left the icon and name above it cut off, with nothing focusable up there to reach them by.
-    // The whole header fits the screen, so the pane goes back to its top instead.
-    LaunchedEffect(headerHasFocus) {
-        if (headerHasFocus && pageScroll.value != 0) pageScroll.animateScrollTo(0)
-    }
     val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
     val bringIntoViewSpec = remember(defaultBringIntoViewSpec) {
         object : BringIntoViewSpec {
@@ -233,8 +227,11 @@ fun TvExternalAppDetailScreen(
                 offset: Float,
                 size: Float,
                 containerSize: Float,
-            ): Float = if (headerHasFocus && pageScroll.value == 0) {
-                0f
+            ): Float = if (headerHasFocus) {
+                // The whole header fits the screen, so it is always shown from the pane's top: coming back
+                // up into it from further down, bringing just the focused button into view left the icon
+                // and name above it cut off, with nothing focusable up there to reach them by.
+                -pageScroll.value.toFloat()
             } else {
                 defaultBringIntoViewSpec.calculateScrollDistance(offset, size, containerSize)
             }
