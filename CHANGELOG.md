@@ -22,7 +22,7 @@ A welcome page for a fresh install, and external sources that learn to handle re
 - **A "None" background**: plain white in the light theme, plain black in the dark ones, for those who'd rather have no decoration at all.
 - **On Android TV, a repository's page is laid out like an app's**: the repository in a card on the left (enable switch, edit and delete, description, fingerprint), its apps on the right.
 - **On Android TV, the keyboard opens when you press OK on a field**, no longer as soon as the remote passes over one.
-- **The whole app moves up above the keyboard**, so a field or button is never left hidden under it.
+- **The whole app moves up above the keyboard**, just enough to keep the field you are typing into visible, however low on the screen it sits.
 - **On Android TV, the repositories screen starts on the first row's switch**, and moving up or down lands on the switches rather than on the buttons at the rows' end.
 - **On Android TV, the TV apps home is laid out in rows** like the full catalogue's: favourites, your repositories, the newest, the recently updated, then a row per category, with the smallest ones gathered under "Other". It was one grid of everything.
 - **On Android TV, the home starts on the apps made for TV**, and remembers your choice when you switch to all apps: it used to start on all apps every time, forgetting it had been switched.
