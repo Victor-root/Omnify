@@ -6,6 +6,9 @@ package com.looker.droidify.datastore.model
  * user's accent and follows the light, dark and black themes.
  */
 enum class BackgroundStyle {
+    /** No decoration: plain white in the light theme, plain black in the dark ones. */
+    NONE,
+
     /** Large soft glows in the accent and two neighbouring hues. Default. */
     HALO,
 

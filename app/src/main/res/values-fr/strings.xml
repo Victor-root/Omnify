@@ -513,6 +513,7 @@
     <string name="theme_color">Couleur du thème</string>
     <string name="theme_color_DESC">Choisir la couleur d\'accentuation de l\'app</string>
     <string name="background_style">Fond</string>
+    <string name="background_style_none">Aucun</string>
     <string name="background_style_halo">Halo</string>
     <string name="background_style_silk">Soie</string>
     <string name="background_style_contour">Lignes de relief</string>
