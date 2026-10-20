@@ -43,8 +43,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -177,11 +180,16 @@ fun TvRepoListScreen(
 
     // Android TV must always land the D-pad focus somewhere on entry, or a remote press with nothing
     // focused times out input dispatch and kills the app. Retried briefly because the list isn't laid
-    // out on the very first frame.
+    // out on the very first frame. Entering the list lands on the "+" at its top, so the focus then
+    // steps down once, onto the first row's switch: adding a source is the rarer thing to come here for.
     val contentFocus = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
     LaunchedEffect(Unit) {
         repeat(20) {
-            if (runCatching { contentFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+            if (runCatching { contentFocus.requestFocus() }.isSuccess) {
+                focusManager.moveFocus(FocusDirection.Down)
+                return@LaunchedEffect
+            }
             delay(50)
         }
     }
@@ -479,11 +487,23 @@ private fun TvManagementRow(
     progress: (@Composable () -> Unit)? = null,
 ) {
     val contentAlpha = if (enabled) 1f else 0.4f
+    val toggleFocus = remember { FocusRequester() }
     Column(
         // A focusGroup (never itself focused) so the row-toggle target and the overflow menu are true
         // siblings the remote moves between — a focusable parent containing focusable children breaks
-        // D-pad descent (see the phone screen's RepoItem for the same reasoning).
-        modifier = Modifier.fillMaxWidth().focusGroup(),
+        // D-pad descent (see the phone screen's RepoItem for the same reasoning). Moving up or down into
+        // the row lands on its switch: the info or overflow button at its end sits under the "+" of the
+        // header, so going down from there used to land on it instead.
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusProperties {
+                onEnter = {
+                    if (requestedFocusDirection == FocusDirection.Up || requestedFocusDirection == FocusDirection.Down) {
+                        toggleFocus.requestFocus()
+                    }
+                }
+            }
+            .focusGroup(),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -493,6 +513,7 @@ private fun TvManagementRow(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .weight(1f)
+                    .focusRequester(toggleFocus)
                     .tvFocusFill(RoundedCornerShape(16.dp))
                     .clickable(onClick = onToggle)
                     .padding(horizontal = 12.dp, vertical = 12.dp),
