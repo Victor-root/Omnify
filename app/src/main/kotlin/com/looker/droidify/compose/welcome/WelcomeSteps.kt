@@ -100,10 +100,18 @@ internal fun rememberWelcomeSteps(): List<WelcomeStep> {
 internal fun rememberRestoreSteps(viewModel: WelcomeViewModel): List<WelcomeStep> {
     val fileRestored by viewModel.fileRestored.collectAsStateWithLifecycle()
     val betaImport by viewModel.betaImport.collectAsStateWithLifecycle()
-    var receiving by rememberSaveable { mutableStateOf(false) }
+    val deviceRestored by viewModel.deviceRestored.collectAsStateWithLifecycle()
+    // Not saveable, unlike the rest of this page: applying what arrived can restore a theme, which
+    // recreates the activity, and a saved flag reopened the dialog on a fresh code straight after.
+    var receiving by remember { mutableStateOf(false) }
     val pickFile = rememberRestoreFilePicker(viewModel.restore)
     RestoreCategoriesDialog(viewModel.restore, onRestored = viewModel::onFileRestored)
-    if (receiving) DeviceTransferReceiveDialog(onDismiss = { receiving = false })
+    if (receiving) {
+        DeviceTransferReceiveDialog(
+            onDismiss = { receiving = false },
+            onApplied = viewModel::onDeviceRestored,
+        )
+    }
     return listOfNotNull(
         WelcomeStep(
             icon = R.drawable.ic_download,
@@ -118,9 +126,10 @@ internal fun rememberRestoreSteps(viewModel: WelcomeViewModel): List<WelcomeStep
             icon = R.drawable.ic_tabler_home_down,
             title = R.string.transfer_receive_title,
             description = R.string.welcome_restore_device_hint,
-            done = false,
+            done = deviceRestored,
             onClick = { receiving = true },
             actionLabel = R.string.welcome_restore_device_action,
+            doneLabel = R.string.welcome_restored,
         ),
         betaImport?.let { step ->
             val imported = step == ImportStep.IMPORTED

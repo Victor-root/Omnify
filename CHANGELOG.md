@@ -27,7 +27,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **A first external install** no longer lets you start a second download while installing.
 - **No more crash during a repository sync** on some phones (SIGBUS).
 - **An external source never shows or offers another app's release.**
-- **Restore**: closing the file picker no longer says the file is invalid.
+- **Restore**: closing the file picker no longer says the file is invalid, and receiving from another device on the welcome page no longer reopens its window afterwards.
 - **No sync shown** when no source is enabled.
 - **Android TV**: chosen background shows, disabled sources hidden, TV apps list complete.
 

@@ -182,15 +182,19 @@ class DeviceTransferViewModel @Inject constructor(
      * attacker; it is the user seeing what they are about to take on, in one glance and one button.
      *
      * The merge itself is the non-destructive one [BackupRepository] performs for a restored file, so
-     * nothing already on this device is dropped.
+     * nothing already on this device is dropped. [onApplied] is called once it has been, from this
+     * view model's scope, so it still lands when applying recreates the activity (a restored theme).
      */
-    fun acceptIncoming() {
+    fun acceptIncoming(onApplied: () -> Unit = {}) {
         val inspection = pending ?: return
         pending = null
         viewModelScope.launch {
             _receiving.value = ReceiveState.Applying
             _receiving.value = backupRepository.restoreBackup(inspection, inspection.availableCategories).fold(
-                onSuccess = { ReceiveState.Done },
+                onSuccess = {
+                    onApplied()
+                    ReceiveState.Done
+                },
                 onFailure = { ReceiveState.Failed },
             )
         }
