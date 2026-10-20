@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -43,6 +44,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -117,6 +119,7 @@ fun RepoDetailScreen(
     val notInstalledCount by viewModel.notInstalledCount.collectAsState()
     val isInstallingAll by viewModel.isInstallingAll.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(RepoDetailTab.INFO) }
 
@@ -275,6 +278,8 @@ fun RepoDetailScreen(
                             notInstalledCount = notInstalledCount,
                             isInstallingAll = isInstallingAll,
                             isSyncing = isSyncing,
+                            isRefreshing = isRefreshing,
+                            onRefresh = viewModel::refresh,
                             onAppClick = onAppClick,
                             onEnableRepo = { viewModel.enableRepository(true) },
                             onInstallAll = viewModel::installAll,
@@ -440,7 +445,7 @@ private fun RepoInfoTab(
  * shows a spinner while a sync runs, or a neutral "no apps" message once it has settled (some repos
  * legitimately serve nothing this device can install).
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RepoAppsTab(
     repo: Repo,
@@ -449,21 +454,54 @@ private fun RepoAppsTab(
     notInstalledCount: Int,
     isInstallingAll: Boolean,
     isSyncing: Boolean,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onAppClick: (String) -> Unit,
     onEnableRepo: () -> Unit,
     onInstallAll: () -> Unit,
 ) {
+    // Genuinely off: offer to enable it. This is the ONLY case that claims "not enabled".
+    if (!repo.enabled) {
+        UnsyncedRepoState(
+            onEnableClick = onEnableRepo,
+            address = repo.address,
+            modifier = Modifier.fillMaxSize(),
+        )
+        return
+    }
+    // Pulling down syncs this repository again, mostly for a private one whose new builds should show
+    // without waiting for the periodic sync. With no apps on screen yet, the sync's own spinner below
+    // already says it, so the pull indicator stays out of the way.
+    PullToRefreshBox(
+        isRefreshing = isRefreshing && apps.isNotEmpty(),
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        RepoAppsContent(
+            apps = apps,
+            installedPackages = installedPackages,
+            notInstalledCount = notInstalledCount,
+            isInstallingAll = isInstallingAll,
+            isSyncing = isSyncing,
+            onAppClick = onAppClick,
+            onInstallAll = onInstallAll,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun RepoAppsContent(
+    apps: List<AppMinimal>,
+    installedPackages: Set<String>,
+    notInstalledCount: Int,
+    isInstallingAll: Boolean,
+    isSyncing: Boolean,
+    onAppClick: (String) -> Unit,
+    onInstallAll: () -> Unit,
+) {
     val isTelevision = LocalIsTelevision.current
     when {
-        // Genuinely off: offer to enable it. This is the ONLY case that claims "not enabled".
-        !repo.enabled -> {
-            UnsyncedRepoState(
-                onEnableClick = onEnableRepo,
-                address = repo.address,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-
         // Enabled but nothing to show yet while a sync is in flight: a spinner, not a "no apps" claim.
         apps.isEmpty() && isSyncing -> {
             Column(
@@ -480,13 +518,23 @@ private fun RepoAppsTab(
             }
         }
 
-        // Enabled, sync settled, still nothing: the repo simply serves no apps for this device.
+        // Enabled, sync settled, still nothing: the repo simply serves no apps for this device. Scrollable
+        // so it can still be pulled down, a private repository's first build being exactly what one
+        // waits for here.
         apps.isEmpty() -> {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = stringResource(R.string.no_applications_available),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .fillMaxWidth()
+                        .height(maxHeight),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(R.string.no_applications_available),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
