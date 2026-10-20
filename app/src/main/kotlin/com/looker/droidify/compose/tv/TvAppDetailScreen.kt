@@ -285,6 +285,7 @@ fun TvAppDetailScreen(
                         leftBringIntoViewSpec = bringIntoViewSpec,
                         // Any key press marks startup focus as settled, so it's never re-stolen (see above).
                         onKeyDown = { userInteracted = true },
+                        rightEntry = screenshotsFocus.takeIf { screenshots.isNotEmpty() },
                         left = {
                             Column(
                                 modifier = Modifier.focusGroup().onFocusChanged { headerHasFocus = it.hasFocus },
