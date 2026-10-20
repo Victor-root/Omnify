@@ -53,6 +53,7 @@ import com.looker.droidify.transfer.TransferFailure
 @Composable
 fun DeviceTransferReceiveDialog(
     onDismiss: () -> Unit,
+    onApplied: () -> Unit = {},
     viewModel: DeviceTransferViewModel = hiltViewModel(),
 ) {
     val state by viewModel.receiving.collectAsStateWithLifecycle()
@@ -76,7 +77,7 @@ fun DeviceTransferReceiveDialog(
         },
         confirmButton = {
             when (state) {
-                is ReceiveState.Confirming -> TextButton(onClick = viewModel::acceptIncoming) {
+                is ReceiveState.Confirming -> TextButton(onClick = { viewModel.acceptIncoming(onApplied) }) {
                     Text(stringResource(R.string.transfer_apply_action))
                 }
 

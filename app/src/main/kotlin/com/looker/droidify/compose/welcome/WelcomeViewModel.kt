@@ -193,6 +193,15 @@ class WelcomeViewModel @Inject constructor(
         _fileRestored.value = true
     }
 
+    private val _deviceRestored = MutableStateFlow(false)
+
+    /** True once data received from another device has been applied on this page. */
+    val deviceRestored: StateFlow<Boolean> = _deviceRestored
+
+    fun onDeviceRestored() {
+        _deviceRestored.value = true
+    }
+
     private val _betaImport = MutableStateFlow(if (channelMigration.canImportFromBeta()) ImportStep.OFFERED else null)
 
     /** Where the import of an Omnify Beta left on the device stands, or null when there is none to offer. */
