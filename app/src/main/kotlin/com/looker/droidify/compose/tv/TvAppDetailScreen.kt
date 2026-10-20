@@ -243,6 +243,9 @@ fun TvAppDetailScreen(
             // already shipped for the phone hero card (see AppDetailScreen), never ported to this separate
             // TV screen when it was split out.
             var headerHasFocus by remember { mutableStateOf(false) }
+            // The action buttons alone, not the whole header: the favourite and hide toggles sit in it too,
+            // and focus landing on one of those was taken for having reached Install.
+            var actionsHaveFocus by remember { mutableStateOf(false) }
             val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
             val bringIntoViewSpec = remember(defaultBringIntoViewSpec) {
                 object : BringIntoViewSpec {
@@ -262,7 +265,7 @@ fun TvAppDetailScreen(
             // header; the button is above the fold anyway, so snap back to the top after each landing.
             TvKeepFocusOnMainAction(
                 primary = primaryFocus,
-                actionHasFocus = { headerHasFocus },
+                actionHasFocus = { actionsHaveFocus },
                 userInteracted = { userInteracted },
                 onLanded = { runCatching { pageScroll.scrollTo(0) } },
             )
@@ -323,16 +326,18 @@ fun TvAppDetailScreen(
 
                                 // Action buttons (Install/Update/Launch + Uninstall) sharing the pane's width,
                                 // then the favourite and hide toggles, discreet since they are rarely used.
-                                TvPrimaryActions(
-                                    viewModel = viewModel,
-                                    packageName = app.metadata.packageName.name,
-                                    isInstalled = isInstalled,
-                                    updateAvailable = updateAvailable,
-                                    installState = installState,
-                                    downloadStatus = { downloadStatus },
-                                    installConfirmed = installConfirmed,
-                                    primaryActionFocusRequester = primaryFocus,
-                                )
+                                Box(modifier = Modifier.onFocusChanged { actionsHaveFocus = it.hasFocus }) {
+                                    TvPrimaryActions(
+                                        viewModel = viewModel,
+                                        packageName = app.metadata.packageName.name,
+                                        isInstalled = isInstalled,
+                                        updateAvailable = updateAvailable,
+                                        installState = installState,
+                                        downloadStatus = { downloadStatus },
+                                        installConfirmed = installConfirmed,
+                                        primaryActionFocusRequester = primaryFocus,
+                                    )
+                                }
                                 TvSecondaryActions(
                                     isFavourite = isFavourite,
                                     onToggleFavourite = viewModel::toggleFavourite,

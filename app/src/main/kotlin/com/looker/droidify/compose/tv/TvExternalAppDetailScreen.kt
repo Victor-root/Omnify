@@ -218,6 +218,9 @@ fun TvExternalAppDetailScreen(
     // ported to this separate TV screen when it was split out.
     val pageScroll = rememberScrollState()
     var headerHasFocus by remember { mutableStateOf(false) }
+    // The action buttons alone, not the whole header: the favourite and hide toggles sit in it too, and
+    // focus landing on one of those was taken for having reached Install.
+    var actionsHaveFocus by remember { mutableStateOf(false) }
     val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
     val bringIntoViewSpec = remember(defaultBringIntoViewSpec) {
         object : BringIntoViewSpec {
@@ -235,7 +238,7 @@ fun TvExternalAppDetailScreen(
 
     TvKeepFocusOnMainAction(
         primary = primaryFocus,
-        actionHasFocus = { headerHasFocus },
+        actionHasFocus = { actionsHaveFocus },
         userInteracted = { userInteracted },
     )
 
@@ -314,15 +317,17 @@ fun TvExternalAppDetailScreen(
                         }
                         // Action buttons sharing the pane's width (same treatment as the catalogue detail
                         // screen), then the favourite and hide toggles, discreet since they are rarely used.
-                        TvExternalActions(
-                            app = app,
-                            viewModel = viewModel,
-                            downloadStatus = { downloads[appKey] },
-                            installState = installStates[appKey],
-                            isInstalled = isInstalled,
-                            installedVersionName = installedVersion,
-                            primaryActionFocusRequester = primaryFocus,
-                        )
+                        Box(modifier = Modifier.onFocusChanged { actionsHaveFocus = it.hasFocus }) {
+                            TvExternalActions(
+                                app = app,
+                                viewModel = viewModel,
+                                downloadStatus = { downloads[appKey] },
+                                installState = installStates[appKey],
+                                isInstalled = isInstalled,
+                                installedVersionName = installedVersion,
+                                primaryActionFocusRequester = primaryFocus,
+                            )
+                        }
                         TvSecondaryActions(
                             isFavourite = app.key in favourites,
                             onToggleFavourite = { viewModel.toggleFavourite(app) },
