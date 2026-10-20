@@ -79,6 +79,14 @@ class RepoDetailViewModel @Inject constructor(
      *  misleading state) while this repo's catalogue is still loading. */
     val isSyncing: StateFlow<Boolean> = SyncWorker.isSyncing(context).asStateFlow(false)
 
+    /** True while this repository's own sync is queued or running: what a pull to refresh waits on. */
+    val isRefreshing: StateFlow<Boolean> = SyncWorker.isSyncingRepo(context, repoId).asStateFlow(false)
+
+    /** Syncs this repository again now, for a pull to refresh on its apps. */
+    fun refresh() {
+        if (repo.value?.enabled == true && !isRefreshing.value) SyncWorker.syncRepo(context, repoId)
+    }
+
     /** How many of this repo's apps aren't installed yet — what "Install all" would fetch. Drives the
      *  button's label and whether it's shown at all. */
     val notInstalledCount: StateFlow<Int> = apps.combine(installedPackages) { apps, installed ->
