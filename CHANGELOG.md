@@ -25,6 +25,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Android TV**: redesigned home (rows, one per repository, starts on TV apps), two-pane app and repository pages, Halo background by default, keyboard only on OK, and many focus fixes.
 
 ### 🐛 Fixed
+- **The Installed tab lists installed external sources too**, after the catalogue apps, on phone and TV.
 - **Editing a repository** no longer fails with "Already exists" (e.g. after changing a private repository's password).
 - **A first external install** no longer lets you start a second download while installing.
 - **No more crash during a repository sync** on some phones (SIGBUS).

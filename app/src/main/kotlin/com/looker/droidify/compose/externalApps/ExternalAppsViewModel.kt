@@ -316,6 +316,17 @@ class ExternalAppsViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptySet())
 
+    /** Tracked apps whose own build is on the device ([installedKeys]), for the Installed tab: switched
+     *  on and not hidden, like every other listing of them, by name. */
+    val installedApps: StateFlow<List<ExternalApp>> = combine(
+        apps,
+        hidden,
+        installedKeys,
+    ) { list, hiddenKeys, installed ->
+        list.filter { it.enabled && it.key !in hiddenKeys && it.key in installed }
+            .sortedBy { it.label.lowercase() }
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
+
     /** Keys of tracked apps the user has favourited — the same store the F-Droid catalogue's own
      *  favourites use ([SettingsRepository.toggleFavourites]/`favouriteApps`), keyed by [ExternalApp.key]
      *  instead of a package name so a source can be favourited before it's even installed (unlike a
