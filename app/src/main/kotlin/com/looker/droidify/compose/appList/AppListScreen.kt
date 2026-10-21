@@ -312,6 +312,7 @@ fun AppListScreen(
     val favouriteExternalApps by externalViewModel.favouriteApps.collectAsStateWithLifecycle()
     val favouriteExternalInstallDates by externalViewModel.favouriteInstallDates.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
+    val installedExternalApps by externalViewModel.installedApps.collectAsStateWithLifecycle()
     val githubTokenInvalid by externalViewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
     val githubRateLimitRemaining by externalViewModel.githubRateLimitRemaining.collectAsStateWithLifecycle()
@@ -355,6 +356,12 @@ fun AppListScreen(
     }
     val searchedExternalUpdates = remember(externalUpdates, activeSearch) {
         externalUpdates.filter { it.matchesSearch(activeSearch) }
+    }
+    // The Installed tab's external half. A package the catalogue half already lists stays its tile
+    // alone, which opens the source's page when the source is what installed it (openInstalledApp).
+    val searchedInstalledExternal = remember(installedExternalApps, apps, activeSearch) {
+        val listed = apps.mapTo(HashSet()) { it.packageName.name }
+        installedExternalApps.filter { it.packageName !in listed && it.matchesSearch(activeSearch) }
     }
     // The favourites full page's own order, independent of the carousel above it: catalogue and
     // external favourites merged into one list and sorted by whatever favouritesSortOrder currently
@@ -1006,7 +1013,7 @@ fun AppListScreen(
                 AppTab.AVAILABLE ->
                     isSearching && !sectionView && activeSearch.isNotEmpty() &&
                         apps.isEmpty() && searchedExternalApps.isEmpty()
-                AppTab.INSTALLED -> apps.isEmpty()
+                AppTab.INSTALLED -> apps.isEmpty() && searchedInstalledExternal.isEmpty()
                 AppTab.UPDATES -> !updatesStillLoading && apps.isEmpty() && searchedExternalUpdates.isEmpty()
                 AppTab.EXTERNAL -> false
             }
@@ -1175,6 +1182,24 @@ fun AppListScreen(
                         },
                         modifier = Modifier.restoreFocusTarget(
                             isTelevision && restoreFocusId == "app:${app.packageName.name}",
+                            restoreRequester,
+                        ),
+                    )
+                }
+            }
+            // Tracked sources installed on the device, after the catalogue's own on the Installed tab.
+            if (selectedTab == AppTab.INSTALLED) {
+                items(
+                    items = searchedInstalledExternal,
+                    key = { "ext-${it.key}" },
+                    contentType = { "ext-tile" },
+                ) { app ->
+                    ExternalAppTile(
+                        app = app,
+                        isInstalled = true,
+                        onClick = { openExternalApp(app.key) },
+                        modifier = Modifier.restoreFocusTarget(
+                            isTelevision && restoreFocusId == "ext:${app.key}",
                             restoreRequester,
                         ),
                     )

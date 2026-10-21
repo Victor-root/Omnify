@@ -155,6 +155,13 @@ fun TvHomeScreen(
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val isRefreshingExternal by externalViewModel.isRefreshing.collectAsStateWithLifecycle()
     val externalInstalledKeys by externalViewModel.installedKeys.collectAsStateWithLifecycle()
+    val installedExternalApps by externalViewModel.installedApps.collectAsStateWithLifecycle()
+    // The Installed grid's external half. A package the catalogue half already lists stays its tile
+    // alone, which opens the source's page when the source is what installed it (openInstalled).
+    val installedExternalOnly = remember(installedExternalApps, installedApps) {
+        val listed = installedApps.mapTo(HashSet()) { it.packageName.name }
+        installedExternalApps.filter { it.packageName !in listed }
+    }
     // Kept here rather than in TvExternalSection: it reads false until its first emission, so collecting
     // it only on entering the section would flash the no-token banner each time.
     val hasGithubToken by externalViewModel.hasGithubToken.collectAsStateWithLifecycle()
@@ -404,6 +411,9 @@ fun TvHomeScreen(
                     apps = installedApps,
                     installedPackages = installedPackages,
                     onAppClick = openInstalled,
+                    externalApps = installedExternalOnly,
+                    externalInstalledKeys = externalInstalledKeys,
+                    onExternalAppClick = openExternal,
                     restoreFocusId = restoreFocusId,
                     restoreRequester = restoreRequester,
                 )
@@ -862,8 +872,8 @@ private fun TvAppGrid(
     onAppClick: (String) -> Unit,
     header: (@Composable () -> Unit)? = null,
     // Optional external (GitHub/GitLab) apps laid out after the catalogue ones in the same grid, the
-    // way [TvCarousel] already appends them to a row. Used by the Updates grid, whose two halves are
-    // one list to the user.
+    // way [TvCarousel] already appends them to a row. Used by the Installed and Updates grids, whose two
+    // halves are one list to the user.
     externalApps: List<ExternalApp> = emptyList(),
     externalInstalledKeys: Set<String> = emptySet(),
     onExternalAppClick: (String) -> Unit = {},
