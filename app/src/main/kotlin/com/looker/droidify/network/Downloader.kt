@@ -48,18 +48,26 @@ suspend fun Downloader.downloadToFileWithRetry(
     target: File,
     headers: HeadersBuilder.() -> Unit = {},
     block: ProgressListener? = null,
-): NetworkResponse {
+): NetworkResponse = retryWhileTransient({ it.isTransientFailure() }) {
+    downloadToFile(url, target, headers, block)
+}
+
+/** [attempt] again while [isTransient] says its outcome is worth another try, waiting longer each time,
+ *  up to [MAX_DOWNLOAD_ATTEMPTS] attempts in all. The last outcome is returned whatever it is. */
+internal suspend fun <T> retryWhileTransient(isTransient: (T) -> Boolean, attempt: suspend () -> T): T {
     var retryDelay = FIRST_RETRY_DELAY_MS
     repeat(MAX_DOWNLOAD_ATTEMPTS - 1) {
-        val response = downloadToFile(url, target, headers, block)
-        if (!response.isTransientFailure()) return response
+        val outcome = attempt()
+        if (!isTransient(outcome)) return outcome
         delay(retryDelay)
         retryDelay *= 2
     }
-    return downloadToFile(url, target, headers, block)
+    return attempt()
 }
 
-private fun NetworkResponse.isTransientFailure(): Boolean =
+/** A stall past the socket timeout or a dropped connection: the same request can work a moment later.
+ *  An HTTP error or an unrecognised exception would fail the exact same way again. */
+internal fun NetworkResponse.isTransientFailure(): Boolean =
     this is NetworkResponse.Error.SocketTimeout ||
         this is NetworkResponse.Error.ConnectionTimeout ||
         this is NetworkResponse.Error.IO

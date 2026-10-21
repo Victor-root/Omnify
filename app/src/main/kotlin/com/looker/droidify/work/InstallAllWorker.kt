@@ -20,9 +20,8 @@ import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.model.InstallItem
-import com.looker.droidify.network.Downloader
+import com.looker.droidify.network.ApkFileDownloader
 import com.looker.droidify.network.NetworkResponse
-import com.looker.droidify.network.downloadToFileWithRetry
 import com.looker.droidify.utility.common.cache.Cache
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -53,7 +52,7 @@ class InstallAllWorker @AssistedInject constructor(
     private val installManager: InstallManager,
     private val appRepository: AppRepository,
     private val repoRepository: RepoRepository,
-    private val downloader: Downloader,
+    private val apkFileDownloader: ApkFileDownloader,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -100,7 +99,7 @@ class InstallAllWorker @AssistedInject constructor(
         // never Uri.appendPath() which would percent-encode the leading slash.
         val url = repo.address.removeSuffix("/") + "/" + pkg.apk.name.removePrefix("/")
         val partialFile = Cache.getPartialReleaseFile(applicationContext, cacheFileName)
-        val response = downloader.downloadToFileWithRetry(
+        val response = apkFileDownloader.download(
             url = url,
             target = partialFile,
             headers = {
