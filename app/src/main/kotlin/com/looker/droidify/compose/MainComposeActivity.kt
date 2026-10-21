@@ -63,6 +63,7 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.ExternalIconCache
 import com.looker.droidify.external.ExternalRefresher
+import com.looker.droidify.external.SourceDraft
 import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.compose.externalApps.PendingSharedSource
 import com.looker.droidify.external.parseAccountSource
@@ -76,7 +77,7 @@ import com.looker.droidify.utility.common.DeeplinkType
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.sdkAbove
 import com.looker.droidify.utility.common.deeplinkType
-import com.looker.droidify.utility.common.sharedSourceUrl
+import com.looker.droidify.utility.common.sharedSource
 import com.looker.droidify.utility.common.wallpaperAccentColor
 import com.looker.droidify.work.SyncWorker
 import dagger.hilt.EntryPoint
@@ -439,7 +440,7 @@ class MainComposeActivity : ComponentActivity() {
                     }
                     // A project's "Get it on Omnify" badge, through the site's add page.
                     is DeeplinkType.AddExternalSource -> {
-                        openAddExternalSource(deeplink.url, navController)
+                        openAddExternalSource(deeplink.draft, navController)
                         // Consume the launching intent so an activity recreation can't re-open the dialog.
                         intent.action = null
                         setIntent(intent)
@@ -454,7 +455,7 @@ class MainComposeActivity : ComponentActivity() {
 
                 // A link shared from another app (e.g. a browser's "Share" on a GitHub/GitLab page).
                 Intent.ACTION_SEND -> {
-                    intent.sharedSourceUrl()?.let { openAddExternalSource(it, navController) }
+                    intent.sharedSource()?.let { openAddExternalSource(it, navController) }
                     // Consume the launching intent so an activity recreation can't re-run this branch.
                     intent.action = null
                     setIntent(intent)
@@ -467,19 +468,19 @@ class MainComposeActivity : ComponentActivity() {
     }
 
     /**
-     * Opens the sources screen with the "Add external source" (or "Add account") dialog pre-filled for
-     * [url], deciding which from the URL shape: owner/repo gives a single repo source, an owner on its
+     * Opens the sources screen with the "Add external source" (or "Add account") dialog pre-filled with
+     * [draft], deciding which from the URL shape: owner/repo gives a single repo source, an owner on its
      * own gives a whole account.
      *
-     * Shared by the two ways a project link reaches the app from outside it: the system share sheet,
-     * and a "Get it on Omnify" badge through `omnify://add`. Both therefore accept exactly the same
-     * shapes and land on the same dialog, rather than a link working from one entry point and being
-     * turned away by the other.
+     * Shared by the ways a project link reaches the app from outside it: the system share sheet, a
+     * "Get it on Omnify" badge through `omnify://add`, and an app shared from Obtainium. All of them
+     * therefore accept exactly the same shapes and land on the same dialog, rather than a link working
+     * from one entry point and being turned away by another.
      */
-    private fun openAddExternalSource(url: String, navController: NavController) {
-        val isAccount = parseExternalSource(url) == null && parseAccountSource(url) != null
+    private fun openAddExternalSource(draft: SourceDraft, navController: NavController) {
+        val isAccount = parseExternalSource(draft.url) == null && parseAccountSource(draft.url) != null
         // A one-shot, consumed by the sources screen on read, so it can't re-open on recomposition.
-        PendingSharedSource.set(url, isAccount)
+        PendingSharedSource.set(draft, isAccount)
         navController.navigateToRepoList()
     }
 

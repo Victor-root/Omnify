@@ -141,4 +141,48 @@ class ObtainiumImportTest {
         assertFailsWith<IllegalArgumentException> { parseObtainiumExport("not json") }
         assertFailsWith<IllegalArgumentException> { parseObtainiumExport("""{"settings": {}}""") }
     }
+
+    /** The share link from the issue, as Obtainium's web page wraps it. */
+    private val redirectLink = "https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%7B%22id%22" +
+        "%3A%22com.reddit.frontpage%22%2C%22name%22%3A%22Reddit%20(Morphe)%22%2C%22author%22%3A%22nullcpy%22" +
+        "%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fnullcpy%2Frvb%22%2C%22additionalSettings%22%3A%22%7B%5C" +
+        "%22apkFilterRegEx%5C%22%3A%5C%22%5Ereddit-morphe-v.*%5C%5C%5C%5C.apk%24%5C%22%7D%22%7D"
+
+    @Test
+    fun `an Obtainium share link brings its project and its APK filter`() {
+        val draft = parseObtainiumLink(redirectLink)
+        assertEquals("https://github.com/nullcpy/rvb", draft?.url)
+        assertEquals("^reddit-morphe-v.*\\.apk$", draft?.apkFilter)
+        assertEquals("", draft?.name)
+    }
+
+    @Test
+    fun `the link inside the web page reads the same, encoded or not`() {
+        val inner = redirectLink.substringAfter("r=")
+        val encodedApp = "obtainium://app/" + inner.substringAfter("app%2F")
+        assertEquals(parseObtainiumLink(redirectLink), parseObtainiumLink(encodedApp))
+        val decoded = """obtainium://app/{"id":"a.b","url":"https://github.com/o/r",""" +
+            """"additionalSettings":"{\"appName\":\"Mine\",\"includePrereleases\":true,""" +
+            """\"apkFilterRegEx\":\"v.+\\\\.apk\"}"}"""
+        val draft = parseObtainiumLink(decoded)
+        assertEquals("Mine", draft?.name)
+        assertTrue(draft?.includePrereleases == true)
+        assertEquals("v.+\\.apk", draft?.apkFilter)
+    }
+
+    @Test
+    fun `an add link carries the address alone`() {
+        assertEquals(
+            SourceDraft(url = "https://github.com/o/r"),
+            parseObtainiumLink("obtainium://add/https%3A%2F%2Fgithub.com%2Fo%2Fr"),
+        )
+    }
+
+    @Test
+    fun `links Omnify can't follow are turned away`() {
+        assertNull(parseObtainiumLink("https://github.com/o/r"))
+        assertNull(parseObtainiumLink("obtainium://add/https://f-droid.org/packages/a.b"))
+        assertNull(parseObtainiumLink("""obtainium://app/{"id":"a.b","url":"https://apkmirror.com/x"}"""))
+        assertNull(parseObtainiumLink("obtainium://app/not json"))
+    }
 }

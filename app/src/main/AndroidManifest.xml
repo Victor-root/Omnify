@@ -93,6 +93,29 @@
                 <data android:scheme="omnify" />
             </intent-filter>
 
+            <!-- An app shared from Obtainium: its own obtainium://app/… and obtainium://add/… links, and
+                 the web page that wraps them so they open from anywhere. Android offers the choice
+                 between Omnify and Obtainium when both are installed. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="obtainium" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="apps.obtainium.imranr.dev" />
+                <data android:pathPrefix="/redirect" />
+            </intent-filter>
+
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 

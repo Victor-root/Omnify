@@ -1,11 +1,16 @@
 package com.looker.droidify.utility.common
 
 import android.content.Intent
+import com.looker.droidify.external.SourceDraft
+import com.looker.droidify.external.parseObtainiumLink
 import com.looker.droidify.utility.common.extension.get
 
 const val LEGACY_HOST = "droidify.eu.org"
 
 const val PERSONAL_HOST = "droidify.app"
+
+/** Obtainium's web page for its share links, which hands them on to an app that takes them. */
+private const val OBTAINIUM_HOST = "apps.obtainium.imranr.dev"
 
 fun shareUrl(packageName: String, repoAddress: String) =
     "https://droidify.app/app/?id=$packageName&repo_address=$repoAddress"
@@ -70,8 +75,13 @@ fun Intent.deeplinkType(): DeeplinkType? {
         "omnify" if data.host == "add" -> {
             val sourceUrl = data["url"]?.nullIfEmpty()
                 ?: invalidDeeplink("No source url: $data")
-            DeeplinkType.AddExternalSource(sourceUrl)
+            DeeplinkType.AddExternalSource(SourceDraft(url = sourceUrl))
         }
+
+        // An app shared from Obtainium, with the settings it is followed with there.
+        "obtainium" -> DeeplinkType.AddExternalSource(
+            parseObtainiumLink(dataString!!) ?: invalidDeeplink("Not an app Omnify can follow: $data"),
+        )
 
         in httpScheme -> {
             when (data.host) {
@@ -88,6 +98,10 @@ fun Intent.deeplinkType(): DeeplinkType? {
                     }
                 }
 
+                OBTAINIUM_HOST -> DeeplinkType.AddExternalSource(
+                    parseObtainiumLink(dataString!!) ?: invalidDeeplink("Not an app Omnify can follow: $data"),
+                )
+
                 in supportedExternalHosts -> {
                     val packageName = data.lastPathSegment?.nullIfEmpty()
                         ?: invalidDeeplink("Invalid packageName: $data")
@@ -102,19 +116,23 @@ fun Intent.deeplinkType(): DeeplinkType? {
 }
 
 /**
- * The URL from a shared-text intent (ACTION_SEND, e.g. a browser's "Share link" on a repo page).
- * Browsers usually put just the URL in EXTRA_TEXT, but some prepend a title, so the first http(s)
- * token is taken; failing that, the trimmed text as-is (so a bare "owner/repo" still comes through).
- * Null when there's no shared text.
+ * The source from a shared-text intent (ACTION_SEND, e.g. a browser's "Share link" on a repo page).
+ * Browsers usually put just the URL in EXTRA_TEXT, but some prepend a title, so the first link token
+ * is taken; failing that, the trimmed text as-is (so a bare "owner/repo" still comes through). An
+ * Obtainium link comes with the app's settings ([parseObtainiumLink]). Null when there's no shared text.
  */
-fun Intent.sharedSourceUrl(): String? {
+fun Intent.sharedSource(): SourceDraft? {
     val text = getStringExtra(Intent.EXTRA_TEXT)?.trim()?.nullIfEmpty() ?: return null
     val token = text.split(Regex("\\s+"))
-        .firstOrNull { it.startsWith("http://") || it.startsWith("https://") }
+        .firstOrNull { link -> SHARED_LINK_PREFIXES.any { link.startsWith(it) } }
         ?: text
+    // Read whole: an Obtainium link carries the app's settings in its query.
+    parseObtainiumLink(token)?.let { return it }
     // Drop any query/fragment (e.g. "?tab=readme", "#install") — never part of an owner/repo path.
-    return token.substringBefore('?').substringBefore('#').nullIfEmpty()
+    return token.substringBefore('?').substringBefore('#').nullIfEmpty()?.let { SourceDraft(url = it) }
 }
+
+private val SHARED_LINK_PREFIXES = arrayOf("http://", "https://", "obtainium://")
 
 class InvalidDeeplink(override val message: String?) : IllegalStateException(message)
 
@@ -129,8 +147,9 @@ sealed interface DeeplinkType {
 
     class AppSearch(val query: String) : DeeplinkType
 
-    /** A GitHub/GitLab/Codeberg/self-hosted project [url] to follow as an external source, from an
-     *  `omnify://add` link. Whether it names a single repo or a whole account is decided where it's
-     *  acted on, by the same functions the share sheet's own route uses. */
-    class AddExternalSource(val url: String) : DeeplinkType
+    /** A GitHub/GitLab/Codeberg/self-hosted project to follow as an external source, from an
+     *  `omnify://add` link (its address alone) or an Obtainium one (with its settings too). Whether it
+     *  names a single repo or a whole account is decided where it's acted on, by the same functions the
+     *  share sheet's own route uses. */
+    class AddExternalSource(val draft: SourceDraft) : DeeplinkType
 }
