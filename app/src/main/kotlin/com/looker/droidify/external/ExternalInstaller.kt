@@ -78,7 +78,7 @@ class ExternalInstaller @Inject constructor(
     private val downloader: Downloader,
     private val installManager: InstallManager,
     @param:ApplicationContext private val context: Context,
-    @ApplicationScope private val scope: CoroutineScope,
+    @param:ApplicationScope private val scope: CoroutineScope,
 ) {
 
     private val _pendingInstalls = MutableStateFlow<Map<String, String>>(emptyMap())
