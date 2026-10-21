@@ -1,10 +1,9 @@
 package com.looker.droidify.network
 
 import android.os.SystemClock
-import android.util.Log
-import com.looker.droidify.BuildConfig
 import com.looker.droidify.network.header.HeadersBuilder
 import com.looker.droidify.network.header.KtorHeadersBuilder
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import io.ktor.client.HttpClient
 import io.ktor.client.request.headers
 import io.ktor.client.request.prepareGet
@@ -30,6 +29,7 @@ import java.io.IOException
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -75,23 +75,32 @@ class SegmentedDownloader(
         target: File,
         headers: HeadersBuilder.() -> Unit,
         block: ProgressListener?,
+        label: String,
     ): Outcome = withContext(dispatcher) {
-        val probe = retryWhileTransient({ it is Probe.Failed && it.error.isTransientFailure() }) {
-            probe(url, headers)
-        }
+        val probe = retryWhileTransient(
+            label = "$label probe",
+            isTransient = { it is Probe.Failed && it.error.isTransientFailure() },
+            describe = { (it as? Probe.Failed)?.error?.diagnosticLabel().orEmpty() },
+        ) { probe(url, headers) }
         when (probe) {
-            is Probe.Failed -> Outcome.Finished(probe.error)
-            Probe.NotSegmentable -> {
+            is Probe.Failed -> {
+                DiagnosticLog.log("$label: asking for the size failed, ${probe.error.diagnosticLabel()}")
+                Outcome.Finished(probe.error)
+            }
+
+            is Probe.NotSegmentable -> {
+                DiagnosticLog.log("$label: not split, ${probe.reason}")
                 discard(target)
                 Outcome.NotSegmentable
             }
 
             is Probe.Segmentable -> {
                 if (probe.total < MIN_SEGMENTED_SIZE) {
+                    DiagnosticLog.log("$label: not split, only ${probe.total.inMegabytes()} MB")
                     discard(target)
                     Outcome.NotSegmentable
                 } else {
-                    downloadInParts(url, target, headers, block, probe)
+                    downloadInParts(url, target, headers, block, probe, label)
                 }
             }
         }
@@ -113,13 +122,15 @@ class SegmentedDownloader(
         headers: HeadersBuilder.() -> Unit,
         block: ProgressListener?,
         probe: Probe.Segmentable,
+        label: String,
     ): Outcome {
         val parts = resumedParts(url, target, probe) ?: freshParts(target, probe.total)
         val alreadyHere = parts.received()
         val received = AtomicLong(alreadyHere)
-        if (BuildConfig.TRACES) {
-            Log.d(TAG, "$url: ${probe.total} bytes in ${parts.size} parts, $alreadyHere already here")
-        }
+        DiagnosticLog.log(
+            "$label: ${probe.total.inMegabytes()} MB in ${parts.size} parts over " +
+                "${minOf(parts.size, MAX_CONNECTIONS)} connections, ${alreadyHere.inMegabytes()} MB already here",
+        )
         val startedAt = SystemClock.elapsedRealtime()
         val result = RandomAccessFile(target, "rw").use { file ->
             try {
@@ -134,7 +145,7 @@ class SegmentedDownloader(
                     // One connection per part to begin with, never more than the cap: a resumed download
                     // can hold more parts than that, split off along the way.
                     List(minOf(parts.size, MAX_CONNECTIONS)) {
-                        launch { runParts(url, headers, probe.validator, parts, file.channel, received) }
+                        launch { runParts(url, headers, probe.validator, parts, file.channel, received, label) }
                     }.joinAll()
                     reporter.cancel()
                 }
@@ -144,11 +155,14 @@ class SegmentedDownloader(
                 if (parts.received() == probe.total) {
                     Outcome.Finished(NetworkResponse.Success(HttpStatusCode.OK.value, null, null))
                 } else {
+                    DiagnosticLog.log("$label: parts add up to ${parts.received()} of ${probe.total} bytes")
                     Outcome.NotSegmentable
                 }
             } catch (e: PartFailed) {
+                DiagnosticLog.log("$label: a part gave up, ${e.error.diagnosticLabel()}")
                 Outcome.Finished(e.error)
-            } catch (_: FileChanged) {
+            } catch (e: FileChanged) {
+                DiagnosticLog.log("$label: ${e.reason}, starting over whole")
                 Outcome.NotSegmentable
             } finally {
                 withContext(NonCancellable) { saveState(target, url, probe, parts) }
@@ -158,11 +172,12 @@ class SegmentedDownloader(
             is Outcome.Finished -> if (result.response is NetworkResponse.Success) stateFile(target).delete()
             Outcome.NotSegmentable -> discard(target)
         }
-        if (BuildConfig.TRACES) {
-            val ms = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(1)
-            val speed = (received.get() - alreadyHere) / ms
-            Log.d(TAG, "$url: $result after $ms ms, $speed KB/s overall, ${parts.size} parts in the end")
-        }
+        val ms = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(1)
+        val outcome = (result as? Outcome.Finished)?.response?.diagnosticLabel() ?: "falling back"
+        DiagnosticLog.log(
+            "$label: $outcome after ${ms / 1000} s, ${(received.get() - alreadyHere) / ms} KB/s overall, " +
+                "${parts.size} parts in the end",
+        )
         return result
     }
 
@@ -174,20 +189,22 @@ class SegmentedDownloader(
         parts: Parts,
         channel: FileChannel,
         received: AtomicLong,
+        label: String,
     ) {
         while (true) {
             val part = parts.claim() ?: return
             val from = parts.nextPosition(part)
+            val partLabel = "$label part at ${from.inMegabytes()} MB"
             val startedAt = SystemClock.elapsedRealtime()
-            val outcome = retryWhileTransient({ it is NetworkResponse.Error && it.isTransientFailure() }) {
-                fetchPart(url, headers, validator, part, parts, channel, received)
-            }
+            val outcome = retryWhileTransient(
+                label = partLabel,
+                isTransient = { it is NetworkResponse.Error && it.isTransientFailure() },
+                describe = { it.diagnosticLabel() },
+            ) { fetchPart(url, headers, validator, part, parts, channel, received) }
             if (outcome is NetworkResponse.Error) throw PartFailed(outcome)
-            if (BuildConfig.TRACES) {
-                val bytes = parts.nextPosition(part) - from
-                val ms = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(1)
-                Log.d(TAG, "part from $from: $bytes bytes in $ms ms, ${bytes / ms} KB/s")
-            }
+            val bytes = parts.nextPosition(part) - from
+            val ms = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(1)
+            DiagnosticLog.log("$partLabel: ${bytes.inMegabytes()} MB in ${ms / 1000} s, ${bytes / ms} KB/s")
         }
     }
 
@@ -216,12 +233,13 @@ class SegmentedDownloader(
         }.execute { response ->
             when (response.status) {
                 HttpStatusCode.PartialContent -> {
-                    if (contentRangeStart(response) != from) throw FileChanged()
+                    if (contentRangeStart(response) != from) throw FileChanged("the host sent another range")
                     writePart(response, part, parts, channel, received)
                 }
                 // The file on the host is no longer the one this download started on (If-Range), or a
                 // range now asks past its end: either way, the parts already here can't be trusted.
-                HttpStatusCode.OK, HttpStatusCode.RequestedRangeNotSatisfiable -> throw FileChanged()
+                HttpStatusCode.OK -> throw FileChanged("the file changed on the host")
+                HttpStatusCode.RequestedRangeNotSatisfiable -> throw FileChanged("a part asks past the end of the file")
                 else -> NetworkResponse.Error.Http(response.status.value)
             }
         }
@@ -271,14 +289,14 @@ class SegmentedDownloader(
                 response.status == HttpStatusCode.PartialContent -> {
                     val total = contentRangeTotal(response)
                     val validator = validator(response)
-                    if (total == null || validator == null) {
-                        Probe.NotSegmentable
-                    } else {
-                        Probe.Segmentable(total, validator)
+                    when {
+                        total == null -> Probe.NotSegmentable("the host gives no size")
+                        validator == null -> Probe.NotSegmentable("the host gives no ETag or date to check it by")
+                        else -> Probe.Segmentable(total, validator)
                     }
                 }
                 // Answered whole: the host doesn't take ranges. Its body is never read.
-                response.status.value in 200..299 -> Probe.NotSegmentable
+                response.status.value in 200..299 -> Probe.NotSegmentable("the host doesn't take ranges")
                 else -> Probe.Failed(NetworkResponse.Error.Http(response.status.value))
             }
         }
@@ -298,7 +316,10 @@ class SegmentedDownloader(
         } catch (_: IllegalArgumentException) {
             return null
         }
-        if (saved.url != url || saved.total != probe.total || saved.validator != probe.validator) return null
+        if (saved.url != url || saved.total != probe.total || saved.validator != probe.validator) {
+            DiagnosticLog.log("Parts of an earlier download left aside: the file is no longer the same")
+            return null
+        }
         return Parts(saved.parts.map { Part(it.start, it.end, it.done) })
     }
 
@@ -320,7 +341,7 @@ class SegmentedDownloader(
         try {
             stateFile(target).writeText(JSON.encodeToString(SavedState.serializer(), saved))
         } catch (e: IOException) {
-            if (BuildConfig.TRACES) Log.d(TAG, "Couldn't save the parts of $url", e)
+            DiagnosticLog.log("Couldn't save the parts of a download: ${e::class.simpleName}")
         }
     }
 
@@ -328,13 +349,13 @@ class SegmentedDownloader(
 
     private sealed interface Probe {
         data class Segmentable(val total: Long, val validator: String) : Probe
-        data object NotSegmentable : Probe
+        data class NotSegmentable(val reason: String) : Probe
         data class Failed(val error: NetworkResponse.Error) : Probe
     }
 
     private class PartFailed(val error: NetworkResponse.Error) : Exception()
 
-    private class FileChanged : Exception()
+    private class FileChanged(val reason: String) : Exception()
 
     @Serializable
     private data class SavedState(
@@ -348,7 +369,6 @@ class SegmentedDownloader(
     private data class SavedPart(val start: Long, val end: Long, val done: Long)
 
     private companion object {
-        const val TAG = "SegmentedDownloader"
         const val STATE_SUFFIX = ".parts"
 
         /** Below this, a single connection is about as fast and opening several costs more. */
@@ -443,3 +463,6 @@ private fun contentRangeTotal(response: HttpResponse): Long? =
 private fun validator(response: HttpResponse): String? =
     response.headers[HttpHeaders.ETag]?.takeIf { !it.startsWith("W/") }
         ?: response.headers[HttpHeaders.LastModified]
+
+/** Megabytes, one decimal, for the diagnostic log. */
+private fun Long.inMegabytes(): String = "%.1f".format(Locale.ROOT, this / (1024.0 * 1024.0))

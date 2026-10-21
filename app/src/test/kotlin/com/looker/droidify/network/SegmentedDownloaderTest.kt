@@ -65,7 +65,9 @@ class SegmentedDownloaderTest {
         dispatcher = Dispatchers.IO,
     )
 
-    private fun SegmentedDownloader.run() = runBlocking { download("https://host.example/app.apk", target, {}, null) }
+    private fun SegmentedDownloader.run() = runBlocking {
+        download("https://host.example/app.apk", target, {}, null, label = "test")
+    }
 
     @Test
     fun `downloads a large file in parts that join into the original`() {

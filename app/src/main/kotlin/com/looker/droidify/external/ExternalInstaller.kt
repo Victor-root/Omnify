@@ -14,6 +14,7 @@ import com.looker.droidify.network.ProgressListener
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
 import com.looker.droidify.utility.common.extension.isVersionDowngrade
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -179,6 +180,7 @@ class ExternalInstaller @Inject constructor(
         token: String?,
     ) {
         _pendingInstalls.update { it + (key to packageName) }
+        DiagnosticLog.log("External install: waiting for Android to finish, ${_pendingInstalls.value.size} waiting")
         try {
             recordInstall(key, packageName, tag, token)
         } finally {
@@ -208,6 +210,7 @@ class ExternalInstaller @Inject constructor(
             // this collector subscribes.
             .dropWhile { it != InstallState.Pending && it != InstallState.Installing }
             .first { it == InstallState.Installed || it == InstallState.Failed }
+        DiagnosticLog.log("External install: Android reports $terminal")
         if (terminal != InstallState.Installed) return
         val current = repository.getApps().firstOrNull { it.key == key } ?: return
         val versionName = refresher.installedVersionName(packageName)

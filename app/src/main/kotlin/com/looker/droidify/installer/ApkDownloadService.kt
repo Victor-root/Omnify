@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_ID_DOWNLOADING
 import com.looker.droidify.utility.common.extension.notificationManager
 import com.looker.droidify.utility.common.extension.startForegroundSafe
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.notifications.createApkDownloadNotification
 import com.looker.droidify.utility.notifications.createDownloadNotificationChannel
 import dagger.hilt.android.AndroidEntryPoint
@@ -54,16 +55,21 @@ class ApkDownloadService : Service() {
         if (!startForegroundSafe(NOTIFICATION_ID_DOWNLOADING, createApkDownloadNotification(active))) {
             // Android refused (its daily allowance for this kind of work is spent): the downloads go on,
             // just without the notification keeping them alive.
+            DiagnosticLog.log("Download notification refused by Android: downloads run unprotected")
             stopSelf(startId)
             return START_NOT_STICKY
         }
-        if (watching == null) watching = scope.launch { followDownloads() }
+        if (watching == null) {
+            DiagnosticLog.log("Download notification shown, ${active.size} download(s) running")
+            watching = scope.launch { followDownloads() }
+        }
         return START_NOT_STICKY
     }
 
     private suspend fun followDownloads() {
         downloads.active.collect { active ->
             if (active.isEmpty()) {
+                DiagnosticLog.log("Download notification removed, no download left")
                 ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
                 stopSelf(lastStartId)
             } else {
@@ -77,6 +83,7 @@ class ApkDownloadService : Service() {
     /** Android 15 and later: the time allowed to this kind of foreground work is up. Leaving now is
      *  required; the downloads themselves carry on unprotected. */
     override fun onTimeout(startId: Int, fgsType: Int) {
+        DiagnosticLog.log("Download notification ended by Android's time limit: downloads run unprotected")
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -97,6 +104,7 @@ class ApkDownloadService : Service() {
                 // Started from the background, which Android refuses on 12 and later. Only ever called
                 // from a tap on screen, so this is the odd race; the download runs regardless.
                 Log.w(TAG, "Could not start: ${e.message}")
+                DiagnosticLog.log("Download notification couldn't start: ${e::class.simpleName}")
             }
         }
     }
