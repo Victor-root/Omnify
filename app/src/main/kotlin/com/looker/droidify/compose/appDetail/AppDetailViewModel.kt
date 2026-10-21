@@ -3,7 +3,6 @@ package com.looker.droidify.compose.appDetail
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
-import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
 import androidx.core.text.HtmlCompat
@@ -28,6 +27,7 @@ import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.installSourceChoice
 import com.looker.droidify.datastore.model.CustomButton
+import com.looker.droidify.installer.ApkDownloads
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.installers.shizuku.ShizukuState
 import com.looker.droidify.installer.model.InstallState
@@ -35,6 +35,7 @@ import com.looker.droidify.installer.model.installFrom
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
+import com.looker.droidify.network.ProgressListener
 import com.looker.droidify.network.downloadToFileWithRetry
 import com.looker.droidify.network.percentBy
 import com.looker.droidify.datastore.model.TranslationEngine
@@ -64,7 +65,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -96,6 +96,7 @@ class AppDetailViewModel @Inject constructor(
     private val externalApi: ExternalApi,
     private val externalAppRepository: ExternalAppRepository,
     private val batchProgress: BatchUpdateProgress,
+    private val apkDownloads: ApkDownloads,
     @param:ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -360,21 +361,20 @@ class AppDetailViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.toggleOmnifyInstallSource(packageName) }
     }
 
-    private val _downloadStatus = MutableStateFlow<DownloadStatus?>(null)
-
     /**
      * Live download progress (bytes received, total, speed), or null when no download is
      * running. Drives the progress bar shown before the system install starts.
      *
-     * Two sources, because a download of this app can be started from two places: this screen, and a
-     * batch "update all" running in the background ([BatchUpdateProgress]). Opening an app's page
+     * Two sources, because a download of this app can be started from two places: this app's page
+     * ([ApkDownloads], which outlives the page, so coming back to it finds the download still going),
+     * and a batch "update all" running in the background ([BatchUpdateProgress]). Opening an app's page
      * while the batch was downloading that very app used to show an idle screen, since only the
-     * first source existed here, and the batch is exactly when the wait is longest. The screen's own
+     * first source existed here, and the batch is exactly when the wait is longest. The page's own
      * download wins when both somehow apply, being the one the user is watching.
      */
     val downloadStatus: StateFlow<DownloadStatus?> =
-        combine(_downloadStatus, batchProgress.state) { own, batch ->
-            own ?: batch?.takeIf { it.packageName == packageName }?.download
+        combine(apkDownloads.active, batchProgress.state) { own, batch ->
+            own[packageName]?.status ?: batch?.takeIf { it.packageName == packageName }?.download
         }.asStateFlow(null)
 
     private val _downloadTargetVersionCode = MutableStateFlow<Long?>(null)
@@ -427,8 +427,6 @@ class AppDetailViewModel @Inject constructor(
             }
         }
     }
-
-    private var downloadJob: Job? = null
 
     /** Repo the user picked to install from via the version tabs, or null to auto-pick across every
      *  repo that offers this app. */
@@ -942,9 +940,8 @@ class AppDetailViewModel @Inject constructor(
 
     /** Cancels an in-progress download or install. */
     fun cancel() {
-        val job = downloadJob
         when {
-            job?.isActive == true -> job.cancel()
+            apkDownloads.cancel(packageName) -> Unit
             // The progress on screen belongs to a running "update all", which owns the download this
             // screen is only showing: there is no local job to cancel, and cancelling the install
             // queue does nothing for a download that hasn't reached it. Stopping the batch is what
@@ -959,7 +956,7 @@ class AppDetailViewModel @Inject constructor(
 
     /** Downloads the best release for *this* device (verifying its hash) and installs it. */
     fun installOrUpdate() {
-        if (_downloadStatus.value != null) return
+        if (apkDownloads.isRunning(packageName)) return
         val current = state.value as? AppDetailState.Success ?: return
         // When several repos offer this app and the user picked one via the version tabs, install that
         // repo's best release; otherwise pick across all repos. Either way, [selectForDevice] picks the
@@ -978,27 +975,30 @@ class AppDetailViewModel @Inject constructor(
             toast("No version of this app is compatible with your device")
             return
         }
-        _downloadTargetVersionCode.value = target.first.manifest.versionCode
-        downloadJob = viewModelScope.launch { downloadAndInstall(target.first, target.second) }
+        startDownload(target.first, target.second, label = current.app.metadata.name)
     }
 
     /** Downloads and installs a specific release the user picked from the versions list (verifying its
      *  hash), instead of the auto-selected best one. */
     fun installVersion(pkg: Package, repo: Repo) {
-        if (_downloadStatus.value != null) return
-        _downloadTargetVersionCode.value = pkg.manifest.versionCode
-        downloadJob = viewModelScope.launch { downloadAndInstall(pkg, repo) }
+        val label = (state.value as? AppDetailState.Success)?.app?.metadata?.name ?: packageName
+        startDownload(pkg, repo, label)
     }
 
-    private suspend fun downloadAndInstall(pkg: Package, repo: Repo) {
+    /** Hands [downloadAndInstall] to [ApkDownloads], so leaving this page doesn't stop it. */
+    private fun startDownload(pkg: Package, repo: Repo, label: String) {
+        if (apkDownloads.isRunning(packageName)) return
+        _downloadTargetVersionCode.value = pkg.manifest.versionCode
+        apkDownloads.start(packageName, label) { onProgress -> downloadAndInstall(pkg, repo, onProgress) }
+    }
+
+    private suspend fun downloadAndInstall(pkg: Package, repo: Repo, onProgress: ProgressListener) {
         // Fail fast before downloading: if the Shizuku installer is selected but not usable, tell the
         // user why instead of downloading an APK that could never be installed.
         ShizukuState.installBlockReason(context, settingsRepository.getInitial().installerType)?.let {
             toast(context.getString(it))
             return
         }
-        // Non-null status = a download is in progress; start at 0 so the bar shows immediately.
-        _downloadStatus.value = DownloadStatus(read = 0, total = -1, bytesPerSecond = 0)
         try {
             val cacheFileName = pkg.apk.hash.replace('/', '-') + ".apk"
             // V2 index file names already start with a slash, e.g. "/An.stop_10.apk".
@@ -1019,33 +1019,14 @@ class AppDetailViewModel @Inject constructor(
                     return@withContext DownloadResult.Ready
                 }
                 val partialFile = Cache.getPartialReleaseFile(context, cacheFileName)
-                // Sliding-window speed estimate + throttled UI updates (the callback fires
-                // very frequently; we only push a new state a few times per second).
-                var windowStart = SystemClock.elapsedRealtime()
-                var windowStartBytes = 0L
-                var speed = 0L
-                var lastEmit = 0L
                 val response = downloader.downloadToFileWithRetry(
                     url = url,
                     target = partialFile,
                     headers = {
                         repo.authentication?.let { authentication(it.username, it.password) }
                     },
-                ) { read, total ->
-                    val now = SystemClock.elapsedRealtime()
-                    val windowMs = now - windowStart
-                    if (windowMs >= SPEED_WINDOW_MS) {
-                        speed = (read.value - windowStartBytes) * 1000L / windowMs
-                        windowStart = now
-                        windowStartBytes = read.value
-                    }
-                    val complete = total != null && read.value >= total.value
-                    if (now - lastEmit >= EMIT_INTERVAL_MS || complete) {
-                        lastEmit = now
-                        _downloadStatus.value =
-                            DownloadStatus(read.value, total?.value ?: -1L, speed)
-                    }
-                }
+                    block = onProgress,
+                )
                 if (response !is NetworkResponse.Success) {
                     partialFile.delete()
                     return@withContext DownloadResult.Failed("Download failed: ${response.describe()}")
@@ -1100,8 +1081,6 @@ class AppDetailViewModel @Inject constructor(
         } catch (e: Exception) {
             Log.w(TAG, "Install failed for $packageName", e)
             toast("Install failed: ${e.message}")
-        } finally {
-            _downloadStatus.value = null
         }
     }
 
@@ -1205,12 +1184,6 @@ data class InstallConflict(
 )
 
 private const val TAG = "AppDetailViewModel"
-
-/** How often the download speed is recomputed (sliding window length). */
-private const val SPEED_WINDOW_MS = 500L
-
-/** Minimum delay between progress UI updates, to avoid flooding recompositions. */
-private const val EMIT_INTERVAL_MS = 150L
 
 /** Outcome of [AppDetailViewModel.downloadAndInstall]'s download + verification step. */
 private sealed interface DownloadResult {

@@ -205,6 +205,11 @@
             tools:node="merge" />
 
         <service
+            android:name=".installer.ApkDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
             android:enabled="false"
             android:exported="false">

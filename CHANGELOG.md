@@ -16,6 +16,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 
 ### 🔄 Changed
 - **Interrupted downloads resume** where they stopped, with automatic retries, external sources included.
+- **Downloads keep going after you leave an app's page or Omnify**, with a progress notification, "Update all" and "Install all" included.
 - **Session installer listed first**, and a **"None" background**.
 - **Prettier secondary buttons**, and the app moves above the keyboard.
 - **"Match accent to app icon"** available on every Android version.

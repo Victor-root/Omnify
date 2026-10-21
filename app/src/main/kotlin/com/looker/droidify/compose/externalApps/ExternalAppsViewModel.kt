@@ -51,6 +51,7 @@ import com.looker.droidify.external.prettifyRepoName
 import com.looker.droidify.external.publicHost
 import com.looker.droidify.external.releaseCacheFileName
 import com.looker.droidify.external.selectApkAsset
+import com.looker.droidify.installer.ApkDownloads
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.installers.shizuku.ShizukuState
 import com.looker.droidify.installer.model.InstallItem
@@ -61,6 +62,7 @@ import com.looker.droidify.datastore.installSourceChoice
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
+import com.looker.droidify.network.ProgressListener
 import com.looker.droidify.network.downloadToFileWithRetry
 import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.apk.ApkBinaryManifest
@@ -112,6 +114,7 @@ class ExternalAppsViewModel @Inject constructor(
     // Where a running "update all" reports what it is downloading, so a source's own page shows
     // that download too rather than offering to start it again.
     private val batchProgress: BatchUpdateProgress,
+    private val apkDownloads: ApkDownloads,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -366,19 +369,12 @@ class ExternalAppsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.toggleOmnifyInstallSource(packageName) }
     }
 
-    /**
-     * Package id of each source whose install has been handed to the installer from this screen but
-     * not yet confirmed, keyed by [ExternalApp.key]. A first install has no [ExternalApp.packageName]
-     * until it is confirmed, so without this its install state reached nothing on screen: the button
-     * went back to Install mid-install, and a second tap downloaded the whole APK again.
-     */
-    private val pendingInstallPackages = MutableStateFlow<Map<String, String>>(emptyMap())
-
-    /** Per-app system install state (Pending/Installing/…), keyed by [ExternalApp.key]. */
+    /** Per-app system install state (Pending/Installing/…), keyed by [ExternalApp.key]. A first
+     *  install is found through [ExternalInstaller.pendingInstalls], having no package id on record yet. */
     val installStates: StateFlow<Map<String, InstallState>> = combine(
         repository.apps,
         installManager.state,
-        pendingInstallPackages,
+        externalInstaller.pendingInstalls,
     ) { apps, states, pending ->
         apps.mapNotNull { app ->
             val pkg = app.packageName ?: pending[app.key] ?: return@mapNotNull null
@@ -386,8 +382,6 @@ class ExternalAppsViewModel @Inject constructor(
             app.key to state
         }.toMap()
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
-
-    private val _downloads = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
 
     /**
      * The tracked source a step of a running "update all" is on, or null when no batch is running or
@@ -400,8 +394,9 @@ class ExternalAppsViewModel @Inject constructor(
     /**
      * Live download progress per app (drives the per-card progress bar).
      *
-     * Two sources, because a download of a source can be started from two places: this view model,
-     * and a batch "update all" running in the background ([BatchUpdateProgress]). Starting an update
+     * Two sources, because a download of a source can be started from two places: a source's page
+     * ([ApkDownloads], which outlives the page), and a batch "update all" running in the background
+     * ([BatchUpdateProgress]). Starting an update
      * from the Updates tab and then opening that source's own page showed an idle screen, offering to
      * update an app that was already downloading, since only the first source was read here. The
      * catalogue's own detail screen was given both a while ago; this is its external counterpart.
@@ -409,7 +404,7 @@ class ExternalAppsViewModel @Inject constructor(
      * Downloads started here win, being the ones the user is watching.
      */
     val downloads: StateFlow<Map<String, DownloadStatus>> =
-        combine(_downloads, batchProgress.state, apps) { own, batch, tracked ->
+        combine(apkDownloads.active, batchProgress.state, apps) { active, batch, tracked ->
             val source = tracked.sourceOf(batch)
             val status = batch?.download
             val fromBatch = if (source != null && status != null) {
@@ -417,7 +412,7 @@ class ExternalAppsViewModel @Inject constructor(
             } else {
                 emptyMap()
             }
-            fromBatch + own
+            fromBatch + active.mapValues { it.value.status }
         }.asStateFlow(emptyMap())
 
     /**
@@ -514,8 +509,6 @@ class ExternalAppsViewModel @Inject constructor(
         _addError.value = null
         _appFamilies.value = emptyList()
     }
-
-    private val downloadJobs = mutableMapOf<String, Job>()
 
     /** The in-flight "add source" coroutine, so it can be cancelled if the dialog is dismissed mid-add. */
     private var addJob: Job? = null
@@ -1511,16 +1504,20 @@ class ExternalAppsViewModel @Inject constructor(
 
     /** Downloads the latest release's APK (with live progress) and installs it. */
     fun installOrUpdate(app: ExternalApp) {
-        if (_downloads.value.containsKey(app.key)) return
-        downloadJobs[app.key] = viewModelScope.launch { downloadAndInstall(app) }
+        startDownload(app, releaseOverride = null)
     }
 
     /** Downloads and installs a specific release the user picked from the version list, instead of
      *  whatever [installOrUpdate] would offer. */
     fun installVersion(app: ExternalApp, release: Release) {
-        if (_downloads.value.containsKey(app.key)) return
+        if (apkDownloads.isRunning(app.key)) return
         _downloadTargetTag.value = _downloadTargetTag.value + (app.key to release.tag)
-        downloadJobs[app.key] = viewModelScope.launch { downloadAndInstall(app, release) }
+        startDownload(app, release)
+    }
+
+    /** Hands [downloadAndInstall] to [ApkDownloads], so leaving this page doesn't stop it. */
+    private fun startDownload(app: ExternalApp, releaseOverride: Release?) {
+        apkDownloads.start(app.key, app.label) { onProgress -> downloadAndInstall(app, releaseOverride, onProgress) }
     }
 
     /** Launches the installed app, if it exposes a launcher activity. */
@@ -1542,15 +1539,14 @@ class ExternalAppsViewModel @Inject constructor(
 
     /** Cancels an in-progress download or system install for [app]. */
     fun cancel(app: ExternalApp) {
-        val job = downloadJobs[app.key]
         when {
-            job?.isActive == true -> job.cancel()
+            apkDownloads.cancel(app.key) -> Unit
             // The progress on screen belongs to a running "update all", which owns that download: there
             // is no local job to cancel, and cancelling the install queue does nothing for a download
             // that hasn't reached it. Stopping the batch is what makes the button do what it says. It
             // stops the whole run, not just this source: see UpdateAllWorker.cancel.
             batchProgress.state.value?.packageName == app.key -> UpdateAllWorker.cancel(context)
-            else -> (app.packageName ?: pendingInstallPackages.value[app.key])
+            else -> (app.packageName ?: externalInstaller.pendingInstalls.value[app.key])
                 ?.let { installManager.cancel(PackageName(it)) }
         }
     }
@@ -1769,14 +1765,17 @@ class ExternalAppsViewModel @Inject constructor(
 
     /** [releaseOverride] installs a specific release picked from the version list instead of resolving
      *  the latest one — see [installVersion]. */
-    private suspend fun downloadAndInstall(app: ExternalApp, releaseOverride: Release? = null) {
+    private suspend fun downloadAndInstall(
+        app: ExternalApp,
+        releaseOverride: Release?,
+        onProgress: ProgressListener,
+    ) {
         // Fail fast before downloading: if the Shizuku installer is selected but not usable, tell the
         // user why instead of downloading an APK that could never be installed.
         ShizukuState.installBlockReason(context, settingsRepository.getInitial().installerType)?.let {
             toast(context.getString(it))
             return
         }
-        updateDownload(app.key, DownloadStatus(read = 0, total = -1, bytesPerSecond = 0))
         try {
             val release = releaseOverride ?: when (val lookup = externalApi.latestReleaseLookup(app)) {
                 is ReleaseLookup.Found -> lookup.release
@@ -1822,29 +1821,11 @@ class ExternalAppsViewModel @Inject constructor(
                 // the same tag, and nothing here has a hash to catch that.
                 val partial = Cache.getPartialReleaseFile(context, cacheFileName)
                 partial.delete()
-                // Sliding-window speed estimate + throttled UI updates (the callback fires very
-                // frequently; we only push a new state a few times per second).
-                var windowStart = SystemClock.elapsedRealtime()
-                var windowStartBytes = 0L
-                var speed = 0L
-                var lastEmit = 0L
                 val result = downloader.downloadToFileWithRetry(
                     url = asset.downloadUrl,
                     target = partial,
-                ) { read, total ->
-                    val now = SystemClock.elapsedRealtime()
-                    val windowMs = now - windowStart
-                    if (windowMs >= SPEED_WINDOW_MS) {
-                        speed = (read.value - windowStartBytes) * 1000L / windowMs
-                        windowStart = now
-                        windowStartBytes = read.value
-                    }
-                    val complete = total != null && read.value >= total.value
-                    if (now - lastEmit >= EMIT_INTERVAL_MS || complete) {
-                        lastEmit = now
-                        updateDownload(app.key, DownloadStatus(read.value, total?.value ?: -1L, speed))
-                    }
-                }
+                    block = onProgress,
+                )
                 if (result is NetworkResponse.Success) {
                     partial.copyTo(releaseFile, overwrite = true)
                     partial.delete()
@@ -1897,7 +1878,6 @@ class ExternalAppsViewModel @Inject constructor(
                 _installConflict.value = conflict
                 return
             }
-            pendingInstallPackages.update { it + (app.key to packageName) }
             installManager.install(InstallItem(PackageName(packageName), cacheFileName))
             // Record which APK file this release would install (its identity), so future update checks
             // compare the APK, not the tag — and what the latest release now is. Deliberately installing
@@ -1944,26 +1924,18 @@ class ExternalAppsViewModel @Inject constructor(
             // packageName and installedTag/installedApkToken/installedVersionName are only recorded once
             // the system install actually reaches Installed, not right after merely enqueueing it above
             // (see ExternalInstaller.awaitAndRecordInstall, which is also what the automatic update
-            // pass records through, so the two can't write a source's install state differently. This
-            // runs as its own job so it isn't cut short by this function's own finally block below.
-            viewModelScope.launch {
-                try {
-                    externalInstaller.awaitAndRecordInstall(
-                        key = app.key,
-                        packageName = packageName,
-                        tag = release.tag,
-                        token = token,
-                    )
-                } finally {
-                    pendingInstallPackages.update { it - app.key }
-                }
-            }
+            // pass records through, so the two can't write a source's install state differently. In
+            // the application's scope, so neither this download ending nor its page closing cuts it short.
+            externalInstaller.recordInstallWhenDone(
+                key = app.key,
+                packageName = packageName,
+                tag = release.tag,
+                token = token,
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             toast(context.getString(R.string.external_download_failed, app.repo))
-        } finally {
-            clearDownload(app.key)
         }
     }
 
@@ -1978,15 +1950,6 @@ class ExternalAppsViewModel @Inject constructor(
         return runCatching { appInfo.loadLabel(pm).toString() }
             .getOrNull()
             ?.takeIf { it.isNotBlank() }
-    }
-
-    private fun updateDownload(key: String, status: DownloadStatus) {
-        _downloads.value = _downloads.value + (key to status)
-    }
-
-    private fun clearDownload(key: String) {
-        _downloads.value = _downloads.value - key
-        downloadJobs.remove(key)
     }
 
     private fun setBusy(key: String, busy: Boolean) {
@@ -2036,12 +1999,6 @@ private val SKIP_TEXT_TAGS = setOf("code", "pre", "script", "style")
 /** The lowercase element name of an HTML tag token (e.g. `<a href=…>` gives "a"), or null if unreadable. */
 private fun tagName(tag: String): String? =
     Regex("^</?\\s*([A-Za-z0-9]+)").find(tag)?.groupValues?.get(1)?.lowercase()
-
-/** How often the download speed is recomputed (sliding window length). */
-private const val SPEED_WINDOW_MS = 500L
-
-/** Minimum delay between progress UI updates, to avoid flooding recompositions. */
-private const val EMIT_INTERVAL_MS = 150L
 
 /** How long a cached README is considered fresh enough to skip a network refetch on re-open. A README
  *  changes on the order of days/weeks, so re-opening the same app's detail screen repeatedly within

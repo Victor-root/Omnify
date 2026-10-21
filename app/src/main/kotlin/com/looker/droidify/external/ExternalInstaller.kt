@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.data.model.PackageName
+import com.looker.droidify.di.ApplicationScope
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.installer.model.InstallState
@@ -15,9 +16,16 @@ import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
 import com.looker.droidify.utility.common.extension.isVersionDowngrade
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -70,7 +78,18 @@ class ExternalInstaller @Inject constructor(
     private val downloader: Downloader,
     private val installManager: InstallManager,
     @param:ApplicationContext private val context: Context,
+    @ApplicationScope private val scope: CoroutineScope,
 ) {
+
+    private val _pendingInstalls = MutableStateFlow<Map<String, String>>(emptyMap())
+
+    /**
+     * Package id of each source whose install is waiting on [awaitAndRecordInstall], by source key. A
+     * first install has no [ExternalApp.packageName] until it is confirmed, so without this its install
+     * state reached nothing on screen: the button went back to Install mid-install, and a second tap
+     * downloaded the whole APK again.
+     */
+    val pendingInstalls: StateFlow<Map<String, String>> = _pendingInstalls.asStateFlow()
 
     /**
      * Downloads and installs [app]'s latest recorded release, with no UI and no prompting.
@@ -155,6 +174,28 @@ class ExternalInstaller @Inject constructor(
      * caller had already returned: a signature conflict, or a cancelled system install dialog.
      */
     suspend fun awaitAndRecordInstall(
+        key: String,
+        packageName: String,
+        tag: String?,
+        token: String?,
+    ) {
+        _pendingInstalls.update { it + (key to packageName) }
+        try {
+            recordInstall(key, packageName, tag, token)
+        } finally {
+            _pendingInstalls.update { it - key }
+        }
+    }
+
+    /**
+     * [awaitAndRecordInstall] in the application's scope, for a caller that may be gone before the
+     * install ends: an app's page, closed while Android installs. Marked pending before this returns.
+     */
+    fun recordInstallWhenDone(key: String, packageName: String, tag: String?, token: String?) {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) { awaitAndRecordInstall(key, packageName, tag, token) }
+    }
+
+    private suspend fun recordInstall(
         key: String,
         packageName: String,
         tag: String?,

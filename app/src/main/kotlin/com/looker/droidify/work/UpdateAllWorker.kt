@@ -11,6 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.Package
@@ -98,6 +99,7 @@ class UpdateAllWorker @AssistedInject constructor(
                 setProgress(Data.Builder().putString(KEY_CURRENT_PACKAGE, packageName).build())
                 // The same, plus the byte counts, for anything on screen: see BatchUpdateProgress.
                 batchProgress.startPackage(packageName, index + 1, total)
+                showBatchStep(R.string.batch_updating_FORMAT, index + 1, total)
                 runCatching { updateOne(packageName) }
                     .onFailure { Log.w(TAG, "Update failed for $packageName", it) }
             }
@@ -107,6 +109,7 @@ class UpdateAllWorker @AssistedInject constructor(
                 // to install the same package.
                 setProgress(Data.Builder().putString(KEY_CURRENT_PACKAGE, app.key).build())
                 batchProgress.startPackage(app.key, packages.size + index + 1, total)
+                showBatchStep(R.string.batch_updating_FORMAT, packages.size + index + 1, total)
                 runCatching { updateOneExternal(app) }
                     .onFailure { Log.w(TAG, "Update failed for ${app.key}", it) }
             }

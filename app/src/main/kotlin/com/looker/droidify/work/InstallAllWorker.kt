@@ -11,6 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.Package
@@ -62,7 +63,8 @@ class InstallAllWorker @AssistedInject constructor(
         if (packages.isEmpty() || repo == null) return@withContext Result.success()
 
         Log.i(TAG, "Installing ${packages.size} app(s) from ${repo.name}")
-        for (packageName in packages) {
+        packages.forEachIndexed { index, packageName ->
+            showBatchStep(R.string.batch_installing_FORMAT, index + 1, packages.size)
             runCatching { installOne(packageName, repo) }
                 .onFailure { Log.w(TAG, "Install failed for $packageName", it) }
         }

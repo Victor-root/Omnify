@@ -21,5 +21,9 @@ object Constants {
     const val NOTIFICATION_ID_INDEX_DOWNLOAD = 7
     const val NOTIFICATION_ID_INSTALL_CONFIRM = 8
 
+    /** Apart from [NOTIFICATION_ID_DOWNLOADING], since a batch and a download from an app's page can
+     *  run at once, and the first to end would otherwise take the other's notification with it. */
+    const val NOTIFICATION_ID_BATCH_DOWNLOAD = 9
+
     const val JOB_ID_SYNC = 1
 }
