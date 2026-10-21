@@ -17,7 +17,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -63,7 +62,7 @@ class ApkDownloadService : Service() {
     }
 
     private suspend fun followDownloads() {
-        downloads.active.conflate().collect { active ->
+        downloads.active.collect { active ->
             if (active.isEmpty()) {
                 ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
                 stopSelf(lastStartId)
