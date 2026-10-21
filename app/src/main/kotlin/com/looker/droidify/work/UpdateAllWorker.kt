@@ -25,9 +25,8 @@ import com.looker.droidify.external.ExternalInstallOutcome
 import com.looker.droidify.external.ExternalInstaller
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.model.InstallItem
-import com.looker.droidify.network.Downloader
+import com.looker.droidify.network.ApkFileDownloader
 import com.looker.droidify.network.NetworkResponse
-import com.looker.droidify.network.downloadToFileWithRetry
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
@@ -73,7 +72,7 @@ class UpdateAllWorker @AssistedInject constructor(
     private val installManager: InstallManager,
     private val appRepository: AppRepository,
     private val repoRepository: RepoRepository,
-    private val downloader: Downloader,
+    private val apkFileDownloader: ApkFileDownloader,
     private val batchProgress: BatchUpdateProgress,
     private val externalAppRepository: ExternalAppRepository,
     private val externalInstaller: ExternalInstaller,
@@ -181,7 +180,7 @@ class UpdateAllWorker @AssistedInject constructor(
         // never Uri.appendPath() which would percent-encode the leading slash.
         val url = repo.address.removeSuffix("/") + "/" + pkg.apk.name.removePrefix("/")
         val partialFile = Cache.getPartialReleaseFile(applicationContext, cacheFileName)
-        val response = downloader.downloadToFileWithRetry(
+        val response = apkFileDownloader.download(
             url = url,
             target = partialFile,
             headers = {

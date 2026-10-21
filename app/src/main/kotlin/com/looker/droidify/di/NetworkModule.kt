@@ -9,6 +9,7 @@ import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.external.ConditionalGetCache
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.KtorDownloader
+import com.looker.droidify.network.SegmentedDownloader
 import com.looker.droidify.utility.common.log
 import dagger.Module
 import dagger.Provides
@@ -22,6 +23,7 @@ import io.ktor.client.plugins.UserAgent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import okhttp3.Dispatcher
+import okhttp3.Protocol
 import java.io.File
 import java.net.InetSocketAddress
 import java.net.Proxy
@@ -45,7 +47,26 @@ object NetworkModule {
 
     @Singleton
     @Provides
-    fun provideHttpClient(settingsRepository: SettingsRepository): HttpClient {
+    fun provideHttpClient(settingsRepository: SettingsRepository): HttpClient =
+        httpClient(settingsRepository, http1Only = false)
+
+    /**
+     * Its own client, with its own connections, for downloads in parts. HTTP/1.1 only: HTTP/2 carries
+     * every request to a host over a single shared connection, and parts sharing one connection would
+     * go no faster than a single download, which is the whole point of them.
+     */
+    @Singleton
+    @Provides
+    fun provideSegmentedDownloader(
+        settingsRepository: SettingsRepository,
+        @IoDispatcher
+        dispatcher: CoroutineDispatcher,
+    ): SegmentedDownloader = SegmentedDownloader(
+        client = httpClient(settingsRepository, http1Only = true),
+        dispatcher = dispatcher,
+    )
+
+    private fun httpClient(settingsRepository: SettingsRepository, http1Only: Boolean): HttpClient {
         val proxyPreference = runBlocking { settingsRepository.getInitial().proxy }
         val engine = OkHttp.create {
             proxy = proxyPreference.toProxy()
@@ -55,6 +76,7 @@ object NetworkModule {
                         maxRequestsPerHost = MAX_REQUESTS_PER_HOST
                     },
                 )
+                if (http1Only) protocols(listOf(Protocol.HTTP_1_1))
             }
         }
         return HttpClient(engine) {

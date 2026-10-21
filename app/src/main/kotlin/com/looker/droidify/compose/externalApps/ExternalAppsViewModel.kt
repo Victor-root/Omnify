@@ -60,10 +60,10 @@ import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.installSourceChoice
 import com.looker.droidify.datastore.model.TranslationEngine
+import com.looker.droidify.network.ApkFileDownloader
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.ProgressListener
-import com.looker.droidify.network.downloadToFileWithRetry
 import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.apk.ApkSigningBlockReader
@@ -104,6 +104,7 @@ class ExternalAppsViewModel @Inject constructor(
     private val externalRefresher: ExternalRefresher,
     private val externalInstaller: ExternalInstaller,
     private val downloader: Downloader,
+    private val apkFileDownloader: ApkFileDownloader,
     private val installManager: InstallManager,
     private val translationManager: TranslationManager,
     private val settingsRepository: SettingsRepository,
@@ -1821,7 +1822,7 @@ class ExternalAppsViewModel @Inject constructor(
                 // the same tag, and nothing here has a hash to catch that.
                 val partial = Cache.getPartialReleaseFile(context, cacheFileName)
                 partial.delete()
-                val result = downloader.downloadToFileWithRetry(
+                val result = apkFileDownloader.download(
                     url = asset.downloadUrl,
                     target = partial,
                     block = onProgress,

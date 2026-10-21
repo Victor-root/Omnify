@@ -33,10 +33,10 @@ import com.looker.droidify.installer.installers.shizuku.ShizukuState
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.installer.model.installFrom
 import com.looker.droidify.network.DataSize
+import com.looker.droidify.network.ApkFileDownloader
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.ProgressListener
-import com.looker.droidify.network.downloadToFileWithRetry
 import com.looker.droidify.network.percentBy
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.external.ExternalApi
@@ -92,6 +92,7 @@ class AppDetailViewModel @Inject constructor(
     private val installManager: InstallManager,
     private val installedRepository: InstalledRepository,
     private val downloader: Downloader,
+    private val apkFileDownloader: ApkFileDownloader,
     private val translationManager: TranslationManager,
     private val externalApi: ExternalApi,
     private val externalAppRepository: ExternalAppRepository,
@@ -1019,7 +1020,7 @@ class AppDetailViewModel @Inject constructor(
                     return@withContext DownloadResult.Ready
                 }
                 val partialFile = Cache.getPartialReleaseFile(context, cacheFileName)
-                val response = downloader.downloadToFileWithRetry(
+                val response = apkFileDownloader.download(
                     url = url,
                     target = partialFile,
                     headers = {

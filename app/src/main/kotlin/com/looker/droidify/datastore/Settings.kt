@@ -75,6 +75,9 @@ data class Settings(
     val tvOnly: Boolean = false,
     val enabledRepoIds: Set<Int> = emptySet(),
     val deleteApkOnInstall: Boolean = false,
+    /** Experimental: large APKs are downloaded in several parts at once, over a connection each (see
+     *  [com.looker.droidify.network.SegmentedDownloader]). Off by default. */
+    val segmentedDownloads: Boolean = false,
     /** Shizuku and root installs record Google Play, instead of Omnify, as the app's installer. */
     val playStoreInstallSource: Boolean = false,
     /** Packages kept on Omnify as their install source even while [playStoreInstallSource] is on. */

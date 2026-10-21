@@ -6,8 +6,6 @@ import com.looker.droidify.network.header.HeadersBuilder
 import com.looker.droidify.network.header.KtorHeadersBuilder
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.network.sockets.ConnectTimeoutException
-import io.ktor.client.network.sockets.SocketTimeoutException
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.head
 import io.ktor.client.request.headers
@@ -28,9 +26,7 @@ import kotlinx.coroutines.withContext
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.cancellation.CancellationException
 
 internal class KtorDownloader(
     private val client: HttpClient,
@@ -122,16 +118,8 @@ internal class KtorDownloader(
                 logTransfer(url, response, startedAt, transfer)
                 networkResponse
             }
-        } catch (e: SocketTimeoutException) {
-            NetworkResponse.Error.SocketTimeout(e)
-        } catch (e: ConnectTimeoutException) {
-            NetworkResponse.Error.ConnectionTimeout(e)
-        } catch (e: IOException) {
-            NetworkResponse.Error.IO(e)
-        } catch (e: CancellationException) {
-            throw e
         } catch (e: Exception) {
-            NetworkResponse.Error.Unknown(e)
+            e.asNetworkError()
         }
     }
 
@@ -288,16 +276,8 @@ internal class KtorDownloader(
                 else -> RangeResult.Failed(NetworkResponse.Error.Http(response.status.value))
             }
         }
-    } catch (e: SocketTimeoutException) {
-        RangeResult.Failed(NetworkResponse.Error.SocketTimeout(e))
-    } catch (e: ConnectTimeoutException) {
-        RangeResult.Failed(NetworkResponse.Error.ConnectionTimeout(e))
-    } catch (e: IOException) {
-        RangeResult.Failed(NetworkResponse.Error.IO(e))
-    } catch (e: CancellationException) {
-        throw e
     } catch (e: Exception) {
-        RangeResult.Failed(NetworkResponse.Error.Unknown(e))
+        RangeResult.Failed(e.asNetworkError())
     }
 
     /** [url]'s real total size, read off the `Content-Range` of a genuine one-byte range response — the

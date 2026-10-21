@@ -189,6 +189,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setSegmentedDownloads(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setSegmentedDownloads(enabled)
+        }
+    }
+
     fun setPlayStoreInstallSource(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setPlayStoreInstallSource(enabled)

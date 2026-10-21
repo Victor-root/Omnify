@@ -8,10 +8,9 @@ import com.looker.droidify.di.ApplicationScope
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.installer.model.InstallState
-import com.looker.droidify.network.Downloader
+import com.looker.droidify.network.ApkFileDownloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.ProgressListener
-import com.looker.droidify.network.downloadToFileWithRetry
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
 import com.looker.droidify.utility.common.extension.isVersionDowngrade
@@ -75,7 +74,7 @@ enum class ExternalInstallOutcome {
 class ExternalInstaller @Inject constructor(
     private val repository: ExternalAppRepository,
     private val refresher: ExternalRefresher,
-    private val downloader: Downloader,
+    private val apkFileDownloader: ApkFileDownloader,
     private val installManager: InstallManager,
     @param:ApplicationContext private val context: Context,
     @param:ApplicationScope private val scope: CoroutineScope,
@@ -112,7 +111,7 @@ class ExternalInstaller @Inject constructor(
         // retries, for the reasons given on ExternalAppsViewModel's own download.
         val partial = Cache.getPartialReleaseFile(context, cacheFileName)
         partial.delete()
-        val response = downloader.downloadToFileWithRetry(url = url, target = partial, block = onDownload)
+        val response = apkFileDownloader.download(url = url, target = partial, block = onDownload)
         if (response !is NetworkResponse.Success) {
             partial.delete()
             Log.w(TAG, "Download failed for ${app.key}")
