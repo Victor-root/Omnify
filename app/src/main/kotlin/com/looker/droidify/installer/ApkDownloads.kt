@@ -36,7 +36,7 @@ import javax.inject.Singleton
 @Singleton
 class ApkDownloads @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    @ApplicationScope private val scope: CoroutineScope,
+    @param:ApplicationScope private val scope: CoroutineScope,
 ) {
 
     /** One download in flight: [label] names the app in the notification. */
