@@ -6,6 +6,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 
 ### ✨ Added
 - **Import from Obtainium**: apps followed on GitHub, GitLab or Codeberg become external sources, with their settings.
+- **Obtainium share links open in Omnify**: an app shared from Obtainium is added with its APK filter and settings, whether the link is opened, shared to Omnify or pasted into the add dialog.
 - **A welcome page on a fresh install**: permissions, data import (backup, another device, Omnify Beta), theme and sources to enable. Nothing syncs before you continue.
 - **Follow several apps of one repository** (ente, Bitwarden, NullStore…), each with its own install and updates.
 - **External sources show their real icon and name before install**, read from the APK.

@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.externalApps
 
+import com.looker.droidify.external.SourceDraft
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,16 +17,16 @@ import kotlinx.coroutines.flow.update
  */
 object PendingSharedSource {
 
-    /** A shared link waiting to be opened: [url] plus whether it points at a whole account
-     *  (owner only) rather than a single repo (owner/repo). */
-    data class Share(val url: String, val isAccount: Boolean)
+    /** A shared link waiting to be opened: what it fills the dialog with ([draft]), plus whether it
+     *  points at a whole account (owner only) rather than a single repo (owner/repo). */
+    data class Share(val draft: SourceDraft, val isAccount: Boolean)
 
     private val _pending = MutableStateFlow<Share?>(null)
     val pending: StateFlow<Share?> = _pending.asStateFlow()
 
     /** Records a freshly shared link for the sources screen to pick up. */
-    fun set(url: String, isAccount: Boolean) {
-        _pending.value = Share(url, isAccount)
+    fun set(draft: SourceDraft, isAccount: Boolean) {
+        _pending.value = Share(draft, isAccount)
     }
 
     /** Clears the pending link once the screen has acted on it, so it can never re-trigger. */

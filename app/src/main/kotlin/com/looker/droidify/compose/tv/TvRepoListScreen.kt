@@ -77,6 +77,7 @@ import com.looker.droidify.compose.settings.components.SettingHeader
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.SourceDraft
 import com.looker.droidify.utility.text.toAnnotatedString
 import kotlinx.coroutines.delay
 
@@ -119,7 +120,7 @@ fun TvRepoListScreen(
     var showAddExternal by rememberSaveable { mutableStateOf(false) }
     var showAddAccount by rememberSaveable { mutableStateOf(false) }
     var editingExternal by remember { mutableStateOf<ExternalApp?>(null) }
-    var prefillUrl by rememberSaveable { mutableStateOf("") }
+    var prefill by rememberSaveable { mutableStateOf(SourceDraft()) }
 
     // A link shared into the app (system "Share" sheet, or a "Get it on Omnify" badge) waiting to be
     // added, one-shot, same handling as the phone screen: reading it acts on it once, then we clear it.
@@ -127,7 +128,7 @@ fun TvRepoListScreen(
     val pendingShare by PendingSharedSource.pending.collectAsStateWithLifecycle()
     LaunchedEffect(pendingShare) {
         val share = pendingShare ?: return@LaunchedEffect
-        prefillUrl = share.url
+        prefill = share.draft
         if (share.isAccount) showAddAccount = true else showAddExternal = true
         // See RepoListScreen: confirming leaves the dialog open as an empty form; off (the default)
         // starts the add right here, so the dialog just opened has nothing to show yet but its own
@@ -135,7 +136,7 @@ fun TvRepoListScreen(
         if (!confirmBadgeAdd) {
             if (share.isAccount) {
                 externalViewModel.addAccount(
-                    url = share.url,
+                    url = share.draft.url,
                     customName = "",
                     includeForks = false,
                     includePrereleases = false,
@@ -145,7 +146,13 @@ fun TvRepoListScreen(
                     versionExcludeFilter = "",
                 )
             } else {
-                externalViewModel.addSource(url = share.url, includePrereleases = false)
+                externalViewModel.addSource(
+                    url = share.draft.url,
+                    includePrereleases = share.draft.includePrereleases,
+                    customName = share.draft.name,
+                    apkFilter = share.draft.apkFilter,
+                    versionIncludeFilter = share.draft.versionIncludeFilter,
+                )
             }
         }
         PendingSharedSource.clear()
@@ -372,7 +379,7 @@ fun TvRepoListScreen(
         LaunchedEffect(addState) {
             if (addState == AddSourceState.SUCCESS) {
                 showAddAccount = false
-                prefillUrl = ""
+                prefill = SourceDraft()
                 externalViewModel.consumeAddState()
             }
         }
@@ -380,10 +387,10 @@ fun TvRepoListScreen(
             isLoading = addState != AddSourceState.IDLE,
             hasGithubToken = hasGithubToken,
             githubRemaining = githubRemaining,
-            initialUrl = prefillUrl,
+            initialUrl = prefill.url,
             onDismiss = {
                 showAddAccount = false
-                prefillUrl = ""
+                prefill = SourceDraft()
                 externalViewModel.consumeAddState()
             },
             onAdd = { url, customName, includeForks, includePrereleases, muteUpdates, apkFilter,
@@ -410,7 +417,7 @@ fun TvRepoListScreen(
         LaunchedEffect(addState) {
             if (addState == AddSourceState.SUCCESS) {
                 showAddExternal = false
-                prefillUrl = ""
+                prefill = SourceDraft()
                 externalViewModel.consumeAddState()
             }
         }
@@ -420,10 +427,10 @@ fun TvRepoListScreen(
             appFamilies = appFamilies,
             hasGithubToken = hasGithubToken,
             githubRemaining = githubRemaining,
-            initialUrl = prefillUrl,
+            initial = prefill,
             onDismiss = {
                 showAddExternal = false
-                prefillUrl = ""
+                prefill = SourceDraft()
                 externalViewModel.consumeAddState()
             },
             onAdd = externalViewModel::addSource,

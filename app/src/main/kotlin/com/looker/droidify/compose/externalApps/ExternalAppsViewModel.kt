@@ -48,6 +48,7 @@ import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.external.parseAccountSource
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.external.parseObtainiumExport
+import com.looker.droidify.external.parseObtainiumLink
 import com.looker.droidify.external.prettifyRepoName
 import com.looker.droidify.external.publicHost
 import com.looker.droidify.external.releaseCacheFileName
@@ -1110,6 +1111,19 @@ class ExternalAppsViewModel @Inject constructor(
         versionIncludeFilter: String = "",
         versionExcludeFilter: String = "",
     ) {
+        // An Obtainium link pasted in as the address brings the settings it is followed with there, for
+        // whatever the form left blank.
+        parseObtainiumLink(url)?.let { link ->
+            return addSource(
+                url = link.url,
+                includePrereleases = includePrereleases || link.includePrereleases,
+                customName = customName.ifBlank { link.name },
+                muteUpdates = muteUpdates,
+                apkFilter = apkFilter.ifBlank { link.apkFilter },
+                versionIncludeFilter = versionIncludeFilter.ifBlank { link.versionIncludeFilter },
+                versionExcludeFilter = versionExcludeFilter,
+            )
+        }
         _addError.value = null
         _appFamilies.value = emptyList()
         val trimmedName = customName.trim()
@@ -1190,7 +1204,8 @@ class ExternalAppsViewModel @Inject constructor(
         val all = _appFamilies.value.map { it.family }
         _addError.value = null
         val trimmedName = customName.trim().takeIf { families.size == 1 }.orEmpty()
-        launchAdd(url) { base ->
+        // The form still holds an Obtainium link pasted in as the address (see addSource).
+        launchAdd(parseObtainiumLink(url)?.url ?: url) { base ->
             families.mapNotNull { family ->
                 val (apk, include, exclude) =
                     all.filtersFor(family, apkFilter, versionIncludeFilter, versionExcludeFilter)

@@ -105,6 +105,7 @@ import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.trailRepoIcon
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.SourceDraft
 import com.looker.droidify.external.ReleaseFamily
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.model.Repository
@@ -148,10 +149,10 @@ fun RepoListScreen(
     var showAddAccount by rememberSaveable { mutableStateOf(false) }
     var editingExternal by remember { mutableStateOf<ExternalApp?>(null) }
 
-    // URL pre-filled into the add dialog when the screen was opened from a shared link. Held here so it
-    // can seed whichever dialog we open.
-    var prefillUrl by rememberSaveable { mutableStateOf("") }
-    // A link shared into the app (system "Share" sheet, or a "Get it on Omnify" badge) waiting to be
+    // What the add dialog starts out filled with when the screen was opened from a shared link: the
+    // address, and an Obtainium link's settings too. Held here so it can seed whichever dialog we open.
+    var prefill by rememberSaveable { mutableStateOf(SourceDraft()) }
+    // A link shared into the app (system "Share" sheet, a "Get it on Omnify" badge, Obtainium) waiting to be
     // added. It's a one-shot: reading it acts on it once, then we clear it so it can't act again. The
     // screen is rebuilt several times around the add, and anything persistent (a nav arg) would
     // re-trigger every time.
@@ -161,7 +162,7 @@ fun RepoListScreen(
         val share = pendingShare ?: return@LaunchedEffect
         // A whole-account link (owner only) opens the account dialog; a single repo link the source
         // dialog. The chooser is skipped: we already know which one from the URL shape.
-        prefillUrl = share.url
+        prefill = share.draft
         if (share.isAccount) showAddAccount = true else showAddExternal = true
         // Confirming leaves the dialog as an empty form for the user to fill in and submit, same as
         // opening it by hand. Off (the default): the add starts right here with the dialog's own
@@ -173,7 +174,7 @@ fun RepoListScreen(
         if (!confirmBadgeAdd) {
             if (share.isAccount) {
                 externalViewModel.addAccount(
-                    url = share.url,
+                    url = share.draft.url,
                     customName = "",
                     includeForks = false,
                     includePrereleases = false,
@@ -183,7 +184,13 @@ fun RepoListScreen(
                     versionExcludeFilter = "",
                 )
             } else {
-                externalViewModel.addSource(url = share.url, includePrereleases = false)
+                externalViewModel.addSource(
+                    url = share.draft.url,
+                    includePrereleases = share.draft.includePrereleases,
+                    customName = share.draft.name,
+                    apkFilter = share.draft.apkFilter,
+                    versionIncludeFilter = share.draft.versionIncludeFilter,
+                )
             }
         }
         PendingSharedSource.clear()
@@ -448,7 +455,7 @@ fun RepoListScreen(
         LaunchedEffect(addState) {
             if (addState == AddSourceState.SUCCESS) {
                 showAddAccount = false
-                prefillUrl = ""
+                prefill = SourceDraft()
                 externalViewModel.consumeAddState()
             }
         }
@@ -458,10 +465,10 @@ fun RepoListScreen(
             isLoading = addState != AddSourceState.IDLE,
             hasGithubToken = hasGithubToken,
             githubRemaining = githubRemaining,
-            initialUrl = prefillUrl,
+            initialUrl = prefill.url,
             onDismiss = {
                 showAddAccount = false
-                prefillUrl = ""
+                prefill = SourceDraft()
                 externalViewModel.consumeAddState()
             },
             onAdd = { url, customName, includeForks, includePrereleases, muteUpdates, apkFilter,
@@ -490,7 +497,7 @@ fun RepoListScreen(
         LaunchedEffect(addState) {
             if (addState == AddSourceState.SUCCESS) {
                 showAddExternal = false
-                prefillUrl = ""
+                prefill = SourceDraft()
                 externalViewModel.consumeAddState()
             }
         }
@@ -503,10 +510,10 @@ fun RepoListScreen(
             appFamilies = appFamilies,
             hasGithubToken = hasGithubToken,
             githubRemaining = githubRemaining,
-            initialUrl = prefillUrl,
+            initial = prefill,
             onDismiss = {
                 showAddExternal = false
-                prefillUrl = ""
+                prefill = SourceDraft()
                 externalViewModel.consumeAddState()
             },
             onAdd = externalViewModel::addSource,
@@ -1244,14 +1251,15 @@ internal fun AddExternalSourceDialog(
         versionIncludeFilter: String,
         versionExcludeFilter: String,
     ) -> Unit,
-    initialUrl: String = "",
+    // What the form starts out filled with: a shared link's address, and an Obtainium link's settings.
+    initial: SourceDraft = SourceDraft(),
 ) {
-    var url by rememberSaveable(initialUrl) { mutableStateOf(initialUrl) }
-    var name by rememberSaveable { mutableStateOf("") }
-    var includePrereleases by rememberSaveable { mutableStateOf(false) }
+    var url by rememberSaveable(initial) { mutableStateOf(initial.url) }
+    var name by rememberSaveable(initial) { mutableStateOf(initial.name) }
+    var includePrereleases by rememberSaveable(initial) { mutableStateOf(initial.includePrereleases) }
     var muteUpdates by rememberSaveable { mutableStateOf(false) }
-    var apkFilter by rememberSaveable { mutableStateOf("") }
-    var versionIncludeFilter by rememberSaveable { mutableStateOf("") }
+    var apkFilter by rememberSaveable(initial) { mutableStateOf(initial.apkFilter) }
+    var versionIncludeFilter by rememberSaveable(initial) { mutableStateOf(initial.versionIncludeFilter) }
     var versionExcludeFilter by rememberSaveable { mutableStateOf("") }
     val submit = {
         onAdd(

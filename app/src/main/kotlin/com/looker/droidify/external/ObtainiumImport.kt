@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
+import java.io.ByteArrayOutputStream
 import java.net.URI
 
 /**
@@ -73,6 +74,73 @@ private fun List<ExternalApp>.withVariants(): List<ExternalApp> {
         app.withVariantNamed(app.label, taken).also { taken += it.key }
     }
 }
+
+/**
+ * The app an Obtainium share link names, with the settings Obtainium follows it with, read by the same
+ * rules as an app of an export ([parseObtainiumExport]). Three shapes:
+ *  - `obtainium://app/<the app as JSON>`, what Obtainium's own "Share" gives;
+ *  - the same wrapped in its web page, `https://apps.obtainium.imranr.dev/redirect?r=<that link>`, so it
+ *    opens from anywhere;
+ *  - `obtainium://add/<project address>`, an address alone.
+ *
+ * Null for anything else, or for an app Omnify can't follow.
+ */
+fun parseObtainiumLink(link: String): SourceDraft? {
+    val trimmed = link.trim()
+    val inner = if (trimmed.startsWith(OBTAINIUM_REDIRECT)) {
+        trimmed.substringAfter('?').split('&')
+            .firstOrNull { it.startsWith("r=") }
+            ?.removePrefix("r=")
+            ?.let(::percentDecoded)
+            ?: return null
+    } else {
+        trimmed
+    }
+    inner.removePrefixOrNull(OBTAINIUM_ADD)?.let { address ->
+        val url = percentDecoded(address).trim()
+        return if (sourceRef(url, null)?.provider != null) SourceDraft(url = url) else null
+    }
+    val json = inner.removePrefixOrNull(OBTAINIUM_APP)
+        ?.let { if (it.startsWith('{')) it else percentDecoded(it) }
+        ?: return null
+    val entry = runCatching { Json.parseToJsonElement(json) }.getOrNull() as? JsonObject ?: return null
+    val app = entry.toExternalApp() ?: return null
+    return SourceDraft(
+        url = entry.string("url") ?: return null,
+        name = if (app.nameOverridden) app.label else "",
+        includePrereleases = app.includePrereleases,
+        apkFilter = app.apkFilter.orEmpty(),
+        versionIncludeFilter = app.versionIncludeFilter.orEmpty(),
+    )
+}
+
+private const val OBTAINIUM_REDIRECT = "https://apps.obtainium.imranr.dev/redirect"
+private const val OBTAINIUM_APP = "obtainium://app/"
+private const val OBTAINIUM_ADD = "obtainium://add/"
+
+private fun String.removePrefixOrNull(prefix: String): String? =
+    if (startsWith(prefix)) removePrefix(prefix) else null
+
+/** [text] with its `%XX` escapes decoded as UTF-8. Unlike form decoding, a `+` stays a `+`: it is part
+ *  of many an APK filter (`v.+\.apk`), and turning it into a space would break the pattern. */
+private fun percentDecoded(text: String): String {
+    val bytes = ByteArrayOutputStream()
+    var i = 0
+    while (i < text.length) {
+        val escape = if (text[i] == '%' && i + 2 < text.length) text.substring(i + 1, i + 3) else null
+        if (escape != null && escape.all { it in HEX_DIGITS }) {
+            bytes.write(escape.toInt(16))
+            i += 3
+        } else {
+            val codePoint = text.codePointAt(i)
+            bytes.write(String(Character.toChars(codePoint)).toByteArray(Charsets.UTF_8))
+            i += Character.charCount(codePoint)
+        }
+    }
+    return bytes.toString(Charsets.UTF_8.name())
+}
+
+private const val HEX_DIGITS = "0123456789abcdefABCDEF"
 
 private fun JsonObject.toExternalApp(): ExternalApp? {
     val url = string("url") ?: return null
