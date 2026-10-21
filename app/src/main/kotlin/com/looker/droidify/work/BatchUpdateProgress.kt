@@ -1,7 +1,7 @@
 package com.looker.droidify.work
 
-import android.os.SystemClock
 import com.looker.droidify.compose.appDetail.DownloadStatus
+import com.looker.droidify.installer.DownloadMeter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -66,41 +66,18 @@ class BatchUpdateProgress @Inject constructor() {
     /** The package being updated right now and how far along it is, or null when no batch is running. */
     val state: StateFlow<State?> = _state.asStateFlow()
 
-    private var windowStart = 0L
-    private var windowStartBytes = 0L
-    private var speed = 0L
-    private var lastEmit = 0L
+    private var meter = DownloadMeter()
 
     fun startPackage(packageName: String, position: Int, count: Int) {
-        windowStart = SystemClock.elapsedRealtime()
-        windowStartBytes = 0L
-        speed = 0L
-        lastEmit = 0L
+        meter = DownloadMeter()
         _state.value = State(packageName, position, count, null)
     }
 
-    /**
-     * Publishes download progress for the package [startPackage] last named.
-     *
-     * Throttled, and measuring speed over a sliding window, because the downloader's callback fires
-     * far more often than anything on screen can use: pushing every tick would churn recomposition
-     * for nothing. The final tick (read has reached total) always goes through, so the bar lands on
-     * full rather than stopping at whatever the last interval happened to catch.
-     */
+    /** Publishes download progress for the package [startPackage] last named, as [DownloadMeter]
+     *  paces it. */
     fun reportDownload(read: Long, total: Long?) {
-        val now = SystemClock.elapsedRealtime()
-        val windowMs = now - windowStart
-        if (windowMs >= SPEED_WINDOW_MS) {
-            speed = (read - windowStartBytes) * 1000L / windowMs
-            windowStart = now
-            windowStartBytes = read
-        }
-        val complete = total != null && read >= total
-        if (now - lastEmit < EMIT_INTERVAL_MS && !complete) return
-        lastEmit = now
-        _state.update { current ->
-            current?.copy(download = DownloadStatus(read, total ?: -1L, speed))
-        }
+        val status = meter.sample(read, total) ?: return
+        _state.update { current -> current?.copy(download = status) }
     }
 
     /** Names the release the batch settled on for the current package, once it has resolved which one
@@ -116,13 +93,5 @@ class BatchUpdateProgress @Inject constructor() {
 
     fun clear() {
         _state.value = null
-    }
-
-    private companion object {
-        /** Speed is averaged over this much, rather than off two consecutive callbacks. */
-        const val SPEED_WINDOW_MS = 500L
-
-        /** At most one update on screen this often. */
-        const val EMIT_INTERVAL_MS = 200L
     }
 }

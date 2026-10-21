@@ -132,6 +132,13 @@
     <string name="downloaded_FORMAT">Downloaded %s</string>
     <string name="downloading">Downloading</string>
     <string name="downloading_FORMAT">Downloading %s…</string>
+    <plurals name="downloading_apps_FORMAT">
+        <item quantity="one">Downloading %d app…</item>
+        <item quantity="other">Downloading %d apps…</item>
+    </plurals>
+    <string name="download_channel_DESC">Shows app downloads in progress, and keeps them going while Omnify is in the background.</string>
+    <string name="batch_updating_FORMAT">Updating apps: %1$d of %2$d</string>
+    <string name="batch_installing_FORMAT">Installing apps: %1$d of %2$d</string>
     <string name="edit_repository">Edit</string>
 
     <string name="error_shizuku_service_unavailable">Shizuku/Sui service not running</string>
