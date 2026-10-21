@@ -29,6 +29,7 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.ExternalIconCache
 import com.looker.droidify.external.ExternalInstaller
+import com.looker.droidify.external.followsSameAppAs
 import com.looker.droidify.external.ExternalReadme
 import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.external.ExternalAccountRef
@@ -51,6 +52,7 @@ import com.looker.droidify.external.prettifyRepoName
 import com.looker.droidify.external.publicHost
 import com.looker.droidify.external.releaseCacheFileName
 import com.looker.droidify.external.selectApkAsset
+import com.looker.droidify.external.withVariantNamed
 import com.looker.droidify.installer.ApkDownloads
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.installers.shizuku.ShizukuState
@@ -1128,6 +1130,24 @@ class ExternalAppsViewModel @Inject constructor(
             val followed = repository.getApps().filter { it.repoKey == app.repoKey }
             var added: String? = null
             withBusy(app.key) {
+                // An APK filter typed in picks one app of the repository by hand, so it is that app which
+                // is either followed already or not, whatever else of the repository is. A further app
+                // of a followed repository becomes a variant of it, as the Obtainium import makes them.
+                val filter = app.apkFilter
+                if (filter != null) {
+                    if (followed.any(app::followsSameAppAs)) {
+                        failAdd(context.getString(R.string.external_already_added, app.path))
+                    } else {
+                        val taken = followed.mapTo(HashSet()) { it.key }
+                        val source = if (followed.isEmpty()) {
+                            app
+                        } else {
+                            app.withVariantNamed(trimmedName.ifEmpty { filter }, taken)
+                        }
+                        added = addResolved(source)
+                    }
+                    return@withBusy
+                }
                 // A repository publishing several apps (ente-io/ente, or nullcpy/rvb with a dozen in
                 // every release) would otherwise be added as whichever of them released last. The
                 // dialog asks which ones to follow and submits them through addFamilies.

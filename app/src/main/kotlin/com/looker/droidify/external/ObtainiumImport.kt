@@ -63,12 +63,6 @@ fun parseObtainiumExport(text: String): ObtainiumImport {
     return ObtainiumImport(apps.withVariants(), unsupported)
 }
 
-/** Whether two sources of one repository pick the same releases and APKs, and so are the same app. */
-private fun ExternalApp.followsSameAppAs(other: ExternalApp): Boolean =
-    apkFilter == other.apkFilter &&
-        versionIncludeFilter == other.versionIncludeFilter &&
-        includePrereleases == other.includePrereleases
-
 /** Gives every app of a repository followed more than once a [ExternalApp.variant] of its own, from its
  *  name, numbered when two share one. */
 private fun List<ExternalApp>.withVariants(): List<ExternalApp> {
@@ -76,11 +70,7 @@ private fun List<ExternalApp>.withVariants(): List<ExternalApp> {
     val taken = mutableSetOf<String>()
     return map { app ->
         if (app.repoKey !in shared) return@map app
-        val base = variantOf(app.label).ifEmpty { "app" }
-        val variant = generateSequence(1) { it + 1 }
-            .map { if (it == 1) base else "$base-$it" }
-            .first { taken.add("${app.repoKey}${ExternalApp.VARIANT_SEPARATOR}$it") }
-        app.copy(variant = variant)
+        app.withVariantNamed(app.label, taken).also { taken += it.key }
     }
 }
 

@@ -465,6 +465,31 @@ fun List<ExternalApp>.shownOnExternalTab(hiddenKeys: Set<String>): List<External
     filter { it.enabled && it.key !in hiddenKeys }
 
 /**
+ * [name] as an [ExternalApp.variant]: lower case, every run of anything but letters and digits turned
+ * into a single hyphen ("Photos Desktop" and "photos_desktop" both become "photos-desktop").
+ */
+fun variantOf(name: String): String =
+    name.lowercase().replace(NON_VARIANT_CHARS, "-").trim('-')
+
+private val NON_VARIANT_CHARS = Regex("[^a-z0-9]+")
+
+/** This app as a variant of its repository named after [name] ([variantOf]), numbered when a key in
+ *  [taken] already has that name. */
+fun ExternalApp.withVariantNamed(name: String, taken: Set<String>): ExternalApp {
+    val base = variantOf(name).ifEmpty { "app" }
+    val variant = generateSequence(1) { it + 1 }
+        .map { if (it == 1) base else "$base-$it" }
+        .first { "$repoKey${ExternalApp.VARIANT_SEPARATOR}$it" !in taken }
+    return copy(variant = variant)
+}
+
+/** Whether two sources of one repository pick the same releases and APKs, and so are the same app. */
+fun ExternalApp.followsSameAppAs(other: ExternalApp): Boolean =
+    apkFilter == other.apkFilter &&
+        versionIncludeFilter == other.versionIncludeFilter &&
+        includePrereleases == other.includePrereleases
+
+/**
  * A repo's bare slug turned into something worth reading, for when a real app name (read from the
  * manifest's own `<application android:label>`) genuinely cannot be found: a repo that carries no
  * Android source at all, such as brave/brave-browser, whose own README says it exists only for
@@ -475,15 +500,6 @@ fun List<ExternalApp>.shownOnExternalTab(hiddenKeys: Set<String>): List<External
  * reads as a deliberately chosen style rather than a raw slug; only a plain lowercase one gets its
  * first letter capitalised.
  */
-/**
- * [name] as an [ExternalApp.variant]: lower case, every run of anything but letters and digits turned
- * into a single hyphen ("Photos Desktop" and "photos_desktop" both become "photos-desktop").
- */
-fun variantOf(name: String): String =
-    name.lowercase().replace(NON_VARIANT_CHARS, "-").trim('-')
-
-private val NON_VARIANT_CHARS = Regex("[^a-z0-9]+")
-
 internal fun prettifyRepoName(repo: String): String = when {
     repo.any { it == '-' || it == '_' } -> repo.split('-', '_')
         .filter { it.isNotEmpty() }
