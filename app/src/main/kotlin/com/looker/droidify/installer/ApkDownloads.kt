@@ -65,11 +65,11 @@ class ApkDownloads @Inject constructor(
         if (isRunning(key)) return false
         _active.update { it + (key to Download(label, DownloadStatus(read = 0, total = -1, bytesPerSecond = 0))) }
         val meter = DownloadMeter()
-        // Lazy, so the job is on record before any of it runs: work that ends before its first
-        // suspension would otherwise clear its entry before there was one.
         // The log names no app: a number, and whether it comes from the catalogue or an external source.
         val source = if ('/' in key) "external" else "catalogue"
         val logLabel = "page download ${pageDownloadCount.incrementAndGet()} ($source)"
+        // Lazy, so the job is on record before any of it runs: work that ends before its first
+        // suspension would otherwise clear its entry before there was one.
         val job = scope.launch(Dispatchers.Main, start = CoroutineStart.LAZY) {
             DiagnosticLog.log("$logLabel: started, ${_active.value.size} running")
             try {
