@@ -5,7 +5,9 @@ import androidx.annotation.MainThread
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.di.ApplicationScope
 import com.looker.droidify.network.ProgressListener
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -49,6 +52,8 @@ class ApkDownloads @Inject constructor(
 
     private val jobs = mutableMapOf<String, Job>()
 
+    private val pageDownloadCount = AtomicInteger()
+
     fun isRunning(key: String): Boolean = key in _active.value
 
     /**
@@ -62,7 +67,11 @@ class ApkDownloads @Inject constructor(
         val meter = DownloadMeter()
         // Lazy, so the job is on record before any of it runs: work that ends before its first
         // suspension would otherwise clear its entry before there was one.
+        // The log names no app: a number, and whether it comes from the catalogue or an external source.
+        val source = if ('/' in key) "external" else "catalogue"
+        val logLabel = "page download ${pageDownloadCount.incrementAndGet()} ($source)"
         val job = scope.launch(Dispatchers.Main, start = CoroutineStart.LAZY) {
+            DiagnosticLog.log("$logLabel: started, ${_active.value.size} running")
             try {
                 work { read, total ->
                     val status = meter.sample(read.value, total?.value) ?: return@work
@@ -70,6 +79,10 @@ class ApkDownloads @Inject constructor(
                         current[key]?.let { current + (key to it.copy(status = status)) } ?: current
                     }
                 }
+                DiagnosticLog.log("$logLabel: done")
+            } catch (e: CancellationException) {
+                DiagnosticLog.log("$logLabel: cancelled")
+                throw e
             } finally {
                 jobs.remove(key)
                 _active.update { it - key }

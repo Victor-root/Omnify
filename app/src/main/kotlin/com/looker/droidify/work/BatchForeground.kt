@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_ID_BATCH_DOWNLOAD
 import com.looker.droidify.utility.common.extension.exceptCancellation
 import com.looker.droidify.utility.common.toForegroundInfo
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.notifications.createBatchDownloadNotification
 import com.looker.droidify.utility.notifications.createDownloadNotificationChannel
 
@@ -27,5 +28,6 @@ internal suspend fun CoroutineWorker.showBatchStep(@StringRes title: Int, positi
     } catch (e: Exception) {
         e.exceptCancellation()
         Log.w("BatchForeground", "Not in the foreground: ${e.message}")
+        DiagnosticLog.log("Batch step $position/$count not protected by a notification: ${e::class.simpleName}")
     }
 }

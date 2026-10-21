@@ -1,6 +1,7 @@
 package com.looker.droidify.network
 
 import com.looker.droidify.network.header.HeadersBuilder
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -48,17 +49,30 @@ suspend fun Downloader.downloadToFileWithRetry(
     target: File,
     headers: HeadersBuilder.() -> Unit = {},
     block: ProgressListener? = null,
-): NetworkResponse = retryWhileTransient({ it.isTransientFailure() }) {
+    label: String = "download",
+): NetworkResponse = retryWhileTransient(label, { it.isTransientFailure() }, { it.diagnosticLabel() }) {
     downloadToFile(url, target, headers, block)
 }
 
-/** [attempt] again while [isTransient] says its outcome is worth another try, waiting longer each time,
- *  up to [MAX_DOWNLOAD_ATTEMPTS] attempts in all. The last outcome is returned whatever it is. */
-internal suspend fun <T> retryWhileTransient(isTransient: (T) -> Boolean, attempt: suspend () -> T): T {
+/**
+ * [attempt] again while [isTransient] says its outcome is worth another try, waiting longer each time,
+ * up to [MAX_DOWNLOAD_ATTEMPTS] attempts in all. The last outcome is returned whatever it is. Each retry
+ * goes in the diagnostic log under [label], with [describe]'s account of what failed.
+ */
+internal suspend fun <T> retryWhileTransient(
+    label: String,
+    isTransient: (T) -> Boolean,
+    describe: (T) -> String,
+    attempt: suspend () -> T,
+): T {
     var retryDelay = FIRST_RETRY_DELAY_MS
-    repeat(MAX_DOWNLOAD_ATTEMPTS - 1) {
+    repeat(MAX_DOWNLOAD_ATTEMPTS - 1) { index ->
         val outcome = attempt()
         if (!isTransient(outcome)) return outcome
+        DiagnosticLog.log(
+            "$label: ${describe(outcome)} on attempt ${index + 1}/$MAX_DOWNLOAD_ATTEMPTS, " +
+                "trying again in ${retryDelay / 1000} s",
+        )
         delay(retryDelay)
         retryDelay *= 2
     }
