@@ -80,6 +80,6 @@ fun List<GraphicEntity>.toGraphics(locale: String, baseAddress: String): Graphic
 annotation class GraphicType
 
 private const val VIDEO = 0
-private const val TV_BANNER = 1
+internal const val TV_BANNER = 1
 private const val PROMO_GRAPHIC = 2
 private const val FEATURE_GRAPHIC = 3

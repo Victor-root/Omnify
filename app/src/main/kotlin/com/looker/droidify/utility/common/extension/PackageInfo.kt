@@ -72,6 +72,18 @@ fun PackageManager.getLauncherActivities(packageName: String): List<Pair<String,
         .toList()
 }
 
+/** Packages installed with an activity in the TV launcher. */
+fun PackageManager.tvLauncherPackages(): Set<String> {
+    val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
+    val activities = if (SdkCheck.isTiramisu) {
+        queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0L))
+    } else {
+        @Suppress("DEPRECATION")
+        queryIntentActivities(intent, 0)
+    }
+    return activities.mapNotNullTo(HashSet()) { it.activityInfo?.packageName }
+}
+
 fun PackageManager.getApplicationInfoCompat(
     filePath: String,
 ): ApplicationInfo = if (SdkCheck.isTiramisu) {

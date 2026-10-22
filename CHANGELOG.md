@@ -26,6 +26,8 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Android TV**: redesigned home (rows, one per repository, starts on TV apps), two-pane app and repository pages, Halo background by default, keyboard only on OK, and many focus fixes.
 
 ### 🐛 Fixed
+- **Android TV: apps made for both phones and TV are recognised as TV apps** when installed with a TV launcher entry or given a TV banner by their repository, even though their index says nothing of TV.
+- **Android TV: the Installed and Updates tabs show everything**, whatever the "TV apps only" setting.
 - **A restore from the welcome page keeps what was chosen there**: the installer, theme, accent and background picked on those pages are no longer replaced by the backup's.
 - **Adding an app of a repository already followed works with an APK filter**: another app of the same repository is added on its own, as the Obtainium import does, instead of "already in your list".
 - **The Installed tab lists installed external sources too**, after the catalogue apps, on phone and TV.

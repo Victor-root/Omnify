@@ -11,9 +11,11 @@ import com.looker.droidify.data.local.model.AppEntity
 import com.looker.droidify.data.local.model.AppEntityRelations
 import com.looker.droidify.data.local.model.CategoryAppRelation
 import com.looker.droidify.data.local.model.LocalizedAppIconEntity
+import com.looker.droidify.data.local.model.TV_BANNER
 import com.looker.droidify.data.local.model.VersionEntity
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.FilePath
+import com.looker.droidify.data.model.MadeForTv
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.sync.v2.model.DefaultName
@@ -45,19 +47,17 @@ interface AppDao {
         categoriesToExclude: List<DefaultName>? = null,
         antiFeaturesToInclude: List<Tag>? = null,
         antiFeaturesToExclude: List<Tag>? = null,
-        // Each entry keeps only apps that declare it as a manifest <uses-feature> on some version (e.g.
-        // "android.software.leanback" for apps built for Android TV).
-        featuresToInclude: List<String>? = null,
+        madeForTv: MadeForTv? = null,
         // Each entry keeps only apps that declare it as a manifest <uses-permission> on some version
         // (e.g. "moe.shizuku.manager.permission.API_V23" for apps that integrate with Shizuku).
         permissionsToInclude: List<String>? = null,
-        // When both featuresToInclude and categoriesToInclude are given, combine them with OR instead of
-        // the default AND — "declares this manifest feature, OR is tagged with one of these categories".
-        // Used by the "Made for TV" carousel: very few F-Droid apps actually declare the Android TV
-        // leanback feature (confirmed against the live index: 3 packages catalogue-wide), so pairing it
-        // with genuinely TV-relevant categories (media players, emulators, remote controllers, …) surfaces
-        // real, already-catalogued apps like VLC or Kodi that the manifest flag alone misses entirely.
-        featuresOrCategories: Boolean = false,
+        // When both madeForTv and categoriesToInclude are given, combine them with OR instead of the
+        // default AND — "made for TV, OR tagged with one of these categories". Used by the "Made for TV"
+        // carousel: very few F-Droid apps actually declare the Android TV leanback feature (confirmed
+        // against the live index: 3 packages catalogue-wide), so pairing it with genuinely TV-relevant
+        // categories (media players, emulators, remote controllers, …) surfaces real, already-catalogued
+        // apps like VLC or Kodi that the manifest flag alone misses entirely.
+        madeForTvOrCategories: Boolean = false,
         // Keep only apps updated at least once since they were added (lastUpdated > added). Used by the
         // "Recently updated" carousel so it isn't a copy of the "New apps" one.
         updatedOnly: Boolean = false,
@@ -75,9 +75,9 @@ interface AppDao {
             categoriesToExclude = categoriesToExclude,
             antiFeaturesToInclude = antiFeaturesToInclude,
             antiFeaturesToExclude = antiFeaturesToExclude,
-            featuresToInclude = featuresToInclude,
+            madeForTv = madeForTv,
             permissionsToInclude = permissionsToInclude,
-            featuresOrCategories = featuresOrCategories,
+            madeForTvOrCategories = madeForTvOrCategories,
             updatedOnly = updatedOnly,
             locale = locale,
         ),
@@ -321,9 +321,9 @@ interface AppDao {
         categoriesToExclude: List<DefaultName>?,
         antiFeaturesToInclude: List<Tag>?,
         antiFeaturesToExclude: List<Tag>?,
-        featuresToInclude: List<String>?,
+        madeForTv: MadeForTv?,
         permissionsToInclude: List<String>?,
-        featuresOrCategories: Boolean = false,
+        madeForTvOrCategories: Boolean = false,
         updatedOnly: Boolean,
         packageNames: List<String>?,
         locale: String,
@@ -336,7 +336,7 @@ interface AppDao {
             "categoriesToExclude" to categoriesToExclude,
             "antiFeaturesToInclude" to antiFeaturesToInclude,
             "antiFeaturesToExclude" to antiFeaturesToExclude,
-            "featuresToInclude" to featuresToInclude,
+            "madeForTv" to madeForTv?.launchable,
             "permissionsToInclude" to permissionsToInclude,
             "locale" to locale,
         )
@@ -407,19 +407,14 @@ interface AppDao {
                 append(" AND app.lastUpdated > app.added")
             }
 
-            // Combines the featuresToInclude and categoriesToInclude clauses below into one OR'd group
-            // instead of each being its own separate AND — see featuresOrCategories' doc comment.
-            val combineFeaturesAndCategoriesWithOr =
-                featuresOrCategories && featuresToInclude != null && categoriesToInclude != null
+            // Combines the madeForTv and categoriesToInclude clauses below into one OR'd group instead of
+            // each being its own separate AND — see madeForTvOrCategories' doc comment.
+            val combineMadeForTvAndCategoriesWithOr =
+                madeForTvOrCategories && madeForTv != null && categoriesToInclude != null
 
-            if (combineFeaturesAndCategoriesWithOr) {
+            if (combineMadeForTvAndCategoriesWithOr) {
                 append(" AND (")
-                append(
-                    featuresToInclude.joinToString(" AND ") {
-                        "EXISTS (SELECT 1 FROM version WHERE version.appId = app.id AND version.features LIKE ?)"
-                    },
-                )
-                args.addAll(featuresToInclude.map { "%\"$it\"%" })
+                appendMadeForTv(madeForTv, args)
                 append(" OR category_app_relation.defaultName IN (")
                 append(categoriesToInclude.joinToString(", ") { "?" })
                 append(")")
@@ -427,7 +422,7 @@ interface AppDao {
                 append(")")
             }
 
-            if (categoriesToInclude != null && !combineFeaturesAndCategoriesWithOr) {
+            if (categoriesToInclude != null && !combineMadeForTvAndCategoriesWithOr) {
                 append(" AND category_app_relation.defaultName IN (")
                 append(categoriesToInclude.joinToString(", ") { "?" })
                 append(")")
@@ -455,23 +450,14 @@ interface AppDao {
                 args.addAll(antiFeaturesToExclude)
             }
 
-            // Keep only apps that declare each required <uses-feature> on at least one of their
-            // versions. `features` is a JSON list (e.g. ["android.software.leanback"]); matching the
-            // quoted name avoids a prefix matching a longer feature. EXISTS (rather than a JOIN) keeps
-            // one row per app and doesn't disturb the GROUP BY below.
-            if (!combineFeaturesAndCategoriesWithOr) {
-                featuresToInclude?.forEach { feature ->
-                    append(
-                        " AND EXISTS (SELECT 1 FROM version WHERE version.appId = app.id" +
-                            " AND version.features LIKE ?)",
-                    )
-                    args.add("%\"$feature\"%")
-                }
+            if (madeForTv != null && !combineMadeForTvAndCategoriesWithOr) {
+                append(" AND ")
+                appendMadeForTv(madeForTv, args)
             }
 
-            // Same idea for required <uses-permission> declarations. Permissions are stored as a JSON
-            // list of objects with a "name" field, in two columns (normal + sdk23 runtime), so match the
-            // quoted permission name in either. Used for the "Shizuku" section.
+            // Keep only apps that declare each <uses-permission> on some version. Permissions are stored
+            // as a JSON list of objects with a "name" field, in two columns (normal + sdk23 runtime), so
+            // match the quoted permission name in either. Used for the "Shizuku" section.
             permissionsToInclude?.forEach { permission ->
                 append(
                     " AND EXISTS (SELECT 1 FROM version WHERE version.appId = app.id" +
@@ -670,3 +656,21 @@ interface AppDao {
     suspend fun icon(id: Int, locale: String): LocalizedAppIconEntity?
 }
 
+/** The [MadeForTv] condition, as one parenthesised clause. `features` is a JSON list (e.g.
+ *  ["android.software.leanback"]); matching the quoted name avoids a prefix matching a longer feature.
+ *  EXISTS (rather than a JOIN) keeps one row per app and doesn't disturb the GROUP BY. */
+private fun StringBuilder.appendMadeForTv(madeForTv: MadeForTv, args: MutableList<Any?>) {
+    append("(EXISTS (SELECT 1 FROM version WHERE version.appId = app.id AND version.features LIKE ?)")
+    args.add("%\"$LEANBACK_FEATURE\"%")
+    append(" OR EXISTS (SELECT 1 FROM graphic WHERE graphic.appId = app.id AND graphic.type = ?)")
+    args.add(TV_BANNER)
+    if (madeForTv.launchable.isNotEmpty()) {
+        append(" OR app.packageName IN (")
+        append(madeForTv.launchable.joinToString(", ") { "?" })
+        append(")")
+        args.addAll(madeForTv.launchable)
+    }
+    append(")")
+}
+
+private const val LEANBACK_FEATURE = "android.software.leanback"
