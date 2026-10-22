@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -60,6 +61,31 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.sync.v2.model.DefaultName
 
 /**
+ * A carousel row's scroll state, brought back to its start whenever [firstKey], its first item's key,
+ * changes. During the first sync the catalogue fills in and re-sorts, so new apps are prepended to a
+ * carousel. A LazyRow anchors on its first visible item by key, so a prepend would keep the old first
+ * item in view and leave the row scrolled to the right ("stuck in the middle").
+ *
+ * Compared against a rememberSaveable, not just the LaunchedEffect's own last-seen key: opening an
+ * app's page and coming back disposes and remounts the whole screen, and a freshly mounted
+ * LaunchedEffect has no memory of what it last ran with. It would then re-scroll to the start on every
+ * return, stomping over the position LazyListState's own rememberSaveable had just restored, and the
+ * card that was opened would no longer be there to take the focus back.
+ */
+@Composable
+fun rememberCarouselState(firstKey: Any?): LazyListState {
+    val rowState = rememberLazyListState()
+    var previousFirstKey by rememberSaveable { mutableStateOf(firstKey) }
+    LaunchedEffect(firstKey) {
+        if (firstKey != previousFirstKey) {
+            rowState.scrollToItem(0)
+        }
+        previousFirstKey = firstKey
+    }
+    return rowState
+}
+
+/**
  * A horizontal carousel of apps (F-Droid Discover style): a section title with a round "see all"
  * arrow, and a scrolling row of rounded app icons with their name. Tapping an icon opens the app.
  */
@@ -96,27 +122,12 @@ fun DiscoverCarousel(
     // Wider tiles on TV so the larger icon (and its card) fit; the compact width stays on touch. Read
     // here in the composable body, not inside the LazyRow content (which isn't a composable scope).
     val tileWidth = if (LocalIsTelevision.current) 124.dp else 80.dp
-    val rowState = rememberLazyListState()
-    // During the first sync the catalogue fills in and re-sorts, so new apps are prepended to a
-    // carousel. A LazyRow anchors on its first visible item by key, so a prepend would keep the old
-    // first item in view and leave the row scrolled to the right ("stuck in the middle"). Snap back to
-    // the start whenever the head of the list actually changes, so each carousel shows its newest items
-    // from the left. Compared against a rememberSaveable, not just this LaunchedEffect's own last-seen
-    // key: opening an app's page and coming back disposes and remounts this whole screen, and a freshly
-    // mounted LaunchedEffect has no memory of what it last ran with. Without comparing against a value
-    // that survives that round trip too, it would re-scroll to the start on every single return,
-    // stomping over the position LazyListState's own rememberSaveable had just correctly restored.
     // A re-sort on the favourites full page changes what's first here too (e.g. switching to "name"
-    // jumps to whatever now sorts first alphabetically), which this same mechanism handles for free.
-    val firstKey = unifiedOrder?.firstOrNull()?.key
-        ?: (apps.firstOrNull()?.appId ?: externalApps.firstOrNull()?.key)
-    var previousFirstKey by rememberSaveable { mutableStateOf(firstKey) }
-    LaunchedEffect(firstKey) {
-        if (firstKey != previousFirstKey) {
-            rowState.scrollToItem(0)
-        }
-        previousFirstKey = firstKey
-    }
+    // jumps to whatever now sorts first alphabetically), which rememberCarouselState handles for free.
+    val rowState = rememberCarouselState(
+        firstKey = unifiedOrder?.firstOrNull()?.key
+            ?: (apps.firstOrNull()?.appId ?: externalApps.firstOrNull()?.key),
+    )
     Column(verticalArrangement = spacedBy(10.dp), modifier = modifier) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

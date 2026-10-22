@@ -31,7 +31,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -81,6 +80,7 @@ import com.looker.droidify.compose.appList.AppRow
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appList.AppTab
 import com.looker.droidify.compose.appList.PendingAppListTab
+import com.looker.droidify.compose.appList.rememberCarouselState
 import com.looker.droidify.compose.appList.restoreFocusTarget
 import com.looker.droidify.compose.components.DiagnosticLogDialog
 import com.looker.droidify.compose.components.CatalogOfflineState
@@ -226,6 +226,16 @@ fun TvHomeScreen(
     val restoreRequester = remember { FocusRequester() }
     val openApp: (String) -> Unit = { pkg -> restoreFocusId = "app:$pkg"; onAppClick(pkg) }
     val openExternal: (String) -> Unit = { key -> restoreFocusId = "ext:$key"; onExternalAppClick(key) }
+    // A carousel's card also names its row: one app is often in several rows, and focus went back to
+    // its card in the first of them rather than in the row it was opened from.
+    val openAppInRow: (String, String) -> Unit = { row, pkg ->
+        restoreFocusId = rowFocusId(row, "app:$pkg")
+        onAppClick(pkg)
+    }
+    val openExternalInRow: (String, String) -> Unit = { row, key ->
+        restoreFocusId = rowFocusId(row, "ext:$key")
+        onExternalAppClick(key)
+    }
     // The Installed section lists what is on the device, so a package installed from a tracked source
     // rather than from the catalogue opens that source's page (see externallyInstalledPackages). Only
     // there: everywhere else a catalogue tile is the catalogue's own entry, and opens exactly that.
@@ -370,7 +380,7 @@ fun TvHomeScreen(
                 section == TvSection.EXPLORE && tvOnly && tvAppRows.isNotEmpty() -> TvAppRows(
                     rows = tvAppRows,
                     installedPackages = installedPackages,
-                    onAppClick = openApp,
+                    onAppClick = openAppInRow,
                     restoreFocusId = restoreFocusId,
                     restoreRequester = restoreRequester,
                 )
@@ -400,8 +410,8 @@ fun TvHomeScreen(
                     recentlyUpdatedExternalApps = recentlyUpdatedExternalApps,
                     externalInstalledKeys = externalInstalledKeys,
                     installedPackages = installedPackages,
-                    onAppClick = openApp,
-                    onExternalAppClick = openExternal,
+                    onAppClick = openAppInRow,
+                    onExternalAppClick = openExternalInRow,
                     restoreFocusId = restoreFocusId,
                     restoreRequester = restoreRequester,
                 )
@@ -713,8 +723,8 @@ private fun TvExplore(
     recentlyUpdatedExternalApps: List<ExternalApp>,
     externalInstalledKeys: Set<String>,
     installedPackages: Set<String>,
-    onAppClick: (String) -> Unit,
-    onExternalAppClick: (String) -> Unit,
+    onAppClick: (row: String, packageName: String) -> Unit,
+    onExternalAppClick: (row: String, key: String) -> Unit,
     restoreFocusId: String?,
     restoreRequester: FocusRequester,
 ) {
@@ -781,7 +791,7 @@ private fun TvExplore(
 private fun TvAppRows(
     rows: List<AppRow>,
     installedPackages: Set<String>,
-    onAppClick: (String) -> Unit,
+    onAppClick: (row: String, packageName: String) -> Unit,
     restoreFocusId: String?,
     restoreRequester: FocusRequester,
 ) {
@@ -803,18 +813,17 @@ private fun TvCarousel(
     title: String,
     apps: List<AppMinimal>,
     installedPackages: Set<String>,
-    onAppClick: (String) -> Unit,
+    // Both called with this row's [title] first, which the card's focus id carries (see rowFocusId).
+    onAppClick: (row: String, packageName: String) -> Unit,
     // Optional external (GitHub/GitLab) apps appended after the catalogue ones in the same row — used by
     // the "recently updated" carousel so recently-released external apps show alongside the F-Droid ones.
     externalApps: List<ExternalApp> = emptyList(),
     externalInstalledKeys: Set<String> = emptySet(),
-    onExternalAppClick: (String) -> Unit = {},
+    onExternalAppClick: (row: String, key: String) -> Unit = { _, _ -> },
     restoreFocusId: String? = null,
     restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
-    val rowState = rememberLazyListState()
-    val firstKey = apps.firstOrNull()?.appId ?: externalApps.firstOrNull()?.key
-    LaunchedEffect(firstKey) { rowState.scrollToItem(0) }
+    val rowState = rememberCarouselState(apps.firstOrNull()?.appId ?: externalApps.firstOrNull()?.key)
     Column(verticalArrangement = spacedBy(10.dp)) {
         Text(
             text = title,
@@ -832,8 +841,11 @@ private fun TvCarousel(
             items(apps, key = { it.appId }, contentType = { "tv-app" }) { app ->
                 TvAppCard(
                     name = app.name,
-                    onClick = { onAppClick(app.packageName.name) },
-                    modifier = Modifier.restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
+                    onClick = { onAppClick(title, app.packageName.name) },
+                    modifier = Modifier.restoreFocusTarget(
+                        restoreFocusId == rowFocusId(title, "app:${app.packageName.name}"),
+                        restoreRequester,
+                    ),
                 ) {
                     AppMinimalIcon(
                         app = app,
@@ -845,8 +857,11 @@ private fun TvCarousel(
             items(externalApps, key = { "ext-${it.key}" }, contentType = { "tv-ext" }) { app ->
                 TvAppCard(
                     name = app.label,
-                    onClick = { onExternalAppClick(app.key) },
-                    modifier = Modifier.restoreFocusTarget(restoreFocusId == "ext:${app.key}", restoreRequester),
+                    onClick = { onExternalAppClick(title, app.key) },
+                    modifier = Modifier.restoreFocusTarget(
+                        restoreFocusId == rowFocusId(title, "ext:${app.key}"),
+                        restoreRequester,
+                    ),
                 ) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                         ExternalAppIcon(app = app, isInstalled = app.key in externalInstalledKeys, size = TileSize - 20.dp)
@@ -856,6 +871,9 @@ private fun TvCarousel(
         }
     }
 }
+
+/** The focus id of a carousel's card: the card's own id ("app:pkg" / "ext:key") within [row]. */
+private fun rowFocusId(row: String, cardId: String): String = "row:$row|$cardId"
 
 // ---------------------------------------------------------------------------------------------------
 // Grids (Installed / Updates / External / Search results)
