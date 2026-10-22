@@ -73,6 +73,7 @@ import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.model.Repository
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.common.DeeplinkType
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.sdkAbove
@@ -823,9 +824,11 @@ class MainComposeActivity : ComponentActivity() {
 
                         appList(
                             onAppClick = { packageName ->
+                                if (BuildConfig.DIAGNOSTICS) DiagnosticLog.log("App list: app page asked for")
                                 navController.navigateToAppDetail(packageName)
                             },
                             onExternalAppClick = { appKey ->
+                                if (BuildConfig.DIAGNOSTICS) DiagnosticLog.log("App list: source page asked for")
                                 navController.navigateToExternalAppDetail(appKey)
                             },
                             onNavigateToRepos = { navController.navigateToRepoList() },
