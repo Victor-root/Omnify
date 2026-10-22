@@ -12,7 +12,6 @@ import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.CATALOG_REFRESH_MS
 import com.looker.droidify.data.InstalledIdentityRepository
 import com.looker.droidify.data.InstalledRepository
-import com.looker.droidify.data.PendingUpdateSet
 import com.looker.droidify.data.PendingUpdates
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.SuggestedVersion
@@ -92,14 +91,6 @@ data class UpdatesState(
     val catalogue: List<AppMinimal>,
     val external: List<ExternalApp>,
     val count: Int,
-)
-
-/** What [AppListViewModel.updates] recomputes from, gathered so the four of them travel together. */
-private data class UpdatesInputs(
-    val pending: PendingUpdateSet,
-    val search: String,
-    val tvOnly: Boolean,
-    val tvNames: Set<String>,
 )
 
 /**
@@ -261,30 +252,38 @@ class AppListViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptySet())
 
-    val appsState: StateFlow<List<AppMinimal>> = combine(
+    /** The catalogue as searched and picked by category, hidden apps left out: what [appsState] shows
+     *  before the TV filter, and what the Installed tab lists, which that filter never narrows. */
+    private val queriedApps: StateFlow<List<AppMinimal>> = combine(
         searchQueryStream,
         selectedCategories,
-        tvOnly,
-    ) { searchQuery, categories, tvOnlyValue ->
-        AppQuery(searchQuery, categories, tvOnlyValue)
-    }
+    ) { searchQuery, categories -> searchQuery to categories }
         .combine(catalogChanges) { query, _ -> query }
         .combine(hiddenApps) { query, hidden -> query to hidden }
         .mapLatest { (query, hidden) ->
-            query.tvOnly to appRepository.apps(
+            val (search, categories) = query
+            appRepository.apps(
                 // The sort picker was removed; the main list always shows the freshest apps first.
                 sortOrder = SortOrder.UPDATED,
-                searchQuery = query.search,
-                categoriesToInclude = query.categories.toList(),
+                searchQuery = search,
+                categoriesToInclude = categories.toList(),
             ).excludingHidden(hidden)
-        }
-        // Applied to the queried list rather than being part of what triggers the query: tvPackageNames
-        // only changes after a catalogue change that already re-ran it, notably filling in at cold start.
-        .combine(tvPackageNames) { (tvOnlyValue, items), tvNames ->
-            if (tvOnlyValue) items.filter { it.packageName.name in tvNames } else items
         }
         // Off the main thread, and skip re-emitting an identical list (the catalogue flow fires
         // repeatedly during a sync) so the grid doesn't needlessly re-diff and re-animate.
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyList())
+
+    // Applied to the queried list rather than being part of what triggers the query: tvPackageNames
+    // only changes after a catalogue change that already re-ran it, notably filling in at cold start.
+    val appsState: StateFlow<List<AppMinimal>> = combine(
+        queriedApps,
+        tvOnly,
+        tvPackageNames,
+    ) { items, tvOnlyValue, tvNames ->
+        if (tvOnlyValue) items.filter { it.packageName.name in tvNames } else items
+    }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asStateFlow(emptyList())
@@ -385,7 +384,7 @@ class AppListViewModel @Inject constructor(
      * badges can never disagree.
      */
     val installedApps: StateFlow<List<AppMinimal>> = combine(
-        appsState,
+        queriedApps,
         installedVersionNames,
     ) { apps, installed ->
         apps.filter { it.packageName.name in installed }
@@ -396,10 +395,11 @@ class AppListViewModel @Inject constructor(
      *
      * What counts as an update is not decided here: [PendingUpdates] answers it, for this tab and for the
      * "updates available" notification alike, so the two can only differ by when each last looked. This
-     * only reads the catalogue rows of those packages, narrowed by search and the TV filter like every
-     * other list. It used to filter [appsState] through four flows that each began on an empty
-     * placeholder, so the tab spent the first seconds of a cold start showing an empty list that looked
-     * exactly like "everything is up to date", just after a notification had named real updates.
+     * only reads the catalogue rows of those packages, narrowed by search but never by the TV filter: an
+     * update is one whatever the app was made for. It used to filter [appsState] through four flows that
+     * each began on an empty placeholder, so the tab spent the first seconds of a cold start showing an
+     * empty list that looked exactly like "everything is up to date", just after a notification had named
+     * real updates.
      *
      * Null really means "not known yet" (see [catalogEmpty] for why that is a state of its own): the
      * first value only arrives once [PendingUpdates.stream] and the read of those rows have both
@@ -408,10 +408,8 @@ class AppListViewModel @Inject constructor(
     val updates: StateFlow<UpdatesState?> = combine(
         pendingUpdates.stream,
         searchQueryStream,
-        tvOnly,
-        tvPackageNames,
-    ) { pending, search, tvOnlyValue, tvNames -> UpdatesInputs(pending, search, tvOnlyValue, tvNames) }
-        .mapLatest { (pending, search, tvOnlyValue, tvNames) ->
+    ) { pending, search -> pending to search }
+        .mapLatest { (pending, search) ->
             // An empty package list matches nothing, but there is no point asking the database.
             val rows = if (pending.cataloguePackages.isEmpty()) {
                 emptyList()
@@ -423,7 +421,7 @@ class AppListViewModel @Inject constructor(
                 )
             }
             UpdatesState(
-                catalogue = if (tvOnlyValue) rows.filter { it.packageName.name in tvNames } else rows,
+                catalogue = rows,
                 external = pending.external,
                 count = pending.count,
             )
@@ -1057,12 +1055,6 @@ private const val SECTION_EXPAND_LIMIT = 40
 /** Cap on a carousel's full "see all" page — plenty to browse, while keeping the list small enough
  *  that opening/closing the page stays smooth (the whole catalogue would be thousands of rows). */
 private const val SECTION_PAGE_LIMIT = 200
-
-private data class AppQuery(
-    val search: String,
-    val categories: Set<DefaultName>,
-    val tvOnly: Boolean,
-)
 
 /**
  * A snapshot of the installed apps, all derived from one package-table subscription:
