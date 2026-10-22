@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.looker.droidify.compose.repoList.defaultRepoName
 import com.looker.droidify.compose.settings.RestoreSession
 import com.looker.droidify.data.backup.BackupRepository
+import com.looker.droidify.data.backup.WelcomeChoice
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.datastore.Settings
@@ -155,7 +156,11 @@ class WelcomeViewModel @Inject constructor(
         settingsRepository.get { installerType }.asStateFlow(InstallerType.Default)
 
     fun setInstaller(installerType: InstallerType) {
-        viewModelScope.launch { installerSelection.select(installerType) }
+        viewModelScope.launch {
+            installerSelection.select(installerType)
+            // Only once it took: root refused, or Shizuku not running, leaves the installer as it was.
+            if (settingsRepository.getInitial().installerType == installerType) choose(WelcomeChoice.INSTALLER)
+        }
     }
 
     /** The look in use, which the appearance page lets the person choose, as Settings does. */
@@ -164,20 +169,39 @@ class WelcomeViewModel @Inject constructor(
         .asStateFlow(Settings().toAppearance())
 
     fun setTheme(theme: Theme) {
+        choose(WelcomeChoice.THEME)
         viewModelScope.launch { settingsRepository.setTheme(theme) }
     }
 
     fun setBackgroundStyle(style: BackgroundStyle) {
+        choose(WelcomeChoice.BACKGROUND)
         viewModelScope.launch { settingsRepository.setBackgroundStyle(style) }
     }
 
     fun chooseAccentColor(color: Int) {
+        choose(WelcomeChoice.ACCENT)
         viewModelScope.launch { settingsRepository.chooseAccentColor(color) }
     }
 
     fun useWallpaperAccent() {
+        choose(WelcomeChoice.ACCENT)
         viewModelScope.launch { settingsRepository.setDynamicTheme(true) }
     }
+
+    /**
+     * Records [choice] as made on these pages, so that bringing data over from them keeps it (see
+     * [WelcomeChoice]). In the saved state, like the ticks: giving Omnify the permission to install apps
+     * can make Android close it, and the choices made before that still have to hold.
+     */
+    private fun choose(choice: WelcomeChoice) {
+        val choices = savedStateHandle.get<ArrayList<String>>(KEY_CHOICES).orEmpty() + choice.name
+        savedStateHandle[KEY_CHOICES] = ArrayList(choices.distinct())
+        backupRepository.keepOnRestore(chosen())
+    }
+
+    private fun chosen(): Set<WelcomeChoice> =
+        savedStateHandle.get<ArrayList<String>>(KEY_CHOICES).orEmpty()
+            .mapNotNullTo(mutableSetOf()) { name -> WelcomeChoice.entries.firstOrNull { it.name == name } }
 
     /** The restore of a backup file, whose dialog the restore page shows. */
     val restore = RestoreSession(backupRepository, viewModelScope) {
@@ -222,6 +246,7 @@ class WelcomeViewModel @Inject constructor(
     fun uninstallBeta() = channelMigration.uninstallBeta()
 
     init {
+        backupRepository.keepOnRestore(chosen())
         // Repositories start out off, so one that is on was switched on by a restore, from whichever of
         // the ways to bring data over. The sources page then shows it ticked, and only what the backup
         // had on: the ticks offered by default would otherwise undo a backup that left F-Droid off.
@@ -290,6 +315,8 @@ class WelcomeViewModel @Inject constructor(
                         }
                     }
                 FirstRun.finishWelcome(context)
+                // A restore made from Settings from now on brings everything, as it always has.
+                backupRepository.keepOnRestore(emptySet())
                 onDone()
             } finally {
                 _finishing.value = false
@@ -303,5 +330,6 @@ class WelcomeViewModel @Inject constructor(
 
     private companion object {
         const val KEY_CHECKED = "checked"
+        const val KEY_CHOICES = "choices"
     }
 }
