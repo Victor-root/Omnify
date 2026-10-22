@@ -30,6 +30,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Android TV: apps made for both phones and TV are recognised as TV apps** when installed with a TV launcher entry or given a TV banner by their repository, even though their index says nothing of TV.
 - **Android TV: the Installed and Updates tabs show everything**, whatever the "TV apps only" setting.
 - **Android TV: back from an app's page returns to the card that was opened**, in its own row, instead of a row scrolled back to its start.
+- **Android TV: an app's page opens over the usual background** instead of a white or black screen, with less work behind it: screenshots are decoded at the size they are shown, and the page is no longer built twice when "Match accent to app icon" is on.
 - **A translated description keeps its paragraphs and links.**
 - **A restore from the welcome page keeps what was chosen there**: the installer, theme, accent and background picked on those pages are no longer replaced by the backup's.
 - **Adding an app of a repository already followed works with an APK filter**: another app of the same repository is added on its own, as the Obtainium import does, instead of "already in your list".
