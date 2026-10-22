@@ -10,6 +10,7 @@ import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.data.model.FilePath
+import com.looker.droidify.data.model.MadeForTv
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
@@ -55,11 +56,11 @@ class AppRepository @Inject constructor(
         categoriesToExclude: List<DefaultName>? = null,
         antiFeaturesToInclude: List<Tag>? = null,
         antiFeaturesToExclude: List<Tag>? = null,
-        featuresToInclude: List<String>? = null,
+        madeForTv: MadeForTv? = null,
         permissionsToInclude: List<String>? = null,
-        // See AppDao.query's doc comment: OR instead of AND between featuresToInclude and
-        // categoriesToInclude when both are given.
-        featuresOrCategories: Boolean = false,
+        // See AppDao.query's doc comment: OR instead of AND between madeForTv and categoriesToInclude
+        // when both are given.
+        madeForTvOrCategories: Boolean = false,
         updatedOnly: Boolean = false,
         // Only these packages; an empty list matches nothing (see AppDao.query).
         packageNames: List<String>? = null,
@@ -73,9 +74,9 @@ class AppRepository @Inject constructor(
             categoriesToExclude = categoriesToExclude?.ifEmpty { null },
             antiFeaturesToInclude = antiFeaturesToInclude?.ifEmpty { null },
             antiFeaturesToExclude = antiFeaturesToExclude?.ifEmpty { null },
-            featuresToInclude = featuresToInclude?.ifEmpty { null },
+            madeForTv = madeForTv,
             permissionsToInclude = permissionsToInclude?.ifEmpty { null },
-            featuresOrCategories = featuresOrCategories,
+            madeForTvOrCategories = madeForTvOrCategories,
             updatedOnly = updatedOnly,
             packageNames = packageNames,
             locale = currentLocale,

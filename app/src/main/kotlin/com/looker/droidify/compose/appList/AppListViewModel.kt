@@ -18,6 +18,7 @@ import com.looker.droidify.data.SuggestedVersion
 import com.looker.droidify.data.externalSourceOwns
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
+import com.looker.droidify.data.model.MadeForTv
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.excludingHidden
 import com.looker.droidify.model.Repository
@@ -33,6 +34,7 @@ import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
+import com.looker.droidify.utility.common.extension.tvLauncherPackages
 import com.looker.droidify.work.BatchUpdateProgress
 import com.looker.droidify.work.SyncWorker
 import com.looker.droidify.work.UpdateAllWorker
@@ -233,19 +235,43 @@ class AppListViewModel @Inject constructor(
         appRepository.downloadStatsChanges.drop(1).sample(CATALOG_REFRESH_MS),
     ).distinctUntilChanged().asStateFlow(0)
 
+    // A single snapshot of the installed apps (versionCode and signing fingerprint), reactive to
+    // install/uninstall, derived from one package-table subscription.
+    private val installedInfo: StateFlow<InstalledInfo> = installedRepository
+        .getAllStream()
+        .map { items ->
+            InstalledInfo(
+                versions = items.associate { it.packageName to it.versionCode },
+                signatures = items.associate { it.packageName to it.signature },
+            )
+        }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(InstalledInfo())
+
+    /** The [MadeForTv] filter, with the installed apps that have a TV launcher entry: refreshed on every
+     *  install and removal, and only looked up on a television. */
+    private val madeForTv: StateFlow<MadeForTv> = installedInfo
+        .map { it.versions.keys }
+        .distinctUntilChanged()
+        .map { MadeForTv(if (isTelevisionDevice) context.packageManager.tvLauncherPackages() else emptySet()) }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.IO)
+        .asStateFlow(MadeForTv(emptySet()))
+
     /** Package names of apps genuinely made for TV — refreshed once per catalogue change, not on every
      *  keystroke/filter change, since [appsState] below intersects it in on every recompute while [tvOnly]
      *  is on. Deliberately stricter than [tvApps]'s own carousel query: that carousel also folds in the
      *  loose [TV_RELEVANT_CATEGORIES] list ("Local Media Player", "Cast", etc.), which is a fine discovery
      *  heuristic when capped to a handful of results, but turned out far too broad ("openbar") once used
-     *  uncapped as a strict hide-everything-else filter. Here we only trust the real technical signal: the
-     *  app's manifest actually declaring the `android.software.leanback` feature. */
-    private val tvPackageNames: StateFlow<Set<String>> = catalogChanges
-        .mapLatest {
+     *  uncapped as a strict hide-everything-else filter. Here we only trust the technical signals of
+     *  [MadeForTv]. */
+    private val tvPackageNames: StateFlow<Set<String>> = combine(catalogChanges, madeForTv) { _, tv -> tv }
+        .mapLatest { tv ->
             appRepository.apps(
                 // Order is irrelevant here — only used to build a membership set, never shown directly.
                 sortOrder = SortOrder.UPDATED,
-                featuresToInclude = listOf(LEANBACK_FEATURE),
+                madeForTv = tv,
             ).mapTo(mutableSetOf()) { it.packageName.name }
         }
         .distinctUntilChanged()
@@ -296,20 +322,6 @@ class AppListViewModel @Inject constructor(
     fun selectTab(tab: AppTab) {
         _selectedTab.value = tab
     }
-
-    // A single snapshot of the installed apps (versionCode and signing fingerprint), reactive to
-    // install/uninstall, derived from one package-table subscription.
-    private val installedInfo: StateFlow<InstalledInfo> = installedRepository
-        .getAllStream()
-        .map { items ->
-            InstalledInfo(
-                versions = items.associate { it.packageName to it.versionCode },
-                signatures = items.associate { it.packageName to it.signature },
-            )
-        }
-        .distinctUntilChanged()
-        .flowOn(Dispatchers.Default)
-        .asStateFlow(InstalledInfo())
 
     // packageName -> the catalogue version we'd install on this device (versionCode + signer
     // fingerprints), taken as the newest across all repos, re-queried whenever the catalogue changes.
@@ -780,20 +792,23 @@ class AppListViewModel @Inject constructor(
         .distinctUntilChanged()
         .asStateFlow(emptyList())
 
-    /** "Made for TV" carousel — apps that declare the Android TV (leanback) launcher feature, OR are
-     *  tagged with a genuinely TV-relevant category (see [TV_RELEVANT_CATEGORIES]). The manifest feature
-     *  alone is nearly unused across the whole F-Droid catalogue (checked against the live index: 3
-     *  packages total, main + archive + IzzyOnDroid combined) — most apps that work great on TV (VLC,
+    /** "Made for TV" carousel — apps made for TV by [MadeForTv]'s signals, OR tagged with a genuinely
+     *  TV-relevant category (see [TV_RELEVANT_CATEGORIES]). The manifest feature alone is nearly unused
+     *  across the whole F-Droid catalogue (checked against the live index: 3 packages total, main +
+     *  archive + IzzyOnDroid combined) — most apps that work great on TV (VLC,
      *  Kodi, Jellyfin, mpv, …) simply never declare it, since F-Droid doesn't require Play Store TV
      *  compliance. The category union surfaces those real, already-catalogued apps instead of leaving the
      *  carousel almost empty. Shown only on the TV build (the caller gates the UI too), so couch users
      *  get a row of apps that actually work with a remote. The query is skipped entirely off TV to spare
      *  the work. This is the whole list, capped like the "see all" page ([SECTION_PAGE_LIMIT]); the
      *  carousel shows the first few of it ([tvApps]), and the TV-only grid all of it. */
-    val allTvApps: StateFlow<List<AppMinimal>> = combine(catalogChanges, hiddenApps, ownRepos) { _, hidden, own ->
-        hidden to own
-    }
-        .mapLatest { (hidden, own) ->
+    val allTvApps: StateFlow<List<AppMinimal>> = combine(
+        catalogChanges,
+        hiddenApps,
+        ownRepos,
+        madeForTv,
+    ) { _, hidden, own, tv -> Triple(hidden, own, tv) }
+        .mapLatest { (hidden, own, tv) ->
             if (!isTelevisionDevice) {
                 emptyList()
             } else {
@@ -803,7 +818,7 @@ class AppListViewModel @Inject constructor(
                     appRepository.apps(
                         sortOrder = SortOrder.UPDATED,
                         repoId = repo.id,
-                        featuresToInclude = listOf(LEANBACK_FEATURE),
+                        madeForTv = tv,
                     )
                 }
                 if (BuildConfig.TRACES) {
@@ -811,9 +826,9 @@ class AppListViewModel @Inject constructor(
                 }
                 val catalogue = appRepository.apps(
                     sortOrder = SortOrder.UPDATED,
-                    featuresToInclude = listOf(LEANBACK_FEATURE),
+                    madeForTv = tv,
                     categoriesToInclude = TV_RELEVANT_CATEGORIES,
-                    featuresOrCategories = true,
+                    madeForTvOrCategories = true,
                 )
                 (fromOwnRepos + catalogue).distinctBy { it.packageName }
                     .excludingHidden(hidden).withoutPhoneVersionsOfTvApps().take(SECTION_PAGE_LIMIT)
@@ -847,8 +862,8 @@ class AppListViewModel @Inject constructor(
      * The TV-only home, in rows like the full catalogue's rather than one grid of everything: favourites,
      * each repository the user added ([ownRepositoryApps], all its apps), the newest and the recently updated, then a row per category, the
      * most populated first. A category with fewer than [MIN_CATEGORY_ROW] apps for TV goes into a last
-     * "Other" row instead of a row of its own. Apps made for TV are, as for [allTvApps], those declaring
-     * the leanback feature, plus every app of a category that is about TV in itself
+     * "Other" row instead of a row of its own. Apps made for TV are, as for [allTvApps], those of
+     * [MadeForTv], plus every app of a category that is about TV in itself
      * ([TV_RELEVANT_CATEGORIES]).
      */
     val tvAppRows: StateFlow<List<AppRow>> =
@@ -859,15 +874,16 @@ class AppListViewModel @Inject constructor(
             categories,
             hiddenApps,
         ) { tv, favourites, own, cats, hidden -> TvRowsInput(tv, favourites, own, cats, hidden) }
-            .mapLatest { input ->
+            .combine(madeForTv) { input, tv -> input to tv }
+            .mapLatest { (input, tv) ->
                 if (!isTelevisionDevice) return@mapLatest emptyList()
                 val tvPackages = input.tvApps.mapTo(HashSet()) { it.packageName }
                 val tvOnlyQuery: suspend (SortOrder, Boolean) -> List<AppMinimal> = { order, updatedOnly ->
                     appRepository.apps(
                         sortOrder = order,
-                        featuresToInclude = listOf(LEANBACK_FEATURE),
+                        madeForTv = tv,
                         categoriesToInclude = TV_RELEVANT_CATEGORIES,
-                        featuresOrCategories = true,
+                        madeForTvOrCategories = true,
                         updatedOnly = updatedOnly,
                     ).excludingHidden(input.hidden).withoutPhoneVersionsOfTvApps().take(DISCOVER_ROW_COUNT)
                 }
@@ -876,7 +892,7 @@ class AppListViewModel @Inject constructor(
                     category.name to appRepository.apps(
                         sortOrder = SortOrder.UPDATED,
                         categoriesToInclude = listOf(category.defaultName),
-                        featuresToInclude = if (tvCategory) null else listOf(LEANBACK_FEATURE),
+                        madeForTv = if (tvCategory) null else tv,
                     ).excludingHidden(input.hidden).withoutPhoneVersionsOfTvApps()
                 }.filter { it.second.isNotEmpty() }
                 val (full, small) = categoryRows.partition { it.second.size >= MIN_CATEGORY_ROW }
@@ -911,8 +927,14 @@ class AppListViewModel @Inject constructor(
     /** Full app list for the carousel page the user opened via "see all" (empty when none is open).
      *  Unlike the carousels above, this isn't capped to a row — it's the whole section. */
     val openedSectionApps: StateFlow<List<AppMinimal>> =
-        combine(catalogChanges, statsChanges, _openedSection, hiddenApps) { _, _, section, hidden -> section to hidden }
-            .mapLatest { (section, hidden) ->
+        combine(
+            catalogChanges,
+            statsChanges,
+            _openedSection,
+            hiddenApps,
+            madeForTv,
+        ) { _, _, section, hidden, tv -> Triple(section, hidden, tv) }
+            .mapLatest { (section, hidden, tv) ->
                 when (section) {
                     SECTION_WHATS_NEW ->
                         appRepository.apps(sortOrder = SortOrder.ADDED).excludingHidden(hidden).take(SECTION_PAGE_LIMIT)
@@ -924,9 +946,9 @@ class AppListViewModel @Inject constructor(
                         appRepository.mostDownloadedApps(SECTION_PAGE_LIMIT).excludingHidden(hidden)
                     SECTION_TV -> appRepository.apps(
                         sortOrder = SortOrder.UPDATED,
-                        featuresToInclude = listOf(LEANBACK_FEATURE),
+                        madeForTv = tv,
                         categoriesToInclude = TV_RELEVANT_CATEGORIES,
-                        featuresOrCategories = true,
+                        madeForTvOrCategories = true,
                     ).excludingHidden(hidden).withoutPhoneVersionsOfTvApps().take(SECTION_PAGE_LIMIT)
                     SECTION_SHIZUKU -> shizukuFirst(
                         appRepository.apps(
@@ -1004,12 +1026,8 @@ const val SECTION_ROOT = "::root"
  *  (expandedSections/toggleSection, not openedSection/openSection). */
 const val RECOMMENDED_VICTOR_KEY = "::recommended_victor"
 
-/** The manifest <uses-feature> an app declares when it ships an Android TV (leanback) launcher — our
- *  marker for "made for TV". */
-private const val LEANBACK_FEATURE = "android.software.leanback"
-
 /** F-Droid category defaultNames that are a reliable "this is genuinely useful on TV" signal even for
- *  apps that never bother declaring [LEANBACK_FEATURE] (see tvApps' doc comment) — media playback,
+ *  apps that show none of [MadeForTv]'s signals (see tvApps' doc comment) — media playback,
  *  emulation and remote-control apps are used on a couch with a D-pad far more than any other category. */
 private val TV_RELEVANT_CATEGORIES = listOf(
     "Local Media Player",
