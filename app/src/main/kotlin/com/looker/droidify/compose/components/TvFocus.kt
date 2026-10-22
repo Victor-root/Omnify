@@ -206,6 +206,29 @@ fun Modifier.tvBringIntoViewOnFocus(): Modifier {
 }
 
 /**
+ * Android TV only: when what this holds is swapped for something else ([key] changes) while the focus
+ * was inside it, the focus moves to [requester] in the new content. Without it, the focused button
+ * leaving the screen (Cancel giving way to Launch at the end of an install) let Android put the focus
+ * wherever it chose, often far from where the person was.
+ */
+@Composable
+fun Modifier.tvFocusFollowsSwap(key: Any, requester: FocusRequester): Modifier {
+    if (!LocalIsTelevision.current) return this
+    // A plain holder, not state: where the focus is must not recompose anything, only be known at
+    // the moment the content changes, before the old content and its focus are gone.
+    val focus = remember { FocusInside() }
+    val focusedAtSwap = remember(key) { focus.inside }
+    LaunchedEffect(key) {
+        if (focusedAtSwap) runCatching { requester.requestFocus() }
+    }
+    return onFocusChanged { focus.inside = it.hasFocus }
+}
+
+private class FocusInside {
+    var inside = false
+}
+
+/**
  * Android TV only: makes a tall, non-interactive block (e.g. a README rendered in a WebView) a single
  * D-pad focus stop that pages the surrounding [scrollState] up/down by [stepPx] instead of stepping
  * through the links and images inside it. "Down" pages down until the page bottom, then releases focus;

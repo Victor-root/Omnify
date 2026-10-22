@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.externalApps
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
@@ -25,6 +26,7 @@ import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.TileIconSize
 import com.looker.droidify.compose.components.TvTileIconSize
 import com.looker.droidify.compose.components.tvActionFocusScale
+import com.looker.droidify.compose.components.tvFocusFollowsSwap
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.installer.model.InstallState
@@ -95,6 +97,15 @@ fun ExternalLifecycleActions(
     // itself uses (600dp) and the F-Droid catalogue detail screen's own primary button — phones (the
     // vast majority of devices) are completely untouched.
     val isTablet = !isTelevision && LocalConfiguration.current.screenWidthDp >= 600
+    // offersOtherReleaseChannel: what the built-in Omnify source is offering is the other release
+    // channel, which is a separate app to Android and cannot update this one (see ChannelMigration).
+    // isUpdatePending already keeps it out of the Updates tab and the automatic installer, but this
+    // button reads hasUpdateGiven directly, so without this it would still say "Update" and go ahead
+    // and install a second Omnify. The switch is offered by ChannelSwitchBanner instead, which says
+    // what it actually does.
+    val updateOffered = app.hasUpdateGiven(installedVersionName) && !app.offersOtherReleaseChannel
+    val shown = listOf(downloadStatus != null, installing, isInstalled, updateOffered)
+    Box(primaryActionFocusRequester?.let { Modifier.tvFocusFollowsSwap(shown, it) } ?: Modifier) {
     when {
         downloadStatus != null -> DownloadProgressRow(
             status = downloadStatus,
@@ -135,13 +146,7 @@ fun ExternalLifecycleActions(
                     modifier = primaryButtonModifier,
                 ) { Text(stringResource(R.string.install)) }
 
-                // offersOtherReleaseChannel: what the built-in Omnify source is offering is the other
-                // release channel, which is a separate app to Android and cannot update this one (see
-                // ChannelMigration). isUpdatePending already keeps it out of the Updates tab and the
-                // automatic installer, but this button reads hasUpdateGiven directly, so without this
-                // it would still say "Update" and go ahead and install a second Omnify. The switch is
-                // offered by ChannelSwitchBanner instead, which says what it actually does.
-                app.hasUpdateGiven(installedVersionName) && !app.offersOtherReleaseChannel -> Button(
+                updateOffered -> Button(
                     onClick = onInstallOrUpdate,
                     modifier = primaryButtonModifier,
                 ) { Text(stringResource(R.string.update)) }
@@ -161,5 +166,6 @@ fun ExternalLifecycleActions(
                 // uninstall buttons alone.
             }
         }
+    }
     }
 }
