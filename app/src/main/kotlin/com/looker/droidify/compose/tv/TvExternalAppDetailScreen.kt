@@ -119,7 +119,11 @@ fun TvExternalAppDetailScreen(
     TvDetailOpenTiming("external app detail", ready = app != null)
 
     if (app == null) {
-        TvCentered { CircularProgressIndicator() }
+        // Over the screen's usual backdrop rather than a flat white (or black) screen.
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            TvAccentBackground()
+            TvCentered { CircularProgressIndicator() }
+        }
         return
     }
 

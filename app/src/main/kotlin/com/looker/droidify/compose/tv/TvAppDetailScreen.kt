@@ -117,159 +117,161 @@ fun TvAppDetailScreen(
     BackHandler { onBackClick() }
     TvDetailOpenTiming("app detail", ready = state is AppDetailState.Success)
 
-    when (val current = state) {
-        is AppDetailState.Loading -> TvCentered { CircularProgressIndicator() }
-        is AppDetailState.Error -> TvCentered {
-            Text(current.message, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+    // The backdrop is laid once, under the loading state as under the page: opening a page showed a flat
+    // white (or black) screen until the page arrived, and the backdrop was then built anew.
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        ScopedAccentColor(if (accentMatchesAppIcon) iconAccent.accent else null) { TvAccentBackground() }
+        when (val current = state) {
+            is AppDetailState.Loading -> TvCentered { CircularProgressIndicator() }
+            is AppDetailState.Error -> TvCentered {
+                Text(current.message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
 
-        is AppDetailState.Success -> {
-            val app = current.app
-            val packages = current.packages
+            is AppDetailState.Success -> {
+                val app = current.app
+                val packages = current.packages
 
-            val installedPackage = remember(packages) { packages.map { it.first }.firstOrNull { it.installed } }
-            val appMinimal = remember(app) { app.minimal() }
-            // installedInfo (real PackageManager state), not installedPackage (an exact catalogue
-            // versionCode match): an app installed from a different channel that's ahead of this repo,
-            // Google Play shipping a build newer than the repo's own top release, say, has no matching
-            // entry in [packages] at all, which used to make isInstalled/updateAvailable below wrongly
-            // report "not installed" (mirrors the same fix on the phone screen's AppDetail).
-            val isInstalled = installedInfo != null
-            // A plain local val (not the installedInfo delegate above) so it smart-casts below: reading
-            // installedInfo?.versionCode again after an installedInfo != null check doesn't narrow the
-            // delegated property itself, since a `by ... collectAsStateWithLifecycle()` getter isn't
-            // guaranteed to keep returning the same instance the way a real local val does.
-            val installedVersionCode = installedInfo?.versionCode
-            // The installed APK's actual signing certificate (lowercase hex): not the catalogue entry's
-            // own claim (just whatever the index says), but the real, on-device signature, so it can be
-            // shown, compared, and copied, e.g. against a build the user just compiled themselves. Null
-            // when not installed, or on the rare PackageManager read failure. Read off the main thread
-            // along with the rest of installedInfo (see InstalledInfo.signer).
-            val installedSignerRaw = installedInfo?.signer
-            val installable = remember(packages, app.metadata.suggestedVersionCode) {
-                packages.selectForDevice(app.metadata.suggestedVersionCode)
-            }
-            val installablePackage = installable?.first
-            // The certificate(s) the repository index declares for the version we'd actually install/
-            // update to, known the moment the catalogue is synced, whether or not the app is installed
-            // yet, unlike [installedSignerRaw].
-            val expectedSigners = installablePackage?.manifest?.signer
-            // The same lookups the phone page makes, so both show the same things.
-            val suggestedPackage = installablePackage ?: packages.firstOrNull()?.first
-            val permissions = remember(suggestedPackage) { suggestedPackage?.manifest?.permissions.orEmpty() }
-            val isRootCompatible = remember(app, installablePackage, installedPackage) {
-                app.isRootCompatible(installablePackage ?: installedPackage)
-            }
-            // externallySourced: mirrors the phone screen, see AppDetailViewModel's own property. A copy
-            // a tracked external source is responsible for is not this catalogue entry's to update, and
-            // the comparison below says nothing about which build is newer across two numberings.
-            val updateAvailable = !externallySourced && installedVersionCode != null &&
-                installablePackage != null &&
-                !catalogueBuildIsOlder(installedInfo?.version, installablePackage.manifest.versionName) &&
-                installedVersionCode < installablePackage.manifest.versionCode
-            // Mirrors the phone screen: the OS reports Installed before the app's own installed-packages
-            // table catches up, so hold the "installing" look until the confirmed version matches.
-            val installConfirmed = downloadTargetVersionCode == null ||
-                installedPackage?.manifest?.versionCode == downloadTargetVersionCode
-
-            val primaryFocus = remember { FocusRequester() }
-            // Hoisted so the startup focus burst below can pin the page back to the top: focusing the
-            // action button nudges the scroll down a hair (bring-into-view), which was clipping the header.
-            val pageScroll = rememberScrollState()
-            // Once the user has pressed any key, focus is theirs: see TvKeepFocusOnMainAction.
-            var userInteracted by remember { mutableStateOf(false) }
-            val screenshots = remember(app.screenshots) {
-                (app.screenshots?.tv?.takeIf { it.isNotEmpty() } ?: app.screenshots?.phone).orEmpty()
-            }
-            // The catalogue description is HTML, rendered in the right pane (see TvDescriptionPane) so it
-            // looks the same as an external app's README.
-            val descriptionHtml = app.metadata.description.raw
-            // Only the description is shown here, so only it is translated (no summary, no what's new).
-            LaunchedEffect(app.metadata.packageName.name) {
-                viewModel.maybeAutoTranslate(summary = "", descriptionHtml = descriptionHtml, whatsNew = "")
-            }
-            // Where "up" from the description goes: back to the screenshots above it.
-            val screenshotsFocus = remember { FocusRequester() }
-
-            // Tapping a version confirms, then installs that exact release — the same engine
-            // (viewModel.installVersion) and confirm/downgrade flow the phone screen uses.
-            var versionToInstall by remember(app.metadata.packageName.name) {
-                mutableStateOf<Pair<Package, Repo>?>(null)
-            }
-            // A downgrade the user confirmed: kept while the current app uninstalls, then installed once
-            // it's gone (Android blocks in-place downgrades) — mirrors the phone screen.
-            var pendingDowngradeInstall by remember(app.metadata.packageName.name) {
-                mutableStateOf<Pair<Package, Repo>?>(null)
-            }
-            LaunchedEffect(installedInfo, pendingDowngradeInstall) {
-                val pending = pendingDowngradeInstall ?: return@LaunchedEffect
-                if (installedInfo == null) {
-                    viewModel.installVersion(pending.first, pending.second)
-                    pendingDowngradeInstall = null
+                val installedPackage = remember(packages) { packages.map { it.first }.firstOrNull { it.installed } }
+                val appMinimal = remember(app) { app.minimal() }
+                // installedInfo (real PackageManager state), not installedPackage (an exact catalogue
+                // versionCode match): an app installed from a different channel that's ahead of this repo,
+                // Google Play shipping a build newer than the repo's own top release, say, has no matching
+                // entry in [packages] at all, which used to make isInstalled/updateAvailable below wrongly
+                // report "not installed" (mirrors the same fix on the phone screen's AppDetail).
+                val isInstalled = installedInfo != null
+                // A plain local val (not the installedInfo delegate above) so it smart-casts below: reading
+                // installedInfo?.versionCode again after an installedInfo != null check doesn't narrow the
+                // delegated property itself, since a `by ... collectAsStateWithLifecycle()` getter isn't
+                // guaranteed to keep returning the same instance the way a real local val does.
+                val installedVersionCode = installedInfo?.versionCode
+                // The installed APK's actual signing certificate (lowercase hex): not the catalogue entry's
+                // own claim (just whatever the index says), but the real, on-device signature, so it can be
+                // shown, compared, and copied, e.g. against a build the user just compiled themselves. Null
+                // when not installed, or on the rare PackageManager read failure. Read off the main thread
+                // along with the rest of installedInfo (see InstalledInfo.signer).
+                val installedSignerRaw = installedInfo?.signer
+                val installable = remember(packages, app.metadata.suggestedVersionCode) {
+                    packages.selectForDevice(app.metadata.suggestedVersionCode)
                 }
-            }
-            versionToInstall?.let { (pkg, repo) ->
-                InstallVersionDialog(
-                    versionName = pkg.manifest.versionName,
-                    isDowngrade = installedVersionCode != null &&
-                        pkg.manifest.versionCode < installedVersionCode,
-                    onInstall = {
-                        viewModel.installVersion(pkg, repo)
-                        versionToInstall = null
-                    },
-                    onUninstall = {
-                        pendingDowngradeInstall = pkg to repo
-                        viewModel.uninstall()
-                        versionToInstall = null
-                    },
-                    onDismiss = { versionToInstall = null },
+                val installablePackage = installable?.first
+                // The certificate(s) the repository index declares for the version we'd actually install/
+                // update to, known the moment the catalogue is synced, whether or not the app is installed
+                // yet, unlike [installedSignerRaw].
+                val expectedSigners = installablePackage?.manifest?.signer
+                // The same lookups the phone page makes, so both show the same things.
+                val suggestedPackage = installablePackage ?: packages.firstOrNull()?.first
+                val permissions = remember(suggestedPackage) { suggestedPackage?.manifest?.permissions.orEmpty() }
+                val isRootCompatible = remember(app, installablePackage, installedPackage) {
+                    app.isRootCompatible(installablePackage ?: installedPackage)
+                }
+                // externallySourced: mirrors the phone screen, see AppDetailViewModel's own property. A copy
+                // a tracked external source is responsible for is not this catalogue entry's to update, and
+                // the comparison below says nothing about which build is newer across two numberings.
+                val updateAvailable = !externallySourced && installedVersionCode != null &&
+                    installablePackage != null &&
+                    !catalogueBuildIsOlder(installedInfo?.version, installablePackage.manifest.versionName) &&
+                    installedVersionCode < installablePackage.manifest.versionCode
+                // Mirrors the phone screen: the OS reports Installed before the app's own installed-packages
+                // table catches up, so hold the "installing" look until the confirmed version matches.
+                val installConfirmed = downloadTargetVersionCode == null ||
+                    installedPackage?.manifest?.versionCode == downloadTargetVersionCode
+
+                val primaryFocus = remember { FocusRequester() }
+                // Hoisted so the startup focus burst below can pin the page back to the top: focusing the
+                // action button nudges the scroll down a hair (bring-into-view), which was clipping the header.
+                val pageScroll = rememberScrollState()
+                // Once the user has pressed any key, focus is theirs: see TvKeepFocusOnMainAction.
+                var userInteracted by remember { mutableStateOf(false) }
+                val screenshots = remember(app.screenshots) {
+                    (app.screenshots?.tv?.takeIf { it.isNotEmpty() } ?: app.screenshots?.phone).orEmpty()
+                }
+                // The catalogue description is HTML, rendered in the right pane (see TvDescriptionPane) so it
+                // looks the same as an external app's README.
+                val descriptionHtml = app.metadata.description.raw
+                // Only the description is shown here, so only it is translated (no summary, no what's new).
+                LaunchedEffect(app.metadata.packageName.name) {
+                    viewModel.maybeAutoTranslate(summary = "", descriptionHtml = descriptionHtml, whatsNew = "")
+                }
+                // Where "up" from the description goes: back to the screenshots above it.
+                val screenshotsFocus = remember { FocusRequester() }
+
+                // Tapping a version confirms, then installs that exact release — the same engine
+                // (viewModel.installVersion) and confirm/downgrade flow the phone screen uses.
+                var versionToInstall by remember(app.metadata.packageName.name) {
+                    mutableStateOf<Pair<Package, Repo>?>(null)
+                }
+                // A downgrade the user confirmed: kept while the current app uninstalls, then installed once
+                // it's gone (Android blocks in-place downgrades) — mirrors the phone screen.
+                var pendingDowngradeInstall by remember(app.metadata.packageName.name) {
+                    mutableStateOf<Pair<Package, Repo>?>(null)
+                }
+                LaunchedEffect(installedInfo, pendingDowngradeInstall) {
+                    val pending = pendingDowngradeInstall ?: return@LaunchedEffect
+                    if (installedInfo == null) {
+                        viewModel.installVersion(pending.first, pending.second)
+                        pendingDowngradeInstall = null
+                    }
+                }
+                versionToInstall?.let { (pkg, repo) ->
+                    InstallVersionDialog(
+                        versionName = pkg.manifest.versionName,
+                        isDowngrade = installedVersionCode != null &&
+                            pkg.manifest.versionCode < installedVersionCode,
+                        onInstall = {
+                            viewModel.installVersion(pkg, repo)
+                            versionToInstall = null
+                        },
+                        onUninstall = {
+                            pendingDowngradeInstall = pkg to repo
+                            viewModel.uninstall()
+                            versionToInstall = null
+                        },
+                        onDismiss = { versionToInstall = null },
+                    )
+                }
+
+                // An update Android won't apply in place (a differently-signed copy on the device). The
+                // phone screen and the TV external-source screen both showed this; this one never did, so
+                // updating such an app here did nothing at all and left the button offering the same
+                // update again, with no way to find out why.
+                signatureConflict?.let { conflict ->
+                    InstallConflictDialog(
+                        conflict = conflict,
+                        appName = app.metadata.name,
+                        onUninstall = viewModel::confirmSignatureConflictUninstall,
+                        onDismiss = viewModel::dismissSignatureConflict,
+                    )
+                }
+
+                // The header (back button, icon/name/chips, action buttons + favourite) is guaranteed to
+                // already fit in the initial viewport, so navigating the D-pad within it should never scroll
+                // the page — only leaving it, into the screenshots/description/versions below, should.
+                // Compose's own "scroll the newly focused element into view" reflex doesn't respect that (it
+                // still nudges the scroll position for an element that's already fully visible, most visibly
+                // as a shaky micro up/down scroll while tabbing between the action buttons), so it's suppressed
+                // outright while focus is inside the header and the page is still at the top — the same fix
+                // already shipped for the phone hero card (see AppDetailScreen), never ported to this separate
+                // TV screen when it was split out.
+                var headerHasFocus by remember { mutableStateOf(false) }
+                // The action buttons alone, not the whole header: the favourite and hide toggles sit in it too,
+                // and focus landing on one of those was taken for having reached Install.
+                var actionsHaveFocus by remember { mutableStateOf(false) }
+                val bringIntoViewSpec = rememberTvLeftPaneBringIntoViewSpec(pageScroll) { headerHasFocus }
+
+                // Focusing the action button can bring-into-view scroll the column down a touch, clipping the
+                // header; the button is above the fold anyway, so snap back to the top after each landing.
+                TvKeepFocusOnMainAction(
+                    primary = primaryFocus,
+                    actionHasFocus = { actionsHaveFocus },
+                    userInteracted = { userInteracted },
+                    onLanded = { runCatching { pageScroll.scrollTo(0) } },
                 )
-            }
 
-            // An update Android won't apply in place (a differently-signed copy on the device). The
-            // phone screen and the TV external-source screen both showed this; this one never did, so
-            // updating such an app here did nothing at all and left the button offering the same
-            // update again, with no way to find out why.
-            signatureConflict?.let { conflict ->
-                InstallConflictDialog(
-                    conflict = conflict,
-                    appName = app.metadata.name,
-                    onUninstall = viewModel::confirmSignatureConflictUninstall,
-                    onDismiss = viewModel::dismissSignatureConflict,
-                )
-            }
-
-            // The header (back button, icon/name/chips, action buttons + favourite) is guaranteed to
-            // already fit in the initial viewport, so navigating the D-pad within it should never scroll
-            // the page — only leaving it, into the screenshots/description/versions below, should.
-            // Compose's own "scroll the newly focused element into view" reflex doesn't respect that (it
-            // still nudges the scroll position for an element that's already fully visible, most visibly
-            // as a shaky micro up/down scroll while tabbing between the action buttons), so it's suppressed
-            // outright while focus is inside the header and the page is still at the top — the same fix
-            // already shipped for the phone hero card (see AppDetailScreen), never ported to this separate
-            // TV screen when it was split out.
-            var headerHasFocus by remember { mutableStateOf(false) }
-            // The action buttons alone, not the whole header: the favourite and hide toggles sit in it too,
-            // and focus landing on one of those was taken for having reached Install.
-            var actionsHaveFocus by remember { mutableStateOf(false) }
-            val bringIntoViewSpec = rememberTvLeftPaneBringIntoViewSpec(pageScroll) { headerHasFocus }
-
-            // Focusing the action button can bring-into-view scroll the column down a touch, clipping the
-            // header; the button is above the fold anyway, so snap back to the top after each landing.
-            TvKeepFocusOnMainAction(
-                primary = primaryFocus,
-                actionHasFocus = { actionsHaveFocus },
-                userInteracted = { userInteracted },
-                onLanded = { runCatching { pageScroll.scrollTo(0) } },
-            )
-
-            // Scoped to just this screen: when the setting is on and a colour has been sampled from the
-            // app's own icon, it overrides the accent for every MaterialTheme.colorScheme.primary use
-            // inside (e.g. the favourite heart, the primary action button), without touching the app-wide
-            // theme.
-            ScopedAccentColor(if (accentMatchesAppIcon) iconAccent.accent else null) {
-                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-                    TvAccentBackground()
+                // Scoped to just this screen: when the setting is on and a colour has been sampled from the
+                // app's own icon, it overrides the accent for every MaterialTheme.colorScheme.primary use
+                // inside (e.g. the favourite heart, the primary action button), without touching the app-wide
+                // theme.
+                ScopedAccentColor(if (accentMatchesAppIcon) iconAccent.accent else null) {
                     TvAppDetailPanes(
                         leftScroll = pageScroll,
                         leftBringIntoViewSpec = bringIntoViewSpec,
@@ -638,8 +640,5 @@ internal fun TvSectionTitle(text: String) {
 
 @Composable
 internal fun TvCentered(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center,
-    ) { content() }
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
 }
