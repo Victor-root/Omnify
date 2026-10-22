@@ -33,6 +33,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -214,6 +216,11 @@ internal fun TvDetailOpenTiming(page: String, ready: Boolean) {
  * filling in after it opens (screenshots appear, the install state flips Install to Launch and replaces
  * the button), and any of that can move the focus. Once a key is pressed the focus is the person's.
  * [onLanded] runs after each landing.
+ *
+ * It also stops for good once the page pauses, which it does as soon as Back leaves it. The remote's
+ * Back never reaches the page as a key press (predictive back takes it first), so after a look at a
+ * page without pressing anything, it kept pulling the focus back onto the page while it faded out,
+ * off the card the screen underneath had just put it back on, and the focus ended up in the sidebar.
  */
 @Composable
 internal fun TvKeepFocusOnMainAction(
@@ -222,12 +229,14 @@ internal fun TvKeepFocusOnMainAction(
     userInteracted: () -> Boolean,
     onLanded: suspend () -> Unit = {},
 ) {
+    var paused by remember { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { paused = true }
     LaunchedEffect(Unit) {
-        while (!userInteracted()) {
+        while (!userInteracted() && !paused) {
             if (!actionHasFocus() && runCatching { primary.requestFocus() }.getOrDefault(false)) {
                 DiagnosticLog.log("TV app detail: focus put on the main action")
                 delay(50)
-                if (!userInteracted()) onLanded()
+                if (!userInteracted() && !paused) onLanded()
             }
             delay(100)
         }

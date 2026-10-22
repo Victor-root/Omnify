@@ -98,6 +98,7 @@ import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.shownOnExternalTab
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
@@ -282,10 +283,18 @@ fun TvHomeScreen(
             return@LaunchedEffect
         }
         if (restoreFocusId != null) {
-            repeat(10) {
-                if (runCatching { restoreRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+            repeat(10) { attempt ->
+                // Done only when the card actually took the focus: a request it refused used to count as
+                // done too, and left the focus nowhere.
+                if (runCatching { restoreRequester.requestFocus() }.getOrDefault(false)) {
+                    if (BuildConfig.DIAGNOSTICS) {
+                        DiagnosticLog.log("TV home: focus back on the opened card (try ${attempt + 1})")
+                    }
+                    return@LaunchedEffect
+                }
                 delay(50)
             }
+            if (BuildConfig.DIAGNOSTICS) DiagnosticLog.log("TV home: the opened card could not take the focus back")
         }
         // Give hasFavourites a short quiet window to settle before ever requesting focus, instead of
         // requesting it against whatever's first right now and correcting visibly a beat later once
