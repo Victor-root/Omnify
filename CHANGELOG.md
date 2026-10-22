@@ -15,6 +15,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Parallel downloads (experimental)**: an option in Settings downloads large apps in several parts at once, each over its own connection.
 - **An empty home that says what to do** when no repository is enabled.
 - **Jellyfin joins the Android TV picks.**
+- **Translate an app's page on Android TV**, with automatic translation when it is turned on, as on a phone.
 
 ### 🔄 Changed
 - **Interrupted downloads resume** where they stopped, with automatic retries, external sources included.
@@ -28,6 +29,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 ### 🐛 Fixed
 - **Android TV: apps made for both phones and TV are recognised as TV apps** when installed with a TV launcher entry or given a TV banner by their repository, even though their index says nothing of TV.
 - **Android TV: the Installed and Updates tabs show everything**, whatever the "TV apps only" setting.
+- **A translated description keeps its paragraphs and links.**
 - **A restore from the welcome page keeps what was chosen there**: the installer, theme, accent and background picked on those pages are no longer replaced by the backup's.
 - **Adding an app of a repository already followed works with an APK filter**: another app of the same repository is added on its own, as the Obtainium import does, instead of "already in your list".
 - **The Installed tab lists installed external sources too**, after the catalogue apps, on phone and TV.

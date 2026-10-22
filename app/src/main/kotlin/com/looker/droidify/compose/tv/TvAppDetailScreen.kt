@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.tv
 
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.ui.platform.LocalContext
 import com.looker.droidify.compose.appDetail.PermissionsSection
 import com.looker.droidify.compose.appDetail.isRootCompatible
@@ -66,6 +67,7 @@ import com.looker.droidify.installer.model.InstallState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import com.looker.droidify.compose.components.CertificateSection
+import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
@@ -101,6 +103,8 @@ fun TvAppDetailScreen(
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
     val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
+    val descriptionTranslation by viewModel.descriptionTranslation.collectAsStateWithLifecycle()
+    val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val context = LocalContext.current
     // Set once the hero icon actually loads (see the AppMinimalIcon call below); reset per screen
     // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
@@ -180,6 +184,10 @@ fun TvAppDetailScreen(
             // The catalogue description is HTML, rendered in the right pane (see TvDescriptionPane) so it
             // looks the same as an external app's README.
             val descriptionHtml = app.metadata.description.raw
+            // Only the description is shown here, so only it is translated (no summary, no what's new).
+            LaunchedEffect(app.metadata.packageName.name) {
+                viewModel.maybeAutoTranslate(summary = "", descriptionHtml = descriptionHtml, whatsNew = "")
+            }
             // Where "up" from the description goes: back to the screenshots above it.
             val screenshotsFocus = remember { FocusRequester() }
 
@@ -334,6 +342,17 @@ fun TvAppDetailScreen(
                                     } else {
                                         null
                                     },
+                                    translation = descriptionTranslation.takeIf {
+                                        translationEnabled && descriptionHtml.isNotBlank()
+                                    },
+                                    onTranslate = {
+                                        viewModel.translateDescription(
+                                            summary = "",
+                                            descriptionHtml = descriptionHtml,
+                                            whatsNew = "",
+                                        )
+                                    },
+                                    onShowOriginal = viewModel::showOriginalDescription,
                                 )
                             }
 
@@ -364,7 +383,8 @@ fun TvAppDetailScreen(
                                 TvDescriptionMessage(stringResource(R.string.no_description_available_DESC))
                             } else {
                                 TvDescriptionPane(
-                                    html = descriptionHtml,
+                                    html = (descriptionTranslation as? DescriptionTranslation.Translated)
+                                        ?.description?.takeIf { it.isNotBlank() } ?: descriptionHtml,
                                     baseUrl = "",
                                     javaScriptEnabled = false,
                                     webUrl = app.links?.webSite ?: app.links?.sourceCode ?: "",
@@ -465,6 +485,10 @@ internal fun TvSecondaryActions(
     onToggleHidden: () -> Unit,
     // Android's own page for the installed app (permissions, storage, notifications…); null hides it.
     onManageClick: (() -> Unit)?,
+    // The description's translation, null when there is nothing to translate or no engine is set.
+    translation: DescriptionTranslation?,
+    onTranslate: () -> Unit,
+    onShowOriginal: () -> Unit,
 ) {
     FlowRow(
         horizontalArrangement = spacedBy(8.dp, Alignment.CenterHorizontally),
@@ -489,6 +513,28 @@ internal fun TvSecondaryActions(
                 label = stringResource(R.string.manage),
                 active = false,
                 onClick = onClick,
+            )
+        }
+        translation?.let { state ->
+            // The same button in every state, so the focus stays on it while translating.
+            val translated = state is DescriptionTranslation.Translated
+            TvSecondaryAction(
+                icon = Icons.Filled.Translate,
+                label = stringResource(
+                    when {
+                        state == DescriptionTranslation.Loading -> R.string.translating
+                        translated -> R.string.show_original
+                        else -> R.string.translate
+                    },
+                ),
+                active = translated,
+                onClick = {
+                    when {
+                        state == DescriptionTranslation.Loading -> Unit
+                        translated -> onShowOriginal()
+                        else -> onTranslate()
+                    }
+                },
             )
         }
     }

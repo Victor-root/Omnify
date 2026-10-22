@@ -51,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.CertificateSection
+import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -88,6 +89,8 @@ fun TvExternalAppDetailScreen(
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
     val installConflict by viewModel.installConflict.collectAsStateWithLifecycle()
     val readme by viewModel.readme.collectAsStateWithLifecycle()
+    val readmeTranslation by viewModel.readmeTranslation.collectAsStateWithLifecycle()
+    val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
@@ -315,6 +318,11 @@ fun TvExternalAppDetailScreen(
                             onManageClick = app.packageName?.takeIf { isInstalled }?.let { packageName ->
                                 { context.openAppInfo(packageName) }
                             },
+                            translation = readmeTranslation.takeIf {
+                                translationEnabled && !readme?.html.isNullOrBlank()
+                            },
+                            onTranslate = { readme?.html?.let(viewModel::translateReadme) },
+                            onShowOriginal = viewModel::showOriginalReadme,
                         )
                     }
 
@@ -350,7 +358,7 @@ fun TvExternalAppDetailScreen(
                     }
                     when {
                         !readmeHtml.isNullOrBlank() -> TvDescriptionPane(
-                            html = readmeHtml,
+                            html = (readmeTranslation as? DescriptionTranslation.Translated)?.description ?: readmeHtml,
                             baseUrl = app.readmeWebBaseUrl,
                             javaScriptEnabled = readmeJavaScriptEnabled,
                             webUrl = app.webUrl,
