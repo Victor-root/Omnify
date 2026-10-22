@@ -3,12 +3,14 @@ package com.looker.droidify.compose.appDetail
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
 import androidx.core.text.HtmlCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.InstalledRepository
@@ -46,6 +48,7 @@ import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.translation.translateHtml
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.apk.InstalledApkLocaleReader
 import com.looker.droidify.utility.apk.RangeCapableMirrors
 import com.looker.droidify.utility.apk.RemoteApkIconReader
@@ -226,9 +229,18 @@ class AppDetailViewModel @Inject constructor(
     // a StateFlow) rather than its real value, since class properties initialize top-to-bottom in
     // source order — the same "leaking this" hazard the trackSourceLocaleCrossCheck/init-block comment
     // below already documents for baseSupportedLanguages, hit again here for the same reason.
+    // Diagnostics only: when the page was asked for, to time each step of opening it.
+    private val openedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
+
     val state: StateFlow<AppDetailState> = appRepository
         .getApp(PackageName(packageName))
         .map { apps ->
+            if (BuildConfig.DIAGNOSTICS) {
+                DiagnosticLog.log(
+                    "App detail: catalogue read ${SystemClock.elapsedRealtime() - openedAt} ms after opening " +
+                        "(${apps.size} repositories, ${apps.sumOf { it.packages?.size ?: 0 }} versions)",
+                )
+            }
             when {
                 apps.isEmpty() -> AppDetailState.Error("No app found for $packageName")
                 else -> {
@@ -259,6 +271,12 @@ class AppDetailViewModel @Inject constructor(
                         base
                     }
                     AppDetailState.Success(app = app, packages = packages)
+                }
+            }.also {
+                if (BuildConfig.DIAGNOSTICS) {
+                    DiagnosticLog.log(
+                        "App detail: page data ready ${SystemClock.elapsedRealtime() - openedAt} ms after opening",
+                    )
                 }
             }
         }

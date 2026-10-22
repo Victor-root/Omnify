@@ -205,6 +205,11 @@ fun ReadmeWebView(
                 }
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView, url: String?) {
+                        if (BuildConfig.DIAGNOSTICS) {
+                            DiagnosticLog.log(
+                                "WebView page finished ${SystemClock.elapsedRealtime() - createdAt} ms after creation",
+                            )
+                        }
                         // Report once the text is laid out, then a few more times as images load and
                         // grow the document (the height can only be read after a layout pass).
                         reportHeight()
