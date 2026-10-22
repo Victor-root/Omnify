@@ -113,6 +113,14 @@ class BackupRepository @Inject constructor(
      *  progress to fully finish, rather than tearing down whatever dialog is on screen mid-restore. */
     val restoreInProgress: StateFlow<Boolean> = _restoreInProgress.asStateFlow()
 
+    /** What the welcome pages have had the person choose so far, which a restore keeps (see
+     *  [WelcomeChoice]). Empty outside those pages, so a restore from Settings brings everything. */
+    private val welcomeChoices = MutableStateFlow<Set<WelcomeChoice>>(emptySet())
+
+    fun keepOnRestore(choices: Set<WelcomeChoice>) {
+        welcomeChoices.value = choices
+    }
+
     /** Writes a zip containing exactly [categories] to [target]. */
     suspend fun createBackup(target: Uri, categories: Set<BackupCategory>): Result<Unit> =
         withContext(ioDispatcher) {
@@ -316,7 +324,7 @@ class BackupRepository @Inject constructor(
                 // still carries a token, and restoring settings is not the user ticking the box that
                 // says to take it.
                 githubToken = current.githubToken,
-            ),
+            ).keeping(welcomeChoices.value, current),
         )
     }
 
