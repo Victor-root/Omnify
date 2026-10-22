@@ -300,19 +300,28 @@ fun ScopedAccentColor(accent: IconAccent?, content: @Composable () -> Unit) {
         IconAccent.Monochrome ->
             if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) BLACK_ARGB else WHITE_ARGB
     }
-    if (accentColor == null) {
-        content()
-        return
-    }
     val baseColorScheme = MaterialTheme.colorScheme
     val scopedColorScheme = remember(baseColorScheme, accentColor) {
-        baseColorScheme.withVividAccent(accentColor, overrideAccentRoles = true)
+        accentColor?.let { baseColorScheme.withVividAccent(it, overrideAccentRoles = true) }
     }
-    // The system-bar chrome is drawn by DroidifyTheme above every screen, outside the scope below, so
+    if (scopedColorScheme != null) PublishAccentToSystemBar(scopedColorScheme.primary)
+    // The same calls with or without an accent: returning [content] bare when there was none rebuilt the
+    // whole page under it the moment its icon's accent was read, after the page had already opened.
+    CompositionLocalProvider(
+        LocalAccentBarColor provides (scopedColorScheme?.primary ?: LocalAccentBarColor.current),
+        LocalOnAccentBarColor provides (scopedColorScheme?.onPrimary ?: LocalOnAccentBarColor.current),
+    ) {
+        MaterialTheme(colorScheme = scopedColorScheme ?: baseColorScheme, content = content)
+    }
+}
+
+/** Gives the system bars [scopedBarColor] while the screen calling it is the one on display. */
+@Composable
+private fun PublishAccentToSystemBar(scopedBarColor: Color) {
+    // The system-bar chrome is drawn by DroidifyTheme above every screen, outside ScopedAccentColor, so
     // publish the accent there too or the navigation bar keeps the app-wide colour while this screen's
     // header wears the icon's one. See [LocalScopedAccentBarColor].
     val systemBarAccent = LocalScopedAccentBarColor.current
-    val scopedBarColor = scopedColorScheme.primary
     DisposableEffect(systemBarAccent, scopedBarColor) {
         systemBarAccent.value = scopedBarColor
         // Release only what's still ours: navigating between two detail pages keeps both in composition
@@ -338,12 +347,6 @@ fun ScopedAccentColor(accent: IconAccent?, content: @Composable () -> Unit) {
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         systemBarAccent.value = scopedBarColor
-    }
-    CompositionLocalProvider(
-        LocalAccentBarColor provides scopedBarColor,
-        LocalOnAccentBarColor provides scopedColorScheme.onPrimary,
-    ) {
-        MaterialTheme(colorScheme = scopedColorScheme, content = content)
     }
 }
 
