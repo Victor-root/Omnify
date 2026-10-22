@@ -86,7 +86,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -151,6 +150,7 @@ import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.FilePath
+import com.looker.droidify.data.model.Html
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Permission
 import com.looker.droidify.data.model.Repo
@@ -1127,17 +1127,18 @@ private fun AppDetailBody(
         val handler = LocalUriHandler.current
         // Parsing the HTML description is expensive; do it once per description instead of on
         // every recomposition (the detail screen recomposes repeatedly while data loads).
+        val openUrl: (String) -> Unit = { runCatching { handler.openUri(it) } }
         val description = remember(app.metadata.description) {
-            app.metadata.description.toAnnotatedString(onUrlClick = { runCatching { handler.openUri(it) } })
+            app.metadata.description.toAnnotatedString(onUrlClick = openUrl)
         }
         // Show the translation when one is ready (the toggle lives in the top bar); otherwise the
         // original formatted text.
         val translated = descriptionTranslation as? DescriptionTranslation.Translated
-        val shownDescription = if (translated != null && translated.description.isNotBlank()) {
-            AnnotatedString(translated.description)
-        } else {
-            description
+        val translatedDescription = remember(translated) {
+            translated?.description?.takeIf { it.isNotBlank() }
+                ?.let { Html(it).toAnnotatedString(onUrlClick = openUrl) }
         }
+        val shownDescription = translatedDescription ?: description
         // How much room is left below the description down to the bottom of the visible screen, so it
         // can collapse to fill exactly that instead of an arbitrary fixed line count.
         var descriptionTopY by remember { mutableStateOf(0) }

@@ -45,6 +45,7 @@ import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.translation.TranslationManager
+import com.looker.droidify.translation.translateHtml
 import com.looker.droidify.utility.apk.InstalledApkLocaleReader
 import com.looker.droidify.utility.apk.RangeCapableMirrors
 import com.looker.droidify.utility.apk.RemoteApkIconReader
@@ -161,8 +162,13 @@ class AppDetailViewModel @Inject constructor(
                 val translatedSummary = async {
                     if (summary.isBlank()) "" else translationManager.translate(summary, target, detectedSource)
                 }
+                // As HTML, so the translation keeps the description's paragraphs, lists and links.
                 val translatedDescription = async {
-                    if (description.isBlank()) "" else translationManager.translate(description, target, detectedSource)
+                    if (description.isBlank()) {
+                        ""
+                    } else {
+                        translationManager.translateHtml(descriptionHtml, target, detectedSource)
+                    }
                 }
                 val translatedWhatsNew = async {
                     if (whatsNew.isBlank()) "" else translationManager.translate(whatsNew, target, detectedSource)
