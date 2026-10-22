@@ -1000,10 +1000,8 @@ private fun ExternalAppDetailBody(
 ) {
     val density = LocalDensity.current
     val uriHandler = LocalUriHandler.current
-    // Keyed on app.key (stable for this screen), NOT on the html: the WebView captures its
-    // height callback once, so the callback must keep targeting the same state instance. The
-    // WebView re-reports its height every time the document reloads, so translating or reverting
-    // resizes correctly on its own.
+    // Keyed on app.key (stable for this screen), not on the html: the WebView re-reports its height
+    // every time the document reloads, so translating or reverting resizes correctly on its own.
     var readmeHeightPx by remember(app.key) { mutableStateOf(0) }
     // True once the WebView's own renderer process has died (see ReadmeWebView's onRendererGone) — shows
     // a link to read the README on its own host instead of a permanently blank gap.

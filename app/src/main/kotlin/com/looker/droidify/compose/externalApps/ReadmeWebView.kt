@@ -17,8 +17,10 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -106,6 +108,11 @@ fun ReadmeWebView(
     val uriHandler = LocalUriHandler.current
     val isTelevision = LocalIsTelevision.current
     val coroutineScope = rememberCoroutineScope()
+    // The WebView is built once and would keep calling the callbacks of that first composition. Read
+    // through these, it calls the latest ones: a caller keying its height state on the html (a
+    // translation swaps it) was otherwise never told the new page's height, and waited on it for ever.
+    val currentOnContentHeight by rememberUpdatedState(onContentHeight)
+    val currentOnRendererGone by rememberUpdatedState(onRendererGone)
     // Captured under a distinct name: this Composable parameter shares its name with WebSettings' own
     // `javaScriptEnabled` property, and a bare reference inside `settings.apply { }` below binds to
     // THIS outer val, not the receiver's settable property — assigning to it would be a compile error
@@ -194,7 +201,7 @@ fun ReadmeWebView(
                     // vector, not just a wasted call.
                     if (!isAttachedToWindow) return
                     val pixels = (contentHeight * resources.displayMetrics.density).toInt()
-                    if (pixels > 0) onContentHeight(pixels)
+                    if (pixels > 0) currentOnContentHeight(pixels)
                 }
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView, url: String?) {
@@ -224,7 +231,7 @@ fun ReadmeWebView(
                     ): Boolean {
                         (view.parent as? ViewGroup)?.removeView(view)
                         view.destroy()
-                        onRendererGone()
+                        currentOnRendererGone()
                         return true
                     }
 
