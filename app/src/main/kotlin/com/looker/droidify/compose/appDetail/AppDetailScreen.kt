@@ -140,6 +140,7 @@ import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvDpadKeyLog
 import com.looker.droidify.compose.components.tvFocusDebugLog
 import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.components.tvFocusFollowsSwap
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvActionFocusScale
 import com.looker.droidify.compose.components.tvFocusScale
@@ -599,6 +600,8 @@ internal fun PrimaryActions(
     // stretched full-width), small enough that the focus zoom stays on screen; touch keeps the full-width
     // buttons. The zoom is kept modest and the gap wide so a focused button doesn't grow into its
     // neighbour. A no-op on touch.
+    val shown = listOf(downloadStatus != null, installing, isInstalled, updateAvailable)
+    Box(Modifier.tvFocusFollowsSwap(shown, primaryActionFocusRequester)) {
     when {
         downloadStatus != null -> DownloadProgressRow(
             status = downloadStatus,
@@ -684,6 +687,7 @@ internal fun PrimaryActions(
                 // was getting squeezed and truncated when a third button shared the row on phones.
             }
         }
+    }
     }
 }
 
