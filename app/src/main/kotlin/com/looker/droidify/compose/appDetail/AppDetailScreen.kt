@@ -83,6 +83,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -99,6 +100,7 @@ import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import coil3.size.Dimension
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
@@ -1954,13 +1956,23 @@ private fun App.hasLinks(): Boolean = listOfNotNull(
 @Composable
 internal fun ScreenshotsRow(screenshots: List<FilePath>) {
     var fullscreenIndex by remember { mutableStateOf<Int?>(null) }
+    // Decoded at the thumbnail's height: without a size, the painter loads the original, and a phone
+    // screenshot (often 1080 x 2400) was decoded whole for each of these, a real cost on a TV.
+    val context = LocalContext.current
+    val thumbnailHeightPx = with(LocalDensity.current) { ThumbnailHeight.roundToPx() }
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         itemsIndexed(screenshots, key = { _, file -> file.path }) { index, file ->
-            val painter = rememberAsyncImagePainter(file.path)
+            val request = remember(file.path, thumbnailHeightPx) {
+                ImageRequest.Builder(context)
+                    .data(file.path)
+                    .size(Dimension.Undefined, Dimension(thumbnailHeightPx))
+                    .build()
+            }
+            val painter = rememberAsyncImagePainter(request)
             val imageState by painter.state.collectAsStateWithLifecycle()
             Box(
                 contentAlignment = Alignment.Center,
@@ -1985,7 +1997,7 @@ internal fun ScreenshotsRow(screenshots: List<FilePath>) {
                         Image(
                             painter = painter,
                             contentDescription = stringResource(R.string.screenshot),
-                            modifier = Modifier.height(200.dp),
+                            modifier = Modifier.height(ThumbnailHeight),
                             contentScale = ContentScale.FillHeight,
                         )
                     }
@@ -2004,6 +2016,8 @@ internal fun ScreenshotsRow(screenshots: List<FilePath>) {
         )
     }
 }
+
+private val ThumbnailHeight = 200.dp
 
 /** Full-screen, swipeable screenshot viewer shown when a thumbnail is tapped. */
 @OptIn(ExperimentalFoundationApi::class)
