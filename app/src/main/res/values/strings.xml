@@ -223,7 +223,7 @@
     <string name="translation_engine_none">None (disabled)</string>
     <string name="translation_engine_google">Google Translate (free, online)</string>
     <string name="translation_engine_libretranslate">LibreTranslate (open source)</string>
-    <string name="translation_engine_mlkit">On your device (offline, ML Kit)</string>
+    <string name="translation_engine_mlkit">On your device (offline, ML Kit, proprietary)</string>
     <string name="translation_engine_bergamot">On your device (offline, open source, Mozilla)</string>
     <string name="translation_model_downloading">Downloading the language model…</string>
     <string name="translation_model_ready">Language model ready: translation works offline</string>
