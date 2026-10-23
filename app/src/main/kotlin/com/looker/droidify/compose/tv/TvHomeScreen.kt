@@ -838,6 +838,20 @@ private fun TvCarousel(
     restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
     val rowState = rememberCarouselState(apps.firstOrNull()?.appId ?: externalApps.firstOrNull()?.key)
+    // The opened card can be out of the row's laid-out part when the home comes back (the row sent back
+    // to its start by an app arriving at its head, say), and a card not laid out cannot take the focus:
+    // scrolled to first, so the home's restore finds it.
+    LaunchedEffect(restoreFocusId) {
+        val id = restoreFocusId ?: return@LaunchedEffect
+        val index = apps.indexOfFirst { rowFocusId(title, "app:${it.packageName.name}") == id }.takeIf { it >= 0 }
+            ?: externalApps.indexOfFirst { rowFocusId(title, "ext:${it.key}") == id }.takeIf { it >= 0 }
+                ?.plus(apps.size)
+            ?: return@LaunchedEffect
+        if (rowState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
+            if (BuildConfig.DIAGNOSTICS) DiagnosticLog.log("TV home: opened card scrolled back into its row")
+            rowState.scrollToItem(index)
+        }
+    }
     Column(verticalArrangement = spacedBy(10.dp)) {
         Text(
             text = title,
