@@ -81,7 +81,7 @@ object NetworkModule {
         }
         return HttpClient(engine) {
             install(UserAgent) {
-                agent = "Droid-ify/${VERSION_NAME}-${BUILD_TYPE}"
+                agent = "Omnify/${VERSION_NAME}-${BUILD_TYPE}"
             }
             install(HttpTimeout) {
                 connectTimeoutMillis = 30_000L

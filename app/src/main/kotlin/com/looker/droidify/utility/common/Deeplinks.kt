@@ -12,8 +12,14 @@ const val PERSONAL_HOST = "droidify.app"
 /** Obtainium's web page for its share links, which hands them on to an app that takes them. */
 private const val OBTAINIUM_HOST = "apps.obtainium.imranr.dev"
 
-fun shareUrl(packageName: String, repoAddress: String) =
-    "https://droidify.app/app/?id=$packageName&repo_address=$repoAddress"
+/** Omnify's site page that hands a repository to the app, or says where to get it (website/repo.html). */
+private const val REPO_PAGE = "https://victor-root.github.io/Omnify/repo.html"
+
+/** A link that adds the repository at [repoAddress] to Omnify, its [fingerprint] included when known. */
+fun repoShareUrl(repoAddress: String, fingerprint: String?): String = buildString {
+    append(REPO_PAGE).append("#fdroidrepos://").append(repoAddress.substringAfter("://").trimEnd('/'))
+    if (!fingerprint.isNullOrEmpty()) append("?fingerprint=").append(fingerprint)
+}
 
 private val httpScheme = arrayOf("http", "https")
 private val fdroidRepoScheme = arrayOf("fdroidrepo", "fdroidrepos")
