@@ -35,6 +35,7 @@ import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
+import com.looker.droidify.utility.common.extension.versionCodeCompat
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -146,10 +147,14 @@ class UpdateAllWorker @AssistedInject constructor(
      * than aborting the rest, and stays listed for the user to carry out from its own page.
      */
     private suspend fun updateOneExternal(app: ExternalApp) {
-        val outcome = externalInstaller.installLatest(app) { read, total ->
-            batchProgress.reportDownload(read.value, total?.value)
-        }
+        val outcome = externalInstaller.installLatest(
+            app = app,
+            onDownload = { read, total -> batchProgress.reportDownload(read.value, total?.value) },
+            // Asked again once downloaded: the app may have been updated by hand during the download.
+            stillWanted = { pendingUpdates.externalApps().any { it.key == app.key } },
+        )
         batchProgress.finishDownload()
+        if (outcome == ExternalInstallOutcome.UP_TO_DATE) logSkippedAsUpToDate()
         if (outcome != ExternalInstallOutcome.STARTED) Log.i(TAG, "Skipped ${app.key}: $outcome")
     }
 
@@ -172,6 +177,14 @@ class UpdateAllWorker @AssistedInject constructor(
 
         // Download and verify first — never touch the installed app until the new APK is in hand.
         val cacheFileName = downloadAndVerify(pkg, repo) ?: return
+        // Asked again once downloaded, and of the device itself rather than the installed-apps table,
+        // which only catches up a moment after an install: the app may have been updated by hand, from
+        // its own page, during the download.
+        val installedNow = applicationContext.packageManager.getPackageInfoCompat(packageName)?.versionCodeCompat
+        if (installedNow != null && installedNow >= pkg.manifest.versionCode) {
+            logSkippedAsUpToDate()
+            return
+        }
 
         if (installedWithDifferentSignature(packageName, pkg)) {
             // Android can't update across signers in place. Rather than skip (leaving the user to do

@@ -61,6 +61,10 @@ enum class ExternalInstallOutcome {
      * the app's own page keeps offering it and the automatic pass leaves it alone.
      */
     NEEDS_USER,
+
+    /** By the time the release was downloaded, it was no longer wanted: the app had been updated
+     *  meanwhile, by hand from its own page say (see [ExternalInstaller.installLatest]'s stillWanted). */
+    UP_TO_DATE,
 }
 
 /**
@@ -100,10 +104,14 @@ class ExternalInstaller @Inject constructor(
      *
      * [onDownload] is how a caller with something on screen follows the bytes, since this downloads
      * outside any screen of its own. Left out by a caller with nothing to show.
+     *
+     * [stillWanted] is asked once the APK is in hand, right before installing it: a download takes a
+     * while, and an app updated by hand during it was otherwise installed a second time.
      */
     suspend fun installLatest(
         app: ExternalApp,
         onDownload: ProgressListener? = null,
+        stillWanted: suspend () -> Boolean = { true },
     ): ExternalInstallOutcome {
         val url = app.latestApkUrl ?: return ExternalInstallOutcome.NO_RELEASE
         val cacheFileName = releaseCacheFileName(app, app.latestTag)
@@ -143,6 +151,7 @@ class ExternalInstaller @Inject constructor(
         ) {
             return ExternalInstallOutcome.NEEDS_USER
         }
+        if (!stillWanted()) return ExternalInstallOutcome.UP_TO_DATE
         installManager.install(InstallItem(PackageName(packageName), cacheFileName))
         // Bounded, unlike the screen's own wait: that one is tied to the screen's lifetime and simply
         // dies with it, while here nothing would ever cancel it. An install method that asks the user to
