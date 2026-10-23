@@ -390,9 +390,6 @@ fun RepoListScreen(
                         onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
                         onEdit = null,
                         onRemove = null,
-                        // Only Omnify's own source is branded with the app's own launcher icon; future
-                        // picks show their real repo/app icon like any other external source.
-                        brandWithAppIcon = app.key == ExternalApp.OMNIFY_REPO_KEY,
                     )
                 }
                 items(curatedAccounts, key = { "acc-${it.key}" }, contentType = { "account" }) { account ->
@@ -888,9 +885,6 @@ private fun ExternalSourceItem(
     onToggle: () -> Unit,
     onEdit: (() -> Unit)?,
     onRemove: (() -> Unit)?,
-    // The built-in Omnify source is branded with the app's own launcher icon (always correct), instead
-    // of the discovered repo/avatar icon which would otherwise fall back to the GitHub owner's avatar.
-    brandWithAppIcon: Boolean = false,
 ) {
     val contentAlpha = if (app.enabled) 1f else 0.4f
     // Not directly focusable/clickable itself — see RepoItem's identical focusGroup comment: a row that's
@@ -915,16 +909,12 @@ private fun ExternalSourceItem(
                 .clickable(onClick = onOpen)
                 .padding(vertical = 4.dp),
         ) {
-            if (brandWithAppIcon) {
-                OmnifyLogoIcon(modifier = Modifier.size(48.dp).alpha(contentAlpha))
-            } else {
-                ExternalAppIcon(
-                    app = app,
-                    isInstalled = isInstalled,
-                    size = 48.dp,
-                    modifier = Modifier.alpha(contentAlpha),
-                )
-            }
+            ExternalAppIcon(
+                app = app,
+                isInstalled = isInstalled,
+                size = 48.dp,
+                modifier = Modifier.alpha(contentAlpha),
+            )
             Spacer(modifier = Modifier.size(16.dp))
             Column(
                 modifier = Modifier
