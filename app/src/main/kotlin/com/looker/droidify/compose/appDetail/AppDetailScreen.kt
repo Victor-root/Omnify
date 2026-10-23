@@ -157,6 +157,7 @@ import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.FilePath
 import com.looker.droidify.data.model.Html
+import com.looker.droidify.data.model.Metadata
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Permission
 import com.looker.droidify.data.model.Repo
@@ -169,7 +170,7 @@ import com.looker.droidify.utility.common.RootDetection
 import com.looker.droidify.utility.common.rememberIconAccent
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.toSafeBitmap
-import com.looker.droidify.utility.common.shareUrl
+import com.looker.droidify.utility.common.repoShareUrl
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
@@ -455,7 +456,7 @@ fun AppDetailScreen(
                         }
                         if (shareRepo != null) {
                             IconButton(
-                                onClick = { shareApp(context, success.app.metadata.packageName.name, shareRepo) },
+                                onClick = { shareApp(context, success.app.metadata, shareRepo) },
                                 modifier = Modifier.tvFocusScale(debugLabel = "topbar-share"),
                             ) {
                                 Icon(
@@ -551,11 +552,11 @@ fun AppDetailScreen(
 }
 
 /**
- * Shares a link to [packageName]'s own page via the system share sheet: F-Droid's or IzzyOnDroid's app
- * page when [repo] is (or mirrors) one of those, else a generic Omnify deep link — mirrors upstream
- * Droid-ify's share behaviour so the recipient lands on a real, working page either way.
+ * Shares the app via the system share sheet: F-Droid's or IzzyOnDroid's page for it when [repo] is (or
+ * mirrors) one of those, else its name with a link adding [repo] to Omnify, where the app is found.
  */
-private fun shareApp(context: Context, packageName: String, repo: Repo) {
+private fun shareApp(context: Context, metadata: Metadata, repo: Repo) {
+    val packageName = metadata.packageName.name
     val address = when {
         "https://f-droid.org/repo" in repo.mirrors ->
             "https://f-droid.org/packages/$packageName/"
@@ -563,7 +564,7 @@ private fun shareApp(context: Context, packageName: String, repo: Repo) {
             "https://f-droid.org/packages/$packageName/"
         "https://apt.izzysoft.de/fdroid/repo" in repo.mirrors ->
             "https://apt.izzysoft.de/fdroid/index/apk/$packageName"
-        else -> shareUrl(packageName, repo.address)
+        else -> "${metadata.name}\n${repoShareUrl(repo.address, repo.fingerprint?.value)}"
     }
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         putExtra(Intent.EXTRA_TEXT, address)
