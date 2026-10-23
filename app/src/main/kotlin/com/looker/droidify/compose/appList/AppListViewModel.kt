@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.appList
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.snapshotFlow
@@ -32,6 +33,7 @@ import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.network.NetworkMonitor
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.utility.common.device.isTelevision
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.tvLauncherPackages
@@ -59,6 +61,7 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -868,6 +871,10 @@ class AppListViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .asHomeState(emptyList())
 
+    /** The category rows of the last complete [tvAppRows] build, shown during the next one. */
+    @Volatile
+    private var tvCategoryRows: List<AppRow> = emptyList()
+
     /**
      * The TV-only home, in rows like the full catalogue's rather than one grid of everything: favourites,
      * each repository the user added ([ownRepositoryApps], all its apps), the newest and the recently updated, then a row per category, the
@@ -875,8 +882,13 @@ class AppListViewModel @Inject constructor(
      * "Other" row instead of a row of its own. Apps made for TV are, as for [allTvApps], those of
      * [MadeForTv], plus every app of a category that is about TV in itself
      * ([TV_RELEVANT_CATEGORIES]).
+     *
+     * Null until first built. The leading rows come first, the category ones (a query each) after them:
+     * waiting for all of it showed the old grid in their place at every start, and the inputs arriving
+     * one by one restarted the whole build each time. While a rebuild runs, the category rows already
+     * built stay in place rather than vanishing until it ends.
      */
-    val tvAppRows: StateFlow<List<AppRow>> =
+    val tvAppRows: StateFlow<List<AppRow>?> =
         combine(
             allTvApps,
             favouriteApps,
@@ -885,8 +897,12 @@ class AppListViewModel @Inject constructor(
             hiddenApps,
         ) { tv, favourites, own, cats, hidden -> TvRowsInput(tv, favourites, own, cats, hidden) }
             .combine(madeForTv) { input, tv -> input to tv }
-            .mapLatest { (input, tv) ->
-                if (!isTelevisionDevice) return@mapLatest emptyList()
+            .transformLatest { (input, tv) ->
+                if (!isTelevisionDevice) {
+                    emit(emptyList())
+                    return@transformLatest
+                }
+                val startedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
                 val tvPackages = input.tvApps.mapTo(HashSet()) { it.packageName }
                 val tvOnlyQuery: suspend (SortOrder, Boolean) -> List<AppMinimal> = { order, updatedOnly ->
                     appRepository.apps(
@@ -897,16 +913,7 @@ class AppListViewModel @Inject constructor(
                         updatedOnly = updatedOnly,
                     ).excludingHidden(input.hidden).withoutPhoneVersionsOfTvApps().take(DISCOVER_ROW_COUNT)
                 }
-                val categoryRows = input.categories.map { category ->
-                    val tvCategory = category.defaultName in TV_RELEVANT_CATEGORIES
-                    category.name to appRepository.apps(
-                        sortOrder = SortOrder.UPDATED,
-                        categoriesToInclude = listOf(category.defaultName),
-                        madeForTv = if (tvCategory) null else tv,
-                    ).excludingHidden(input.hidden).withoutPhoneVersionsOfTvApps()
-                }.filter { it.second.isNotEmpty() }
-                val (full, small) = categoryRows.partition { it.second.size >= MIN_CATEGORY_ROW }
-                buildList {
+                val leading = buildList {
                     input.favourites.filter { it.packageName in tvPackages }.takeIf { it.isNotEmpty() }
                         ?.let { add(AppRow(context.getString(R.string.favourites), it)) }
                     // All their apps, not only those declared for TV: a repository someone added is theirs to
@@ -919,14 +926,37 @@ class AppListViewModel @Inject constructor(
                             tvOnlyQuery(SortOrder.UPDATED, true),
                         ),
                     )
+                }.filter { it.apps.isNotEmpty() }
+                emit(leading + tvCategoryRows)
+                if (BuildConfig.DIAGNOSTICS) {
+                    DiagnosticLog.log("TV rows: leading ones built in ${SystemClock.elapsedRealtime() - startedAt} ms")
+                }
+                val categoryRows = input.categories.map { category ->
+                    val tvCategory = category.defaultName in TV_RELEVANT_CATEGORIES
+                    category.name to appRepository.apps(
+                        sortOrder = SortOrder.UPDATED,
+                        categoriesToInclude = listOf(category.defaultName),
+                        madeForTv = if (tvCategory) null else tv,
+                    ).excludingHidden(input.hidden).withoutPhoneVersionsOfTvApps()
+                }.filter { it.second.isNotEmpty() }
+                val (full, small) = categoryRows.partition { it.second.size >= MIN_CATEGORY_ROW }
+                tvCategoryRows = buildList {
                     full.sortedByDescending { it.second.size }.forEach { (name, apps) -> add(AppRow(name, apps)) }
                     small.flatMap { it.second }.distinctBy { it.packageName }.takeIf { it.isNotEmpty() }
                         ?.let { add(AppRow(context.getString(R.string.other), it)) }
-                }.filter { it.apps.isNotEmpty() }
+                }
+                emit(leading + tvCategoryRows)
+                if (BuildConfig.DIAGNOSTICS) {
+                    DiagnosticLog.log(
+                        "TV rows: ${input.categories.size} categories built in " +
+                            "${SystemClock.elapsedRealtime() - startedAt} ms",
+                    )
+                }
             }
             .distinctUntilChanged()
             .flowOn(Dispatchers.Default)
-            .asHomeState(emptyList())
+            .asHomeState(null)
+
 
     /** The first [DISCOVER_ROW_COUNT] of [allTvApps]: the carousel's row. */
     val tvApps: StateFlow<List<AppMinimal>> = allTvApps
