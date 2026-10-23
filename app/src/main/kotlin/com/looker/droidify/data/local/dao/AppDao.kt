@@ -556,6 +556,22 @@ interface AppDao {
         String,
         >
 
+    /** Every app's categories, by package name: the TV-only home builds its category rows from this one
+     *  read rather than a query per category. */
+    @Query(
+        """
+        SELECT DISTINCT app.packageName AS packageName, category_app_relation.defaultName AS defaultName
+        FROM category_app_relation
+        JOIN app ON app.id = category_app_relation.id
+        """,
+    )
+    suspend fun packageCategories(): List<PackageCategory>
+
+    data class PackageCategory(
+        val packageName: String,
+        val defaultName: String,
+    )
+
     data class AppVersionCodeRow(
         val packageName: String,
         val versionCode: Long,

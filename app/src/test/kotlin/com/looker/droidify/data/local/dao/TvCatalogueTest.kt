@@ -3,6 +3,7 @@ package com.looker.droidify.data.local.dao
 import com.looker.droidify.data.local.BaseDatabaseTest
 import com.looker.droidify.data.local.model.AppEntity
 import com.looker.droidify.data.local.model.AuthorEntity
+import com.looker.droidify.data.local.model.CategoryAppRelation
 import com.looker.droidify.data.local.model.GraphicEntity
 import com.looker.droidify.data.local.model.RepoEntity
 import com.looker.droidify.data.local.model.TV_BANNER
@@ -14,31 +15,36 @@ import com.looker.droidify.sync.v2.model.ApkFileV2
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** An app made for phones and TV alike says nothing of TV in its features, yet is still one for TV. */
-class MadeForTvTest : BaseDatabaseTest() {
+/** The reads the TV home is built from. */
+class TvCatalogueTest : BaseDatabaseTest() {
 
     private lateinit var indexDao: IndexDao
     private lateinit var appDao: AppDao
-    private var repoId = 0
-    private var authorId = 0
+    private val repoIds = mutableMapOf<String, Int>()
+    private var authorId: Int? = null
 
     override fun initDao() {
         indexDao = database.indexDao()
         appDao = database.appDao()
     }
 
-    private suspend fun insertApp(packageName: String, features: List<String> = emptyList()): Int {
-        if (repoId == 0) {
-            repoId = indexDao.upsertRepo(
+    private suspend fun insertApp(
+        packageName: String,
+        features: List<String> = emptyList(),
+        address: String = "https://example.org/repo",
+    ): Int {
+        val repoId = repoIds.getOrPut(address) {
+            indexDao.upsertRepo(
                 RepoEntity(
-                    address = "https://example.org/repo",
+                    address = address,
                     webBaseUrl = null,
                     fingerprint = Fingerprint("ABC123"),
                     timestamp = 1000L,
                 ),
             )
-            authorId = indexDao.upsertAuthor(AuthorEntity(email = null, name = "Author", website = null))
         }
+        val author = authorId
+            ?: indexDao.upsertAuthor(AuthorEntity(email = null, name = "Author", website = null)).also { authorId = it }
         val appId = indexDao.insertApp(
             AppEntity(
                 added = 0L,
@@ -46,7 +52,7 @@ class MadeForTvTest : BaseDatabaseTest() {
                 license = null,
                 preferredSigner = null,
                 packageName = packageName,
-                authorId = authorId,
+                authorId = author,
                 repoId = repoId,
             ),
         ).toInt()
@@ -80,6 +86,7 @@ class MadeForTvTest : BaseDatabaseTest() {
         locale = "en-US",
     ).mapTo(HashSet()) { it.packageName.name }
 
+    /** An app made for phones and TV alike says nothing of TV in its features, yet is still one for TV. */
     @Test
     fun eachSignalOfTvCounts() = runDbTest {
         insertApp("com.example.leanback", features = listOf("android.software.leanback"))
@@ -103,5 +110,26 @@ class MadeForTvTest : BaseDatabaseTest() {
         insertApp("com.example.other", features = listOf("android.software.leanback_only"))
 
         assertEquals(emptySet<String>(), madeForTv())
+    }
+
+    @Test
+    fun categoriesAreReadByPackageAcrossRepositories() = runDbTest {
+        val player = insertApp("com.example.player")
+        val other = insertApp("com.example.other")
+        val playerElsewhere = insertApp("com.example.player", address = "https://example.org/other")
+        indexDao.insertCategoryAppRelation(
+            listOf(
+                CategoryAppRelation(player, "Local Media Player"),
+                CategoryAppRelation(playerElsewhere, "Local Media Player"),
+                CategoryAppRelation(playerElsewhere, "Cast"),
+                CategoryAppRelation(other, "Games"),
+            ),
+        )
+
+        val categories = appDao.packageCategories().groupBy({ it.packageName }, { it.defaultName })
+
+        assertEquals(setOf("Local Media Player", "Cast"), categories.getValue("com.example.player").toSet())
+        assertEquals(2, categories.getValue("com.example.player").size)
+        assertEquals(listOf("Games"), categories.getValue("com.example.other"))
     }
 }

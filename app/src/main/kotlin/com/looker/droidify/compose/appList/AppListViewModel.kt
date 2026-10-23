@@ -931,13 +931,24 @@ class AppListViewModel @Inject constructor(
                 if (BuildConfig.DIAGNOSTICS) {
                     DiagnosticLog.log("TV rows: leading ones built in ${SystemClock.elapsedRealtime() - startedAt} ms")
                 }
+                // Three reads for every category rather than a query each: 123 categories took 24.6 s on a
+                // SHIELD TV, slowing down whatever ran beside them. A category about TV in itself lists all
+                // its apps; any other, only those made for TV.
+                val candidates = appRepository.apps(
+                    sortOrder = SortOrder.UPDATED,
+                    madeForTv = tv,
+                    categoriesToInclude = TV_RELEVANT_CATEGORIES,
+                    madeForTvOrCategories = true,
+                ).excludingHidden(input.hidden).withoutPhoneVersionsOfTvApps()
+                val madeForTvNames = appRepository.apps(sortOrder = SortOrder.UPDATED, madeForTv = tv)
+                    .mapTo(HashSet()) { it.packageName.name }
+                val categoriesOf = appRepository.packageCategories()
                 val categoryRows = input.categories.map { category ->
                     val tvCategory = category.defaultName in TV_RELEVANT_CATEGORIES
-                    category.name to appRepository.apps(
-                        sortOrder = SortOrder.UPDATED,
-                        categoriesToInclude = listOf(category.defaultName),
-                        madeForTv = if (tvCategory) null else tv,
-                    ).excludingHidden(input.hidden).withoutPhoneVersionsOfTvApps()
+                    category.name to candidates.filter { app ->
+                        category.defaultName in categoriesOf[app.packageName.name].orEmpty() &&
+                            (tvCategory || app.packageName.name in madeForTvNames)
+                    }
                 }.filter { it.second.isNotEmpty() }
                 val (full, small) = categoryRows.partition { it.second.size >= MIN_CATEGORY_ROW }
                 tvCategoryRows = buildList {
