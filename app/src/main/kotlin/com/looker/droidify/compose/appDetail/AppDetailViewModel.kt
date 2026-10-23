@@ -10,6 +10,7 @@ import androidx.core.text.HtmlCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.looker.droidify.data.encryption.sha256Hex
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
@@ -83,7 +84,6 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.security.MessageDigest
 import java.util.zip.ZipFile
 import javax.inject.Inject
 
@@ -1224,19 +1224,6 @@ private fun NetworkResponse.describe(): String = when (this) {
     is NetworkResponse.Error.SocketTimeout -> "socket timeout"
     is NetworkResponse.Error.IO -> "IO error: ${exception.message}"
     is NetworkResponse.Error.Unknown -> "unknown error: ${exception.message}"
-}
-
-private fun File.sha256Hex(): String {
-    val digest = MessageDigest.getInstance("SHA-256")
-    inputStream().use { input ->
-        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-        while (true) {
-            val read = input.read(buffer)
-            if (read < 0) break
-            digest.update(buffer, 0, read)
-        }
-    }
-    return digest.digest().joinToString("") { "%02x".format(it) }
 }
 
 /**

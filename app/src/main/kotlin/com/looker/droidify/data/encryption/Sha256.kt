@@ -1,5 +1,6 @@
 package com.looker.droidify.data.encryption
 
+import java.io.File
 import java.security.MessageDigest
 
 /**
@@ -12,3 +13,17 @@ import java.security.MessageDigest
  * allocating a digest object.
  */
 fun sha256(data: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(data)
+
+/** The lower-case hex SHA-256 of this file's bytes, read in chunks rather than whole into memory. */
+fun File.sha256Hex(): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    inputStream().use { input ->
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            digest.update(buffer, 0, read)
+        }
+    }
+    return digest.digest().joinToString("") { "%02x".format(it) }
+}
