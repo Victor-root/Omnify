@@ -345,9 +345,10 @@ internal fun TvDescriptionMessage(text: String) {
 internal fun TvScreenshots(
     screenshots: List<FilePath>,
     requester: FocusRequester,
+    landscape: Boolean,
 ) {
     Box(modifier = Modifier.fillMaxWidth().focusRequester(requester).focusGroup()) {
-        ScreenshotsRow(screenshots)
+        ScreenshotsRow(screenshots, landscape = landscape)
     }
 }
 

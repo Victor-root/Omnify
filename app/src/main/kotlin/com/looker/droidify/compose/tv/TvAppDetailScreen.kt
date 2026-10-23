@@ -182,8 +182,9 @@ fun TvAppDetailScreen(
                 val pageScroll = rememberScrollState()
                 // Once the user has pressed any key, focus is theirs: see TvKeepFocusOnMainAction.
                 var userInteracted by remember { mutableStateOf(false) }
+                val tvScreenshots = app.screenshots?.tv.orEmpty()
                 val screenshots = remember(app.screenshots) {
-                    (app.screenshots?.tv?.takeIf { it.isNotEmpty() } ?: app.screenshots?.phone).orEmpty()
+                    tvScreenshots.ifEmpty { app.screenshots?.phone.orEmpty() }
                 }
                 // The catalogue description is HTML, rendered in the right pane (see TvDescriptionPane) so it
                 // looks the same as an external app's README.
@@ -379,7 +380,9 @@ fun TvAppDetailScreen(
                             }
                         },
                         right = {
-                            if (screenshots.isNotEmpty()) TvScreenshots(screenshots, screenshotsFocus)
+                            if (screenshots.isNotEmpty()) {
+                                TvScreenshots(screenshots, screenshotsFocus, landscape = tvScreenshots.isNotEmpty())
+                            }
                             TvSectionTitle(stringResource(R.string.description))
                             if (descriptionHtml.isBlank()) {
                                 TvDescriptionMessage(stringResource(R.string.no_description_available_DESC))

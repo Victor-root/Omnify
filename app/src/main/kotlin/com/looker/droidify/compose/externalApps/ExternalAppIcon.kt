@@ -3,11 +3,6 @@ package com.looker.droidify.compose.externalApps
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.util.Log
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -29,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -41,6 +35,7 @@ import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import com.looker.droidify.compose.components.Skeleton
 import com.looker.droidify.R
 import com.looker.droidify.compose.appList.LauncherIconPx
 import com.looker.droidify.compose.appList.readInstalledLauncherIcon
@@ -250,29 +245,10 @@ fun ExternalAppIcon(
     }
 }
 
-/**
- * Stands in for an icon still being looked for ([ExternalIconCache.pending]): the tile's shape, gently
- * pulsing, so a slow lookup reads as under way rather than as no icon at all. The pulse only changes
- * the layer's alpha while drawing, so it never recomposes or lays the tile out again.
- */
+/** Stands in for an icon still being looked for ([ExternalIconCache.pending]), in the tile's shape. */
 @Composable
 private fun IconSkeleton(shape: Shape, isTelevision: Boolean) {
-    val pulse = rememberInfiniteTransition(label = "iconSkeleton")
-    val alpha by pulse.animateFloat(
-        initialValue = 0.10f,
-        targetValue = 0.28f,
-        animationSpec = infiniteRepeatable(tween(durationMillis = 800), RepeatMode.Reverse),
-        label = "iconSkeletonAlpha",
-    )
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .graphicsLayer { this.alpha = alpha }
-            // The card is the tile's own background on TV; off TV the skeleton draws it.
-            .then(if (isTelevision) Modifier else Modifier.clip(shape))
-            // The text colour, faded: stands out on any background, light or dark, where a surface tone
-            // nearly matched the list behind it.
-            .background(MaterialTheme.colorScheme.onSurface),
-    )
+    // The card is the tile's own background on TV; off TV the skeleton draws it.
+    Skeleton(Modifier.fillMaxSize().then(if (isTelevision) Modifier else Modifier.clip(shape)))
 }
 
