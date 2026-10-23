@@ -73,6 +73,7 @@ import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.model.Repository
+import com.looker.droidify.model.TestRepository
 import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.common.DeeplinkType
 import com.looker.droidify.utility.common.SdkCheck
@@ -122,6 +123,7 @@ class MainComposeActivity : ComponentActivity() {
         private const val OMNIFY_SOURCE_OWNER = "Victor-root"
         private const val OMNIFY_SOURCE_REPO = "Omnify"
         private const val KEY_OMNIFY_SEED = "omnify_seed_v6"
+        private const val KEY_TEST_REPO_ID = "test_repo_id"
         private const val KEY_OMNIFY_CURATED_MIGRATED = "omnify_curated_migrated_v1"
         private const val KEY_TV_PACK_SEEDED_V1 = "tv_pack_seeded_v1"
         private const val KEY_TV_PACK_SEEDED_V2 = "tv_pack_seeded_v2"
@@ -550,6 +552,31 @@ class MainComposeActivity : ComponentActivity() {
                     repository.repos.first()
                         .filter { it.address in enabledByDefault }
                         .forEach { repository.enableRepository(it, enable = true) }
+                }
+            }
+
+            // The test build only: the repository it updates itself from (see TestRepository), added and
+            // switched on once, then followed to whatever address or key the running build carries, so a
+            // test build that moves the repository takes the installs it reaches along with it.
+            TestRepository.address?.let { address ->
+                val current = repository.getRepo(firstRunPrefs.getInt(KEY_TEST_REPO_ID, -1))
+                val fingerprint = TestRepository.fingerprint.ifEmpty { current?.fingerprint?.value.orEmpty() }
+                if (current == null) {
+                    val id = repository.insertRepo(
+                        address = address,
+                        fingerprint = fingerprint,
+                        username = null,
+                        password = null,
+                        name = getString(R.string.test_repository_name),
+                    )
+                    firstRunPrefs.edit().putInt(KEY_TEST_REPO_ID, id).apply()
+                    repository.getRepo(id)?.let { repository.enableRepository(it, enable = true) }
+                } else if (
+                    !TestRepository.hides(current.address) ||
+                    !current.fingerprint?.value.orEmpty().equals(fingerprint, ignoreCase = true)
+                ) {
+                    repository.updateRepo(current.id, address, fingerprint, username = null, password = null)
+                    if (current.enabled) repository.enableRepository(current, enable = true)
                 }
             }
 

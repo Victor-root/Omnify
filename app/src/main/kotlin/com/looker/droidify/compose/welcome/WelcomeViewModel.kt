@@ -26,6 +26,7 @@ import com.looker.droidify.installer.InstallerSelection
 import com.looker.droidify.migration.ChannelMigration
 import com.looker.droidify.migration.ImportStep
 import com.looker.droidify.model.Repository
+import com.looker.droidify.model.TestRepository
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.extension.asStateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -108,10 +109,14 @@ class WelcomeViewModel @Inject constructor(
     private val checkedIds: StateFlow<ArrayList<String>> =
         savedStateHandle.getStateFlow(KEY_CHECKED, WelcomeCatalog.defaultChecked())
 
+    /** Every repository but the test build's own, which is always on and whose address stays hidden
+     *  (see TestRepository): this page neither shows it nor reads it as one a restore switched on. */
+    private val repos = repoRepository.repos.map { all -> all.filterNot { TestRepository.hides(it.address) } }
+
     /** The sources that exist yet: they are seeded on the first start, in parallel with this page
      *  opening, so a source simply appears in the list the moment it is there. */
     val items: StateFlow<List<WelcomeItem>> = combine(
-        repoRepository.repos,
+        repos,
         externalAppRepository.apps,
         externalAppRepository.accounts,
         checkedIds,
@@ -251,7 +256,7 @@ class WelcomeViewModel @Inject constructor(
         // the ways to bring data over. The sources page then shows it ticked, and only what the backup
         // had on: the ticks offered by default would otherwise undo a backup that left F-Droid off.
         viewModelScope.launch {
-            repoRepository.repos
+            repos
                 .map { repos ->
                     val addresses = repos.map { it.address.trimEnd('/') }
                     addresses to addresses.filterIndexed { index, _ -> repos[index].enabled }

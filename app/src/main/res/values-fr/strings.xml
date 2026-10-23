@@ -161,6 +161,7 @@
     <string name="repositories">Dépôts</string>
     <string name="repo_section_external">Dépôts externes</string>
     <string name="repo_section_fdroid">Dépôts F-Droid</string>
+    <string name="test_repository_name">Versions de test d\'Omnify</string>
     <string name="repo_section_omnify_picks">Choix d\'Omnify</string>
     <string name="repo_tab_info">Infos</string>
     <string name="repo_tab_apps">Applications</string>

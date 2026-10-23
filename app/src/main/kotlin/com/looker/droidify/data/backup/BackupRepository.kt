@@ -11,6 +11,7 @@ import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.di.IoDispatcher
 import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalAppRepository
+import com.looker.droidify.model.TestRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -186,7 +187,9 @@ class BackupRepository @Inject constructor(
             if (BackupCategory.REPOSITORIES in categories) {
                 // getRepo() (unlike the repos flow) also resolves credentials and mirrors — the
                 // flow alone would silently drop saved logins from the backup.
+                // The test build's own repository stays out, its address with it (see TestRepository).
                 val repos = repoRepository.repos.first()
+                    .filterNot { TestRepository.hides(it.address) }
                     .mapNotNull { repoRepository.getRepo(it.id) }
                     .map {
                         RepoBackupEntry(

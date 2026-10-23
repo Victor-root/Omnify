@@ -78,6 +78,7 @@ import com.looker.droidify.data.model.Repo
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.SourceDraft
+import com.looker.droidify.model.TestRepository
 import com.looker.droidify.utility.text.toAnnotatedString
 import kotlinx.coroutines.delay
 
@@ -286,7 +287,7 @@ fun TvRepoListScreen(
             TvRepoRow(
                 repo = repo,
                 isSyncing = repo.id in syncingRepoIds,
-                onOpen = { onRepoClick(repo.id) },
+                onOpen = { onRepoClick(repo.id) }.takeUnless { TestRepository.hides(repo.address) },
                 onToggle = { viewModel.toggleRepo(repo) },
             )
         }
@@ -484,7 +485,8 @@ private fun TvAddSourceButton(onClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun TvManagementRow(
-    onOpen: () -> Unit,
+    // Null for a row whose page would show what must stay hidden (see TestRepository).
+    onOpen: (() -> Unit)?,
     enabled: Boolean,
     onToggle: () -> Unit,
     icon: @Composable () -> Unit,
@@ -544,18 +546,22 @@ private fun TvManagementRow(
             Spacer(Modifier.size(8.dp))
             if (extraMenuItems == null) {
                 // Only "details" would be in the menu, so skip the kebab and offer a direct info button.
-                IconButton(onClick = onOpen, modifier = Modifier.tvFocusScale()) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_tv_info),
-                        contentDescription = stringResource(R.string.details),
-                    )
+                if (onOpen != null) {
+                    IconButton(onClick = onOpen, modifier = Modifier.tvFocusScale()) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_tv_info),
+                            contentDescription = stringResource(R.string.details),
+                        )
+                    }
                 }
             } else {
                 TvOverflowMenu { dismiss ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.details)) },
-                        onClick = { dismiss(); onOpen() },
-                    )
+                    if (onOpen != null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.details)) },
+                            onClick = { dismiss(); onOpen() },
+                        )
+                    }
                     extraMenuItems.invoke(dismiss)
                 }
             }
@@ -587,7 +593,7 @@ private fun TvOverflowMenu(content: @Composable (dismiss: () -> Unit) -> Unit) {
 private fun TvRepoRow(
     repo: Repo,
     isSyncing: Boolean,
-    onOpen: () -> Unit,
+    onOpen: (() -> Unit)?,
     onToggle: () -> Unit,
 ) {
     TvManagementRow(
