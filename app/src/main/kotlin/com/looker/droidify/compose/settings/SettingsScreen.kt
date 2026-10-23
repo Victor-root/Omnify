@@ -91,6 +91,7 @@ import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.datastore.model.Theme
+import com.looker.droidify.translation.ModelPreparation
 import com.looker.droidify.translation.bergamot.bergamotSupported
 import com.looker.droidify.utility.common.SYSTEM_LANGUAGE
 import com.looker.droidify.utility.common.SdkCheck
@@ -186,6 +187,7 @@ fun SettingsScreen(
     val customButtons by viewModel.customButtons.collectAsStateWithLifecycle()
     val isBackgroundAllowed by viewModel.isBackgroundAllowed.collectAsStateWithLifecycle()
     val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
+    val translationModelPreparation by viewModel.translationModelPreparation.collectAsStateWithLifecycle()
 
     val settingsListState = rememberLazyListState()
     // True once the row's been scrolled to and it's time to pulse it — see GITHUB_TOKEN_ITEM_KEY.
@@ -640,6 +642,15 @@ fun SettingsScreen(
                     },
                     onValueSelected = viewModel::setTranslationEngine,
                     valueToString = { translationEngineLabel(it) },
+                    supportingText = translationModelPreparation?.let { preparation ->
+                        stringResource(
+                            when (preparation) {
+                                ModelPreparation.DOWNLOADING -> R.string.translation_model_downloading
+                                ModelPreparation.READY -> R.string.translation_model_ready
+                                ModelPreparation.FAILED -> R.string.translation_model_failed
+                            },
+                        )
+                    },
                 )
             }
 

@@ -225,6 +225,9 @@
     <string name="translation_engine_libretranslate">LibreTranslate (open source)</string>
     <string name="translation_engine_mlkit">On your device (offline, ML Kit)</string>
     <string name="translation_engine_bergamot">On your device (offline, open source, Mozilla)</string>
+    <string name="translation_model_downloading">Downloading the language model…</string>
+    <string name="translation_model_ready">Language model ready: translation works offline</string>
+    <string name="translation_model_failed">Couldn\'t download the language model, it will be tried again on the first translation</string>
     <string name="libretranslate_url">LibreTranslate instance URL</string>
     <string name="libretranslate_url_unset">Not set up yet</string>
     <string name="libretranslate_url_help">LibreTranslate has no public instance. You need to host your own (or use a third-party one) and enter its URL here, e.g. https://translate.example.org</string>
