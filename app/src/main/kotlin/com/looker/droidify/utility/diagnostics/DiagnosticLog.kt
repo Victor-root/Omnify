@@ -98,8 +98,7 @@ object DiagnosticLog {
 
     fun log(message: String) {
         if (!BuildConfig.DIAGNOSTICS) return
-        // At info level: devices like the SHIELD TV drop debug-level lines from logcat altogether.
-        if (BuildConfig.TRACES) Log.i(TAG, message)
+        if (BuildConfig.TRACES) Log.d(TAG, message)
         val target = file ?: return
         synchronized(lock) {
             runCatching {
