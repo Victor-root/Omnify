@@ -125,6 +125,7 @@ class MainComposeActivity : ComponentActivity() {
         private const val KEY_OMNIFY_SEED = "omnify_seed_v6"
         private const val KEY_TEST_REPO_ID = "test_repo_id"
         private const val KEY_OMNIFY_CURATED_MIGRATED = "omnify_curated_migrated_v1"
+        private const val KEY_OMNIFY_LABEL_MIGRATED = "omnify_label_migrated_v1"
         private const val KEY_TV_PACK_SEEDED_V1 = "tv_pack_seeded_v1"
         private const val KEY_TV_PACK_SEEDED_V2 = "tv_pack_seeded_v2"
         private const val KEY_TV_PACK_ICONS_BACKFILLED_V1 = "tv_pack_icons_backfilled_v1"
@@ -144,7 +145,10 @@ class MainComposeActivity : ComponentActivity() {
         provider = SourceProvider.GITHUB,
         owner = OMNIFY_SOURCE_OWNER,
         repo = OMNIFY_SOURCE_REPO,
-        label = getString(R.string.application_name),
+        // Named after Omnify's public releases it follows, never after the running build ("Omnify Test",
+        // "Omnify Beta"), and kept so: the installed app's own name would otherwise replace it.
+        label = OMNIFY_SOURCE_REPO,
+        nameOverridden = true,
         packageName = BuildConfig.APPLICATION_ID,
         installedTag = BuildConfig.VERSION_NAME,
         enabled = true,
@@ -153,7 +157,7 @@ class MainComposeActivity : ComponentActivity() {
 
     /** The developer's whole GitHub account as a second, opt-in source: disabled by default (the user
      *  enables it to get every app of the account), forks included (the apps are published as forks),
-     *  labelled with the account name but shown with the app's own logo (see [ExternalAccount.OMNIFY_KEY]).
+     *  labelled with the account name but shown with Omnify's logo (see [ExternalAccount.OMNIFY_KEY]).
      *  The Omnify repo above is tracked separately, so the account won't absorb it. */
     private fun victorAccount(): ExternalAccount = ExternalAccount(
         provider = SourceProvider.GITHUB,
@@ -610,6 +614,17 @@ class MainComposeActivity : ComponentActivity() {
                     .firstOrNull { it.key == ExternalAccount.OMNIFY_KEY && !it.curated }
                     ?.let { externalAppRepository.upsertAccount(it.copy(curated = true)) }
                 firstRunPrefs.edit().putBoolean(KEY_OMNIFY_CURATED_MIGRATED, true).apply()
+            }
+
+            // One-time: the same name for an Omnify source seeded before it was fixed (see
+            // omnifyUpdateSource), which had taken the running build's.
+            if (!firstRunPrefs.getBoolean(KEY_OMNIFY_LABEL_MIGRATED, false)) {
+                externalAppRepository.getApps()
+                    .firstOrNull { it.key == ExternalApp.OMNIFY_REPO_KEY && !it.nameOverridden }
+                    ?.let { app ->
+                        externalAppRepository.upsertApp(app.copy(label = OMNIFY_SOURCE_REPO, nameOverridden = true))
+                    }
+                firstRunPrefs.edit().putBoolean(KEY_OMNIFY_LABEL_MIGRATED, true).apply()
             }
 
             // One-time: seed the curated Android TV app pack (see curatedTvPack's doc comment), disabled

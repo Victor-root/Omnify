@@ -67,7 +67,7 @@ import com.looker.droidify.compose.externalApps.rememberObtainiumImportPicker
 import com.looker.droidify.compose.repoList.AddExternalAccountDialog
 import com.looker.droidify.compose.repoList.AddExternalSourceDialog
 import com.looker.droidify.compose.repoList.AddSourceChooserDialog
-import com.looker.droidify.compose.repoList.AppLauncherIcon
+import com.looker.droidify.compose.repoList.OmnifyLogoIcon
 import com.looker.droidify.compose.repoList.EditExternalSourceDialog
 import com.looker.droidify.compose.repoList.RepoIcon
 import com.looker.droidify.compose.repoList.RepoListViewModel
@@ -653,7 +653,7 @@ private fun TvSourceRow(
         onToggle = onToggle,
         icon = {
             if (brandWithAppIcon) {
-                AppLauncherIcon(modifier = Modifier.size(56.dp))
+                OmnifyLogoIcon(modifier = Modifier.size(56.dp))
             } else {
                 ExternalAppIcon(app = app, isInstalled = isInstalled, size = 56.dp)
             }
@@ -711,7 +711,7 @@ private fun TvAccountRow(
         onToggle = onToggle,
         icon = {
             if (account.key == ExternalAccount.OMNIFY_KEY) {
-                AppLauncherIcon(modifier = Modifier.size(56.dp))
+                OmnifyLogoIcon(modifier = Modifier.size(56.dp))
             } else {
                 RepoIcon(
                     iconUrl = account.iconUrl,

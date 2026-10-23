@@ -69,6 +69,7 @@ import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.verticalScrollbar
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.repoList.AppLauncherIcon
+import com.looker.droidify.compose.repoList.OmnifyLogoIcon
 import com.looker.droidify.compose.repoList.RepoIcon
 import com.looker.droidify.compose.repoList.defaultRepoIcon
 import com.looker.droidify.compose.repoList.defaultRepoIconRes
@@ -802,12 +803,12 @@ internal fun PrefetchWelcomeLogos(items: List<WelcomeItem>) {
     }
 }
 
-/** A source's logo: the app's own icon for Omnify's, the repository's or the app's for the others. */
+/** A source's logo: Omnify's own for Omnify's, the repository's or the app's for the others. */
 @Composable
 internal fun WelcomeSourceIcon(item: WelcomeItem, size: Dp, modifier: Modifier = Modifier) {
     when (val kind = item.kind) {
         WelcomeKind.OmnifySource, WelcomeKind.OmnifyAccount ->
-            AppLauncherIcon(modifier = modifier.size(size))
+            OmnifyLogoIcon(modifier = modifier.size(size))
 
         is WelcomeKind.FdroidRepository -> RepoIcon(
             iconUrl = kind.repo.icon?.path,

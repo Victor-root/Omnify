@@ -75,6 +75,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -674,7 +675,7 @@ private fun MonogramAvatar(name: String) {
 private var appLauncherIconCache: Pair<Configuration, ImageBitmap>? = null
 
 /** The app's own launcher icon, rendered from the package manager (always present and correct across
- *  Android versions). Used to brand the built-in Omnify account row (and its detail screen). */
+ *  Android versions), test or beta mark included: the running build's, for the welcome page. */
 @Composable
 internal fun AppLauncherIcon(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -694,6 +695,25 @@ internal fun AppLauncherIcon(modifier: Modifier = Modifier) {
         } else {
             MonogramAvatar(name = "Omnify")
         }
+    }
+}
+
+/** Omnify's logo as its regular build shows it, for the rows standing for its public releases and for
+ *  the account they come from: those are the same whatever build is running, so unlike
+ *  [AppLauncherIcon] they never carry a test or beta mark. */
+@Composable
+internal fun OmnifyLogoIcon(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(MaterialTheme.shapes.large)
+            .background(colorResource(R.color.ic_launcher_background)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_omnify_logo),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(0.62f),
+        )
     }
 }
 
@@ -896,7 +916,7 @@ private fun ExternalSourceItem(
                 .padding(vertical = 4.dp),
         ) {
             if (brandWithAppIcon) {
-                AppLauncherIcon(modifier = Modifier.size(48.dp).alpha(contentAlpha))
+                OmnifyLogoIcon(modifier = Modifier.size(48.dp).alpha(contentAlpha))
             } else {
                 ExternalAppIcon(
                     app = app,
@@ -1016,7 +1036,7 @@ private fun ExternalAccountItem(
         ) {
             if (account.key == ExternalAccount.OMNIFY_KEY) {
                 // The built-in Omnify source is branded with the app's own logo so it's recognisable.
-                AppLauncherIcon(
+                OmnifyLogoIcon(
                     modifier = Modifier
                         .size(48.dp)
                         .alpha(contentAlpha),
