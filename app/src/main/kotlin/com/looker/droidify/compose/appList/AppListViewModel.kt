@@ -160,6 +160,16 @@ class AppListViewModel @Inject constructor(
     // Resolved once: the "Made for TV" carousel only queries/show on a television.
     private val isTelevisionDevice = context.isTelevision()
 
+    /**
+     * Kept running for as long as this ViewModel lives, rather than only while the home is on screen.
+     * The home is what every app page goes back to: stopped five seconds into a page, as asStateFlow
+     * does by default, every catalogue list here was queried again on the way back, and an app page
+     * opened right after waited behind those queries (measured: 5.5 s to read one app on a SHIELD TV,
+     * against 60 to 140 ms otherwise). They still only recompute when what they read changes.
+     */
+    private fun <T> Flow<T>.asHomeState(initialValue: T): StateFlow<T> =
+        asStateFlow(initialValue, started = SharingStarted.Lazily)
+
     val searchQuery = TextFieldState("")
 
     /** Debounced so typing doesn't run a fresh query per keystroke, except the very first read
@@ -177,10 +187,10 @@ class AppListViewModel @Inject constructor(
     /** The search every list here is filtered by, exactly as they see it (trimmed and debounced), or
      *  empty while not searching. For the screen to filter the external sources the same way, and to
      *  name what was searched when nothing matched. */
-    val activeSearch: StateFlow<String> = searchQueryStream.asStateFlow("")
+    val activeSearch: StateFlow<String> = searchQueryStream.asHomeState("")
 
     val categories: StateFlow<List<CatalogCategory>> =
-        appRepository.categories.asStateFlow(emptyList())
+        appRepository.categories.asHomeState(emptyList())
 
     private val _selectedCategories = MutableStateFlow<Set<DefaultName>>(emptySet())
     val selectedCategories: StateFlow<Set<DefaultName>> = _selectedCategories
@@ -194,7 +204,7 @@ class AppListViewModel @Inject constructor(
      *  writes. Drives [favouriteApps]'s own order below, and, combined with the external half from
      *  ExternalAppsViewModel, the "date favourited" option on the favourites full page. */
     val favouritedAt: StateFlow<Map<String, Long>> =
-        settingsRepository.get { favouritedAt }.asStateFlow(emptyMap())
+        settingsRepository.get { favouritedAt }.asHomeState(emptyMap())
 
     // Apps hidden from every listing on this screen (Available/Installed/Updates, every Discover
     // carousel). See AppMinimal.excludingHidden, applied at each list-producing flow below.
@@ -202,10 +212,10 @@ class AppListViewModel @Inject constructor(
 
     // TV-only filter (Android TV only, see AppListScreen's header toggle). Kept across launches, and on
     // by default on a television (see DatastoreModule).
-    val tvOnly: StateFlow<Boolean> = settingsRepository.get { tvOnly }.asStateFlow(false)
+    val tvOnly: StateFlow<Boolean> = settingsRepository.get { tvOnly }.asHomeState(false)
 
     /** Whether a left/right swipe on the home grid switches tab (user setting, off by default). */
-    val homeScreenSwiping = settingsRepository.get { homeScreenSwiping }.asStateFlow(false)
+    val homeScreenSwiping = settingsRepository.get { homeScreenSwiping }.asHomeState(false)
 
     /** Whether the Discover home's favourites carousel is allowed to show at all (persisted, on by
      *  default). The carousel itself also needs a favourite to exist (see [favouriteApps] and
@@ -213,7 +223,7 @@ class AppListViewModel @Inject constructor(
      *  hiding it once keeps it hidden until they show it again, even across a favourite being removed
      *  and a new one added later. */
     val showFavouritesCarousel: StateFlow<Boolean> =
-        settingsRepository.get { showFavouritesCarousel }.asStateFlow(true)
+        settingsRepository.get { showFavouritesCarousel }.asHomeState(true)
 
     /** Flips [showFavouritesCarousel]. */
     fun toggleFavouritesCarousel() {
@@ -225,7 +235,7 @@ class AppListViewModel @Inject constructor(
     // during a sync, see AppRepository.throttledCatalogChanges.
     private val catalogChanges: StateFlow<Int> = appRepository.throttledCatalogChanges
         .distinctUntilChanged()
-        .asStateFlow(0)
+        .asHomeState(0)
 
     // Throttled trigger for the download-stats table — the stats worker inserts roughly one batch per
     // month, so this mirrors catalogChanges to refresh the "Most downloaded" carousel when stats land
@@ -233,7 +243,7 @@ class AppListViewModel @Inject constructor(
     private val statsChanges: StateFlow<Int> = merge(
         appRepository.downloadStatsChanges.take(1),
         appRepository.downloadStatsChanges.drop(1).sample(CATALOG_REFRESH_MS),
-    ).distinctUntilChanged().asStateFlow(0)
+    ).distinctUntilChanged().asHomeState(0)
 
     // A single snapshot of the installed apps (versionCode and signing fingerprint), reactive to
     // install/uninstall, derived from one package-table subscription.
@@ -247,7 +257,7 @@ class AppListViewModel @Inject constructor(
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(InstalledInfo())
+        .asHomeState(InstalledInfo())
 
     /** The [MadeForTv] filter, with the installed apps that have a TV launcher entry: refreshed on every
      *  install and removal, and only looked up on a television. */
@@ -257,7 +267,7 @@ class AppListViewModel @Inject constructor(
         .map { MadeForTv(if (isTelevisionDevice) context.packageManager.tvLauncherPackages() else emptySet()) }
         .distinctUntilChanged()
         .flowOn(Dispatchers.IO)
-        .asStateFlow(MadeForTv(emptySet()))
+        .asHomeState(MadeForTv(emptySet()))
 
     /** Package names of apps genuinely made for TV — refreshed once per catalogue change, not on every
      *  keystroke/filter change, since [appsState] below intersects it in on every recompute while [tvOnly]
@@ -276,7 +286,7 @@ class AppListViewModel @Inject constructor(
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptySet())
+        .asHomeState(emptySet())
 
     /** The catalogue as searched and picked by category, hidden apps left out: what [appsState] shows
      *  before the TV filter, and what the Installed tab lists, which that filter never narrows. */
@@ -299,7 +309,7 @@ class AppListViewModel @Inject constructor(
         // repeatedly during a sync) so the grid doesn't needlessly re-diff and re-animate.
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     // Applied to the queried list rather than being part of what triggers the query: tvPackageNames
     // only changes after a catalogue change that already re-ran it, notably filling in at cold start.
@@ -312,7 +322,7 @@ class AppListViewModel @Inject constructor(
     }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     // ---- Tabs: Available / Installed / Updates ----
 
@@ -329,7 +339,7 @@ class AppListViewModel @Inject constructor(
         .mapLatest { appRepository.suggestedVersions() }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyMap())
+        .asHomeState(emptyMap())
 
     /**
      * Installed packageName -> the real on-device versionName (e.g. "6.5.5-c"), for installed catalogue
@@ -345,7 +355,7 @@ class AppListViewModel @Inject constructor(
         .map { verified -> verified.mapValues { (_, item) -> item.version } }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyMap())
+        .asHomeState(emptyMap())
 
     /**
      * Installed packages a tracked external source, not the catalogue, is responsible for, mapped to
@@ -386,7 +396,7 @@ class AppListViewModel @Inject constructor(
             if (!owns) return@mapNotNull null
             pkg to app.key
         }.toMap()
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asHomeState(emptyMap())
 
     /**
      * The Installed tab's list, kept precomputed in the background (recomputed only when the catalogue
@@ -400,7 +410,7 @@ class AppListViewModel @Inject constructor(
         installedVersionNames,
     ) { apps, installed ->
         apps.filter { it.packageName.name in installed }
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asHomeState(emptyList())
 
     /**
      * Everything the Updates tab shows, or null while it is not known yet.
@@ -440,26 +450,26 @@ class AppListViewModel @Inject constructor(
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(null)
+        .asHomeState(null)
 
     /** The Updates tab's catalogue list — installed apps with an available update. Precomputed like
      *  [installedApps], so switching to the tab is a cheap selection. */
     val updatableApps: StateFlow<List<AppMinimal>> = updates
         .map { it?.catalogue.orEmpty() }
         .distinctUntilChanged()
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     /** The Updates tab's external sources, from the same answer as [updatableApps]. */
     val externalUpdates: StateFlow<List<ExternalApp>> = updates
         .map { it?.external.orEmpty() }
         .distinctUntilChanged()
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     /** False until [updates] has a real answer; see there. */
     val updatesLoaded: StateFlow<Boolean> = updates
         .map { it != null }
         .distinctUntilChanged()
-        .asStateFlow(false)
+        .asHomeState(false)
 
     /**
      * Apps shown for the current tab. Search / sort / category / favourites filters are already applied
@@ -479,14 +489,14 @@ class AppListViewModel @Inject constructor(
             // The External tab renders its own (non-F-Droid) list, so the catalogue list is empty.
             AppTab.EXTERNAL -> emptyList()
         }
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyList())
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asHomeState(emptyList())
 
     /** Number of apps with an available, installable update, catalogue and external sources together
      *  (shown on the Updates tab), the same count the notification gives. */
     val updatesCount: StateFlow<Int> = updates
         .map { it?.count ?: 0 }
         .distinctUntilChanged()
-        .asStateFlow(0)
+        .asHomeState(0)
 
     // A curated carousel ("New apps" / "Recently updated" / "Most downloaded") opened as its own full
     // page via its "see all" arrow; null = the Discover home. (Categories, by contrast, expand inline
@@ -519,12 +529,12 @@ class AppListViewModel @Inject constructor(
     }
 
     /** True while any sync runs (first launch, manual, repo-enable, periodic) — drives the bar. */
-    val isSyncing: StateFlow<Boolean> = SyncWorker.isSyncing(context).asStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = SyncWorker.isSyncing(context).asHomeState(false)
 
     /** True while the sync the user is waiting on is running or still to run (see
      *  [SyncWorker.isSyncScheduled]): tells a catalogue that is still on its way apart from one that
      *  has nothing coming. */
-    val isSyncScheduled: StateFlow<Boolean> = SyncWorker.isSyncScheduled(context).asStateFlow(false)
+    val isSyncScheduled: StateFlow<Boolean> = SyncWorker.isSyncScheduled(context).asHomeState(false)
 
     /**
      * True while the device has no connection that reaches the internet, so a screen with nothing on
@@ -566,11 +576,11 @@ class AppListViewModel @Inject constructor(
     }
 
     /** True while a batch "update all" is downloading its apps — locks the button and shows progress. */
-    val isUpdatingAll: StateFlow<Boolean> = UpdateAllWorker.isUpdating(context).asStateFlow(false)
+    val isUpdatingAll: StateFlow<Boolean> = UpdateAllWorker.isUpdating(context).asHomeState(false)
 
     /** The package currently being updated by a running "update all" batch (null when idle), so the
      *  Updates tab shows a live spinner on that app and moves to the next in real time. */
-    val updatingPackage: StateFlow<String?> = UpdateAllWorker.currentPackage(context).asStateFlow(null)
+    val updatingPackage: StateFlow<String?> = UpdateAllWorker.currentPackage(context).asHomeState(null)
 
     /**
      * The same batch, with its byte counts and its place in the run, so the tile being updated can
@@ -635,7 +645,7 @@ class AppListViewModel @Inject constructor(
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     /** Catalogue favourites' on-device install date (epoch millis), read live from PackageManager:
      *  purely an ordering signal for the favourites full page's "date installed" sort. A favourite
@@ -650,7 +660,7 @@ class AppListViewModel @Inject constructor(
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyMap())
+        .asHomeState(emptyMap())
 
     /**
      * Whether the catalogue holds no app at all, or null while the database has yet to answer.
@@ -663,7 +673,7 @@ class AppListViewModel @Inject constructor(
     val catalogEmpty: StateFlow<Boolean?> = appRepository.catalogChanges
         .map { it == 0 }
         .distinctUntilChanged()
-        .asStateFlow(null)
+        .asHomeState(null)
 
     /**
      * True while no repository is switched on at all. With the catalogue empty on top of that, there is
@@ -673,7 +683,7 @@ class AppListViewModel @Inject constructor(
     val noRepositoryEnabled: StateFlow<Boolean> = settingsRepository.get { enabledRepoIds }
         .map { it.isEmpty() }
         .distinctUntilChanged()
-        .asStateFlow(false)
+        .asHomeState(false)
 
     /** "What's new" carousel on the Discover home — the most recently added apps. */
     val newApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
@@ -682,7 +692,7 @@ class AppListViewModel @Inject constructor(
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     /** "Recently updated" carousel on the Discover home. Restricted to apps that have actually been
      *  updated since they were added, so it isn't a duplicate of the "New apps" carousel (a brand-new
@@ -695,7 +705,7 @@ class AppListViewModel @Inject constructor(
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     /** "Most downloaded" carousel on the Discover home (F-Droid v2's third curated row). Re-queries
      *  when either the catalogue or the download-stats table changes; empty until the stats worker has
@@ -705,7 +715,7 @@ class AppListViewModel @Inject constructor(
             .mapLatest { hidden -> appRepository.mostDownloadedApps(DISCOVER_ROW_COUNT).excludingHidden(hidden) }
             .distinctUntilChanged()
             .flowOn(Dispatchers.Default)
-            .asStateFlow(emptyList())
+            .asHomeState(emptyList())
 
     /** "Shizuku" carousel on the Discover home — apps that declare the Shizuku permission, i.e. apps
      *  that can use Shizuku for elevated actions without root. Empty (row hidden) when none are found. */
@@ -719,7 +729,7 @@ class AppListViewModel @Inject constructor(
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     /** "Root" carousel on the Discover home — apps that need or use root (the superuser permission or
      *  strong root phrasing in their text; see AppDao.rootApps). Empty (row hidden) when none found. */
@@ -727,7 +737,7 @@ class AppListViewModel @Inject constructor(
         .mapLatest { hidden -> appRepository.rootApps(DISCOVER_ROW_COUNT).excludingHidden(hidden) }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     /**
      * "Recommended by Victor-root": a plain vertical list (not a carousel) on the Discover home, of
@@ -771,7 +781,7 @@ class AppListViewModel @Inject constructor(
             }
             .distinctUntilChanged()
             .flowOn(Dispatchers.Default)
-            .asStateFlow(emptyList())
+            .asHomeState(emptyList())
 
     /** Puts the Shizuku app itself at the head of its own "Works with Shizuku" list, so the section
      *  reads coherently. Shizuku defines the permission rather than requesting it, so it may not match
@@ -790,7 +800,7 @@ class AppListViewModel @Inject constructor(
     private val ownRepos: StateFlow<List<Repo>> = repoRepository.getEnabledRepos()
         .map { repos -> repos.filter { it.address.trimEnd('/') !in Repository.defaultAddresses } }
         .distinctUntilChanged()
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     /** "Made for TV" carousel — apps made for TV by [MadeForTv]'s signals, OR tagged with a genuinely
      *  TV-relevant category (see [TV_RELEVANT_CATEGORIES]). The manifest feature alone is nearly unused
@@ -836,7 +846,7 @@ class AppListViewModel @Inject constructor(
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     /**
      * Each of [ownRepos] with its apps, newest first, for a TV carousel of its own: TV's Explore has no
@@ -856,7 +866,7 @@ class AppListViewModel @Inject constructor(
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     /**
      * The TV-only home, in rows like the full catalogue's rather than one grid of everything: favourites,
@@ -916,13 +926,13 @@ class AppListViewModel @Inject constructor(
             }
             .distinctUntilChanged()
             .flowOn(Dispatchers.Default)
-            .asStateFlow(emptyList())
+            .asHomeState(emptyList())
 
     /** The first [DISCOVER_ROW_COUNT] of [allTvApps]: the carousel's row. */
     val tvApps: StateFlow<List<AppMinimal>> = allTvApps
         .map { it.take(DISCOVER_ROW_COUNT) }
         .distinctUntilChanged()
-        .asStateFlow(emptyList())
+        .asHomeState(emptyList())
 
     /** Full app list for the carousel page the user opened via "see all" (empty when none is open).
      *  Unlike the carousels above, this isn't capped to a row — it's the whole section. */
@@ -962,7 +972,7 @@ class AppListViewModel @Inject constructor(
             }
             .distinctUntilChanged()
             .flowOn(Dispatchers.Default)
-            .asStateFlow(emptyList())
+            .asHomeState(emptyList())
 
     // Categories the user expanded inline in the accordion (keyed by category name). Their app lists
     // load on demand and collapse when the chevron is toggled off.
@@ -990,7 +1000,7 @@ class AppListViewModel @Inject constructor(
             }
             .distinctUntilChanged()
             .flowOn(Dispatchers.Default)
-            .asStateFlow(emptyMap())
+            .asHomeState(emptyMap())
 
     /**
      * Manually re-syncs all enabled repositories through the same worker as every other sync, so the
