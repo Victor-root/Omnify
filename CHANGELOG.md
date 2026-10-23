@@ -17,6 +17,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Jellyfin joins the Android TV picks.**
 - **A free, fully offline translator with no Google code** (Mozilla's, the one behind Firefox's translation), beside ML Kit in Settings: a description or README is translated with its formatting kept, on several cores at once. Android 9 and 64-bit devices.
 - **An on-device translator downloads its language model as soon as it is picked in Settings**, which says when it is ready, instead of on the first translation.
+- **Android TV: OK on a description opens it full screen**, Back closing it; it still pages up and down in place too.
 - **Translate an app's page on Android TV**, with automatic translation when it is turned on, as on a phone.
 
 ### 🔄 Changed
