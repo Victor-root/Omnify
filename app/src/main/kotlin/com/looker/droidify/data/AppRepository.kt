@@ -233,6 +233,11 @@ class AppRepository @Inject constructor(
         }
     }
 
+    /** Each package's catalogue categories, across all its repositories (see [AppDao.packageCategories]). */
+    suspend fun packageCategories(): Map<String, Set<DefaultName>> = withContext(Dispatchers.Default) {
+        appDao.packageCategories().groupBy({ it.packageName }, { it.defaultName }).mapValues { it.value.toSet() }
+    }
+
     suspend fun addToFavourite(packageName: PackageName): Boolean {
         val favourites = settingsRepository.get { favouriteApps }.first()
         val wasInFavourites = packageName.name in favourites
