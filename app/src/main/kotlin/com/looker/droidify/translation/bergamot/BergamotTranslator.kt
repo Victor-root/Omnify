@@ -18,6 +18,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -81,26 +82,31 @@ class BergamotTranslator @Inject constructor(
                 val startedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
                 val wanted = route.map { it.source to it.target }.toSet()
                 (loaded.keys - wanted).forEach { pair -> loaded.remove(pair)?.forEach { it.close() } }
-                // Only HTML is cut, at its blocks, the engine keeping each part's tags in place.
-                val blocks = if (isHtml) splitIntoBlocks(text) else listOf(text)
-                val parts = groupInOrder(blocks, workers)
+                // Only HTML is cut, each part whole HTML of its own (see splitForWorkers).
+                val parts = if (isHtml) {
+                    splitForWorkers(text, workers)
+                } else {
+                    listOf(HtmlPiece(emptyList(), text, emptyList()))
+                }
                 val hops = route.map { files -> copiesOf(files, parts.size) }
+                val unwrapFailures = AtomicInteger()
                 val translated = coroutineScope {
                     parts.mapIndexed { worker, part ->
                         async {
-                            if (part.isBlank()) {
-                                part
-                            } else {
-                                hops.fold(part) { current, copies -> copies[worker].translate(current, isHtml).text }
+                            if (part.body.isBlank()) return@async part.body
+                            val result = hops.fold(part.html) { current, copies ->
+                                copies[worker].translate(current, isHtml).text
                             }
+                            // The tags around the part kept rather than lost, should the engine have moved them.
+                            part.unwrap(result) ?: result.also { unwrapFailures.incrementAndGet() }
                         }
                     }.awaitAll()
                 }.joinToString("")
                 if (BuildConfig.DIAGNOSTICS) {
                     DiagnosticLog.log(
-                        "Offline translation: ${text.length} characters, ${blocks.size} blocks in " +
-                            "${parts.size} parts through ${route.size} models in " +
-                            "${SystemClock.elapsedRealtime() - startedAt} ms",
+                        "Offline translation: ${text.length} characters in ${parts.size} parts through " +
+                            "${route.size} models in ${SystemClock.elapsedRealtime() - startedAt} ms, " +
+                            "${unwrapFailures.get()} parts left wrapped",
                     )
                 }
                 translated
