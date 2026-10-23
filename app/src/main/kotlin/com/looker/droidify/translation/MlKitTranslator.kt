@@ -1,6 +1,9 @@
 package com.looker.droidify.translation
 
 import android.content.Context
+import android.os.SystemClock
+import com.looker.droidify.BuildConfig
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.google.android.gms.tasks.Task
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.common.sdkinternal.MlKitContext
@@ -115,9 +118,15 @@ class MlKitTranslator @Inject constructor(
                 .build(),
         )
         try {
+            val startedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
             // Downloads the (~30 MB) model only if it isn't present yet, and only because the user
             // asked for a translation, never ahead of time.
             translator.downloadModelIfNeeded(DownloadConditions.Builder().build()).await()
+            if (BuildConfig.DIAGNOSTICS) {
+                DiagnosticLog.log(
+                    "ML Kit: model $source to $target ready in ${SystemClock.elapsedRealtime() - startedAt} ms",
+                )
+            }
         } catch (e: Exception) {
             // Nothing is holding it yet, so it would leak its native memory otherwise. Cancellation
             // comes through here too, which is exactly when closing it matters most.
