@@ -5,6 +5,8 @@ import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
 import java.io.File
 import java.io.FileInputStream
 import java.util.Properties
+import org.gradle.api.provider.ValueSource
+import org.gradle.api.provider.ValueSourceParameters
 
 plugins {
     alias(libs.plugins.android.application)
@@ -112,9 +114,7 @@ android {
         // Raising it is a deliberate decision with its own testing, not a side effect.
         targetSdk = 36
         versionName = latestVersionName
-        // Android's own ordering, invisible to the user: it refuses to install over a build whose
-        // versionCode isn't lower, so this has to rise on every published build regardless of what
-        // versionName says.
+        // Debug's only: every other build numbers itself when it is made (see BuildMinute below).
         versionCode = 1008
 
         testInstrumentationRunner = "com.looker.droidify.TestRunner"
@@ -308,6 +308,20 @@ android {
     }
 }
 
+/**
+ * The minutes since the start of 2025, read again on every build, configuration cache included. It is
+ * the versionCode of every build but debug: Android refuses to install over a build whose versionCode
+ * isn't lower, and an update repository only offers a higher one, so each published APK has to carry a
+ * new, higher number. Taken from the clock, nobody has to remember to raise it and no file changes.
+ * Already far above the last hand-set number (1008), and within Android's limit for thousands of years.
+ */
+abstract class BuildMinute : ValueSource<Int, ValueSourceParameters.None> {
+    override fun obtain(): Int = (System.currentTimeMillis() / 60_000 - 28_928_160).toInt()
+}
+
+// Debug keeps its fixed number: a new one on every run would rebuild everything that reads BuildConfig.
+val buildMinute = providers.of(BuildMinute::class.java) {}
+
 androidComponents {
     onVariants { variant ->
         variant.outputs.forEach { output ->
@@ -315,6 +329,7 @@ androidComponents {
             // plus that build type's own versionNameSuffix, e.g. beta's "-beta.2"), so the file name
             // always matches what the build type actually is without repeating that logic here.
             (output as? VariantOutputImpl)?.outputFileName?.set(output.versionName.map { "Omnify-v$it.apk" })
+            if (variant.buildType != "debug") output.versionCode.set(buildMinute)
         }
     }
 }
