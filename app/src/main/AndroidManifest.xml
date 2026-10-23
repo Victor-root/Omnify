@@ -18,6 +18,12 @@
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
+    <!--
+      translate-kit declares Android 9, the floor of Mozilla's offline translation engine. Omnify runs
+      from Android 6 and only offers that engine where it can start (see bergamotSupported).
+    -->
+    <uses-sdk tools:overrideLibrary="com.duckduckgo.translatekit" />
+
     <uses-feature
         android:name="android.software.leanback"
         android:required="false" />

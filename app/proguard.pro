@@ -17,3 +17,8 @@
 -keep class * implements com.google.firebase.components.ComponentRegistrar {
     <init>();
 }
+
+# Offline translation (translate-kit, Mozilla's engine) ships no R8 rules of its own. Its native code
+# reaches back into these classes by name: their native methods, and the constructors of the result
+# types it builds. Renamed or dropped, the library fails to link or crashes on the first translation.
+-keep class com.duckduckgo.translatekit.** { *; }

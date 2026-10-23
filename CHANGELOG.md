@@ -15,6 +15,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Parallel downloads (experimental)**: an option in Settings downloads large apps in several parts at once, each over its own connection.
 - **An empty home that says what to do** when no repository is enabled.
 - **Jellyfin joins the Android TV picks.**
+- **A free, fully offline translator with no Google code** (Mozilla's, the one behind Firefox's translation), beside ML Kit in Settings: a description or README is translated in one go with its formatting kept. Android 9 and 64-bit devices.
 - **Translate an app's page on Android TV**, with automatic translation when it is turned on, as on a phone.
 
 ### 🔄 Changed

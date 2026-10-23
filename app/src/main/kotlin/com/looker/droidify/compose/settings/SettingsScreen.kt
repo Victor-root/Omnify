@@ -91,6 +91,7 @@ import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.datastore.model.Theme
+import com.looker.droidify.translation.bergamot.bergamotSupported
 import com.looker.droidify.utility.common.SYSTEM_LANGUAGE
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.applicationLocale
@@ -136,6 +137,7 @@ private fun translationEngineLabel(engine: TranslationEngine): String = stringRe
         TranslationEngine.GOOGLE -> R.string.translation_engine_google
         TranslationEngine.LIBRETRANSLATE -> R.string.translation_engine_libretranslate
         TranslationEngine.MLKIT -> R.string.translation_engine_mlkit
+        TranslationEngine.BERGAMOT -> R.string.translation_engine_bergamot
     },
 )
 
@@ -632,7 +634,10 @@ fun SettingsScreen(
                     title = stringResource(R.string.translation_engine),
                     icon = painterResource(R.drawable.ic_language),
                     selectedValue = settings.translationEngine,
-                    values = TranslationEngine.entries.toList(),
+                    // Mozilla's engine only where it runs (see bergamotSupported).
+                    values = TranslationEngine.entries.filter {
+                        it != TranslationEngine.BERGAMOT || bergamotSupported()
+                    },
                     onValueSelected = viewModel::setTranslationEngine,
                     valueToString = { translationEngineLabel(it) },
                 )

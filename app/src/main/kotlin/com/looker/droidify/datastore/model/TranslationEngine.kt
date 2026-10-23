@@ -18,4 +18,8 @@ enum class TranslationEngine {
 
     /** Google ML Kit on-device translation. Works offline after a one-time model download. */
     MLKIT,
+
+    /** Mozilla's on-device engine (see BergamotTranslator): offline after a one-time model download
+     *  like [MLKIT], but free software with no Google code. Android 9 and 64-bit devices only. */
+    BERGAMOT,
 }
