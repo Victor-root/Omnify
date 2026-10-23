@@ -62,6 +62,13 @@ class BergamotTranslator @Inject constructor(
             activityManager.isLowRamDevice -> 1
             memory.totalMem < FOUR_GIGABYTES -> cores.coerceAtMost(2)
             else -> cores
+        }.also { workers ->
+            if (BuildConfig.DIAGNOSTICS) {
+                DiagnosticLog.log(
+                    "Offline translation: $workers workers (${Runtime.getRuntime().availableProcessors()} cores, " +
+                        "${memory.totalMem / (1024 * 1024)} MB, low RAM ${activityManager.isLowRamDevice})",
+                )
+            }
         }
     }
 
@@ -75,7 +82,8 @@ class BergamotTranslator @Inject constructor(
                 val wanted = route.map { it.source to it.target }.toSet()
                 (loaded.keys - wanted).forEach { pair -> loaded.remove(pair)?.forEach { it.close() } }
                 // Only HTML is cut, at its blocks, the engine keeping each part's tags in place.
-                val parts = if (isHtml) groupInOrder(splitIntoBlocks(text), workers) else listOf(text)
+                val blocks = if (isHtml) splitIntoBlocks(text) else listOf(text)
+                val parts = groupInOrder(blocks, workers)
                 val hops = route.map { files -> copiesOf(files, parts.size) }
                 val translated = coroutineScope {
                     parts.mapIndexed { worker, part ->
@@ -90,8 +98,9 @@ class BergamotTranslator @Inject constructor(
                 }.joinToString("")
                 if (BuildConfig.DIAGNOSTICS) {
                     DiagnosticLog.log(
-                        "Offline translation: ${text.length} characters in ${parts.size} parts through " +
-                            "${route.size} models in ${SystemClock.elapsedRealtime() - startedAt} ms",
+                        "Offline translation: ${text.length} characters, ${blocks.size} blocks in " +
+                            "${parts.size} parts through ${route.size} models in " +
+                            "${SystemClock.elapsedRealtime() - startedAt} ms",
                     )
                 }
                 translated
