@@ -1,5 +1,8 @@
 package com.looker.droidify.translation
 
+import android.os.SystemClock
+import com.looker.droidify.BuildConfig
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -12,6 +15,7 @@ suspend fun TranslationManager.translateHtml(
     target: String,
     source: String? = null,
 ): String = withContext(Dispatchers.Default) {
+    val startedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
     // Tokenize into tags (kept verbatim) and the text runs between them.
     val tokens = mutableListOf<String>()
     val isTag = mutableListOf<Boolean>()
@@ -57,6 +61,12 @@ suspend fun TranslationManager.translateHtml(
         ?.takeIf { it != "und" }
 
     val translated = translateSegments(segments, target, language)
+    if (BuildConfig.DIAGNOSTICS) {
+        DiagnosticLog.log(
+            "Translation: ${segments.size} pieces, ${segments.sumOf { it.length }} characters, " +
+                "done in ${SystemClock.elapsedRealtime() - startedAt} ms",
+        )
+    }
 
     // Splice the translations back in, keeping each run's surrounding whitespace.
     val builder = StringBuilder(html.length)
@@ -98,7 +108,14 @@ private suspend fun TranslationManager.translateSegments(
             if (seg.length >= MAX_TRANSLATE_CHUNK) break
         }
         val count = i - start
+        val batchStartedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
         val parts = translate(batch.toString(), target, source).split('\n')
+        if (BuildConfig.DIAGNOSTICS) {
+            DiagnosticLog.log(
+                "Translation: batch of $count pieces (${batch.length} characters) in " +
+                    "${SystemClock.elapsedRealtime() - batchStartedAt} ms, came back as ${parts.size} lines",
+            )
+        }
         if (parts.size == count) {
             for (j in 0 until count) out[start + j] = parts[j]
         } else {
