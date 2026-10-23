@@ -11,6 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.looker.droidify.data.encryption.sha256Hex
 import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
@@ -38,8 +39,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 /**
@@ -287,17 +286,4 @@ class UpdateAllWorker @AssistedInject constructor(
                         ?.progress?.getString(KEY_CURRENT_PACKAGE)
                 }
     }
-}
-
-private fun File.sha256Hex(): String {
-    val digest = MessageDigest.getInstance("SHA-256")
-    inputStream().use { input ->
-        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-        while (true) {
-            val read = input.read(buffer)
-            if (read < 0) break
-            digest.update(buffer, 0, read)
-        }
-    }
-    return digest.digest().joinToString("") { "%02x".format(it) }
 }
