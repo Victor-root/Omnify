@@ -60,6 +60,14 @@ class TranslationManager @Inject constructor(
         translatePreservingSymbols(text) { translateWithEngine(it, targetLanguage, sourceLanguage) }
     }
 
+    /**
+     * Whether the chosen engine returns a text with its line breaks where they were, which lets
+     * [translateHtml] send many pieces of a page in one request. ML Kit's on-device engine joins every
+     * line into one (measured on a SHIELD TV, five batches out of five).
+     */
+    suspend fun keepsLineBreaks(): Boolean =
+        settingsRepository.getInitial().translationEngine != TranslationEngine.MLKIT
+
     private suspend fun translateWithEngine(
         text: String,
         targetLanguage: String,

@@ -86,14 +86,21 @@ suspend fun TranslationManager.translateHtml(
     builder.toString()
 }
 
-/** Translates [segments] in newline-joined batches (each <= [MAX_TRANSLATE_CHUNK] chars), which the
- *  engines return line-for-line. On the rare batch that doesn't map 1:1, its segments are translated
- *  one by one, and any segment that still fails keeps its original text. */
+/**
+ * Translates [segments] in newline-joined batches (each <= [MAX_TRANSLATE_CHUNK] chars), which the
+ * engines return line-for-line. On the rare batch that doesn't map 1:1, its segments are translated
+ * one by one, and any segment that still fails keeps its original text.
+ *
+ * Except with an engine that does not keep line breaks ([TranslationManager.keepsLineBreaks]), which
+ * gets each segment on its own from the start: every batch came back as one line, so each was
+ * translated twice over, as a batch thrown away and then piece by piece.
+ */
 private suspend fun TranslationManager.translateSegments(
     segments: List<String>,
     target: String,
     source: String?,
 ): List<String> {
+    val batched = keepsLineBreaks()
     val out = arrayOfNulls<String>(segments.size)
     var i = 0
     while (i < segments.size) {
@@ -105,12 +112,14 @@ private suspend fun TranslationManager.translateSegments(
             if (batch.isNotEmpty()) batch.append('\n')
             batch.append(seg)
             i++
-            if (seg.length >= MAX_TRANSLATE_CHUNK) break
+            if (!batched || seg.length >= MAX_TRANSLATE_CHUNK) break
         }
         val count = i - start
         val batchStartedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
-        val parts = translate(batch.toString(), target, source).split('\n')
-        if (BuildConfig.DIAGNOSTICS) {
+        val translated = translate(batch.toString(), target, source)
+        // A single segment is taken whole: its own line breaks, if it has any, are not a batch's.
+        val parts = if (count == 1) listOf(translated) else translated.split('\n')
+        if (BuildConfig.DIAGNOSTICS && count > 1) {
             DiagnosticLog.log(
                 "Translation: batch of $count pieces (${batch.length} characters) in " +
                     "${SystemClock.elapsedRealtime() - batchStartedAt} ms, came back as ${parts.size} lines",
