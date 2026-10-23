@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
@@ -77,6 +79,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -131,6 +134,7 @@ import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionSeparator
 import com.looker.droidify.compose.components.SectionTitle
 import com.looker.droidify.compose.components.ShowMoreRow
+import com.looker.droidify.compose.components.Skeleton
 import com.looker.droidify.compose.components.SplitViewToggleAction
 import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.compose.components.SupportedLanguagesSection
@@ -1954,12 +1958,18 @@ private fun App.hasLinks(): Boolean = listOfNotNull(
 ).any { it.isNotBlank() }
 
 @Composable
-internal fun ScreenshotsRow(screenshots: List<FilePath>) {
+internal fun ScreenshotsRow(
+    screenshots: List<FilePath>,
+    // What the screenshots most likely are, for the room kept for each while it loads: TV ones are
+    // landscape, the rest mostly portrait. A screenshot that turns out otherwise resizes its own slot.
+    landscape: Boolean = false,
+) {
     var fullscreenIndex by remember { mutableStateOf<Int?>(null) }
     // Decoded at the thumbnail's height: without a size, the painter loads the original, and a phone
     // screenshot (often 1080 x 2400) was decoded whole for each of these, a real cost on a TV.
     val context = LocalContext.current
     val thumbnailHeightPx = with(LocalDensity.current) { ThumbnailHeight.roundToPx() }
+    val placeholderWidth = if (landscape) ThumbnailSlotHeight * 16 / 9 else 90.dp
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1974,11 +1984,18 @@ internal fun ScreenshotsRow(screenshots: List<FilePath>) {
             }
             val painter = rememberAsyncImagePainter(request)
             val imageState by painter.state.collectAsStateWithLifecycle()
+            val loaded = imageState is AsyncImagePainter.State.Success
+            // Fades in over its skeleton rather than popping in.
+            val imageAlpha by animateFloatAsState(
+                targetValue = if (loaded) 1f else 0f,
+                animationSpec = tween(durationMillis = 250),
+                label = "screenshotFade",
+            )
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .height(180.dp)
-                    .widthIn(min = 90.dp)
+                    .height(ThumbnailSlotHeight)
+                    .widthIn(min = if (loaded) 90.dp else placeholderWidth)
                     .clip(MaterialTheme.shapes.small)
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     // TV only: visible focus ring on the screenshot (no-op on touch).
@@ -1997,12 +2014,12 @@ internal fun ScreenshotsRow(screenshots: List<FilePath>) {
                         Image(
                             painter = painter,
                             contentDescription = stringResource(R.string.screenshot),
-                            modifier = Modifier.height(ThumbnailHeight),
+                            modifier = Modifier.height(ThumbnailHeight).graphicsLayer { alpha = imageAlpha },
                             contentScale = ContentScale.FillHeight,
                         )
                     }
 
-                    else -> {}
+                    else -> Skeleton(Modifier.matchParentSize())
                 }
             }
         }
@@ -2018,6 +2035,7 @@ internal fun ScreenshotsRow(screenshots: List<FilePath>) {
 }
 
 private val ThumbnailHeight = 200.dp
+private val ThumbnailSlotHeight = 180.dp
 
 /** Full-screen, swipeable screenshot viewer shown when a thumbnail is tapped. */
 @OptIn(ExperimentalFoundationApi::class)

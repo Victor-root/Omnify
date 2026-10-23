@@ -32,6 +32,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Android TV: back from an app's page returns to the card that was opened**, in its own row, instead of a row scrolled back to its start.
 - **Android TV: an app's page opens over the usual background** instead of a white or black screen, with less work behind it: screenshots are decoded at the size they are shown, and the page is no longer built twice when "Match accent to app icon" is on.
 - **Android TV: an app page opened just after another one no longer waits several seconds**, and the first one of a run no longer waits for the description viewer to start.
+- **Screenshots pulse while they load, then fade in**, in a space kept for them from the start.
 - **A translated description keeps its paragraphs and links.**
 - **A restore from the welcome page keeps what was chosen there**: the installer, theme, accent and background picked on those pages are no longer replaced by the backup's.
 - **Adding an app of a repository already followed works with an APK filter**: another app of the same repository is added on its own, as the Obtainium import does, instead of "already in your list".
