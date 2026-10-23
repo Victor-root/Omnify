@@ -53,7 +53,7 @@ import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusScale
-import com.looker.droidify.compose.repoList.AppLauncherIcon
+import com.looker.droidify.compose.repoList.OmnifyLogoIcon
 import com.looker.droidify.compose.repoList.RepoIcon
 import com.looker.droidify.compose.settings.components.SwitchSettingItem
 import com.looker.droidify.compose.theme.AccentBarHeight
@@ -225,10 +225,10 @@ private fun AccountInfoTab(
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        // The built-in Omnify account is branded with the app's own launcher icon (always correct);
-        // every other account uses its avatar (GitHub) or the letter monogram.
+        // The built-in Omnify account is branded with Omnify's logo; every other account uses its avatar
+        // (GitHub) or the letter monogram.
         if (account.key == ExternalAccount.OMNIFY_KEY) {
-            AppLauncherIcon(modifier = Modifier.size(64.dp))
+            OmnifyLogoIcon(modifier = Modifier.size(64.dp))
         } else {
             RepoIcon(
                 iconUrl = account.iconUrl,
