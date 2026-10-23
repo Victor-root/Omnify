@@ -60,6 +60,12 @@ val hasReleaseSigning = keystorePropertiesFile != null
 // its address never reaches the source. Handed to the "trial" build type only, below.
 val testRepoAddress = keystoreProperties.getProperty("testRepoAddress")?.trim().orEmpty()
 val testRepoFingerprint = keystoreProperties.getProperty("testRepoFingerprint")?.trim().orEmpty()
+if (testRepoAddress.isEmpty() && gradle.startParameter.taskNames.any { it.contains("Trial", ignoreCase = true) }) {
+    logger.warn(
+        "Test build without a test repository: no testRepoAddress in " +
+            (keystorePropertiesFile?.absolutePath ?: "any keystore.properties"),
+    )
+}
 
 // A keystore.properties on the machine means "sign with this key", so the build never quietly signs
 // with another one: it stops right here instead, and says what it looked for. Every build is
