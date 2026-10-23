@@ -558,8 +558,14 @@ class MainComposeActivity : ComponentActivity() {
             // The test build only: the repository it updates itself from (see TestRepository), added and
             // switched on once, then followed to whatever address or key the running build carries, so a
             // test build that moves the repository takes the installs it reaches along with it.
+            if (BuildConfig.DIAGNOSTICS) {
+                DiagnosticLog.log("Test repository: ${if (TestRepository.address == null) "none in this build" else "set"}")
+            }
             TestRepository.address?.let { address ->
                 val current = repository.getRepo(firstRunPrefs.getInt(KEY_TEST_REPO_ID, -1))
+                if (BuildConfig.DIAGNOSTICS) {
+                    DiagnosticLog.log("Test repository: ${current?.let { "row ${it.id}, on ${it.enabled}" } ?: "not added yet"}")
+                }
                 val fingerprint = TestRepository.fingerprint.ifEmpty { current?.fingerprint?.value.orEmpty() }
                 if (current == null) {
                     val id = repository.insertRepo(
