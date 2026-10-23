@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.settings.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +43,8 @@ fun <T> SelectionSettingItem(
     dialogIcon: ImageVector? = null,
     enabled: Boolean = true,
     supportingText: String? = null,
+    // The choice to point people to, marked "Recommended" in the list; none when null.
+    recommended: T? = null,
 ) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -95,6 +98,7 @@ fun <T> SelectionSettingItem(
             selectedValue = selectedValue,
             values = values,
             valueToString = valueToString,
+            recommended = recommended,
             onValueSelected = {
                 onValueSelected(it)
                 showDialog = false
@@ -111,6 +115,7 @@ private fun <T> SelectionDialog(
     selectedValue: T,
     values: List<T>,
     valueToString: @Composable (T) -> String,
+    recommended: T?,
     onValueSelected: (T) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -134,11 +139,10 @@ private fun <T> SelectionDialog(
                             selected = value == selectedValue,
                             onClick = { onValueSelected(value) },
                         )
-                        Text(
-                            text = valueToString(value),
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
+                        Column(modifier = Modifier.padding(start = 8.dp)) {
+                            Text(text = valueToString(value), style = MaterialTheme.typography.bodyLarge)
+                            if (value == recommended) RecommendedBadge(Modifier.padding(top = 4.dp))
+                        }
                     }
                 }
             }
@@ -149,5 +153,17 @@ private fun <T> SelectionDialog(
                 Text(text = stringResource(R.string.cancel))
             }
         },
+    )
+}
+
+@Composable
+private fun RecommendedBadge(modifier: Modifier = Modifier) {
+    Text(
+        text = stringResource(R.string.recommended),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onPrimaryContainer,
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(50))
+            .padding(horizontal = 10.dp, vertical = 2.dp),
     )
 }

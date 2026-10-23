@@ -642,6 +642,7 @@ fun SettingsScreen(
                     },
                     onValueSelected = viewModel::setTranslationEngine,
                     valueToString = { translationEngineLabel(it) },
+                    recommended = TranslationEngine.BERGAMOT,
                     supportingText = translationModelPreparation?.let { preparation ->
                         stringResource(
                             when (preparation) {
