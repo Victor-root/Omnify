@@ -3,6 +3,7 @@ package com.looker.droidify.compose.tv
 import android.os.SystemClock
 import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.BringIntoViewSpec
@@ -32,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -53,6 +55,8 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.ScreenshotsRow
@@ -250,6 +254,9 @@ internal fun TvKeepFocusOnMainAction(
  * whatever sits nearest in the left pane, which on a tall description was the versions list; right is
  * left to the default search; [upTarget] is where "up" goes once at the top. A WebView renders it, so
  * emojis, images, tables and links all show properly.
+ *
+ * OK opens it full screen, the same paging there, Back closing it: a long description read in a pane
+ * beside the app was a narrow column to page through. [expandable] is false for that full-screen copy.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -262,8 +269,30 @@ internal fun TvDescriptionPane(
     modifier: Modifier = Modifier,
     upTarget: FocusRequester? = null,
     leftTarget: FocusRequester? = null,
+    expandable: Boolean = true,
 ) {
     var rendererGone by remember(html) { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    if (expanded) {
+        Dialog(
+            onDismissRequest = { expanded = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) {
+            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                TvAccentBackground()
+                val focus = remember { FocusRequester() }
+                TvDescriptionPane(
+                    html = html,
+                    baseUrl = baseUrl,
+                    javaScriptEnabled = javaScriptEnabled,
+                    webUrl = webUrl,
+                    modifier = Modifier.fillMaxSize().padding(TvOverscan).focusRequester(focus),
+                    expandable = false,
+                )
+                LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+            }
+        }
+    }
     if (rendererGone) {
         val uriHandler = LocalUriHandler.current
         Column(
@@ -295,6 +324,11 @@ internal fun TvDescriptionPane(
             .onSizeChanged { viewportPx = it.height }
             .tvFocusFill(shape)
             .onPreviewKeyEvent { event ->
+                if (expandable && event.key in OPEN_KEYS) {
+                    // Opened on release, so the press that opens it isn't also read by the copy it opens.
+                    if (event.type == KeyEventType.KeyUp) expanded = true
+                    return@onPreviewKeyEvent true
+                }
                 // Falls back to the default search if the main action can't take the focus right now.
                 leftTarget != null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft &&
                     runCatching { leftTarget.requestFocus() }.getOrDefault(false)
@@ -351,5 +385,8 @@ internal fun TvScreenshots(
         ScreenshotsRow(screenshots, landscape = landscape)
     }
 }
+
+/** The remote's OK, and Enter on a keyboard. */
+private val OPEN_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)
 
 private const val TAG = "TvAppDetailPanes"
