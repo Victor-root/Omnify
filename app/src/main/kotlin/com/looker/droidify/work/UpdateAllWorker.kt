@@ -12,8 +12,10 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.looker.droidify.data.encryption.sha256Hex
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
+import com.looker.droidify.data.PendingUpdates
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.PackageName
@@ -29,6 +31,7 @@ import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.network.ApkFileDownloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.utility.common.cache.Cache
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
@@ -75,6 +78,7 @@ class UpdateAllWorker @AssistedInject constructor(
     private val batchProgress: BatchUpdateProgress,
     private val externalAppRepository: ExternalAppRepository,
     private val externalInstaller: ExternalInstaller,
+    private val pendingUpdates: PendingUpdates,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -98,6 +102,12 @@ class UpdateAllWorker @AssistedInject constructor(
                 // The same, plus the byte counts, for anything on screen: see BatchUpdateProgress.
                 batchProgress.startPackage(packageName, index + 1, total)
                 showBatchStep(R.string.batch_updating_FORMAT, index + 1, total)
+                // Asked again at its turn rather than trusted from when Update all was tapped: an app
+                // updated by hand meanwhile, from its own page, was downloaded and installed a second time.
+                if (packageName !in pendingUpdates.cataloguePackages()) {
+                    logSkippedAsUpToDate()
+                    return@forEachIndexed
+                }
                 runCatching { updateOne(packageName) }
                     .onFailure { Log.w(TAG, "Update failed for $packageName", it) }
             }
@@ -108,7 +118,13 @@ class UpdateAllWorker @AssistedInject constructor(
                 setProgress(Data.Builder().putString(KEY_CURRENT_PACKAGE, app.key).build())
                 batchProgress.startPackage(app.key, packages.size + index + 1, total)
                 showBatchStep(R.string.batch_updating_FORMAT, packages.size + index + 1, total)
-                runCatching { updateOneExternal(app) }
+                // The same as above, with the source's record as it is now rather than as it was then.
+                val current = pendingUpdates.externalApps().firstOrNull { it.key == app.key }
+                if (current == null) {
+                    logSkippedAsUpToDate()
+                    return@forEachIndexed
+                }
+                runCatching { updateOneExternal(current) }
                     .onFailure { Log.w(TAG, "Update failed for ${app.key}", it) }
             }
         } finally {
@@ -117,6 +133,10 @@ class UpdateAllWorker @AssistedInject constructor(
             batchProgress.clear()
         }
         Result.success()
+    }
+
+    private fun logSkippedAsUpToDate() {
+        if (BuildConfig.DIAGNOSTICS) DiagnosticLog.log("Update all: an app already updated meanwhile, skipped")
     }
 
     /**
