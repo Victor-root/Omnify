@@ -54,6 +54,11 @@ val releaseKeystore = keystoreProperties
     ?.let { path -> File(path).takeIf { it.isAbsolute } ?: File(keystorePropertiesFile?.parentFile, path) }
 val hasReleaseSigning = keystorePropertiesFile != null
 
+// The repository the test build updates itself from (see TestRepository), read from the same file so
+// its address never reaches the source. Handed to the "trial" build type only, below.
+val testRepoAddress = keystoreProperties.getProperty("testRepoAddress")?.trim().orEmpty()
+val testRepoFingerprint = keystoreProperties.getProperty("testRepoFingerprint")?.trim().orEmpty()
+
 // A keystore.properties on the machine means "sign with this key", so the build never quietly signs
 // with another one: it stops right here instead, and says what it looked for. Every build is
 // affected, the plain Run button included, since debug builds carry this key too.
@@ -252,6 +257,18 @@ android {
                 type = "boolean",
                 name = "DIAGNOSTICS",
                 value = (name == "trial" || name == "debug").toString(),
+            )
+            // Empty in every build but trial, so the test repository's address is in no other APK.
+            val isTrial = name == "trial"
+            buildConfigField(
+                type = "String",
+                name = "TEST_REPO_ADDRESS",
+                value = "\"${if (isTrial) testRepoAddress else ""}\"",
+            )
+            buildConfigField(
+                type = "String",
+                name = "TEST_REPO_FINGERPRINT",
+                value = "\"${if (isTrial) testRepoFingerprint else ""}\"",
             )
         }
     }

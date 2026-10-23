@@ -109,6 +109,7 @@ import com.looker.droidify.external.SourceDraft
 import com.looker.droidify.external.ReleaseFamily
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.model.Repository
+import com.looker.droidify.model.TestRepository
 import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
@@ -357,7 +358,7 @@ fun RepoListScreen(
             if (!fdroidCollapsed) {
                 items(sortedRepos, key = { "repo-${it.id}" }, contentType = { "repo" }) { repo ->
                     RepoItem(
-                        onClick = { onRepoClick(repo.id) },
+                        onClick = { onRepoClick(repo.id) }.takeUnless { TestRepository.hides(repo.address) },
                         onToggle = { viewModel.toggleRepo(repo) },
                         repo = repo,
                         isSyncing = repo.id in syncingRepoIds,
@@ -768,7 +769,8 @@ private const val SECTION_KEY_OMNIFY_PICKS = "omnify_picks"
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun RepoItem(
-    onClick: () -> Unit,
+    // Null for a repository whose page would show what must stay hidden (see TestRepository).
+    onClick: (() -> Unit)?,
     onToggle: () -> Unit,
     repo: Repo,
     // Whether this specific repo's own sync is currently enqueued/running (see
@@ -805,7 +807,7 @@ private fun RepoItem(
                     .weight(1f)
                     // TV only: a soft accent fill behind the focused row (no-op on touch).
                     .tvFocusFill(RoundedCornerShape(12.dp))
-                    .clickable(onClick = onClick)
+                    .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                     .padding(vertical = 4.dp),
             ) {
                 RepoIcon(

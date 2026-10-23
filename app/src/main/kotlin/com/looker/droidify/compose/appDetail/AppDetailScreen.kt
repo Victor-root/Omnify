@@ -163,6 +163,7 @@ import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.isInstallableOnDevice
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.datastore.model.CustomButton
+import com.looker.droidify.model.TestRepository
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.RootDetection
 import com.looker.droidify.utility.common.rememberIconAccent
@@ -445,21 +446,23 @@ fun AppDetailScreen(
                     // derived `successApp` doesn't smart-cast the separate `successState` variable, and
                     // the share action needs both.
                     successState?.let { success ->
-                        IconButton(
-                            onClick = {
-                                val repo = success.packages
-                                    .selectForDevice(success.app.metadata.suggestedVersionCode)?.second
+                        // Never from a repository whose address must stay hidden (see TestRepository).
+                        val shareRepo = remember(success) {
+                            (
+                                success.packages.selectForDevice(success.app.metadata.suggestedVersionCode)?.second
                                     ?: success.packages.firstOrNull()?.second
-                                if (repo != null) {
-                                    shareApp(context, success.app.metadata.packageName.name, repo)
-                                }
-                            },
-                            modifier = Modifier.tvFocusScale(debugLabel = "topbar-share"),
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_share),
-                                contentDescription = stringResource(R.string.share),
-                            )
+                                )?.takeUnless { TestRepository.hides(it.address) }
+                        }
+                        if (shareRepo != null) {
+                            IconButton(
+                                onClick = { shareApp(context, success.app.metadata.packageName.name, shareRepo) },
+                                modifier = Modifier.tvFocusScale(debugLabel = "topbar-share"),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_share),
+                                    contentDescription = stringResource(R.string.share),
+                                )
+                            }
                         }
                         HideAppAction(isHidden = isHidden, onToggle = viewModel::toggleHidden)
                     }
