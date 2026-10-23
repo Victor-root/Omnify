@@ -3,7 +3,6 @@ import com.android.build.gradle.internal.tasks.factory.dependsOn
 import io.gitlab.arturbosch.detekt.Detekt
 import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
 import java.io.File
-import java.io.FileInputStream
 import java.util.Properties
 import org.gradle.api.provider.ValueSource
 import org.gradle.api.provider.ValueSourceParameters
@@ -35,9 +34,12 @@ val keystorePropertiesFile = listOf(
     rootProject.file("keystore.properties"),
 ).firstOrNull { it.isFile }
 
+// Read through Gradle rather than straight from disk, so an edit to the file reaches the next build:
+// with the configuration cache on, a plain read was replayed from the cache, missing the change.
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile != null) {
-        FileInputStream(keystorePropertiesFile).use { load(it) }
+        providers.fileContents(objects.fileProperty().fileValue(keystorePropertiesFile)).asText.orNull
+            ?.let { load(it.reader()) }
     }
 }
 
