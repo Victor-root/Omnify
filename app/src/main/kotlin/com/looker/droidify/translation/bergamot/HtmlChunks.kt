@@ -1,76 +1,121 @@
 package com.looker.droidify.translation.bergamot
 
+import kotlin.math.abs
+
 /**
- * [html] cut where it can be translated in separate parts: after each block that closes with no element
- * left open around it (a paragraph, a list, a heading…), and at each blank line of plain text. Joined
- * back together, the parts are [html] exactly. An element left open past the end, a wrapper around the
- * whole page say, leaves it in one part.
+ * One of the parts a page is translated in, side by side with the others: [body], a slice of the page,
+ * with the elements open around it closed after it and opened again before it, so that each part reads
+ * as whole HTML on its own. [unwrap] takes those added tags off again once translated.
  */
-internal fun splitIntoBlocks(html: String): List<String> {
-    val cuts = mutableListOf<Int>()
-    var depth = 0
+internal class HtmlPiece(
+    private val opened: List<String>,
+    val body: String,
+    private val closed: List<String>,
+) {
+    val html: String
+        get() = opened.joinToString("") { "<$it>" } + body + closed.asReversed().joinToString("") { "</$it>" }
+
+    /** [translated], this piece's [html] through the engine, without the tags added around [body], or null
+     *  when the engine didn't leave them where they were put. */
+    fun unwrap(translated: String): String? {
+        val start = Regex("^" + opened.joinToString("") { "\\s*<$it\\b[^>]*>" }).find(translated) ?: return null
+        val rest = translated.substring(start.range.last + 1)
+        val end = Regex(closed.asReversed().joinToString("") { "</$it>\\s*" } + "$").find(rest) ?: return null
+        return rest.substring(0, end.range.first)
+    }
+}
+
+/**
+ * [html] cut into at most [count] pieces of about the same length, joined back by their [HtmlPiece.body]
+ * into [html] exactly. A cut falls at the end of a block, a list item, a line or a sentence, wherever the
+ * nearest one to an even share is, inside a list or a long paragraph too: cutting only between top-level
+ * blocks left one part for a description that was a single long list, a single paragraph, or held a "<"
+ * that was text, and every part of it then waited on one core. Never inside code.
+ */
+internal fun splitForWorkers(html: String, count: Int): List<HtmlPiece> {
+    val candidates = cutPoints(html).filter { it.index > 0 && it.index < html.length }
+    val chosen = mutableListOf<CutPoint>()
+    for (share in 1 until count) {
+        val target = html.length.toLong() * share / count
+        val after = chosen.lastOrNull()?.index ?: 0
+        chosen += candidates.filter { it.index > after }.minByOrNull { abs(it.index - target) } ?: break
+    }
+    val bounds = listOf(CutPoint(0, emptyList())) + chosen + CutPoint(html.length, emptyList())
+    return bounds.zipWithNext { start, end ->
+        HtmlPiece(opened = start.open, body = html.substring(start.index, end.index), closed = end.open)
+    }
+}
+
+/** Where a piece may start, and the elements open there, outermost first. */
+private class CutPoint(val index: Int, val open: List<String>)
+
+private fun cutPoints(html: String): List<CutPoint> {
+    val points = mutableListOf<CutPoint>()
+    val open = ArrayDeque<String>()
+    fun mark(index: Int) {
+        if (open.none { it in VERBATIM_ELEMENTS }) points += CutPoint(index, open.toList())
+    }
     var index = 0
     while (index < html.length) {
         val char = html[index]
         if (char == '<') {
             val end = html.indexOf('>', index)
-            if (end < 0) break
-            val tag = html.substring(index + 1, end)
-            val name = tag.trimStart('/').takeWhile { it.isLetterOrDigit() }.lowercase()
+            val tag = if (end < 0) null else TAG_NAME.find(html.substring(index + 1, end))
+            val name = tag?.groupValues?.get(2)?.lowercase()
+            if (name == null || name !in KNOWN_ELEMENTS) {
+                // Not an element, a "<" in the text: read on as text.
+                index++
+                continue
+            }
+            val closing = tag.groupValues[1] == "/"
             when {
-                tag.startsWith("!") || tag.startsWith("?") || tag.endsWith("/") || name in VOID_ELEMENTS -> Unit
-                tag.startsWith("/") -> {
-                    if (depth > 0) depth--
-                    if (depth == 0 && name in BLOCK_ELEMENTS) cuts += end + 1
+                closing -> if (name in open) {
+                    while (open.removeLast() != name) Unit
                 }
-                else -> depth++
+                name in VOID_ELEMENTS || html[end - 1] == '/' -> Unit
+                else -> {
+                    // A new item or paragraph ends the one before it, whose end tag HTML lets go unwritten.
+                    if (name in OPTIONAL_END_ELEMENTS && open.lastOrNull() == name) open.removeLast()
+                    open.addLast(name)
+                }
             }
             index = end + 1
+            if (name in BREAK_ELEMENTS && (closing || name in VOID_ELEMENTS)) mark(index)
         } else {
-            if (depth == 0 && html.startsWith("\n\n", index)) cuts += index + 2
             index++
+            when {
+                char == '\n' -> mark(index)
+                char in SENTENCE_ENDS && html.getOrNull(index) == ' ' -> mark(index + 1)
+            }
         }
     }
-    val parts = mutableListOf<String>()
-    var start = 0
-    for (cut in cuts.distinct()) {
-        if (cut > start && cut < html.length) {
-            parts += html.substring(start, cut)
-            start = cut
-        }
-    }
-    parts += html.substring(start)
-    return parts
+    return points
 }
 
-/**
- * [parts] gathered, in order, into at most [count] runs of about the same length, for that many workers
- * to translate side by side. Never more runs than parts, and none empty.
- */
-internal fun groupInOrder(parts: List<String>, count: Int): List<String> {
-    val runs = count.coerceIn(1, parts.size.coerceAtLeast(1))
-    val total = parts.sumOf { it.length }
-    val groups = mutableListOf<StringBuilder>()
-    var current = StringBuilder()
-    parts.forEachIndexed { index, part ->
-        current.append(part)
-        val left = parts.size - index - 1
-        val target = total.toLong() * (groups.size + 1) / runs
-        val doneLength = groups.sumOf { it.length } + current.length
-        if (groups.size < runs - 1 && left > 0 && doneLength >= target) {
-            groups += current
-            current = StringBuilder()
-        }
-    }
-    groups += current
-    return groups.map { it.toString() }.filter { it.isNotEmpty() }.ifEmpty { listOf("") }
-}
+private val TAG_NAME = Regex("^(/?)([A-Za-z][A-Za-z0-9]*)")
+
+private val SENTENCE_ENDS = setOf('.', '!', '?')
+
+private val KNOWN_ELEMENTS = setOf(
+    "a", "abbr", "article", "aside", "audio", "b", "bdi", "bdo", "big", "blockquote", "br", "button",
+    "caption", "center", "cite", "code", "dd", "del", "details", "dfn", "div", "dl", "dt", "em", "figcaption",
+    "figure", "font", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "i", "iframe",
+    "img", "input", "ins", "kbd", "label", "li", "main", "mark", "nav", "ol", "p", "picture", "pre", "q", "s",
+    "samp", "section", "small", "source", "span", "strike", "strong", "sub", "summary", "sup", "table",
+    "tbody", "td", "tfoot", "th", "thead", "tr", "tt", "u", "ul", "var", "video", "wbr",
+)
 
 private val VOID_ELEMENTS = setOf(
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr",
 )
 
-private val BLOCK_ELEMENTS = setOf(
-    "p", "ul", "ol", "dl", "li", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "blockquote", "table", "div",
-    "section", "article", "details", "figure",
+private val OPTIONAL_END_ELEMENTS = setOf("p", "li", "dt", "dd", "tr", "td", "th")
+
+/** Elements a piece may end after. */
+private val BREAK_ELEMENTS = setOf(
+    "p", "ul", "ol", "dl", "li", "dt", "dd", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "blockquote",
+    "table", "tr", "div", "section", "article", "details", "figure", "br", "hr",
 )
+
+/** Kept whole, their text never cut. */
+private val VERBATIM_ELEMENTS = setOf("pre", "code")
