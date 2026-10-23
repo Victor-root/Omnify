@@ -1,8 +1,11 @@
 package com.looker.droidify.translation
 
+import android.util.Log
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.model.TranslationEngine
+import com.looker.droidify.di.ApplicationScope
 import com.looker.droidify.translation.bergamot.BergamotTranslator
+import com.looker.droidify.translation.bergamot.ENGLISH
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -11,7 +14,13 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -19,6 +28,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.URLEncoder
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,10 +45,51 @@ class TranslationManager @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val mlKitTranslator: MlKitTranslator,
     private val bergamotTranslator: BergamotTranslator,
+    @param:ApplicationScope private val appScope: CoroutineScope,
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
         explicitNulls = false
+    }
+
+    private val _modelPreparation = MutableStateFlow<ModelPreparation?>(null)
+
+    /** The chosen on-device engine's model being got ready ([prepare]), null when there is nothing to
+     *  get or it hasn't been asked for. */
+    val modelPreparation: StateFlow<ModelPreparation?> = _modelPreparation
+
+    private var preparation: Job? = null
+
+    /**
+     * Downloads [engine]'s model for English to the device language as soon as the engine is picked,
+     * rather than on the first translation, which then had to wait for it. English, because it is what
+     * most app pages are written in. In the app's own scope, so leaving Settings doesn't stop it. Nothing
+     * to get for an online engine, or on a device in English.
+     */
+    fun prepare(engine: TranslationEngine) {
+        preparation?.cancel()
+        val target = Locale.getDefault().language
+        val onDevice = engine == TranslationEngine.MLKIT || engine == TranslationEngine.BERGAMOT
+        if (!onDevice || target == ENGLISH) {
+            _modelPreparation.value = null
+            return
+        }
+        preparation = appScope.launch {
+            _modelPreparation.value = ModelPreparation.DOWNLOADING
+            _modelPreparation.value = try {
+                if (engine == TranslationEngine.MLKIT) {
+                    mlKitTranslator.prepare(target)
+                } else {
+                    bergamotTranslator.prepare(target)
+                }
+                ModelPreparation.READY
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Model download failed", e)
+                ModelPreparation.FAILED
+            }
+        }
     }
 
     /** On-device detection of [text]'s language (a BCP-47 tag): drives the "translate automatically"
@@ -161,3 +212,5 @@ class TranslationManager @Inject constructor(
     @Serializable
     private data class LibreResponse(val translatedText: String = "")
 }
+
+private const val TAG = "TranslationManager"

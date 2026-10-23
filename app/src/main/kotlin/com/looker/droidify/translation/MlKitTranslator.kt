@@ -87,6 +87,15 @@ class MlKitTranslator @Inject constructor(
         }
     }
 
+    /** Downloads and opens the English to [targetLanguage] model ahead of the first translation. Nothing to
+     *  do when the device is in English or in a language ML Kit doesn't have. */
+    suspend fun prepare(targetLanguage: String) {
+        MlKitContext.initializeIfNeeded(context)
+        val target = TranslateLanguage.fromLanguageTag(targetLanguage) ?: return
+        if (target == TranslateLanguage.ENGLISH) return
+        lock.withLock { openTranslator(TranslateLanguage.ENGLISH, target) }
+    }
+
     /** Forgets [translator], so the next translation opens a new one. The caller holds [lock]. */
     private fun discard(translator: Translator) {
         if (open?.translator === translator) open = null

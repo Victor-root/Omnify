@@ -449,6 +449,9 @@
     <string name="translation_engine_libretranslate">LibreTranslate (open source)</string>
     <string name="translation_engine_mlkit">Sur votre appareil (hors-ligne, ML Kit)</string>
     <string name="translation_engine_bergamot">Sur votre appareil (hors-ligne, open source, Mozilla)</string>
+    <string name="translation_model_downloading">Téléchargement du modèle de langue…</string>
+    <string name="translation_model_ready">Modèle de langue prêt : la traduction fonctionne hors-ligne</string>
+    <string name="translation_model_failed">Impossible de télécharger le modèle de langue, nouvel essai à la première traduction</string>
     <string name="libretranslate_url">URL de l\'instance LibreTranslate</string>
     <string name="libretranslate_url_unset">Pas encore configuré</string>
     <string name="libretranslate_url_help">LibreTranslate n\'a pas d\'instance publique. Vous devez héberger la vôtre (ou en utiliser une tierce) et saisir son URL ici, par ex. https://translate.example.org</string>

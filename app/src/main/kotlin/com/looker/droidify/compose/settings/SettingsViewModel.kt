@@ -27,6 +27,8 @@ import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.installer.InstallerSelection
+import com.looker.droidify.translation.ModelPreparation
+import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.utility.common.SYSTEM_LANGUAGE
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.utility.common.extension.updateAsMutable
@@ -52,6 +54,7 @@ class SettingsViewModel @Inject constructor(
     private val customButtonRepository: CustomButtonRepository,
     private val externalApi: ExternalApi,
     private val installerSelection: InstallerSelection,
+    private val translationManager: TranslationManager,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -260,9 +263,13 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** Where the picked on-device engine's model download stands (see [TranslationManager.prepare]). */
+    val translationModelPreparation: StateFlow<ModelPreparation?> = translationManager.modelPreparation
+
     fun setTranslationEngine(engine: TranslationEngine) {
         viewModelScope.launch {
             settingsRepository.setTranslationEngine(engine)
+            translationManager.prepare(engine)
         }
     }
 

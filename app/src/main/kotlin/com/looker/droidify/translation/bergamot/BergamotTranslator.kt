@@ -1,5 +1,6 @@
 package com.looker.droidify.translation.bergamot
 
+import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
 import android.os.Process
@@ -11,6 +12,9 @@ import com.looker.droidify.BuildConfig
 import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -28,20 +32,38 @@ fun bergamotSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.
  * through DuckDuckGo's translate-kit, with no Google code anywhere: free software throughout, and
  * nothing leaves the device but the one-time download of each language pair's model ([BergamotModels]).
  *
- * The engine translates HTML itself, keeping its tags where they belong, so a whole description or README
- * goes in one call rather than cut into pieces. Language detection runs on the bundled CLD2.
+ * The engine translates HTML itself, keeping its tags where they belong, so a description or README is
+ * only cut at its blocks, a few large parts translated side by side ([workers]), rather than into every
+ * run of text between two tags. Language detection runs on the bundled CLD2.
  */
 @Singleton
 class BergamotTranslator @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val models: BergamotModels,
 ) {
-    /** The engine and its models are not thread-safe: one translation at a time. */
+    /** One translation at a time: its workers have the engine to themselves while it runs. */
     private val lock = Mutex()
 
-    /** The models of the last route, kept loaded: loading one is what a translation would otherwise
-     *  pay for every time. */
-    private val loaded = mutableMapOf<Pair<String, String>, TranslationModel>()
+    /** The models of the last route, one copy per worker, kept loaded: loading one is what a translation
+     *  would otherwise pay for every time. */
+    private val loaded = mutableMapOf<Pair<String, String>, MutableList<TranslationModel>>()
+
+    /**
+     * How many parts of a page are translated side by side, each on a model of its own. The engine runs
+     * on one core per call, and a SHIELD TV took 8.6 s for a 4,000-character description that way. Kept
+     * to the cores there are, at most four, and to two below 4 GB of memory, each copy needing room of
+     * its own to work in; low-memory devices stay at one.
+     */
+    private val workers: Int by lazy {
+        val activityManager = context.getSystemService(ActivityManager::class.java)
+        val memory = ActivityManager.MemoryInfo().also { activityManager.getMemoryInfo(it) }
+        val cores = Runtime.getRuntime().availableProcessors().coerceIn(1, MAX_WORKERS)
+        when {
+            activityManager.isLowRamDevice -> 1
+            memory.totalMem < FOUR_GIGABYTES -> cores.coerceAtMost(2)
+            else -> cores
+        }
+    }
 
     suspend fun translate(text: String, targetLanguage: String, sourceLanguage: String?, isHtml: Boolean): String =
         withContext(Dispatchers.IO) {
@@ -51,19 +73,38 @@ class BergamotTranslator @Inject constructor(
             lock.withLock {
                 val startedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
                 val wanted = route.map { it.source to it.target }.toSet()
-                (loaded.keys - wanted).forEach { loaded.remove(it)?.close() }
-                val translated = route.fold(text) { current, files ->
-                    model(files).translate(current, isHtml).text
-                }
+                (loaded.keys - wanted).forEach { pair -> loaded.remove(pair)?.forEach { it.close() } }
+                // Only HTML is cut, at its blocks, the engine keeping each part's tags in place.
+                val parts = if (isHtml) groupInOrder(splitIntoBlocks(text), workers) else listOf(text)
+                val hops = route.map { files -> copiesOf(files, parts.size) }
+                val translated = coroutineScope {
+                    parts.mapIndexed { worker, part ->
+                        async {
+                            if (part.isBlank()) {
+                                part
+                            } else {
+                                hops.fold(part) { current, copies -> copies[worker].translate(current, isHtml).text }
+                            }
+                        }
+                    }.awaitAll()
+                }.joinToString("")
                 if (BuildConfig.DIAGNOSTICS) {
                     DiagnosticLog.log(
-                        "Offline translation: ${text.length} characters through ${route.size} models in " +
-                            "${SystemClock.elapsedRealtime() - startedAt} ms",
+                        "Offline translation: ${text.length} characters in ${parts.size} parts through " +
+                            "${route.size} models in ${SystemClock.elapsedRealtime() - startedAt} ms",
                     )
                 }
                 translated
             }
         }
+
+    /** Downloads the English to [targetLanguage] model ahead of the first translation. */
+    suspend fun prepare(targetLanguage: String) {
+        withContext(Dispatchers.IO) {
+            start()
+            models.route(ENGLISH, targetLanguage)
+        }
+    }
 
     /** CLD2's guess of [text]'s language as a short code (e.g. "en"), null when it can't tell. */
     suspend fun detectLanguage(text: String): String? = withContext(Dispatchers.IO) {
@@ -82,26 +123,33 @@ class BergamotTranslator @Inject constructor(
         check(TranslateKit.isInitialized()) { "The offline translation engine could not start" }
     }
 
-    private fun model(files: BergamotModelFiles): TranslationModel = loaded.getOrPut(files.source to files.target) {
-        val startedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
-        TranslateKit.loadModel(
-            ModelSpec(
-                sourceLang = files.source,
-                targetLang = files.target,
-                modelPath = files.model.path,
-                vocabPaths = files.vocabs.map { it.path },
-                shortlistPath = files.shortlist.path,
-            ),
-        ).also {
+    /** [count] loaded copies of the pair's model, one per worker, loading the ones still missing. */
+    private fun copiesOf(files: BergamotModelFiles, count: Int): List<TranslationModel> {
+        val copies = loaded.getOrPut(files.source to files.target) { mutableListOf() }
+        while (copies.size < count) {
+            val startedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
+            copies += TranslateKit.loadModel(
+                ModelSpec(
+                    sourceLang = files.source,
+                    targetLang = files.target,
+                    modelPath = files.model.path,
+                    vocabPaths = files.vocabs.map { it.path },
+                    shortlistPath = files.shortlist.path,
+                ),
+            )
             if (BuildConfig.DIAGNOSTICS) {
                 DiagnosticLog.log(
-                    "Offline translation: model ${files.source} to ${files.target} loaded in " +
+                    "Offline translation: model ${files.source} to ${files.target} copy ${copies.size} loaded in " +
                         "${SystemClock.elapsedRealtime() - startedAt} ms",
                 )
             }
         }
+        return copies
     }
 }
 
 /** What CLD2 answers when it can't tell. */
 private const val UNKNOWN_LANGUAGE = "un"
+
+private const val MAX_WORKERS = 4
+private const val FOUR_GIGABYTES = 4L * 1024 * 1024 * 1024
