@@ -9,12 +9,15 @@ import kotlinx.coroutines.withContext
 /** Translates [html] (a README, an app description) while preserving its structure: only the visible
  *  text between tags is translated (code blocks are left alone), so the rendered result keeps the
  *  original's images, headings, lists and links. Any segment that can't be mapped keeps its original
- *  text. [source] is the language when the caller already knows it, otherwise worked out here. */
+ *  text. [source] is the language when the caller already knows it, otherwise worked out here. An
+ *  engine that keeps the tags in place itself gets the whole of it instead
+ *  ([TranslationManager.translateWholeHtml]). */
 suspend fun TranslationManager.translateHtml(
     html: String,
     target: String,
     source: String? = null,
 ): String = withContext(Dispatchers.Default) {
+    translateWholeHtml(html, target, source)?.let { return@withContext it }
     val startedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
     // Tokenize into tags (kept verbatim) and the text runs between them.
     val tokens = mutableListOf<String>()

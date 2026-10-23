@@ -406,9 +406,11 @@ dependencies {
     implementation(libs.bundles.room)
     ksp(libs.room.compiler)
 
-    // On-device translation engine (optional, user-selectable). Models download on first use.
+    // On-device translation engines (optional, user-selectable): ML Kit, and Mozilla's through
+    // translate-kit. Models download on first use.
     implementation(libs.mlkit.translate)
     implementation(libs.mlkit.language.id)
+    implementation(libs.translate.kit)
     // Local Markdown -> HTML rendering for READMEs on Gitea/Forgejo and GitLab (their render APIs
     // require auth), so the README displays — and translates — without any external service.
     implementation(libs.commonmark)

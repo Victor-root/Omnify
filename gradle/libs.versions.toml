@@ -53,6 +53,7 @@ shizuku = "13.0.0"
 image-viewer = "1.0.1"
 mlkit-translate = "17.0.3"
 mlkit-langid = "17.0.6"
+translate-kit = "0.1.0"
 commonmark = "0.30.0"
 junit-jupiter = "6.1.2"
 robolectric = "4.16.1"
@@ -128,6 +129,7 @@ shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref
 image-viewer = { module = "com.github.stfalcon-studio:StfalconImageViewer", version.ref = "image-viewer" }
 mlkit-translate = { group = "com.google.mlkit", name = "translate", version.ref = "mlkit-translate" }
 mlkit-language-id = { group = "com.google.mlkit", name = "language-id", version.ref = "mlkit-langid" }
+translate-kit = { group = "com.duckduckgo.translatekit", name = "translate-kit-android", version.ref = "translate-kit" }
 commonmark = { group = "org.commonmark", name = "commonmark", version.ref = "commonmark" }
 commonmark-ext-gfm-tables = { group = "org.commonmark", name = "commonmark-ext-gfm-tables", version.ref = "commonmark" }
 commonmark-ext-gfm-strikethrough = { group = "org.commonmark", name = "commonmark-ext-gfm-strikethrough", version.ref = "commonmark" }

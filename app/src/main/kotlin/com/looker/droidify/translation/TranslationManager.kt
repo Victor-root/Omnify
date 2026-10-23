@@ -2,6 +2,7 @@ package com.looker.droidify.translation
 
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.model.TranslationEngine
+import com.looker.droidify.translation.bergamot.BergamotTranslator
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -33,15 +34,31 @@ class TranslationManager @Inject constructor(
     private val httpClient: HttpClient,
     private val settingsRepository: SettingsRepository,
     private val mlKitTranslator: MlKitTranslator,
+    private val bergamotTranslator: BergamotTranslator,
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
         explicitNulls = false
     }
 
-    /** On-device detection of [text]'s language (a BCP-47 tag), independent of the chosen engine —
-     *  drives the "translate automatically" decision. Null/"und" when unknown. */
-    suspend fun detectLanguage(text: String): String? = mlKitTranslator.detectLanguage(text)
+    /** On-device detection of [text]'s language (a BCP-47 tag): drives the "translate automatically"
+     *  decision. ML Kit's whatever the engine, except with Mozilla's, which brings its own so that
+     *  nothing of Google runs. Null/"und" when unknown. */
+    suspend fun detectLanguage(text: String): String? =
+        if (settingsRepository.getInitial().translationEngine == TranslationEngine.BERGAMOT) {
+            bergamotTranslator.detectLanguage(text)
+        } else {
+            mlKitTranslator.detectLanguage(text)
+        }
+
+    /** [html] translated whole, tags kept in place by the engine itself, or null when the chosen engine
+     *  can't (see [translateHtml], which cuts it into pieces then). */
+    suspend fun translateWholeHtml(html: String, targetLanguage: String, sourceLanguage: String?): String? =
+        if (settingsRepository.getInitial().translationEngine == TranslationEngine.BERGAMOT) {
+            bergamotTranslator.translate(html, targetLanguage, sourceLanguage, isHtml = true)
+        } else {
+            null
+        }
 
     /**
      * Translates [text] into [targetLanguage] (an ISO-639-1 code such as "fr"), holding back the emoji
@@ -87,6 +104,8 @@ class TranslationManager @Inject constructor(
             }
 
             TranslationEngine.MLKIT -> mlKitTranslator.translate(text, targetLanguage, sourceLanguage)
+            TranslationEngine.BERGAMOT ->
+                bergamotTranslator.translate(text, targetLanguage, sourceLanguage, isHtml = false)
         }
 
     /** Google's free, unofficial endpoint. Returns the concatenated translated sentences. */
