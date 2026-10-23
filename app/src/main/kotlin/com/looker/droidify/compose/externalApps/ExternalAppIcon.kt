@@ -40,6 +40,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appList.LauncherIconPx
 import com.looker.droidify.compose.appList.readInstalledLauncherIcon
 import com.looker.droidify.compose.theme.LocalIsTelevision
+import com.looker.droidify.compose.repoList.OmnifyLogoIcon
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalIconCache
 import com.looker.droidify.utility.common.extension.installedSignerHash
@@ -71,6 +72,9 @@ private class LauncherIconRead(val bitmap: ImageBitmap?)
  *
  * [isInstalled] is a hint, not a gate: the device is asked for the app's own icon whenever its package
  * is known, and a change of [isInstalled] only asks again.
+ *
+ * Omnify's own source always shows Omnify's regular logo: it follows the public releases, while the
+ * installed icon is the running build's, test or beta mark included.
  */
 @Composable
 fun ExternalAppIcon(
@@ -80,6 +84,10 @@ fun ExternalAppIcon(
     modifier: Modifier = Modifier,
     onIconBitmap: ((source: String, bitmap: () -> Bitmap?) -> Unit)? = null,
 ) {
+    if (app.key == ExternalApp.OMNIFY_REPO_KEY) {
+        OmnifyLogoIcon(modifier = modifier.size(size))
+        return
+    }
     val context = LocalContext.current
     val packageName = app.packageName
     // Hardware bitmaps (Coil's own default) can't be redrawn into the safe bitmap onIconBitmap needs

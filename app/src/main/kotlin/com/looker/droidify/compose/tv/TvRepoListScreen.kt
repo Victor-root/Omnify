@@ -304,7 +304,6 @@ fun TvRepoListScreen(
                 onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
                 onEdit = null,
                 onRemove = null,
-                brandWithAppIcon = app.key == ExternalApp.OMNIFY_REPO_KEY,
             )
         }
         items(curatedAccounts, key = { "cur-acc-${it.key}" }, contentType = { "account" }) { account ->
@@ -645,19 +644,12 @@ private fun TvSourceRow(
     onToggle: () -> Unit,
     onEdit: (() -> Unit)?,
     onRemove: (() -> Unit)?,
-    brandWithAppIcon: Boolean = false,
 ) {
     TvManagementRow(
         onOpen = onOpen,
         enabled = app.enabled,
         onToggle = onToggle,
-        icon = {
-            if (brandWithAppIcon) {
-                OmnifyLogoIcon(modifier = Modifier.size(56.dp))
-            } else {
-                ExternalAppIcon(app = app, isInstalled = isInstalled, size = 56.dp)
-            }
-        },
+        icon = { ExternalAppIcon(app = app, isInstalled = isInstalled, size = 56.dp) },
         title = app.label,
         subtitle = {
             Text(
