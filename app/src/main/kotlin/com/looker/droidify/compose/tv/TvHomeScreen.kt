@@ -283,8 +283,10 @@ fun TvHomeScreen(
     // focusable, so focus is parked on the rail instead — Android TV must always have a focused element
     // or the first remote press ANRs the app. On return from a detail screen we first try to restore the
     // exact card that was opened (restoreRequester is attached to it), falling back to the section content.
-    LaunchedEffect(section, catalogLoading) {
-        if (catalogLoading && section != TvSection.EXTERNAL) {
+    // The TV-only rows have a loader of their own while their first ones are built, as focusless.
+    val tvRowsLoading = section == TvSection.EXPLORE && tvOnly && tvAppRows == null
+    LaunchedEffect(section, catalogLoading, tvRowsLoading) {
+        if (catalogLoading && section != TvSection.EXTERNAL || tvRowsLoading) {
             runCatching { railFocus.requestFocus() }
             return@LaunchedEffect
         }
@@ -390,17 +392,18 @@ fun TvHomeScreen(
                 catalogLoading && section != TvSection.EXTERNAL -> TvLoading()
 
                 // TV-only mode: the apps made for TV in rows, like the full catalogue's (see
-                // AppListViewModel.tvAppRows).
-                section == TvSection.EXPLORE && tvOnly && tvAppRows.isNotEmpty() -> TvAppRows(
-                    rows = tvAppRows,
+                // AppListViewModel.tvAppRows), behind the loader until their first rows are built.
+                tvRowsLoading -> TvLoading()
+
+                section == TvSection.EXPLORE && tvOnly && !tvAppRows.isNullOrEmpty() -> TvAppRows(
+                    rows = tvAppRows.orEmpty(),
                     installedPackages = installedPackages,
                     onAppClick = openAppInRow,
                     restoreFocusId = restoreFocusId,
                     restoreRequester = restoreRequester,
                 )
 
-                // Rows still being worked out, or nothing for TV at all: the plain grid, with its own
-                // empty state.
+                // Nothing for TV at all: the plain grid, with its own empty state.
                 section == TvSection.EXPLORE && tvOnly -> TvAppGrid(
                     title = stringResource(R.string.discover_tv_apps),
                     apps = allTvApps,
