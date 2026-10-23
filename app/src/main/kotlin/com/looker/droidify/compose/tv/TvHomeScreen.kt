@@ -93,6 +93,7 @@ import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvTypeOnOk
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
+import com.looker.droidify.compose.externalApps.WebViewWarmUp
 import com.looker.droidify.compose.settings.components.InfoBanner
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
@@ -210,6 +211,11 @@ fun TvHomeScreen(
         externalViewModel.refresh()
         externalViewModel.refreshInstalled()
     }
+    // Once the home has its content, so it doesn't compete with the first screen of the run.
+    val context = LocalContext.current
+    LaunchedEffect(catalogLoading) {
+        if (!catalogLoading) WebViewWarmUp.run(context.applicationContext)
+    }
 
     val installedPackages = remember(installedVersionNames) { installedVersionNames.keys }
 
@@ -308,7 +314,6 @@ fun TvHomeScreen(
     // field), Back returns it to the sidebar rail instead of leaving the app — so the remote never falls
     // out of the app in one press. Only once focus is already on the rail does Back start the
     // double-press-to-exit flow: the first press toasts a hint, a second within the window closes the app.
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var railFocused by remember { mutableStateOf(false) }
     var armedToExit by remember { mutableStateOf(false) }
