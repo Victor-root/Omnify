@@ -31,10 +31,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
-import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import com.looker.droidify.compose.components.AsyncImageWithSkeleton
 import com.looker.droidify.compose.components.Skeleton
 import com.looker.droidify.R
 import com.looker.droidify.compose.appList.LauncherIconPx
@@ -196,7 +196,7 @@ fun ExternalAppIcon(
 
             readingLauncher -> Unit
 
-            app.repoIconUrl != null && !repoIconFailed -> AsyncImage(
+            app.repoIconUrl != null && !repoIconFailed -> AsyncImageWithSkeleton(
                 model = repoIconModel,
                 onError = { repoIconFailed = true },
                 onSuccess = onIconBitmap?.let { callback ->
@@ -204,7 +204,6 @@ fun ExternalAppIcon(
                         callback("repo:${app.repoIconUrl}") { state.toSafeBitmap(LauncherIconPx) }
                     }
                 },
-                contentDescription = null,
                 contentScale = ContentScale.Fit,
                 filterQuality = FilterQuality.High,
                 modifier = imageModifier,
@@ -212,10 +211,9 @@ fun ExternalAppIcon(
 
             iconPending -> IconSkeleton(shape = shape, isTelevision = isTelevision)
 
-            app.iconUrl != null && !avatarFailed -> AsyncImage(
+            app.iconUrl != null && !avatarFailed -> AsyncImageWithSkeleton(
                 model = app.iconUrl,
                 onError = { avatarFailed = true },
-                contentDescription = null,
                 contentScale = ContentScale.Fit,
                 filterQuality = FilterQuality.High,
                 modifier = imageModifier,

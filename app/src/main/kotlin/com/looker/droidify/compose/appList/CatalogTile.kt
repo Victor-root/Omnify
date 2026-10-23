@@ -31,10 +31,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
-import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import com.looker.droidify.compose.components.AsyncImageWithSkeleton
 import com.looker.droidify.compose.components.AppTile
 import com.looker.droidify.compose.components.TileIconSize
 import com.looker.droidify.compose.components.TvTileIconSize
@@ -158,7 +158,7 @@ fun AppMinimalIcon(
             .fillMaxSize()
             .then(if (isTelevision) Modifier else Modifier.clip(shape))
         when {
-            repoIcon != null && !repoFailed -> AsyncImage(
+            repoIcon != null && !repoFailed -> AsyncImageWithSkeleton(
                 model = repoIconModel,
                 // Try the repo's generic /icon.png once, then give up so the installed icon / default shows.
                 onError = {
@@ -170,7 +170,6 @@ fun AppMinimalIcon(
                         callback("repo:$repoIcon") { state.toSafeBitmap(LauncherIconPx) }
                     }
                 },
-                contentDescription = null,
                 // Fit, not Crop: app icons aren't all square, and cropping sliced the top/bottom off the
                 // round ones. Fit shows the whole icon; for a square icon it fills the box just the same.
                 contentScale = ContentScale.Fit,
