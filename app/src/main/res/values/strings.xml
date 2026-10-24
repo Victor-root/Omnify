@@ -591,11 +591,10 @@
     <string name="external_remove">Remove</string>
     <string name="external_check_updates">Check for updates</string>
     <string name="external_source_url_label">Project URL (GitHub, GitLab, Codeberg)</string>
-    <string name="external_include_prereleases">Include pre-releases</string>
-    <string name="external_only_prereleases">%s only publishes pre-releases. Turn on \"Include pre-releases\" to add it.</string>
     <string name="external_all_excluded_by_filter">All recent releases of %s match your exclude filter. Clear or adjust it to add this source.</string>
     <string name="external_none_match_include_filter">No recent release of %s contains the words of your \"Versions to keep\" filter. Clear or adjust it.</string>
     <string name="external_prerelease_label">Pre-release</string>
+    <string name="external_no_prereleases">%s has not published any pre-release.</string>
     <string name="external_no_website">No website found</string>
     <string name="external_no_issue_tracker">No issue tracker found</string>
     <string name="external_no_changelog">No changelog found</string>

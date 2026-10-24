@@ -27,7 +27,7 @@ data class ObtainiumImport(
  * Every shape Obtainium has written is read: the current `{"schemaVersion", "apps": [...]}`, the older
  * `{"apps": [...]}`, and the oldest bare list. Each app's own settings are a JSON object stored as a
  * string, and are taken over where Omnify has the same thing:
- *  - `includePrereleases`, as is;
+ *  - `includePrereleases`, as following stable and pre-releases alike ([PrereleaseMode.BOTH]);
  *  - `apkFilterRegEx`, as the APK filter, unless `invertAPKFilter` turns it into "everything but",
  *    which Omnify cannot say and would turn into its opposite;
  *  - `filterReleaseTitlesByRegEx`, as the "versions to keep" filter when it is a plain word or a list
@@ -108,7 +108,7 @@ fun parseObtainiumLink(link: String): SourceDraft? {
     return SourceDraft(
         url = entry.string("url") ?: return null,
         name = if (app.nameOverridden) app.label else "",
-        includePrereleases = app.includePrereleases,
+        prereleases = app.prereleases,
         apkFilter = app.apkFilter.orEmpty(),
         versionIncludeFilter = app.versionIncludeFilter.orEmpty(),
     )
@@ -156,7 +156,7 @@ private fun JsonObject.toExternalApp(): ExternalApp? {
         label = customName ?: name ?: prettifyRepoName(ref.repo),
         nameOverridden = customName != null,
         packageName = string("id")?.takeIf { it.isPackageName() },
-        includePrereleases = settings.boolean("includePrereleases"),
+        prereleases = if (settings.boolean("includePrereleases")) PrereleaseMode.BOTH else PrereleaseMode.HIDDEN,
         apkFilter = settings.string("apkFilterRegEx")?.takeUnless { settings.boolean("invertAPKFilter") },
         versionIncludeFilter = settings.string("filterReleaseTitlesByRegEx")?.toKeywords(),
     )

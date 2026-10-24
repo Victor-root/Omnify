@@ -33,9 +33,9 @@ sealed class ReleaseLookup {
     /** The request itself failed (network/HTTP/parse error), or GitHub's rate limit was hit. */
     data object FetchFailed : ReleaseLookup()
 
-    /** Every release in the recent window is a pre-release and the source has "include pre-releases"
-     *  turned off — nothing else disqualified them. */
-    data object OnlyPrereleasesExcluded : ReleaseLookup()
+    /** The source follows pre-releases only ([PrereleaseMode.ONLY]) and the repository has published
+     *  none in the recent window, only stable releases. */
+    data object NoPrereleases : ReleaseLookup()
 
     /** Every release the pre-release setting allowed through was then excluded by the source's own
      *  [ExternalApp.versionExcludeFilter] — nothing else disqualified them. */
@@ -251,26 +251,22 @@ fun Release.matchesExcludeFilter(keywords: String?): Boolean = containsAnyKeywor
  */
 fun Release.matchesIncludeFilter(keywords: String?): Boolean = containsAnyKeyword(keywords) != false
 
-/** True when this single release passes a source's pre-release, include-keyword and exclude-keyword
- *  settings: the per-release predicate [allowedBy] filters a list with, and [ExternalApi] also checks
- *  directly while paginating to tell whether it has fetched enough qualifying releases yet. */
+/** True when this single release passes a source's include-keyword and exclude-keyword settings: the
+ *  per-release predicate [allowedBy] filters a list with, and [ExternalApi] also checks directly while
+ *  paginating to tell whether it has fetched enough qualifying releases yet. Pre-releases are a matter of
+ *  the source's [PrereleaseMode], decided apart. */
 fun Release.isAllowedBy(
-    includePrereleases: Boolean,
     versionIncludeFilter: String?,
     versionExcludeFilter: String?,
 ): Boolean =
-    (includePrereleases || !isPrerelease) &&
-        matchesIncludeFilter(versionIncludeFilter) &&
-        !matchesExcludeFilter(versionExcludeFilter)
+    matchesIncludeFilter(versionIncludeFilter) && !matchesExcludeFilter(versionExcludeFilter)
 
-/** Releases allowed by a source's pre-release and keyword settings: the criteria [ExternalApi]
- *  applies whenever it picks a release or lists history, kept in one place so they can't drift
- *  apart. */
+/** Releases allowed by a source's keyword settings: the criteria [ExternalApi] applies whenever it picks
+ *  a release or lists history, kept in one place so they can't drift apart. */
 fun List<Release>.allowedBy(
-    includePrereleases: Boolean,
     versionIncludeFilter: String?,
     versionExcludeFilter: String?,
-): List<Release> = filter { it.isAllowedBy(includePrereleases, versionIncludeFilter, versionExcludeFilter) }
+): List<Release> = filter { it.isAllowedBy(versionIncludeFilter, versionExcludeFilter) }
 
 /** ABI tokens we recognise in APK file names, used to tell a foreign-architecture build apart from a
  *  universal one. */

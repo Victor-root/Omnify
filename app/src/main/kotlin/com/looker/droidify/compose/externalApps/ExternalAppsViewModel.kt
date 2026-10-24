@@ -37,6 +37,7 @@ import com.looker.droidify.external.Release
 import com.looker.droidify.external.ReleaseFamily
 import com.looker.droidify.external.filtersFor
 import com.looker.droidify.external.isFollowedBy
+import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.external.ReleaseLookup
 import com.looker.droidify.external.RepoRef
 import com.looker.droidify.external.apkDownloadUrl
@@ -998,7 +999,7 @@ class ExternalAppsViewModel @Inject constructor(
      *  to follow ([appFamilies]), answered through [addFamilies]. */
     fun addSource(
         url: String,
-        includePrereleases: Boolean,
+        prereleases: PrereleaseMode,
         customName: String = "",
         muteUpdates: Boolean = false,
         apkFilter: String = "",
@@ -1010,7 +1011,7 @@ class ExternalAppsViewModel @Inject constructor(
         parseObtainiumLink(url)?.let { link ->
             return addSource(
                 url = link.url,
-                includePrereleases = includePrereleases || link.includePrereleases,
+                prereleases = if (prereleases == PrereleaseMode.HIDDEN) link.prereleases else prereleases,
                 customName = customName.ifBlank { link.name },
                 muteUpdates = muteUpdates,
                 apkFilter = apkFilter.ifBlank { link.apkFilter },
@@ -1023,7 +1024,7 @@ class ExternalAppsViewModel @Inject constructor(
         val trimmedName = customName.trim()
         launchAdd(url) { base ->
             val app = base.copy(
-                includePrereleases = includePrereleases,
+                prereleases = prereleases,
                 muteUpdates = muteUpdates,
                 apkFilter = apkFilter.trim().ifEmpty { null },
                 versionIncludeFilter = versionIncludeFilter.trim().ifEmpty { null },
@@ -1088,7 +1089,7 @@ class ExternalAppsViewModel @Inject constructor(
     fun addFamilies(
         url: String,
         families: List<ReleaseFamily>,
-        includePrereleases: Boolean,
+        prereleases: PrereleaseMode,
         customName: String,
         muteUpdates: Boolean,
         apkFilter: String,
@@ -1105,7 +1106,7 @@ class ExternalAppsViewModel @Inject constructor(
                     all.filtersFor(family, apkFilter, versionIncludeFilter, versionExcludeFilter)
                 val app = base.copy(
                     variant = family.variant,
-                    includePrereleases = includePrereleases,
+                    prereleases = prereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apk.trim().ifEmpty { null },
                     versionIncludeFilter = include.trim().ifEmpty { null },
@@ -1168,9 +1169,9 @@ class ExternalAppsViewModel @Inject constructor(
      * stored under, or null after reporting why it wasn't ([failAdd]).
      */
     private suspend fun addResolved(app: ExternalApp): String? {
-        // A plain null release here used to collapse every failure (the GitHub rate limit, a repo that
-        // only publishes pre-releases, e.g. ReVanced Manager, with the option off, or genuinely nothing
-        // installable) into one misleading "no release" message. latestReleaseLookup reports which one
+        // A plain null release here used to collapse every failure (the GitHub rate limit, a source
+        // following pre-releases only where none is published, or genuinely nothing installable) into
+        // one misleading "no release" message. latestReleaseLookup reports which one
         // it actually was.
         val release = when (val lookup = externalApi.latestReleaseLookup(app)) {
             is ReleaseLookup.Found -> lookup.release
@@ -1181,8 +1182,8 @@ class ExternalAppsViewModel @Inject constructor(
                 failAdd(message, urgent)
                 return null
             }
-            ReleaseLookup.OnlyPrereleasesExcluded -> {
-                failAdd(context.getString(R.string.external_only_prereleases, app.path))
+            ReleaseLookup.NoPrereleases -> {
+                failAdd(context.getString(R.string.external_no_prereleases, app.path))
                 return null
             }
             ReleaseLookup.AllExcludedByFilter -> {
@@ -1270,7 +1271,6 @@ class ExternalAppsViewModel @Inject constructor(
         url: String,
         customName: String,
         includeForks: Boolean,
-        includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
         versionIncludeFilter: String,
@@ -1285,7 +1285,6 @@ class ExternalAppsViewModel @Inject constructor(
             ref,
             customName,
             includeForks,
-            includePrereleases,
             muteUpdates,
             apkFilter,
             versionIncludeFilter,
@@ -1296,7 +1295,7 @@ class ExternalAppsViewModel @Inject constructor(
     /**
      * Adds a whole-account source: discovers the account's repos that ship an installable APK release
      * and tracks each as its own [ExternalApp] tagged with the account, while the account itself is one
-     * row in the sources list. The dialog options ([includeForks]/[includePrereleases]/[muteUpdates]/
+     * row in the sources list. The dialog options ([includeForks]/[muteUpdates]/
      * [apkFilter]) drive the discovery and become the defaults applied to every discovered app;
      * [label] (if any) names the account.
      */
@@ -1304,7 +1303,6 @@ class ExternalAppsViewModel @Inject constructor(
         ref: ExternalAccountRef,
         label: String,
         includeForks: Boolean,
-        includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
         versionIncludeFilter: String,
@@ -1364,7 +1362,6 @@ class ExternalAppsViewModel @Inject constructor(
                     account = account,
                     repos = repos,
                     skipKeys = standaloneKeys,
-                    includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
                     versionIncludeFilter = versionIncludeFilter,
@@ -1563,7 +1560,6 @@ class ExternalAppsViewModel @Inject constructor(
     fun updateSource(
         app: ExternalApp,
         customName: String,
-        includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
         versionIncludeFilter: String,
@@ -1588,7 +1584,6 @@ class ExternalAppsViewModel @Inject constructor(
                 label = label,
                 nameOverridden = overridden,
                 muteUpdates = muteUpdates,
-                includePrereleases = includePrereleases,
                 apkFilter = trimmedFilter,
                 versionIncludeFilter = trimmedIncludeFilter,
                 versionExcludeFilter = trimmedExcludeFilter,
@@ -1596,34 +1591,46 @@ class ExternalAppsViewModel @Inject constructor(
                 iconOverridden = iconChanged || app.iconOverridden,
                 iconChecked = true,
             )
-            // The release to offer (and its APK) can change when the pre-release setting, the APK
-            // filter or a keyword filter changes, so re-resolve it in that case, and the version list
-            // must forget its cached fetch too (releaseHistory() filters by these same fields), or
-            // reopening the detail screen within the cache's freshness window would keep showing the
-            // list as it looked under the old settings.
-            if (includePrereleases != app.includePrereleases ||
-                trimmedFilter != app.apkFilter ||
+            // The release to offer (and its APK) can change when the APK filter or a keyword filter
+            // changes, so re-resolve it in that case.
+            if (trimmedFilter != app.apkFilter ||
                 trimmedIncludeFilter != app.versionIncludeFilter ||
                 trimmedExcludeFilter != app.versionExcludeFilter
             ) {
-                releaseHistoryCache.remove(app.key)
-                val release = externalApi.latestReleaseFor(updated)
-                // Stale latest* fields must be cleared, not just left alone, when the new settings no
-                // longer resolve to any release (e.g. turning pre-releases off for a source that only
-                // publishes them) — otherwise the hero card kept showing the old "latest" version and
-                // offering Update against a release that isn't actually offered under the new settings
-                // any more.
-                updated = updated.copy(
-                    latestTag = release?.tag,
-                    latestApkToken = release?.apkVersionToken(filter = updated.apkFilter),
-                    latestApkName = release?.apkFileName(filter = updated.apkFilter),
-                    latestApkSize = release?.apkFileSize(filter = updated.apkFilter),
-                    latestApkUrl = release?.apkDownloadUrl(filter = updated.apkFilter),
-                    latestReleaseAt = release?.apkUpdatedAtMillis(filter = updated.apkFilter),
-                )
+                updated = withOfferedRelease(updated)
             }
             repository.upsertApp(updated)
         }
+    }
+
+    /** Sets what [app] does with its repository's pre-releases (see [PrereleaseMode]), chosen on its
+     *  page, and re-resolves the release it offers under it. */
+    fun setPrereleaseMode(app: ExternalApp, mode: PrereleaseMode) {
+        if (mode == app.prereleases) return
+        viewModelScope.launch {
+            repository.upsertApp(withOfferedRelease(app.copy(prereleases = mode)))
+        }
+    }
+
+    /**
+     * [app] with the release its settings now offer, after a setting that decides it has changed. The
+     * version list forgets its cached fetch too (releaseHistory() filters by these same settings), or
+     * reopening the page within the cache's freshness window would keep showing the list as it looked
+     * under the old ones. Stale latest* fields are cleared, not left alone, when the settings no longer
+     * resolve to any release: otherwise the hero card kept showing the old "latest" version and offering
+     * Update against a release that isn't offered any more.
+     */
+    private suspend fun withOfferedRelease(app: ExternalApp): ExternalApp {
+        releaseHistoryCache.remove(app.key)
+        val release = externalApi.latestReleaseFor(app)
+        return app.copy(
+            latestTag = release?.tag,
+            latestApkToken = release?.apkVersionToken(filter = app.apkFilter),
+            latestApkName = release?.apkFileName(filter = app.apkFilter),
+            latestApkSize = release?.apkFileSize(filter = app.apkFilter),
+            latestApkUrl = release?.apkDownloadUrl(filter = app.apkFilter),
+            latestReleaseAt = release?.apkUpdatedAtMillis(filter = app.apkFilter),
+        )
     }
 
     /** Forces a re-query of which tracked apps are installed (e.g. after returning to the screen). */
@@ -1727,8 +1734,8 @@ class ExternalAppsViewModel @Inject constructor(
                     toast(message = message, long = urgent)
                     return
                 }
-                ReleaseLookup.OnlyPrereleasesExcluded -> {
-                    toast(context.getString(R.string.external_only_prereleases, app.path))
+                ReleaseLookup.NoPrereleases -> {
+                    toast(context.getString(R.string.external_no_prereleases, app.path))
                     return
                 }
                 ReleaseLookup.AllExcludedByFilter -> {

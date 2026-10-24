@@ -3,6 +3,7 @@ package com.looker.droidify.data.backup
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.StoredExternalAppSerializer
 import kotlinx.serialization.Serializable
 
 /** The zip's own table of contents — written first, read first, so a restore can show exactly what a
@@ -48,7 +49,7 @@ data class GithubTokenBackup(val token: String = "")
  *  dropping any account-level source on every export. */
 @Serializable
 data class ExternalSourcesBackup(
-    val apps: List<ExternalApp> = emptyList(),
+    val apps: List<@Serializable(with = StoredExternalAppSerializer::class) ExternalApp> = emptyList(),
     val accounts: List<ExternalAccount> = emptyList(),
 )
 

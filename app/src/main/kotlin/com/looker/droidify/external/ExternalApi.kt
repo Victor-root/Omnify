@@ -130,8 +130,8 @@ class ExternalApi @Inject constructor(
     /**
      * Same lookup as [latestReleaseFor], but reports *why* nothing was found instead of collapsing every
      * failure to null — used by the install/update flow (the one place the reason reaches the user as a
-     * message) so it can distinguish a genuine network failure from "every recent release is a
-     * pre-release and this source excludes them" or "none ships a compatible APK", which otherwise all
+     * message) so it can distinguish a genuine network failure from "this source follows pre-releases
+     * only and there are none" or "none ships a compatible APK", which otherwise all
      * looked identical (a generic "couldn't reach GitHub") even though only one of them actually is that.
      *
      * Pages on until a release this source could actually offer turns up, not merely one its settings
@@ -143,26 +143,26 @@ class ExternalApi @Inject constructor(
             fetchReleases(
                 app.provider, app.effectiveHost, app.owner, app.repo,
                 minQualifying = 1,
-                isQualifying = { it.isOfferableFor(app) },
+                isQualifying = { it.isOfferableFor(app, onlyPrereleases = false) },
             )
         }.getOrNull()
-        val picked = releases?.pickInstallable(app)
+        val onlyPrereleases = releases.orEmpty().onlyPrereleases()
+        val picked = releases?.pickInstallable(app, onlyPrereleases)
         // Only the pre-release setting applied, kept separate from `picked` so a source whose keyword
         // filters (not the pre-release setting) are what's disqualifying everything gets its own
         // accurate reason below instead of the generic NoCompatibleApk.
-        val nonPrerelease = releases?.filter { app.includePrereleases || !it.isPrerelease }
+        val offered = releases?.filter { app.prereleases.offers(it, onlyPrereleases) }
         val lookup = when {
             picked != null -> ReleaseLookup.Found(picked)
             releases == null -> ReleaseLookup.FetchFailed
-            releases.isNotEmpty() && releases.all { it.isPrerelease } && !app.includePrereleases ->
-                ReleaseLookup.OnlyPrereleasesExcluded
-            !nonPrerelease.isNullOrEmpty() &&
-                nonPrerelease.none { it.matchesIncludeFilter(app.versionIncludeFilter) } ->
+            releases.isNotEmpty() && offered.isNullOrEmpty() -> ReleaseLookup.NoPrereleases
+            !offered.isNullOrEmpty() &&
+                offered.none { it.matchesIncludeFilter(app.versionIncludeFilter) } ->
                 ReleaseLookup.NoneMatchIncludeFilter
-            !nonPrerelease.isNullOrEmpty() &&
-                nonPrerelease.all { it.matchesExcludeFilter(app.versionExcludeFilter) } ->
+            !offered.isNullOrEmpty() &&
+                offered.all { it.matchesExcludeFilter(app.versionExcludeFilter) } ->
                 ReleaseLookup.AllExcludedByFilter
-            releases.missApkFilter(app) -> ReleaseLookup.NoneMatchApkFilter
+            releases.missApkFilter(app, onlyPrereleases) -> ReleaseLookup.NoneMatchApkFilter
             else -> ReleaseLookup.NoCompatibleApk
         }
         if (lookup !is ReleaseLookup.Found) {
@@ -171,7 +171,7 @@ class ExternalApi @Inject constructor(
             Log.w(
                 TAG,
                 "${app.path}: no installable release ($lookup, fetched=${releases?.size}, " +
-                    "includePrereleases=${app.includePrereleases}, apkFilter=${app.apkFilter}, " +
+                    "prereleases=${app.prereleases}, apkFilter=${app.apkFilter}, " +
                     "versionIncludeFilter=${app.versionIncludeFilter}, " +
                     "versionExcludeFilter=${app.versionExcludeFilter})",
             )
@@ -190,10 +190,14 @@ class ExternalApi @Inject constructor(
             fetchReleases(
                 app.provider, app.effectiveHost, app.owner, app.repo,
                 minQualifying = RELEASE_FAMILY_SAMPLE,
-                isQualifying = { it.isOfferableFor(app) },
+                isQualifying = { it.isOfferableFor(app, onlyPrereleases = false) },
             )
         }.getOrNull().orEmpty()
-        appFamilies(releases.filter { it.isOfferableFor(app) }, unmarkedName = prettifyRepoName(app.repo))
+        val onlyPrereleases = releases.onlyPrereleases()
+        appFamilies(
+            releases.filter { it.isOfferableFor(app, onlyPrereleases) },
+            unmarkedName = prettifyRepoName(app.repo),
+        )
     }
 
     /**
@@ -214,17 +218,15 @@ class ExternalApi @Inject constructor(
         app: ExternalApp,
         limit: Int = RELEASE_HISTORY_TARGET,
     ): List<Release> = withContext(Dispatchers.IO) {
-        runCatching {
+        val releases = runCatching {
             fetchReleases(
                 app.provider, app.effectiveHost, app.owner, app.repo,
                 minQualifying = limit,
-                isQualifying = { it.isOfferableFor(app) },
+                isQualifying = { it.isListableFor(app, onlyPrereleases = false) },
             )
-        }
-            .getOrNull()
-            .orEmpty()
-            .filter { it.isOfferableFor(app) }
-            .take(limit)
+        }.getOrNull().orEmpty()
+        val onlyPrereleases = releases.onlyPrereleases()
+        releases.filter { it.isListableFor(app, onlyPrereleases) }.take(limit)
     }
 
     /** Probes whether [host] runs Gitea/Forgejo by hitting its repo API. Lets a pasted URL whose host
@@ -810,7 +812,7 @@ class ExternalApi @Inject constructor(
         val notes = fetchReleases(app.provider, app.effectiveHost, app.owner, app.repo)
             .filterNot { it.body.isNullOrBlank() }
             // One app among several in the repository: the other apps' notes aren't its changelog.
-            .filter { app.variant.isEmpty() || it.isOfferableFor(app) }
+            .filter { app.variant.isEmpty() || it.isListableBySettings(app) }
             .take(CHANGELOG_RELEASE_NOTES_LIMIT)
         val looksGenuine = notes.size <= 1 || notes.map { it.body }.distinct().size > 1
         return if (looksGenuine) notes else emptyList()
@@ -1055,13 +1057,25 @@ class ExternalApi @Inject constructor(
      * bitwarden/android) would count every release regardless of which app it belongs to, since
      * selectApkAsset always returns *something* once a release has any APK at all.
      */
-    private fun Release.isOfferableFor(app: ExternalApp): Boolean =
-        isAllowedBy(app.includePrereleases, app.versionIncludeFilter, app.versionExcludeFilter) &&
-            hasApkMatchingFilter(app.apkFilter)
+    private fun Release.isOfferableFor(app: ExternalApp, onlyPrereleases: Boolean): Boolean =
+        app.prereleases.offers(this, onlyPrereleases) && isListableBySettings(app)
+
+    /** Whether this release shows in [app]'s version list: what [isOfferableFor] asks, except that a
+     *  pre-release is listed whenever the source's [PrereleaseMode] shows them, offered or not. */
+    private fun Release.isListableFor(app: ExternalApp, onlyPrereleases: Boolean): Boolean =
+        app.prereleases.lists(this, onlyPrereleases) && isListableBySettings(app)
+
+    private fun Release.isListableBySettings(app: ExternalApp): Boolean =
+        isAllowedBy(app.versionIncludeFilter, app.versionExcludeFilter) && hasApkMatchingFilter(app.apkFilter)
+
+    /** The releases [app]'s settings could offer, before any APK is looked at. */
+    private fun List<Release>.offeredTo(app: ExternalApp, onlyPrereleases: Boolean): List<Release> =
+        allowedBy(app.versionIncludeFilter, app.versionExcludeFilter)
+            .filter { app.prereleases.offers(it, onlyPrereleases) }
 
     /** Whether the releases [app]'s settings allow ship APKs, none of them matching its APK filter. */
-    private fun List<Release>.missApkFilter(app: ExternalApp): Boolean {
-        val allowed = allowedBy(app.includePrereleases, app.versionIncludeFilter, app.versionExcludeFilter)
+    private fun List<Release>.missApkFilter(app: ExternalApp, onlyPrereleases: Boolean): Boolean {
+        val allowed = offeredTo(app, onlyPrereleases)
         return allowed.any { it.hasApkMatchingFilter(null) } &&
             allowed.none { it.hasApkMatchingFilter(app.apkFilter) }
     }
@@ -1075,11 +1089,16 @@ class ExternalApi @Inject constructor(
      * that is another app altogether, and offering it would install something the person never asked
      * for. A filter that matches nothing is reported instead ([ReleaseLookup.NoneMatchApkFilter]), so a
      * typo shows up as one. Releases with no APK at all are ignored.
+     *
+     * Following stable and pre-releases alike, the highest version among them rather than merely the
+     * newest (see [highestVersion]), so a stable fix published after a pre-release of the next version
+     * never takes its user back down.
      */
-    private fun List<Release>.pickInstallable(app: ExternalApp): Release? {
-        val candidates = allowedBy(app.includePrereleases, app.versionIncludeFilter, app.versionExcludeFilter)
-        return candidates.firstOrNull { it.hasCompatibleApk(filter = app.apkFilter) }
-            ?: candidates.firstOrNull { it.hasApkMatchingFilter(app.apkFilter) }
+    private fun List<Release>.pickInstallable(app: ExternalApp, onlyPrereleases: Boolean): Release? {
+        val candidates = offeredTo(app, onlyPrereleases)
+        val compatible = candidates.filter { it.hasCompatibleApk(filter = app.apkFilter) }
+        val pick = if (app.prereleases == PrereleaseMode.BOTH) compatible.highestVersion() else compatible.firstOrNull()
+        return pick ?: candidates.firstOrNull { it.hasApkMatchingFilter(app.apkFilter) }
     }
 
     /**

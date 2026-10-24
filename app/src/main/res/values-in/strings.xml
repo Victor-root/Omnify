@@ -481,8 +481,6 @@
     <string name="external_remove">Hapus</string>
     <string name="external_check_updates">Periksa pembaruan</string>
     <string name="external_source_url_label">URL proyek (GitHub, GitLab, Codeberg)</string>
-    <string name="external_include_prereleases">Sertakan pra-rilis</string>
-    <string name="external_only_prereleases">%s hanya menerbitkan pra-rilis. Aktifkan \"Sertakan pra-rilis\" untuk menambahkannya.</string>
     <string name="external_all_excluded_by_filter">Semua rilis terbaru dari %s cocok dengan filter pengecualian Anda. Hapus atau sesuaikan filter tersebut untuk menambahkan sumber ini.</string>
     <string name="external_prerelease_label">Pra-rilis</string>
     <string name="external_no_website">Situs web tidak ditemukan</string>

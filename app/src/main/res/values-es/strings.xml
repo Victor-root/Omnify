@@ -489,8 +489,6 @@
     <string name="external_remove">Quitar</string>
     <string name="external_check_updates">Buscar actualizaciones</string>
     <string name="external_source_url_label">URL del proyecto (GitHub, GitLab, Codeberg)</string>
-    <string name="external_include_prereleases">Incluir versiones preliminares</string>
-    <string name="external_only_prereleases">%s solo publica versiones preliminares. Activa \"Incluir versiones preliminares\" para agregarlo.</string>
     <string name="external_all_excluded_by_filter">Todas las versiones recientes de %s coinciden con tu filtro de exclusión. Bórralo o ajústalo para agregar esta fuente.</string>
     <string name="external_prerelease_label">Preliminar</string>
     <string name="external_no_website">No se encontró ningún sitio web</string>

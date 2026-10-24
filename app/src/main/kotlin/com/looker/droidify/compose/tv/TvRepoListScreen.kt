@@ -140,7 +140,6 @@ fun TvRepoListScreen(
                     url = share.draft.url,
                     customName = "",
                     includeForks = false,
-                    includePrereleases = false,
                     muteUpdates = false,
                     apkFilter = "",
                     versionIncludeFilter = "",
@@ -149,7 +148,7 @@ fun TvRepoListScreen(
             } else {
                 externalViewModel.addSource(
                     url = share.draft.url,
-                    includePrereleases = share.draft.includePrereleases,
+                    prereleases = share.draft.prereleases,
                     customName = share.draft.name,
                     apkFilter = share.draft.apkFilter,
                     versionIncludeFilter = share.draft.versionIncludeFilter,
@@ -393,13 +392,12 @@ fun TvRepoListScreen(
                 prefill = SourceDraft()
                 externalViewModel.consumeAddState()
             },
-            onAdd = { url, customName, includeForks, includePrereleases, muteUpdates, apkFilter,
-                versionIncludeFilter, versionExcludeFilter ->
+            onAdd = { url, customName, includeForks, muteUpdates, apkFilter, versionIncludeFilter,
+                versionExcludeFilter ->
                 externalViewModel.addAccount(
                     url = url,
                     customName = customName,
                     includeForks = includeForks,
-                    includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
                     versionIncludeFilter = versionIncludeFilter,
@@ -445,12 +443,11 @@ fun TvRepoListScreen(
             app = app,
             iconCandidates = iconCandidates,
             onDismiss = { editingExternal = null },
-            onSave = { customName, includePrereleases, muteUpdates, apkFilter, versionIncludeFilter,
-                versionExcludeFilter, iconUrl ->
+            onSave = { customName, muteUpdates, apkFilter, versionIncludeFilter, versionExcludeFilter,
+                iconUrl ->
                 externalViewModel.updateSource(
                     app = app,
                     customName = customName,
-                    includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
                     versionIncludeFilter = versionIncludeFilter,
