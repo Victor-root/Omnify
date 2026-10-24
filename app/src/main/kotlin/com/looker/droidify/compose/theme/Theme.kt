@@ -3,9 +3,8 @@ package com.looker.droidify.compose.theme
 import android.app.Activity
 import android.content.ContextWrapper
 import android.os.Build
-import androidx.activity.compose.LocalActivity
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.snap
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -25,8 +24,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -37,9 +38,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.navigation.compose.LocalNavAnimatedContentScope
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.MaterialColors
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
@@ -315,38 +314,27 @@ fun ScopedAccentColor(accent: IconAccent?, content: @Composable () -> Unit) {
     }
 }
 
-/** Gives the system bars [scopedBarColor] while the screen calling it is the one on display. */
+/** How long a screen takes to show or leave (see the NavHost in MainComposeActivity). */
+const val SCREEN_TRANSITION_MS = 700
+
+/**
+ * Gives the system bars [scopedBarColor] as far as the screen calling it is shown: its share follows
+ * the screen's own enter and exit animation, so the navigation bar changes with the header above it,
+ * leaving or coming back, rather than at a moment of its own. Pausing the app (a dialog over it, the
+ * share sheet, going to the background) leaves the screen shown, so the accent stays.
+ */
 @Composable
 private fun PublishAccentToSystemBar(scopedBarColor: Color) {
-    // The system-bar chrome is drawn by DroidifyTheme above every screen, outside ScopedAccentColor, so
-    // publish the accent there too or the navigation bar keeps the app-wide colour while this screen's
-    // header wears the icon's one. See [LocalScopedAccentBarColor].
-    val systemBarAccent = LocalScopedAccentBarColor.current
-    DisposableEffect(systemBarAccent, scopedBarColor) {
-        systemBarAccent.value = scopedBarColor
-        // Release only what's still ours: navigating between two detail pages keeps both in composition
-        // for the transition, and the outgoing one disposes after the incoming one has already published.
-        onDispose { if (systemBarAccent.value == scopedBarColor) systemBarAccent.value = null }
-    }
-    // ON_PAUSE fires as soon as this destination stops being the current one, well before the exit
-    // transition finishes and this composable actually leaves composition (what onDispose above waits
-    // for): without this, the navigation bar stayed on the icon accent for the whole transition after
-    // pressing back, even though the previous screen's own header had already reverted.
-    //
-    // It also fires when something covers the whole app while this screen stays on display underneath:
-    // the install confirmation, the share sheet, a permission prompt, or the app going to the background.
-    // Those pause the activity itself, which has already left RESUMED by the time this destination hears
-    // about it, whereas a navigation away pauses this destination alone. Only that one gives the accent
-    // back; otherwise the navigation bar fell back to the app-wide colour behind the install dialog
-    // while the header above it kept the icon's. ON_RESUME puts the accent back after a navigation that
-    // returns here.
-    val hostLifecycle = (LocalActivity.current as? LifecycleOwner)?.lifecycle
-    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
-        val leavingScreen = hostLifecycle == null || hostLifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
-        if (leavingScreen && systemBarAccent.value == scopedBarColor) systemBarAccent.value = null
-    }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        systemBarAccent.value = scopedBarColor
+    val shown = LocalNavAnimatedContentScope.current.transition.animateFloat(
+        transitionSpec = { tween(SCREEN_TRANSITION_MS) },
+        label = "scopedBarAccent",
+    ) { if (it == EnterExitState.Visible) 1f else 0f }
+    val entry = remember { ScopedBarAccents.Entry(scopedBarColor, shown) }
+    SideEffect { entry.color = scopedBarColor }
+    val accents = LocalScopedBarAccents.current
+    DisposableEffect(accents) {
+        accents.add(entry)
+        onDispose { accents.remove(entry) }
     }
 }
 
@@ -408,17 +396,9 @@ fun DroidifyTheme(
     // A detail screen matching its app's icon publishes its own accent here (see ScopedAccentColor);
     // the system bars follow it so they stay part of that screen's header rather than keeping the
     // app-wide colour. Falls back to the app-wide accent on every other screen.
-    val scopedAccentBarColor = remember { mutableStateOf<Color?>(null) }
-    // Taking on a screen's accent (icon finishes loading, or ON_RESUME restores it) applies the moment
-    // the header itself does, so it snaps instantly to stay in sync with it. Falling back to the
-    // app-wide colour instead happens on ON_PAUSE (see ScopedAccentColor), earlier than that screen's
-    // own header and content actually finish sliding away, so a hard cut there read as switching back
-    // too soon; only that direction eases into the change, to hide that gap.
-    val scopedTarget = scopedAccentBarColor.value
-    val systemBarColor = animateColorAsState(
-        targetValue = scopedTarget ?: barColor,
-        animationSpec = if (scopedTarget == null) tween(durationMillis = 300) else snap(),
-    )
+    val scopedBarAccents = remember { ScopedBarAccents() }
+    val currentBarColor by rememberUpdatedState(barColor)
+    val systemBarColor = remember { derivedStateOf { scopedBarAccents.over(currentBarColor) } }
 
     // A screen whose header has collapsed off the top says so here (see StatusBarContent).
     val statusBarContent = remember { StatusBarContent() }
@@ -445,7 +425,7 @@ fun DroidifyTheme(
             LocalOnAccentBarColor provides onBarColor,
             LocalEdgeToEdge provides edgeToEdge,
             LocalBackgroundStyle provides backgroundStyle,
-            LocalScopedAccentBarColor provides scopedAccentBarColor,
+            LocalScopedBarAccents provides scopedBarAccents,
             LocalStatusBarContent provides statusBarContent,
             LocalIsTelevision provides isTelevision,
             LocalDensity provides scaledDensity,

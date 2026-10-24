@@ -6,6 +6,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -66,6 +69,7 @@ import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.external.SourceDraft
 import com.looker.droidify.external.SourceProvider
 import com.looker.droidify.compose.externalApps.PendingSharedSource
+import com.looker.droidify.compose.theme.SCREEN_TRANSITION_MS
 import com.looker.droidify.external.parseAccountSource
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.datastore.extension.getThemeRes
@@ -861,6 +865,10 @@ class MainComposeActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding),
                         navController = navController,
                         startDestination = if (welcomePending) Welcome else AppList,
+                        // Navigation's own default, spelled out for the system bars to follow the same
+                        // timing (see PublishAccentToSystemBar).
+                        enterTransition = { fadeIn(tween(SCREEN_TRANSITION_MS)) },
+                        exitTransition = { fadeOut(tween(SCREEN_TRANSITION_MS)) },
                     ) {
                         welcome(onDone = { navController.navigateFromWelcomeToAppList() })
 

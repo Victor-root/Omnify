@@ -5,13 +5,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -35,7 +37,7 @@ val LocalEdgeToEdge = staticCompositionLocalOf { true }
  * [com.looker.droidify.compose.components.CollapsibleHeader]). [DroidifyTheme] reads it to keep
  * the status-bar icons legible over that content instead of over the header's accent.
  *
- * Held per owner, like [LocalScopedAccentBarColor]: two screens are composed together while one slides
+ * Held per owner, like [LocalScopedBarAccents]: two screens are composed together while one slides
  * over the other, and the leaving one releases only after the arriving one has published, so a release
  * clears nothing but what is still its own.
  */
@@ -63,13 +65,36 @@ class StatusBarContent {
 val LocalStatusBarContent = staticCompositionLocalOf { StatusBarContent() }
 
 /**
- * The accent a single screen has taken over with [ScopedAccentColor], or null when none has. Only the
- * system-bar chrome needs this: [DroidifyTheme] draws the navigation-bar overlay, and sets both bars'
- * icon appearance, above every screen, so it sits outside the scope [ScopedAccentColor] provides
- * [LocalAccentBarColor] in and cannot read it there. Everything else inside a screen reads
- * [LocalAccentBarColor] as usual.
+ * The accents screens have taken over with [ScopedAccentColor], each with how far its screen is shown
+ * (0 to 1, following its own enter and exit animation). Only the system-bar chrome needs this:
+ * [DroidifyTheme] draws the navigation-bar overlay, and sets both bars' icon appearance, above every
+ * screen, so it sits outside the scope [ScopedAccentColor] provides [LocalAccentBarColor] in and cannot
+ * read it there. Everything else inside a screen reads [LocalAccentBarColor] as usual.
+ *
+ * Several at once while one such screen gives way to another: the bar blends them in the order they
+ * arrived, so it passes from one to the next exactly as the two screens do.
  */
-val LocalScopedAccentBarColor = staticCompositionLocalOf<MutableState<Color?>> { mutableStateOf(null) }
+@Stable
+class ScopedBarAccents {
+    class Entry(color: Color, val shown: State<Float>) {
+        var color by mutableStateOf(color)
+    }
+
+    private val entries = mutableStateListOf<Entry>()
+
+    fun add(entry: Entry) {
+        entries += entry
+    }
+
+    fun remove(entry: Entry) {
+        entries -= entry
+    }
+
+    /** [base] with every accent laid over it as far as its screen is shown. */
+    fun over(base: Color): Color = entries.fold(base) { color, entry -> lerp(color, entry.color, entry.shown.value) }
+}
+
+val LocalScopedBarAccents = staticCompositionLocalOf { ScopedBarAccents() }
 
 /**
  * Top-bar colours that follow the user's chosen accent: the bar — and the status-bar area it draws
