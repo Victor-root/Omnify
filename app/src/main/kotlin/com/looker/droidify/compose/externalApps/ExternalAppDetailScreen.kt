@@ -123,7 +123,6 @@ import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
 import com.looker.droidify.installer.model.InstallState
-import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.common.RootDetection
@@ -566,12 +565,13 @@ fun ExternalAppDetailScreen(
         // name usually does (e.g. "GlassKeep-1.4.6.apk" for a "v2.5.0" release) — but some projects ship
         // the same fixed file name on every release (confirmed real: RivoPhoneApp's "app-release.apk")
         // and only the tag actually carries a version; releaseVersionLabel tries both in that order.
-        val heroVersion = releaseVersionLabel(app.latestApkName, app.latestTag).takeIf { it.isNotEmpty() }
+        val cardVersion = app.cardVersion(releaseHistory)
+        val heroVersion = cardVersion.label
         // Mirrors the F-Droid catalogue's "Taille" stat; null (hidden) when the provider's release
         // API doesn't expose a file size (GitLab's release link assets carry none).
-        val heroSize = app.latestApkSize?.let { DataSize(it).toString() }
-        // The version offered is a pre-release: said on the card, next to it, as in the version list.
-        val offersPrerelease = releaseHistory?.isPrerelease(app.latestTag) == true
+        val heroSize = cardVersion.size?.let { DataSize(it).toString() }
+        // The version shown is a pre-release: said on the card, next to it, as in the version list.
+        val offersPrerelease = cardVersion.isPrerelease
         // Fuzzy but shared with the F-Droid catalogue's own check (see RootDetection): an external
         // source has no manifest permissions to read, so this only has the app's own text to go on
         // — its name and README (once loaded; the badge simply isn't shown yet before then).
@@ -1361,7 +1361,11 @@ private fun ExternalVersionsSection(
                 modifier = Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 8.dp),
             )
             if (releaseHistory != null && offersPrereleaseChoice(app.prereleases, releaseHistory)) {
-                PrereleaseModeChooser(mode = app.prereleases, onModeChange = onPrereleaseModeChange)
+                PrereleaseModeChooser(
+                    mode = app.prereleases,
+                    onModeChange = onPrereleaseModeChange,
+                    textStyle = MaterialTheme.typography.titleMedium,
+                )
             }
         }
         if (releaseHistory == null) {

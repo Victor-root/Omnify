@@ -69,7 +69,7 @@ import com.looker.droidify.utility.common.extension.singleSignature
 import androidx.compose.ui.Alignment
 import com.looker.droidify.compose.externalApps.PrereleaseBadge
 import com.looker.droidify.compose.externalApps.PrereleaseModeChooser
-import com.looker.droidify.compose.externalApps.isPrerelease
+import com.looker.droidify.compose.externalApps.cardVersion
 import com.looker.droidify.compose.externalApps.offersPrereleaseChoice
 
 /**
@@ -135,6 +135,7 @@ fun TvExternalAppDetailScreen(
     val context = LocalContext.current
     val installedVersion = installedVersions[appKey]
     val isInstalled = installedVersion != null
+    val cardVersion = app.cardVersion(releaseHistory)
     // The installed APK's actual signing certificate (lowercase hex; not anything the source repo itself
     // could claim, this reads the real, on-device signature), so it can be shown, compared, and copied,
     // e.g. against a build the user just compiled themselves. Null when not installed, the package id
@@ -292,14 +293,12 @@ fun TvExternalAppDetailScreen(
                         FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
                             TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
                             if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
-                            if (releaseHistory?.isPrerelease(app.latestTag) == true) PrereleaseBadge()
+                            if (cardVersion.isPrerelease) PrereleaseBadge()
                         }
-                        // Version and size as the phone's card shows them, not as tags. The version is the
-                        // latest APK's own (releaseVersionLabel), as in the version list below, not the raw
-                        // tag, which can differ from it.
+                        // Version and size as the phone's card shows them, not as tags (see cardVersion).
                         HeroStatsRow(
-                            version = releaseVersionLabel(app.latestApkName, app.latestTag).takeIf { it.isNotBlank() },
-                            size = app.latestApkSize?.let { DataSize(it).toString() },
+                            version = cardVersion.label,
+                            size = cardVersion.size?.let { DataSize(it).toString() },
                             onSourceCodeClick = null,
                         )
 
@@ -353,6 +352,7 @@ fun TvExternalAppDetailScreen(
                                 PrereleaseModeChooser(
                                     mode = app.prereleases,
                                     onModeChange = { viewModel.setPrereleaseMode(app, it) },
+                                    textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                                 )
                             }
                         }
