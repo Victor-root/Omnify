@@ -306,7 +306,7 @@ fun ScopedAccentColor(accent: IconAccent?, content: @Composable () -> Unit) {
     val scopedColorScheme = remember(baseColorScheme, accentColor) {
         accentColor?.let { baseColorScheme.withVividAccent(it, overrideAccentRoles = true) }
     }
-    if (scopedColorScheme != null) PublishAccentToSystemBar(scopedColorScheme.primary)
+    PublishAccentToSystemBar(scopedColorScheme?.primary)
     // The same calls with or without an accent: returning [content] bare when there was none rebuilt the
     // whole page under it the moment its icon's accent was read, after the page had already opened.
     CompositionLocalProvider(
@@ -338,11 +338,14 @@ fun AnimatedContentScope.AccentScreen(content: @Composable () -> Unit) {
  * share sheet, going to the background) leaves the screen shown, so the accent stays.
  */
 @Composable
-private fun PublishAccentToSystemBar(scopedBarColor: Color) {
+private fun PublishAccentToSystemBar(scopedBarColor: Color?) {
+    // Followed from the screen's first frame, accent or not: the icon's accent is usually read while the
+    // screen is still appearing, and an animation started only then ran late behind the header.
     val shown = LocalScreenTransition.current?.animateFloat(
         transitionSpec = { tween(SCREEN_TRANSITION_MS) },
         label = "scopedBarAccent",
     ) { if (it == EnterExitState.Visible) 1f else 0f } ?: remember { mutableFloatStateOf(1f) }
+    if (scopedBarColor == null) return
     val entry = remember { ScopedBarAccents.Entry(scopedBarColor, shown) }
     SideEffect { entry.color = scopedBarColor }
     val accents = LocalScopedBarAccents.current
