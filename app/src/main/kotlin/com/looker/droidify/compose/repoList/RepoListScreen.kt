@@ -107,6 +107,7 @@ import com.looker.droidify.data.trailRepoIcon
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.SourceDraft
+import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.external.ReleaseFamily
 import com.looker.droidify.external.apkFileName
 import com.looker.droidify.model.Repository
@@ -179,7 +180,6 @@ fun RepoListScreen(
                     url = share.draft.url,
                     customName = "",
                     includeForks = false,
-                    includePrereleases = false,
                     muteUpdates = false,
                     apkFilter = "",
                     versionIncludeFilter = "",
@@ -188,7 +188,7 @@ fun RepoListScreen(
             } else {
                 externalViewModel.addSource(
                     url = share.draft.url,
-                    includePrereleases = share.draft.includePrereleases,
+                    prereleases = share.draft.prereleases,
                     customName = share.draft.name,
                     apkFilter = share.draft.apkFilter,
                     versionIncludeFilter = share.draft.versionIncludeFilter,
@@ -470,13 +470,12 @@ fun RepoListScreen(
                 prefill = SourceDraft()
                 externalViewModel.consumeAddState()
             },
-            onAdd = { url, customName, includeForks, includePrereleases, muteUpdates, apkFilter,
-                versionIncludeFilter, versionExcludeFilter ->
+            onAdd = { url, customName, includeForks, muteUpdates, apkFilter, versionIncludeFilter,
+                versionExcludeFilter ->
                 externalViewModel.addAccount(
                     url = url,
                     customName = customName,
                     includeForks = includeForks,
-                    includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
                     versionIncludeFilter = versionIncludeFilter,
@@ -528,12 +527,11 @@ fun RepoListScreen(
             app = app,
             iconCandidates = iconCandidates,
             onDismiss = { editingExternal = null },
-            onSave = { customName, includePrereleases, muteUpdates, apkFilter, versionIncludeFilter,
-                versionExcludeFilter, iconUrl ->
+            onSave = { customName, muteUpdates, apkFilter, versionIncludeFilter, versionExcludeFilter,
+                iconUrl ->
                 externalViewModel.updateSource(
                     app = app,
                     customName = customName,
-                    includePrereleases = includePrereleases,
                     muteUpdates = muteUpdates,
                     apkFilter = apkFilter,
                     versionIncludeFilter = versionIncludeFilter,
@@ -1246,7 +1244,7 @@ internal fun AddExternalSourceDialog(
     onDismiss: () -> Unit,
     onAdd: (
         url: String,
-        includePrereleases: Boolean,
+        prereleases: PrereleaseMode,
         customName: String,
         muteUpdates: Boolean,
         apkFilter: String,
@@ -1256,7 +1254,7 @@ internal fun AddExternalSourceDialog(
     onAddFamilies: (
         url: String,
         families: List<ReleaseFamily>,
-        includePrereleases: Boolean,
+        prereleases: PrereleaseMode,
         customName: String,
         muteUpdates: Boolean,
         apkFilter: String,
@@ -1268,7 +1266,6 @@ internal fun AddExternalSourceDialog(
 ) {
     var url by rememberSaveable(initial) { mutableStateOf(initial.url) }
     var name by rememberSaveable(initial) { mutableStateOf(initial.name) }
-    var includePrereleases by rememberSaveable(initial) { mutableStateOf(initial.includePrereleases) }
     var muteUpdates by rememberSaveable { mutableStateOf(false) }
     var apkFilter by rememberSaveable(initial) { mutableStateOf(initial.apkFilter) }
     var versionIncludeFilter by rememberSaveable(initial) { mutableStateOf(initial.versionIncludeFilter) }
@@ -1276,7 +1273,8 @@ internal fun AddExternalSourceDialog(
     val submit = {
         onAdd(
             url,
-            includePrereleases,
+            // Chosen on the app's page once added; only a shared Obtainium link brings one along.
+            initial.prereleases,
             name,
             muteUpdates,
             apkFilter,
@@ -1291,7 +1289,7 @@ internal fun AddExternalSourceDialog(
         onAddFamilies(
             url,
             appFamilies.map { it.family }.filter { it.variant in picked },
-            includePrereleases,
+            initial.prereleases,
             name,
             muteUpdates,
             apkFilter,
@@ -1360,8 +1358,6 @@ internal fun AddExternalSourceDialog(
                         name = name,
                         onNameChange = { name = it },
                         nameHint = null,
-                        includePrereleases = includePrereleases,
-                        onPrereleasesChange = { includePrereleases = it },
                         muteUpdates = muteUpdates,
                         onMuteChange = { muteUpdates = it },
                         apkFilter = apkFilter,
@@ -1467,7 +1463,6 @@ internal fun AddExternalAccountDialog(
         url: String,
         customName: String,
         includeForks: Boolean,
-        includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
         versionIncludeFilter: String,
@@ -1478,7 +1473,6 @@ internal fun AddExternalAccountDialog(
     var url by rememberSaveable(initialUrl) { mutableStateOf(initialUrl) }
     var name by rememberSaveable { mutableStateOf("") }
     var includeForks by rememberSaveable { mutableStateOf(false) }
-    var includePrereleases by rememberSaveable { mutableStateOf(false) }
     var muteUpdates by rememberSaveable { mutableStateOf(false) }
     var apkFilter by rememberSaveable { mutableStateOf("") }
     var versionIncludeFilter by rememberSaveable { mutableStateOf("") }
@@ -1529,8 +1523,6 @@ internal fun AddExternalAccountDialog(
                         name = name,
                         onNameChange = { name = it },
                         nameHint = null,
-                        includePrereleases = includePrereleases,
-                        onPrereleasesChange = { includePrereleases = it },
                         muteUpdates = muteUpdates,
                         onMuteChange = { muteUpdates = it },
                         apkFilter = apkFilter,
@@ -1558,7 +1550,6 @@ internal fun AddExternalAccountDialog(
                             url,
                             name,
                             includeForks,
-                            includePrereleases,
                             muteUpdates,
                             apkFilter,
                             versionIncludeFilter,
@@ -1585,7 +1576,6 @@ internal fun EditExternalSourceDialog(
     onDismiss: () -> Unit,
     onSave: (
         customName: String,
-        includePrereleases: Boolean,
         muteUpdates: Boolean,
         apkFilter: String,
         versionIncludeFilter: String,
@@ -1596,7 +1586,6 @@ internal fun EditExternalSourceDialog(
     var name by rememberSaveable(app.key) {
         mutableStateOf(if (app.nameOverridden) app.label else "")
     }
-    var includePrereleases by rememberSaveable(app.key) { mutableStateOf(app.includePrereleases) }
     var muteUpdates by rememberSaveable(app.key) { mutableStateOf(app.muteUpdates) }
     var apkFilter by rememberSaveable(app.key) { mutableStateOf(app.apkFilter ?: "") }
     var versionIncludeFilter by rememberSaveable(app.key) {
@@ -1630,8 +1619,6 @@ internal fun EditExternalSourceDialog(
                     name = name,
                     onNameChange = { name = it },
                     nameHint = app.label,
-                    includePrereleases = includePrereleases,
-                    onPrereleasesChange = { includePrereleases = it },
                     muteUpdates = muteUpdates,
                     onMuteChange = { muteUpdates = it },
                     apkFilter = apkFilter,
@@ -1648,7 +1635,6 @@ internal fun EditExternalSourceDialog(
                 onClick = {
                     onSave(
                         name,
-                        includePrereleases,
                         muteUpdates,
                         apkFilter,
                         versionIncludeFilter,
@@ -1759,8 +1745,6 @@ private fun SourceOptionFields(
     name: String,
     onNameChange: (String) -> Unit,
     nameHint: String?,
-    includePrereleases: Boolean,
-    onPrereleasesChange: (Boolean) -> Unit,
     muteUpdates: Boolean,
     onMuteChange: (Boolean) -> Unit,
     apkFilter: String,
@@ -1792,11 +1776,6 @@ private fun SourceOptionFields(
         modifier = Modifier.tvTypeOnOk(nameTyping).fillMaxWidth(),
     )
     Spacer(Modifier.size(4.dp))
-    CheckboxRow(
-        checked = includePrereleases,
-        onCheckedChange = onPrereleasesChange,
-        label = stringResource(R.string.external_include_prereleases),
-    )
     CheckboxRow(
         checked = muteUpdates,
         onCheckedChange = onMuteChange,

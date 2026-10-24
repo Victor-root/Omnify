@@ -190,15 +190,12 @@ class ReleaseSelectionPropertiesTest {
                 isPrerelease = rnd.nextBoolean(),
                 assets = emptyList(),
             )
-            assertFalse(
-                release.isAllowedBy(
-                    includePrereleases = false,
-                    versionIncludeFilter = null,
-                    versionExcludeFilter = null,
-                ) &&
-                    release.isPrerelease,
-                "let the prerelease ${release.tag} through",
-            )
+            for (mode in listOf(PrereleaseMode.HIDDEN, PrereleaseMode.SHOWN)) {
+                assertFalse(
+                    mode.offers(release, onlyPrereleases = false) && release.isPrerelease,
+                    "$mode let the prerelease ${release.tag} through",
+                )
+            }
         }
     }
 
@@ -249,12 +246,11 @@ class ReleaseSelectionPropertiesTest {
                     assets = emptyList(),
                 )
             }
-            val includePrereleases = rnd.nextBoolean()
             val include = listOf(null, "", "v", "nightly").random(rnd)
             val exclude = listOf(null, "", "nightly", "beta,nightly").random(rnd)
             assertEquals(
-                releases.filter { it.isAllowedBy(includePrereleases, include, exclude) },
-                releases.allowedBy(includePrereleases, include, exclude),
+                releases.filter { it.isAllowedBy(include, exclude) },
+                releases.allowedBy(include, exclude),
             )
         }
     }

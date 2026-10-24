@@ -493,8 +493,6 @@
     <string name="external_remove">Удалить</string>
     <string name="external_check_updates">Проверить обновления</string>
     <string name="external_source_url_label">URL-адрес проекта (GitHub, GitLab, Codeberg)</string>
-    <string name="external_include_prereleases">Включать предварительные релизы</string>
-    <string name="external_only_prereleases">%s публикует только предварительные релизы. Включите \"Включать предварительные релизы\", чтобы добавить его.</string>
     <string name="external_all_excluded_by_filter">Все последние релизы %s соответствуют вашему фильтру исключений. Очистите или измените его, чтобы добавить этот источник.</string>
     <string name="external_prerelease_label">Предварительный релиз</string>
     <string name="external_no_website">Сайт не найден</string>

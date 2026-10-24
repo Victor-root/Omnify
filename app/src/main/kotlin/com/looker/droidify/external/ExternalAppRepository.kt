@@ -224,7 +224,7 @@ class ExternalAppRepository @Inject constructor(
     }
 
     private fun decode(file: File): List<ExternalApp> = try {
-        json.decodeFromString(ListSerializer(ExternalApp.serializer()), file.readText())
+        json.decodeFromString(ListSerializer(StoredExternalAppSerializer), file.readText())
     } catch (e: Exception) {
         e.printStackTrace()
         emptyList()

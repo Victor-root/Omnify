@@ -66,7 +66,7 @@ class ReleaseFamiliesTest {
             families.filtersFor(families[1], apk = "", include = "", exclude = "nightly")
         assertEquals("wear-v", wearInclude)
         assertEquals("nightly", wearExclude)
-        assertTrue(release("v3.0.0").isAllowedBy(false, include, exclude))
+        assertTrue(release("v3.0.0").isAllowedBy(include, exclude))
     }
 
     private fun apks(tag: String, vararg names: String) =

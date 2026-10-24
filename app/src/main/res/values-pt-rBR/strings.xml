@@ -489,8 +489,6 @@
     <string name="external_remove">Remover</string>
     <string name="external_check_updates">Verificar atualizações</string>
     <string name="external_source_url_label">URL do projeto (GitHub, GitLab, Codeberg)</string>
-    <string name="external_include_prereleases">Incluir pré-lançamentos</string>
-    <string name="external_only_prereleases">%s só publica pré-lançamentos. Ative \"Incluir pré-lançamentos\" para adicioná-lo.</string>
     <string name="external_all_excluded_by_filter">Todos os lançamentos recentes de %s correspondem ao seu filtro de exclusão. Limpe-o ou ajuste-o para adicionar esta fonte.</string>
     <string name="external_prerelease_label">Pré-lançamento</string>
     <string name="external_no_website">Nenhum site encontrado</string>

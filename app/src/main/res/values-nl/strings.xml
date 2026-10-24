@@ -485,8 +485,6 @@
     <string name="external_remove">Verwijderen</string>
     <string name="external_check_updates">Controleren op updates</string>
     <string name="external_source_url_label">Project-URL (GitHub, GitLab, Codeberg)</string>
-    <string name="external_include_prereleases">Pre-releases opnemen</string>
-    <string name="external_only_prereleases">%s publiceert alleen pre-releases. Schakel \"Pre-releases opnemen\" in om deze toe te voegen.</string>
     <string name="external_all_excluded_by_filter">Alle recente releases van %s komen overeen met je uitsluitingsfilter. Wis of pas dit aan om deze bron toe te voegen.</string>
     <string name="external_prerelease_label">Pre-release</string>
     <string name="external_no_website">Geen website gevonden</string>

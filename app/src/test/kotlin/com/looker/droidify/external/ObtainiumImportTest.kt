@@ -49,7 +49,7 @@ class ObtainiumImportTest {
         assertFalse(inkOs.nameOverridden)
         assertEquals("app.inkos", inkOs.packageName)
         assertTrue(inkOs.enabled)
-        assertFalse(inkOs.includePrereleases)
+        assertEquals(PrereleaseMode.HIDDEN, inkOs.prereleases)
         assertNull(inkOs.apkFilter)
         assertNull(inkOs.versionIncludeFilter)
     }
@@ -59,7 +59,7 @@ class ObtainiumImportTest {
         val cromite = app("uazo/cromite")
         assertEquals("My Browser", cromite.label)
         assertTrue(cromite.nameOverridden)
-        assertTrue(cromite.includePrereleases)
+        assertEquals(PrereleaseMode.BOTH, cromite.prereleases)
         assertEquals("arm64", cromite.apkFilter)
         assertEquals("stable", cromite.versionIncludeFilter)
         assertEquals("beta,rc", app("owner/forge-app").versionIncludeFilter)
@@ -106,7 +106,7 @@ class ObtainiumImportTest {
         val bare = parseObtainiumExport("[$entry]")
         assertEquals(listOf("gezimos/inkOS"), wrapped.apps.map { it.path })
         assertEquals(wrapped, bare)
-        assertTrue(bare.apps.single().includePrereleases)
+        assertEquals(PrereleaseMode.BOTH, bare.apps.single().prereleases)
     }
 
     @Test
@@ -166,7 +166,7 @@ class ObtainiumImportTest {
             """\"apkFilterRegEx\":\"v.+\\\\.apk\"}"}"""
         val draft = parseObtainiumLink(decoded)
         assertEquals("Mine", draft?.name)
-        assertTrue(draft?.includePrereleases == true)
+        assertEquals(PrereleaseMode.BOTH, draft?.prereleases)
         assertEquals("v.+\\.apk", draft?.apkFilter)
     }
 

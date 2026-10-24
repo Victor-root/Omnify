@@ -485,8 +485,6 @@
     <string name="external_remove">Kaldır</string>
     <string name="external_check_updates">Güncellemeleri denetle</string>
     <string name="external_source_url_label">Proje URL\'si (GitHub, GitLab, Codeberg)</string>
-    <string name="external_include_prereleases">Ön sürümleri dahil et</string>
-    <string name="external_only_prereleases">%s yalnızca ön sürümler yayımlıyor. Eklemek için \"Ön sürümleri dahil et\"i aç.</string>
     <string name="external_all_excluded_by_filter">%s\'in tüm son sürümleri hariç tutma filtrenizle eşleşiyor. Bu kaynağı eklemek için filtreyi temizle veya ayarla.</string>
     <string name="external_prerelease_label">Ön sürüm</string>
     <string name="external_no_website">Web sitesi bulunamadı</string>

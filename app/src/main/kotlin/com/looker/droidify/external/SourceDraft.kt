@@ -12,7 +12,7 @@ import kotlinx.parcelize.Parcelize
 data class SourceDraft(
     val url: String = "",
     val name: String = "",
-    val includePrereleases: Boolean = false,
+    val prereleases: PrereleaseMode = PrereleaseMode.HIDDEN,
     val apkFilter: String = "",
     val versionIncludeFilter: String = "",
 ) : Parcelable

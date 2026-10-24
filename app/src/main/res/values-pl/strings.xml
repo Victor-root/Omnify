@@ -493,8 +493,6 @@
     <string name="external_remove">Usuń</string>
     <string name="external_check_updates">Sprawdź aktualizacje</string>
     <string name="external_source_url_label">Adres URL projektu (GitHub, GitLab, Codeberg)</string>
-    <string name="external_include_prereleases">Uwzględnij wersje wstępne</string>
-    <string name="external_only_prereleases">%s publikuje tylko wersje wstępne. Włącz opcję \"Uwzględnij wersje wstępne\", aby ją dodać.</string>
     <string name="external_all_excluded_by_filter">Wszystkie ostatnie wersje %s pasują do Twojego filtra wykluczeń. Wyczyść go lub dostosuj, aby dodać to źródło.</string>
     <string name="external_prerelease_label">Wersja wstępna</string>
     <string name="external_no_website">Nie znaleziono strony internetowej</string>

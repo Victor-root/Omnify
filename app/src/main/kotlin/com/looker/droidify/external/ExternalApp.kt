@@ -3,6 +3,12 @@ package com.looker.droidify.external
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.data.signerMismatch
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonTransformingSerializer
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * A project tracked as an external app source (Obtainium-style): Droidify fetches its latest release
@@ -62,17 +68,17 @@ data class ExternalApp(
      *  discovery row next to catalogue apps. Null for sources added before this existed (backfilled on
      *  their next refresh) or when the date couldn't be parsed. */
     val latestReleaseAt: Long? = null,
-    /** Whether to consider pre-releases when picking the latest release. */
-    val includePrereleases: Boolean = false,
+    /** What this source does with its repository's pre-releases, chosen on the app's own page. */
+    val prereleases: PrereleaseMode = PrereleaseMode.HIDDEN,
     /** Optional regex matched against APK file names to choose which APK to install when a release
      *  ships several (e.g. per-ABI splits). Empty/null = pick automatically by device architecture. */
     val apkFilter: String? = null,
     /** Optional comma-separated keywords matched (plain substring, case-insensitive) against a
-     *  release's tag and title; any match is skipped when picking a release, even if
-     *  [includePrereleases] is on and even when the provider's own release isn't flagged as a
+     *  release's tag and title; any match is skipped when picking a release, whatever [prereleases]
+     *  says and even when the provider's own release isn't flagged as a
      *  pre-release. For sources whose automated publishing doesn't reliably set that flag on unstable
      *  builds (e.g. a browser that ships its Nightly/Beta channel as a plain GitHub release).
-     *  Empty/null = no extra filtering beyond [includePrereleases]. */
+     *  Empty/null = no extra filtering beyond [prereleases]. */
     val versionExcludeFilter: String? = null,
     /** Optional comma-separated keywords matched the same way as [versionExcludeFilter], but keeping
      *  only the releases that contain one: pins the source to one app of a repository publishing
@@ -487,7 +493,7 @@ fun ExternalApp.withVariantNamed(name: String, taken: Set<String>): ExternalApp 
 fun ExternalApp.followsSameAppAs(other: ExternalApp): Boolean =
     apkFilter == other.apkFilter &&
         versionIncludeFilter == other.versionIncludeFilter &&
-        includePrereleases == other.includePrereleases
+        prereleases == other.prereleases
 
 /**
  * A repo's bare slug turned into something worth reading, for when a real app name (read from the
@@ -506,4 +512,19 @@ internal fun prettifyRepoName(repo: String): String = when {
         .joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
     repo.any { it.isUpperCase() } -> repo
     else -> repo.replaceFirstChar(Char::uppercase)
+}
+
+/**
+ * Reads an [ExternalApp] as stored by any version, for the saved list and backups alike. One saved before
+ * [ExternalApp.prereleases] existed carries the former "include pre-releases" switch instead: on, it
+ * keeps following stable and pre-releases alike, as it did.
+ */
+object StoredExternalAppSerializer : JsonTransformingSerializer<ExternalApp>(ExternalApp.serializer()) {
+    override fun transformDeserialize(element: JsonElement): JsonElement {
+        val stored = element as? JsonObject ?: return element
+        if ("prereleases" in stored) return element
+        val included = stored["includePrereleases"]?.jsonPrimitive?.booleanOrNull ?: return element
+        val mode = if (included) PrereleaseMode.BOTH else PrereleaseMode.HIDDEN
+        return JsonObject(stored - "includePrereleases" + ("prereleases" to JsonPrimitive(mode.name)))
+    }
 }
