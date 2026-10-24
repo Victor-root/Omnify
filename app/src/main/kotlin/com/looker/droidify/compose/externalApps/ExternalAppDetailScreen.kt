@@ -1351,17 +1351,15 @@ private fun ExternalVersionsSection(
         Spacer(Modifier.height(20.dp))
         SectionSeparator()
         Spacer(Modifier.height(20.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
-        ) {
+        // On one baseline: a choice wrapping onto two lines starts level with the title.
+        Row(modifier = Modifier.fillMaxWidth().padding(end = 8.dp)) {
             Text(
                 text = stringResource(R.string.versions),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.alignByBaseline().padding(horizontal = 16.dp, vertical = 8.dp),
             )
             // The title keeps its own width: a long choice wraps beside it instead.
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            Box(modifier = Modifier.weight(1f).alignByBaseline(), contentAlignment = Alignment.CenterEnd) {
                 if (releaseHistory != null && offersPrereleaseChoice(app.prereleases, releaseHistory)) {
                     PrereleaseModeChooser(
                         mode = app.prereleases,

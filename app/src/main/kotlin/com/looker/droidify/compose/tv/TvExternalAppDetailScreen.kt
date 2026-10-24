@@ -347,10 +347,16 @@ fun TvExternalAppDetailScreen(
                     }
 
                     releaseHistory?.takeIf { it.isNotEmpty() }?.let { releases ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            TvSectionTitle(stringResource(R.string.versions))
+                        // On one baseline: a choice wrapping onto two lines starts level with the title.
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Box(modifier = Modifier.alignByBaseline()) {
+                                TvSectionTitle(stringResource(R.string.versions))
+                            }
                             // The title keeps its own width: a long choice wraps beside it instead.
-                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                            Box(
+                                modifier = Modifier.weight(1f).alignByBaseline(),
+                                contentAlignment = Alignment.CenterEnd,
+                            ) {
                                 if (offersPrereleaseChoice(app.prereleases, releases)) {
                                     PrereleaseModeChooser(
                                         mode = app.prereleases,
