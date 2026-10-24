@@ -582,7 +582,7 @@ fun AppListScreen(
                             externalViewModel.refresh(force = true)
                         },
                         contentFocusRequester = contentFocusRequester,
-                        overflowExpanded = overflowExpanded,
+                        overflowExpanded = { overflowExpanded },
                         onOverflowExpandedChange = { overflowExpanded = it },
                         searchExpanded = searchExpanded,
                         onToggleSearch = {
@@ -1701,7 +1701,8 @@ private fun SearchTopBar(
 private fun AppListTopBar(
     onSync: () -> Unit,
     contentFocusRequester: FocusRequester,
-    overflowExpanded: Boolean,
+    // Read only by the menu itself, so opening it recomposes the menu and not the whole header.
+    overflowExpanded: () -> Boolean,
     onOverflowExpandedChange: (Boolean) -> Unit,
     searchExpanded: Boolean,
     onToggleSearch: () -> Unit,
@@ -1758,7 +1759,7 @@ private fun AppListMainTopBar(
     onToggleFavouritesCarousel: () -> Unit,
     tvOnly: Boolean,
     onToggleTvOnly: () -> Unit,
-    overflowExpanded: Boolean,
+    overflowExpanded: () -> Boolean,
     onOverflowExpandedChange: (Boolean) -> Unit,
     title: @Composable () -> Unit,
 ) {
@@ -1857,105 +1858,128 @@ private fun AppListMainTopBar(
             Spacer(Modifier.width(buttonSpacing))
             // Overflow: the less-used destinations (favourites filter, repositories, settings) live
             // here so the header stays uncluttered.
-            Box {
-                IconButton(
-                    onClick = { onOverflowExpandedChange(true) },
-                    modifier = Modifier
-                    // TV: a square button so the focus halo is a clean circle (the narrow expressive
-                    // size makes it an oval); the focused icon also scales up. Unchanged on touch.
-                    .then(
-                        if (LocalIsTelevision.current) {
-                            Modifier.size(48.dp)
-                        } else {
-                            Modifier.size(smallContainerSize(Narrow))
-                        },
-                    )
-                    .tvFocusScale(),
-                ) {
-                    Icon(
-                        Icons.Filled.MoreVert,
-                        contentDescription = stringResource(R.string.more_options),
-                    )
-                }
-                DropdownMenu(
-                    expanded = overflowExpanded,
-                    onDismissRequest = { onOverflowExpandedChange(false) },
-                    modifier = if (isTablet) Modifier.widthIn(min = 280.dp) else Modifier,
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    if (showFavouritesCarousel) {
-                                        R.string.hide_favourites
-                                    } else {
-                                        R.string.show_favourites
-                                    },
-                                ),
-                                style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
-                            )
-                        },
-                        onClick = {
-                            onToggleFavouritesCarousel()
-                            onOverflowExpandedChange(false)
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Filled.Favorite, contentDescription = null)
-                        },
-                        contentPadding = if (isTablet) {
-                            PaddingValues(horizontal = 20.dp, vertical = 4.dp)
-                        } else {
-                            MenuDefaults.DropdownMenuItemContentPadding
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(R.string.repositories),
-                                style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
-                            )
-                        },
-                        onClick = {
-                            onNavigateToRepos()
-                            onOverflowExpandedChange(false)
-                        },
-                        leadingIcon = {
-                            Icon(painterResource(R.drawable.ic_tabler_box), contentDescription = null)
-                        },
-                        contentPadding = if (isTablet) {
-                            PaddingValues(horizontal = 20.dp, vertical = 4.dp)
-                        } else {
-                            MenuDefaults.DropdownMenuItemContentPadding
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(R.string.settings),
-                                style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
-                            )
-                        },
-                        onClick = {
-                            onNavigateToSettings()
-                            onOverflowExpandedChange(false)
-                        },
-                        leadingIcon = {
-                            Icon(
-                                painterResource(R.drawable.ic_tabler_settings),
-                                contentDescription = null,
-                            )
-                        },
-                        contentPadding = if (isTablet) {
-                            PaddingValues(horizontal = 20.dp, vertical = 4.dp)
-                        } else {
-                            MenuDefaults.DropdownMenuItemContentPadding
-                        },
-                    )
-                }
-            }
+            HomeOverflowMenu(
+                expanded = overflowExpanded,
+                onExpandedChange = onOverflowExpandedChange,
+                isTablet = isTablet,
+                showFavouritesCarousel = showFavouritesCarousel,
+                onToggleFavouritesCarousel = onToggleFavouritesCarousel,
+                onNavigateToRepos = onNavigateToRepos,
+                onNavigateToSettings = onNavigateToSettings,
+            )
             Spacer(Modifier.width(buttonSpacing))
         },
     )
+}
+
+/** The home screen's overflow button and menu, in a scope of their own: [expanded] is read here only. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun HomeOverflowMenu(
+    expanded: () -> Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    isTablet: Boolean,
+    showFavouritesCarousel: Boolean,
+    onToggleFavouritesCarousel: () -> Unit,
+    onNavigateToRepos: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+) {
+    Box {
+        IconButton(
+            onClick = { onExpandedChange(true) },
+            modifier = Modifier
+            // TV: a square button so the focus halo is a clean circle (the narrow expressive
+            // size makes it an oval); the focused icon also scales up. Unchanged on touch.
+            .then(
+                if (LocalIsTelevision.current) {
+                    Modifier.size(48.dp)
+                } else {
+                    Modifier.size(smallContainerSize(Narrow))
+                },
+            )
+            .tvFocusScale(),
+        ) {
+            Icon(
+                Icons.Filled.MoreVert,
+                contentDescription = stringResource(R.string.more_options),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded(),
+            onDismissRequest = { onExpandedChange(false) },
+            modifier = if (isTablet) Modifier.widthIn(min = 280.dp) else Modifier,
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(
+                            if (showFavouritesCarousel) {
+                                R.string.hide_favourites
+                            } else {
+                                R.string.show_favourites
+                            },
+                        ),
+                        style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
+                    )
+                },
+                onClick = {
+                    onToggleFavouritesCarousel()
+                    onExpandedChange(false)
+                },
+                leadingIcon = {
+                    Icon(Icons.Filled.Favorite, contentDescription = null)
+                },
+                contentPadding = if (isTablet) {
+                    PaddingValues(horizontal = 20.dp, vertical = 4.dp)
+                } else {
+                    MenuDefaults.DropdownMenuItemContentPadding
+                },
+            )
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(R.string.repositories),
+                        style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
+                    )
+                },
+                onClick = {
+                    onNavigateToRepos()
+                    onExpandedChange(false)
+                },
+                leadingIcon = {
+                    Icon(painterResource(R.drawable.ic_tabler_box), contentDescription = null)
+                },
+                contentPadding = if (isTablet) {
+                    PaddingValues(horizontal = 20.dp, vertical = 4.dp)
+                } else {
+                    MenuDefaults.DropdownMenuItemContentPadding
+                },
+            )
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(R.string.settings),
+                        style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
+                    )
+                },
+                onClick = {
+                    onNavigateToSettings()
+                    onExpandedChange(false)
+                },
+                leadingIcon = {
+                    Icon(
+                        painterResource(R.drawable.ic_tabler_settings),
+                        contentDescription = null,
+                    )
+                },
+                contentPadding = if (isTablet) {
+                    PaddingValues(horizontal = 20.dp, vertical = 4.dp)
+                } else {
+                    MenuDefaults.DropdownMenuItemContentPadding
+                },
+            )
+        }
+    }
 }
 
 @Composable
