@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.looker.droidify.compose.externalApps.ExternalAccountDetailScreen
 import com.looker.droidify.compose.externalApps.ExternalAppDetailScreen
+import com.looker.droidify.compose.theme.AccentScreen
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.tv.TvExternalAccountDetailScreen
 import com.looker.droidify.compose.tv.TvExternalAppDetailScreen
@@ -26,21 +27,23 @@ fun NavGraphBuilder.externalAppDetail(
 ) {
     composable<ExternalAppDetail> { backStackEntry ->
         val route = backStackEntry.toRoute<ExternalAppDetail>()
-        // Android TV gets its own lean detail screen; the phone screen is untouched.
-        if (LocalIsTelevision.current) {
-            TvExternalAppDetailScreen(
-                appKey = route.appKey,
-                viewModel = hiltViewModel(),
-                onBackClick = onBackClick,
-                onFixGithubToken = onFixGithubToken,
-            )
-        } else {
-            ExternalAppDetailScreen(
-                appKey = route.appKey,
-                viewModel = hiltViewModel(),
-                onBackClick = onBackClick,
-                onFixGithubToken = onFixGithubToken,
-            )
+        AccentScreen {
+            // Android TV gets its own lean detail screen; the phone screen is untouched.
+            if (LocalIsTelevision.current) {
+                TvExternalAppDetailScreen(
+                    appKey = route.appKey,
+                    viewModel = hiltViewModel(),
+                    onBackClick = onBackClick,
+                    onFixGithubToken = onFixGithubToken,
+                )
+            } else {
+                ExternalAppDetailScreen(
+                    appKey = route.appKey,
+                    viewModel = hiltViewModel(),
+                    onBackClick = onBackClick,
+                    onFixGithubToken = onFixGithubToken,
+                )
+            }
         }
     }
 }
