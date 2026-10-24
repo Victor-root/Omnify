@@ -48,6 +48,14 @@ class PrereleaseModeTest {
     }
 
     @Test
+    fun `only a repository publishing both kinds has a pre-release choice to make`() {
+        assertTrue(listOf(beta, stable).mixesPrereleases())
+        assertFalse(listOf(stable, release("v1.9.0", false)).mixesPrereleases())
+        assertFalse(listOf(beta, release("v2.0-beta0", true)).mixesPrereleases())
+        assertFalse(emptyList<Release>().mixesPrereleases())
+    }
+
+    @Test
     fun `a stable fix published after a pre-release of the next version does not win over it`() {
         assertEquals(beta, listOf(stable, beta).highestVersion())
     }

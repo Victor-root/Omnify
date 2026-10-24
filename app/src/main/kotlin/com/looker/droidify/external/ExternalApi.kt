@@ -217,7 +217,7 @@ class ExternalApi @Inject constructor(
     suspend fun releaseHistory(
         app: ExternalApp,
         limit: Int = RELEASE_HISTORY_TARGET,
-    ): List<Release> = withContext(Dispatchers.IO) {
+    ): ReleaseHistory = withContext(Dispatchers.IO) {
         val releases = runCatching {
             fetchReleases(
                 app.provider, app.effectiveHost, app.owner, app.repo,
@@ -226,7 +226,12 @@ class ExternalApi @Inject constructor(
             )
         }.getOrNull().orEmpty()
         val onlyPrereleases = releases.onlyPrereleases()
-        releases.filter { it.isListableFor(app, onlyPrereleases) }.take(limit)
+        ReleaseHistory(
+            releases = releases.filter { it.isListableFor(app, onlyPrereleases) }.take(limit),
+            // Judged on what the source could list, whatever its pre-release choice: hidden pre-releases
+            // still count, ones its other settings would never show do not.
+            hasPrereleaseChoice = releases.filter { it.isListableBySettings(app) }.mixesPrereleases(),
+        )
     }
 
     /** Probes whether [host] runs Gitea/Forgejo by hitting its repo API. Lets a pasted URL whose host

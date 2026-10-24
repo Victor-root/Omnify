@@ -100,6 +100,7 @@ fun TvExternalAppDetailScreen(
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
+    val hasPrereleaseChoice by viewModel.hasPrereleaseChoice.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     val expectedSignersByApkUrl by viewModel.expectedSignersByApkUrl.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
@@ -357,7 +358,7 @@ fun TvExternalAppDetailScreen(
                                 modifier = Modifier.weight(1f).alignByBaseline(),
                                 contentAlignment = Alignment.CenterEnd,
                             ) {
-                                if (offersPrereleaseChoice(app.prereleases, releases)) {
+                                if (offersPrereleaseChoice(app.prereleases, hasPrereleaseChoice)) {
                                     PrereleaseModeChooser(
                                         mode = app.prereleases,
                                         onModeChange = { viewModel.setPrereleaseMode(app, it) },

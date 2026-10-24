@@ -44,6 +44,10 @@ enum class PrereleaseMode {
 /** Whether these releases are all pre-releases: a repository with no stable release to fall back on. */
 fun List<Release>.onlyPrereleases(): Boolean = isNotEmpty() && all { it.isPrerelease }
 
+/** Whether these releases hold both pre-releases and stable ones: the only case where choosing between
+ *  them means anything. */
+fun List<Release>.mixesPrereleases(): Boolean = any { it.isPrerelease } && any { !it.isPrerelease }
+
 /**
  * Of [this] (newest first), the one with the highest version: the newest, unless one published before it
  * carries a higher version number. With stable and pre-releases mixed, a fix to the stable line often

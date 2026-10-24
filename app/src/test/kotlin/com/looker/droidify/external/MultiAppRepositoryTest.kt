@@ -152,7 +152,7 @@ class MultiAppRepositoryTest {
                 name,
             )
             // The version list only shows releases carrying this app.
-            val history = api.releaseHistory(app)
+            val history = api.releaseHistory(app).releases
             assertTrue(history.isNotEmpty(), name)
             assertTrue(history.all { it.hasApkMatchingFilter(app.apkFilter) }, name)
         }

@@ -76,12 +76,11 @@ internal fun PrereleaseModeChooser(
     }
 }
 
-/** Whether the version list offers [PrereleaseModeChooser]: not for a repository publishing nothing but
- *  pre-releases, where there is no choice to make. Under [PrereleaseMode.HIDDEN] such a repository is the
- *  only way pre-releases reach the list; under any other mode, the list holding only pre-releases says
- *  nothing about the repository, so the choice stays there to be undone. */
-internal fun offersPrereleaseChoice(mode: PrereleaseMode, releases: List<Release>): Boolean =
-    mode != PrereleaseMode.HIDDEN || releases.any { !it.isPrerelease }
+/** Whether the version list offers [PrereleaseModeChooser]: only when the repository publishes both
+ *  pre-releases and stable releases ([hasPrereleaseChoice]), or once another mode than
+ *  [PrereleaseMode.HIDDEN] is chosen, so that choice can always be undone. */
+internal fun offersPrereleaseChoice(mode: PrereleaseMode, hasPrereleaseChoice: Boolean): Boolean =
+    mode != PrereleaseMode.HIDDEN || hasPrereleaseChoice
 
 /** The version the app's card shows, its APK size, and whether it is a pre-release (the badge). */
 internal data class CardVersion(val label: String?, val size: Long?, val isPrerelease: Boolean)

@@ -54,6 +54,10 @@ sealed class ReleaseLookup {
     data object NoCompatibleApk : ReleaseLookup()
 }
 
+/** A source's version list ([ExternalApi.releaseHistory]), and whether its repository gives it a pre-release
+ *  choice to make: only one publishing both kinds within the window fetched does ([mixesPrereleases]). */
+data class ReleaseHistory(val releases: List<Release>, val hasPrereleaseChoice: Boolean)
+
 /** A downloadable file attached to a [Release]. */
 data class ReleaseAsset(
     val name: String,

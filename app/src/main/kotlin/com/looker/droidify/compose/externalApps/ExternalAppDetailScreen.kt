@@ -163,6 +163,7 @@ fun ExternalAppDetailScreen(
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
+    val hasPrereleaseChoice by viewModel.hasPrereleaseChoice.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     val googleServicesByApkUrl by viewModel.googleServicesByApkUrl.collectAsStateWithLifecycle()
     val expectedSignersByApkUrl by viewModel.expectedSignersByApkUrl.collectAsStateWithLifecycle()
@@ -567,6 +568,12 @@ fun ExternalAppDetailScreen(
         // the same fixed file name on every release (confirmed real: RivoPhoneApp's "app-release.apk")
         // and only the tag actually carries a version; releaseVersionLabel tries both in that order.
         val cardVersion = app.cardVersion(releaseHistory)
+        val onPrereleaseModeChange: ((PrereleaseMode) -> Unit)? =
+            if (offersPrereleaseChoice(app.prereleases, hasPrereleaseChoice)) {
+                { viewModel.setPrereleaseMode(app, it) }
+            } else {
+                null
+            }
         val heroVersion = cardVersion.label
         // Mirrors the F-Droid catalogue's "Taille" stat; null (hidden) when the provider's release
         // API doesn't expose a file size (GitLab's release link assets carry none).
@@ -766,7 +773,7 @@ fun ExternalAppDetailScreen(
                         installedVersion = installedVersion,
                         onVersionClick = { versionToInstall = it },
                         onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
-                        onPrereleaseModeChange = { viewModel.setPrereleaseMode(app, it) },
+                        onPrereleaseModeChange = onPrereleaseModeChange,
                         onAnchorPositioned = { leftPaneVersionsAnchorY = it },
                         downloadStatus = downloads[appKey],
                         installing = installing,
@@ -809,7 +816,7 @@ fun ExternalAppDetailScreen(
                         releaseHistory = releaseHistory,
                         onVersionClick = { versionToInstall = it },
                         onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
-                        onPrereleaseModeChange = { viewModel.setPrereleaseMode(app, it) },
+                        onPrereleaseModeChange = onPrereleaseModeChange,
                         onAnchorPositioned = { versionsAnchorY = it },
                         showSidebarSections = false,
                         showLeadingSeparator = false,
@@ -939,7 +946,7 @@ fun ExternalAppDetailScreen(
                         releaseHistory = releaseHistory,
                         onVersionClick = { versionToInstall = it },
                         onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
-                        onPrereleaseModeChange = { viewModel.setPrereleaseMode(app, it) },
+                        onPrereleaseModeChange = onPrereleaseModeChange,
                         onAnchorPositioned = { versionsAnchorY = it },
                         showSidebarSections = true,
                         showLeadingSeparator = true,
@@ -992,7 +999,8 @@ private fun ExternalAppDetailBody(
     releaseHistory: List<Release>?,
     onVersionClick: (Release) -> Unit,
     onExpandVersions: () -> Unit,
-    onPrereleaseModeChange: (PrereleaseMode) -> Unit,
+    // Null when the version list has no pre-release choice to offer (offersPrereleaseChoice).
+    onPrereleaseModeChange: ((PrereleaseMode) -> Unit)?,
     onAnchorPositioned: (Int) -> Unit,
     // False in split view: the tablet-landscape left pane shows links, supported languages and
     // versions itself (see ExternalAppDetailScreen), so this body must not repeat them.
@@ -1326,7 +1334,8 @@ private fun ExternalVersionsSection(
     // user actually taps "show more" rather than eagerly on every screen open. See this section's own
     // "show more" branch below for why one more than the collapsed count is fetched upfront regardless.
     onExpandVersions: () -> Unit,
-    onPrereleaseModeChange: (PrereleaseMode) -> Unit,
+    // Null when the version list has no pre-release choice to offer (offersPrereleaseChoice).
+    onPrereleaseModeChange: ((PrereleaseMode) -> Unit)?,
     onAnchorPositioned: (Int) -> Unit,
     downloadStatus: DownloadStatus?,
     installing: Boolean,
@@ -1362,7 +1371,7 @@ private fun ExternalVersionsSection(
             )
             // The title keeps its own width: a long choice wraps beside it instead.
             Box(modifier = Modifier.weight(1f).alignByBaseline(), contentAlignment = Alignment.CenterEnd) {
-                if (releaseHistory != null && offersPrereleaseChoice(app.prereleases, releaseHistory)) {
+                if (releaseHistory != null && onPrereleaseModeChange != null) {
                     PrereleaseModeChooser(
                         mode = app.prereleases,
                         onModeChange = onPrereleaseModeChange,

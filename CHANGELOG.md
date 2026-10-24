@@ -26,7 +26,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **A cleaner logo**: the Git glyph is drawn from exact shapes, with round rings and smooth edges, in the app, its icons and on the website.
 - **Sharing an app from another repository** sends its name and a link that adds that repository to Omnify.
 - **A version's badges sit on a line of their own**, under its number.
-- **Pre-releases are chosen on each external app's page**, in its version list: hidden, shown, followed with stable releases or followed alone, instead of a switch in the source's settings. Apps found through an account get the choice too.
+- **Pre-releases are chosen on each external app's page**, in its version list: hidden, shown, followed with stable releases or followed alone, instead of a switch in the source's settings. Apps found through an account get the choice too. The choice only appears when the repository publishes both pre-releases and stable releases.
 - **Interrupted downloads resume** where they stopped, with automatic retries, external sources included.
 - **Downloads keep going after you leave an app's page or Omnify**, with a progress notification, "Update all" and "Install all" included.
 - **Session installer listed first**, and a **"None" background**.

@@ -71,7 +71,7 @@ class OfflineApiTest {
     @Test
     fun `the release lookups answer, and say the fetch is what failed`() = runTest {
         assertNull(api.latestReleaseFor(app))
-        assertTrue(api.releaseHistory(app).isEmpty())
+        assertTrue(api.releaseHistory(app).releases.isEmpty())
         // The one place the difference matters: "couldn't ask" has to stay distinguishable from "asked,
         // and there is nothing", or an offline app looks like a source that stopped publishing.
         assertEquals(ReleaseLookup.FetchFailed, api.latestReleaseLookup(app))

@@ -35,6 +35,7 @@ import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.external.ExternalAccountRef
 import com.looker.droidify.external.Release
 import com.looker.droidify.external.ReleaseFamily
+import com.looker.droidify.external.ReleaseHistory
 import com.looker.droidify.external.filtersFor
 import com.looker.droidify.external.isFollowedBy
 import com.looker.droidify.external.PrereleaseMode
@@ -551,13 +552,17 @@ class ExternalAppsViewModel @Inject constructor(
     private val _releaseHistory = MutableStateFlow<List<Release>?>(null)
     val releaseHistory: StateFlow<List<Release>?> = _releaseHistory
 
+    /** Whether the version list offers its pre-release choice ([ReleaseHistory.hasPrereleaseChoice]). */
+    private val _hasPrereleaseChoice = MutableStateFlow(false)
+    val hasPrereleaseChoice: StateFlow<Boolean> = _hasPrereleaseChoice
+
     /** Whose list [releaseHistory] holds, so a reload of that same list can keep it on screen. */
     private var releaseHistoryKey: String? = null
 
     /** One [releaseHistoryCache] entry: when it was fetched, the [limit] it was fetched with, and what
      *  came back. [limit] is what lets a later call tell whether the cache already answers it, or is
      *  too small a fetch to trust for a bigger ask (see [loadReleaseHistory]). */
-    private data class ReleaseHistoryCacheEntry(val fetchedAt: Long, val limit: Int, val releases: List<Release>)
+    private data class ReleaseHistoryCacheEntry(val fetchedAt: Long, val limit: Int, val history: ReleaseHistory)
 
     /** Per-app cache so re-opening the same app's detail screen, or toggling "show more" back and
      *  forth, doesn't burn a fresh GitHub API call every time (mirrors [ReadmeCache]'s freshness
@@ -579,16 +584,22 @@ class ExternalAppsViewModel @Inject constructor(
         val cached = releaseHistoryCache[app.key]
         // The list on screen reloaded under new settings (its pre-release choice) stays until the new one
         // arrives: emptied, the section shrank to a loading row and the page jumped under the reader.
-        if (cached != null || releaseHistoryKey != app.key) _releaseHistory.value = cached?.releases
+        if (cached != null || releaseHistoryKey != app.key) showReleaseHistory(cached?.history)
         releaseHistoryKey = app.key
         val fresh = cached != null && SystemClock.elapsedRealtime() - cached.fetchedAt < README_FRESHNESS_MS
-        val cacheAnswersThis = cached != null && (cached.limit >= limit || cached.releases.size < cached.limit)
+        val cacheAnswersThis = cached != null &&
+            (cached.limit >= limit || cached.history.releases.size < cached.limit)
         if (fresh && cacheAnswersThis) return
         viewModelScope.launch {
-            val releases = externalApi.releaseHistory(app, limit)
-            releaseHistoryCache[app.key] = ReleaseHistoryCacheEntry(SystemClock.elapsedRealtime(), limit, releases)
-            _releaseHistory.value = releases
+            val history = externalApi.releaseHistory(app, limit)
+            releaseHistoryCache[app.key] = ReleaseHistoryCacheEntry(SystemClock.elapsedRealtime(), limit, history)
+            showReleaseHistory(history)
         }
+    }
+
+    private fun showReleaseHistory(history: ReleaseHistory?) {
+        _releaseHistory.value = history?.releases
+        _hasPrereleaseChoice.value = history?.hasPrereleaseChoice ?: false
     }
 
     /** [ApkBinaryManifest.usesSdk] results, keyed by APK download URL — populated lazily as version rows
