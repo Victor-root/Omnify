@@ -41,6 +41,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
@@ -53,6 +54,7 @@ import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.repoList.OmnifyLogoIcon
 import com.looker.droidify.compose.repoList.RepoIcon
 import com.looker.droidify.compose.settings.components.SwitchSettingItem
@@ -151,10 +153,12 @@ fun ExternalAccountDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues)
+                        .padding(paddingValues.aroundScroll())
                         .focusRequester(contentFocusRequester)
                         .focusGroup(),
                 ) {
+                    // Inside each tab's scrolling content, so it runs on under the navigation bar.
+                    val bottomInset = paddingValues.calculateBottomPadding()
                     when (selectedTab) {
                         AccountDetailTab.INFO -> AccountInfoTab(
                             account = currentAccount,
@@ -162,6 +166,7 @@ fun ExternalAccountDetailScreen(
                             onToggle = { enabled ->
                                 viewModel.setAccountEnabled(currentAccount, enabled)
                             },
+                            bottomInset = bottomInset,
                         )
 
                         AccountDetailTab.APPS -> AccountAppsTab(
@@ -169,6 +174,7 @@ fun ExternalAccountDetailScreen(
                             apps = accountApps,
                             installedKeys = installedKeys,
                             onAppClick = onAppClick,
+                            bottomInset = bottomInset,
                         )
                     }
                 }
@@ -218,12 +224,14 @@ private fun AccountInfoTab(
     account: ExternalAccount,
     appCount: Int,
     onToggle: (Boolean) -> Unit,
+    bottomInset: Dp,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(16.dp)
+            .padding(bottom = bottomInset),
     ) {
         // The built-in Omnify account is branded with Omnify's logo; every other account uses its avatar
         // (GitHub) or the letter monogram.
@@ -318,6 +326,7 @@ private fun AccountAppsTab(
     apps: List<ExternalApp>,
     installedKeys: Set<String>,
     onAppClick: (String) -> Unit,
+    bottomInset: Dp,
 ) {
     val isTelevision = LocalIsTelevision.current
     when {
@@ -352,7 +361,9 @@ private fun AccountAppsTab(
                 columns = GridCells.Adaptive(minSize = if (isTelevision) 150.dp else 100.dp),
                 // On TV, inset from the screen edges (overscan safe area) so a focused tile's scaled-up
                 // highlight near an edge isn't clipped — same inset the main app list uses.
-                contentPadding = PaddingValues(if (isTelevision) 12.dp + TvOverscan else 12.dp),
+                contentPadding = (if (isTelevision) 12.dp + TvOverscan else 12.dp).let { edge ->
+                    PaddingValues(start = edge, top = edge, end = edge, bottom = edge + bottomInset)
+                },
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize(),

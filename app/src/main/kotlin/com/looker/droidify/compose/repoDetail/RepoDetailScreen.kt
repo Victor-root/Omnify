@@ -67,6 +67,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.looker.droidify.R
@@ -83,6 +84,7 @@ import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.tvReadable
+import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.repoDetail.components.LastUpdatedCard
 import com.looker.droidify.compose.repoDetail.components.UnsyncedRepoState
 import com.looker.droidify.compose.repoList.RepoIcon
@@ -238,10 +240,12 @@ fun RepoDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues)
+                        .padding(paddingValues.aroundScroll())
                         .focusRequester(contentFocusRequester)
                         .focusGroup(),
                 ) {
+                    // Inside each tab's scrolling content, so it runs on under the navigation bar.
+                    val bottomInset = paddingValues.calculateBottomPadding()
                     // A logo the repository declares itself is kept, whatever else it holds: someone
                     // chose it, and standing its single app's icon in front of it overrules them. Same
                     // for a curated logo (e.g. Cromite): some of those are curated precisely because
@@ -269,6 +273,7 @@ fun RepoDetailScreen(
                         RepoDetailTab.INFO -> RepoInfoTab(
                             repo = infoRepo,
                             onToggle = viewModel::enableRepository,
+                            bottomInset = bottomInset,
                         )
 
                         RepoDetailTab.APPS -> RepoAppsTab(
@@ -283,6 +288,7 @@ fun RepoDetailScreen(
                             onAppClick = onAppClick,
                             onEnableRepo = { viewModel.enableRepository(true) },
                             onInstallAll = viewModel::installAll,
+                            bottomInset = bottomInset,
                         )
                     }
                 }
@@ -332,12 +338,14 @@ private fun RepoDetailTabRow(
 private fun RepoInfoTab(
     repo: Repo,
     onToggle: (Boolean) -> Unit,
+    bottomInset: Dp,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(16.dp)
+            .padding(bottom = bottomInset),
     ) {
         RepoIcon(
             iconUrl = repo.icon?.path,
@@ -459,6 +467,7 @@ private fun RepoAppsTab(
     onAppClick: (String) -> Unit,
     onEnableRepo: () -> Unit,
     onInstallAll: () -> Unit,
+    bottomInset: Dp,
 ) {
     // Genuinely off: offer to enable it. This is the ONLY case that claims "not enabled".
     if (!repo.enabled) {
@@ -485,6 +494,7 @@ private fun RepoAppsTab(
             isSyncing = isSyncing,
             onAppClick = onAppClick,
             onInstallAll = onInstallAll,
+            bottomInset = bottomInset,
         )
     }
 }
@@ -499,6 +509,7 @@ private fun RepoAppsContent(
     isSyncing: Boolean,
     onAppClick: (String) -> Unit,
     onInstallAll: () -> Unit,
+    bottomInset: Dp,
 ) {
     val isTelevision = LocalIsTelevision.current
     when {
@@ -543,7 +554,9 @@ private fun RepoAppsContent(
                 columns = GridCells.Adaptive(minSize = if (isTelevision) 150.dp else 100.dp),
                 // On TV, inset from the screen edges (overscan safe area) so a focused tile's scaled-up
                 // highlight near an edge isn't clipped — same inset the main app list uses.
-                contentPadding = PaddingValues(if (isTelevision) 12.dp + TvOverscan else 12.dp),
+                contentPadding = (if (isTelevision) 12.dp + TvOverscan else 12.dp).let { edge ->
+                    PaddingValues(start = edge, top = edge, end = edge, bottom = edge + bottomInset)
+                },
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize(),

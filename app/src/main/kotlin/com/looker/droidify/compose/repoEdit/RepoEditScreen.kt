@@ -53,6 +53,7 @@ import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.tvTypeOnOk
+import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
@@ -165,13 +166,14 @@ fun RepoEditScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
+                    .padding(paddingValues.aroundScroll()),
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp)
-                        .verticalScroll(rememberScrollState()),
+                        .padding(start = 16.dp, top = 16.dp, end = 16.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = paddingValues.calculateBottomPadding() + 16.dp),
                 ) {
                     val hasAddressError by remember { derivedStateOf { errorState.addressError != null } }
                     val addressTyping = rememberTvTyping()

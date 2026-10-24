@@ -46,6 +46,7 @@ import com.looker.droidify.compose.components.DialogSystemBarIcons
 import com.looker.droidify.compose.components.FullScreenDialogProperties
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvPageScroll
+import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
@@ -138,7 +139,7 @@ fun WebViewDialog(
                             var viewportPx by remember { mutableStateOf(0) }
                             Box(
                                 modifier = Modifier
-                                    .padding(contentPadding)
+                                    .padding(contentPadding.aroundScroll())
                                     .fillMaxWidth()
                                     .onSizeChanged { viewportPx = it.height }
                                     .then(
@@ -158,7 +159,8 @@ fun WebViewDialog(
                                     // WebView, and Android 12+'s stretch overscroll deterministically crashes
                                     // RenderThread when it redraws that WebView at the scroll boundary — see
                                     // the same parameter in ExternalAppDetailScreen for the full story.
-                                    .verticalScroll(scrollState, overscrollEffect = null),
+                                    .verticalScroll(scrollState, overscrollEffect = null)
+                                    .padding(bottom = contentPadding.calculateBottomPadding()),
                             ) {
                                 ReadmeWebView(
                                     html = html,

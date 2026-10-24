@@ -89,6 +89,7 @@ import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
+import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
@@ -707,7 +708,7 @@ fun ExternalAppDetailScreen(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(contentPadding),
+                    .padding(contentPadding.aroundScroll()),
             ) {
                 Column(
                     modifier = Modifier
@@ -716,7 +717,8 @@ fun ExternalAppDetailScreen(
                         // No WebView in this pane, so no crash risk here — but the right pane next to
                         // it has its overscroll disabled (see below), and one pane stretching while
                         // its neighbour doesn't reads as a glitch, so both go without.
-                        .verticalScroll(leftPaneScrollState, overscrollEffect = null),
+                        .verticalScroll(leftPaneScrollState, overscrollEffect = null)
+                        .padding(bottom = contentPadding.calculateBottomPadding()),
                 ) {
                     // A token GitHub is actively rejecting silently stops this very source from
                     // refreshing (see ExternalAppsViewModel.refresh), with nothing else on this page
@@ -784,7 +786,7 @@ fun ExternalAppDetailScreen(
                         // parameter on the single-column layout below for the full native-crash story.
                         .verticalScroll(scrollState, overscrollEffect = null)
                         // So the last version card isn't glued to the bottom of the screen.
-                        .padding(bottom = 24.dp),
+                        .padding(bottom = contentPadding.calculateBottomPadding() + 24.dp),
                 ) {
                     ExternalAppDetailBody(
                         app = app,
@@ -872,9 +874,7 @@ fun ExternalAppDetailScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(contentPadding)
-                        // So the last version card isn't glued to the bottom of the screen.
-                        .padding(bottom = 24.dp)
+                        .padding(contentPadding.aroundScroll())
                         .onSizeChanged(onViewportSized)
                         // overscrollEffect = null: NO stretch overscroll on this container — it hosts
                         // a hardware-accelerated WebView (the README), and Android 12+'s stretch effect
@@ -886,7 +886,9 @@ fun ExternalAppDetailScreen(
                         // AOSP source (never fixed there, Android 12 through current) and the exact
                         // same crash react-native-webview hit at scale (their issue #2364 / PR #2874).
                         // Losing the stretch visual on this one screen is the documented tradeoff.
-                        .verticalScroll(scrollState, overscrollEffect = null),
+                        .verticalScroll(scrollState, overscrollEffect = null)
+                        // So the last version card isn't glued to the bottom of the screen.
+                        .padding(bottom = contentPadding.calculateBottomPadding() + 24.dp),
                 ) {
                     // A token GitHub is actively rejecting silently stops this very source from
                     // refreshing (see ExternalAppsViewModel.refresh), with nothing else on this page

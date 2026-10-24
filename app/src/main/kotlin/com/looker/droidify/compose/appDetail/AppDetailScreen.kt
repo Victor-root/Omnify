@@ -148,6 +148,7 @@ import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvActionFocusScale
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.tvReadable
+import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.data.catalogueBuildIsOlder
@@ -544,7 +545,7 @@ fun AppDetailScreen(
                     scrollState = scrollState,
                     useSplitView = useSplitView,
                     showIncompatibleVersions = showIncompatibleVersions,
-                    modifier = Modifier.padding(padding),
+                    contentPadding = padding,
                     onIconBitmap = iconAccent.onIconBitmap,
                 )
             }
@@ -735,7 +736,8 @@ private fun AppDetail(
     scrollState: ScrollState,
     useSplitView: Boolean,
     showIncompatibleVersions: Boolean,
-    modifier: Modifier = Modifier,
+    // The Scaffold's, kept clear of inside the scrolling content (see aroundScroll).
+    contentPadding: PaddingValues,
     onIconBitmap: ((source: String, bitmap: () -> Bitmap?) -> Unit)? = null,
 ) {
     // Not app.packages: that's only the single repo apps.first() picked as "the" app (see the ViewModel's
@@ -900,13 +902,13 @@ private fun AppDetail(
         // Tablet landscape only (see useSplitView): a Play Store-style two-pane layout. The hero card,
         // links, permissions, supported languages and versions sit in the left pane (scrolling on its
         // own if that content runs long), while everything else scrolls independently in the right pane.
-        Row(modifier = Modifier.fillMaxSize().then(modifier)) {
+        Row(modifier = Modifier.fillMaxSize().padding(contentPadding.aroundScroll())) {
             Column(
                 modifier = Modifier
                     .weight(0.4f)
                     .fillMaxHeight()
                     .verticalScroll(leftPaneScrollState)
-                    .padding(top = 16.dp),
+                    .padding(top = 16.dp, bottom = contentPadding.calculateBottomPadding()),
             ) {
                 headerCard()
                 if (app.hasLinks()) {
@@ -955,7 +957,7 @@ private fun AppDetail(
                     .onSizeChanged { viewportPx = it.height }
                     .verticalScroll(scrollState)
                     .focusGroup()
-                    .padding(top = 16.dp, bottom = 24.dp),
+                    .padding(top = 16.dp, bottom = contentPadding.calculateBottomPadding() + 24.dp),
             ) {
                 AppDetailBody(
                     app = app,
@@ -1029,7 +1031,7 @@ private fun AppDetail(
                     // A focus group so D-pad navigation stays scoped to the content (the action button itself is
                     // the explicit focus target, see primaryActionFocusRequester).
                     .focusGroup()
-                    .then(modifier)
+                    .padding(contentPadding)
                     // Breathing room so the header section isn't glued under the top bar, and the
                     // last version card isn't glued to the bottom of the screen either.
                     .padding(top = 16.dp, bottom = 24.dp),

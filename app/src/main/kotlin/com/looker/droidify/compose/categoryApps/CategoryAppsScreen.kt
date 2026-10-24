@@ -32,6 +32,7 @@ import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.TvInitialFocus
 import com.looker.droidify.compose.components.TvOverscan
+import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
@@ -108,12 +109,20 @@ fun CategoryAppsScreen(
                     columns = GridCells.Adaptive(minSize = if (isTelevision) 150.dp else 100.dp),
                     // On TV, inset from the screen edges (overscan safe area) so a focused tile's
                     // scaled-up highlight near an edge isn't clipped, as on a repository's page.
-                    contentPadding = PaddingValues(if (isTelevision) 12.dp + TvOverscan else 12.dp),
+                    // The navigation bar's inset inside the grid, so its tiles run on under the bar.
+                    contentPadding = (if (isTelevision) 12.dp + TvOverscan else 12.dp).let { edge ->
+                        PaddingValues(
+                            start = edge,
+                            top = edge,
+                            end = edge,
+                            bottom = edge + contentPadding.calculateBottomPadding(),
+                        )
+                    },
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(contentPadding)
+                        .padding(contentPadding.aroundScroll())
                         .focusRequester(contentFocusRequester),
                 ) {
                     items(loaded, key = { it.appId }, contentType = { "app-tile" }) { app ->

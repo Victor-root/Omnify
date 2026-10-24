@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -63,6 +64,7 @@ import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
+import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.TvInitialFocus
@@ -277,9 +279,10 @@ fun SettingsScreen(
         )
         LazyColumn(
             state = settingsListState,
+            contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding()),
             modifier = Modifier
                 .fillMaxSize()
-                .padding(contentPadding)
+                .padding(contentPadding.aroundScroll())
                 .focusRequester(contentFocusRequester)
                 .focusGroup(),
         ) {
