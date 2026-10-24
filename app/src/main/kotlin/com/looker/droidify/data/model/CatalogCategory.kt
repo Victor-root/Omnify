@@ -10,8 +10,8 @@ import com.looker.droidify.sync.v2.model.DefaultName
 data class CatalogCategory(
     val defaultName: DefaultName,
     val name: String,
-    /** True when a repository the user added themselves declares this category, as opposed to one of
-     *  the several dozen Omnify ships with. It leads the list then, and is drawn with a badge of its
-     *  own, since among a hundred catalogue categories theirs is the one they came for. */
+    /** True when only repositories the user added themselves declare this category, none of the
+     *  several dozen Omnify ships with. It leads the list then, and is drawn with a badge of its own,
+     *  since among a hundred catalogue categories theirs is the one they came for. */
     val ownRepo: Boolean,
 )
