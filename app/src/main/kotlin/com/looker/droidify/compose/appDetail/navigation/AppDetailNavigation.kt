@@ -25,6 +25,7 @@ fun NavController.navigateToAppDetail(packageName: String) {
 
 fun NavGraphBuilder.appDetail(
     onBackClick: () -> Unit,
+    onCategoryClick: (String) -> Unit,
 ) {
     composable<AppDetail> {
         AccentScreen {
@@ -38,6 +39,7 @@ fun NavGraphBuilder.appDetail(
             } else {
                 AppDetailScreen(
                     onBackClick = onBackClick,
+                    onCategoryClick = onCategoryClick,
                     viewModel = hiltViewModel(),
                 )
             }

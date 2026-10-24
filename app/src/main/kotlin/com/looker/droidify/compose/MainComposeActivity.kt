@@ -35,6 +35,8 @@ import com.looker.droidify.compose.appList.navigation.appList
 import com.looker.droidify.compose.appList.navigation.navigateToAppList
 import com.looker.droidify.compose.easterEgg.navigation.easterEgg
 import com.looker.droidify.compose.easterEgg.navigation.navigateToEasterEgg
+import com.looker.droidify.compose.categoryApps.navigation.categoryApps
+import com.looker.droidify.compose.categoryApps.navigation.navigateToCategoryApps
 import com.looker.droidify.compose.repoDetail.navigation.navigateToRepoDetail
 import com.looker.droidify.compose.repoDetail.navigation.repoDetail
 import com.looker.droidify.compose.repoEdit.PendingRepoLink
@@ -916,6 +918,12 @@ class MainComposeActivity : ComponentActivity() {
 
                         appDetail(
                             onBackClick = { navController.popBackStack() },
+                            onCategoryClick = { navController.navigateToCategoryApps(it) },
+                        )
+
+                        categoryApps(
+                            onBackClick = { navController.popBackStack() },
+                            onAppClick = { navController.navigateToAppDetail(it) },
                         )
 
                         repoDetail(

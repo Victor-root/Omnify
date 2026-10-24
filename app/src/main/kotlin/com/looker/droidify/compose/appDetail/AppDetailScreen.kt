@@ -47,7 +47,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,7 +68,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
@@ -199,9 +197,11 @@ private const val VERSIONS_COLLAPSED_COUNT = 5
 @Composable
 fun AppDetailScreen(
     onBackClick: () -> Unit,
+    onCategoryClick: (String) -> Unit,
     viewModel: AppDetailViewModel,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val categoryNames by viewModel.categoryNames.collectAsStateWithLifecycle()
     val customButtons by viewModel.customButtons.collectAsStateWithLifecycle()
     val installState by viewModel.installState.collectAsStateWithLifecycle()
     val downloadStatus by viewModel.downloadStatus.collectAsStateWithLifecycle()
@@ -965,6 +965,8 @@ private fun AppDetail(
                     installableRepo = installableRepo,
                     onSelectRepo = onSelectRepo,
                     onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+                    categoryNames = categoryNames,
+                    onCategoryClick = onCategoryClick,
                     onAnchorPositioned = { versionsAnchorY = it },
                     viewportPx = viewportPx,
                     showSidebarSections = false,
@@ -1057,6 +1059,8 @@ private fun AppDetail(
                     installableRepo = installableRepo,
                     onSelectRepo = onSelectRepo,
                     onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+                    categoryNames = categoryNames,
+                    onCategoryClick = onCategoryClick,
                     onAnchorPositioned = { versionsAnchorY = it },
                     viewportPx = viewportPx,
                     showSidebarSections = true,
@@ -1096,6 +1100,8 @@ private fun AppDetailBody(
     installableRepo: Repo?,
     onSelectRepo: (Int) -> Unit,
     onVersionClick: (Package, Repo) -> Unit,
+    categoryNames: Map<String, String>,
+    onCategoryClick: (String) -> Unit,
     onAnchorPositioned: (Int) -> Unit,
     // The height of the scrolling column this body sits in, so the description can collapse to fill
     // exactly the space left below it down to the bottom of the screen.
@@ -1234,7 +1240,7 @@ private fun AppDetailBody(
 
     if (app.categories.isNotEmpty()) {
         Spacer(modifier = Modifier.height(8.dp))
-        CategoriesRow(categories = app.categories)
+        CategoriesRow(categories = app.categories, names = categoryNames, onCategoryClick = onCategoryClick)
     }
 
     val suggestedPackage = installablePackage ?: packages.firstOrNull()?.first
@@ -2129,28 +2135,30 @@ private fun ScreenshotViewer(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** The app's categories, in the app's language ([names], by their defaultName), each opening a page of
+ *  every app in it. A soft accent fill, the one the Explore tab's category tiles wear. */
 @Composable
-private fun CategoriesRow(categories: List<String>) {
+private fun CategoriesRow(
+    categories: List<String>,
+    names: Map<String, String>,
+    onCategoryClick: (String) -> Unit,
+) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        items(categories) { cat ->
-            FilterChip(
-                selected = false,
-                onClick = { },
-                enabled = true,
-                label = { Text(cat) },
-                // These category labels do nothing when tapped, so on TV the D-pad skips them rather
-                // than stopping on dead chips (which also removes the focus-zoom overlap between two
-                // adjacent chips). No effect on touch.
-                modifier = if (LocalIsTelevision.current) {
-                    Modifier.focusProperties { canFocus = false }
-                } else {
-                    Modifier
-                },
+        items(categories) { category ->
+            Text(
+                text = names[category] ?: category,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .tvFocusScale()
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                    .clickable { onCategoryClick(category) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
             )
         }
     }

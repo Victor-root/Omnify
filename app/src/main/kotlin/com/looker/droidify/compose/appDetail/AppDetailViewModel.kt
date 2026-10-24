@@ -210,6 +210,12 @@ class AppDetailViewModel @Inject constructor(
     val customButtons: StateFlow<List<CustomButton>> = customButtonRepository.buttons
         .asStateFlow(emptyList())
 
+    /** The catalogue's category names in the app's language, by their defaultName: what the page's category
+     *  tags show, where the app's own data only carries the English key. */
+    val categoryNames: StateFlow<Map<String, String>> = appRepository.categories
+        .map { categories -> categories.associate { it.defaultName to it.name } }
+        .asStateFlow(emptyMap())
+
     /** Current install state of this package (null when nothing is in progress). */
     val installState: StateFlow<InstallState?> = installManager.state
         .map { it[PackageName(packageName)] }
