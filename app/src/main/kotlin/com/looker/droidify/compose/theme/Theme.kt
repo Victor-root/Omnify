@@ -220,7 +220,7 @@ private fun ColorScheme.withNeutralSurfaces(dark: Boolean, amoled: Boolean): Col
  */
 private fun ColorScheme.withVividAccent(argb: Int, overrideAccentRoles: Boolean = false): ColorScheme {
     val accent = Color(argb)
-    val onAccent = if (accent.luminance() > 0.5f) Color.Black else Color.White
+    val onAccent = accent.contentColor()
     return copy(
         primary = accent,
         onPrimary = onAccent,
@@ -235,6 +235,30 @@ private fun ColorScheme.withVividAccent(argb: Int, overrideAccentRoles: Boolean 
         onTertiary = if (overrideAccentRoles) onAccent else onTertiary,
         tertiaryContainer = if (overrideAccentRoles) accent else tertiaryContainer,
         onTertiaryContainer = if (overrideAccentRoles) onAccent else onTertiaryContainer,
+    )
+}
+
+/**
+ * The accent roles written or drawn on the page itself (primary, secondary, tertiary), each made readable
+ * on its [background] ([readableOn]): a navy accent on a dark page, or a yellow one on a white page, was
+ * barely visible there. The accent as chosen, or as taken from an icon, stays exact where it fills
+ * something: the containers, and the top bar.
+ */
+private fun ColorScheme.withReadableAccent(): ColorScheme {
+    fun readable(role: Color, onRole: Color): Pair<Color, Color> {
+        val moved = role.readableOn(background)
+        return if (moved == role) role to onRole else moved to moved.contentColor()
+    }
+    val (primary, onPrimary) = readable(primary, onPrimary)
+    val (secondary, onSecondary) = readable(secondary, onSecondary)
+    val (tertiary, onTertiary) = readable(tertiary, onTertiary)
+    return copy(
+        primary = primary,
+        onPrimary = onPrimary,
+        secondary = secondary,
+        onSecondary = onSecondary,
+        tertiary = tertiary,
+        onTertiary = onTertiary,
     )
 }
 
@@ -302,16 +326,17 @@ fun ScopedAccentColor(accent: IconAccent?, content: @Composable () -> Unit) {
         IconAccent.Monochrome ->
             if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) BLACK_ARGB else WHITE_ARGB
     }
+    val barColor = accentColor?.let(::Color)
     val baseColorScheme = MaterialTheme.colorScheme
     val scopedColorScheme = remember(baseColorScheme, accentColor) {
-        accentColor?.let { baseColorScheme.withVividAccent(it, overrideAccentRoles = true) }
+        accentColor?.let { baseColorScheme.withVividAccent(it, overrideAccentRoles = true).withReadableAccent() }
     }
-    PublishAccentToSystemBar(scopedColorScheme?.primary)
+    PublishAccentToSystemBar(barColor)
     // The same calls with or without an accent: returning [content] bare when there was none rebuilt the
     // whole page under it the moment its icon's accent was read, after the page had already opened.
     CompositionLocalProvider(
-        LocalAccentBarColor provides (scopedColorScheme?.primary ?: LocalAccentBarColor.current),
-        LocalOnAccentBarColor provides (scopedColorScheme?.onPrimary ?: LocalOnAccentBarColor.current),
+        LocalAccentBarColor provides (barColor ?: LocalAccentBarColor.current),
+        LocalOnAccentBarColor provides (barColor?.contentColor() ?: LocalOnAccentBarColor.current),
     ) {
         MaterialTheme(colorScheme = scopedColorScheme ?: baseColorScheme, content = content)
     }
@@ -380,7 +405,7 @@ fun DroidifyTheme(
     // Kept across recompositions: ColorScheme compares by identity, so a fresh one on every pass (this
     // recomposes while a header collapses or the system-bar colour animates) recomposed the whole app.
     // Every theme setting change recreates the activity, so these keys cover everything read here.
-    val colorScheme = remember(context, darkTheme, amoled, useDynamic, wallpaperAccent, accentColor) {
+    val palette = remember(context, darkTheme, amoled, useDynamic, wallpaperAccent, accentColor) {
         when {
             useDynamic && wallpaperAccent != null ->
                 context.toComposeColorScheme(if (darkTheme) darkScheme else lightScheme)
@@ -407,8 +432,10 @@ fun DroidifyTheme(
     // The header and system bars use one fixed accent red in BOTH light and dark mode. Material 3
     // lightens `primary` in dark mode, but `inversePrimary` there is exactly the light-mode primary,
     // so the bar colour stays identical. Title/icons use a colour that contrasts with it.
-    val barColor = if (darkTheme) colorScheme.inversePrimary else colorScheme.primary
-    val onBarColor = if (barColor.luminance() > 0.5f) Color.Black else Color.White
+    val barColor = if (darkTheme) palette.inversePrimary else palette.primary
+    val onBarColor = barColor.contentColor()
+    // The bar above keeps the accent exact; what the page writes or draws with it is made readable.
+    val colorScheme = remember(palette) { palette.withReadableAccent() }
 
     // A detail screen matching its app's icon publishes its own accent here (see ScopedAccentColor);
     // the system bars follow it so they stay part of that screen's header rather than keeping the

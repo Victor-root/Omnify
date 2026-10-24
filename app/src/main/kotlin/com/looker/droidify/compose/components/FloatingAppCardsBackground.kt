@@ -68,8 +68,9 @@ fun FloatingAppCardsBackground(
     // Read off the theme actually applied, not the system setting, so a forced light or dark theme gets
     // its own look.
     val dark = background.luminance() < 0.5f
-    // The user's own chosen accent (MaterialTheme.colorScheme.primary is that raw accent, not a
-    // muted derived tone — see DroidifyTheme.withVividAccent) as the seed for every colour.
+    // The user's own chosen accent (MaterialTheme.colorScheme.primary is that accent, not a muted
+    // derived tone, only made readable on the page: see DroidifyTheme.withReadableAccent) as the seed
+    // for every colour.
     val accent = MaterialTheme.colorScheme.primary
     val style = LocalBackgroundStyle.current
     if (style == BackgroundStyle.NONE) {

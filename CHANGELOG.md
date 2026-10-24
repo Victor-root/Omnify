@@ -32,6 +32,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Session installer listed first**, and a **"None" background**.
 - **Prettier secondary buttons**, and the app moves above the keyboard.
 - **"Match accent to app icon"** available on every Android version.
+- **Text in the accent colour stays readable**: a dark accent (from an app's icon or chosen in Settings) is lightened on a dark background, a pale one darkened on a light background, while the top bar keeps the exact colour.
 - **No more permission prompts at first start**: they are on the welcome page.
 - **Android TV**: redesigned home (rows, one per repository, starts on TV apps), two-pane app and repository pages, Halo background by default, keyboard only on OK, and many focus fixes.
 
