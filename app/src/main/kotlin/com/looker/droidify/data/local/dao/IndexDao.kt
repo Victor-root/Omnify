@@ -130,6 +130,16 @@ interface IndexDao {
 
         val appIdByPackage: Map<String, Int> = existingIdByPackage + insertedIds
 
+        // The index is the repository's whole catalogue, so what it no longer lists goes: an app it
+        // dropped, and whatever an app it still lists has lost (a category, a version, a screenshot...).
+        // Each app's data used to be only ever added to, so a category taken off an app kept it listed
+        // there for good.
+        val kept = existingIdByPackage.values.toHashSet()
+        appIdsOfRepo(repoId).filter { it !in kept }
+            .chunked(MAX_IN_CLAUSE_VARIABLES)
+            .forEach { deleteApps(it) }
+        clearAppData(repoId)
+
         val allVersions = mutableListOf<VersionEntity>()
         val allAntiFeatureAppRelations = mutableListOf<AntiFeatureAppRelation>()
         val allCategoryAppRelations = mutableListOf<CategoryAppRelation>()
@@ -277,6 +287,61 @@ interface IndexDao {
             id.toInt()
         }
     }
+
+    @Query("SELECT id FROM app WHERE repoId = :repoId")
+    suspend fun appIdsOfRepo(repoId: Int): List<Int>
+
+    @Query("DELETE FROM app WHERE id IN (:ids)")
+    suspend fun deleteApps(ids: List<Int>)
+
+    /** Empties what each app of [repoId] holds besides its own row, for the index to write it afresh. */
+    @Transaction
+    suspend fun clearAppData(repoId: Int) {
+        clearCategoryAppRelations(repoId)
+        clearAntiFeatureAppRelations(repoId)
+        clearVersions(repoId)
+        clearAppNames(repoId)
+        clearAppSummaries(repoId)
+        clearAppDescriptions(repoId)
+        clearAppIcons(repoId)
+        clearLinks(repoId)
+        clearScreenshots(repoId)
+        clearGraphics(repoId)
+        clearDonations(repoId)
+    }
+
+    @Query("DELETE FROM category_app_relation WHERE id IN (SELECT id FROM app WHERE repoId = :repoId)")
+    suspend fun clearCategoryAppRelations(repoId: Int)
+
+    @Query("DELETE FROM anti_features_app_relation WHERE appId IN (SELECT id FROM app WHERE repoId = :repoId)")
+    suspend fun clearAntiFeatureAppRelations(repoId: Int)
+
+    @Query("DELETE FROM version WHERE appId IN (SELECT id FROM app WHERE repoId = :repoId)")
+    suspend fun clearVersions(repoId: Int)
+
+    @Query("DELETE FROM localized_app_name WHERE appId IN (SELECT id FROM app WHERE repoId = :repoId)")
+    suspend fun clearAppNames(repoId: Int)
+
+    @Query("DELETE FROM localized_app_summary WHERE appId IN (SELECT id FROM app WHERE repoId = :repoId)")
+    suspend fun clearAppSummaries(repoId: Int)
+
+    @Query("DELETE FROM localized_app_description WHERE appId IN (SELECT id FROM app WHERE repoId = :repoId)")
+    suspend fun clearAppDescriptions(repoId: Int)
+
+    @Query("DELETE FROM localized_app_icon WHERE appId IN (SELECT id FROM app WHERE repoId = :repoId)")
+    suspend fun clearAppIcons(repoId: Int)
+
+    @Query("DELETE FROM link WHERE appId IN (SELECT id FROM app WHERE repoId = :repoId)")
+    suspend fun clearLinks(repoId: Int)
+
+    @Query("DELETE FROM screenshot WHERE appId IN (SELECT id FROM app WHERE repoId = :repoId)")
+    suspend fun clearScreenshots(repoId: Int)
+
+    @Query("DELETE FROM graphic WHERE appId IN (SELECT id FROM app WHERE repoId = :repoId)")
+    suspend fun clearGraphics(repoId: Int)
+
+    @Query("DELETE FROM donate WHERE appId IN (SELECT id FROM app WHERE repoId = :repoId)")
+    suspend fun clearDonations(repoId: Int)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertScreenshots(screenshotEntity: List<ScreenshotEntity>)
