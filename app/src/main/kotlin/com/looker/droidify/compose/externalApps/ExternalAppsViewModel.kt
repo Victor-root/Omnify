@@ -551,6 +551,9 @@ class ExternalAppsViewModel @Inject constructor(
     private val _releaseHistory = MutableStateFlow<List<Release>?>(null)
     val releaseHistory: StateFlow<List<Release>?> = _releaseHistory
 
+    /** Whose list [releaseHistory] holds, so a reload of that same list can keep it on screen. */
+    private var releaseHistoryKey: String? = null
+
     /** One [releaseHistoryCache] entry: when it was fetched, the [limit] it was fetched with, and what
      *  came back. [limit] is what lets a later call tell whether the cache already answers it, or is
      *  too small a fetch to trust for a bigger ask (see [loadReleaseHistory]). */
@@ -574,7 +577,10 @@ class ExternalAppsViewModel @Inject constructor(
      */
     fun loadReleaseHistory(app: ExternalApp, limit: Int) {
         val cached = releaseHistoryCache[app.key]
-        _releaseHistory.value = cached?.releases
+        // The list on screen reloaded under new settings (its pre-release choice) stays until the new one
+        // arrives: emptied, the section shrank to a loading row and the page jumped under the reader.
+        if (cached != null || releaseHistoryKey != app.key) _releaseHistory.value = cached?.releases
+        releaseHistoryKey = app.key
         val fresh = cached != null && SystemClock.elapsedRealtime() - cached.fetchedAt < README_FRESHNESS_MS
         val cacheAnswersThis = cached != null && (cached.limit >= limit || cached.releases.size < cached.limit)
         if (fresh && cacheAnswersThis) return
