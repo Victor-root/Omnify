@@ -42,10 +42,12 @@ interface RepoDao {
      * ties it to the repository that declared it), so one a repository has stopped declaring, or that
      * left with the repository itself, would otherwise sit in the list for ever and open on nothing.
      *
-     * [CatalogCategory.ownRepo] is true for a category declared by a repository whose address is not
-     * one of [shippedAddresses] (Omnify's own, trailing slash trimmed, which is how the repositories
+     * [CatalogCategory.ownRepo] is true for a category only repositories whose address is not one of
+     * [shippedAddresses] declare (Omnify's own, trailing slash trimmed, which is how the repositories
      * list tells the two apart as well), and those come first: the user's own repository brings one
-     * category among a hundred, and it is the one they went looking for.
+     * category among a hundred, and it is the one they went looking for. One a shipped repository
+     * declares as well (the user's app filed under F-Droid's "Multimedia") stays F-Droid's, with its
+     * own icon and place.
      */
     @Query(
         """
@@ -61,6 +63,11 @@ interface RepoDao {
                 JOIN repository ON repository.id = category_repo_relation.id
                 WHERE category_repo_relation.defaultName = category.defaultName
                     AND RTRIM(repository.address, '/') NOT IN (:shippedAddresses)
+            ) AND NOT EXISTS (
+                SELECT 1 FROM category_repo_relation
+                JOIN repository ON repository.id = category_repo_relation.id
+                WHERE category_repo_relation.defaultName = category.defaultName
+                    AND RTRIM(repository.address, '/') IN (:shippedAddresses)
             ) AS ownRepo
         FROM category
         WHERE EXISTS (

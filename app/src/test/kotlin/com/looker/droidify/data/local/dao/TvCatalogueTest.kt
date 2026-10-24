@@ -4,6 +4,8 @@ import com.looker.droidify.data.local.BaseDatabaseTest
 import com.looker.droidify.data.local.model.AppEntity
 import com.looker.droidify.data.local.model.AuthorEntity
 import com.looker.droidify.data.local.model.CategoryAppRelation
+import com.looker.droidify.data.local.model.CategoryEntity
+import com.looker.droidify.data.local.model.CategoryRepoRelation
 import com.looker.droidify.data.local.model.GraphicEntity
 import com.looker.droidify.data.local.model.RepoEntity
 import com.looker.droidify.data.local.model.TV_BANNER
@@ -13,6 +15,7 @@ import com.looker.droidify.data.model.MadeForTv
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.sync.v2.model.ApkFileV2
 import org.junit.Assert.assertEquals
+import kotlinx.coroutines.flow.first
 import org.junit.Test
 
 /** The catalogue reads the home screens are built from, the TV one in particular. */
@@ -20,12 +23,14 @@ class TvCatalogueTest : BaseDatabaseTest() {
 
     private lateinit var indexDao: IndexDao
     private lateinit var appDao: AppDao
+    private lateinit var repoDao: RepoDao
     private val repoIds = mutableMapOf<String, Int>()
     private var authorId: Int? = null
 
     override fun initDao() {
         indexDao = database.indexDao()
         appDao = database.appDao()
+        repoDao = database.repoDao()
     }
 
     private suspend fun insertApp(
@@ -161,5 +166,37 @@ class TvCatalogueTest : BaseDatabaseTest() {
             listOf("com.example.fresh", "com.example.own.new", "com.example.own.old"),
             order(null),
         )
+    }
+
+    /** A category the user's own repository is alone to declare is theirs; one F-Droid declares too,
+     *  their app filed under it, stays F-Droid's. */
+    @Test
+    fun aCategoryAShippedRepositoryDeclaresIsNotTheUsersOwn() = runDbTest {
+        val shipped = "https://f-droid.org/repo"
+        val own = "https://example.org/own"
+        val player = insertApp("com.example.player", address = shipped)
+        val mine = insertApp("com.example.mine", address = own)
+        indexDao.insertCategories(
+            listOf("Multimedia", "Private").map { CategoryEntity(null, it, null, "en-US", it) },
+        )
+        indexDao.insertCategoryRepoRelation(
+            listOf(
+                CategoryRepoRelation(repoIds.getValue(shipped), "Multimedia"),
+                CategoryRepoRelation(repoIds.getValue(own), "Multimedia"),
+                CategoryRepoRelation(repoIds.getValue(own), "Private"),
+            ),
+        )
+        indexDao.insertCategoryAppRelation(
+            listOf(
+                CategoryAppRelation(player, "Multimedia"),
+                CategoryAppRelation(mine, "Multimedia"),
+                CategoryAppRelation(mine, "Private"),
+            ),
+        )
+
+        val ownRepo = repoDao.categoriesLocalized("en%", listOf(shipped)).first()
+            .associate { it.defaultName to it.ownRepo }
+
+        assertEquals(mapOf("Private" to true, "Multimedia" to false), ownRepo)
     }
 }
