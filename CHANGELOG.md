@@ -19,9 +19,12 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **An on-device translator downloads its language model as soon as it is picked in Settings**, which says when it is ready, instead of on the first translation.
 - **Android TV: OK on a description opens it full screen**, Back closing it; it still pages up and down in place too.
 - **Translate an app's page on Android TV**, with automatic translation when it is turned on, as on a phone.
-- **"See all" at the end of a category** opens the whole of it, and **apps from your own repositories come first** in each category.
+- **"See all" at the end of a category** opens the whole of it, and **apps from your own repositories come first** in each category. The categories they use come first too, keeping their own icon.
 
 ### 🔄 Changed
+- **A cleaner logo**: the Git glyph is drawn from exact shapes, with round rings and smooth edges, in the app, its icons and on the website.
+- **Sharing an app from another repository** sends its name and a link that adds that repository to Omnify.
+- **A version's badges sit on a line of their own**, under its number.
 - **Pre-releases are chosen on each external app's page**, in its version list: hidden, shown, followed with stable releases or followed alone, instead of a switch in the source's settings. Apps found through an account get the choice too.
 - **Interrupted downloads resume** where they stopped, with automatic retries, external sources included.
 - **Downloads keep going after you leave an app's page or Omnify**, with a progress notification, "Update all" and "Install all" included.
@@ -32,6 +35,8 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Android TV**: redesigned home (rows, one per repository, starts on TV apps), two-pane app and repository pages, Halo background by default, keyboard only on OK, and many focus fixes.
 
 ### 🐛 Fixed
+- **The home menu opens smoothly.**
+- **Omnify's own sources show its regular logo and name** in the beta and test builds too.
 - **The navigation bar changes colour together with an app page's header** when it matches the app's icon, leaving the page or coming back to it.
 - **A repository synced again drops what it no longer lists**: a category, version or screenshot taken off an app, or an app removed, no longer stays in Omnify.
 - **Update all no longer installs an app a second time** when it was updated by hand from its own page while the batch was running: each app is checked again when its turn comes.
