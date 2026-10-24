@@ -134,7 +134,7 @@ interface IndexDao {
         // dropped, and whatever an app it still lists has lost (a category, a version, a screenshot...).
         // Each app's data used to be only ever added to, so a category taken off an app kept it listed
         // there for good.
-        val kept = existingIdByPackage.values.toHashSet()
+        val kept = appIdByPackage.values.toHashSet()
         appIdsOfRepo(repoId).filter { it !in kept }
             .chunked(MAX_IN_CLAUSE_VARIABLES)
             .forEach { deleteApps(it) }
