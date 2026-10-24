@@ -55,4 +55,27 @@ class IndexResyncTest : BaseDatabaseTest() {
             strings("SELECT COUNT(*) FROM version").single().toInt(),
         )
     }
+
+    /** An app the new index brings in stays, beside the ones it already had. */
+    @Test
+    fun anAppTheRepositoryAddsIsKept() = runDbTest {
+        val index = collabora()
+        val first = "com.collabora.libreoffice"
+        indexDao.insertIndex(fingerprint, index.copy(packages = mapOf(first to index.packages.getValue(first))))
+        val repoId = strings("SELECT id FROM repository").single().toInt()
+
+        indexDao.insertIndex(fingerprint, index, expectedRepoId = repoId)
+
+        assertEquals(index.packages.keys, strings("SELECT packageName FROM app").toSet())
+    }
+
+    /** A repository's very first sync, all of its apps new. */
+    @Test
+    fun aFirstSyncKeepsEveryApp() = runDbTest {
+        val index = collabora()
+
+        indexDao.insertIndex(fingerprint, index)
+
+        assertEquals(index.packages.keys, strings("SELECT packageName FROM app").toSet())
+    }
 }
