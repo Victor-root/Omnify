@@ -1,6 +1,6 @@
 # 📋 Changelog
 
-## 🚀 v1.0.7-beta.8 (Unreleased)
+## 🚀 v1.0.7-beta.8 (2026-10-24)
 
 A welcome page for a fresh install, Obtainium import, and external sources that handle repositories publishing several apps.
 
