@@ -42,12 +42,12 @@ interface RepoDao {
      * ties it to the repository that declared it), so one a repository has stopped declaring, or that
      * left with the repository itself, would otherwise sit in the list for ever and open on nothing.
      *
-     * [CatalogCategory.ownRepo] is true for a category only repositories whose address is not one of
-     * [shippedAddresses] declare (Omnify's own, trailing slash trimmed, which is how the repositories
-     * list tells the two apart as well), and those come first: the user's own repository brings one
-     * category among a hundred, and it is the one they went looking for. One a shipped repository
-     * declares as well (the user's app filed under F-Droid's "Multimedia") stays F-Droid's, with its
-     * own icon and place.
+     * Every category a repository whose address is not one of [shippedAddresses] declares (Omnify's
+     * own, trailing slash trimmed, which is how the repositories list tells the two apart as well) comes
+     * first: the user's own repository brings one category among a hundred, and it is the one they went
+     * looking for. [CatalogCategory.ownRepo], which gives it an icon of its own, is only true when none
+     * of the shipped repositories declares it as well: the user's app filed under F-Droid's "Multimedia"
+     * keeps that category's own icon.
      */
     @Query(
         """
@@ -75,7 +75,13 @@ interface RepoDao {
             WHERE category_app_relation.defaultName = category.defaultName
         )
         GROUP BY category.defaultName
-        ORDER BY ownRepo DESC, name COLLATE NOCASE
+        ORDER BY EXISTS (
+                SELECT 1 FROM category_repo_relation
+                JOIN repository ON repository.id = category_repo_relation.id
+                WHERE category_repo_relation.defaultName = category.defaultName
+                    AND RTRIM(repository.address, '/') NOT IN (:shippedAddresses)
+            ) DESC,
+            name COLLATE NOCASE
         """,
     )
     fun categoriesLocalized(langPrefix: String, shippedAddresses: List<String>): Flow<List<CatalogCategory>>

@@ -169,7 +169,7 @@ class TvCatalogueTest : BaseDatabaseTest() {
     }
 
     /** A category the user's own repository is alone to declare is theirs; one F-Droid declares too,
-     *  their app filed under it, stays F-Droid's. */
+     *  their app filed under it, keeps F-Droid's icon. Both come before the others. */
     @Test
     fun aCategoryAShippedRepositoryDeclaresIsNotTheUsersOwn() = runDbTest {
         val shipped = "https://f-droid.org/repo"
@@ -177,13 +177,14 @@ class TvCatalogueTest : BaseDatabaseTest() {
         val player = insertApp("com.example.player", address = shipped)
         val mine = insertApp("com.example.mine", address = own)
         indexDao.insertCategories(
-            listOf("Multimedia", "Private").map { CategoryEntity(null, it, null, "en-US", it) },
+            listOf("Multimedia", "Private", "Games").map { CategoryEntity(null, it, null, "en-US", it) },
         )
         indexDao.insertCategoryRepoRelation(
             listOf(
                 CategoryRepoRelation(repoIds.getValue(shipped), "Multimedia"),
                 CategoryRepoRelation(repoIds.getValue(own), "Multimedia"),
                 CategoryRepoRelation(repoIds.getValue(own), "Private"),
+                CategoryRepoRelation(repoIds.getValue(shipped), "Games"),
             ),
         )
         indexDao.insertCategoryAppRelation(
@@ -191,12 +192,13 @@ class TvCatalogueTest : BaseDatabaseTest() {
                 CategoryAppRelation(player, "Multimedia"),
                 CategoryAppRelation(mine, "Multimedia"),
                 CategoryAppRelation(mine, "Private"),
+                CategoryAppRelation(player, "Games"),
             ),
         )
 
-        val ownRepo = repoDao.categoriesLocalized("en%", listOf(shipped)).first()
-            .associate { it.defaultName to it.ownRepo }
+        val categories = repoDao.categoriesLocalized("en%", listOf(shipped)).first()
 
-        assertEquals(mapOf("Private" to true, "Multimedia" to false), ownRepo)
+        assertEquals(listOf("Multimedia", "Private", "Games"), categories.map { it.defaultName })
+        assertEquals(listOf(false, true, false), categories.map { it.ownRepo })
     }
 }
