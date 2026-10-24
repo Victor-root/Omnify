@@ -1364,7 +1364,7 @@ private fun ExternalVersionsSection(
                 PrereleaseModeChooser(
                     mode = app.prereleases,
                     onModeChange = onPrereleaseModeChange,
-                    textStyle = MaterialTheme.typography.titleSmall,
+                    textStyle = MaterialTheme.typography.titleMedium,
                 )
             }
         }
