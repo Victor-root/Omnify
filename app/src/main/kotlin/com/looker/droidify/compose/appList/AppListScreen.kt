@@ -86,6 +86,7 @@ import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -138,6 +139,7 @@ import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.settings.components.InfoBanner
 import com.looker.droidify.compose.settings.components.WarningBanner
+import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.compose.components.AccentTabRow
 import com.looker.droidify.compose.components.CatalogOfflineState
@@ -554,7 +556,7 @@ fun AppListScreen(
                 // title, with no tabs, so it reads as its own screen.
                 if (sectionView) {
                     SectionTopBar(
-                        title = sectionTitle(openedSection),
+                        title = sectionTitle(openedSection, categories),
                         onBack = { viewModel.closeSection() },
                         contentFocusRequester = contentFocusRequester,
                         actions = {
@@ -986,6 +988,7 @@ fun AppListScreen(
                             expandedSectionApps,
                             installedPackages,
                             openApp,
+                            { viewModel.openSection(category.defaultName) },
                             restoreFocusId.takeIf { isTelevision },
                             restoreRequester,
                         )
@@ -1973,19 +1976,22 @@ private fun ExternalTabEmpty() {
 }
 
 /** Emits the inline-expanded app tiles for a Discover category, lazily, when it's expanded — the same
- *  tiles as everywhere else, flowing into the grid below the category header. */
+ *  tiles as everywhere else, flowing into the grid below the category header — then, when the category
+ *  holds more than those, a "see all" opening the whole of it ([onSeeAll]). */
 private fun LazyGridScope.expandedAppItems(
     key: String,
     expandedSections: Set<String>,
-    expandedSectionApps: Map<String, List<AppMinimal>>,
+    expandedSectionApps: Map<String, CategoryPreview>,
     installedPackages: Set<String>,
     onAppClick: (String) -> Unit,
+    onSeeAll: () -> Unit,
     restoreFocusId: String?,
     restoreRequester: FocusRequester,
 ) {
     if (key !in expandedSections) return
+    val preview = expandedSectionApps[key]
     items(
-        items = expandedSectionApps[key].orEmpty(),
+        items = preview?.apps.orEmpty(),
         key = { "exp-$key-${it.appId}" },
         contentType = { "app-tile" },
     ) { app ->
@@ -1998,6 +2004,15 @@ private fun LazyGridScope.expandedAppItems(
                 restoreRequester,
             ),
         )
+    }
+    if (preview?.hasMore == true) {
+        item(span = { GridItemSpan(maxLineSpan) }, key = "exp-$key-see-all", contentType = "see-all") {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                TextButton(onClick = onSeeAll, modifier = Modifier.tvFocusScale()) {
+                    Text(stringResource(R.string.discover_see_all))
+                }
+            }
+        }
     }
 }
 
@@ -2059,9 +2074,9 @@ private fun CategoriesTitle() {
     )
 }
 
-/** The localized title for a curated-carousel "see all" page. */
+/** The localized title for a "see all" page: a curated carousel's, or a category's own name. */
 @Composable
-private fun sectionTitle(key: String?): String = when (key) {
+private fun sectionTitle(key: String?, categories: List<CatalogCategory>): String = when (key) {
     SECTION_FAVOURITES -> stringResource(R.string.favourites)
     SECTION_WHATS_NEW -> stringResource(R.string.discover_new_apps)
     SECTION_RECENTLY_UPDATED -> stringResource(R.string.discover_recently_updated)
@@ -2069,7 +2084,7 @@ private fun sectionTitle(key: String?): String = when (key) {
     SECTION_TV -> stringResource(R.string.discover_tv_apps)
     SECTION_SHIZUKU -> stringResource(R.string.discover_shizuku)
     SECTION_ROOT -> stringResource(R.string.discover_root)
-    else -> ""
+    else -> categories.firstOrNull { it.defaultName == key }?.name.orEmpty()
 }
 
 /** Header for a carousel "see all" page: a back arrow that returns to the Discover home + the title. */

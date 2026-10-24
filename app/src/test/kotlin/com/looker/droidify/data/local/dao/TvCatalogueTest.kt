@@ -15,7 +15,7 @@ import com.looker.droidify.sync.v2.model.ApkFileV2
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** The reads the TV home is built from. */
+/** The catalogue reads the home screens are built from, the TV one in particular. */
 class TvCatalogueTest : BaseDatabaseTest() {
 
     private lateinit var indexDao: IndexDao
@@ -32,6 +32,7 @@ class TvCatalogueTest : BaseDatabaseTest() {
         packageName: String,
         features: List<String> = emptyList(),
         address: String = "https://example.org/repo",
+        lastUpdated: Long = 0L,
     ): Int {
         val repoId = repoIds.getOrPut(address) {
             indexDao.upsertRepo(
@@ -48,7 +49,7 @@ class TvCatalogueTest : BaseDatabaseTest() {
         val appId = indexDao.insertApp(
             AppEntity(
                 added = 0L,
-                lastUpdated = 0L,
+                lastUpdated = lastUpdated,
                 license = null,
                 preferredSigner = null,
                 packageName = packageName,
@@ -131,5 +132,34 @@ class TvCatalogueTest : BaseDatabaseTest() {
         assertEquals(setOf("Local Media Player", "Cast"), categories.getValue("com.example.player").toSet())
         assertEquals(2, categories.getValue("com.example.player").size)
         assertEquals(listOf("Games"), categories.getValue("com.example.other"))
+    }
+
+    /** A category's apps from the user's own repository come before the ones Omnify ships with, however
+     *  recently those were updated, and keep their own order among themselves. */
+    @Test
+    fun ownRepositoriesComeFirstInACategory() = runDbTest {
+        val shipped = "https://f-droid.org/repo"
+        val fresh = insertApp("com.example.fresh", address = shipped, lastUpdated = 300L)
+        val ownOld = insertApp("com.example.own.old", address = "https://example.org/own", lastUpdated = 100L)
+        val ownNew = insertApp("com.example.own.new", address = "https://example.org/own/", lastUpdated = 200L)
+        indexDao.insertCategoryAppRelation(
+            listOf(fresh, ownOld, ownNew).map { CategoryAppRelation(it, "Multimedia") },
+        )
+
+        suspend fun order(shippedAddressesLast: List<String>?) = appDao.query(
+            sortOrder = SortOrder.UPDATED,
+            categoriesToInclude = listOf("Multimedia"),
+            shippedAddressesLast = shippedAddressesLast,
+            locale = "en-US",
+        ).map { it.packageName.name }
+
+        assertEquals(
+            listOf("com.example.own.new", "com.example.own.old", "com.example.fresh"),
+            order(listOf(shipped)),
+        )
+        assertEquals(
+            listOf("com.example.fresh", "com.example.own.new", "com.example.own.old"),
+            order(null),
+        )
     }
 }

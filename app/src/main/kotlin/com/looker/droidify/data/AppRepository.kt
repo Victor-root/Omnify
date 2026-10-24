@@ -64,6 +64,8 @@ class AppRepository @Inject constructor(
         updatedOnly: Boolean = false,
         // Only these packages; an empty list matches nothing (see AppDao.query).
         packageNames: List<String>? = null,
+        // The apps of the user's own repositories first (see AppDao.query).
+        ownReposFirst: Boolean = false,
     ): List<AppMinimal> = withContext(Dispatchers.Default) {
         val currentLocale = localeStream.first()
         appDao.query(
@@ -79,6 +81,7 @@ class AppRepository @Inject constructor(
             madeForTvOrCategories = madeForTvOrCategories,
             updatedOnly = updatedOnly,
             packageNames = packageNames,
+            shippedAddressesLast = if (ownReposFirst) Repository.defaultAddresses.toList() else null,
             locale = currentLocale,
         )
     }
