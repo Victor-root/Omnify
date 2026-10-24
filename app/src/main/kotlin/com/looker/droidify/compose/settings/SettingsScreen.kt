@@ -533,16 +533,6 @@ fun SettingsScreen(
             }
 
             item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.segmented_downloads),
-                    description = stringResource(R.string.segmented_downloads_summary),
-                    icon = painterResource(R.drawable.ic_download),
-                    checked = settings.segmentedDownloads,
-                    onCheckedChange = viewModel::setSegmentedDownloads,
-                )
-            }
-
-            item {
                 SettingHeader(title = stringResource(R.string.proxy))
             }
 

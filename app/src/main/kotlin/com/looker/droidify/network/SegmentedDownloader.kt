@@ -108,7 +108,7 @@ class SegmentedDownloader(
 
     /** Drops what an earlier download in parts left at [target], so a download of the usual kind
      *  doesn't take a file of the final size, holes and all, for one that has nearly finished. */
-    fun discard(target: File) {
+    private fun discard(target: File) {
         val state = stateFile(target)
         if (state.exists()) {
             target.delete()

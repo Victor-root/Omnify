@@ -88,8 +88,6 @@ interface SettingsRepository {
 
     suspend fun setDeleteApkOnInstall(enable: Boolean)
 
-    suspend fun setSegmentedDownloads(enable: Boolean)
-
     suspend fun setPlayStoreInstallSource(enable: Boolean)
 
     suspend fun toggleOmnifyInstallSource(packageName: String)

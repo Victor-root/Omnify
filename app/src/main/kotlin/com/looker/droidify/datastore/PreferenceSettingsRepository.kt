@@ -235,9 +235,6 @@ class PreferenceSettingsRepository(
     override suspend fun setDeleteApkOnInstall(enable: Boolean) =
         DELETE_APK_ON_INSTALL.update(enable)
 
-    override suspend fun setSegmentedDownloads(enable: Boolean) =
-        SEGMENTED_DOWNLOADS.update(enable)
-
     override suspend fun setPlayStoreInstallSource(enable: Boolean) =
         PLAY_STORE_INSTALL_SOURCE.update(enable)
 
@@ -346,7 +343,6 @@ class PreferenceSettingsRepository(
         val enabledRepoIds =
             preferences[ENABLED_REPO_IDS]?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
         val deleteApkOnInstall = preferences[DELETE_APK_ON_INSTALL] ?: false
-        val segmentedDownloads = preferences[SEGMENTED_DOWNLOADS] ?: false
         val playStoreInstallSource = preferences[PLAY_STORE_INSTALL_SOURCE] ?: false
         val omnifyInstallSourceApps = preferences[OMNIFY_INSTALL_SOURCE_APPS] ?: emptySet()
         val downloadStatisticsEnabled = preferences[DOWNLOAD_STATISTICS_ENABLED] ?: true
@@ -391,7 +387,6 @@ class PreferenceSettingsRepository(
             tvOnly = tvOnly,
             enabledRepoIds = enabledRepoIds,
             deleteApkOnInstall = deleteApkOnInstall,
-            segmentedDownloads = segmentedDownloads,
             playStoreInstallSource = playStoreInstallSource,
             omnifyInstallSourceApps = omnifyInstallSourceApps,
             dlStatsEnabled = downloadStatisticsEnabled,
@@ -436,7 +431,6 @@ class PreferenceSettingsRepository(
         val SHOW_FAVOURITES_CAROUSEL = booleanPreferencesKey("key_show_favourites_carousel")
         val TV_ONLY = booleanPreferencesKey("key_tv_only")
         val DELETE_APK_ON_INSTALL = booleanPreferencesKey("key_delete_apk_on_install")
-        val SEGMENTED_DOWNLOADS = booleanPreferencesKey("key_segmented_downloads")
         val PLAY_STORE_INSTALL_SOURCE = booleanPreferencesKey("key_play_store_install_source")
         val OMNIFY_INSTALL_SOURCE_APPS = stringSetPreferencesKey("key_omnify_install_source_apps")
         val DOWNLOAD_STATISTICS_ENABLED = booleanPreferencesKey("key_download_statistics_enabled")
@@ -519,7 +513,6 @@ class PreferenceSettingsRepository(
             set(TV_ONLY, settings.tvOnly)
             set(ENABLED_REPO_IDS, settings.enabledRepoIds.map { it.toString() }.toSet())
             set(DELETE_APK_ON_INSTALL, settings.deleteApkOnInstall)
-            set(SEGMENTED_DOWNLOADS, settings.segmentedDownloads)
             set(PLAY_STORE_INSTALL_SOURCE, settings.playStoreInstallSource)
             set(OMNIFY_INSTALL_SOURCE_APPS, settings.omnifyInstallSourceApps)
             set(DOWNLOAD_STATISTICS_ENABLED, settings.dlStatsEnabled)

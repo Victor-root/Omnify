@@ -289,8 +289,6 @@
     <string name="legacyInstallerComponent">Legacy installer component</string>
     <string name="delete_apk_on_install">Delete APK on install</string>
     <string name="delete_apk_on_install_summary">Automatically delete APK files after successful installation</string>
-    <string name="segmented_downloads">Parallel downloads (experimental)</string>
-    <string name="segmented_downloads_summary">Downloads large apps in several parts at once, each over its own connection, which can be faster on a slow or unstable connection. Turn it off if a download misbehaves.</string>
     <string name="play_store_install_source">Show Google Play as install source</string>
     <string name="play_store_install_source_summary">Apps installed with Shizuku or root appear as installed from Google Play instead of Omnify</string>
     <string name="google_play_name" translatable="false">Google Play</string>

@@ -12,7 +12,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **External sources show their real icon and name before install**, read from the APK.
 - **A "Versions to keep" filter** on external sources.
 - **Pull down on a repository's apps to sync it again.**
-- **Parallel downloads (experimental)**: an option in Settings downloads large apps in several parts at once, each over its own connection.
+- **Faster downloads**: large apps are downloaded in several parts at once, each over its own connection, whenever the server allows it.
 - **An empty home that says what to do** when no repository is enabled.
 - **Jellyfin joins the Android TV picks.**
 - **A free, fully offline translator with no Google code** (Mozilla's, the one behind Firefox's translation), beside ML Kit in Settings: a description or README is translated with its formatting kept, on several cores at once. Android 9 and 64-bit devices.
