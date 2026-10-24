@@ -64,6 +64,10 @@ interface AppDao {
         // Keep only these packages. Unlike the filters above, an empty list matches nothing rather than
         // meaning "no restriction", since the caller is naming exactly the apps it wants back.
         packageNames: List<String>? = null,
+        // Apps found in a repository whose address (trailing slash trimmed) is not one of these come
+        // first, in [sortOrder] among themselves: the ones the user's own repositories bring, which
+        // would otherwise sink among the thousands Omnify ships with.
+        shippedAddressesLast: List<String>? = null,
         locale: String,
     ): List<AppMinimal> = _rawQueryAppMinimal(
         searchQueryMinimal(
@@ -79,6 +83,7 @@ interface AppDao {
             permissionsToInclude = permissionsToInclude,
             madeForTvOrCategories = madeForTvOrCategories,
             updatedOnly = updatedOnly,
+            shippedAddressesLast = shippedAddressesLast,
             locale = locale,
         ),
     ).map {
@@ -326,6 +331,7 @@ interface AppDao {
         madeForTvOrCategories: Boolean = false,
         updatedOnly: Boolean,
         packageNames: List<String>?,
+        shippedAddressesLast: List<String>?,
         locale: String,
     ): SimpleSQLiteQuery {
         logQuery(
@@ -484,6 +490,14 @@ interface AppDao {
             append(" GROUP BY app.packageName")
 
             append(" ORDER BY ")
+
+            if (!shippedAddressesLast.isNullOrEmpty()) {
+                // MAX over the group: an app any of the user's repositories carries counts as theirs.
+                append("MAX(CASE WHEN RTRIM(repo.address, '/') NOT IN (")
+                append(shippedAddressesLast.joinToString(", ") { "?" })
+                append(") THEN 1 ELSE 0 END) DESC, ")
+                args.addAll(shippedAddressesLast)
+            }
 
             if (searchQuery != null) {
                 val searchPattern = "%$searchQuery%"

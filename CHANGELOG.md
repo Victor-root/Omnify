@@ -19,6 +19,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **An on-device translator downloads its language model as soon as it is picked in Settings**, which says when it is ready, instead of on the first translation.
 - **Android TV: OK on a description opens it full screen**, Back closing it; it still pages up and down in place too.
 - **Translate an app's page on Android TV**, with automatic translation when it is turned on, as on a phone.
+- **"See all" at the end of a category** opens the whole of it, and **apps from your own repositories come first** in each category.
 
 ### 🔄 Changed
 - **Interrupted downloads resume** where they stopped, with automatic retries, external sources included.

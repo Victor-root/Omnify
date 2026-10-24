@@ -502,12 +502,12 @@ class AppListViewModel @Inject constructor(
         .asHomeState(0)
 
     // A curated carousel ("New apps" / "Recently updated" / "Most downloaded") opened as its own full
-    // page via its "see all" arrow; null = the Discover home. (Categories, by contrast, expand inline
-    // — see [expandedSections].)
+    // page via its "see all" arrow, or a category by its defaultName, opened through the "see all" at
+    // the end of its inline list (see [expandedSections]); null = the Discover home.
     private val _openedSection = MutableStateFlow<String?>(null)
     val openedSection: StateFlow<String?> = _openedSection
 
-    /** Opens a curated carousel as its own full page. */
+    /** Opens a curated carousel, or a category, as its own full page. */
     fun openSection(key: String) {
         _openedSection.value = key
     }
@@ -1008,7 +1008,13 @@ class AppListViewModel @Inject constructor(
                         ),
                     ).excludingHidden(hidden).take(SECTION_PAGE_LIMIT)
                     SECTION_ROOT -> appRepository.rootApps(SECTION_PAGE_LIMIT).excludingHidden(hidden)
-                    else -> emptyList()
+                    null, SECTION_FAVOURITES -> emptyList()
+                    // A category's own "see all": all of it, so that none of its apps is out of reach.
+                    else -> appRepository.apps(
+                        sortOrder = SortOrder.UPDATED,
+                        categoriesToInclude = listOf(section),
+                        ownReposFirst = true,
+                    ).excludingHidden(hidden)
                 }
             }
             .distinctUntilChanged()
@@ -1026,16 +1032,22 @@ class AppListViewModel @Inject constructor(
         }
     }
 
-    /** Apps for each currently-expanded category (capped), re-loaded when the catalogue changes. */
-    val expandedSectionApps: StateFlow<Map<String, List<AppMinimal>>> =
+    /** The first apps of each currently-expanded category, the user's own repositories' first,
+     *  re-loaded when the catalogue changes. */
+    val expandedSectionApps: StateFlow<Map<String, CategoryPreview>> =
         combine(catalogChanges, _expandedSections, hiddenApps) { _, sections, hidden -> sections to hidden }
             .mapLatest { (sections, hidden) ->
-                val result = mutableMapOf<String, List<AppMinimal>>()
+                val result = mutableMapOf<String, CategoryPreview>()
                 for (category in sections) {
-                    result[category] = appRepository.apps(
+                    val apps = appRepository.apps(
                         sortOrder = SortOrder.UPDATED,
                         categoriesToInclude = listOf(category),
-                    ).excludingHidden(hidden).take(SECTION_EXPAND_LIMIT)
+                        ownReposFirst = true,
+                    ).excludingHidden(hidden)
+                    result[category] = CategoryPreview(
+                        apps = apps.take(SECTION_EXPAND_LIMIT),
+                        hasMore = apps.size > SECTION_EXPAND_LIMIT,
+                    )
                 }
                 result.toMap()
             }
@@ -1059,6 +1071,10 @@ private const val TAG = "AppListViewModel"
 /** How long a typed search query is debounced before it re-queries; see [AppListViewModel]'s
  *  searchQueryStream, which skips this for the untyped/empty query. */
 private const val SEARCH_DEBOUNCE_MS = 300L
+
+/** A category expanded in place: its first apps, and whether it holds more than those, which its
+ *  "see all" page then shows. */
+data class CategoryPreview(val apps: List<AppMinimal>, val hasMore: Boolean)
 
 /** Section keys for the inline-expandable Discover sections (the "::" prefix can't collide with a
  *  category name). */
