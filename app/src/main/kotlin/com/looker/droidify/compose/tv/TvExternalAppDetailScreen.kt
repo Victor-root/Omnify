@@ -352,7 +352,7 @@ fun TvExternalAppDetailScreen(
                                 PrereleaseModeChooser(
                                     mode = app.prereleases,
                                     onModeChange = { viewModel.setPrereleaseMode(app, it) },
-                                    textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                    textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 )
                             }
                         }
