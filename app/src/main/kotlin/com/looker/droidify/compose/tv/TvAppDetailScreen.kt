@@ -64,7 +64,6 @@ import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.installer.model.InstallState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.DescriptionTranslation
@@ -597,25 +596,28 @@ private fun TvVersionsList(
                 onClick = { onVersionClick(pkg, repo) },
                 onLongClick = {},
                 highlighted = isSuggested,
-            ) {
                 // Both chips can apply at once (the installed version is also the suggested one).
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (isSuggested) {
-                        TvVersionChip(
-                            text = stringResource(R.string.suggested),
-                            container = MaterialTheme.colorScheme.tertiaryContainer,
-                            content = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
+                label = if (isSuggested || pkg.installed) {
+                    {
+                        if (isSuggested) {
+                            TvVersionChip(
+                                text = stringResource(R.string.suggested),
+                                container = MaterialTheme.colorScheme.tertiaryContainer,
+                                content = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        }
+                        if (pkg.installed) {
+                            TvVersionChip(
+                                text = stringResource(R.string.installed),
+                                container = MaterialTheme.colorScheme.secondaryContainer,
+                                content = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        }
                     }
-                    if (pkg.installed) {
-                        TvVersionChip(
-                            text = stringResource(R.string.installed),
-                            container = MaterialTheme.colorScheme.secondaryContainer,
-                            content = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                    }
-                }
-            }
+                } else {
+                    null
+                },
+            )
         }
     }
 }

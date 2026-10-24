@@ -53,7 +53,9 @@ fun PackageItem(
     downloadStatus: DownloadStatus? = null,
     installing: Boolean = false,
     onCancel: (() -> Unit)? = null,
-    label: @Composable RowScope.() -> Unit,
+    // The chips ("suggested", "installed"...), on a line of their own under the version so a long
+    // version name keeps the whole width; null when the version has none, so no empty line is left.
+    label: (@Composable RowScope.() -> Unit)?,
 ) {
     val shape = MaterialTheme.shapes.large
     // The border lives on this outer Box, not inside Surface's own modifier: Surface paints its
@@ -90,19 +92,16 @@ fun PackageItem(
         ) {
             Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)) {
             Column(Modifier.weight(1F)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.version_FORMAT, item.manifest.versionName).uppercase(),
-                        style = MaterialTheme.typography.titleSmall,
-                        // Take only the space left after the chip (fill = false) so a very long version
-                        // name wraps instead of crushing the "suggested"/"installed" chip to one letter
-                        // per line.
-                        modifier = Modifier.weight(1f, fill = false),
+                Text(
+                    text = stringResource(R.string.version_FORMAT, item.manifest.versionName).uppercase(),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                if (label != null) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(vertical = 6.dp),
+                        content = label,
                     )
-                    label()
                 }
                 if ((downloadStatus != null || installing) && onCancel != null) {
                     CompactInstallProgressRow(

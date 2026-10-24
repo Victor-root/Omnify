@@ -1418,53 +1418,56 @@ private fun VersionsSection(
                 downloadStatus = if (isThisRowDownloading) downloadStatus else null,
                 installing = isThisRowDownloading && downloadStatus == null,
                 onCancel = if (isThisRowDownloading) onCancel else null,
-            ) {
-                // Both chips can apply at once (the installed version is also the suggested one), so show
-                // them side by side instead of one excluding the other.
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (isSuggested) {
-                        Text(
-                            text = stringResource(R.string.suggested).uppercase(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.tertiaryContainer,
-                                    shape = CircleShape,
-                                )
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                        )
+                // Several chips can apply at once (the installed version is also the suggested one), so
+                // they show side by side instead of one excluding the other.
+                label = if (isSuggested || pkg.installed || !pkg.isInstallableOnDevice()) {
+                    {
+                        if (isSuggested) {
+                            Text(
+                                text = stringResource(R.string.suggested).uppercase(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.tertiaryContainer,
+                                        shape = CircleShape,
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                            )
+                        }
+                        if (pkg.installed) {
+                            Text(
+                                text = stringResource(R.string.installed).uppercase(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.secondaryContainer,
+                                        shape = CircleShape,
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                            )
+                        }
+                        // Only ever reachable with the setting on, since such a row is otherwise absent.
+                        // Saying so matters: tapping it would hand Android a build it will refuse.
+                        if (!pkg.isInstallableOnDevice()) {
+                            Text(
+                                text = stringResource(R.string.incompatible_version).uppercase(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.errorContainer,
+                                        shape = CircleShape,
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                            )
+                        }
                     }
-                    if (pkg.installed) {
-                        Text(
-                            text = stringResource(R.string.installed).uppercase(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.secondaryContainer,
-                                    shape = CircleShape,
-                                )
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                        )
-                    }
-                    // Only ever reachable with the setting on, since such a row is otherwise absent.
-                    // Saying so matters: tapping it would hand Android a build it will refuse.
-                    if (!pkg.isInstallableOnDevice()) {
-                        Text(
-                            text = stringResource(R.string.incompatible_version).uppercase(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.errorContainer,
-                                    shape = CircleShape,
-                                )
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                        )
-                    }
-                }
-            }
+                } else {
+                    null
+                },
+            )
         }
         if (shownPackages.size > VERSIONS_COLLAPSED_COUNT) {
             ShowMoreRow(
