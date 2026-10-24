@@ -34,7 +34,7 @@ import com.looker.droidify.external.releaseVersionLabel
 internal fun PrereleaseModeChooser(
     mode: PrereleaseMode,
     onModeChange: (PrereleaseMode) -> Unit,
-    // The version list's own title style, which this sits beside and reads as part of.
+    // A size below the version list's own title, which this sits beside.
     textStyle: TextStyle,
     modifier: Modifier = Modifier,
 ) {
