@@ -595,6 +595,17 @@
     <string name="external_none_match_include_filter">No recent release of %s contains the words of your \"Versions to keep\" filter. Clear or adjust it.</string>
     <string name="external_prerelease_label">Pre-release</string>
     <string name="external_no_prereleases">%s has not published any pre-release.</string>
+    <string name="prereleases_title">Pre-releases</string>
+    <string name="prereleases_button_FORMAT">Pre-releases: %s</string>
+    <string name="prereleases_warning">Pre-releases are test builds published ahead of a release: they can be unstable.</string>
+    <string name="prereleases_hidden">Hidden</string>
+    <string name="prereleases_hidden_DESC">Only stable releases are listed and offered.</string>
+    <string name="prereleases_shown">Shown</string>
+    <string name="prereleases_shown_DESC">Listed and installable by hand. Updates stay on stable releases.</string>
+    <string name="prereleases_both">Stable and pre-releases</string>
+    <string name="prereleases_both_DESC">Updates go to the newest version, stable or pre-release.</string>
+    <string name="prereleases_only">Pre-releases only</string>
+    <string name="prereleases_only_DESC">Updates only ever go to pre-releases.</string>
     <string name="external_no_website">No website found</string>
     <string name="external_no_issue_tracker">No issue tracker found</string>
     <string name="external_no_changelog">No changelog found</string>

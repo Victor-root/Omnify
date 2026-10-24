@@ -119,6 +119,7 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
 import com.looker.droidify.installer.model.InstallState
@@ -311,7 +312,8 @@ fun ExternalAppDetailScreen(
     // still tell there's more to reveal (VERSIONS_COLLAPSED_COUNT + 1 releases back means there is;
     // VERSIONS_COLLAPSED_COUNT or fewer means that's genuinely everything) without fetching the full
     // ceiling before "show more" is ever tapped.
-    LaunchedEffect(app?.key) {
+    // Again when the pre-release choice changes, since it decides which releases the list holds.
+    LaunchedEffect(app?.key, app?.prereleases) {
         app?.let { viewModel.loadReleaseHistory(it, limit = VERSIONS_COLLAPSED_COUNT + 1) }
     }
     // The Links section's "Issue tracker" and "Changelog" rows.
@@ -568,6 +570,8 @@ fun ExternalAppDetailScreen(
         // Mirrors the F-Droid catalogue's "Taille" stat; null (hidden) when the provider's release
         // API doesn't expose a file size (GitLab's release link assets carry none).
         val heroSize = app.latestApkSize?.let { DataSize(it).toString() }
+        // The version offered is a pre-release: said on the card, next to it, as in the version list.
+        val offersPrerelease = releaseHistory?.isPrerelease(app.latestTag) == true
         // Fuzzy but shared with the F-Droid catalogue's own check (see RootDetection): an external
         // source has no manifest permissions to read, so this only has the app's own text to go on
         // — its name and README (once loaded; the badge simply isn't shown yet before then).
@@ -633,7 +637,16 @@ fun ExternalAppDetailScreen(
                 onToggleInstallSource = app.packageName?.let { packageName ->
                     { viewModel.toggleInstallSource(packageName) }
                 },
-                badge = if (isRootCompatible) { { RootBadge() } } else null,
+                badge = if (isRootCompatible || offersPrerelease) {
+                    {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (isRootCompatible) RootBadge()
+                            if (offersPrerelease) PrereleaseBadge()
+                        }
+                    }
+                } else {
+                    null
+                },
                 stats = {
                     HeroStatsRow(
                         version = heroVersion,
@@ -751,6 +764,7 @@ fun ExternalAppDetailScreen(
                         installedVersion = installedVersion,
                         onVersionClick = { versionToInstall = it },
                         onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
+                        onPrereleaseModeChange = { viewModel.setPrereleaseMode(app, it) },
                         onAnchorPositioned = { leftPaneVersionsAnchorY = it },
                         downloadStatus = downloads[appKey],
                         installing = installing,
@@ -793,6 +807,7 @@ fun ExternalAppDetailScreen(
                         releaseHistory = releaseHistory,
                         onVersionClick = { versionToInstall = it },
                         onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
+                        onPrereleaseModeChange = { viewModel.setPrereleaseMode(app, it) },
                         onAnchorPositioned = { versionsAnchorY = it },
                         showSidebarSections = false,
                         showLeadingSeparator = false,
@@ -922,6 +937,7 @@ fun ExternalAppDetailScreen(
                         releaseHistory = releaseHistory,
                         onVersionClick = { versionToInstall = it },
                         onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
+                        onPrereleaseModeChange = { viewModel.setPrereleaseMode(app, it) },
                         onAnchorPositioned = { versionsAnchorY = it },
                         showSidebarSections = true,
                         showLeadingSeparator = true,
@@ -974,6 +990,7 @@ private fun ExternalAppDetailBody(
     releaseHistory: List<Release>?,
     onVersionClick: (Release) -> Unit,
     onExpandVersions: () -> Unit,
+    onPrereleaseModeChange: (PrereleaseMode) -> Unit,
     onAnchorPositioned: (Int) -> Unit,
     // False in split view: the tablet-landscape left pane shows links, supported languages and
     // versions itself (see ExternalAppDetailScreen), so this body must not repeat them.
@@ -1200,6 +1217,7 @@ private fun ExternalAppDetailBody(
             installedVersion = installedVersion,
             onVersionClick = onVersionClick,
             onExpandVersions = onExpandVersions,
+            onPrereleaseModeChange = onPrereleaseModeChange,
             onAnchorPositioned = onAnchorPositioned,
             downloadStatus = downloadStatus,
             installing = installing,
@@ -1306,6 +1324,7 @@ private fun ExternalVersionsSection(
     // user actually taps "show more" rather than eagerly on every screen open. See this section's own
     // "show more" branch below for why one more than the collapsed count is fetched upfront regardless.
     onExpandVersions: () -> Unit,
+    onPrereleaseModeChange: (PrereleaseMode) -> Unit,
     onAnchorPositioned: (Int) -> Unit,
     downloadStatus: DownloadStatus?,
     installing: Boolean,
@@ -1332,11 +1351,19 @@ private fun ExternalVersionsSection(
         Spacer(Modifier.height(20.dp))
         SectionSeparator()
         Spacer(Modifier.height(20.dp))
-        Text(
-            text = stringResource(R.string.versions),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.versions),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            if (releaseHistory != null && offersPrereleaseChoice(app.prereleases, releaseHistory)) {
+                PrereleaseModeChooser(mode = app.prereleases, onModeChange = onPrereleaseModeChange)
+            }
+        }
         if (releaseHistory == null) {
             // Label over a full-width bar, the shape every other wait in the app uses (sync,
             // supported languages) and the same bar the card at the top of this page now shows for

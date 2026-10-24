@@ -66,6 +66,11 @@ import com.looker.droidify.utility.common.rememberIconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
+import androidx.compose.ui.Alignment
+import com.looker.droidify.compose.externalApps.PrereleaseBadge
+import com.looker.droidify.compose.externalApps.PrereleaseModeChooser
+import com.looker.droidify.compose.externalApps.isPrerelease
+import com.looker.droidify.compose.externalApps.offersPrereleaseChoice
 
 /**
  * The Android TV detail screen for a tracked external (GitHub/GitLab/…) app — a lean presentation over
@@ -175,8 +180,9 @@ fun TvExternalAppDetailScreen(
     // (Omnify deliberately blurs the line between the two). Unlike the phone screen, TV's version
     // list has no "show more" (see TvExternalVersionsList below), so it asks for the full ceiling
     // straight away rather than the smaller amount the phone starts with.
-    LaunchedEffect(app.key) {
-        viewModel.loadReadme(app)
+    LaunchedEffect(app.key) { viewModel.loadReadme(app) }
+    // Again when the pre-release choice changes, since it decides which releases the list holds.
+    LaunchedEffect(app.key, app.prereleases) {
         viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET)
     }
     // Re-checked when the install state changes, like the phone screen: right after an install it
@@ -286,6 +292,7 @@ fun TvExternalAppDetailScreen(
                         FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
                             TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
                             if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
+                            if (releaseHistory?.isPrerelease(app.latestTag) == true) PrereleaseBadge()
                         }
                         // Version and size as the phone's card shows them, not as tags. The version is the
                         // latest APK's own (releaseVersionLabel), as in the version list below, not the raw
@@ -340,7 +347,15 @@ fun TvExternalAppDetailScreen(
                     }
 
                     releaseHistory?.takeIf { it.isNotEmpty() }?.let { releases ->
-                        TvSectionTitle(stringResource(R.string.versions))
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            Box(modifier = Modifier.weight(1f)) { TvSectionTitle(stringResource(R.string.versions)) }
+                            if (offersPrereleaseChoice(app.prereleases, releases)) {
+                                PrereleaseModeChooser(
+                                    mode = app.prereleases,
+                                    onModeChange = { viewModel.setPrereleaseMode(app, it) },
+                                )
+                            }
+                        }
                         TvExternalVersionsList(
                             app = app,
                             releases = releases,
