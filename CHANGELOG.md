@@ -31,6 +31,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Android TV**: redesigned home (rows, one per repository, starts on TV apps), two-pane app and repository pages, Halo background by default, keyboard only on OK, and many focus fixes.
 
 ### 🐛 Fixed
+- **A repository synced again drops what it no longer lists**: a category, version or screenshot taken off an app, or an app removed, no longer stays in Omnify.
 - **Update all no longer installs an app a second time** when it was updated by hand from its own page while the batch was running: each app is checked again when its turn comes.
 - **Android TV: apps made for both phones and TV are recognised as TV apps** when installed with a TV launcher entry or given a TV banner by their repository, even though their index says nothing of TV.
 - **Android TV: the Installed and Updates tabs show everything**, whatever the "TV apps only" setting.
