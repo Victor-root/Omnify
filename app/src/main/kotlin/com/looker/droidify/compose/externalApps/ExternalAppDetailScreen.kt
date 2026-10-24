@@ -1358,14 +1358,17 @@ private fun ExternalVersionsSection(
             Text(
                 text = stringResource(R.string.versions),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
-            if (releaseHistory != null && offersPrereleaseChoice(app.prereleases, releaseHistory)) {
-                PrereleaseModeChooser(
-                    mode = app.prereleases,
-                    onModeChange = onPrereleaseModeChange,
-                    textStyle = MaterialTheme.typography.titleMedium,
-                )
+            // The title keeps its own width: a long choice wraps beside it instead.
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                if (releaseHistory != null && offersPrereleaseChoice(app.prereleases, releaseHistory)) {
+                    PrereleaseModeChooser(
+                        mode = app.prereleases,
+                        onModeChange = onPrereleaseModeChange,
+                        textStyle = MaterialTheme.typography.titleMedium.copy(textAlign = TextAlign.End),
+                    )
+                }
             }
         }
         if (releaseHistory == null) {

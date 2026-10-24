@@ -43,6 +43,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
@@ -347,13 +348,19 @@ fun TvExternalAppDetailScreen(
 
                     releaseHistory?.takeIf { it.isNotEmpty() }?.let { releases ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            Box(modifier = Modifier.weight(1f)) { TvSectionTitle(stringResource(R.string.versions)) }
-                            if (offersPrereleaseChoice(app.prereleases, releases)) {
-                                PrereleaseModeChooser(
-                                    mode = app.prereleases,
-                                    onModeChange = { viewModel.setPrereleaseMode(app, it) },
-                                    textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                                )
+                            TvSectionTitle(stringResource(R.string.versions))
+                            // The title keeps its own width: a long choice wraps beside it instead.
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                                if (offersPrereleaseChoice(app.prereleases, releases)) {
+                                    PrereleaseModeChooser(
+                                        mode = app.prereleases,
+                                        onModeChange = { viewModel.setPrereleaseMode(app, it) },
+                                        textStyle = MaterialTheme.typography.titleLarge.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            textAlign = TextAlign.End,
+                                        ),
+                                    )
+                                }
                             }
                         }
                         TvExternalVersionsList(
