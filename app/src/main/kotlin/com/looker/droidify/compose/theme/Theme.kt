@@ -3,7 +3,9 @@ package com.looker.droidify.compose.theme
 import android.app.Activity
 import android.content.ContextWrapper
 import android.os.Build
+import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.Transition
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -26,8 +28,10 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -38,7 +42,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
-import androidx.navigation.compose.LocalNavAnimatedContentScope
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.MaterialColors
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
@@ -317,18 +320,29 @@ fun ScopedAccentColor(accent: IconAccent?, content: @Composable () -> Unit) {
 /** How long a screen takes to show or leave (see the NavHost in MainComposeActivity). */
 const val SCREEN_TRANSITION_MS = 700
 
+/** The enter and exit animation of the screen composed under it (see [AccentScreen]). */
+private val LocalScreenTransition = staticCompositionLocalOf<Transition<EnterExitState>?> { null }
+
+/** Composes the destination [content] of a screen that uses [ScopedAccentColor], so that the system bars
+ *  take its accent in step with this destination's own enter and exit animation. */
+@Composable
+fun AnimatedContentScope.AccentScreen(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalScreenTransition provides transition, content = content)
+}
+
 /**
  * Gives the system bars [scopedBarColor] as far as the screen calling it is shown: its share follows
  * the screen's own enter and exit animation, so the navigation bar changes with the header above it,
- * leaving or coming back, rather than at a moment of its own. Pausing the app (a dialog over it, the
+ * leaving or coming back, rather than at a moment of its own (fully, outside an [AccentScreen]).
+ * Pausing the app (a dialog over it, the
  * share sheet, going to the background) leaves the screen shown, so the accent stays.
  */
 @Composable
 private fun PublishAccentToSystemBar(scopedBarColor: Color) {
-    val shown = LocalNavAnimatedContentScope.current.transition.animateFloat(
+    val shown = LocalScreenTransition.current?.animateFloat(
         transitionSpec = { tween(SCREEN_TRANSITION_MS) },
         label = "scopedBarAccent",
-    ) { if (it == EnterExitState.Visible) 1f else 0f }
+    ) { if (it == EnterExitState.Visible) 1f else 0f } ?: remember { mutableFloatStateOf(1f) }
     val entry = remember { ScopedBarAccents.Entry(scopedBarColor, shown) }
     SideEffect { entry.color = scopedBarColor }
     val accents = LocalScopedBarAccents.current
