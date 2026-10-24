@@ -30,6 +30,7 @@ import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.installer.InstallManager
+import com.looker.droidify.installer.model.isInProgress
 import com.looker.droidify.network.NetworkMonitor
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.utility.common.device.isTelevision
@@ -593,6 +594,16 @@ class AppListViewModel @Inject constructor(
      * case, which leaves the tile on its plain spinner rather than showing nothing.
      */
     val batchUpdate: StateFlow<BatchUpdateProgress.State?> = batchProgress.state
+
+    /**
+     * Catalogue packages handed to the installer and not installed yet. "Update all" moves on to the
+     * next download as soon as one is handed over, so without this an app being installed showed
+     * nothing on its tile and looked like a list slow to drop it.
+     */
+    val installingPackages: StateFlow<Set<String>> = installManager.state
+        .map { states -> states.filterValues { it.isInProgress }.keys.mapTo(HashSet()) { it.name } }
+        .distinctUntilChanged()
+        .asHomeState(emptySet())
 
     /**
      * Downloads and installs every app currently listed on the Updates tab. The catalogue half is

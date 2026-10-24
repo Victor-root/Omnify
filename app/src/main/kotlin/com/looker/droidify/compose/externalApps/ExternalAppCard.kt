@@ -30,6 +30,7 @@ import com.looker.droidify.compose.components.tvFocusFollowsSwap
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.installer.model.InstallState
+import com.looker.droidify.installer.model.isInProgress
 
 /**
  * An external app as a tile — identical to the F-Droid catalogue tiles ([AppTile]). Tapping opens the
@@ -89,8 +90,7 @@ fun ExternalLifecycleActions(
     // narrow pane.
     fillWidth: Boolean = false,
 ) {
-    val installing =
-        installState == InstallState.Pending || installState == InstallState.Installing
+    val installing = installState?.isInProgress == true
     val isTelevision = LocalIsTelevision.current
     // A phone-width button stretched to fill a tablet's much wider screen looked like an oversized
     // stray bar; capped to a comfortable reading width instead, matching the tablet breakpoint Material

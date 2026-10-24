@@ -14,6 +14,7 @@ import com.looker.droidify.installer.installers.session.SessionInstaller
 import com.looker.droidify.installer.installers.shizuku.ShizukuInstaller
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.installer.model.InstallState
+import com.looker.droidify.installer.model.isInProgress
 import com.looker.droidify.utility.common.Constants
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.addAndCompute
@@ -158,9 +159,7 @@ class InstallManager(
         // sitting in the queue is marked here so it is skipped rather than started when its turn comes
         // (see processItem, which only proceeds on a package still Pending).
         updateState {
-            val unfinished = filterValues {
-                it == InstallState.Pending || it == InstallState.Installing
-            }.keys.toList()
+            val unfinished = filterValues { it.isInProgress }.keys.toList()
             unfinished.forEach { put(it, InstallState.Failed) }
         }
     }

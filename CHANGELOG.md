@@ -37,6 +37,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Android TV**: redesigned home (rows, one per repository, starts on TV apps), two-pane app and repository pages, Halo background by default, keyboard only on OK, and many focus fixes.
 
 ### 🐛 Fixed
+- **"Update all" shows the apps being installed**: an app keeps a spinning ring on its icon until it is installed, instead of sitting there as if nothing were happening once downloaded.
 - **The home menu opens smoothly.**
 - **Omnify's own sources show its regular logo and name** in the beta and test builds too.
 - **The navigation bar changes colour together with an app page's header** when it matches the app's icon, leaving the page or coming back to it.
