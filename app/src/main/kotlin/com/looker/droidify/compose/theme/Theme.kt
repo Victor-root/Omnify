@@ -455,11 +455,14 @@ fun DroidifyTheme(
     ) {
         val baseDensity = LocalDensity.current
         // TV only: a uniform shrink of every dp/sp in the app (see TV_UI_SCALE), not just this or that
-        // screen's own TV-specific sizes. No-op on touch (baseDensity itself, untouched).
+        // screen's own TV-specific sizes. No-op on touch (baseDensity itself, untouched). An sp is a dp
+        // times the font scale, so the density alone shrinks text by as much as the rest: shrinking the
+        // font scale too drew text at 72 %, too few pixels to stay sharp once a TV upscales its 1080p
+        // interface to 4K.
         val scaledDensity = if (isTelevision) {
             Density(
                 density = baseDensity.density * TV_UI_SCALE,
-                fontScale = baseDensity.fontScale * TV_UI_SCALE,
+                fontScale = baseDensity.fontScale,
             )
         } else {
             baseDensity
