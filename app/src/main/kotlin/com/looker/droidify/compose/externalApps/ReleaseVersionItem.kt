@@ -174,13 +174,7 @@ fun ReleaseVersionItem(
                     }
                     // A proper chip, not plain text below — so it reads at a glance in a repo that
                     // mixes stable and pre-release tags, instead of being easy to miss.
-                    if (release.isPrerelease) {
-                        VersionChip(
-                            text = stringResource(R.string.external_prerelease_label),
-                            container = MaterialTheme.colorScheme.errorContainer,
-                            content = MaterialTheme.colorScheme.onErrorContainer,
-                        )
-                    }
+                    if (release.isPrerelease) PrereleaseBadge()
                 }
                 if ((downloadStatus != null || installing) && onCancel != null) {
                     CompactInstallProgressRow(
@@ -253,6 +247,16 @@ private fun formatReleaseDate(context: Context, iso: String): String? {
  *  unlike the catalogue's index-sourced value, this comes from parsing an arbitrary remote APK's
  *  manifest, so an unrecognised (future, or malformed) level is a real possibility, not just theoretical. */
 private fun sdkLabel(version: Int): String = sdkName[version] ?: version.toString()
+
+/** Marks a pre-release, in the version list and on the app's card when it is the version offered. */
+@Composable
+internal fun PrereleaseBadge() {
+    VersionChip(
+        text = stringResource(R.string.external_prerelease_label),
+        container = MaterialTheme.colorScheme.errorContainer,
+        content = MaterialTheme.colorScheme.onErrorContainer,
+    )
+}
 
 @Composable
 private fun VersionChip(text: String, container: Color, content: Color) {

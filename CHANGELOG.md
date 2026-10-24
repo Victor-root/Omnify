@@ -22,6 +22,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **"See all" at the end of a category** opens the whole of it, and **apps from your own repositories come first** in each category.
 
 ### 🔄 Changed
+- **Pre-releases are chosen on each external app's page**, in its version list: hidden, shown, followed with stable releases or followed alone, instead of a switch in the source's settings. Apps found through an account get the choice too.
 - **Interrupted downloads resume** where they stopped, with automatic retries, external sources included.
 - **Downloads keep going after you leave an app's page or Omnify**, with a progress notification, "Update all" and "Install all" included.
 - **Session installer listed first**, and a **"None" background**.

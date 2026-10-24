@@ -574,6 +574,17 @@
     <string name="external_none_match_include_filter">Aucune version récente de %s ne contient les mots de votre filtre « Versions à garder ». Modifiez-le ou videz-le.</string>
     <string name="external_prerelease_label">Préversion</string>
     <string name="external_no_prereleases">%s n\'a publié aucune préversion.</string>
+    <string name="prereleases_title">Préversions</string>
+    <string name="prereleases_button_FORMAT">Préversions : %s</string>
+    <string name="prereleases_warning">Les préversions sont des versions de test publiées avant une sortie : elles peuvent être instables.</string>
+    <string name="prereleases_hidden">Masquées</string>
+    <string name="prereleases_hidden_DESC">Seules les versions stables sont affichées et proposées.</string>
+    <string name="prereleases_shown">Affichées</string>
+    <string name="prereleases_shown_DESC">Affichées et installables à la main. Les mises à jour restent sur les versions stables.</string>
+    <string name="prereleases_both">Stables et préversions</string>
+    <string name="prereleases_both_DESC">Les mises à jour vont vers la version la plus récente, stable ou préversion.</string>
+    <string name="prereleases_only">Préversions uniquement</string>
+    <string name="prereleases_only_DESC">Les mises à jour ne proposent que des préversions.</string>
     <string name="external_no_website">Aucun site web trouvé</string>
     <string name="external_no_issue_tracker">Aucun suivi des problèmes trouvé</string>
     <string name="external_no_changelog">Aucun changelog trouvé</string>
