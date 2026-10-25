@@ -795,9 +795,9 @@ class MainComposeActivity : ComponentActivity() {
             }
 
             // One-time: mark already-seeded TV pack entries with curatedTv, so an install seeded before
-            // that field existed still gets its own "Made for TV" grouping on the repositories screen
-            // (see RepoListScreen) instead of staying mixed in alphabetically among general curated picks
-            // forever. Purely local (matching against curatedTvPack()'s own keys) — no network involved,
+            // that field existed still gets its own "Made for TV" grouping on TV's repositories screen
+            // (see TvRepoListScreen), and stays off the phone's, instead of staying mixed in
+            // alphabetically among general curated picks forever. Purely local (matching against curatedTvPack()'s own keys) — no network involved,
             // unlike the icon/TV-support backfills above.
             if (!firstRunPrefs.getBoolean(KEY_TV_PACK_CURATEDTV_BACKFILLED_V1, false)) {
                 val tvPackKeys = curatedTvPack().map { it.key }.toSet()

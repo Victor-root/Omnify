@@ -22,6 +22,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **"See all" at the end of a category** opens the whole of it, and **apps from your own repositories come first** in each category. The categories they use come first too, keeping their own icon.
 
 ### 🔄 Changed
+- **Omnify's Android TV picks no longer show on a phone's repositories screen.**
 - **An app's category tags read better and open the category**: in the accent colour and in your language, a tap shows every app of that category on a page of its own.
 - **A cleaner logo**: the Git glyph is drawn from exact shapes, with round rings and smooth edges, in the app, its icons and on the website.
 - **Sharing an app from another repository** sends its name and a link that adds that repository to Omnify.

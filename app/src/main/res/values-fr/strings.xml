@@ -32,7 +32,6 @@
     <string name="gms_cap_maps_v1_desc">Cette app utilise l\'ancienne bibliothèque Google Maps v1, absente des appareils dégooglisés et non fournie par microG (ses serveurs sont éteints depuis 2013). Les écrans de carte concernés risquent de planter.</string>
     <string name="google_services_detection_caveat">Détecté d\'après les autorisations déclarées dans le manifeste de l\'app. Une version dégooglisée obtenue en patchant le code d\'une app peut laisser une autorisation déclarée même après en avoir retiré ce qui l\'utilisait : une ligne ici ne signifie donc pas toujours que la fonction concernée est encore réellement accessible dans cette version précise.</string>
     <string name="allow">Autoriser</string>
-    <string name="diagnostics_short">Journal</string>
     <string name="diagnostics_title">Journal de diagnostic</string>
     <string name="diagnostics_hint">Ce qu\'a fait Omnify, à joindre à un bug. Aucune donnée personnelle.</string>
     <string name="diagnostics_empty">Rien d\'enregistré pour l\'instant.</string>

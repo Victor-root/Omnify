@@ -82,7 +82,6 @@ import com.looker.droidify.compose.appList.AppTab
 import com.looker.droidify.compose.appList.PendingAppListTab
 import com.looker.droidify.compose.appList.rememberCarouselState
 import com.looker.droidify.compose.appList.restoreFocusTarget
-import com.looker.droidify.compose.components.DiagnosticLogDialog
 import com.looker.droidify.compose.components.CatalogOfflineState
 import com.looker.droidify.compose.components.NoSourcesState
 import com.looker.droidify.compose.components.TvOverscan
@@ -628,16 +627,6 @@ private fun TvNavRail(
             false,
             modifier = Modifier.restoreFocusTarget(restoreFocusId == "rail:repos", restoreRequester),
         ) { onRepos() }
-        // The test and debug builds only: the log a person reproducing a bug sends back.
-        if (BuildConfig.DIAGNOSTICS) {
-            var showDiagnostics by remember { mutableStateOf(false) }
-            TvRailButton(
-                painterResource(R.drawable.ic_bug_report),
-                stringResource(R.string.diagnostics_short),
-                false,
-            ) { showDiagnostics = true }
-            if (showDiagnostics) DiagnosticLogDialog(onDismiss = { showDiagnostics = false })
-        }
         TvRailButton(
             painterResource(R.drawable.ic_tv_settings),
             stringResource(R.string.settings),

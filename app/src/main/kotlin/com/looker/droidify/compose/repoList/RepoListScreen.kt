@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
@@ -225,15 +224,11 @@ fun RepoListScreen(
     // Omnify's own repo is pinned first (its brand icon anchors the section), everything else
     // alphabetical — now that the curated pack has grown past a single entry (see MainComposeActivity's
     // curatedTvPack), plain alphabetical sorting would otherwise scatter Omnify's own entry among the
-    // rest. The TV pack itself (curatedTv) is excluded here — it gets its own "Made for TV" grouping
-    // further down instead of being mixed in alphabetically among these.
+    // rest. The TV pack itself (curatedTv) is left out: on a phone it only lists apps that don't run
+    // there.
     val curatedExternalApps = remember(sortedExternalApps) {
         sortedExternalApps.filter { it.curated && !it.curatedTv }
             .sortedBy { if (it.key == ExternalApp.OMNIFY_REPO_KEY) "" else it.label.trim().lowercase() }
-    }
-    val curatedTvApps = remember(sortedExternalApps) {
-        sortedExternalApps.filter { it.curated && it.curatedTv }
-            .sortedBy { it.label.trim().lowercase() }
     }
     // A repository the user added themselves comes first: it's the one they went looking for and the
     // one they'll come back to, and sorted purely by name it would sit lost among the several dozen
@@ -402,25 +397,6 @@ fun RepoListScreen(
                         onRescan = { externalViewModel.rescanAccount(account) },
                         onRemove = { externalViewModel.removeAccount(account) },
                     )
-                }
-                // The Android TV pack gets its own light sub-heading, not a full collapsible section of
-                // its own (it's still part of "Omnify's picks" — see this composable's own doc comment on
-                // curatedTvApps) — just enough separation that a phone/tablet user scanning past several
-                // TV-only apps understands why they're grouped, without another top-level toggle to manage.
-                if (curatedTvApps.isNotEmpty()) {
-                    item(key = "omnify-picks-tv-subheader", contentType = "subheader") {
-                        TvPackSubHeader()
-                    }
-                    items(curatedTvApps, key = { "ext-${it.key}" }, contentType = { "source" }) { app ->
-                        ExternalSourceItem(
-                            app = app,
-                            isInstalled = app.key in externalInstalledKeys,
-                            onOpen = { onSourceClick(app.key) },
-                            onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
-                            onEdit = null,
-                            onRemove = null,
-                        )
-                    }
                 }
             }
         }
@@ -744,33 +720,6 @@ private fun SectionHeader(title: String, collapsed: Boolean, onToggle: () -> Uni
             imageVector = if (collapsed) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-        )
-    }
-}
-
-/** A light sub-heading for the Android TV pack within "Omnify's picks" — not a collapsible section of
- *  its own like [SectionHeader], just a smaller, muted label so the TV-only apps that follow read as
- *  their own group without another top-level toggle to manage (see this screen's own doc comment on
- *  curatedTvApps). */
-@Composable
-private fun TvPackSubHeader() {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 4.dp),
-    ) {
-        Icon(
-            imageVector = Icons.Default.Tv,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(16.dp),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = stringResource(R.string.discover_tv_apps),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
