@@ -525,3 +525,5 @@ android.defaultConfig.buildConfigField(
     "DETECTED_LOCALES",
     "{${detectedLocales.sorted().joinToString(",") { "\"$it\"" }}}",
 )
+
+apply(from = rootProject.file("fdroid-panel.gradle.kts"))
