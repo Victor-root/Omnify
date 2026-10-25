@@ -38,6 +38,8 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Android TV**: redesigned home (rows, one per repository, starts on TV apps), two-pane app and repository pages, Halo background by default, keyboard only on OK, and many focus fixes.
 
 ### 🐛 Fixed
+- **A pre-release installed on purpose is not "updated" back to an older stable release**, even when its version reads like "16.Dev".
+- **The pre-release badge on an app's card is the size of the root badge beside it.**
 - **In landscape, the background reaches both sides of the screen** instead of stopping short of the navigation bar and the camera.
 - **Android TV: sharper, slightly larger text**: it was shrunk twice as much as the rest of the interface, which blurred it once the TV enlarged its picture to 4K.
 - **"Update all" shows the apps being installed**: an app keeps a spinning ring on its icon until it is installed, instead of sitting there as if nothing were happening once downloaded.

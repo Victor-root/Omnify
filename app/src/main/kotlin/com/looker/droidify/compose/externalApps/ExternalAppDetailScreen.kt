@@ -647,9 +647,12 @@ fun ExternalAppDetailScreen(
                 },
                 badge = if (isRootCompatible || offersPrerelease) {
                     {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             if (isRootCompatible) RootBadge()
-                            if (offersPrerelease) PrereleaseBadge()
+                            if (offersPrerelease) PrereleaseBadge(onCard = true)
                         }
                     }
                 } else {

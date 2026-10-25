@@ -1,6 +1,7 @@
 package com.looker.droidify.external
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -40,6 +41,27 @@ class ExternalAppUpdateTest {
             brave.hasUpdateGiven("1.93.130"),
             "Offered 1.93.129 over an installed 1.93.130, which is a downgrade",
         )
+    }
+
+    @Test
+    fun `a stable release is not offered over a newer development build installed from the source`() {
+        val lawnchair = source(
+            latestApkName = "Lawnchair.15.0.0.apk",
+            latestTag = "v15.0.0",
+            installedTag = "nightly",
+            installedApkToken = "nightly-build",
+            latestApkToken = "stable-build",
+            installedVersionName = "16.Dev.(#5342)",
+        )
+
+        assertFalse(lawnchair.hasUpdateGiven("16.Dev.(#5342)"))
+    }
+
+    @Test
+    fun `an installed version is its leading number when it carries no dotted one`() {
+        assertEquals("16", installedVersionOrNull("16.Dev.(#5342)"))
+        assertEquals("1.2.3", installedVersionOrNull("1.2.3-nightly-2024.10.01"))
+        assertEquals(null, installedVersionOrNull("nightly-20241001"))
     }
 
     @Test

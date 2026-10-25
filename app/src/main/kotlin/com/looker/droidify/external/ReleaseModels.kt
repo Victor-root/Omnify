@@ -401,6 +401,16 @@ private val versionInFileName = Regex("""\d+(?:\.\d+)+""")
  *  none is present. */
 internal fun dottedVersionOrNull(text: String): String? = versionInFileName.find(text)?.value
 
+private val leadingVersion = Regex("""^[vV]?(\d+(?:\.\d+)*)""")
+
+/**
+ * The version an installed app's own versionName states: a dotted number anywhere in it, otherwise the
+ * plain number it starts with ("16.Dev.(#5342)" -> "16", a development build). A lone number elsewhere
+ * is not taken: a date in a nightly's name is no version, and would read as newer than any release.
+ */
+internal fun installedVersionOrNull(versionName: String): String? =
+    dottedVersionOrNull(versionName) ?: leadingVersion.find(versionName)?.groupValues?.get(1)
+
 /**
  * The best human-readable version for a release, shown identically everywhere a version needs to read
  * (the hero card's "Version" stat, the version list, the installed-row match check): a dotted number

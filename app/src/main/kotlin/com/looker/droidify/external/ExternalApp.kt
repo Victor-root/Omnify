@@ -345,7 +345,7 @@ data class ExternalApp(
      */
     fun hasUpdateGiven(currentInstalledVersionName: String?): Boolean {
         val latestVersion = latestDottedVersion
-        val installedVersion = currentInstalledVersionName?.let(::dottedVersionOrNull)
+        val installedVersion = currentInstalledVersionName?.let(::installedVersionOrNull)
         // Going backwards is never an update, whatever the records say. This happens for real: a
         // project whose newest build reaches other channels first (Brave ships to Play while the
         // matching GitHub release is still a pre-release, which a source that excludes pre-releases

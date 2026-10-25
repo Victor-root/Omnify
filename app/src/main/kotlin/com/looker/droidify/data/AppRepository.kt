@@ -17,6 +17,7 @@ import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.external.compareVersionStrings
 import com.looker.droidify.external.dottedVersionOrNull
+import com.looker.droidify.external.installedVersionOrNull
 import com.looker.droidify.model.Repository
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.sync.v2.model.Tag
@@ -280,7 +281,7 @@ data class SuggestedVersion(
  * names are a free-text field, and plenty are dates, channels, or nothing at all.
  */
 fun catalogueBuildIsOlder(installedVersionName: String?, catalogueVersionName: String?): Boolean {
-    val installed = installedVersionName?.let(::dottedVersionOrNull) ?: return false
+    val installed = installedVersionName?.let(::installedVersionOrNull) ?: return false
     val catalogue = catalogueVersionName?.let(::dottedVersionOrNull) ?: return false
     return compareVersionStrings(catalogue, installed) < 0
 }
