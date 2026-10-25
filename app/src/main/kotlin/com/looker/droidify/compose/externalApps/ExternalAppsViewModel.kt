@@ -275,6 +275,9 @@ class ExternalAppsViewModel @Inject constructor(
         apps.mapNotNull { app ->
             val pkg = app.packageName?.takeIf { app.key in versions && app.latestApkSigners.isNotEmpty() }
                 ?: return@mapNotNull null
+            // The copy this source installed itself is its own build, whatever key signed it: a
+            // development build installed on purpose is often signed with another than the releases'.
+            if (app.ownsInstalled(versions[app.key])) return@mapNotNull null
             if (!app.isForeignCopy(externalRefresher.installedSigner(pkg))) return@mapNotNull null
             app.key to isSystemApp(pkg)
         }.toMap()

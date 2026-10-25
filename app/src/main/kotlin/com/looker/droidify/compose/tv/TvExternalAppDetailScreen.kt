@@ -100,6 +100,7 @@ fun TvExternalAppDetailScreen(
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
+    val deviceVersions by viewModel.deviceVersions.collectAsStateWithLifecycle()
     val hasPrereleaseChoice by viewModel.hasPrereleaseChoice.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     val expectedSignersByApkUrl by viewModel.expectedSignersByApkUrl.collectAsStateWithLifecycle()
@@ -169,10 +170,11 @@ fun TvExternalAppDetailScreen(
 
     // Expected certificate: read from the release APK itself, the only source available before the app
     // is ever installed (there's no F-Droid-style index declaring it ahead of time here).
-    LaunchedEffect(app.latestApkUrl) {
-        app.latestApkUrl?.let(viewModel::loadExpectedSigners)
+    val certificateApkUrl = app.certificateApkUrl(releaseHistory, deviceVersions[app.key])
+    LaunchedEffect(certificateApkUrl) {
+        certificateApkUrl?.let(viewModel::loadExpectedSigners)
     }
-    val expectedSigners = app.latestApkUrl?.let { expectedSignersByApkUrl[it] }
+    val expectedSigners = certificateApkUrl?.let { expectedSignersByApkUrl[it] }
 
     // Read off the same text as the phone screen's badge: the app's name and its README.
     val isRootCompatible = remember(app.key, readme) {

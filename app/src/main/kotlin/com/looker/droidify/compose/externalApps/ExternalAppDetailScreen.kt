@@ -219,10 +219,11 @@ fun ExternalAppDetailScreen(
     // Expected certificate: read from the release APK itself, the only source available before the app
     // is ever installed (there's no F-Droid-style index declaring it ahead of time here), same lazy,
     // once-per-APK pattern as the Google-services check above.
-    LaunchedEffect(app?.latestApkUrl) {
-        app?.latestApkUrl?.let(viewModel::loadExpectedSigners)
+    val certificateApkUrl = app?.certificateApkUrl(releaseHistory, deviceVersions[appKey])
+    LaunchedEffect(certificateApkUrl) {
+        certificateApkUrl?.let(viewModel::loadExpectedSigners)
     }
-    val expectedSigners = app?.latestApkUrl?.let { expectedSignersByApkUrl[it] }
+    val expectedSigners = certificateApkUrl?.let { expectedSignersByApkUrl[it] }
 
     installConflict?.let { conflict ->
         InstallConflictDialog(

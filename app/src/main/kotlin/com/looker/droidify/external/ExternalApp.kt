@@ -330,6 +330,20 @@ data class ExternalApp(
     fun isForeignCopy(installedSigner: String?): Boolean = signerMismatch(installedSigner, latestApkSigners)
 
     /**
+     * The APK the installed copy's certificate is checked against: the release this source installed,
+     * found in [history] by its tag, while that copy is still the one on the device
+     * ([ownsInstalled]); the offered release otherwise. Checked against the offered release alone, a
+     * pre-release installed on purpose read as signed by the wrong key whenever the project signs its
+     * development builds with another one than its stable releases.
+     */
+    fun certificateApkUrl(history: List<Release>?, currentInstalledVersionName: String?): String? {
+        if (ownsInstalled(currentInstalledVersionName)) {
+            history?.firstOrNull { it.tag == installedTag }?.apkDownloadUrl(filter = apkFilter)?.let { return it }
+        }
+        return latestApkUrl
+    }
+
+    /**
      * Same as [hasUpdate], but also catches a record that doesn't actually reflect what's on the
      * device right now — either because it was installed before its source was tracked (or before
      * APK-token tracking existed), or because the recorded install never really landed (e.g. a system

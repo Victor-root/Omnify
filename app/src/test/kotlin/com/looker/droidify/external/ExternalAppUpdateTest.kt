@@ -58,6 +58,16 @@ class ExternalAppUpdateTest {
     }
 
     @Test
+    fun `the certificate is checked against the offered release when the installed one is unknown`() {
+        val installedElsewhere = source(latestTag = "v15.0.0", installedVersionName = "16.Dev.(#5342)")
+            .copy(latestApkUrl = "https://example.org/stable.apk")
+        val notListed = installedElsewhere.copy(installedTag = "nightly")
+
+        assertEquals("https://example.org/stable.apk", installedElsewhere.certificateApkUrl(emptyList(), "16.Dev.(#5342)"))
+        assertEquals("https://example.org/stable.apk", notListed.certificateApkUrl(emptyList(), "16.Dev.(#5342)"))
+    }
+
+    @Test
     fun `an installed version is its leading number when it carries no dotted one`() {
         assertEquals("16", installedVersionOrNull("16.Dev.(#5342)"))
         assertEquals("1.2.3", installedVersionOrNull("1.2.3-nightly-2024.10.01"))
