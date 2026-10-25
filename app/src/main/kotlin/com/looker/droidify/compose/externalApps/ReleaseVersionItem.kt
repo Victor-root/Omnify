@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -264,25 +263,19 @@ internal fun PrereleaseBadge(onCard: Boolean = false) {
         text = stringResource(R.string.external_prerelease_label),
         container = MaterialTheme.colorScheme.errorContainer,
         content = MaterialTheme.colorScheme.onErrorContainer,
-        padding = if (onCard) PaddingValues(horizontal = 10.dp, vertical = 4.dp) else VersionChipPadding,
+        onCard = onCard,
     )
 }
 
-private val VersionChipPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
-
+/** A version's chip, no taller than the version's own title line in the list ([onCard] aside). */
 @Composable
-private fun VersionChip(
-    text: String,
-    container: Color,
-    content: Color,
-    padding: PaddingValues = VersionChipPadding,
-) {
+private fun VersionChip(text: String, container: Color, content: Color, onCard: Boolean = false) {
     Text(
         text = text.uppercase(),
-        style = MaterialTheme.typography.labelMedium,
+        style = if (onCard) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
         color = content,
         modifier = Modifier
             .background(container, shape = CircleShape)
-            .padding(padding),
+            .padding(horizontal = if (onCard) 10.dp else 8.dp, vertical = if (onCard) 4.dp else 2.dp),
     )
 }
