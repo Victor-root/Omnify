@@ -337,11 +337,15 @@ data class ExternalApp(
      * development builds with another one than its stable releases.
      */
     fun certificateApkUrl(history: List<Release>?, currentInstalledVersionName: String?): String? {
-        if (ownsInstalled(currentInstalledVersionName)) {
-            history?.firstOrNull { it.tag == installedTag }?.apkDownloadUrl(filter = apkFilter)?.let { return it }
-        }
-        return latestApkUrl
+        val tag = ownInstalledTag(currentInstalledVersionName) ?: return latestApkUrl
+        return history?.firstOrNull { it.tag == tag }?.apkDownloadUrl(filter = apkFilter) ?: latestApkUrl
     }
+
+    /** The tag of the release on the device, when this source installed it and it is still there
+     *  ([ownsInstalled]): what names it exactly, where its version name may match several releases
+     *  (a run of betas of one version) or none (a nightly). */
+    fun ownInstalledTag(currentInstalledVersionName: String?): String? =
+        installedTag?.takeIf { ownsInstalled(currentInstalledVersionName) }
 
     /**
      * Same as [hasUpdate], but also catches a record that doesn't actually reflect what's on the

@@ -454,8 +454,9 @@ private fun TvExternalVersionsList(
     onRequestSdkInfo: (String) -> Unit,
     onVersionClick: (Release) -> Unit,
 ) {
-    val rows = remember(releases, app.apkFilter, installedVersion) {
-        releaseVersionRows(releases, app.apkFilter, installedVersion)
+    val installedTag = app.ownInstalledTag(installedVersion)
+    val rows = remember(releases, app.apkFilter, installedVersion, installedTag) {
+        releaseVersionRows(releases, app.apkFilter, installedVersion, installedTag)
     }
     val sdkInfo = sdkInfoByApkUrl()
     Column(verticalArrangement = spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {

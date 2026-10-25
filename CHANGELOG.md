@@ -38,6 +38,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Android TV**: redesigned home (rows, one per repository, starts on TV apps), two-pane app and repository pages, Halo background by default, keyboard only on OK, and many focus fixes.
 
 ### 🐛 Fixed
+- **The version list marks the release actually installed**, a nightly or one beta among several of the same version included.
 - **The signing certificate is checked against the version actually installed**: a pre-release installed on purpose no longer reads as signed with the wrong key when the project signs its development builds with another one.
 - **A pre-release installed on purpose is not "updated" back to an older stable release**, even when its version reads like "16.Dev".
 - **The pre-release badge on an app's card is the size of the root badge beside it.**

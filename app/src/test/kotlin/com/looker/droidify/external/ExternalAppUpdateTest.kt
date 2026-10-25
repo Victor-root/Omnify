@@ -68,6 +68,14 @@ class ExternalAppUpdateTest {
     }
 
     @Test
+    fun `the installed release is named by the tag the source installed while that copy is still there`() {
+        val nightly = source(installedTag = "nightly", installedVersionName = "16.Dev.(#5342)")
+
+        assertEquals("nightly", nightly.ownInstalledTag("16.Dev.(#5342)"))
+        assertEquals(null, nightly.ownInstalledTag("15.0.0"))
+    }
+
+    @Test
     fun `an installed version is its leading number when it carries no dotted one`() {
         assertEquals("16", installedVersionOrNull("16.Dev.(#5342)"))
         assertEquals("1.2.3", installedVersionOrNull("1.2.3-nightly-2024.10.01"))

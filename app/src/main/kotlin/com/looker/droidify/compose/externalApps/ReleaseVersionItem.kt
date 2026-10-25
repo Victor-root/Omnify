@@ -60,13 +60,15 @@ class ReleaseVersionRow(
 /**
  * [ReleaseVersionRow]s for [releases] under an app's [apkFilter], for both the phone and TV version lists.
  * [installedVersion] is the real on-device versionName, not the possibly stale ExternalApp.installedTag:
- * the same self-healing fallback ExternalApp.hasUpdateGiven relies on for the update banner. Meant to be
+ * the same self-healing fallback ExternalApp.hasUpdateGiven relies on for the update banner, used when
+ * [installedTag] (ExternalApp.ownInstalledTag) doesn't name the installed release exactly. Meant to be
  * remembered on these inputs.
  */
 fun releaseVersionRows(
     releases: List<Release>,
     apkFilter: String?,
     installedVersion: String?,
+    installedTag: String?,
 ): List<ReleaseVersionRow> = releases.map { release ->
     val apk = selectApkAsset(release.assets, filter = apkFilter, releaseTag = release.tag)
     ReleaseVersionRow(
@@ -75,8 +77,12 @@ fun releaseVersionRows(
         apkUrl = apk?.downloadUrl,
         apkSize = apk?.size,
         apkDate = apk?.updatedAt,
-        isInstalled = installedVersion != null &&
-            compareVersionStrings(releaseVersionLabel(apk?.name, release.tag), installedVersion) == 0,
+        isInstalled = if (installedTag != null) {
+            release.tag == installedTag
+        } else {
+            installedVersion != null &&
+                compareVersionStrings(releaseVersionLabel(apk?.name, release.tag), installedVersion) == 0
+        },
     )
 }
 

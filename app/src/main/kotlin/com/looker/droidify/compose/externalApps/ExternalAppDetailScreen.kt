@@ -1409,8 +1409,9 @@ private fun ExternalVersionsSection(
             val visibleCount = if (versionsExpanded) releaseHistory.size else VERSIONS_COLLAPSED_COUNT
             // Remembered so a progress tick only redoes the cheap per-row lookups below. Rows match
             // the real live on-device version, see installedVersion's own doc comment.
-            val rows = remember(releaseHistory, visibleCount, app.apkFilter, installedVersion) {
-                releaseVersionRows(releaseHistory.take(visibleCount), app.apkFilter, installedVersion)
+            val installedTag = app.ownInstalledTag(installedVersion)
+            val rows = remember(releaseHistory, visibleCount, app.apkFilter, installedVersion, installedTag) {
+                releaseVersionRows(releaseHistory.take(visibleCount), app.apkFilter, installedVersion, installedTag)
             }
             rows.forEach { row ->
                 val release = row.release
