@@ -68,7 +68,6 @@ import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
 import androidx.compose.ui.Alignment
-import com.looker.droidify.compose.externalApps.PrereleaseBadge
 import com.looker.droidify.compose.externalApps.PrereleaseModeChooser
 import com.looker.droidify.compose.externalApps.cardVersion
 import com.looker.droidify.compose.externalApps.offersPrereleaseChoice
@@ -297,7 +296,14 @@ fun TvExternalAppDetailScreen(
                         FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
                             TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
                             if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
-                            if (cardVersion.isPrerelease) PrereleaseBadge()
+                            // Sized like the tags beside it, in the pre-release badge's own colours.
+                            if (cardVersion.isPrerelease) {
+                                TvChip(
+                                    text = stringResource(R.string.external_prerelease_label),
+                                    container = MaterialTheme.colorScheme.errorContainer,
+                                    content = MaterialTheme.colorScheme.onErrorContainer,
+                                )
+                            }
                         }
                         // Version and size as the phone's card shows them, not as tags (see cardVersion).
                         HeroStatsRow(

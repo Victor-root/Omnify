@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -466,14 +467,18 @@ private fun TvMetaChips(category: String?, license: String?) {
 }
 
 @Composable
-internal fun TvChip(text: String) {
+internal fun TvChip(
+    text: String,
+    container: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    content: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = content,
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .background(container)
             .padding(horizontal = 14.dp, vertical = 6.dp),
     )
 }
