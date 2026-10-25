@@ -80,11 +80,13 @@ import com.looker.droidify.compose.appList.AppRow
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appList.AppTab
 import com.looker.droidify.compose.appList.PendingAppListTab
+import com.looker.droidify.compose.appList.UpdatingApps
 import com.looker.droidify.compose.appList.rememberCarouselState
 import com.looker.droidify.compose.appList.restoreFocusTarget
 import com.looker.droidify.compose.components.CatalogOfflineState
 import com.looker.droidify.compose.components.NoSourcesState
 import com.looker.droidify.compose.components.TvOverscan
+import com.looker.droidify.compose.components.UpdateRingIcon
 import com.looker.droidify.compose.components.animatedBackground
 import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
@@ -148,6 +150,13 @@ fun TvHomeScreen(
     // The same answer as the catalogue half and the notification: see AppListViewModel.updates.
     val externalUpdates by viewModel.externalUpdates.collectAsStateWithLifecycle()
     val isUpdatingAll by viewModel.isUpdatingAll.collectAsStateWithLifecycle()
+    val updatingPackage by viewModel.updatingPackage.collectAsStateWithLifecycle()
+    val batchUpdate by viewModel.batchUpdate.collectAsStateWithLifecycle()
+    val installingPackages by viewModel.installingPackages.collectAsStateWithLifecycle()
+    val externalInstallStates by externalViewModel.installStates.collectAsStateWithLifecycle()
+    val updating = remember(updatingPackage, batchUpdate, installingPackages, externalInstallStates) {
+        UpdatingApps(updatingPackage, batchUpdate, installingPackages, externalInstallStates)
+    }
     val displayedApps by viewModel.displayedApps.collectAsStateWithLifecycle()
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
     val externallyInstalled by viewModel.externallyInstalledPackages.collectAsStateWithLifecycle()
@@ -451,6 +460,7 @@ fun TvHomeScreen(
                     externalInstalledKeys = externalInstalledKeys,
                     onExternalAppClick = openExternal,
                     isUpdatingAll = isUpdatingAll,
+                    updating = updating,
                     onUpdateAll = { viewModel.updateAll(externalUpdates.map { it.key }) },
                     onCancelUpdateAll = viewModel::cancelUpdateAll,
                     onAppClick = openApp,
@@ -915,6 +925,8 @@ private fun TvAppGrid(
     externalApps: List<ExternalApp> = emptyList(),
     externalInstalledKeys: Set<String> = emptySet(),
     onExternalAppClick: (String) -> Unit = {},
+    // The Updates grid only: what a batch is downloading or the installer is installing, as on the phone.
+    updating: UpdatingApps = UpdatingApps.None,
     restoreFocusId: String? = null,
     restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
@@ -943,6 +955,8 @@ private fun TvAppGrid(
                         name = app.name,
                         onClick = { onAppClick(app.packageName.name) },
                         modifier = Modifier.restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
+                        isUpdating = updating.isUpdating(app.packageName.name),
+                        updateFraction = updating.fraction(app.packageName.name),
                     ) {
                         AppMinimalIcon(
                             app = app,
@@ -956,6 +970,9 @@ private fun TvAppGrid(
                         name = app.label,
                         onClick = { onExternalAppClick(app.key) },
                         modifier = Modifier.restoreFocusTarget(restoreFocusId == "ext:${app.key}", restoreRequester),
+                        // A batch names a source by its own key (see UpdateAllWorker).
+                        isUpdating = updating.isUpdating(app.key),
+                        updateFraction = updating.fraction(app.key),
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                             ExternalAppIcon(
@@ -983,6 +1000,7 @@ private fun TvUpdates(
     externalInstalledKeys: Set<String>,
     onExternalAppClick: (String) -> Unit,
     isUpdatingAll: Boolean,
+    updating: UpdatingApps,
     onUpdateAll: () -> Unit,
     onCancelUpdateAll: () -> Unit,
     onAppClick: (String) -> Unit,
@@ -997,6 +1015,7 @@ private fun TvUpdates(
         externalApps = externalApps,
         externalInstalledKeys = externalInstalledKeys,
         onExternalAppClick = onExternalAppClick,
+        updating = updating,
         restoreFocusId = restoreFocusId,
         restoreRequester = restoreRequester,
         header = {
@@ -1225,6 +1244,9 @@ internal fun TvAppCard(
     name: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // The update ring over the icon, as the phone's tiles show it (see UpdateRingIcon).
+    isUpdating: Boolean = false,
+    updateFraction: Float? = null,
     icon: @Composable () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -1265,12 +1287,15 @@ internal fun TvAppCard(
                 .animatedBackground(shape) { accent.copy(alpha = fillAlpha) }
                 .padding(8.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(TileSize)
-                    .clip(shape),
+            // The ring sits outside the clip, so its stroke isn't shaved off at the corners.
+            UpdateRingIcon(
+                isUpdating = isUpdating,
+                updateFraction = updateFraction,
+                modifier = Modifier.size(TileSize),
             ) {
-                icon()
+                Box(modifier = Modifier.size(TileSize).clip(shape)) {
+                    icon()
+                }
             }
             Text(
                 text = name,

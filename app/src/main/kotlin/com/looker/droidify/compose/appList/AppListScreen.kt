@@ -159,7 +159,6 @@ import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.shownOnExternalTab
-import com.looker.droidify.installer.model.isInProgress
 import com.looker.droidify.work.BatchUpdateProgress
 import kotlinx.coroutines.delay
 
@@ -312,6 +311,7 @@ fun AppListScreen(
     val externalViewModel: ExternalAppsViewModel = hiltViewModel()
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
     val externalInstallStates by externalViewModel.installStates.collectAsStateWithLifecycle()
+    val updating = UpdatingApps(updatingPackage, batchUpdate, installingPackages, externalInstallStates)
     val hiddenExternalApps by externalViewModel.hidden.collectAsStateWithLifecycle()
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val favouriteExternalApps by externalViewModel.favouriteApps.collectAsStateWithLifecycle()
@@ -1171,15 +1171,8 @@ fun AppListScreen(
                         // On the Updates tab, ring the tile of the app the "update all" batch is
                         // downloading right now, so progress is visible in real time, and of every app
                         // still waiting to be installed or being installed.
-                        isUpdating = selectedTab == AppTab.UPDATES &&
-                            (app.packageName.name == updatingPackage || app.packageName.name in installingPackages),
-                        // How far that app's own download has come, so the ring fills and shows a
-                        // percentage instead of spinning with nothing to say. Null while the batch is
-                        // installing rather than downloading, or when the size isn't known: the tile
-                        // falls back to the plain spinner then.
-                        updateFraction = batchUpdate
-                            ?.takeIf { it.packageName == app.packageName.name }
-                            ?.download?.fraction,
+                        isUpdating = selectedTab == AppTab.UPDATES && updating.isUpdating(app.packageName.name),
+                        updateFraction = updating.fraction(app.packageName.name),
                         onClick = {
                             if (selectedTab == AppTab.INSTALLED) {
                                 openInstalledApp(app.packageName.name)
@@ -1225,11 +1218,8 @@ fun AppListScreen(
                         // The same live ring a catalogue tile gets, now that a batch covers these
                         // too. A batch names an external source by its own key, never by the package
                         // it installs under (see UpdateAllWorker).
-                        isUpdating = app.key == updatingPackage ||
-                            externalInstallStates[app.key]?.isInProgress == true,
-                        updateFraction = batchUpdate
-                            ?.takeIf { it.packageName == app.key }
-                            ?.download?.fraction,
+                        isUpdating = updating.isUpdating(app.key),
+                        updateFraction = updating.fraction(app.key),
                         onClick = { openExternalApp(app.key) },
                         modifier = Modifier.restoreFocusTarget(
                             isTelevision && restoreFocusId == "ext:${app.key}",
