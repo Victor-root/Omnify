@@ -84,6 +84,7 @@ import com.looker.droidify.compose.appList.UpdatingApps
 import com.looker.droidify.compose.appList.rememberCarouselState
 import com.looker.droidify.compose.appList.restoreFocusTarget
 import com.looker.droidify.compose.components.CatalogOfflineState
+import com.looker.droidify.compose.components.InstalledCheck
 import com.looker.droidify.compose.components.NoSourcesState
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.UpdateRingIcon
@@ -876,6 +877,7 @@ private fun TvCarousel(
                         restoreFocusId == rowFocusId(title, "app:${app.packageName.name}"),
                         restoreRequester,
                     ),
+                    isInstalled = app.packageName.name in installedPackages,
                 ) {
                     AppMinimalIcon(
                         app = app,
@@ -892,6 +894,7 @@ private fun TvCarousel(
                         restoreFocusId == rowFocusId(title, "ext:${app.key}"),
                         restoreRequester,
                     ),
+                    isInstalled = app.key in externalInstalledKeys,
                 ) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                         ExternalAppIcon(app = app, isInstalled = app.key in externalInstalledKeys, size = TileSize - 20.dp)
@@ -957,6 +960,7 @@ private fun TvAppGrid(
                         modifier = Modifier.restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
                         isUpdating = updating.isUpdating(app.packageName.name),
                         updateFraction = updating.fraction(app.packageName.name),
+                        isInstalled = app.packageName.name in installedPackages,
                     ) {
                         AppMinimalIcon(
                             app = app,
@@ -973,6 +977,7 @@ private fun TvAppGrid(
                         // A batch names a source by its own key (see UpdateAllWorker).
                         isUpdating = updating.isUpdating(app.key),
                         updateFraction = updating.fraction(app.key),
+                        isInstalled = app.key in externalInstalledKeys,
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                             ExternalAppIcon(
@@ -1135,6 +1140,7 @@ private fun TvExternalGrid(
                         name = app.label,
                         onClick = { onAppClick(app.key) },
                         modifier = Modifier.restoreFocusTarget(restoreFocusId == "ext:${app.key}", restoreRequester),
+                        isInstalled = app.key in installedKeys,
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                             ExternalAppIcon(app = app, isInstalled = app.key in installedKeys, size = TileSize - 20.dp)
@@ -1176,6 +1182,7 @@ private fun TvSearch(
                         name = app.name,
                         onClick = { onAppClick(app.packageName.name) },
                         modifier = Modifier.restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
+                        isInstalled = app.packageName.name in installedPackages,
                     ) {
                         AppMinimalIcon(
                             app = app,
@@ -1244,7 +1251,9 @@ internal fun TvAppCard(
     name: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    // The update ring over the icon, as the phone's tiles show it (see UpdateRingIcon).
+    // The installed check, and the update ring over the icon, as the phone's tiles show them (see
+    // UpdateRingIcon).
+    isInstalled: Boolean = false,
     isUpdating: Boolean = false,
     updateFraction: Float? = null,
     icon: @Composable () -> Unit,
@@ -1292,6 +1301,7 @@ internal fun TvAppCard(
                 isUpdating = isUpdating,
                 updateFraction = updateFraction,
                 modifier = Modifier.size(TileSize),
+                idleBadge = { if (isInstalled) InstalledCheck(size = 28.dp) },
             ) {
                 Box(modifier = Modifier.size(TileSize).clip(shape)) {
                     icon()

@@ -107,6 +107,7 @@ fun TvExternalAccountDetailScreen(
             TvAppCard(
                 name = app.label,
                 onClick = { onAppClick(app.key) },
+                isInstalled = app.key in installedKeys,
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     ExternalAppIcon(app = app, isInstalled = app.key in installedKeys, size = 96.dp)
