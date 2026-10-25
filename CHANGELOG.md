@@ -38,6 +38,7 @@ A welcome page for a fresh install, Obtainium import, and external sources that 
 - **Android TV**: redesigned home (rows, one per repository, starts on TV apps), two-pane app and repository pages, Halo background by default, keyboard only on OK, and many focus fixes.
 
 ### 🐛 Fixed
+- **In landscape, the background reaches both sides of the screen** instead of stopping short of the navigation bar and the camera.
 - **Android TV: sharper, slightly larger text**: it was shrunk twice as much as the rest of the interface, which blurred it once the TV enlarged its picture to 4K.
 - **"Update all" shows the apps being installed**: an app keeps a spinning ring on its icon until it is installed, instead of sitting there as if nothing were happening once downloaded.
 - **The home menu opens smoothly.**

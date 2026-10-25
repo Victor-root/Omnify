@@ -14,8 +14,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -32,7 +30,6 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.compose.theme.LocalBackgroundStyle
 import com.looker.droidify.compose.theme.LocalEdgeToEdge
@@ -171,20 +168,16 @@ private fun AuroraBackground(modifier: Modifier, accent: Color, dark: Boolean, i
  * lets the wash itself reach the transparent bar and blend with it, while a screen's actual
  * interactive content keeps its full, correct `contentPadding` (still clear of the gesture area).
  *
- * A no-op when edge-to-edge is OFF: `DroidifyTheme` then paints its own opaque accent bar over that
- * exact region regardless (see its edge-to-edge Box), so there is nothing to blend with there.
+ * The bottom inset is kept when edge-to-edge is OFF: `DroidifyTheme` then paints its own opaque accent
+ * bar over that exact region regardless (see its edge-to-edge Box), so there is nothing to blend with
+ * there. The side insets are always dropped: in landscape, the navigation bar and a camera cutout sit
+ * on the sides, and the wash stopping short of them left a plain strip down each edge.
  */
 @Composable
-fun PaddingValues.forFloatingBackground(): PaddingValues {
-    if (!LocalEdgeToEdge.current) return this
-    val direction = LocalLayoutDirection.current
-    return PaddingValues(
-        start = calculateStartPadding(direction),
-        top = calculateTopPadding(),
-        end = calculateEndPadding(direction),
-        bottom = 0.dp,
-    )
-}
+fun PaddingValues.forFloatingBackground(): PaddingValues = PaddingValues(
+    top = calculateTopPadding(),
+    bottom = if (LocalEdgeToEdge.current) 0.dp else calculateBottomPadding(),
+)
 
 private data class AuroraBlobSpec(
     val xBias: Float,
