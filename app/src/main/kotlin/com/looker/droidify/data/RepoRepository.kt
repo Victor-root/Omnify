@@ -21,6 +21,7 @@ import com.looker.droidify.datastore.get
 import com.looker.droidify.di.IoDispatcher
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.header.basicAuthorization
+import com.looker.droidify.sync.SyncProgress
 import com.looker.droidify.sync.SyncState
 import com.looker.droidify.sync.v1.V1Syncable
 import com.looker.droidify.sync.v2.EntrySyncable
@@ -32,6 +33,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -56,6 +60,7 @@ class RepoRepository @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val appDao: AppDao,
     private val repoCatalogue: RepoCatalogue,
+    private val syncProgress: SyncProgress,
 ) {
 
     private val v2Syncable = EntrySyncable(
@@ -282,13 +287,42 @@ class RepoRepository @Inject constructor(
      * failure, so both answer true and the worker doesn't retry a sync nobody wants any more.
      */
     suspend fun sync(repo: Repo, onState: ((SyncState) -> Unit)? = null): Boolean {
+        val counted = syncProgress.expectRepositories(listOf(repo.id))
+        // Held from the start of reading an index to the end of saving it, so that with several
+        // repositories syncing at once only one large index is ever in memory (see syncAll).
+        var readingIndex = false
+        val beforeReading: suspend () -> Unit = {
+            if (!readingIndex) {
+                catalogueReading.lock()
+                readingIndex = true
+            }
+        }
+        try {
+            return syncHolding(repo, beforeReading) { state ->
+                if (state is SyncState.IndexDownload.Progress) {
+                    syncProgress.reportRepository(repo.id, DOWNLOAD_SHARE * state.progress / 100f)
+                }
+                onState?.invoke(state)
+            }
+        } finally {
+            if (readingIndex) catalogueReading.unlock()
+            syncProgress.reportRepository(repo.id, 1f)
+            syncProgress.finishRepositories(counted)
+        }
+    }
+
+    private suspend fun syncHolding(
+        repo: Repo,
+        beforeReading: suspend () -> Unit,
+        onState: (SyncState) -> Unit,
+    ): Boolean {
         val fetched = repoCatalogue.whileEnabled(repo.id) {
             val lock = fetchLock(repo.id)
             val label = DiagnosticLog.repoLabel(repo)
             if (lock.isLocked) DiagnosticLog.log("sync $label: already being synced, waiting for that one")
             lock.withLock {
                 DiagnosticLog.log("sync $label: start")
-                fetchIndex(repo, onState).also {
+                fetchIndex(repo, beforeReading, onState).also {
                     DiagnosticLog.log("sync $label: end, success=${it.success}, new index=${it.index != null}")
                 }
             }
@@ -342,13 +376,17 @@ class RepoRepository @Inject constructor(
      */
     private fun fetchLock(repoId: Int): Mutex = fetchLocks.getOrPut(repoId) { Mutex() }
 
-    private suspend fun fetchIndex(repo: Repo, onState: ((SyncState) -> Unit)?): FetchedIndex {
+    private suspend fun fetchIndex(
+        repo: Repo,
+        beforeReading: suspend () -> Unit,
+        onState: (SyncState) -> Unit,
+    ): FetchedIndex {
         var success = false
         var parsedFingerprint: Fingerprint? = null
         var parsedIndex: IndexV2? = null
         val label = DiagnosticLog.repoLabel(repo)
         val handleState: (SyncState) -> Unit = { state ->
-            onState?.invoke(state)
+            onState(state)
             when (state) {
                 is SyncState.JsonParsing.Success -> {
                     parsedFingerprint = state.fingerprint
@@ -372,7 +410,7 @@ class RepoRepository @Inject constructor(
                 else -> Unit
             }
         }
-        v2Syncable.sync(repo, handleState)
+        v2Syncable.sync(repo, beforeReading, handleState)
         if (!success) {
             // Plenty of repos (many small or unmaintained ones, e.g. NanoDroid) never published the
             // newer v2 "entry.jar" index and only ever will serve the legacy v1 index-v1.jar. Without
@@ -380,7 +418,7 @@ class RepoRepository @Inject constructor(
             // empty no matter how many times the user retried.
             Log.i(TAG, "V2 sync unavailable for ${repo.name} (id=${repo.id}); falling back to v1 index")
             trailRepoIcon { "sync: repo ${repo.id} has no v2 index, reading the v1 one" }
-            v1Syncable.sync(repo, handleState)
+            v1Syncable.sync(repo, beforeReading, handleState)
         }
         return FetchedIndex(success = success, fingerprint = parsedFingerprint, index = parsedIndex)
     }
@@ -388,22 +426,28 @@ class RepoRepository @Inject constructor(
     suspend fun syncAll(): Boolean {
         val repos = getEnabledRepos().first()
         Log.i(TAG, "syncAll: ${repos.size} enabled repo(s): ${repos.joinToString { it.name }}")
-        var allSucceeded = true
-        // Sync repositories one at a time. Decoding a full index allocates many times the file size
-        // (the F-Droid index is tens of MB), so parsing several at once can exhaust the heap and OOM
-        // on a fresh full sync — and the failure was being swallowed, leaving the catalog empty.
-        // Sequential is slightly slower but reliable.
-        for (repo in repos) {
-            val synced = try {
-                sync(repo)
-            } catch (t: Throwable) {
-                t.exceptCancellation()
-                Log.e(TAG, "Sync failed for ${repo.name} (id=${repo.id})", t)
-                false
+        val counted = syncProgress.expectRepositories(repos.map { it.id })
+        // Every repository at once, so a slow server holds up only its own: a small repository is up to
+        // date in a second while F-Droid's tens of MB are still on their way. Reading and saving the
+        // indexes stays one at a time all the same (see sync): decoding a full index allocates many
+        // times the file size, and several at once ran out of memory on a fresh full sync.
+        return try {
+            coroutineScope {
+                repos.map { repo ->
+                    async {
+                        try {
+                            sync(repo)
+                        } catch (t: Throwable) {
+                            t.exceptCancellation()
+                            Log.e(TAG, "Sync failed for ${repo.name} (id=${repo.id})", t)
+                            false
+                        }
+                    }
+                }.awaitAll().all { it }
             }
-            if (!synced) allSucceeded = false
+        } finally {
+            syncProgress.finishRepositories(counted)
         }
-        return allSucceeded
     }
 
     private suspend fun getMirrors(repoId: Int): List<String> =
@@ -420,6 +464,13 @@ class RepoRepository @Inject constructor(
         private const val TAG = "RepoRepository"
 
         private val fetchLocks = ConcurrentHashMap<Int, Mutex>()
+
+        /** One index read and saved at a time, across every instance (see sync). */
+        private val catalogueReading = Mutex()
+
+        /** The share of a repository's progress its index download stands for, the rest being the
+         *  reading and saving that follow. */
+        private const val DOWNLOAD_SHARE = 0.9f
 
         /** Temporary: the add-a-repository trail's tag, shared with the screen so one Logcat filter
          *  covers the whole path from the form down to the write. Debug builds only, and it goes away

@@ -38,6 +38,7 @@ class EntrySyncable(
     @OptIn(ExperimentalSerializationApi::class)
     override suspend fun sync(
         repo: Repo,
+        beforeReading: suspend () -> Unit,
         block: (SyncState) -> Unit,
     ) = withContext(dispatcher) {
         try {
@@ -48,11 +49,9 @@ class EntrySyncable(
                 fileName = ENTRY_V2_NAME,
                 // Always from an empty file: a jar left by a sync that was cut short is never worth
                 // resuming, and writing over it in place would shrink a file that may still be open.
+                // No progress for a file of a few KB: a full bar for it would only fall back to nothing
+                // as the index itself starts.
                 clean = true,
-                onProgress = { bytes, total ->
-                    val percent = (bytes percentBy total)
-                    block(SyncState.IndexDownload.Progress(repo.id, percent))
-                },
             )
             if (jar.length() == 0L) {
                 block(
@@ -109,6 +108,7 @@ class EntrySyncable(
                             block(SyncState.IndexDownload.Progress(repo.id, percent))
                         },
                     )
+                    beforeReading()
                     indexFile
                         .takeIf { it.exists() && it.length() > 0 }
                         ?.let { indexFile ->
@@ -146,6 +146,7 @@ class EntrySyncable(
                     val percent = (bytes percentBy total)
                     block(SyncState.IndexDownload.Progress(repo.id, percent))
                 }
+                beforeReading()
                 try {
                     // Parse straight from the file. The full index is tens of MB; reading it into a
                     // ByteArray and then a String first (readBytes().decodeToString()) roughly triples

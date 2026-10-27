@@ -2,6 +2,10 @@
 
 ## 🚀 v1.0.8-beta.9 (Unreleased)
 
+### 🔄 Changed
+- **Repositories sync all at once**: a slow server, F-Droid's on a bad night, no longer holds up your other repositories, and external sources are checked at the same time instead of afterwards.
+- **The header shows how far a sync has come**, a percentage beside its progress bar covering repositories and external sources together, on phone and TV.
+
 ### 🐛 Fixed
 - **F-Droid syncs again for those it stopped for**: the day's changes were applied to an older copy of its catalogue left behind by an earlier sync, which produced a catalogue that could not be read; the whole catalogue is now fetched again instead.
 - **A full catalogue download picks up where it stopped**: F-Droid's catalogue is tens of MB, and on a slow server or after leaving the app it used to start over every time. It is now checked against the fingerprint F-Droid publishes before being used.
