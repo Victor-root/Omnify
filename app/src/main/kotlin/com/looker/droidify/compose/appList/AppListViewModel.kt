@@ -231,6 +231,12 @@ class AppListViewModel @Inject constructor(
     val showFavouritesCarousel: StateFlow<Boolean> =
         settingsRepository.get { showFavouritesCarousel }.asHomeState(true)
 
+    /** Whether the header shows the diagnostic log button: always in the test build, as chosen in
+     *  the debug build, never in the others. */
+    val showDiagnosticsButton: StateFlow<Boolean> = settingsRepository
+        .get { BuildConfig.DIAGNOSTICS && (!BuildConfig.TRACES || showDiagnosticsButton) }
+        .asHomeState(BuildConfig.DIAGNOSTICS)
+
     /** Flips [showFavouritesCarousel]. */
     fun toggleFavouritesCarousel() {
         viewModelScope.launch { settingsRepository.setShowFavouritesCarousel(!showFavouritesCarousel.value) }

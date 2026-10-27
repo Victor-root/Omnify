@@ -192,6 +192,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setShowDiagnosticsButton(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowDiagnosticsButton(show)
+        }
+    }
+
     fun setPlayStoreInstallSource(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setPlayStoreInstallSource(enabled)

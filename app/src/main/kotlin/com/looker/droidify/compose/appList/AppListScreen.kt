@@ -196,6 +196,7 @@ fun AppListScreen(
     val favouriteInstallDates by viewModel.favouriteInstallDates.collectAsStateWithLifecycle()
     val favouritesSortOrder by viewModel.favouritesSortOrder.collectAsStateWithLifecycle()
     val showFavouritesCarousel by viewModel.showFavouritesCarousel.collectAsStateWithLifecycle()
+    val showDiagnosticsButton by viewModel.showDiagnosticsButton.collectAsStateWithLifecycle()
     val tvOnly by viewModel.tvOnly.collectAsStateWithLifecycle()
     val expandedSections by viewModel.expandedSections.collectAsStateWithLifecycle()
     val expandedSectionApps by viewModel.expandedSectionApps.collectAsStateWithLifecycle()
@@ -630,6 +631,7 @@ fun AppListScreen(
                         onToggleFavouritesCarousel = viewModel::toggleFavouritesCarousel,
                         tvOnly = tvOnly,
                         onToggleTvOnly = viewModel::toggleTvOnly,
+                        showDiagnosticsButton = showDiagnosticsButton,
                     )
                     AppTabRow(
                         selectedTab = selectedTab,
@@ -1723,6 +1725,7 @@ private fun AppListTopBar(
     onToggleFavouritesCarousel: () -> Unit,
     tvOnly: Boolean,
     onToggleTvOnly: () -> Unit,
+    showDiagnosticsButton: Boolean,
     title: @Composable () -> Unit,
 ) {
     // QKSMS-style reveal: the main bar stays put and, on tapping the magnifier, the search field
@@ -1739,6 +1742,7 @@ private fun AppListTopBar(
             onToggleFavouritesCarousel = onToggleFavouritesCarousel,
             tvOnly = tvOnly,
             onToggleTvOnly = onToggleTvOnly,
+            showDiagnosticsButton = showDiagnosticsButton,
             overflowExpanded = overflowExpanded,
             onOverflowExpandedChange = onOverflowExpandedChange,
             title = title,
@@ -1769,6 +1773,7 @@ private fun AppListMainTopBar(
     onToggleFavouritesCarousel: () -> Unit,
     tvOnly: Boolean,
     onToggleTvOnly: () -> Unit,
+    showDiagnosticsButton: Boolean,
     overflowExpanded: () -> Boolean,
     onOverflowExpandedChange: (Boolean) -> Unit,
     title: @Composable () -> Unit,
@@ -1784,7 +1789,7 @@ private fun AppListMainTopBar(
         title = title,
         actions = {
             // The test and debug builds only: the log a person reproducing a bug sends back.
-            if (BuildConfig.DIAGNOSTICS) {
+            if (showDiagnosticsButton) {
                 var showDiagnostics by remember { mutableStateOf(false) }
                 IconButton(
                     onClick = { showDiagnostics = true },

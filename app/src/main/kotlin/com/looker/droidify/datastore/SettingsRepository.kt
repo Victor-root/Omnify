@@ -88,6 +88,8 @@ interface SettingsRepository {
 
     suspend fun setDeleteApkOnInstall(enable: Boolean)
 
+    suspend fun setShowDiagnosticsButton(show: Boolean)
+
     suspend fun setPlayStoreInstallSource(enable: Boolean)
 
     suspend fun toggleOmnifyInstallSource(packageName: String)

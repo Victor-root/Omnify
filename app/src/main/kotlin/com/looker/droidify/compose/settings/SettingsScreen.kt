@@ -687,6 +687,22 @@ fun SettingsScreen(
                 }
             }
 
+            if (BuildConfig.TRACES) {
+                item {
+                    SettingHeader(title = stringResource(R.string.debug_section))
+                }
+
+                item {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.show_diagnostics_button),
+                        description = stringResource(R.string.show_diagnostics_button_summary),
+                        icon = painterResource(R.drawable.ic_bug_report),
+                        checked = settings.showDiagnosticsButton,
+                        onCheckedChange = viewModel::setShowDiagnosticsButton,
+                    )
+                }
+            }
+
             item {
                 SettingHeader(title = stringResource(R.string.import_export))
             }

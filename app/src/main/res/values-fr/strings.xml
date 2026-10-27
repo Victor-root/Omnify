@@ -37,6 +37,9 @@
     <string name="diagnostics_empty">Rien d\'enregistré pour l\'instant.</string>
     <string name="diagnostics_copy">Copier</string>
     <string name="diagnostics_clear">Effacer</string>
+    <string name="debug_section">Débogage</string>
+    <string name="show_diagnostics_button">Bouton du journal de diagnostic</string>
+    <string name="show_diagnostics_button_summary">Afficher le bouton du journal de diagnostic dans l\'en-tête de l\'accueil</string>
     <string name="welcome_title">Bienvenue sur Omnify</string>
     <string name="welcome_subtitle">Vos applis, depuis les sources de votre choix. Quelques étapes rapides et Omnify est prêt.</string>
     <string name="welcome_sources_title">Sources</string>
