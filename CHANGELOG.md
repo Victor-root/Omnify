@@ -1,5 +1,10 @@
 # 📋 Changelog
 
+## 🚀 v1.0.8-beta.9 (Unreleased)
+
+### 🐛 Fixed
+- **A sync cut short no longer leaves F-Droid stuck loading**: when the day's changes fail to download, the whole catalogue is fetched again instead of falling back to a much slower older format.
+
 ## 🚀 v1.0.7-beta.8 (2026-10-25)
 
 A welcome page for a fresh install, Obtainium import, and external sources that handle repositories publishing several apps.

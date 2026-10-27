@@ -18,6 +18,8 @@ import com.looker.droidify.sync.v2.model.Entry
 import com.looker.droidify.sync.v2.model.IndexV2
 import com.looker.droidify.sync.v2.model.IndexV2Merger
 import com.looker.droidify.utility.common.cache.Cache
+import com.looker.droidify.utility.common.extension.exceptCancellation
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -84,22 +86,24 @@ class EntrySyncable(
             }
             val indexPath = repo.address.removeSuffix("/") + diffRef.name
             val indexFile = Cache.getIndexFile(context, "repo_${repo.id}_$INDEX_V2_NAME")
-            val indexV2 = if (diffRef != entry.index && indexFile.exists()) {
-                val diffFile = downloader.downloadIndex(
-                    context = context,
-                    repo = repo,
-                    url = indexPath,
-                    fileName = "diff_${repo.versionInfo?.timestamp}.json",
-                    diff = true,
-                    // Fetch the diff into a clean file too, so a re-download never appends onto a
-                    // partial/stale diff and corrupts it.
-                    clean = true,
-                    onProgress = { bytes, total ->
-                        val percent = (bytes percentBy total)
-                        block(SyncState.IndexDownload.Progress(repo.id, percent))
-                    },
-                )
+            // A diff that fails to arrive or to merge leaves the full index to download instead: the
+            // index left in the cache is only ever a base for the next diff, never the answer itself.
+            val merged = if (diffRef != entry.index && indexFile.exists()) {
                 try {
+                    val diffFile = downloader.downloadIndex(
+                        context = context,
+                        repo = repo,
+                        url = indexPath,
+                        fileName = "diff_${repo.versionInfo?.timestamp}.json",
+                        diff = true,
+                        // Fetch the diff into a clean file too, so a re-download never appends onto a
+                        // partial/stale diff and corrupts it.
+                        clean = true,
+                        onProgress = { bytes, total ->
+                            val percent = (bytes percentBy total)
+                            block(SyncState.IndexDownload.Progress(repo.id, percent))
+                        },
+                    )
                     indexFile
                         .takeIf { it.exists() && it.length() > 0 }
                         ?.let { indexFile ->
@@ -122,14 +126,20 @@ class EntrySyncable(
                             }
                         }
                 } catch (t: Throwable) {
-                    block(SyncState.JsonParsing.Failure(repo.id, t))
-                    return@withContext
+                    t.exceptCancellation()
+                    DiagnosticLog.log(
+                        "sync repo #${repo.id}: diff unusable (${t.javaClass.simpleName}), downloading the full index",
+                    )
+                    null
                 }
             } else {
+                null
+            }
+            val indexV2 = merged ?: run {
                 val newIndexFile = downloader.downloadIndex(
                     context = context,
                     repo = repo,
-                    url = indexPath,
+                    url = repo.address.removeSuffix("/") + entry.index.name,
                     fileName = INDEX_V2_NAME,
                     // Full index download: start from an empty file so we never append onto a stale
                     // index left in the cache (e.g. after the database was reset), which would corrupt
