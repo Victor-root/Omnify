@@ -3,7 +3,6 @@
 ## 🚀 v1.0.8-beta.9 (Unreleased)
 
 ### 🐛 Fixed
-- **F-Droid syncs again**: its index now has a category with no name, which Omnify could not read at all; such a category is now named by its key.
 - **A sync cut short no longer leaves F-Droid stuck loading**: when the day's changes fail to download, the whole catalogue is fetched again instead of falling back to a much slower older format.
 
 ## 🚀 v1.0.7-beta.8 (2026-10-25)

@@ -7,7 +7,6 @@ import androidx.room.Index
 import com.looker.droidify.sync.v2.model.AntiFeatureReason
 import com.looker.droidify.sync.v2.model.AntiFeatureV2
 import com.looker.droidify.sync.v2.model.Tag
-import com.looker.droidify.sync.v2.model.orNamedBy
 
 @Entity(
     tableName = "anti_feature",
@@ -62,7 +61,7 @@ data class AntiFeatureAppRelation(
 fun AntiFeatureV2.antiFeatureEntity(
     tag: Tag,
 ): List<AntiFeatureEntity> {
-    return name.orNamedBy(tag).map { (locale, localizedName) ->
+    return name.map { (locale, localizedName) ->
         AntiFeatureEntity(
             icon = icon[locale]?.name,
             name = localizedName,
