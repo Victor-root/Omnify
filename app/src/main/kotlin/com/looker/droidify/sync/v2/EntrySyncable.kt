@@ -3,8 +3,10 @@ package com.looker.droidify.sync.v2
 import android.content.Context
 import android.util.Log
 import com.looker.droidify.BuildConfig
+import com.looker.droidify.data.encryption.sha256Hex
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.network.Downloader
+import com.looker.droidify.network.ProgressListener
 import com.looker.droidify.network.percentBy
 import com.looker.droidify.network.validation.invalid
 import com.looker.droidify.sync.JsonParser
@@ -15,6 +17,7 @@ import com.looker.droidify.sync.common.INDEX_V2_NAME
 import com.looker.droidify.sync.common.downloadIndex
 import com.looker.droidify.sync.toJarScope
 import com.looker.droidify.sync.v2.model.Entry
+import com.looker.droidify.sync.v2.model.EntryFile
 import com.looker.droidify.sync.v2.model.IndexV2
 import com.looker.droidify.sync.v2.model.IndexV2Merger
 import com.looker.droidify.utility.common.cache.Cache
@@ -24,6 +27,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
+import java.io.File
+import java.io.IOException
 
 class EntrySyncable(
     private val context: Context,
@@ -137,20 +142,10 @@ class EntrySyncable(
                 null
             }
             val indexV2 = merged ?: run {
-                val newIndexFile = downloader.downloadIndex(
-                    context = context,
-                    repo = repo,
-                    url = repo.address.removeSuffix("/") + entry.index.name,
-                    fileName = INDEX_V2_NAME,
-                    // Full index download: start from an empty file so we never append onto a stale
-                    // index left in the cache (e.g. after the database was reset), which would corrupt
-                    // it and leave the catalog empty.
-                    clean = true,
-                    onProgress = { bytes, total ->
-                        val percent = (bytes percentBy total)
-                        block(SyncState.IndexDownload.Progress(repo.id, percent))
-                    },
-                )
+                val newIndexFile = downloadFullIndex(repo, entry.index, indexFile) { bytes, total ->
+                    val percent = (bytes percentBy total)
+                    block(SyncState.IndexDownload.Progress(repo.id, percent))
+                }
                 try {
                     // Parse straight from the file. The full index is tens of MB; reading it into a
                     // ByteArray and then a String first (readBytes().decodeToString()) roughly triples
@@ -168,4 +163,44 @@ class EntrySyncable(
             block(SyncState.IndexDownload.Failure(repo.id, t))
         }
     }
+
+    /**
+     * The full index [index] describes, at [indexFile], checked against the size and SHA-256 the entry
+     * publishes for it. It is fetched into a file of its own and moved into place only once complete, so
+     * that a download cut short (the app left, the server stalling) is taken up where it stopped by the
+     * next sync rather than started over: tens of MB on a slow server never got through otherwise. A
+     * partial file left by another version of the index fails the check and is fetched again whole.
+     */
+    private suspend fun downloadFullIndex(
+        repo: Repo,
+        index: EntryFile,
+        indexFile: File,
+        onProgress: ProgressListener,
+    ): File {
+        val partName = "$INDEX_V2_NAME.part"
+        val part = Cache.getIndexFile(context, "repo_${repo.id}_$partName")
+        suspend fun fetch(clean: Boolean): File = downloader.downloadIndex(
+            context = context,
+            repo = repo,
+            url = repo.address.removeSuffix("/") + index.name,
+            fileName = partName,
+            clean = clean,
+            onProgress = onProgress,
+        )
+        // Already whole, or too long to be the start of this index: asking for the bytes after its end
+        // would be answered with an error.
+        val alreadyWhole = part.matches(index)
+        if (!alreadyWhole && part.length() >= index.size) part.delete()
+        val downloaded = if (alreadyWhole) part else fetch(clean = false).takeIf { it.matches(index) }
+            ?: fetch(clean = true).takeIf { it.matches(index) }
+            ?: throw IOException("The index does not match the checksum its entry publishes")
+        indexFile.delete()
+        if (!downloaded.renameTo(indexFile)) {
+            throw IOException("The downloaded index could not be moved into place")
+        }
+        return indexFile
+    }
+
+    private fun File.matches(index: EntryFile): Boolean =
+        length() == index.size && sha256Hex().equals(index.sha256, ignoreCase = true)
 }
