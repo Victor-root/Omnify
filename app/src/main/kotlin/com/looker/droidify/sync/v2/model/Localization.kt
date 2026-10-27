@@ -13,9 +13,6 @@ typealias Tag = String
 
 typealias AntiFeatureReason = LocalizedString
 
-/** These names, or [key] itself as the English one when a repository gave none. */
-fun LocalizedString.orNamedBy(key: String): LocalizedString = ifEmpty { mapOf("en-US" to key) }
-
 fun <T> Map<String, T>?.localizedValue(locale: String): T? {
     if (isNullOrEmpty()) return null
     val localeList = LocaleListCompat.forLanguageTags(locale)
