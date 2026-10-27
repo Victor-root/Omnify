@@ -3,6 +3,7 @@
 ## 🚀 v1.0.8-beta.9 (Unreleased)
 
 ### 🐛 Fixed
+- **F-Droid syncs again for those it stopped for**: the day's changes were applied to an older copy of its catalogue left behind by an earlier sync, which produced a catalogue that could not be read; the whole catalogue is now fetched again instead.
 - **A sync cut short no longer leaves F-Droid stuck loading**: when the day's changes fail to download, the whole catalogue is fetched again instead of falling back to a much slower older format.
 
 ## 🚀 v1.0.7-beta.8 (2026-10-25)

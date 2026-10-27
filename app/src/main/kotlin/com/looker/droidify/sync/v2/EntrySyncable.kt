@@ -109,7 +109,8 @@ class EntrySyncable(
                         ?.let { indexFile ->
                             IndexV2Merger(indexFile).use { merger ->
                                 merger.processDiff(
-                                    diffFile.inputStream(),
+                                    diffStream = diffFile.inputStream(),
+                                    diffBaseTimestamp = repo.versionInfo?.timestamp,
                                 ).let {
                                     if (BuildConfig.TRACES) {
                                         Log.d(

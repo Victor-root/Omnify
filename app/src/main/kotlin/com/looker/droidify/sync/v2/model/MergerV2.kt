@@ -40,11 +40,14 @@ class IndexV2Merger(private val baseFile: File) : AutoCloseable {
      */
     fun processDiff(
         diffStream: InputStream,
+        // The index version the diff was published against, when known: a base at any other version
+        // is not the one it patches, and merging the two leaves an index missing every change between.
+        diffBaseTimestamp: Long? = null,
     ): Boolean = diffStream.use { diff ->
         val tempFile = File.createTempFile("merged_", ".json")
 
         try {
-            val mergedTimestamp = merge(baseFile, diff, tempFile)
+            val mergedTimestamp = merge(baseFile, diff, tempFile, diffBaseTimestamp)
             val hasChanged = mergedTimestamp != null
 
             if (mergedTimestamp != null) {
@@ -64,7 +67,7 @@ class IndexV2Merger(private val baseFile: File) : AutoCloseable {
 
     /** Writes [baseFile] patched by [diffStream] to [outputFile], and returns the merged index's
      *  timestamp when that changed anything, or null when it didn't. */
-    private fun merge(baseFile: File, diffStream: InputStream, outputFile: File): Long? {
+    private fun merge(baseFile: File, diffStream: InputStream, outputFile: File, diffBaseTimestamp: Long?): Long? {
         val baseElement =
             runCatching { baseFile.inputStream().use { json.decodeFromStream<JsonElement>(it) } }
                 .fold(
@@ -84,6 +87,9 @@ class IndexV2Merger(private val baseFile: File) : AutoCloseable {
         // No need to apply a diff older or same as base
         val baseTimestamp = getTimestamp(baseElement)
         val diffTimestamp = getTimestamp(diffElement)
+        if (diffBaseTimestamp != null && baseTimestamp != diffBaseTimestamp) {
+            throw IllegalStateException("The base index is at $baseTimestamp, the diff patches $diffBaseTimestamp")
+        }
 
         if (diffTimestamp <= baseTimestamp) {
             baseFile.copyTo(outputFile, overwrite = true)

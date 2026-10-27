@@ -12,6 +12,7 @@ import java.io.File
 import java.io.FilterInputStream
 import java.nio.file.Path
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -557,6 +558,34 @@ class IndexV2MergerTest {
         IndexV2Merger(testIndexFile).use { merger -> merger.processDiff(stream) }
 
         assertTrue(closed, "processDiff left the stream it was given open")
+    }
+
+    @Test
+    @DisplayName("Should refuse a diff published against another version of the index")
+    fun `a diff for another base is refused and the base left as it was`() {
+        // The cached index was left behind while the version on record moved on (a sync that fell back
+        // to the v1 index): patched by the diff for the newer version, it lacked everything in between.
+        val base = """{"repo":{"timestamp":1000,"categories":{}}}"""
+        testIndexFile.writeText(base)
+        testDiffFile.writeText("""{"repo":{"timestamp":3000,"categories":{"AI Chat":{"description":{"en-US":"x"}}}}}""")
+
+        assertFailsWith<IllegalStateException> {
+            IndexV2Merger(testIndexFile).use { merger ->
+                merger.processDiff(testDiffFile.inputStream(), diffBaseTimestamp = 2000)
+            }
+        }
+        assertEquals(base, testIndexFile.readText())
+    }
+
+    @Test
+    @DisplayName("Should merge a diff published against this very version")
+    fun `a diff for this base is merged`() {
+        testIndexFile.writeText("""{"repo":{"timestamp":1000}}""")
+        testDiffFile.writeText("""{"repo":{"timestamp":2000}}""")
+
+        IndexV2Merger(testIndexFile).use { merger ->
+            assertTrue(merger.processDiff(testDiffFile.inputStream(), diffBaseTimestamp = 1000))
+        }
     }
 
     private fun performMergeTest(initialIndex: String, diff: String, expectedResult: String) {
