@@ -57,6 +57,9 @@
     <string name="diagnostics_empty">Nothing recorded yet.</string>
     <string name="diagnostics_copy">Copy</string>
     <string name="diagnostics_clear">Clear</string>
+    <string name="debug_section">Debug</string>
+    <string name="show_diagnostics_button">Diagnostic log button</string>
+    <string name="show_diagnostics_button_summary">Show the diagnostic log button in the home header</string>
     <string name="welcome_title">Welcome to Omnify</string>
     <string name="welcome_subtitle">Your apps, from the sources you choose. A few quick steps and Omnify is ready.</string>
     <string name="welcome_sources_title">Sources</string>

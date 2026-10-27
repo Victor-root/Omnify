@@ -75,6 +75,8 @@ data class Settings(
     val tvOnly: Boolean = false,
     val enabledRepoIds: Set<Int> = emptySet(),
     val deleteApkOnInstall: Boolean = false,
+    /** Debug build: whether the home header shows the diagnostic log button. */
+    val showDiagnosticsButton: Boolean = true,
     /** Shizuku and root installs record Google Play, instead of Omnify, as the app's installer. */
     val playStoreInstallSource: Boolean = false,
     /** Packages kept on Omnify as their install source even while [playStoreInstallSource] is on. */
