@@ -32,6 +32,7 @@ import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.model.isInProgress
 import com.looker.droidify.network.NetworkMonitor
+import com.looker.droidify.sync.SyncProgress
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.diagnostics.DiagnosticLog
@@ -155,6 +156,7 @@ class AppListViewModel @Inject constructor(
     externalAppRepository: ExternalAppRepository,
     private val settingsRepository: SettingsRepository,
     batchProgress: BatchUpdateProgress,
+    syncProgress: SyncProgress,
     private val installManager: InstallManager,
     private val networkMonitor: NetworkMonitor,
     private val pendingUpdates: PendingUpdates,
@@ -534,6 +536,9 @@ class AppListViewModel @Inject constructor(
 
     /** True while any sync runs (first launch, manual, repo-enable, periodic) — drives the bar. */
     val isSyncing: StateFlow<Boolean> = SyncWorker.isSyncing(context).asHomeState(false)
+
+    /** How far a synchronisation has come, repositories and external sources together (SyncProgress). */
+    val syncFraction: StateFlow<Float?> = syncProgress.fraction
 
     /** True while the sync the user is waiting on is running or still to run (see
      *  [SyncWorker.isSyncScheduled]): tells a catalogue that is still on its way apart from one that

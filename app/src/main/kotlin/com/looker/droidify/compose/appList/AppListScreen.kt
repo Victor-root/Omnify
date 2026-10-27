@@ -132,6 +132,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.SyncPercent
 import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvTypeOnOk
 import com.looker.droidify.compose.trailUpdatesNav
@@ -174,6 +175,7 @@ fun AppListScreen(
 ) {
     val apps by viewModel.displayedApps.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+    val syncFraction by viewModel.syncFraction.collectAsStateWithLifecycle()
     val isSyncScheduled by viewModel.isSyncScheduled.collectAsStateWithLifecycle()
     val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
     val catalogEmpty by viewModel.catalogEmpty.collectAsStateWithLifecycle()
@@ -619,6 +621,7 @@ fun AppListScreen(
                                 // to (almost) the action buttons on any screen size, phone or tablet.
                                 TitleOrSyncIndicator(
                                     syncing = headerSyncing,
+                                    syncFraction = syncFraction,
                                     modifier = Modifier.weight(1f),
                                 )
                             }
@@ -1345,7 +1348,13 @@ private fun RepoFetchingState(modifier: Modifier = Modifier) {
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun TitleOrSyncIndicator(syncing: Boolean, modifier: Modifier = Modifier) {
+private fun TitleOrSyncIndicator(
+    syncing: Boolean,
+    // How far the whole synchronisation has come, repositories and external sources together; shown
+    // beside the bar, and with it only.
+    syncFraction: Float?,
+    modifier: Modifier = Modifier,
+) {
     val syncingLabel = stringResource(R.string.syncing)
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
         AnimatedVisibility(
@@ -1397,13 +1406,19 @@ private fun TitleOrSyncIndicator(syncing: Boolean, modifier: Modifier = Modifier
             // work. Fills the width the caller's weight(1f) hands this composable (see the title
             // block above), so it reaches to (almost) the action buttons on any screen size instead
             // of a fixed dp guess that undershoots a wide bar and risks overflowing a narrow one.
-            LinearWavyProgressIndicator(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { contentDescription = syncingLabel },
-                color = LocalOnAccentBarColor.current,
-                trackColor = LocalOnAccentBarColor.current.copy(alpha = 0.24f),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LinearWavyProgressIndicator(
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { contentDescription = syncingLabel },
+                    color = LocalOnAccentBarColor.current,
+                    trackColor = LocalOnAccentBarColor.current.copy(alpha = 0.24f),
+                )
+                if (syncFraction != null) {
+                    Spacer(Modifier.width(8.dp))
+                    SyncPercent(fraction = syncFraction, color = LocalOnAccentBarColor.current)
+                }
+            }
         }
     }
 }

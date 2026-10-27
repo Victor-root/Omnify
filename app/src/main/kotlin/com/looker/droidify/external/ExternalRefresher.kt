@@ -10,6 +10,7 @@ import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.network.Downloader
+import com.looker.droidify.sync.SyncProgress
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.apk.ApkSigningBlockReader
 import com.looker.droidify.utility.apk.RemoteApkIconReader
@@ -44,6 +45,7 @@ class ExternalRefresher @Inject constructor(
     private val repository: ExternalAppRepository,
     private val downloader: Downloader,
     @param:ApplicationContext private val context: Context,
+    private val syncProgress: SyncProgress,
 ) {
 
     /** Serialises refreshes: the screen-entry one and the scheduled one can otherwise overlap, and two
@@ -94,12 +96,18 @@ class ExternalRefresher @Inject constructor(
                 return
             }
             ExternalIconCache.markPending(tracked.filter(::iconStillToFind).map { it.key })
-            tracked.forEach { app ->
-                try {
-                    refreshOne(app)
-                } finally {
-                    ExternalIconCache.clearPending(app.key)
+            syncProgress.startSources(tracked.size)
+            try {
+                tracked.forEach { app ->
+                    try {
+                        refreshOne(app)
+                    } finally {
+                        ExternalIconCache.clearPending(app.key)
+                        syncProgress.sourceChecked()
+                    }
                 }
+            } finally {
+                syncProgress.finishSources()
             }
             // Once a day, re-scan each enabled account for newly published apps (the apps it already
             // found are refreshed by the loop above). Disabled accounts and never-scanned ones (handled

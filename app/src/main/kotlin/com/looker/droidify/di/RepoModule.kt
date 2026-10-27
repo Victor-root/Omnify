@@ -15,6 +15,7 @@ import com.looker.droidify.data.local.dao.InstalledDao
 import com.looker.droidify.data.local.dao.RepoDao
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.network.Downloader
+import com.looker.droidify.sync.SyncProgress
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -38,6 +39,7 @@ object RepoModule {
         @ApplicationContext context: Context,
         @IoDispatcher syncDispatcher: CoroutineDispatcher,
         repoCatalogue: RepoCatalogue,
+        syncProgress: SyncProgress,
     ): RepoRepository = RepoRepository(
         encryptionStorage = encryptionStorage,
         downloader = downloader,
@@ -49,6 +51,7 @@ object RepoModule {
         indexDao = indexDao,
         settingsRepository = settingsRepository,
         repoCatalogue = repoCatalogue,
+        syncProgress = syncProgress,
     )
 
     @Provides

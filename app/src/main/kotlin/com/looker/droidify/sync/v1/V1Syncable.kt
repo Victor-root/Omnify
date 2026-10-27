@@ -19,7 +19,11 @@ class V1Syncable(
     private val downloader: Downloader,
     private val dispatcher: CoroutineDispatcher,
 ) : Syncable<IndexV1> {
-    override suspend fun sync(repo: Repo, block: (SyncState) -> Unit) = withContext(dispatcher) {
+    override suspend fun sync(
+        repo: Repo,
+        beforeReading: suspend () -> Unit,
+        block: (SyncState) -> Unit,
+    ) = withContext(dispatcher) {
         try {
             val jar = downloader.downloadIndex(
                 context = context,
@@ -45,6 +49,7 @@ class V1Syncable(
             } else {
                 block(SyncState.IndexDownload.Success(repo.id))
             }
+            beforeReading()
             jar.toJarScope<IndexV1>().use { scope ->
                 // The jar's signing-certificate fingerprint is only known once the whole entry has
                 // been read (java.util.jar.JarEntry.getCertificates() stays null until the stream is

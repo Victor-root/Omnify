@@ -86,6 +86,7 @@ import com.looker.droidify.compose.appList.restoreFocusTarget
 import com.looker.droidify.compose.components.CatalogOfflineState
 import com.looker.droidify.compose.components.InstalledCheck
 import com.looker.droidify.compose.components.NoSourcesState
+import com.looker.droidify.compose.components.SyncPercent
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.UpdateRingIcon
 import com.looker.droidify.compose.components.animatedBackground
@@ -190,6 +191,7 @@ fun TvHomeScreen(
     // [catalogEmpty] included: it is null until the database has answered, so a catalogue merely not
     // read yet is never mistaken for an empty one.
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+    val syncFraction by viewModel.syncFraction.collectAsStateWithLifecycle()
     val catalogEmpty by viewModel.catalogEmpty.collectAsStateWithLifecycle()
     val noRepositoryEnabled by viewModel.noRepositoryEnabled.collectAsStateWithLifecycle()
     var catalogReady by rememberSaveable { mutableStateOf(false) }
@@ -352,6 +354,7 @@ fun TvHomeScreen(
             // Both halves of the Updates grid, so the badge counts what that grid lists.
             updatesCount = updatesCount,
             syncing = tvSyncing,
+            syncFraction = syncFraction,
             tvOnly = tvOnly,
             onToggleTvOnly = viewModel::toggleTvOnly,
             restoreFocusId = restoreFocusId,
@@ -516,6 +519,8 @@ private fun TvNavRail(
     // Drives the sync button's own label: the wordmark "Synchroniser" swaps for a wavy progress bar
     // while true (see the TvRailButton call below), the icon is untouched either way.
     syncing: Boolean,
+    // How far the whole synchronisation has come, shown beside the bar and with it only.
+    syncFraction: Float?,
     tvOnly: Boolean,
     onToggleTvOnly: () -> Unit,
     // Restores focus to the Repositories/Settings button on return from either screen, the same
@@ -598,11 +603,17 @@ private fun TvNavRail(
                 val syncLabel = stringResource(R.string.sync)
                 Crossfade(targetState = syncing, label = "tvSyncLabel") { isSyncing ->
                     if (isSyncing) {
-                        LinearWavyProgressIndicator(
-                            modifier = Modifier.width(80.dp),
-                            color = RailNeutralContent,
-                            trackColor = RailNeutralContent.copy(alpha = 0.24f),
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            LinearWavyProgressIndicator(
+                                modifier = Modifier.width(80.dp),
+                                color = RailNeutralContent,
+                                trackColor = RailNeutralContent.copy(alpha = 0.24f),
+                            )
+                            if (syncFraction != null) {
+                                Spacer(Modifier.width(8.dp))
+                                SyncPercent(fraction = syncFraction, color = RailNeutralContent)
+                            }
+                        }
                     } else {
                         Text(
                             text = syncLabel,

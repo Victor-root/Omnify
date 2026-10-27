@@ -36,8 +36,10 @@ import com.looker.droidify.utility.notifications.showUpdatesAvailableNotificatio
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
@@ -64,65 +66,37 @@ class SyncWorker @AssistedInject constructor(
                 "attempt ${runAttemptCount + 1}",
         )
         try {
-            val success = if (repoId != null) {
-                val repo = repoRepository.getRepo(repoId)
-                if (repo != null) {
-                    // Once for the whole sync rather than in createForegroundInfo, which runs on every
-                    // progress update below.
-                    applicationContext.createNotificationChannel(
-                        id = SYNC_CHANNEL_ID,
-                        name = "Sync channel",
-                        showBadge = true,
-                    )
-                    setForeground(createForegroundInfo(repo.name, -1))
-                    // The progress callback fires on every downloaded chunk; refreshing the foreground
-                    // notification each time floods WorkManager (it logs a "move to foreground" per
-                    // call) and is wasteful. Update only when the whole-percent changes, and at most a
-                    // few times a second.
-                    var lastPercent = -1
-                    var lastEmit = 0L
-                    repoRepository.sync(repo) { state ->
-                        val progress =
-                            if (state is SyncState.IndexDownload.Progress) state.progress else -1
-                        val now = SystemClock.elapsedRealtime()
-                        if (progress != lastPercent && (progress < 0 || now - lastEmit >= 400L)) {
-                            lastPercent = progress
-                            lastEmit = now
-                            setForegroundAsync(createForegroundInfo(repo.name, progress))
+            val success = coroutineScope {
+                // "Sync everything" means the external sources too, not just the catalogue
+                // repositories: they are the other half of the same Updates tab, and until this ran
+                // here they had no background check at all. Alongside the catalogue rather than after
+                // it, so they don't wait on its slowest server. Skipped when syncing one named
+                // repository, which is a catalogue-only action. Failures are contained: a provider
+                // being unreachable must not fail a catalogue sync that worked, and ExternalRefresher's
+                // own throttle decides whether this actually does anything.
+                if (repoId == null) {
+                    launch {
+                        try {
+                            externalRefresher.refresh()
+                        } catch (t: Throwable) {
+                            t.exceptCancellation()
+                            Log.w(TAG, "External source refresh failed", t)
                         }
                     }
-                } else {
-                    Log.w(TAG, "Repo not found for id=$repoId; falling back to syncAll")
-                    repoRepository.syncAll()
                 }
-            } else {
-                repoRepository.syncAll()
+                syncCatalogue(repoId)
             }
-            // "Sync everything" means the external sources too, not just the catalogue repositories:
-            // they are the other half of the same Updates tab, and until this ran here they had no
-            // background check at all: a source only ever learned about a new release while a screen
-            // was open. Skipped when syncing one named repository, which is a catalogue-only action.
-            // Failures are contained: a provider being unreachable must not fail a catalogue sync that
-            // worked, and ExternalRefresher's own throttle decides whether this actually does anything.
-            if (repoId == null) {
+            // Now that both halves have been re-checked, hand over to the automatic installer if the
+            // user asked for one. Only on the scheduled pass: a manual sync happens with the app in
+            // front of the user, where the Updates tab and its "Update all" button are right there, and
+            // starting installs out from under a deliberate tap on Sync would be a surprise.
+            if (repoId == null && inputData.getString(KEY_TRIGGER) == TRIGGER_PERIODIC) {
+                AutoUpdateWorker.enqueue(applicationContext, settingsRepository)
                 try {
-                    externalRefresher.refresh()
+                    notifyAvailableUpdates()
                 } catch (t: Throwable) {
                     t.exceptCancellation()
-                    Log.w(TAG, "External source refresh failed", t)
-                }
-                // Now that both halves have been re-checked, hand over to the automatic installer if the
-                // user asked for one. Only on the scheduled pass: a manual sync happens with the app in
-                // front of the user, where the Updates tab and its "Update all" button are right there,
-                // and starting installs out from under a deliberate tap on Sync would be a surprise.
-                if (inputData.getString(KEY_TRIGGER) == TRIGGER_PERIODIC) {
-                    AutoUpdateWorker.enqueue(applicationContext, settingsRepository)
-                    try {
-                        notifyAvailableUpdates()
-                    } catch (t: Throwable) {
-                        t.exceptCancellation()
-                        Log.w(TAG, "Could not post the updates notification", t)
-                    }
+                    Log.w(TAG, "Could not post the updates notification", t)
                 }
             }
             if (success) {
@@ -140,6 +114,42 @@ class SyncWorker @AssistedInject constructor(
             Log.e(TAG, "Sync failed with exception", t)
             retryOrGiveUp(repoId)
         }
+    }
+
+    /** Syncs [repoId], or every enabled repository when it is null. */
+    private suspend fun syncCatalogue(repoId: Int?): Boolean = if (repoId != null) {
+        val repo = repoRepository.getRepo(repoId)
+        if (repo != null) {
+            // Once for the whole sync rather than in createForegroundInfo, which runs on every
+            // progress update below.
+            applicationContext.createNotificationChannel(
+                id = SYNC_CHANNEL_ID,
+                name = "Sync channel",
+                showBadge = true,
+            )
+            setForeground(createForegroundInfo(repo.name, -1))
+            // The progress callback fires on every downloaded chunk; refreshing the foreground
+            // notification each time floods WorkManager (it logs a "move to foreground" per
+            // call) and is wasteful. Update only when the whole-percent changes, and at most a
+            // few times a second.
+            var lastPercent = -1
+            var lastEmit = 0L
+            repoRepository.sync(repo) { state ->
+                val progress =
+                    if (state is SyncState.IndexDownload.Progress) state.progress else -1
+                val now = SystemClock.elapsedRealtime()
+                if (progress != lastPercent && (progress < 0 || now - lastEmit >= 400L)) {
+                    lastPercent = progress
+                    lastEmit = now
+                    setForegroundAsync(createForegroundInfo(repo.name, progress))
+                }
+            }
+        } else {
+            Log.w(TAG, "Repo not found for id=$repoId; falling back to syncAll")
+            repoRepository.syncAll()
+        }
+    } else {
+        repoRepository.syncAll()
     }
 
     /**
