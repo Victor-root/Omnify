@@ -27,13 +27,17 @@ data class MirrorV2(
 @Serializable
 data class CategoryV2(
     val icon: LocalizedIcon = emptyMap(),
-    val name: LocalizedString,
+    // Left out by a repository now and then (F-Droid's "AI Chat" category): read as no translation,
+    // not as an index that cannot be read at all.
+    val name: LocalizedString = emptyMap(),
     val description: LocalizedString = emptyMap(),
 )
 
 @Serializable
 data class AntiFeatureV2(
     val icon: LocalizedIcon = emptyMap(),
-    val name: LocalizedString,
+    // Left out by a repository now and then (F-Droid's "AI Chat" category): read as no translation,
+    // not as an index that cannot be read at all.
+    val name: LocalizedString = emptyMap(),
     val description: LocalizedString = emptyMap(),
 )

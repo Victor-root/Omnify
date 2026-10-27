@@ -6,6 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import com.looker.droidify.sync.v2.model.CategoryV2
 import com.looker.droidify.sync.v2.model.DefaultName
+import com.looker.droidify.sync.v2.model.orNamedBy
 
 @Entity(
     tableName = "category",
@@ -60,7 +61,7 @@ data class CategoryAppRelation(
 fun CategoryV2.categoryEntity(
     defaultName: DefaultName,
 ): List<CategoryEntity> {
-    return name.map { (locale, localizedName) ->
+    return name.orNamedBy(defaultName).map { (locale, localizedName) ->
         CategoryEntity(
             icon = icon[locale]?.name,
             name = localizedName,
