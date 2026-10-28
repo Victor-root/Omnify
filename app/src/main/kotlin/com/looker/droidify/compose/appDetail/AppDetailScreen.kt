@@ -108,6 +108,7 @@ import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
 import com.looker.droidify.compose.appDetail.components.PackageItem
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.components.AccentScrollableTabRow
+import com.looker.droidify.compose.components.AppSummaryCard
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.MutedButton
@@ -1132,20 +1133,15 @@ private fun AppDetailBody(
     // Summary + description come first, right after the hero card, before anything else.
     Spacer(modifier = Modifier.height(8.dp))
     if (app.metadata.summary.isNotBlank()) {
-        // The bold summary is translated together with the description, so it switches too.
-        val shownSummary = (descriptionTranslation as? DescriptionTranslation.Translated)
-            ?.summary?.takeIf { it.isNotBlank() } ?: app.metadata.summary
-        Text(
-            text = shownSummary,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        AppSummaryCard(
+            summary = app.metadata.summary,
+            translation = descriptionTranslation,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
     }
 
     if (app.metadata.description.isNotBlank()) {
-        if (app.metadata.summary.isNotBlank()) Spacer(modifier = Modifier.height(4.dp))
+        if (app.metadata.summary.isNotBlank()) Spacer(modifier = Modifier.height(12.dp))
         val handler = LocalUriHandler.current
         // Parsing the HTML description is expensive; do it once per description instead of on
         // every recomposition (the detail screen recomposes repeatedly while data loads).
