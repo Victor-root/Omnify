@@ -18,6 +18,7 @@ import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -31,7 +32,9 @@ import com.looker.droidify.BuildConfig
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.text.ReadmeHtmlSanitizer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * A WebView sized exactly to its content (see [ReadmeWebView]'s doc): it never needs to scroll
@@ -123,22 +126,37 @@ fun ReadmeWebView(
     // HTML through the way the forges do. Everything that would let that HTML *act* rather than draw
     // (script, embedded documents, form targets, javascript:/intent:/file: links) is taken out here,
     // once, on the way into the WebView: the one point every caller and every cached copy passes
-    // through. Remembered on [html] alone so a theme change re-wraps without re-sanitizing.
-    val body = remember(html) { ReadmeHtmlSanitizer.sanitize(html) }
+    // through. Keyed on [html] alone so a theme change re-wraps without re-sanitizing. Off the main
+    // thread, so a long README cannot hold up the frame that opens the page. Until it is ready the
+    // WebView keeps what it shows (nothing yet, or the previous text while a translation comes in).
+    val body by produceState<String?>(null, html) {
+        value = withContext(Dispatchers.Default) {
+            val startedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
+            ReadmeHtmlSanitizer.sanitize(html).also {
+                if (BuildConfig.DIAGNOSTICS) {
+                    DiagnosticLog.log(
+                        "README sanitized in ${SystemClock.elapsedRealtime() - startedAt} ms (${html.length} chars)",
+                    )
+                }
+            }
+        }
+    }
     val document = remember(body, colorScheme, pageBackground) {
-        wrapReadmeHtml(
-            body = body,
-            // The app background (not the raised surface) when translucentBackground is set, so the page
-            // reads as part of the screen rather than a card floating on it. Code blocks/tables/quotes
-            // below keep their own solid surface colour for contrast; only the page itself blends in.
-            background = pageBackground,
-            text = colorScheme.onSurface,
-            link = colorScheme.primary,
-            codeBackground = colorScheme.surfaceVariant,
-            border = colorScheme.outlineVariant,
-            muted = colorScheme.onSurfaceVariant,
-            isDark = colorScheme.surface.luminance() < 0.5f,
-        )
+        body?.let { sanitized ->
+            wrapReadmeHtml(
+                body = sanitized,
+                // The app background (not the raised surface) when translucentBackground is set, so the
+                // page reads as part of the screen rather than a card floating on it. Code blocks/tables/
+                // quotes below keep their own solid surface colour for contrast; only the page blends in.
+                background = pageBackground,
+                text = colorScheme.onSurface,
+                link = colorScheme.primary,
+                codeBackground = colorScheme.surfaceVariant,
+                border = colorScheme.outlineVariant,
+                muted = colorScheme.onSurfaceVariant,
+                isDark = colorScheme.surface.luminance() < 0.5f,
+            )
+        }
     }
     AndroidView(
         modifier = modifier,
@@ -294,7 +312,7 @@ fun ReadmeWebView(
                 web.setLayerType(wantedLayerType, null)
             }
             // Reload only when the rendered document actually changes (not on every recomposition).
-            if (web.tag != document) {
+            if (document != null && web.tag != document) {
                 web.tag = document
                 web.loadDataWithBaseURL(baseUrl, document, "text/html", "UTF-8", null)
             }
