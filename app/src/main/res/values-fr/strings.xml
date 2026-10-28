@@ -98,6 +98,7 @@
     <string name="delete">Supprimer</string>
     <string name="delete_repository_DESC">Supprimer le dépôt \?</string>
     <string name="description">Description</string>
+    <string name="app_summary_label">L\'essentiel</string>
     <string name="details">Détails</string>
     <string name="donate">Faire un don</string>
     <string name="downloaded_FORMAT">Téléchargé %s</string>

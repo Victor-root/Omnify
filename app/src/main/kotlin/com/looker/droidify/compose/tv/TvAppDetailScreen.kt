@@ -66,6 +66,7 @@ import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.installer.model.InstallState
 import androidx.compose.foundation.layout.Arrangement.spacedBy
+import com.looker.droidify.compose.components.AppSummaryCard
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.HeroStatsRow
@@ -189,9 +190,10 @@ fun TvAppDetailScreen(
                 // The catalogue description is HTML, rendered in the right pane (see TvDescriptionPane) so it
                 // looks the same as an external app's README.
                 val descriptionHtml = app.metadata.description.raw
-                // Only the description is shown here, so only it is translated (no summary, no what's new).
+                val summary = app.metadata.summary
+                // The summary and description are shown here, so only they are translated (no what's new).
                 LaunchedEffect(app.metadata.packageName.name) {
-                    viewModel.maybeAutoTranslate(summary = "", descriptionHtml = descriptionHtml, whatsNew = "")
+                    viewModel.maybeAutoTranslate(summary = summary, descriptionHtml = descriptionHtml, whatsNew = "")
                 }
                 // Where "up" from the description goes: back to the screenshots above it.
                 val screenshotsFocus = remember { FocusRequester() }
@@ -346,11 +348,11 @@ fun TvAppDetailScreen(
                                         null
                                     },
                                     translation = descriptionTranslation.takeIf {
-                                        translationEnabled && descriptionHtml.isNotBlank()
+                                        translationEnabled && (summary.isNotBlank() || descriptionHtml.isNotBlank())
                                     },
                                     onTranslate = {
                                         viewModel.translateDescription(
-                                            summary = "",
+                                            summary = summary,
                                             descriptionHtml = descriptionHtml,
                                             whatsNew = "",
                                         )
@@ -382,6 +384,13 @@ fun TvAppDetailScreen(
                         right = {
                             if (screenshots.isNotEmpty()) {
                                 TvScreenshots(screenshots, screenshotsFocus, landscape = tvScreenshots.isNotEmpty())
+                            }
+                            if (summary.isNotBlank()) {
+                                AppSummaryCard(
+                                    summary = summary,
+                                    translation = descriptionTranslation,
+                                    textStyle = MaterialTheme.typography.titleMedium,
+                                )
                             }
                             TvSectionTitle(stringResource(R.string.description))
                             if (descriptionHtml.isBlank()) {
