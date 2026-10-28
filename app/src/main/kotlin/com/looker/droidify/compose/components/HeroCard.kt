@@ -55,8 +55,7 @@ fun HeroCard(
     subtitle: String?,
     actions: @Composable () -> Unit,
     modifier: Modifier = Modifier,
-    // The app's one-line summary, under the author like a tagline so it reads as part of who the app
-    // is rather than as the description's first paragraph.
+    // The app's one-line summary, under the author (see AppTagline).
     tagline: String? = null,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
@@ -121,13 +120,8 @@ fun HeroCard(
                     )
                 }
                 if (tagline != null) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = tagline,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    AppTagline(tagline)
                 }
                 if (badge != null) {
                     Spacer(modifier = Modifier.height(8.dp))

@@ -66,6 +66,7 @@ import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.installer.model.InstallState
 import androidx.compose.foundation.layout.Arrangement.spacedBy
+import com.looker.droidify.compose.components.AppTagline
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.HeroStatsRow
@@ -308,10 +309,9 @@ fun TvAppDetailScreen(
                                             )
                                         }
                                         if (summary.isNotBlank()) {
-                                            Text(
+                                            AppTagline(
                                                 text = descriptionTranslation.summaryOr(summary),
                                                 style = MaterialTheme.typography.bodyLarge,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                         if (isRootCompatible) RootBadge()
