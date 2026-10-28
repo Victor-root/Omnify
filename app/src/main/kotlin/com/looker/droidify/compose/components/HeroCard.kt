@@ -42,7 +42,7 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 
 /**
  * The shared "hero card" shell for an app's detail screen: a centred icon, bold name, an optional
- * subtitle, an optional favourite toggle overlaid top-end, an optional stats row, the primary action
+ * subtitle and tagline, an optional favourite toggle overlaid top-end, an optional stats row, the primary action
  * content, and an optional footer line — used identically by the F-Droid catalogue and the external
  * (GitHub/GitLab/Codeberg) detail screens, so the two read as the same app page rather than two
  * different designs. Each screen supplies its own icon/actions content; only the card's shape, spacing
@@ -55,6 +55,9 @@ fun HeroCard(
     subtitle: String?,
     actions: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    // The app's one-line summary, under the author like a tagline so it reads as part of who the app
+    // is rather than as the description's first paragraph.
+    tagline: String? = null,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
     // Android's own "App info" page (uninstall, clear cache/data, permissions, battery, notifications).
@@ -115,6 +118,15 @@ fun HeroCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (tagline != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = tagline,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
                     )
                 }
                 if (badge != null) {
