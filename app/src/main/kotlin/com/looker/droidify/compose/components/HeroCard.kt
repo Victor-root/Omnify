@@ -121,7 +121,7 @@ fun HeroCard(
                 }
                 if (tagline != null) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    AppTagline(tagline)
+                    AppTagline(tagline, centred = true)
                 }
                 if (badge != null) {
                     Spacer(modifier = Modifier.height(8.dp))
