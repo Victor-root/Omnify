@@ -129,7 +129,6 @@
     <string name="delete">Delete</string>
     <string name="delete_repository_DESC">Delete the repository?</string>
     <string name="description">Description</string>
-    <string name="app_summary_label">The essentials</string>
     <string name="details">Details</string>
     <string name="donate">Donate</string>
     <string name="downloaded_FORMAT">Downloaded %s</string>
