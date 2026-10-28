@@ -5,7 +5,7 @@
 ### 🔄 Changed
 - **Repositories sync all at once**: a slow server, F-Droid's on a bad night, no longer holds up your other repositories, and external sources are checked at the same time instead of afterwards.
 - **The header shows how far a sync has come**, a percentage beside its progress bar covering repositories and external sources together, on phone and TV.
-- **An app's short description stands apart** in a box of its own, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
+- **An app's short description moves into its card**, under the author, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
 
 ### 🐛 Fixed
 - **F-Droid syncs again for those it stopped for**: the day's changes were applied to an older copy of its catalogue left behind by an earlier sync, which produced a catalogue that could not be read; the whole catalogue is now fetched again instead.

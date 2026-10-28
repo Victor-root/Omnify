@@ -38,6 +38,10 @@ sealed interface DescriptionTranslation {
     data object Failed : DescriptionTranslation
 }
 
+/** The translated summary while there is one, else [original]. */
+fun DescriptionTranslation.summaryOr(original: String): String =
+    (this as? DescriptionTranslation.Translated)?.summary?.takeIf { it.isNotBlank() } ?: original
+
 /**
  * The header "Translate" button: a plain icon to start, a wavy ring around the icon while translating,
  * and a tap-to-revert icon once translated. Lives in a top bar's `actions`.

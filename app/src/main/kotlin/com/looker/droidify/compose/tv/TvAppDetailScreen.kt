@@ -66,11 +66,11 @@ import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.installer.model.InstallState
 import androidx.compose.foundation.layout.Arrangement.spacedBy
-import com.looker.droidify.compose.components.AppSummaryCard
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.TvOverscan
+import com.looker.droidify.compose.components.summaryOr
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.ScopedAccentColor
@@ -307,6 +307,13 @@ fun TvAppDetailScreen(
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
+                                        if (summary.isNotBlank()) {
+                                            Text(
+                                                text = descriptionTranslation.summaryOr(summary),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
                                         if (isRootCompatible) RootBadge()
                                     }
                                 }
@@ -384,13 +391,6 @@ fun TvAppDetailScreen(
                         right = {
                             if (screenshots.isNotEmpty()) {
                                 TvScreenshots(screenshots, screenshotsFocus, landscape = tvScreenshots.isNotEmpty())
-                            }
-                            if (summary.isNotBlank()) {
-                                AppSummaryCard(
-                                    summary = summary,
-                                    translation = descriptionTranslation,
-                                    textStyle = MaterialTheme.typography.titleMedium,
-                                )
                             }
                             TvSectionTitle(stringResource(R.string.description))
                             if (descriptionHtml.isBlank()) {
