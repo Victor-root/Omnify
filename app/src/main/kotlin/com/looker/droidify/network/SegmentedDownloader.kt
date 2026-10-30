@@ -136,9 +136,24 @@ class SegmentedDownloader(
             try {
                 coroutineScope {
                     val reporter = launch {
+                        var lastReceived = received.get()
+                        var lastProgressAt = SystemClock.elapsedRealtime()
+                        var stallLogged = false
                         while (isActive) {
                             block?.invoke(DataSize(received.get()), DataSize(probe.total))
                             saveState(target, url, probe, parts)
+                            val now = SystemClock.elapsedRealtime()
+                            if (received.get() != lastReceived) {
+                                lastReceived = received.get()
+                                lastProgressAt = now
+                                stallLogged = false
+                            } else if (!stallLogged && now - lastProgressAt >= STALL_LOG_MS) {
+                                stallLogged = true
+                                DiagnosticLog.log(
+                                    "$label: nothing received for ${STALL_LOG_MS / 1000} s, " +
+                                        "${(probe.total - lastReceived) / 1024} KB left in ${parts.describeUnfinished()}",
+                                )
+                            }
                             delay(REPORT_INTERVAL_MS)
                         }
                     }
@@ -386,6 +401,10 @@ class SegmentedDownloader(
         const val BUFFER_SIZE = 64 * 1024
         const val REPORT_INTERVAL_MS = 200L
 
+        /** How long a download in parts can go without a byte before the diagnostic log says which
+         *  parts it is waiting on. */
+        const val STALL_LOG_MS = 30_000L
+
         val JSON = Json { ignoreUnknownKeys = true }
     }
 
@@ -441,6 +460,13 @@ class SegmentedDownloader(
             slowest.end = splitAt - 1
             parts += taken
             return taken
+        }
+
+        /** The parts not complete yet, for the diagnostic log: where each starts, how much it lacks,
+         *  and whether a connection works on it. */
+        @Synchronized
+        fun describeUnfinished(): String = parts.filter { remaining(it) > 0 }.joinToString(prefix = "[", postfix = "]") {
+            "${it.start.inMegabytes()} MB: ${remaining(it) / 1024} KB left" + if (it.claimed) "" else ", unclaimed"
         }
 
         @Synchronized
