@@ -33,3 +33,10 @@ infix fun Long.percentBy(denominator: Long?): Int {
     if (denominator == null || denominator < 1) return -1
     return (this * 100 / denominator).toInt()
 }
+
+/** [percentBy] for a download still running, held at [DOWNLOAD_PERCENT_MAX]: its last byte can arrive
+ *  before it has ended, and a download reading 100 % looks like the install has already begun. */
+infix fun Long.downloadPercentBy(denominator: Long?): Int =
+    (this percentBy denominator).coerceAtMost(DOWNLOAD_PERCENT_MAX)
+
+const val DOWNLOAD_PERCENT_MAX = 99
