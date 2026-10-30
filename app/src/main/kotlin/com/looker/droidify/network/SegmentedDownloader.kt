@@ -13,6 +13,7 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
@@ -135,6 +136,11 @@ class SegmentedDownloader(
         val result = RandomAccessFile(target, "rw").use { file ->
             try {
                 coroutineScope {
+                    // One connection per part to begin with, never more than the cap: a resumed download
+                    // can hold more parts than that, split off along the way.
+                    val connections = List(minOf(parts.size, MAX_CONNECTIONS)) {
+                        launch { runParts(url, headers, probe.validator, parts, file.channel, received, label) }
+                    }
                     val reporter = launch {
                         var lastReceived = received.get()
                         var lastProgressAt = SystemClock.elapsedRealtime()
@@ -142,6 +148,12 @@ class SegmentedDownloader(
                         while (isActive) {
                             block?.invoke(DataSize(received.get()), DataSize(probe.total))
                             saveState(target, url, probe, parts)
+                            // Every byte is written: a connection still open is only closing a response
+                            // whose end another connection took over, and nothing is left to wait for.
+                            if (parts.received() == probe.total && connections.any { it.isActive }) {
+                                DiagnosticLog.log("$label: every byte here, closing the connections still open")
+                                connections.forEach { it.cancel() }
+                            }
                             val now = SystemClock.elapsedRealtime()
                             if (received.get() != lastReceived) {
                                 lastReceived = received.get()
@@ -157,11 +169,7 @@ class SegmentedDownloader(
                             delay(REPORT_INTERVAL_MS)
                         }
                     }
-                    // One connection per part to begin with, never more than the cap: a resumed download
-                    // can hold more parts than that, split off along the way.
-                    List(minOf(parts.size, MAX_CONNECTIONS)) {
-                        launch { runParts(url, headers, probe.validator, parts, file.channel, received, label) }
-                    }.joinAll()
+                    connections.joinAll()
                     reporter.cancel()
                 }
                 block?.invoke(DataSize(received.get()), DataSize(probe.total))
@@ -259,7 +267,7 @@ class SegmentedDownloader(
             }
         }
     } catch (e: Exception) {
-        if (e is FileChanged) throw e
+        if (e is FileChanged || e is CancellationException) throw e
         e.asNetworkError()
     }
 

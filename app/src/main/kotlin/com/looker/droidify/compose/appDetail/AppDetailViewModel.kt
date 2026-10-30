@@ -40,7 +40,7 @@ import com.looker.droidify.network.ApkFileDownloader
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.ProgressListener
-import com.looker.droidify.network.percentBy
+import com.looker.droidify.network.downloadPercentBy
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
@@ -1260,7 +1260,7 @@ data class DownloadStatus(
     val speedLabel: String? get() = if (bytesPerSecond > 0) "${DataSize(bytesPerSecond)}/s" else null
 
     /** Percentage 0..100, or -1 when the total size is unknown. */
-    val percent: Int get() = read percentBy total.takeIf { it > 0 }
+    val percent: Int get() = read downloadPercentBy total.takeIf { it > 0 }
 }
 
 sealed interface AppDetailState {

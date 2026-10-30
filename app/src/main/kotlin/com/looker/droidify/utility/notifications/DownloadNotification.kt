@@ -9,7 +9,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.MainComposeActivity
 import com.looker.droidify.installer.ApkDownloads
 import com.looker.droidify.network.DataSize
-import com.looker.droidify.network.percentBy
+import com.looker.droidify.network.downloadPercentBy
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_CHANNEL_DOWNLOADING
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_ID_DOWNLOADING
 import com.looker.droidify.utility.common.createNotificationChannel
@@ -37,7 +37,7 @@ fun Context.createApkDownloadNotification(downloads: Collection<ApkDownloads.Dow
     val total = downloads.takeIf { all -> all.all { it.status.hasTotal } }?.sumOf { it.status.total }
     return downloadNotification(
         title = title,
-        percent = total?.let { read percentBy it } ?: -1,
+        percent = total?.let { read downloadPercentBy it } ?: -1,
         text = total?.let { "${DataSize(read)} / ${DataSize(it)}" },
     )
 }

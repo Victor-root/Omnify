@@ -31,6 +31,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.looker.droidify.network.DOWNLOAD_PERCENT_MAX
 import java.text.NumberFormat
 
 /** Where a corner of the icon is probed, as a share of its side: deep enough to sit inside a rounded
@@ -104,8 +105,8 @@ fun UpdateRingIcon(
                 if (updateFraction != null) {
                     // On an opaque round badge, as the dimmed icon underneath would otherwise show
                     // through the digits. The circle is sized once for the widest reading (100 %), so
-                    // it keeps the same size as the number climbs. Truncated like the ring, so it
-                    // never reads 100 % before the ring is full.
+                    // it keeps the same size as the number climbs. Held at 99 % like every download's
+                    // percentage (see downloadPercentBy).
                     // A locale change recreates the activity, so one instance per icon is enough.
                     val percent = remember { NumberFormat.getPercentInstance() }
                     val style = MaterialTheme.typography.labelSmall
@@ -121,7 +122,9 @@ fun UpdateRingIcon(
                             .background(MaterialTheme.colorScheme.primary, CircleShape),
                     ) {
                         Text(
-                            text = percent.format((updateFraction * 100).toInt() / 100.0),
+                            text = percent.format(
+                                (updateFraction * 100).toInt().coerceAtMost(DOWNLOAD_PERCENT_MAX) / 100.0,
+                            ),
                             style = style,
                             color = MaterialTheme.colorScheme.onPrimary,
                         )
