@@ -405,7 +405,7 @@ class AppDetailViewModel @Inject constructor(
      */
     val downloadStatus: StateFlow<DownloadStatus?> =
         combine(apkDownloads.active, batchProgress.state) { own, batch ->
-            own[packageName]?.status ?: batch?.takeIf { it.packageName == packageName }?.download
+            own[packageName]?.status ?: batch?.items?.get(packageName)?.download
         }.asStateFlow(null)
 
     private val _downloadTargetVersionCode = MutableStateFlow<Long?>(null)
@@ -424,7 +424,7 @@ class AppDetailViewModel @Inject constructor(
      */
     val downloadTargetVersionCode: StateFlow<Long?> =
         combine(_downloadTargetVersionCode, batchProgress.state) { own, batch ->
-            own ?: batch?.takeIf { it.packageName == packageName }?.versionCode
+            own ?: batch?.items?.get(packageName)?.versionCode
         }.asStateFlow(null)
 
     /**
@@ -978,7 +978,7 @@ class AppDetailViewModel @Inject constructor(
             // queue does nothing for a download that hasn't reached it. Stopping the batch is what
             // makes the button do what it says. It stops the whole run, not just this app: see
             // UpdateAllWorker.cancel.
-            batchProgress.state.value?.packageName == packageName ->
+            batchProgress.state.value?.items?.containsKey(packageName) == true ->
                 UpdateAllWorker.cancel(context)
 
             else -> installManager.cancel(PackageName(packageName))

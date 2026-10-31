@@ -405,12 +405,12 @@ class ExternalAppsViewModel @Inject constructor(
     }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
 
     /**
-     * The tracked source a step of a running "update all" is on, or null when no batch is running or
-     * the step is a catalogue app: the batch names a source by its key (see UpdateAllWorker) and a
-     * catalogue app by its package name, which is no source's key.
+     * The tracked sources a running "update all" is working on, none when no batch is running: the
+     * batch names a source by its key (see UpdateAllWorker) and a catalogue app by its package name,
+     * which is no source's key.
      */
-    private fun List<ExternalApp>.sourceOf(batch: BatchUpdateProgress.State?): ExternalApp? =
-        batch?.let { state -> firstOrNull { it.key == state.packageName } }
+    private fun List<ExternalApp>.inBatch(batch: BatchUpdateProgress.State?): List<ExternalApp> =
+        batch?.let { state -> filter { it.key in state.items } }.orEmpty()
 
     /**
      * Live download progress per app (drives the per-card progress bar).
@@ -426,13 +426,9 @@ class ExternalAppsViewModel @Inject constructor(
      */
     val downloads: StateFlow<Map<String, DownloadStatus>> =
         combine(apkDownloads.active, batchProgress.state, apps) { active, batch, tracked ->
-            val source = tracked.sourceOf(batch)
-            val status = batch?.download
-            val fromBatch = if (source != null && status != null) {
-                mapOf(source.key to status)
-            } else {
-                emptyMap()
-            }
+            val fromBatch = tracked.inBatch(batch).mapNotNull { source ->
+                batch?.items?.get(source.key)?.download?.let { source.key to it }
+            }.toMap()
             fromBatch + active.mapValues { it.value.status }
         }.asStateFlow(emptyMap())
 
@@ -445,18 +441,14 @@ class ExternalAppsViewModel @Inject constructor(
      * view once the user has scrolled down to the list.
      *
      * Same two sources as [downloads], for the same reason: the batch always fetches a source's newest
-     * release, so its row is the one to mark while the batch is on that source.
+     * release, so its row is the one to mark while the batch works on that source.
      */
     private val _downloadTargetTag = MutableStateFlow<Map<String, String>>(emptyMap())
     val downloadTargetTag: StateFlow<Map<String, String>> =
         combine(_downloadTargetTag, batchProgress.state, apps) { own, batch, tracked ->
-            val source = tracked.sourceOf(batch)
-            val tag = source?.latestTag
-            val fromBatch = if (source != null && tag != null) {
-                mapOf(source.key to tag)
-            } else {
-                emptyMap()
-            }
+            val fromBatch = tracked.inBatch(batch).mapNotNull { source ->
+                source.latestTag?.let { source.key to it }
+            }.toMap()
             fromBatch + own
         }.asStateFlow(emptyMap())
 
@@ -1503,7 +1495,7 @@ class ExternalAppsViewModel @Inject constructor(
             // is no local job to cancel, and cancelling the install queue does nothing for a download
             // that hasn't reached it. Stopping the batch is what makes the button do what it says. It
             // stops the whole run, not just this source: see UpdateAllWorker.cancel.
-            batchProgress.state.value?.packageName == app.key -> UpdateAllWorker.cancel(context)
+            batchProgress.state.value?.items?.containsKey(app.key) == true -> UpdateAllWorker.cancel(context)
             else -> (app.packageName ?: externalInstaller.pendingInstalls.value[app.key])
                 ?.let { installManager.cancel(PackageName(it)) }
         }

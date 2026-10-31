@@ -152,12 +152,12 @@ fun TvHomeScreen(
     // The same answer as the catalogue half and the notification: see AppListViewModel.updates.
     val externalUpdates by viewModel.externalUpdates.collectAsStateWithLifecycle()
     val isUpdatingAll by viewModel.isUpdatingAll.collectAsStateWithLifecycle()
-    val updatingPackage by viewModel.updatingPackage.collectAsStateWithLifecycle()
+    val updatingPackages by viewModel.updatingPackages.collectAsStateWithLifecycle()
     val batchUpdate by viewModel.batchUpdate.collectAsStateWithLifecycle()
     val installingPackages by viewModel.installingPackages.collectAsStateWithLifecycle()
     val externalInstallStates by externalViewModel.installStates.collectAsStateWithLifecycle()
-    val updating = remember(updatingPackage, batchUpdate, installingPackages, externalInstallStates) {
-        UpdatingApps(updatingPackage, batchUpdate, installingPackages, externalInstallStates)
+    val updating = remember(updatingPackages, batchUpdate, installingPackages, externalInstallStates) {
+        UpdatingApps(updatingPackages, batchUpdate, installingPackages, externalInstallStates)
     }
     val displayedApps by viewModel.displayedApps.collectAsStateWithLifecycle()
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()

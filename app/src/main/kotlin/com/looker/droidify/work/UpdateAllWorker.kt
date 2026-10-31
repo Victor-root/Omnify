@@ -38,10 +38,17 @@ import com.looker.droidify.utility.common.extension.singleSignature
 import com.looker.droidify.utility.common.extension.versionCodeCompat
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import com.looker.droidify.utility.common.extension.exceptCancellation
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
@@ -50,9 +57,13 @@ import java.util.concurrent.TimeUnit
  * "Update all" instead of making the user tap each app.
  *
  * Both halves of that tab, catalogue apps ([KEY_PACKAGES]) and tracked external sources
- * ([KEY_EXTERNAL_KEYS]), in that order and in one batch, so the button covers the list it sits above
- * rather than part of it. They take different routes only because they resolve their APKs
- * differently, not because they mean different things to the user.
+ * ([KEY_EXTERNAL_KEYS]), in one batch, so the button covers the list it sits above rather than part
+ * of it. They take different routes only because they resolve their APKs differently, not because
+ * they mean different things to the user.
+ *
+ * Up to [MAX_PARALLEL] packages are worked on at once, taken in the order asked for: a slow server
+ * holds up only its own download, the next package starting as soon as any one is through, and
+ * whichever download finishes first is installed first.
  *
  * What to update is decided by the caller (the Updates tab already computes exactly what it lists);
  * this worker just carries it out. For a catalogue package it resolves the best release this device
@@ -95,38 +106,33 @@ class UpdateAllWorker @AssistedInject constructor(
         val total = packages.size + external.size
 
         Log.i(TAG, "Updating ${packages.size} catalogue app(s) and ${external.size} external source(s)")
+        // The source's own key for an external source, never the package id it installs under: the
+        // tiles this marks are keyed that way, and a catalogue tile must not light up for a source that
+        // happens to install the same package.
+        val steps = packages.map { name -> name to suspend { updateCatalogueApp(name) } } +
+            external.map { app -> app.key to suspend { updateExternalApp(app) } }
+        batchProgress.start(total)
         try {
-            packages.forEachIndexed { index, packageName ->
-                // Publish which app is being handled right now, so the Updates tab can show a live
-                // spinner on that tile and move to the next as the batch progresses.
-                setProgress(Data.Builder().putString(KEY_CURRENT_PACKAGE, packageName).build())
-                // The same, plus the byte counts, for anything on screen: see BatchUpdateProgress.
-                batchProgress.startPackage(packageName, index + 1, total)
-                showBatchStep(R.string.batch_updating_FORMAT, index + 1, total)
-                // Asked again at its turn rather than trusted from when Update all was tapped: an app
-                // updated by hand meanwhile, from its own page, was downloaded and installed a second time.
-                if (packageName !in pendingUpdates.cataloguePackages()) {
-                    logSkippedAsUpToDate()
-                    return@forEachIndexed
+            val slots = Semaphore(MAX_PARALLEL)
+            coroutineScope {
+                steps.forEach { (key, update) ->
+                    launch {
+                        slots.withPermit {
+                            batchProgress.startPackage(key)
+                            logStep("started", key)
+                            publishStep()
+                            try {
+                                update()
+                            } catch (e: Exception) {
+                                e.exceptCancellation()
+                                Log.w(TAG, "Update failed for $key", e)
+                            }
+                            batchProgress.finishPackage(key)
+                            logStep("done with", key)
+                            publishStep()
+                        }
+                    }
                 }
-                runCatching { updateOne(packageName) }
-                    .onFailure { Log.w(TAG, "Update failed for $packageName", it) }
-            }
-            external.forEachIndexed { index, app ->
-                // The source's own key, never the package id it installs under: the tiles this marks
-                // are keyed that way, and a catalogue tile must not light up for a source that happens
-                // to install the same package.
-                setProgress(Data.Builder().putString(KEY_CURRENT_PACKAGE, app.key).build())
-                batchProgress.startPackage(app.key, packages.size + index + 1, total)
-                showBatchStep(R.string.batch_updating_FORMAT, packages.size + index + 1, total)
-                // The same as above, with the source's record as it is now rather than as it was then.
-                val current = pendingUpdates.externalApps().firstOrNull { it.key == app.key }
-                if (current == null) {
-                    logSkippedAsUpToDate()
-                    return@forEachIndexed
-                }
-                runCatching { updateOneExternal(current) }
-                    .onFailure { Log.w(TAG, "Update failed for ${app.key}", it) }
             }
         } finally {
             // In a finally so a cancelled batch (the user leaving, the system stopping the work)
@@ -134,6 +140,45 @@ class UpdateAllWorker @AssistedInject constructor(
             batchProgress.clear()
         }
         Result.success()
+    }
+
+    /**
+     * Publishes which packages are in flight, so the Updates tab can show a live spinner on those
+     * tiles, and moves the notification's count along. One at a time: the packages running together
+     * would otherwise publish over each other out of order.
+     */
+    private suspend fun publishStep() = stepPublishing.withLock {
+        val state = batchProgress.state.value ?: return@withLock
+        setProgress(Data.Builder().putStringArray(KEY_CURRENT_PACKAGES, state.items.keys.toTypedArray()).build())
+        showBatchStep(R.string.batch_updating_FORMAT, state.position, state.count)
+    }
+
+    private val stepPublishing = Mutex()
+
+    /** A catalogue app, asked again at its turn rather than trusted from when Update all was tapped: an
+     *  app updated by hand meanwhile, from its own page, was downloaded and installed a second time. */
+    private suspend fun updateCatalogueApp(packageName: String) {
+        if (packageName !in pendingUpdates.cataloguePackages()) {
+            logSkippedAsUpToDate()
+            return
+        }
+        updateOne(packageName)
+    }
+
+    /** The same as [updateCatalogueApp], with the source's record as it is now rather than as it was. */
+    private suspend fun updateExternalApp(app: ExternalApp) {
+        val current = pendingUpdates.externalApps().firstOrNull { it.key == app.key }
+        if (current == null) {
+            logSkippedAsUpToDate()
+            return
+        }
+        updateOneExternal(current)
+    }
+
+    private fun logStep(what: String, key: String) {
+        if (!BuildConfig.DIAGNOSTICS) return
+        val inFlight = batchProgress.state.value?.items?.size ?: 0
+        DiagnosticLog.log("Update all: $what $key, $inFlight in flight")
     }
 
     private fun logSkippedAsUpToDate() {
@@ -149,11 +194,11 @@ class UpdateAllWorker @AssistedInject constructor(
     private suspend fun updateOneExternal(app: ExternalApp) {
         val outcome = externalInstaller.installLatest(
             app = app,
-            onDownload = { read, total -> batchProgress.reportDownload(read.value, total?.value) },
+            onDownload = { read, total -> batchProgress.reportDownload(app.key, read.value, total?.value) },
             // Asked again once downloaded: the app may have been updated by hand during the download.
             stillWanted = { pendingUpdates.externalApps().any { it.key == app.key } },
         )
-        batchProgress.finishDownload()
+        batchProgress.finishDownload(app.key)
         if (outcome == ExternalInstallOutcome.UP_TO_DATE) logSkippedAsUpToDate()
         if (outcome != ExternalInstallOutcome.STARTED) Log.i(TAG, "Skipped ${app.key}: $outcome")
     }
@@ -173,10 +218,10 @@ class UpdateAllWorker @AssistedInject constructor(
         }
         val (pkg, repo) = target
         // Now that the release is known, an app's version list can mark the row being downloaded.
-        batchProgress.setTargetVersion(pkg.manifest.versionCode)
+        batchProgress.setTargetVersion(packageName, pkg.manifest.versionCode)
 
         // Download and verify first — never touch the installed app until the new APK is in hand.
-        val cacheFileName = downloadAndVerify(pkg, repo) ?: return
+        val cacheFileName = downloadAndVerify(packageName, pkg, repo) ?: return
         // Asked again once downloaded, and of the device itself rather than the installed-apps table,
         // which only catches up a moment after an install: the app may have been updated by hand, from
         // its own page, during the download.
@@ -201,7 +246,7 @@ class UpdateAllWorker @AssistedInject constructor(
      * Downloads [pkg] from [repo] and checks it against the index hash. Returns the release cache
      * file name on success, or null if the download or verification failed.
      */
-    private suspend fun downloadAndVerify(pkg: Package, repo: Repo): String? {
+    private suspend fun downloadAndVerify(packageName: String, pkg: Package, repo: Repo): String? {
         val cacheFileName = pkg.apk.hash.replace('/', '-') + ".apk"
         // Reuse an already-downloaded, hash-verified APK instead of fetching it again.
         val cachedRelease = Cache.getReleaseFile(applicationContext, cacheFileName)
@@ -221,9 +266,9 @@ class UpdateAllWorker @AssistedInject constructor(
         ) { read, total ->
             // The batch downloads outside any screen, so this is the only place the bytes are known.
             // BatchUpdateProgress throttles them; this callback fires far too often to publish raw.
-            batchProgress.reportDownload(read.value, total?.value)
+            batchProgress.reportDownload(packageName, read.value, total?.value)
         }
-        batchProgress.finishDownload()
+        batchProgress.finishDownload(packageName)
         if (response !is NetworkResponse.Success) {
             Log.w(TAG, "Download failed for ${pkg.apk.name}")
             partialFile.delete()
@@ -260,7 +305,11 @@ class UpdateAllWorker @AssistedInject constructor(
         private const val TAG = "UpdateAllWorker"
         private const val KEY_PACKAGES = "packages"
         private const val KEY_EXTERNAL_KEYS = "external_keys"
-        private const val KEY_CURRENT_PACKAGE = "current_package"
+        private const val KEY_CURRENT_PACKAGES = "current_packages"
+
+        /** Packages downloaded at once: enough that one slow server no longer holds up the rest, few
+         *  enough not to split a slow connection so many ways that nothing finishes. */
+        private const val MAX_PARALLEL = 3
 
         /**
          * Enqueues a one-shot update of [packageNames] (catalogue) and [externalKeys] (tracked
@@ -293,8 +342,8 @@ class UpdateAllWorker @AssistedInject constructor(
          * Stops a running batch. Cancelling the work cancels the coroutine it runs in, so the
          * download in flight is abandoned and [doWork]'s finally clears the on-screen progress.
          *
-         * The whole batch, not one app: the run is a single piece of work with a single sequential
-         * loop, so there is no per-app handle to pull. Cancel on an app's page therefore means "stop
+         * The whole batch, not one app: the run is a single piece of work, so there is no per-app
+         * handle to pull. Cancel on an app's page therefore means "stop
          * updating", not "skip this one", which is the plain reading of the button given that the
          * page shows the batch's download as its own.
          */
@@ -309,14 +358,14 @@ class UpdateAllWorker @AssistedInject constructor(
                 .getWorkInfosByTagFlow(TAG)
                 .map { infos -> infos.any { it.state == WorkInfo.State.RUNNING } }
 
-        /** The package name currently being updated by the running batch (or null when idle), so the
-         *  Updates tab can show a live spinner on that app's tile. */
-        fun currentPackage(context: Context): Flow<String?> =
+        /** The packages the running batch is updating right now (empty when idle), so the Updates tab
+         *  can show a live spinner on those apps' tiles. */
+        fun currentPackages(context: Context): Flow<Set<String>> =
             WorkManager.getInstance(context)
                 .getWorkInfosByTagFlow(TAG)
                 .map { infos ->
                     infos.firstOrNull { it.state == WorkInfo.State.RUNNING }
-                        ?.progress?.getString(KEY_CURRENT_PACKAGE)
+                        ?.progress?.getStringArray(KEY_CURRENT_PACKAGES)?.toSet().orEmpty()
                 }
     }
 }
