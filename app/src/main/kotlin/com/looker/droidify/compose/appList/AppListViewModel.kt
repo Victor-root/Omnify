@@ -593,14 +593,14 @@ class AppListViewModel @Inject constructor(
     /** True while a batch "update all" is downloading its apps — locks the button and shows progress. */
     val isUpdatingAll: StateFlow<Boolean> = UpdateAllWorker.isUpdating(context).asHomeState(false)
 
-    /** The package currently being updated by a running "update all" batch (null when idle), so the
-     *  Updates tab shows a live spinner on that app and moves to the next in real time. */
-    val updatingPackage: StateFlow<String?> = UpdateAllWorker.currentPackage(context).asHomeState(null)
+    /** The packages a running "update all" batch is updating right now (empty when idle), so the
+     *  Updates tab shows a live spinner on those apps and moves on in real time. */
+    val updatingPackages: StateFlow<Set<String>> = UpdateAllWorker.currentPackages(context).asHomeState(emptySet())
 
     /**
      * The same batch, with its byte counts and its place in the run, so the tile being updated can
      * show how far along it actually is and the "update all" button how far the whole batch has come.
-     * Distinct from [updatingPackage], which comes from WorkManager and so survives the app's process
+     * Distinct from [updatingPackages], which comes from WorkManager and so survives the app's process
      * being restarted: this one is in memory (see [BatchUpdateProgress]) and is simply null in that
      * case, which leaves the tile on its plain spinner rather than showing nothing.
      */

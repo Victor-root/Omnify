@@ -3,6 +3,7 @@
 ## 🚀 v1.0.8-beta.9 (Unreleased)
 
 ### 🔄 Changed
+- **"Update all" works on three apps at once**: a slow server no longer holds up the rest, the next app starts as soon as one is through, and whichever finishes downloading first is installed first.
 - **Repositories sync all at once**: a slow server, F-Droid's on a bad night, no longer holds up your other repositories, and external sources are checked at the same time instead of afterwards.
 - **The header shows how far a sync has come**, a percentage beside its progress bar covering repositories and external sources together, on phone and TV.
 - **An app's short description moves into its card**, under the author and set off by a bar in the app's colour, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
