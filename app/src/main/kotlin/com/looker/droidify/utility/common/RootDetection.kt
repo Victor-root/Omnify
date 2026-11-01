@@ -14,12 +14,15 @@ object RootDetection {
     /** The legacy superuser `<uses-permission>` some root apps still declare. */
     const val PERMISSION = "android.permission.ACCESS_SUPERUSER"
 
-    /** Strong "this app uses root" phrasings, matched case-insensitively. Kept specific enough that a
-     *  bare "root" (square root, root directory, root CA…) doesn't leak in. */
+    /** Strong "this app uses root" phrasings, matched case-insensitively, in English and in French
+     *  (for the apps whose only text is French). Kept specific enough that a bare "root" (square root,
+     *  root directory, root CA…) doesn't leak in. */
     val KEYWORDS = listOf(
         "magisk", "kernelsu", "superuser", "supersu",
         "root access", "root permission", "root privilege", "root required", "requires root",
         "require root", "needs root", "need root", "rooted device", "rooted phone", "root your",
+        "nécessite root", "nécessite le root", "accès root", "droits root", "privilèges root",
+        "root requis", "root nécessaire", "appareil rooté", "appareils rootés", "téléphone rooté",
     )
 
     /** Negations that cancel a keyword match, so "works without root" / "no root required" apps
@@ -27,13 +30,17 @@ object RootDetection {
     val NEGATIONS = listOf(
         "no root", "without root", "non-root", "nonroot", "rootless", "root-free", "root free",
         "not require root", "not need root", "root not required", "no need for root",
+        "sans root", "sans accès root", "pas besoin de root", "pas besoin du root", "pas de root",
+        "root non requis", "ne nécessite pas root", "ne nécessite pas le root", "non rooté",
     )
 
-    /** True when [text] contains a strong root-usage phrasing not cancelled out by a negation.
-     *  Case-insensitive. For an in-memory (not SQL) check — the detail screen's Root badge, an
-     *  external app's README/label, … */
-    fun textIndicatesRoot(text: String): Boolean {
+    /** True when one of [texts] contains a strong root-usage phrasing not cancelled out by a negation
+     *  in that same text. Case-insensitive. Each text is one language's version, judged on its own: an
+     *  app's text in the user's language, and its English original, where the translation may have
+     *  turned "Requires root" into a phrase not listed here. For an in-memory (not SQL) check: the
+     *  detail screen's Root badge, an external app's README/label… */
+    fun textIndicatesRoot(vararg texts: String): Boolean = texts.any { text ->
         val lower = text.lowercase()
-        return KEYWORDS.any { lower.contains(it) } && NEGATIONS.none { lower.contains(it) }
+        KEYWORDS.any { lower.contains(it) } && NEGATIONS.none { lower.contains(it) }
     }
 }

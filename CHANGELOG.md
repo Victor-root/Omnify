@@ -15,6 +15,7 @@
 - **A large download no longer hangs at the very end**: once every byte has arrived, it goes on to the install instead of waiting on a connection that has nothing left to send. A download now reads 99 % at most, so it can't be taken for the install.
 - **F-Droid syncs again for those it stopped for**: the day's changes were applied to an older copy of its catalogue left behind by an earlier sync, which produced a catalogue that could not be read; the whole catalogue is now fetched again instead.
 - **A full catalogue download picks up where it stopped**: F-Droid's catalogue is tens of MB, and on a slow server or after leaving the app it used to start over every time. It is now checked against the fingerprint F-Droid publishes before being used.
+- **The Root badge shows in every language**: an app whose description says it needs root only in English, or in French, is now recognised whichever language Omnify is in, on its page and in "For rooted devices".
 - **A sync cut short no longer leaves F-Droid stuck loading**: when the day's changes fail to download, the whole catalogue is fetched again instead of falling back to a much slower older format.
 
 ## 🚀 v1.0.7-beta.8 (2026-10-25)

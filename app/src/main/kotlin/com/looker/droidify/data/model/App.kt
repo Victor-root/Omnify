@@ -64,6 +64,9 @@ data class Metadata(
     val suggestedVersionCode: Long,
     val suggestedVersionName: String,
     val summary: String,
+    /** Whether the app's own text, in the user's language or its English original, says it uses root
+     *  (see RootDetection.textIndicatesRoot). */
+    val describesRoot: Boolean,
 )
 
 data class Screenshots(
