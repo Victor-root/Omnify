@@ -1927,11 +1927,10 @@ private fun antiFeatureLabel(tag: String): String = when (tag) {
  * Whether [this] app is meant for rooted devices, shown as [RootBadge]. Fuzzy but shared with the
  * Discover home's "For rooted devices" carousel (see RootDetection): the legacy superuser permission
  * declared by [pkg], or strong root phrasing (Magisk/KernelSU/"requires root"…) in the app's own
- * name/summary/description, minus an explicit negation ("works without root"…).
+ * name/summary/description, in the user's language or in English ([Metadata.describesRoot]).
  */
 internal fun App.isRootCompatible(pkg: Package?): Boolean =
-    RootDetection.textIndicatesRoot("${metadata.name} ${metadata.summary} ${metadata.description.raw}") ||
-        pkg?.manifest?.permissions?.any { it.name == RootDetection.PERMISSION } == true
+    metadata.describesRoot || pkg?.manifest?.permissions?.any { it.name == RootDetection.PERMISSION } == true
 
 @Composable
 internal fun PermissionsSection(permissions: List<Permission>) {

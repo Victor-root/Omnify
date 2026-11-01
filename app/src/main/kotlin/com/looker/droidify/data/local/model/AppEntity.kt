@@ -14,6 +14,7 @@ import com.looker.droidify.data.model.Html
 import com.looker.droidify.data.model.Metadata
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.sync.v2.model.MetadataV2
+import com.looker.droidify.utility.common.RootDetection
 
 @Entity(
     tableName = "app",
@@ -141,6 +142,7 @@ private fun AppEntity.toMetadata(
     iconUrl: String?,
     baseAddress: String,
     versions: List<VersionEntity>?,
+    describesRoot: Boolean,
 ): Metadata {
     val suggestedVersion = versions?.maxByOrNull { it.versionCode }
 
@@ -155,29 +157,49 @@ private fun AppEntity.toMetadata(
         suggestedVersionCode = suggestedVersion?.versionCode ?: 0,
         suggestedVersionName = suggestedVersion?.versionName ?: "",
         summary = appSummary,
+        describesRoot = describesRoot,
     )
 }
 
 fun AppEntityRelations.toApp(
     locale: String,
     repo: RepoEntity,
-) = App(
-    repoId = app.repoId.toLong(),
-    appId = app.id.toLong(),
-    categories = categories.filterLocalized(locale).map { it.defaultName },
-    links = links?.toLinks(),
-    metadata = app.toMetadata(
-        baseAddress = repo.address,
-        versions = versions,
-        appName = names.findLocale(locale).name,
-        appDescription = if (descriptions.isEmpty()) "" else descriptions.findLocale(locale).description,
-        iconUrl = icons.ifEmpty { null }?.findLocale(locale)?.icon?.name,
-        appSummary = if (summaries.isEmpty()) "" else summaries.findLocale(locale).summary,
-    ),
-    author = author.toAuthor(),
-    screenshots = screenshots?.toScreenshots(locale, repo.address),
-    graphics = graphics?.toGraphics(locale, repo.address),
-    donation = donation?.toDonation(),
-    preferredSigner = app.preferredSigner ?: "",
-    packages = versions?.toPackages(locale, installed, antiFeatures),
-)
+): App {
+    val name = names.findLocale(locale).name
+    val description = if (descriptions.isEmpty()) "" else descriptions.findLocale(locale).description
+    val summary = if (summaries.isEmpty()) "" else summaries.findLocale(locale).summary
+    return App(
+        repoId = app.repoId.toLong(),
+        appId = app.id.toLong(),
+        categories = categories.filterLocalized(locale).map { it.defaultName },
+        links = links?.toLinks(),
+        metadata = app.toMetadata(
+            baseAddress = repo.address,
+            versions = versions,
+            appName = name,
+            appDescription = description,
+            iconUrl = icons.ifEmpty { null }?.findLocale(locale)?.icon?.name,
+            appSummary = summary,
+            describesRoot = RootDetection.textIndicatesRoot(
+                "$name $summary $description",
+                englishText(),
+            ),
+        ),
+        author = author.toAuthor(),
+        screenshots = screenshots?.toScreenshots(locale, repo.address),
+        graphics = graphics?.toGraphics(locale, repo.address),
+        donation = donation?.toDonation(),
+        preferredSigner = app.preferredSigner ?: "",
+        packages = versions?.toPackages(locale, installed, antiFeatures),
+    )
+}
+
+/** The app's name, summary and description in English, when the index carries them. */
+private fun AppEntityRelations.englishText(): String = listOfNotNull(
+    names.englishOrNull()?.name,
+    summaries.englishOrNull()?.summary,
+    descriptions.englishOrNull()?.description,
+).joinToString(" ")
+
+private fun <T : LocalizedEntityData> List<T>.englishOrNull(): T? =
+    firstOrNull { it.locale == "en-US" } ?: firstOrNull { it.locale == "en" }

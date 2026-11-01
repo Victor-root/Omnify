@@ -175,19 +175,26 @@ interface AppDao {
      * root" isn't wrongly included. Union of the permission and the keyword match, newest first.
      */
     suspend fun rootApps(locale: String, limit: Int): List<AppMinimal> {
-        // The searchable blob: localized (falling back to en-US) description + summary + name.
-        val text = "LOWER(" +
+        // The searchable blobs, judged each on its own like RootDetection.textIndicatesRoot: the
+        // localized (falling back to en-US) description + summary + name, and the en-US original, where
+        // a translation may have turned "Requires root" into a phrase the keywords miss.
+        val localized = "LOWER(" +
             "COALESCE(d_loc.description, d_en.description, '') || ' ' || " +
             "COALESCE(s_loc.summary, s_en.summary, '') || ' ' || " +
             "COALESCE(n_loc.name, n_en.name, ''))"
-        fun clause(words: List<String>, op: String, join: String) = words.joinToString(join) {
+        val english = "LOWER(" +
+            "COALESCE(d_en.description, '') || ' ' || " +
+            "COALESCE(s_en.summary, '') || ' ' || " +
+            "COALESCE(n_en.name, ''))"
+        fun clause(text: String, words: List<String>, op: String, join: String) = words.joinToString(join) {
             "$text $op '%${it.replace("'", "''")}%'"
         }
+        fun keywordMatch(text: String) = "((${clause(text, RootDetection.KEYWORDS, "LIKE", " OR ")}) AND " +
+            "(${clause(text, RootDetection.NEGATIONS, "NOT LIKE", " AND ")}))"
         val permMatch = "EXISTS (SELECT 1 FROM version WHERE version.appId = app.id AND " +
             "(version.permissions LIKE '%\"${RootDetection.PERMISSION}\"%' OR " +
             "version.permissionsSdk23 LIKE '%\"${RootDetection.PERMISSION}\"%'))"
-        val keywordMatch = "((${clause(RootDetection.KEYWORDS, "LIKE", " OR ")}) AND " +
-            "(${clause(RootDetection.NEGATIONS, "NOT LIKE", " AND ")}))"
+        val keywordMatch = "(${keywordMatch(localized)} OR ${keywordMatch(english)})"
         val query = SimpleSQLiteQuery(
             """
             SELECT
