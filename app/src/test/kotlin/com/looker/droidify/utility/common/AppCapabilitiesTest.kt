@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class RootDetectionTest {
+class AppCapabilitiesTest {
 
     @Test
     fun `a French translation is recognised`() {
@@ -27,5 +27,13 @@ class RootDetectionTest {
     @Test
     fun `a bare mention of root is not enough`() {
         assertFalse(RootDetection.textIndicatesRoot("Calcule la racine carrée", "Square root calculator"))
+    }
+
+    @Test
+    fun `Shizuku and Sui are recognised, a passing "sui" is not`() {
+        assertTrue(ShizukuDetection.textIndicatesShizuku("Uses Shizuku to freeze apps."))
+        assertTrue(ShizukuDetection.textIndicatesShizuku("Fonctionne avec le module Sui."))
+        assertFalse(ShizukuDetection.textIndicatesShizuku("Je suis une appli, suivez le guide."))
+        assertFalse(ShizukuDetection.textIndicatesShizuku("Works without Shizuku."))
     }
 }

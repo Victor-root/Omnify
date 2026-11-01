@@ -319,6 +319,8 @@
     <string name="root_installer">Installateur racine</string>
     <string name="root_compatible">Compatible root</string>
     <string name="root_compatible_DESC">Cette appli peut utiliser l\'accès root sur un appareil rooté — ce n\'est pas obligatoire pour l\'installer ou l\'utiliser.</string>
+    <string name="shizuku_compatible">Compatible Shizuku</string>
+    <string name="shizuku_compatible_DESC">Cette appli peut utiliser Shizuku ou Sui pour des actions avancées sans root. Aucun des deux n\'est obligatoire pour l\'installer ou l\'utiliser.</string>
     <string name="shizuku_installer">Installateur Shizuku/Sui</string>
     <string name="cleanup_title">Intervalle de nettoyage des APK</string>
     <plurals name="days">

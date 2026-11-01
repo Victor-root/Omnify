@@ -39,8 +39,36 @@ object RootDetection {
      *  app's text in the user's language, and its English original, where the translation may have
      *  turned "Requires root" into a phrase not listed here. For an in-memory (not SQL) check: the
      *  detail screen's Root badge, an external app's README/label… */
-    fun textIndicatesRoot(vararg texts: String): Boolean = texts.any { text ->
-        val lower = text.lowercase()
-        KEYWORDS.any { lower.contains(it) } && NEGATIONS.none { lower.contains(it) }
-    }
+    fun textIndicatesRoot(vararg texts: String): Boolean = texts.indicate(KEYWORDS, NEGATIONS)
+}
+
+/**
+ * The same fuzzy detection as [RootDetection], for Shizuku and Sui, which let an app reach system APIs
+ * through ADB or root without being root itself. Apps built on them declare the Shizuku API permission
+ * (Sui serves the same API), which is the strong signal; their own text is the fallback.
+ */
+object ShizukuDetection {
+
+    /** Declared by every app using the Shizuku API, whether Shizuku or Sui serves it. */
+    const val PERMISSION = "moe.shizuku.manager.permission.API_V23"
+
+    /** "Sui" alone is a word in too many languages to stand for itself, so it is only matched as a
+     *  module. */
+    val KEYWORDS = listOf("shizuku", "sui module", "module sui")
+
+    val NEGATIONS = listOf(
+        "without shizuku", "no shizuku", "shizuku not required", "not require shizuku",
+        "not need shizuku", "sans shizuku", "pas besoin de shizuku", "shizuku non requis",
+        "ne nécessite pas shizuku",
+    )
+
+    /** As [RootDetection.textIndicatesRoot], for Shizuku and Sui. */
+    fun textIndicatesShizuku(vararg texts: String): Boolean = texts.indicate(KEYWORDS, NEGATIONS)
+}
+
+/** Whether one of these texts holds one of [keywords] and none of [negations], each text judged on its
+ *  own and case-insensitively. */
+private fun Array<out String>.indicate(keywords: List<String>, negations: List<String>): Boolean = any { text ->
+    val lower = text.lowercase()
+    keywords.any { lower.contains(it) } && negations.none { lower.contains(it) }
 }

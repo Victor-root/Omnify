@@ -67,6 +67,8 @@ data class Metadata(
     /** Whether the app's own text, in the user's language or its English original, says it uses root
      *  (see RootDetection.textIndicatesRoot). */
     val describesRoot: Boolean,
+    /** The same for Shizuku or Sui (see ShizukuDetection.textIndicatesShizuku). */
+    val describesShizuku: Boolean,
 )
 
 data class Screenshots(

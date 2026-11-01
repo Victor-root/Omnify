@@ -5,7 +5,8 @@ import androidx.compose.material.icons.filled.Translate
 import androidx.compose.ui.platform.LocalContext
 import com.looker.droidify.compose.appDetail.PermissionsSection
 import com.looker.droidify.compose.appDetail.isRootCompatible
-import com.looker.droidify.compose.components.RootBadge
+import com.looker.droidify.compose.appDetail.isShizukuCompatible
+import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.utility.common.extension.openAppInfo
 import androidx.activity.compose.BackHandler
@@ -166,6 +167,9 @@ fun TvAppDetailScreen(
                 val isRootCompatible = remember(app, installablePackage, installedPackage) {
                     app.isRootCompatible(installablePackage ?: installedPackage)
                 }
+                val isShizukuCompatible = remember(app, installablePackage, installedPackage) {
+                    app.isShizukuCompatible(installablePackage ?: installedPackage)
+                }
                 // externallySourced: mirrors the phone screen, see AppDetailViewModel's own property. A copy
                 // a tracked external source is responsible for is not this catalogue entry's to update, and
                 // the comparison below says nothing about which build is newer across two numberings.
@@ -314,7 +318,9 @@ fun TvAppDetailScreen(
                                                 style = MaterialTheme.typography.bodyLarge,
                                             )
                                         }
-                                        if (isRootCompatible) RootBadge()
+                                        if (isRootCompatible || isShizukuCompatible) {
+                                            CapabilityBadges(root = isRootCompatible, shizuku = isShizukuCompatible)
+                                        }
                                     }
                                 }
                                 // Under the icon, across the card: beside it, the column was too narrow for

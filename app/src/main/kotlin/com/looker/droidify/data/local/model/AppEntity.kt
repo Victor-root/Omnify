@@ -15,6 +15,7 @@ import com.looker.droidify.data.model.Metadata
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.sync.v2.model.MetadataV2
 import com.looker.droidify.utility.common.RootDetection
+import com.looker.droidify.utility.common.ShizukuDetection
 
 @Entity(
     tableName = "app",
@@ -143,6 +144,7 @@ private fun AppEntity.toMetadata(
     baseAddress: String,
     versions: List<VersionEntity>?,
     describesRoot: Boolean,
+    describesShizuku: Boolean,
 ): Metadata {
     val suggestedVersion = versions?.maxByOrNull { it.versionCode }
 
@@ -158,6 +160,7 @@ private fun AppEntity.toMetadata(
         suggestedVersionName = suggestedVersion?.versionName ?: "",
         summary = appSummary,
         describesRoot = describesRoot,
+        describesShizuku = describesShizuku,
     )
 }
 
@@ -168,6 +171,8 @@ fun AppEntityRelations.toApp(
     val name = names.findLocale(locale).name
     val description = if (descriptions.isEmpty()) "" else descriptions.findLocale(locale).description
     val summary = if (summaries.isEmpty()) "" else summaries.findLocale(locale).summary
+    val localizedText = "$name $summary $description"
+    val englishText = englishText()
     return App(
         repoId = app.repoId.toLong(),
         appId = app.id.toLong(),
@@ -180,10 +185,8 @@ fun AppEntityRelations.toApp(
             appDescription = description,
             iconUrl = icons.ifEmpty { null }?.findLocale(locale)?.icon?.name,
             appSummary = summary,
-            describesRoot = RootDetection.textIndicatesRoot(
-                "$name $summary $description",
-                englishText(),
-            ),
+            describesRoot = RootDetection.textIndicatesRoot(localizedText, englishText),
+            describesShizuku = ShizukuDetection.textIndicatesShizuku(localizedText, englishText),
         ),
         author = author.toAuthor(),
         screenshots = screenshots?.toScreenshots(locale, repo.address),
