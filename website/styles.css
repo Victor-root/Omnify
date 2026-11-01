@@ -57,6 +57,8 @@
   --radius: 18px;
   --radius-lg: 26px;
   --wrap: 1180px;
+  /* See the zoom steps at the end of this file. */
+  --zoom: 1;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   color-scheme: dark;
@@ -827,7 +829,7 @@ a { color: inherit; }
 
      On the frame rather than on the figure around it, or the caption would be squeezed to the same
      width, wrap onto three lines, and take back the height this just freed. */
-  max-width: min(100%, calc((100svh - 130px) * 0.4732));
+  max-width: min(100%, calc((100svh / var(--zoom) - 130px) * 0.4732));
   /* Everything drawn on the glass is sized in cqw against this, so the phone's furniture keeps its
      proportions whether the frame is 400px wide or 340. */
   container-type: inline-size;
@@ -1832,6 +1834,20 @@ a { color: inherit; }
   .variants > li > code { width: auto; }
   .steps li, .callout { gap: 14px; }
 }
+
+/* A large screen showed the page at its laptop size, a narrow column with wide empty margins either
+   side. Past laptop widths the whole page is scaled up instead, so it fills the screen the way it fills
+   a laptop's. In steps, about the screen's width over 1600, since zoom takes a number and not a length.
+   --zoom carries the same number, for the few sizes taken from the screen's height: a viewport unit
+   is zoomed along with everything else, so it has to be divided back to the screen it measures. */
+html { zoom: var(--zoom); }
+@media (min-width: 1800px) { :root { --zoom: 1.12; } }
+@media (min-width: 2000px) { :root { --zoom: 1.25; } }
+@media (min-width: 2240px) { :root { --zoom: 1.4; } }
+@media (min-width: 2560px) { :root { --zoom: 1.6; } }
+@media (min-width: 2880px) { :root { --zoom: 1.8; } }
+@media (min-width: 3200px) { :root { --zoom: 2; } }
+@media (min-width: 3600px) { :root { --zoom: 2.25; } }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
