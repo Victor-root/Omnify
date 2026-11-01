@@ -429,6 +429,9 @@
     <string name="paired_devices_pairing">Association…</string>
     <string name="paired_devices_paired_FORMAT">Associé à %1$s.</string>
     <string name="paired_devices_not_stored">Cet appareil ne peut pas conserver l\'association de façon sûre, elle n\'a donc pas été gardée.</string>
+    <string name="paired_devices_confirm_FORMAT">Le code a été saisi sur %1$s. N'associez que si c'est bien l'appareil que vous associez en ce moment.</string>
+    <string name="paired_devices_already_paired">Cet appareil est déjà associé. Oubliez-le dans la liste sur les deux appareils pour les associer à nouveau.</string>
+    <string name="paired_devices_full">Impossible d'associer plus d'appareils. Oubliez-en un d'abord.</string>
     <string name="quick_share_title">Envoyer sur un appareil</string>
     <string name="quick_share_DESC">Envoyer %1$s à :</string>
     <string name="quick_share_no_device">Aucun appareil n\'est encore associé à celui-ci. Associez-en un d\'abord, un code suffit, une seule fois.</string>
@@ -438,9 +441,11 @@
     <string name="quick_share_not_found_FORMAT">%1$s est introuvable. Ouvrez Omnify dessus, sur le même Wi-Fi que cet appareil.</string>
     <string name="quick_share_failed_FORMAT">%1$s ne l\'a pas accepté. Il n\'est peut-être plus associé à cet appareil : associez-les à nouveau.</string>
     <string name="quick_share_retry">Réessayer</string>
+    <string name="quick_share_refused_FORMAT">%1$s l'a refusé : un envoi reçu attend encore une réponse là-bas, ou cette source ne peut pas y être ajoutée.</string>
     <string name="quick_share_received_title">Source externe reçue</string>
     <string name="quick_share_received_FORMAT">%1$s vous a envoyé ceci. Rien n\'est ajouté tant que vous n\'acceptez pas.</string>
     <string name="quick_share_add_action">Ajouter</string>
+    <string name="quick_share_apk_filter_FORMAT">Filtre APK : %1$s</string>
     <string name="backup_category_settings">Paramètres</string>
     <string name="backup_category_settings_DESC">Thème, installation, synchronisation, proxy, traduction et autres réglages</string>
     <string name="backup_category_github_token">Jeton GitHub</string>

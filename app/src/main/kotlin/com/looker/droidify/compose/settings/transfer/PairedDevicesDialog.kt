@@ -150,6 +150,10 @@ fun PairedDevicesDialog(
                         }
                     }
 
+                    is PairingState.Confirming -> Message(
+                        stringResource(R.string.paired_devices_confirm_FORMAT, current.device.name),
+                    )
+
                     PairingState.Working -> WorkingRow(stringResource(R.string.paired_devices_pairing))
 
                     is PairingState.Paired -> Message(stringResource(R.string.paired_devices_paired_FORMAT, current.name))
@@ -161,6 +165,8 @@ fun PairedDevicesDialog(
                                 PairingFailure.EXPIRED -> R.string.transfer_expired
                                 PairingFailure.ABANDONED -> R.string.transfer_abandoned
                                 PairingFailure.NOT_STORED -> R.string.paired_devices_not_stored
+                                PairingFailure.ALREADY_PAIRED -> R.string.paired_devices_already_paired
+                                PairingFailure.FULL -> R.string.paired_devices_full
                             },
                         ),
                     )
@@ -173,6 +179,10 @@ fun PairedDevicesDialog(
                     onClick = { viewModel.pairWith(typed) },
                     enabled = typed.isNotBlank(),
                 ) {
+                    Text(stringResource(R.string.paired_devices_pair_action))
+                }
+
+                is PairingState.Confirming -> TextButton(onClick = viewModel::confirm) {
                     Text(stringResource(R.string.paired_devices_pair_action))
                 }
 
@@ -190,6 +200,10 @@ fun PairedDevicesDialog(
             when (state) {
                 is PairingState.EnteringCode -> TextButton(onClick = viewModel::stop) {
                     Text(stringResource(R.string.cancel))
+                }
+
+                is PairingState.Confirming -> TextButton(onClick = viewModel::stop) {
+                    Text(stringResource(R.string.transfer_decline_action))
                 }
 
                 else -> Unit

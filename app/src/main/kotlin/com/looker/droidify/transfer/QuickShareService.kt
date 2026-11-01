@@ -97,17 +97,19 @@ class QuickShareService @Inject constructor(
         }
     }
 
-    private fun received(from: TrustedDevice, payload: ByteArray) {
+    /** Takes what [from] sent, unless it holds no source this device can add or another share is still
+     *  waiting for an answer: the one on screen is never swapped for another under the user's finger. */
+    private fun received(from: TrustedDevice, payload: ByteArray): Boolean {
         val apps = decodeQuickShare(payload)
         if (BuildConfig.DIAGNOSTICS) DiagnosticLog.log("Quick share: ${apps?.size ?: "unreadable"} source(s) received")
-        if (apps.isNullOrEmpty()) return
-        _incoming.value = IncomingQuickShare(from.name, apps)
+        if (apps.isNullOrEmpty()) return false
+        return _incoming.compareAndSet(null, IncomingQuickShare(from.name, apps))
     }
 
-    /** Adds what arrived, leaving alone the sources already followed here, and looks them up. */
-    fun acceptIncoming() {
-        val share = _incoming.value ?: return
-        _incoming.value = null
+    /** Adds [share], leaving alone the sources already followed here, and looks them up. Only the share
+     *  the user answered, never one that took its place. */
+    fun acceptIncoming(share: IncomingQuickShare) {
+        if (!_incoming.compareAndSet(share, null)) return
         scope.launch {
             val known = externalAppRepository.getApps().mapTo(HashSet()) { it.key }
             val added = share.apps.filter { it.key !in known }
@@ -117,14 +119,16 @@ class QuickShareService @Inject constructor(
         }
     }
 
-    fun declineIncoming() {
-        _incoming.value = null
+    fun declineIncoming(share: IncomingQuickShare) {
+        _incoming.compareAndSet(share, null)
     }
 
     suspend fun send(apps: List<ExternalApp>, to: TrustedDevice): QuickShareResult =
         QuickShareClient(ioDispatcher).send(store.ownId(), to, encodeQuickShare(apps))
 
-    suspend fun forget(device: TrustedDevice) = store.forget(device.id)
+    suspend fun forget(device: TrustedDevice) {
+        store.forget(device.id)
+    }
 
     /** This device as it introduces itself while pairing. */
     suspend fun ownIdentity(): ByteArray = JSON.encodeToString(
@@ -133,18 +137,19 @@ class QuickShareService @Inject constructor(
     ).toByteArray(Charsets.UTF_8)
 
     /**
-     * Remembers the device that introduced itself as [identity] in a pairing that left [secret], and
-     * returns it, or null when the introduction was not one or could not be kept safely.
+     * The device that introduced itself as [identity] in a pairing that left [secret], or null when the
+     * introduction was not one. Nothing is remembered yet: see [remember].
      */
-    suspend fun completePairing(identity: ByteArray, secret: ByteArray): TrustedDevice? {
+    suspend fun pairedDevice(identity: ByteArray, secret: ByteArray): TrustedDevice? {
         val peer = runCatching {
             JSON.decodeFromString(DeviceIdentity.serializer(), identity.toString(Charsets.UTF_8))
         }.getOrNull() ?: return null
         if (!peer.id.isDeviceId() || peer.id == store.ownId()) return null
-        val name = peer.name.filterNot(Char::isISOControl).trim().take(MAX_DEVICE_NAME_LENGTH)
-        val device = TrustedDevice(peer.id, name.ifEmpty { peer.id.take(8) }, secret, System.currentTimeMillis())
-        return device.takeIf { store.remember(it) }
+        val name = peer.name.withoutHiddenCharacters().trim().take(MAX_DEVICE_NAME_LENGTH)
+        return TrustedDevice(peer.id, name.ifEmpty { peer.id.take(8) }, secret, System.currentTimeMillis())
     }
+
+    suspend fun remember(device: TrustedDevice): RememberResult = store.remember(device)
 
     /** The name this device goes by in its own settings, else its model. */
     private fun ownDeviceName(): String {

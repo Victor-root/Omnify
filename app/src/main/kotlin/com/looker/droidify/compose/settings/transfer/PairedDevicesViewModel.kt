@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looker.droidify.di.IoDispatcher
 import com.looker.droidify.transfer.QuickShareService
+import com.looker.droidify.transfer.RememberResult
 import com.looker.droidify.transfer.TransferChannel
 import com.looker.droidify.transfer.TransferClient
 import com.looker.droidify.transfer.TransferFailure
@@ -23,7 +24,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import javax.inject.Inject
 
@@ -39,6 +39,10 @@ sealed interface PairingState {
 
     /** This device shows a code for the other one to type. */
     class ShowingCode(val code: String) : PairingState
+
+    /** The code was typed on [device], which waits for this device's user to confirm it is the one
+     *  they meant: a code on a screen can be read, and typed, by someone else in the room. */
+    class Confirming(val device: TrustedDevice) : PairingState
 
     /** This device waits for the code the other one shows. [error] says why the last try failed. */
     class EnteringCode(val error: TransferFailure? = null) : PairingState
@@ -57,6 +61,12 @@ enum class PairingFailure {
 
     /** Paired, but this device could not keep the secret safely, so it is not remembered. */
     NOT_STORED,
+
+    /** That device is already paired with this one. */
+    ALREADY_PAIRED,
+
+    /** As many devices as this one remembers are already paired. */
+    FULL,
 }
 
 /**
@@ -101,7 +111,9 @@ class PairedDevicesViewModel @Inject constructor(
                 val result = session.awaitTransfer()
                 ensureActive()
                 _state.value = when (result) {
-                    is TransferHostResult.Received -> paired(result.payload, result.secret)
+                    is TransferHostResult.Received -> quickShare.pairedDevice(result.payload, result.secret)
+                        ?.let { PairingState.Confirming(it) }
+                        ?: PairingState.Failed(PairingFailure.NOT_STORED)
                     TransferHostResult.Abandoned -> PairingState.Failed(PairingFailure.ABANDONED)
                     TransferHostResult.Expired -> PairingState.Failed(PairingFailure.EXPIRED)
                 }
@@ -132,7 +144,7 @@ class PairedDevicesViewModel @Inject constructor(
         job = viewModelScope.launch {
             val result = try {
                 val client = TransferClient(ioDispatcher, TransferChannel.PAIRING)
-                val found = withTimeoutOrNull(DISCOVERY_TIMEOUT_MS) { client.locate() }.orEmpty()
+                val found = client.locate(DISCOVERY_TIMEOUT_MS)
                 if (found.isEmpty()) {
                     TransferSendResult.Failed(TransferFailure.NOT_FOUND)
                 } else {
@@ -145,17 +157,27 @@ class PairedDevicesViewModel @Inject constructor(
             }
             _state.value = when (result) {
                 is TransferSendResult.Sent -> result.reply
-                    ?.let { paired(it, result.secret) }
+                    ?.let { quickShare.pairedDevice(it, result.secret) }
+                    ?.let { remember(it) }
                     ?: PairingState.EnteringCode(TransferFailure.UNREACHABLE)
                 is TransferSendResult.Failed -> PairingState.EnteringCode(result.reason)
             }
         }
     }
 
-    private suspend fun paired(identity: ByteArray, secret: ByteArray): PairingState =
-        quickShare.completePairing(identity, secret)
-            ?.let { PairingState.Paired(it.name) }
-            ?: PairingState.Failed(PairingFailure.NOT_STORED)
+    /** Keeps the device [Confirming] shows, once its user said it is the one. */
+    fun confirm() {
+        val device = (_state.value as? PairingState.Confirming)?.device ?: return
+        _state.value = PairingState.Working
+        job = viewModelScope.launch { _state.value = remember(device) }
+    }
+
+    private suspend fun remember(device: TrustedDevice): PairingState = when (quickShare.remember(device)) {
+        RememberResult.STORED -> PairingState.Paired(device.name)
+        RememberResult.ALREADY_PAIRED -> PairingState.Failed(PairingFailure.ALREADY_PAIRED)
+        RememberResult.FULL -> PairingState.Failed(PairingFailure.FULL)
+        RememberResult.NOT_STORED -> PairingState.Failed(PairingFailure.NOT_STORED)
+    }
 
     /** Ends whatever pairing is under way and goes back to the list. */
     fun stop() {

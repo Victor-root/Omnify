@@ -115,16 +115,19 @@ internal suspend fun announceTransfer(
 }
 
 /**
- * Every device heard waiting on this network, once at least one has answered.
+ * Every device heard waiting on this network, once at least one has answered, or none once [timeoutMs]
+ * has passed.
  *
  * Returns a list rather than the single right one because nothing on the wire says which device the
  * typed code belongs to any more: that is settled by attempting the exchange. Listening continues a
  * moment past the first answer so that a second waiting device is offered too, instead of the search
- * silently stopping at whichever happened to broadcast first.
+ * silently stopping at whichever happened to broadcast first. The timeout is kept here rather than by
+ * the caller, so that devices already heard when it runs out are returned rather than thrown away.
  */
 internal suspend fun findTransferHosts(
     channel: TransferChannel,
     ioDispatcher: CoroutineDispatcher,
+    timeoutMs: Long,
 ): List<DiscoveredHost> =
     withContext(ioDispatcher) {
         val found = LinkedHashMap<String, DiscoveredHost>()
@@ -137,8 +140,9 @@ internal suspend fun findTransferHosts(
                 socket.bind(InetSocketAddress(DISCOVERY_PORT))
                 socket.soTimeout = RECEIVE_TIMEOUT_MS
                 val buffer = ByteArray(MAX_ANNOUNCEMENT_BYTES)
+                val giveUpAt = System.currentTimeMillis() + timeoutMs
                 var deadline: Long? = null
-                while (found.size < MAX_HOSTS && (deadline == null || System.currentTimeMillis() < deadline)) {
+                while (System.currentTimeMillis() < minOf(giveUpAt, deadline ?: giveUpAt)) {
                     coroutineContext.ensureActive()
                     val packet = DatagramPacket(buffer, buffer.size)
                     try {
@@ -150,13 +154,13 @@ internal suspend fun findTransferHosts(
                     // belong to, and is not worth an attempt.
                     if (!isOnSameLocalNetwork(packet.address)) continue
                     val announcement = TransferAnnouncement.parse(channel, packet.data, packet.length) ?: continue
-                    // Keyed by the device rather than by the port it named, and kept as first heard:
-                    // one device is waiting on one port, so anything announcing several is not that,
-                    // and letting it in would be letting one machine spend the whole ceiling above.
+                    // Keyed by the device rather than by the port it named: one device is waiting on one
+                    // port, so one machine never spends more than one place of the ceiling above. The
+                    // latest announcement wins, so a forged one carrying a real device's address is
+                    // replaced by that device's own next announcement a second later.
                     val key = packet.address.hostAddress ?: continue
-                    if (key !in found) {
-                        found[key] = DiscoveredHost(packet.address, announcement.port, announcement.publicKey)
-                    }
+                    if (key !in found && found.size >= MAX_HOSTS) continue
+                    found[key] = DiscoveredHost(packet.address, announcement.port, announcement.publicKey)
                     if (deadline == null) deadline = System.currentTimeMillis() + GATHER_GRACE_MS
                 }
             }

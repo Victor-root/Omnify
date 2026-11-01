@@ -176,7 +176,7 @@ class TransferHost(
                 continue
             }
             val outcome = try {
-                peer.use { serve(it) }
+                peer.use { it.withDeadlines(PEER_DEADLINE_MS) { _ -> exchange(it) } }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -204,21 +204,6 @@ class TransferHost(
         data object Ignored : PeerOutcome
     }
 
-    /** [exchange] under the absolute deadline described at [PEER_DEADLINE_MS]. The socket is closed
-     *  from outside rather than the exchange being cancelled, because the reads it is sitting in are
-     *  blocking ones that nothing else interrupts. */
-    private suspend fun serve(peer: Socket): PeerOutcome = coroutineScope {
-        val deadline = launch {
-            delay(PEER_DEADLINE_MS)
-            runCatching { peer.close() }
-        }
-        try {
-            exchange(peer)
-        } finally {
-            deadline.cancel()
-        }
-    }
-
     private fun exchange(peer: Socket): PeerOutcome {
         // The first thing checked about a connection, before a single byte of it is read: a peer that
         // is not on this device's own network has no business being served, whatever it goes on to
@@ -232,12 +217,13 @@ class TransferHost(
         // The peer's half of the exchange, then ours: only the two of us can arrive at the secret
         // behind them, so nothing recorded off the network lets a third party test a guessed code.
         val peerPublicKey = input.readBlock(MAX_PUBLIC_KEY_BYTES) ?: return PeerOutcome.Ignored
+        // Read before the key is derived rather than after: deriving it is deliberately slow (see
+        // PBKDF2_ITERATIONS), and a connection that sends a public key and leaves must not get this
+        // device to pay for that. Nothing larger is read until the peer has answered for the code.
+        val offered = input.readBlock(CONFIRMATION_SIZE) ?: return PeerOutcome.Ignored
         val sharedSecret = keyPair.agree(peerPublicKey) ?: return PeerOutcome.Ignored
         val transcript = transferTranscript(peerPublicKey, keyPair.publicKeyBytes)
         val key = deriveSessionKey(pairingCode, sharedSecret)
-        // Nothing has been read beyond a public key at this point, and nothing larger will be read
-        // until the peer has answered for the code.
-        val offered = input.readBlock(CONFIRMATION_SIZE) ?: return PeerOutcome.Ignored
         if (!confirms(senderConfirmation(key, transcript), offered)) {
             // Reached only by something that spoke this protocol without the right code. It is told
             // so plainly: there is nothing to protect by staying silent, since whoever it is already

@@ -87,6 +87,7 @@ fun QuickShareSendDialog(
                         when (current.result) {
                             QuickShareResult.SENT -> stringResource(R.string.quick_share_sent_FORMAT, current.to)
                             QuickShareResult.NOT_FOUND -> stringResource(R.string.quick_share_not_found_FORMAT, current.to)
+                            QuickShareResult.REFUSED -> stringResource(R.string.quick_share_refused_FORMAT, current.to)
                             QuickShareResult.FAILED -> stringResource(R.string.quick_share_failed_FORMAT, current.to)
                             QuickShareResult.IMPOSTOR -> stringResource(R.string.transfer_error_impostor)
                         },
@@ -126,7 +127,7 @@ fun QuickShareInbox(viewModel: QuickShareViewModel = hiltViewModel()) {
     val incoming by viewModel.incoming.collectAsStateWithLifecycle()
     val share = incoming ?: return
     AlertDialog(
-        onDismissRequest = viewModel::declineIncoming,
+        onDismissRequest = { viewModel.declineIncoming(share) },
         title = { Text(stringResource(R.string.quick_share_received_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -138,21 +139,29 @@ fun QuickShareInbox(viewModel: QuickShareViewModel = hiltViewModel()) {
                 Spacer(Modifier.height(12.dp))
                 share.apps.forEach { app ->
                     Text(text = app.label, style = MaterialTheme.typography.bodyLarge)
-                    // Where it comes from, in full, since that is what decides what gets installed.
+                    // Where it comes from, in full, and which files it picks there, since that is what
+                    // decides what gets installed.
                     Text(
                         text = "${app.sourceLabel} · ${app.path}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    app.apkFilter?.let { filter ->
+                        Text(
+                            text = stringResource(R.string.quick_share_apk_filter_FORMAT, filter),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     Spacer(Modifier.height(8.dp))
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = viewModel::acceptIncoming) { Text(stringResource(R.string.quick_share_add_action)) }
+            TextButton(onClick = { viewModel.acceptIncoming(share) }) { Text(stringResource(R.string.quick_share_add_action)) }
         },
         dismissButton = {
-            TextButton(onClick = viewModel::declineIncoming) { Text(stringResource(R.string.transfer_decline_action)) }
+            TextButton(onClick = { viewModel.declineIncoming(share) }) { Text(stringResource(R.string.transfer_decline_action)) }
         },
     )
 }

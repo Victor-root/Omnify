@@ -14,6 +14,21 @@ private const val CONNECT_TIMEOUT_MS = 10_000
 private const val READ_TIMEOUT_MS = 30_000
 
 /**
+ * How long the far end gets, from the connection, to prove it holds the code, however it paces its
+ * bytes.
+ *
+ * The read timeout alone only measures silence, so a device answering a byte at a time could keep an
+ * attempt open for minutes, and those minutes are exactly what something that put itself in the
+ * middle needs: it holds this device's proof from the first message on, and a short code can be
+ * searched offline against it given time. Closing the attempt this soon leaves that search no time to
+ * finish while the code is still being waited on.
+ */
+private const val PROOF_DEADLINE_MS = 10_000L
+
+/** How long one attempt gets in all, the payload and the answer included. */
+private const val ATTEMPT_DEADLINE_MS = 60_000L
+
+/**
  * Why a transfer did not happen, in the terms the user needs rather than the ones the socket used.
  *
  * Declared least telling first, which is the order [tellsMoreThan] reads when several devices were
@@ -62,9 +77,8 @@ class TransferClient(
     private val channel: TransferChannel,
 ) {
 
-    /** Every device heard waiting on this network on [channel]. Runs until at least one answers, so the
-     *  caller sets the deadline. */
-    suspend fun locate(): List<DiscoveredHost> = findTransferHosts(channel, ioDispatcher)
+    /** Every device heard waiting on this network on [channel], or none after [timeoutMs]. */
+    suspend fun locate(timeoutMs: Long): List<DiscoveredHost> = findTransferHosts(channel, ioDispatcher, timeoutMs)
 
     /**
      * Hands [backup] to whichever of [hosts] the typed [code] turns out to belong to.
@@ -111,7 +125,7 @@ class TransferClient(
      * trusting encryption alone to sort it out afterwards would mean a short code being all that
      * stood between an eavesdropper and them, at their leisure.
      */
-    private fun sendTo(
+    private suspend fun sendTo(
         host: DiscoveredHost,
         code: String,
         backup: ByteArray,
@@ -129,40 +143,44 @@ class TransferClient(
             val transcript = transferTranscript(keyPair.publicKeyBytes, host.publicKey)
             val key = deriveSessionKey(code, sharedSecret)
             Socket().use { socket ->
-                socket.connect(InetSocketAddress(host.address, host.port), CONNECT_TIMEOUT_MS)
-                socket.soTimeout = READ_TIMEOUT_MS
-                val output = socket.getOutputStream().buffered()
-                val input = socket.getInputStream().buffered()
-                output.writeMagic(channel)
-                output.writeBlock(keyPair.publicKeyBytes)
-                output.writeBlock(senderConfirmation(key, transcript))
-                when (input.read()) {
-                    STATUS_OK.toInt() -> Unit
-                    STATUS_REJECTED.toInt() -> return TransferSendResult.Failed(TransferFailure.REJECTED)
-                    // Including -1, which is the connection having gone rather than an answer.
-                    else -> return TransferSendResult.Failed(TransferFailure.UNREACHABLE)
+                socket.withDeadlines(ATTEMPT_DEADLINE_MS, PROOF_DEADLINE_MS) { proved ->
+                    socket.connect(InetSocketAddress(host.address, host.port), CONNECT_TIMEOUT_MS)
+                    socket.soTimeout = READ_TIMEOUT_MS
+                    val output = socket.getOutputStream().buffered()
+                    val input = socket.getInputStream().buffered()
+                    output.writeMagic(channel)
+                    output.writeBlock(keyPair.publicKeyBytes)
+                    output.writeBlock(senderConfirmation(key, transcript))
+                    when (input.read()) {
+                        STATUS_OK.toInt() -> Unit
+                        STATUS_REJECTED.toInt() ->
+                            return@withDeadlines TransferSendResult.Failed(TransferFailure.REJECTED)
+                        // Including -1, which is the connection having gone rather than an answer.
+                        else -> return@withDeadlines TransferSendResult.Failed(TransferFailure.UNREACHABLE)
+                    }
+                    // The far end said yes. Whether it may have the data is settled by its answer, not by
+                    // it having said yes.
+                    val answer = input.readBlock(CONFIRMATION_SIZE)
+                    if (!confirms(receiverConfirmation(key, transcript), answer)) {
+                        return@withDeadlines TransferSendResult.Failed(TransferFailure.IMPOSTOR)
+                    }
+                    proved()
+                    output.writeBlock(encryptTransfer(channel, key, transcript, backup))
+                    // Only now is "sent" true. The acknowledgement is a value only this session's key
+                    // produces, so the screen says the data arrived because it did, not because something
+                    // on the network was willing to say so.
+                    if (!confirms(receivedConfirmation(key, transcript), input.readBlock(CONFIRMATION_SIZE))) {
+                        return@withDeadlines TransferSendResult.Failed(TransferFailure.UNREACHABLE)
+                    }
+                    val reply = if (expectReply) {
+                        input.readBlock(MAX_REPLY_BYTES)
+                            ?.let { decryptTransfer(channel, replyKey(key), transcript, it) }
+                            ?: return@withDeadlines TransferSendResult.Failed(TransferFailure.UNREACHABLE)
+                    } else {
+                        null
+                    }
+                    TransferSendResult.Sent(reply, pairingSecret(key, transcript))
                 }
-                // The far end said yes. Whether it may have the data is settled by its answer, not by
-                // it having said yes.
-                val answer = input.readBlock(CONFIRMATION_SIZE)
-                if (!confirms(receiverConfirmation(key, transcript), answer)) {
-                    return TransferSendResult.Failed(TransferFailure.IMPOSTOR)
-                }
-                output.writeBlock(encryptTransfer(channel, key, transcript, backup))
-                // Only now is "sent" true. The acknowledgement is a value only this session's key
-                // produces, so the screen says the data arrived because it did, not because something
-                // on the network was willing to say so.
-                if (!confirms(receivedConfirmation(key, transcript), input.readBlock(CONFIRMATION_SIZE))) {
-                    return TransferSendResult.Failed(TransferFailure.UNREACHABLE)
-                }
-                val reply = if (expectReply) {
-                    input.readBlock(MAX_REPLY_BYTES)
-                        ?.let { decryptTransfer(channel, replyKey(key), transcript, it) }
-                        ?: return TransferSendResult.Failed(TransferFailure.UNREACHABLE)
-                } else {
-                    null
-                }
-                TransferSendResult.Sent(reply, pairingSecret(key, transcript))
             }
         } catch (e: CancellationException) {
             throw e

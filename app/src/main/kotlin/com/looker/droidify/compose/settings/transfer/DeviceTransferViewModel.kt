@@ -24,7 +24,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import javax.inject.Inject
 
@@ -244,7 +243,7 @@ class DeviceTransferViewModel @Inject constructor(
         sendJob = viewModelScope.launch {
             val result = try {
                 val client = TransferClient(ioDispatcher, TransferChannel.BACKUP)
-                val found = withTimeoutOrNull(DISCOVERY_TIMEOUT_MS) { client.locate() }.orEmpty()
+                val found = client.locate(DISCOVERY_TIMEOUT_MS)
                 if (found.isEmpty()) {
                     TransferSendResult.Failed(TransferFailure.NOT_FOUND)
                 } else {
