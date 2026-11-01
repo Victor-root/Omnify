@@ -137,6 +137,4 @@ private fun newDeviceId(): String =
 internal fun String.isDeviceId(): Boolean =
     length == DEVICE_ID_BYTES * 2 && all { it in '0'..'9' || it in 'a'..'f' }
 
-internal fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
-
-internal fun String.hexToBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }

@@ -58,6 +58,7 @@ import com.looker.droidify.compose.welcome.navigation.Welcome
 import com.looker.droidify.compose.welcome.navigation.navigateFromWelcomeToAppList
 import com.looker.droidify.compose.welcome.navigation.welcome
 import com.looker.droidify.migration.MigrationPrompt
+import com.looker.droidify.compose.quickshare.QuickShareInbox
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.backup.BackupRepository
@@ -856,6 +857,8 @@ class MainComposeActivity : ComponentActivity() {
                 // than about anything on screen. Shows at most once per install, and only during the
                 // switch from the beta build to the stable one (see MigrationViewModel).
                 MigrationPrompt()
+                // Above every screen too: what a paired device sends can arrive whatever is on screen.
+                QuickShareInbox()
                 // Each destination has its own Scaffold + TopAppBar that handle system-bar
                 // insets, so this outer Scaffold must NOT add its own (it would double the
                 // top inset and leave a large empty gap above every screen's title).

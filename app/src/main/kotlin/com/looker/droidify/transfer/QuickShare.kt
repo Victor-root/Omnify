@@ -120,7 +120,7 @@ class QuickShareHost(
     private val ioDispatcher: CoroutineDispatcher,
     private val ownId: String,
     private val trusted: () -> List<TrustedDevice>,
-    private val onReceived: suspend (from: TrustedDevice, payload: ByteArray) -> Unit,
+    private val onReceived: (from: TrustedDevice, payload: ByteArray) -> Unit,
 ) {
 
     private var serverSocket: ServerSocket? = null

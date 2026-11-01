@@ -85,6 +85,7 @@ import com.looker.droidify.compose.settings.components.ThemeColorPickerDialog
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.compose.settings.transfer.DeviceTransferReceiveDialog
 import com.looker.droidify.compose.settings.transfer.DeviceTransferSendDialog
+import com.looker.droidify.compose.settings.transfer.PairedDevicesDialog
 import com.looker.droidify.data.backup.BackupCategory
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.BackgroundStyle
@@ -245,6 +246,7 @@ fun SettingsScreen(
     // shows.
     var showTransferSend by remember { mutableStateOf(false) }
     var showTransferReceive by remember { mutableStateOf(false) }
+    var showPairedDevices by remember { mutableStateOf(false) }
 
     // TV / D-pad: drop focus from the header into the settings list (the top bar won't on its own).
     val contentFocusRequester = remember { FocusRequester() }
@@ -744,6 +746,15 @@ fun SettingsScreen(
             }
 
             item {
+                ActionSettingItem(
+                    title = stringResource(R.string.paired_devices_title),
+                    description = stringResource(R.string.paired_devices_row_DESC),
+                    icon = painterResource(R.drawable.ic_share),
+                    onClick = { showPairedDevices = true },
+                )
+            }
+
+            item {
                 SettingHeader(title = stringResource(R.string.custom_buttons_section))
             }
 
@@ -841,6 +852,10 @@ fun SettingsScreen(
     // different words is what made this hard to follow.
     if (showTransferSend) {
         DeviceTransferSendDialog(onDismiss = { showTransferSend = false })
+    }
+
+    if (showPairedDevices) {
+        PairedDevicesDialog(onDismiss = { showPairedDevices = false })
     }
 
     if (showTransferReceive) {
