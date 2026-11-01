@@ -2,20 +2,20 @@ package com.looker.droidify.transfer
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.security.SecureRandom
-import kotlin.coroutines.coroutineContext
 
 /*
  * Quick share: external sources sent between two devices that were paired once (see TrustedDevices),
@@ -53,21 +53,16 @@ internal const val MAX_QUICK_SHARE_BYTES = 64 * 1024
 private const val CONNECT_TIMEOUT_MS = 5_000
 private const val READ_TIMEOUT_MS = 10_000
 
-/** How long one connected peer gets in total, however it trickles its bytes (see TransferHost). */
+/** How long one connected peer gets in total, however it trickles its bytes (see withDeadlines). */
 private const val PEER_DEADLINE_MS = 20_000L
+
+/** How long one attempt to send gets in total. */
+private const val SEND_DEADLINE_MS = 30_000L
 
 /** How long the sending device listens for the device it is sending to. Announcements repeat every
  *  second, so a device that is there is heard well within this. */
 private const val LOCATE_TIMEOUT_MS = 4_000L
 
-/**
- * Connections turned away before the listener pauses for [COOLDOWN_MS].
- *
- * Guessing is hopeless against a 256-bit secret, so this is not a defence against guessing: it stops
- * something on the network from keeping this device busy with connections it can never complete.
- */
-private const val MAX_FAILED_ATTEMPTS = 10
-private const val COOLDOWN_MS = 60_000L
 private const val ACCEPT_RETRY_DELAY_MS = 200L
 
 /** The tag that opens a quick share, naming the device it is meant for and the one it comes from. */
@@ -113,20 +108,22 @@ private fun newNonce(): ByteArray = ByteArray(NONCE_BYTES).also { SecureRandom()
 
 /**
  * The receiving side: while it runs, this device announces itself on the local network and accepts
- * quick shares from the devices in [trusted], one connection at a time, handing each one that arrives
- * to [onReceived].
+ * quick shares from the devices in [trusted], handing each one that arrives to [onReceived], which
+ * says whether it was taken. The sender is told either way.
  */
 class QuickShareHost(
     private val ioDispatcher: CoroutineDispatcher,
     private val ownId: String,
     private val trusted: () -> List<TrustedDevice>,
-    private val onReceived: (from: TrustedDevice, payload: ByteArray) -> Unit,
+    private val onReceived: (from: TrustedDevice, payload: ByteArray) -> Boolean,
 ) {
 
     private var serverSocket: ServerSocket? = null
 
     /** This listener's half of the key exchange, made fresh each time it starts. */
     private val keyPair = SessionKeyPair.generate()
+
+    private val guard = PeerGuard(System::currentTimeMillis)
 
     /** Opens the port on the local network address, or returns false when there is none (see
      *  TransferHost.bind for why only that one address). */
@@ -146,12 +143,21 @@ class QuickShareHost(
                 ioDispatcher,
             )
         }
+        // Cancelling does not interrupt a blocking accept; closing the socket does.
+        val closer = launch {
+            try {
+                awaitCancellation()
+            } finally {
+                close()
+            }
+        }
         try {
             withContext(ioDispatcher) { acceptLoop(socket) }
         } catch (_: IOException) {
             // The socket closed: [close] ending the listener.
         } finally {
             announcer.cancel()
+            closer.cancel()
         }
     }
 
@@ -160,14 +166,11 @@ class QuickShareHost(
         serverSocket = null
     }
 
-    private suspend fun acceptLoop(socket: ServerSocket) {
-        var failedAttempts = 0
+    /** Serves several peers at once, within [PeerGuard]'s limits, so that one connection left hanging
+     *  never keeps a paired device out. */
+    private suspend fun acceptLoop(socket: ServerSocket): Unit = coroutineScope {
         while (true) {
-            coroutineContext.ensureActive()
-            if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
-                delay(COOLDOWN_MS)
-                failedAttempts = 0
-            }
+            ensureActive()
             val peer = try {
                 socket.accept()
             } catch (e: IOException) {
@@ -175,48 +178,44 @@ class QuickShareHost(
                 delay(ACCEPT_RETRY_DELAY_MS)
                 continue
             }
-            val outcome = try {
-                peer.use { serveWithDeadline(it) }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                Outcome.Ignored
+            val address = peer.inetAddress
+            if (!guard.admit(address)) {
+                runCatching { peer.close() }
+                continue
             }
-            when (outcome) {
-                is Outcome.Received -> onReceived(outcome.from, outcome.payload)
-                Outcome.Refused -> failedAttempts++
-                Outcome.Ignored -> Unit
+            launch {
+                val served = try {
+                    peer.use { it.withDeadlines(PEER_DEADLINE_MS) { _ -> exchange(it) } }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    Outcome.BROKEN
+                }
+                guard.release(address, failed = served == Outcome.BROKEN)
             }
         }
     }
 
-    private sealed interface Outcome {
-        class Received(val from: TrustedDevice, val payload: ByteArray) : Outcome
-        data object Refused : Outcome
-        data object Ignored : Outcome
-    }
+    private enum class Outcome {
+        /** The exchange ran to its end, whatever that end was. */
+        COMPLETED,
 
-    private suspend fun serveWithDeadline(peer: Socket): Outcome = coroutineScope {
-        val deadline = launch {
-            delay(PEER_DEADLINE_MS)
-            runCatching { peer.close() }
-        }
-        try {
-            exchange(peer)
-        } finally {
-            deadline.cancel()
-        }
+        /** The peer was not paired with this device: an honest sender looking for another one. */
+        NOT_FOR_US,
+
+        /** The peer went silent, sent something that is not this protocol, or failed a proof. */
+        BROKEN,
     }
 
     private fun exchange(peer: Socket): Outcome {
-        if (!isOnSameLocalNetwork(peer.inetAddress)) return Outcome.Ignored
+        if (!isOnSameLocalNetwork(peer.inetAddress)) return Outcome.BROKEN
         peer.soTimeout = READ_TIMEOUT_MS
         val input = peer.getInputStream().buffered()
         val output = peer.getOutputStream().buffered()
-        if (!input.readMagic(TransferChannel.QUICK_SHARE)) return Outcome.Ignored
-        val senderNonce = input.readExactBlock(NONCE_BYTES) ?: return Outcome.Ignored
-        val tag = input.readExactBlock(CONFIRMATION_SIZE) ?: return Outcome.Ignored
-        val senderPublicKey = input.readBlock(MAX_PUBLIC_KEY_BYTES) ?: return Outcome.Ignored
+        if (!input.readMagic(TransferChannel.QUICK_SHARE)) return Outcome.BROKEN
+        val senderNonce = input.readExactBlock(NONCE_BYTES) ?: return Outcome.BROKEN
+        val tag = input.readExactBlock(CONFIRMATION_SIZE) ?: return Outcome.BROKEN
+        val senderPublicKey = input.readBlock(MAX_PUBLIC_KEY_BYTES) ?: return Outcome.BROKEN
         // Which remembered device made the tag, and so whose secret this exchange runs under. One
         // HMAC per remembered device, which is bounded (see MAX_TRUSTED_DEVICES), and nothing heavier
         // is spent on a connection before it has matched one.
@@ -225,12 +224,12 @@ class QuickShareHost(
         }
         if (from == null) {
             output.reject()
-            return Outcome.Refused
+            return Outcome.NOT_FOR_US
         }
         val receiverNonce = newNonce()
         output.write(byteArrayOf(STATUS_OK))
         output.writeBlock(receiverNonce)
-        val sharedSecret = keyPair.agree(senderPublicKey) ?: return Outcome.Ignored
+        val sharedSecret = keyPair.agree(senderPublicKey) ?: return Outcome.BROKEN
         val transcript = quickTranscript(
             senderNonce = senderNonce,
             receiverNonce = receiverNonce,
@@ -242,15 +241,74 @@ class QuickShareHost(
         val key = quickSessionKey(from.secret, sharedSecret, transcript)
         if (!confirms(senderConfirmation(key, transcript), input.readBlock(CONFIRMATION_SIZE))) {
             output.reject()
-            return Outcome.Refused
+            return Outcome.BROKEN
         }
         output.write(byteArrayOf(STATUS_OK))
         output.writeBlock(receiverConfirmation(key, transcript))
-        val block = input.readBlock(MAX_QUICK_SHARE_BYTES + CONFIRMATION_SIZE) ?: return Outcome.Ignored
+        val block = input.readBlock(MAX_QUICK_SHARE_BYTES + CONFIRMATION_SIZE) ?: return Outcome.BROKEN
         val payload = decryptTransfer(TransferChannel.QUICK_SHARE, key, transcript, block)
-            ?: return Outcome.Ignored
+            ?: return Outcome.BROKEN
+        // Acknowledged only once it is taken: one already waiting to be answered here, or one that
+        // is not a list of sources, is turned away and the sender says so.
+        if (!onReceived(from, payload)) {
+            output.reject()
+            return Outcome.COMPLETED
+        }
+        output.write(byteArrayOf(STATUS_OK))
         output.writeBlock(receivedConfirmation(key, transcript))
-        return Outcome.Received(from, payload)
+        return Outcome.COMPLETED
+    }
+}
+
+/**
+ * Who may connect to a [QuickShareHost], so that nothing on the network can keep it busy: a few
+ * connections at once, fewer from any one address, and an address whose connections keep going nowhere
+ * is turned away for a while.
+ *
+ * Guessing is hopeless against a 256-bit pairing secret, so none of this defends against guessing. A
+ * sender reaching a device it is not paired with is honest (it tries every listener on the network
+ * until one recognises it) and is not counted.
+ */
+internal class PeerGuard(private val clock: () -> Long) {
+
+    private val active = HashMap<InetAddress, Int>()
+    private val failures = HashMap<InetAddress, Int>()
+    private val blockedUntil = HashMap<InetAddress, Long>()
+
+    @Synchronized
+    fun admit(address: InetAddress): Boolean {
+        val now = clock()
+        blockedUntil.values.removeAll { it <= now }
+        if (address in blockedUntil) return false
+        if (active.values.sum() >= MAX_CONCURRENT_PEERS) return false
+        val fromAddress = active[address] ?: 0
+        if (fromAddress >= MAX_PEERS_PER_ADDRESS) return false
+        active[address] = fromAddress + 1
+        return true
+    }
+
+    @Synchronized
+    fun release(address: InetAddress, failed: Boolean) {
+        val left = (active[address] ?: 1) - 1
+        if (left > 0) active[address] = left else active.remove(address)
+        if (!failed) {
+            failures.remove(address)
+            return
+        }
+        val count = (failures[address] ?: 0) + 1
+        if (count >= MAX_FAILURES_PER_ADDRESS) {
+            failures.remove(address)
+            blockedUntil[address] = clock() + COOLDOWN_MS
+        } else {
+            failures[address] = count
+        }
+    }
+
+    internal companion object {
+        const val MAX_CONCURRENT_PEERS = 4
+        const val MAX_PEERS_PER_ADDRESS = 2
+        const val MAX_FAILURES_PER_ADDRESS = 5
+        const val COOLDOWN_MS = 60_000L
     }
 }
 
@@ -261,6 +319,10 @@ enum class QuickShareResult {
     /** The device was not heard on this network: it is off, Omnify is not open on it, or it is on
      *  another network. */
     NOT_FOUND,
+
+    /** The device took the connection and turned the share away: one is already waiting to be
+     *  answered there, or what was sent is not a source it can add. */
+    REFUSED,
 
     /** It was found, but no longer recognises this device (it was unpaired there), or the connection
      *  did not survive. */
@@ -276,15 +338,12 @@ class QuickShareClient(private val ioDispatcher: CoroutineDispatcher) {
 
     suspend fun send(ownId: String, to: TrustedDevice, payload: ByteArray): QuickShareResult =
         withContext(ioDispatcher) {
-            val hosts = withTimeoutOrNull(LOCATE_TIMEOUT_MS) {
-                findTransferHosts(TransferChannel.QUICK_SHARE, ioDispatcher)
-            }.orEmpty()
-            if (hosts.isEmpty()) return@withContext QuickShareResult.NOT_FOUND
+            val hosts = findTransferHosts(TransferChannel.QUICK_SHARE, ioDispatcher, LOCATE_TIMEOUT_MS)
             var outcome = QuickShareResult.NOT_FOUND
             for (host in hosts) {
                 ensureActive()
                 when (val result = sendTo(host, ownId, to, payload)) {
-                    QuickShareResult.SENT -> return@withContext result
+                    QuickShareResult.SENT, QuickShareResult.REFUSED -> return@withContext result
                     // Another paired device on the same network turns the tag away, since it was not
                     // made for it, which is not a failure of this share: the next host may be the one.
                     QuickShareResult.NOT_FOUND -> Unit
@@ -294,42 +353,57 @@ class QuickShareClient(private val ioDispatcher: CoroutineDispatcher) {
             outcome
         }
 
-    private fun sendTo(host: DiscoveredHost, ownId: String, to: TrustedDevice, payload: ByteArray): QuickShareResult {
+    private suspend fun sendTo(
+        host: DiscoveredHost,
+        ownId: String,
+        to: TrustedDevice,
+        payload: ByteArray,
+    ): QuickShareResult {
         if (!isOnSameLocalNetwork(host.address)) return QuickShareResult.NOT_FOUND
         return try {
             val keyPair = SessionKeyPair.generate()
             val sharedSecret = keyPair.agree(host.publicKey) ?: return QuickShareResult.FAILED
             Socket().use { socket ->
-                socket.connect(InetSocketAddress(host.address, host.port), CONNECT_TIMEOUT_MS)
-                socket.soTimeout = READ_TIMEOUT_MS
-                val output = socket.getOutputStream().buffered()
-                val input = socket.getInputStream().buffered()
-                val senderNonce = newNonce()
-                output.writeMagic(TransferChannel.QUICK_SHARE)
-                output.writeBlock(senderNonce)
-                output.writeBlock(quickHelloTag(to.secret, senderNonce, to.id, ownId))
-                output.writeBlock(keyPair.publicKeyBytes)
-                if (input.read() != STATUS_OK.toInt()) return QuickShareResult.NOT_FOUND
-                val receiverNonce = input.readExactBlock(NONCE_BYTES) ?: return QuickShareResult.FAILED
-                val transcript = quickTranscript(
-                    senderNonce = senderNonce,
-                    receiverNonce = receiverNonce,
-                    senderPublicKey = keyPair.publicKeyBytes,
-                    receiverPublicKey = host.publicKey,
-                    senderId = ownId,
-                    receiverId = to.id,
-                )
-                val key = quickSessionKey(to.secret, sharedSecret, transcript)
-                output.writeBlock(senderConfirmation(key, transcript))
-                if (input.read() != STATUS_OK.toInt()) return QuickShareResult.FAILED
-                if (!confirms(receiverConfirmation(key, transcript), input.readBlock(CONFIRMATION_SIZE))) {
-                    return QuickShareResult.IMPOSTOR
-                }
-                output.writeBlock(encryptTransfer(TransferChannel.QUICK_SHARE, key, transcript, payload))
-                if (confirms(receivedConfirmation(key, transcript), input.readBlock(CONFIRMATION_SIZE))) {
-                    QuickShareResult.SENT
-                } else {
-                    QuickShareResult.FAILED
+                socket.withDeadlines(SEND_DEADLINE_MS) { _ ->
+                    socket.connect(InetSocketAddress(host.address, host.port), CONNECT_TIMEOUT_MS)
+                    socket.soTimeout = READ_TIMEOUT_MS
+                    val output = socket.getOutputStream().buffered()
+                    val input = socket.getInputStream().buffered()
+                    val senderNonce = newNonce()
+                    output.writeMagic(TransferChannel.QUICK_SHARE)
+                    output.writeBlock(senderNonce)
+                    output.writeBlock(quickHelloTag(to.secret, senderNonce, to.id, ownId))
+                    output.writeBlock(keyPair.publicKeyBytes)
+                    if (input.read() != STATUS_OK.toInt()) return@withDeadlines QuickShareResult.NOT_FOUND
+                    val receiverNonce = input.readExactBlock(NONCE_BYTES)
+                        ?: return@withDeadlines QuickShareResult.FAILED
+                    val transcript = quickTranscript(
+                        senderNonce = senderNonce,
+                        receiverNonce = receiverNonce,
+                        senderPublicKey = keyPair.publicKeyBytes,
+                        receiverPublicKey = host.publicKey,
+                        senderId = ownId,
+                        receiverId = to.id,
+                    )
+                    val key = quickSessionKey(to.secret, sharedSecret, transcript)
+                    output.writeBlock(senderConfirmation(key, transcript))
+                    if (input.read() != STATUS_OK.toInt()) return@withDeadlines QuickShareResult.FAILED
+                    if (!confirms(receiverConfirmation(key, transcript), input.readBlock(CONFIRMATION_SIZE))) {
+                        return@withDeadlines QuickShareResult.IMPOSTOR
+                    }
+                    output.writeBlock(encryptTransfer(TransferChannel.QUICK_SHARE, key, transcript, payload))
+                    // The refusal is not authenticated, and needs not be: the device already proved
+                    // itself, and all a forged one could do is what dropping the connection does.
+                    when (input.read()) {
+                        STATUS_OK.toInt() -> Unit
+                        STATUS_REJECTED.toInt() -> return@withDeadlines QuickShareResult.REFUSED
+                        else -> return@withDeadlines QuickShareResult.FAILED
+                    }
+                    if (confirms(receivedConfirmation(key, transcript), input.readBlock(CONFIRMATION_SIZE))) {
+                        QuickShareResult.SENT
+                    } else {
+                        QuickShareResult.FAILED
+                    }
                 }
             }
         } catch (e: CancellationException) {

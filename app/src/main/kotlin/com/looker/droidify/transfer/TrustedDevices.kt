@@ -23,7 +23,21 @@ internal const val MAX_DEVICE_NAME_LENGTH = 40
 
 /** How many devices are remembered at most. A household's worth, and a bound on how many secrets a
  *  quick share is checked against before being turned away. */
-private const val MAX_TRUSTED_DEVICES = 16
+internal const val MAX_TRUSTED_DEVICES = 16
+
+/** How remembering a newly paired device went. */
+enum class RememberResult {
+    STORED,
+
+    /** This device already remembers that one. */
+    ALREADY_PAIRED,
+
+    /** [MAX_TRUSTED_DEVICES] are already remembered. */
+    FULL,
+
+    /** Its secret could not be stored safely on this device, so nothing was kept. */
+    NOT_STORED,
+}
 
 /**
  * A device this one remembers from a pairing, and so accepts quick shares from without a code.
@@ -67,16 +81,24 @@ class TrustedDeviceStore(
         ownId
     }
 
-    /** Remembers [device], replacing a previous pairing with the same one. False when its secret could
-     *  not be stored safely on this device, in which case nothing is kept. */
-    suspend fun remember(device: TrustedDevice): Boolean = mutex.withLock {
+    /**
+     * Remembers [device], unless one with its identifier already is: a pairing never replaces another,
+     * so a device cannot take over the secret and name of one already trusted here. Forgetting the old
+     * pairing first is how a device is paired again.
+     */
+    suspend fun remember(device: TrustedDevice): RememberResult = mutex.withLock {
         ensureLoaded()
-        if (device.seal() == null) return@withLock false
-        val kept = _devices.value.filter { it.id != device.id } + device
-        save(kept.takeLast(MAX_TRUSTED_DEVICES))
-        true
+        val devices = _devices.value
+        when {
+            devices.any { it.id == device.id } -> RememberResult.ALREADY_PAIRED
+            devices.size >= MAX_TRUSTED_DEVICES -> RememberResult.FULL
+            device.seal() == null || !save(devices + device) -> RememberResult.NOT_STORED
+            else -> RememberResult.STORED
+        }
     }
 
+    /** Forgets the device with [id]. Still listed afterwards when the file could not be written, so
+     *  the list never shows a device as forgotten that would come back. */
     suspend fun forget(id: String) = mutex.withLock {
         ensureLoaded()
         save(_devices.value.filter { it.id != id })
@@ -96,14 +118,19 @@ class TrustedDeviceStore(
         if (stored?.ownId != ownId) save(_devices.value)
     }
 
-    private suspend fun save(devices: List<TrustedDevice>) {
+    /** Writes [devices] and, only once they are on disk, shows them. False when they could not be
+     *  written, in which case nothing changes. */
+    private suspend fun save(devices: List<TrustedDevice>): Boolean {
         val stored = StoredDevices(ownId, devices.mapNotNull { it.seal() })
-        withContext(ioDispatcher) {
-            val temporary = File(file.path + ".tmp")
-            temporary.writeText(JSON.encodeToString(StoredDevices.serializer(), stored))
-            temporary.renameTo(file)
+        val written = withContext(ioDispatcher) {
+            runCatching {
+                val temporary = File(file.path + ".tmp")
+                temporary.writeText(JSON.encodeToString(StoredDevices.serializer(), stored))
+                temporary.renameTo(file)
+            }.getOrDefault(false)
         }
-        _devices.value = devices
+        if (written) _devices.value = devices
+        return written
     }
 
     private fun TrustedDevice.seal(): StoredDevice? {

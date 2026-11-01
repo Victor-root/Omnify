@@ -53,7 +53,7 @@ class QuickShareViewModel @Inject constructor(
 
     fun setForeground(shown: Boolean) = service.setForeground(shown)
 
-    fun acceptIncoming() = service.acceptIncoming()
+    fun acceptIncoming(share: IncomingQuickShare) = service.acceptIncoming(share)
 
-    fun declineIncoming() = service.declineIncoming()
+    fun declineIncoming(share: IncomingQuickShare) = service.declineIncoming(share)
 }
