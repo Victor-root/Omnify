@@ -15,8 +15,6 @@ import kotlin.coroutines.coroutineContext
  *  carries no payload worth intercepting (see [TransferAnnouncement]). */
 private const val DISCOVERY_PORT = 47654
 
-private val DISCOVERY_MAGIC = "OMNIFYD2".toByteArray(Charsets.US_ASCII)
-
 /** Long enough that a device joining mid-cycle waits barely at all, short enough not to be chatter. */
 private const val ANNOUNCE_INTERVAL_MS = 1000L
 
@@ -53,18 +51,19 @@ private const val MAX_HOSTS = 8
  */
 internal class TransferAnnouncement(val port: Int, val publicKey: ByteArray) {
 
-    fun encode(): ByteArray = DISCOVERY_MAGIC +
+    fun encode(channel: TransferChannel): ByteArray = channel.discoveryMagic +
         byteArrayOf((port ushr 8).toByte(), port.toByte()) +
         byteArrayOf((publicKey.size ushr 8).toByte(), publicKey.size.toByte()) +
         publicKey
 
     companion object {
-        private val HEADER = DISCOVERY_MAGIC.size + 4
-
-        fun parse(data: ByteArray, length: Int): TransferAnnouncement? {
-            if (length < HEADER || length > MAX_ANNOUNCEMENT_BYTES) return null
-            if (!data.copyOfRange(0, DISCOVERY_MAGIC.size).contentEquals(DISCOVERY_MAGIC)) return null
-            var offset = DISCOVERY_MAGIC.size
+        /** [channel]'s announcement in [data], or null when it is not one: another channel's, another
+         *  app's, or malformed. */
+        fun parse(channel: TransferChannel, data: ByteArray, length: Int): TransferAnnouncement? {
+            val magic = channel.discoveryMagic
+            if (length < magic.size + 4 || length > MAX_ANNOUNCEMENT_BYTES) return null
+            if (!data.copyOfRange(0, magic.size).contentEquals(magic)) return null
+            var offset = magic.size
             val port = ((data[offset].toInt() and 0xFF) shl 8) or (data[offset + 1].toInt() and 0xFF)
             if (port !in 1..65535) return null
             offset += 2
@@ -87,16 +86,18 @@ class DiscoveredHost(
 )
 
 /**
- * Repeats [announcement] onto every local network this device is on, until cancelled.
+ * Repeats [announcement] onto every local network this device is on, under [channel]'s marker, until
+ * cancelled.
  *
  * Never throws: a network that refuses broadcasts (some routers, some captive setups) should leave
  * the pairing screen up and merely unfound, not crash the app the user is staring at.
  */
 internal suspend fun announceTransfer(
+    channel: TransferChannel,
     announcement: TransferAnnouncement,
     ioDispatcher: CoroutineDispatcher,
 ): Unit = withContext(ioDispatcher) {
-    val payload = announcement.encode()
+    val payload = announcement.encode(channel)
     runCatching {
         DatagramSocket().use { socket ->
             socket.broadcast = true
@@ -121,7 +122,10 @@ internal suspend fun announceTransfer(
  * moment past the first answer so that a second waiting device is offered too, instead of the search
  * silently stopping at whichever happened to broadcast first.
  */
-internal suspend fun findTransferHosts(ioDispatcher: CoroutineDispatcher): List<DiscoveredHost> =
+internal suspend fun findTransferHosts(
+    channel: TransferChannel,
+    ioDispatcher: CoroutineDispatcher,
+): List<DiscoveredHost> =
     withContext(ioDispatcher) {
         val found = LinkedHashMap<String, DiscoveredHost>()
         runCatching {
@@ -145,7 +149,7 @@ internal suspend fun findTransferHosts(ioDispatcher: CoroutineDispatcher): List<
                     // A device that is not on this device's own network is not one this code could
                     // belong to, and is not worth an attempt.
                     if (!isOnSameLocalNetwork(packet.address)) continue
-                    val announcement = TransferAnnouncement.parse(packet.data, packet.length) ?: continue
+                    val announcement = TransferAnnouncement.parse(channel, packet.data, packet.length) ?: continue
                     // Keyed by the device rather than by the port it named, and kept as first heard:
                     // one device is waiting on one port, so anything announcing several is not that,
                     // and letting it in would be letting one machine spend the whole ceiling above.

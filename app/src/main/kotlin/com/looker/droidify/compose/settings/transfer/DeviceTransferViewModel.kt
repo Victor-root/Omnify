@@ -6,6 +6,7 @@ import com.looker.droidify.data.backup.BackupCategory
 import com.looker.droidify.data.backup.BackupInspection
 import com.looker.droidify.data.backup.BackupRepository
 import com.looker.droidify.di.IoDispatcher
+import com.looker.droidify.transfer.TransferChannel
 import com.looker.droidify.transfer.TransferClient
 import com.looker.droidify.transfer.TransferFailure
 import com.looker.droidify.transfer.TransferHost
@@ -123,7 +124,7 @@ class DeviceTransferViewModel @Inject constructor(
     fun startReceiving() {
         if (hostJob?.isActive == true) return
         hostJob = viewModelScope.launch {
-            val session = TransferHost(ioDispatcher)
+            val session = TransferHost(ioDispatcher, TransferChannel.BACKUP)
             // Published before it is even bound, because closing the socket from outside is the only
             // thing that unblocks a waiting accept: cancelling this coroutine alone would leave it
             // sitting in that call forever, and the finally below would never be reached.
@@ -144,7 +145,7 @@ class DeviceTransferViewModel @Inject constructor(
                 // outcome on the screen showing the new one.
                 ensureActive()
                 _receiving.value = when (result) {
-                    is TransferHostResult.Received -> inspect(result.backup)
+                    is TransferHostResult.Received -> inspect(result.payload)
                     TransferHostResult.Abandoned -> ReceiveState.Abandoned
                     TransferHostResult.Expired -> ReceiveState.Expired
                 }
@@ -242,7 +243,7 @@ class DeviceTransferViewModel @Inject constructor(
         _sending.value = SendState.Working
         sendJob = viewModelScope.launch {
             val result = try {
-                val client = TransferClient(ioDispatcher)
+                val client = TransferClient(ioDispatcher, TransferChannel.BACKUP)
                 val found = withTimeoutOrNull(DISCOVERY_TIMEOUT_MS) { client.locate() }.orEmpty()
                 if (found.isEmpty()) {
                     TransferSendResult.Failed(TransferFailure.NOT_FOUND)
@@ -260,7 +261,7 @@ class DeviceTransferViewModel @Inject constructor(
                 TransferSendResult.Failed(TransferFailure.UNREACHABLE)
             }
             _sending.value = when (result) {
-                TransferSendResult.Sent -> SendState.Sent
+                is TransferSendResult.Sent -> SendState.Sent
                 is TransferSendResult.Failed -> SendState.EnteringCode(result.reason)
             }
         }

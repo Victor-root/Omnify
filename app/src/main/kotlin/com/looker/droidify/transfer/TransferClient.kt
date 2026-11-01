@@ -36,9 +36,17 @@ enum class TransferFailure {
     IMPOSTOR,
 }
 
+/** Ceiling on what the receiving device may answer with (pairing: its identity, a few dozen bytes). */
+private const val MAX_REPLY_BYTES = 4096
+
 /** How one send ended. */
 sealed interface TransferSendResult {
-    data object Sent : TransferSendResult
+    /**
+     * The payload arrived. [reply] is what the receiving device answered with, for a conversation
+     * that expects one, and [secret] what the two devices can keep to recognise each other later (see
+     * [pairingSecret]); a backup transfer uses neither.
+     */
+    class Sent(val reply: ByteArray?, internal val secret: ByteArray) : TransferSendResult
     class Failed(val reason: TransferFailure) : TransferSendResult
 }
 
@@ -49,11 +57,14 @@ sealed interface TransferSendResult {
  * Sending is always the side that types the code, receiving always the side that shows one, so
  * nothing here has to ask which way the data should go: the user already said so by choosing to send.
  */
-class TransferClient(private val ioDispatcher: CoroutineDispatcher) {
+class TransferClient(
+    private val ioDispatcher: CoroutineDispatcher,
+    private val channel: TransferChannel,
+) {
 
-    /** Every device heard waiting on this network. Runs until at least one answers, so the caller
-     *  sets the deadline. */
-    suspend fun locate(): List<DiscoveredHost> = findTransferHosts(ioDispatcher)
+    /** Every device heard waiting on this network on [channel]. Runs until at least one answers, so the
+     *  caller sets the deadline. */
+    suspend fun locate(): List<DiscoveredHost> = findTransferHosts(channel, ioDispatcher)
 
     /**
      * Hands [backup] to whichever of [hosts] the typed [code] turns out to belong to.
@@ -72,6 +83,7 @@ class TransferClient(private val ioDispatcher: CoroutineDispatcher) {
         hosts: List<DiscoveredHost>,
         code: String,
         backup: ByteArray,
+        expectReply: Boolean = false,
     ): TransferSendResult = withContext(ioDispatcher) {
         if (hosts.isEmpty()) return@withContext TransferSendResult.Failed(TransferFailure.NOT_FOUND)
         var worst: TransferFailure? = null
@@ -79,8 +91,8 @@ class TransferClient(private val ioDispatcher: CoroutineDispatcher) {
             // Between hosts rather than only at the start: each attempt can take up to the connect
             // and read timeouts above, and the user closing the screen should not be waited out.
             ensureActive()
-            when (val result = sendTo(host, code, backup)) {
-                TransferSendResult.Sent -> return@withContext result
+            when (val result = sendTo(host, code, backup, expectReply)) {
+                is TransferSendResult.Sent -> return@withContext result
                 is TransferSendResult.Failed -> if (result.reason.tellsMoreThan(worst)) worst = result.reason
             }
         }
@@ -99,7 +111,12 @@ class TransferClient(private val ioDispatcher: CoroutineDispatcher) {
      * trusting encryption alone to sort it out afterwards would mean a short code being all that
      * stood between an eavesdropper and them, at their leisure.
      */
-    private fun sendTo(host: DiscoveredHost, code: String, backup: ByteArray): TransferSendResult {
+    private fun sendTo(
+        host: DiscoveredHost,
+        code: String,
+        backup: ByteArray,
+        expectReply: Boolean,
+    ): TransferSendResult {
         // Checked again here, not just when the announcement was heard: what a backup carries is
         // worth confirming twice that it is only ever opened towards this device's own local network.
         if (!isOnSameLocalNetwork(host.address)) {
@@ -116,7 +133,7 @@ class TransferClient(private val ioDispatcher: CoroutineDispatcher) {
                 socket.soTimeout = READ_TIMEOUT_MS
                 val output = socket.getOutputStream().buffered()
                 val input = socket.getInputStream().buffered()
-                output.writeMagic()
+                output.writeMagic(channel)
                 output.writeBlock(keyPair.publicKeyBytes)
                 output.writeBlock(senderConfirmation(key, transcript))
                 when (input.read()) {
@@ -131,15 +148,21 @@ class TransferClient(private val ioDispatcher: CoroutineDispatcher) {
                 if (!confirms(receiverConfirmation(key, transcript), answer)) {
                     return TransferSendResult.Failed(TransferFailure.IMPOSTOR)
                 }
-                output.writeBlock(encryptTransfer(key, transcript, backup))
+                output.writeBlock(encryptTransfer(channel, key, transcript, backup))
                 // Only now is "sent" true. The acknowledgement is a value only this session's key
                 // produces, so the screen says the data arrived because it did, not because something
                 // on the network was willing to say so.
-                if (confirms(receivedConfirmation(key, transcript), input.readBlock(CONFIRMATION_SIZE))) {
-                    TransferSendResult.Sent
-                } else {
-                    TransferSendResult.Failed(TransferFailure.UNREACHABLE)
+                if (!confirms(receivedConfirmation(key, transcript), input.readBlock(CONFIRMATION_SIZE))) {
+                    return TransferSendResult.Failed(TransferFailure.UNREACHABLE)
                 }
+                val reply = if (expectReply) {
+                    input.readBlock(MAX_REPLY_BYTES)
+                        ?.let { decryptTransfer(channel, replyKey(key), transcript, it) }
+                        ?: return TransferSendResult.Failed(TransferFailure.UNREACHABLE)
+                } else {
+                    null
+                }
+                TransferSendResult.Sent(reply, pairingSecret(key, transcript))
             }
         } catch (e: CancellationException) {
             throw e

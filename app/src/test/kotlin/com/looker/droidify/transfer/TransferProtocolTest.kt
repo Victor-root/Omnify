@@ -115,37 +115,65 @@ class TransferProtocolTest {
     fun `a payload encrypted under a key comes back under the same one`() {
         val key = deriveSessionKey("12345678", secret)
         val plaintext = "a backup, more or less".toByteArray()
-        assertContentEquals(plaintext, decryptTransfer(key, transcript, encryptTransfer(key, transcript, plaintext)))
+        val block = encryptTransfer(TransferChannel.BACKUP, key, transcript, plaintext)
+        assertContentEquals(plaintext, decryptTransfer(TransferChannel.BACKUP, key, transcript, block))
     }
 
     @Test
     fun `a key from a different code cannot open it`() {
         val key = deriveSessionKey("12345678", secret)
         val otherKey = deriveSessionKey("87654321", secret)
-        assertNull(decryptTransfer(otherKey, transcript, encryptTransfer(key, transcript, "secret".toByteArray())))
+        val block = encryptTransfer(TransferChannel.BACKUP, key, transcript, "secret".toByteArray())
+        assertNull(decryptTransfer(TransferChannel.BACKUP, otherKey, transcript, block))
     }
 
     @Test
     fun `a payload from another exchange cannot be replayed into this one`() {
         val key = deriveSessionKey("12345678", secret)
         val other = transferTranscript(ByteArray(91) { 3 }, ByteArray(91) { 4 })
-        assertNull(decryptTransfer(key, other, encryptTransfer(key, transcript, "secret".toByteArray())))
+        val block = encryptTransfer(TransferChannel.BACKUP, key, transcript, "secret".toByteArray())
+        assertNull(decryptTransfer(TransferChannel.BACKUP, key, other, block))
+    }
+
+    @Test
+    fun `a block made for one channel does not open in another`() {
+        val key = deriveSessionKey("12345678", secret)
+        val block = encryptTransfer(TransferChannel.PAIRING, key, transcript, "identity".toByteArray())
+        assertNull(decryptTransfer(TransferChannel.BACKUP, key, transcript, block))
+        assertNull(decryptTransfer(TransferChannel.QUICK_SHARE, key, transcript, block))
+    }
+
+    @Test
+    fun `the payload cannot be handed back as the answer`() {
+        // Someone relaying a pairing could otherwise return the sender its own identity as the reply.
+        val key = deriveSessionKey("12345678", secret)
+        val payload = encryptTransfer(TransferChannel.PAIRING, key, transcript, "sender".toByteArray())
+        assertNull(decryptTransfer(TransferChannel.PAIRING, replyKey(key), transcript, payload))
+    }
+
+    @Test
+    fun `both sides keep the same pairing secret, and only for this exchange`() {
+        val key = deriveSessionKey("12345678", secret)
+        assertContentEquals(pairingSecret(key, transcript), pairingSecret(key, transcript))
+        val other = transferTranscript(ByteArray(91) { 3 }, ByteArray(91) { 4 })
+        assertNotEquals(pairingSecret(key, transcript).toList(), pairingSecret(key, other).toList())
+        assertNotEquals(key.toList(), pairingSecret(key, transcript).toList())
     }
 
     @Test
     fun `a tampered block does not decrypt`() {
         val key = deriveSessionKey("12345678", secret)
-        val block = encryptTransfer(key, transcript, "secret things".toByteArray())
+        val block = encryptTransfer(TransferChannel.BACKUP, key, transcript, "secret things".toByteArray())
         val tampered = block.copyOf().also { it[it.lastIndex] = (it[it.lastIndex] + 1).toByte() }
-        assertNull(decryptTransfer(key, transcript, tampered))
+        assertNull(decryptTransfer(TransferChannel.BACKUP, key, transcript, tampered))
     }
 
     @Test
     fun `truncated and empty blocks are refused rather than crashing`() {
         val key = deriveSessionKey("12345678", secret)
-        val block = encryptTransfer(key, transcript, "secret things".toByteArray())
-        assertNull(decryptTransfer(key, transcript, ByteArray(0)))
-        assertNull(decryptTransfer(key, transcript, block.copyOfRange(0, 8)))
+        val block = encryptTransfer(TransferChannel.BACKUP, key, transcript, "secret things".toByteArray())
+        assertNull(decryptTransfer(TransferChannel.BACKUP, key, transcript, ByteArray(0)))
+        assertNull(decryptTransfer(TransferChannel.BACKUP, key, transcript, block.copyOfRange(0, 8)))
     }
 
     // Framing. Nothing here has been through the key exchange yet: these are the bytes any device on
@@ -209,8 +237,8 @@ class TransferProtocolTest {
         val key = deriveSessionKey("12345678", secret)
         val plaintext = "same thing twice".toByteArray()
         assertNotEquals(
-            encryptTransfer(key, transcript, plaintext).toList(),
-            encryptTransfer(key, transcript, plaintext).toList(),
+            encryptTransfer(TransferChannel.BACKUP, key, transcript, plaintext).toList(),
+            encryptTransfer(TransferChannel.BACKUP, key, transcript, plaintext).toList(),
         )
     }
 
@@ -268,27 +296,29 @@ class TransferProtocolTest {
     @Test
     fun `an announcement survives the round trip`() {
         val publicKey = SessionKeyPair.generate().publicKeyBytes
-        val encoded = TransferAnnouncement(port = 45123, publicKey = publicKey).encode()
-        val parsed = TransferAnnouncement.parse(encoded, encoded.size)
+        val encoded = TransferAnnouncement(port = 45123, publicKey = publicKey).encode(TransferChannel.BACKUP)
+        val parsed = TransferAnnouncement.parse(TransferChannel.BACKUP, encoded, encoded.size)
         assertEquals(45123, parsed?.port)
         assertContentEquals(publicKey, parsed?.publicKey)
     }
 
     @Test
     fun `anything that is not an announcement parses to null`() {
-        val encoded = TransferAnnouncement(1, SessionKeyPair.generate().publicKeyBytes).encode()
-        assertNull(TransferAnnouncement.parse(ByteArray(0), 0))
+        val encoded = TransferAnnouncement(1, SessionKeyPair.generate().publicKeyBytes).encode(TransferChannel.BACKUP)
+        assertNull(TransferAnnouncement.parse(TransferChannel.BACKUP, ByteArray(0), 0))
         // Truncated, so the declared key length no longer matches what is there.
-        assertNull(TransferAnnouncement.parse(encoded, encoded.size - 1))
+        assertNull(TransferAnnouncement.parse(TransferChannel.BACKUP, encoded, encoded.size - 1))
         // Right size, wrong content: no magic.
-        assertNull(TransferAnnouncement.parse(ByteArray(encoded.size), encoded.size))
+        assertNull(TransferAnnouncement.parse(TransferChannel.BACKUP, ByteArray(encoded.size), encoded.size))
+        // Another channel's announcement is not this one's.
+        assertNull(TransferAnnouncement.parse(TransferChannel.QUICK_SHARE, encoded, encoded.size))
     }
 
     @Test
     fun `an announcement carries nothing derived from the code`() {
         // The reason eight digits is enough: nothing broadcast can be tested against a guess.
         val code = "12345678"
-        val encoded = TransferAnnouncement(45123, SessionKeyPair.generate().publicKeyBytes).encode()
+        val encoded = TransferAnnouncement(45123, SessionKeyPair.generate().publicKeyBytes).encode(TransferChannel.BACKUP)
         assertEquals(-1, encoded.toString(Charsets.ISO_8859_1).indexOf(code))
     }
 }
