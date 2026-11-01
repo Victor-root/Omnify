@@ -126,8 +126,7 @@ import com.looker.droidify.external.Release
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
-import com.looker.droidify.utility.common.RootDetection
-import com.looker.droidify.utility.common.ShizukuDetection
+import com.looker.droidify.utility.common.AppCapabilities
 import com.looker.droidify.utility.common.rememberIconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
@@ -167,6 +166,7 @@ fun ExternalAppDetailScreen(
     val hasPrereleaseChoice by viewModel.hasPrereleaseChoice.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     val googleServicesByApkUrl by viewModel.googleServicesByApkUrl.collectAsStateWithLifecycle()
+    val declaredCapabilitiesByApkUrl by viewModel.declaredCapabilitiesByApkUrl.collectAsStateWithLifecycle()
     val expectedSignersByApkUrl by viewModel.expectedSignersByApkUrl.collectAsStateWithLifecycle()
     val issueTrackerLink by viewModel.issueTrackerLink.collectAsStateWithLifecycle()
     val changelogLink by viewModel.changelogLink.collectAsStateWithLifecycle()
@@ -209,11 +209,11 @@ fun ExternalAppDetailScreen(
     // (not the raw key) so it runs once the app record has actually loaded. No-op once the id is known.
     LaunchedEffect(app?.key) { app?.let { viewModel.ensurePackageId(it.key) } }
 
-    // Google-services detection needs the latest release's own compiled manifest — fetched lazily, once
-    // per app, same pattern as the SDK-info check (see ExternalAppsViewModel.loadGoogleServicesInfo).
+    // Google-services detection and the capability badges need the latest release's own compiled
+    // manifest, fetched lazily, once per app (see ExternalAppsViewModel.loadManifestInfo).
     LaunchedEffect(app?.key, app?.latestApkUrl) {
         val latestApkUrl = app?.latestApkUrl
-        if (app != null && latestApkUrl != null) viewModel.loadGoogleServicesInfo(app, latestApkUrl)
+        if (app != null && latestApkUrl != null) viewModel.loadManifestInfo(app, latestApkUrl)
     }
     val googleServicesDependencies = app?.latestApkUrl?.let { googleServicesByApkUrl[it] }.orEmpty()
 
@@ -582,14 +582,9 @@ fun ExternalAppDetailScreen(
         val heroSize = cardVersion.size?.let { DataSize(it).toString() }
         // The version shown is a pre-release: said on the card, next to it, as in the version list.
         val offersPrerelease = cardVersion.isPrerelease
-        // Fuzzy but shared with the F-Droid catalogue's own check (see RootDetection): an external
-        // source has no manifest permissions to read, so this only has the app's own text to go on
-        // — its name and README (once loaded; the badge simply isn't shown yet before then).
-        val isRootCompatible = remember(app.key, readmeHtml) {
-            RootDetection.textIndicatesRoot("${app.label} ${readmeHtml.orEmpty()}")
-        }
-        val isShizukuCompatible = remember(app.key, readmeHtml) {
-            ShizukuDetection.textIndicatesShizuku("${app.label} ${readmeHtml.orEmpty()}")
+        val declaredCapabilities = app.latestApkUrl?.let { declaredCapabilitiesByApkUrl[it] }
+        val capabilities = remember(app.key, readmeHtml, declaredCapabilities) {
+            app.capabilities(readmeHtml, declaredCapabilities)
         }
 
         // The installed version, if any — folded into the card's footer, mirroring how the F-Droid
@@ -650,9 +645,9 @@ fun ExternalAppDetailScreen(
                 onToggleInstallSource = app.packageName?.let { packageName ->
                     { viewModel.toggleInstallSource(packageName) }
                 },
-                badge = if (isRootCompatible || isShizukuCompatible || offersPrerelease) {
+                badge = if (capabilities.any || offersPrerelease) {
                     {
-                        CapabilityBadges(root = isRootCompatible, shizuku = isShizukuCompatible, centred = true) {
+                        CapabilityBadges(capabilities, centred = true) {
                             if (offersPrerelease) PrereleaseBadge(onCard = true)
                         }
                     }
@@ -980,6 +975,14 @@ fun ExternalAppDetailScreen(
  * version list's scroll anchor (see [onAnchorPositioned]) correct in both layouts.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+/**
+ * What [this] source's app can use, shown as badges on its page, read the same way as a catalogue
+ * app's (see AppDetailScreen's capabilities): the permissions its latest APK declares ([declared], once
+ * read, see ExternalAppsViewModel.loadManifestInfo) or its own name and [readme] (once loaded).
+ */
+internal fun ExternalApp.capabilities(readme: String?, declared: AppCapabilities?): AppCapabilities =
+    AppCapabilities.describedBy("$label ${readme.orEmpty()}") or (declared ?: AppCapabilities.NONE)
+
 @Composable
 private fun ExternalAppDetailBody(
     app: ExternalApp,
@@ -1024,7 +1027,7 @@ private fun ExternalAppDetailBody(
     sdkInfoByApkUrl: Map<String, ApkBinaryManifest.UsesSdk?>,
     onRequestSdkInfo: (String) -> Unit,
     // Lazily-fetched Google-services dependencies for the app's latest release (see
-    // ExternalAppsViewModel.loadGoogleServicesInfo) — empty while unresolved or when none are detected.
+    // ExternalAppsViewModel.loadManifestInfo) — empty while unresolved or when none are detected.
     googleServicesDependencies: List<GoogleServiceDependency>,
     installedSignerRaw: String?,
     expectedSigners: Set<String>?,

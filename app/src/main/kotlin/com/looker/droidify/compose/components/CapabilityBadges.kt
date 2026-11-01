@@ -23,20 +23,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.utility.common.AppCapabilities
 
 /**
- * The capability pills shown on an app's card, side by side and wrapping when they do not fit, then
- * [more] (a pre-release badge): "Root compatible" for an app
- * [com.looker.droidify.utility.common.RootDetection] flags, "Shizuku compatible" for one
- * [com.looker.droidify.utility.common.ShizukuDetection] flags. Both are worded as a *capability*, not
+ * The pills for [capabilities] shown on an app's card, side by side and wrapping when they do not fit,
+ * then [more] (a pre-release badge): "Root compatible" and "Shizuku compatible". Both are worded as a *capability*, not
  * a requirement: an app can perfectly well work without either, and this must never be read as "you
  * need it to install or use this". Each pill's content description carries that fuller explanation for
  * screen readers, while the visible label stays short. [centred] for a card that centres its content.
  */
 @Composable
 fun CapabilityBadges(
-    root: Boolean,
-    shizuku: Boolean,
+    capabilities: AppCapabilities,
     modifier: Modifier = Modifier,
     centred: Boolean = false,
     more: @Composable () -> Unit = {},
@@ -50,7 +48,7 @@ fun CapabilityBadges(
         },
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (root) {
+        if (capabilities.root) {
             CapabilityBadge(
                 icon = Icons.Filled.Terminal,
                 label = stringResource(R.string.root_compatible),
@@ -59,7 +57,7 @@ fun CapabilityBadges(
                 content = MaterialTheme.colorScheme.onTertiaryContainer,
             )
         }
-        if (shizuku) {
+        if (capabilities.shizuku) {
             CapabilityBadge(
                 icon = Icons.Filled.Adb,
                 label = stringResource(R.string.shizuku_compatible),

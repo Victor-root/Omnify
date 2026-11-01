@@ -66,6 +66,36 @@ object ShizukuDetection {
     fun textIndicatesShizuku(vararg texts: String): Boolean = texts.indicate(KEYWORDS, NEGATIONS)
 }
 
+/**
+ * What an app can use beyond the ordinary, shown as badges on its page: root, and Shizuku or Sui.
+ * Worked out from the permissions its manifest declares ([declaredBy]), the strong signal, and from
+ * its own text ([describedBy]); the two are combined with [or].
+ */
+data class AppCapabilities(val root: Boolean, val shizuku: Boolean) {
+
+    val any: Boolean get() = root || shizuku
+
+    infix fun or(other: AppCapabilities): AppCapabilities =
+        AppCapabilities(root = root || other.root, shizuku = shizuku || other.shizuku)
+
+    companion object {
+        val NONE = AppCapabilities(root = false, shizuku = false)
+
+        /** From the permission names an app's manifest declares. */
+        fun declaredBy(permissionNames: Collection<String>): AppCapabilities = AppCapabilities(
+            root = RootDetection.PERMISSION in permissionNames,
+            shizuku = ShizukuDetection.PERMISSION in permissionNames,
+        )
+
+        /** From an app's own text, each of [texts] being one language's version of it (see
+         *  [RootDetection.textIndicatesRoot]). */
+        fun describedBy(vararg texts: String): AppCapabilities = AppCapabilities(
+            root = RootDetection.textIndicatesRoot(*texts),
+            shizuku = ShizukuDetection.textIndicatesShizuku(*texts),
+        )
+    }
+}
+
 /** Whether one of these texts holds one of [keywords] and none of [negations], each text judged on its
  *  own and case-insensitively. */
 private fun Array<out String>.indicate(keywords: List<String>, negations: List<String>): Boolean = any { text ->

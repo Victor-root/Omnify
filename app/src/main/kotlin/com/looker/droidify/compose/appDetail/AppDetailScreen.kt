@@ -167,8 +167,7 @@ import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.model.TestRepository
 import com.looker.droidify.installer.model.InstallState
-import com.looker.droidify.utility.common.RootDetection
-import com.looker.droidify.utility.common.ShizukuDetection
+import com.looker.droidify.utility.common.AppCapabilities
 import com.looker.droidify.utility.common.rememberIconAccent
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.toSafeBitmap
@@ -1563,11 +1562,8 @@ private fun AppHeaderCard(
     val onSourceCodeClick: (() -> Unit)? = sourceCodeUrl?.let { url ->
         { runCatching { uriHandler.openUri(url) } }
     }
-    val isRootCompatible = remember(app, installablePackage, installedPackage) {
-        app != null && app.isRootCompatible(installablePackage ?: installedPackage)
-    }
-    val isShizukuCompatible = remember(app, installablePackage, installedPackage) {
-        app != null && app.isShizukuCompatible(installablePackage ?: installedPackage)
+    val capabilities = remember(app, installablePackage, installedPackage) {
+        app?.capabilities(installablePackage ?: installedPackage) ?: AppCapabilities.NONE
     }
 
     HeroCard(
@@ -1622,8 +1618,8 @@ private fun AppHeaderCard(
         },
         playStoreSource = playStoreInstallSource,
         onToggleInstallSource = onToggleInstallSource,
-        badge = if (isRootCompatible || isShizukuCompatible) {
-            { CapabilityBadges(root = isRootCompatible, shizuku = isShizukuCompatible, centred = true) }
+        badge = if (capabilities.any) {
+            { CapabilityBadges(capabilities, centred = true) }
         } else {
             null
         },
@@ -1932,20 +1928,13 @@ private fun antiFeatureLabel(tag: String): String = when (tag) {
 }
 
 /**
- * Whether [this] app is meant for rooted devices, shown as the Root badge (see [CapabilityBadges]).
- * Fuzzy but shared with the Discover home's "For rooted devices" carousel (see RootDetection): the
- * legacy superuser permission declared by [pkg], or strong root phrasing (Magisk/KernelSU/"requires
- * root"…) in the app's own name/summary/description, in the user's language or in English
- * ([Metadata.describesRoot]).
+ * What [this] app can use, shown as badges on its page (see [CapabilityBadges]): the permissions [pkg]
+ * declares, or its own name/summary/description in the user's language or in English. Root is read the
+ * same way as the Discover home's "For rooted devices" carousel (see RootDetection), so the two agree.
  */
-internal fun App.isRootCompatible(pkg: Package?): Boolean =
-    metadata.describesRoot || pkg?.manifest?.permissions?.any { it.name == RootDetection.PERMISSION } == true
-
-/** Whether [this] app can use Shizuku or Sui, shown as the Shizuku badge: the Shizuku API permission
- *  declared by [pkg], or its own text ([Metadata.describesShizuku]). */
-internal fun App.isShizukuCompatible(pkg: Package?): Boolean =
-    metadata.describesShizuku ||
-        pkg?.manifest?.permissions?.any { it.name == ShizukuDetection.PERMISSION } == true
+internal fun App.capabilities(pkg: Package?): AppCapabilities =
+    metadata.describedCapabilities or
+        AppCapabilities.declaredBy(pkg?.manifest?.permissions.orEmpty().map { it.name })
 
 @Composable
 internal fun PermissionsSection(permissions: List<Permission>) {

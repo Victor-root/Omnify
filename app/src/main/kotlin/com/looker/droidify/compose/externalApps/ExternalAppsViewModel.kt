@@ -76,6 +76,7 @@ import com.looker.droidify.utility.apk.ApkSigningBlockReader
 import com.looker.droidify.utility.apk.InstalledApkLocaleReader
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
 import com.looker.droidify.utility.apk.RemoteApkManifestReader
+import com.looker.droidify.utility.common.AppCapabilities
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.archiveApplicationInfo
 import com.looker.droidify.utility.common.extension.asStateFlow
@@ -637,34 +638,43 @@ class ExternalAppsViewModel @Inject constructor(
     val googleServicesByApkUrl: StateFlow<Map<String, List<GoogleServiceDependency>>> =
         _googleServicesByApkUrl
 
-    private val googleServicesRequested = mutableSetOf<String>()
+    /** What the release APK at each URL declares it can use (see [AppCapabilities.declaredBy]), read from
+     *  the same manifest as [googleServicesByApkUrl] and populated with it: an external source has no
+     *  F-Droid index declaring its permissions, so its own APK is the only place to read them from. A key
+     *  absent means it hasn't been read yet, or couldn't be. */
+    private val _declaredCapabilitiesByApkUrl = MutableStateFlow<Map<String, AppCapabilities>>(emptyMap())
+    val declaredCapabilitiesByApkUrl: StateFlow<Map<String, AppCapabilities>> = _declaredCapabilitiesByApkUrl
 
-    /** Fetches and caches [apkUrl]'s Google-services dependencies for [app]; a no-op if already
-     *  requested (or done). Called once per app's latest APK, from the detail screen. */
-    fun loadGoogleServicesInfo(app: ExternalApp, apkUrl: String) {
-        if (!googleServicesRequested.add(apkUrl)) return
+    private val manifestRequested = mutableSetOf<String>()
+
+    /** Reads [apkUrl]'s manifest once for [app], into [googleServicesByApkUrl] and
+     *  [declaredCapabilitiesByApkUrl]; a no-op if already requested (or done). Called once per app's latest
+     *  APK, from the detail screen. */
+    fun loadManifestInfo(app: ExternalApp, apkUrl: String) {
+        if (!manifestRequested.add(apkUrl)) return
         viewModelScope.launch {
-            // Off the main thread: the reader inflates the manifest and both checks below parse it.
-            val dependencies = withContext(Dispatchers.Default) {
-                val packageId = app.packageName ?: externalApi.fetchPackageId(app)
-                val manifest = packageId?.let { RemoteApkManifestReader.fetchManifestBytes(downloader, apkUrl) }
+            // Off the main thread: the reader inflates the manifest and the checks below parse it.
+            val (declared, dependencies) = withContext(Dispatchers.Default) {
+                val manifest = RemoteApkManifestReader.fetchManifestBytes(downloader, apkUrl)
                 val parsed = manifest?.let(ApkBinaryManifest::permissionsAndFeatures)
-                if (packageId != null && manifest != null && parsed != null) {
-                    val detected =
-                        detectGoogleServicesDependencies(packageId, parsed.permissionNames, parsed.featureNames)
+                val packageId = parsed?.let { app.packageName ?: externalApi.fetchPackageId(app) }
+                val detected = if (manifest != null && parsed != null && packageId != null) {
+                    val found = detectGoogleServicesDependencies(packageId, parsed.permissionNames, parsed.featureNames)
                     // Same precision refinement the catalogue applies: a merged manifest can still declare
                     // the push permission purely as a bundled Firebase/GCM library's own residue, with every
                     // app-authored component that would let it actually reach the app removed (see
                     // pushCapabilityIsVestigial's own doc comment).
                     if (pushCapabilityIsVestigial(manifest) == true) {
-                        detected.filterNot { it.labelRes == R.string.gms_cap_push }
+                        found.filterNot { it.labelRes == R.string.gms_cap_push }
                     } else {
-                        detected
+                        found
                     }
                 } else {
                     emptyList()
                 }
+                parsed?.let { AppCapabilities.declaredBy(it.permissionNames) } to detected
             }
+            if (declared != null) _declaredCapabilitiesByApkUrl.update { it + (apkUrl to declared) }
             _googleServicesByApkUrl.update { it + (apkUrl to dependencies) }
         }
     }

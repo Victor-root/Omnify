@@ -1,6 +1,7 @@
 package com.looker.droidify.data.model
 
 import androidx.compose.runtime.Immutable
+import com.looker.droidify.utility.common.AppCapabilities
 
 @Immutable
 data class App(
@@ -64,11 +65,8 @@ data class Metadata(
     val suggestedVersionCode: Long,
     val suggestedVersionName: String,
     val summary: String,
-    /** Whether the app's own text, in the user's language or its English original, says it uses root
-     *  (see RootDetection.textIndicatesRoot). */
-    val describesRoot: Boolean,
-    /** The same for Shizuku or Sui (see ShizukuDetection.textIndicatesShizuku). */
-    val describesShizuku: Boolean,
+    /** What the app's own text, in the user's language or its English original, says it can use. */
+    val describedCapabilities: AppCapabilities,
 )
 
 data class Screenshots(

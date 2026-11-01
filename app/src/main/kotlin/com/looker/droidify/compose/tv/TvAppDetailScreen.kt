@@ -4,8 +4,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.ui.platform.LocalContext
 import com.looker.droidify.compose.appDetail.PermissionsSection
-import com.looker.droidify.compose.appDetail.isRootCompatible
-import com.looker.droidify.compose.appDetail.isShizukuCompatible
+import com.looker.droidify.compose.appDetail.capabilities
 import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.utility.common.extension.openAppInfo
@@ -164,11 +163,8 @@ fun TvAppDetailScreen(
                 // The same lookups the phone page makes, so both show the same things.
                 val suggestedPackage = installablePackage ?: packages.firstOrNull()?.first
                 val permissions = remember(suggestedPackage) { suggestedPackage?.manifest?.permissions.orEmpty() }
-                val isRootCompatible = remember(app, installablePackage, installedPackage) {
-                    app.isRootCompatible(installablePackage ?: installedPackage)
-                }
-                val isShizukuCompatible = remember(app, installablePackage, installedPackage) {
-                    app.isShizukuCompatible(installablePackage ?: installedPackage)
+                val capabilities = remember(app, installablePackage, installedPackage) {
+                    app.capabilities(installablePackage ?: installedPackage)
                 }
                 // externallySourced: mirrors the phone screen, see AppDetailViewModel's own property. A copy
                 // a tracked external source is responsible for is not this catalogue entry's to update, and
@@ -318,9 +314,7 @@ fun TvAppDetailScreen(
                                                 style = MaterialTheme.typography.bodyLarge,
                                             )
                                         }
-                                        if (isRootCompatible || isShizukuCompatible) {
-                                            CapabilityBadges(root = isRootCompatible, shizuku = isShizukuCompatible)
-                                        }
+                                        if (capabilities.any) CapabilityBadges(capabilities)
                                     }
                                 }
                                 // Under the icon, across the card: beside it, the column was too narrow for
