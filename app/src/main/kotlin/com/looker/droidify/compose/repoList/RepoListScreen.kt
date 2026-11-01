@@ -101,6 +101,7 @@ import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.PendingSharedSource
 import com.looker.droidify.compose.externalApps.rememberObtainiumImportPicker
+import com.looker.droidify.compose.quickshare.QuickShareSendDialog
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.trailRepoIcon
 import com.looker.droidify.external.ExternalAccount
@@ -150,6 +151,7 @@ fun RepoListScreen(
     var showAddExternal by rememberSaveable { mutableStateOf(false) }
     var showAddAccount by rememberSaveable { mutableStateOf(false) }
     var editingExternal by remember { mutableStateOf<ExternalApp?>(null) }
+    var sendingExternal by remember { mutableStateOf<ExternalApp?>(null) }
 
     // What the add dialog starts out filled with when the screen was opened from a shared link: the
     // address, and an Obtainium link's settings too. Held here so it can seed whichever dialog we open.
@@ -338,6 +340,7 @@ fun RepoListScreen(
                         onOpen = { onSourceClick(app.key) },
                         onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
                         onEdit = { editingExternal = app },
+                        onSend = { sendingExternal = app },
                         onRemove = { externalViewModel.remove(app.key) },
                     )
                 }
@@ -384,6 +387,7 @@ fun RepoListScreen(
                         onOpen = { onSourceClick(app.key) },
                         onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
                         onEdit = null,
+                        onSend = null,
                         onRemove = null,
                     )
                 }
@@ -493,6 +497,9 @@ fun RepoListScreen(
             onAdd = externalViewModel::addSource,
             onAddFamilies = externalViewModel::addFamilies,
         )
+    }
+    sendingExternal?.let { app ->
+        QuickShareSendDialog(app = app, onDismiss = { sendingExternal = null })
     }
     editingExternal?.let { app ->
         // Launcher icons found in the repo, for the picker. null = still loading, empty = none found.
@@ -822,8 +829,9 @@ private fun RepoItem(
 
 /** A tracked external source as a management row: logo, name, owner/repo, an enable/disable toggle
  *  (like a repo) and edit/remove buttons. App actions (install, launch…) intentionally live elsewhere,
- *  on the External tab; this row only manages the source. [onEdit]/[onRemove] are null for a pinned
- *  built-in source (the Omnify repo), which can only be toggled. */
+ *  on the External tab; this row only manages the source, and sends it to a paired device ([onSend]).
+ *  [onEdit]/[onSend]/[onRemove] are null for a pinned built-in source (the Omnify repo), which can
+ *  only be toggled. */
 @Composable
 private fun ExternalSourceItem(
     app: ExternalApp,
@@ -831,6 +839,7 @@ private fun ExternalSourceItem(
     onOpen: () -> Unit,
     onToggle: () -> Unit,
     onEdit: (() -> Unit)?,
+    onSend: (() -> Unit)?,
     onRemove: (() -> Unit)?,
 ) {
     val contentAlpha = if (app.enabled) 1f else 0.4f
@@ -886,13 +895,20 @@ private fun ExternalSourceItem(
         // Edit / remove live in an overflow menu so the row stays narrow and the source name has room
         // (three trailing buttons truncated it). It sits before the toggle so every toggle lines up at
         // the far right. The pinned Omnify source has neither action, so no menu.
-        if (onEdit != null || onRemove != null) {
+        if (onEdit != null || onSend != null || onRemove != null) {
             OverflowMenu { dismiss ->
                 if (onEdit != null) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.external_edit_source)) },
                         leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
                         onClick = { dismiss(); onEdit() },
+                    )
+                }
+                if (onSend != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.quick_share_title)) },
+                        leadingIcon = { Icon(painterResource(R.drawable.ic_tv_device), contentDescription = null) },
+                        onClick = { dismiss(); onSend() },
                     )
                 }
                 if (onRemove != null) {

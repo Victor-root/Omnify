@@ -81,7 +81,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.BackButton
-import com.looker.droidify.compose.quickshare.QuickShareSendDialog
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.appDetail.GoogleServiceDependency
 import com.looker.droidify.compose.appDetail.GoogleServicesCard
@@ -174,7 +173,6 @@ fun ExternalAppDetailScreen(
     val changelogHtml by viewModel.changelogHtml.collectAsStateWithLifecycle()
     val changelogUnavailable by viewModel.changelogUnavailable.collectAsStateWithLifecycle()
     var showChangelog by remember { mutableStateOf(false) }
-    var showQuickShare by remember { mutableStateOf(false) }
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val splitViewSettingEnabled by viewModel.splitViewEnabled.collectAsStateWithLifecycle()
     val favourites by viewModel.favourites.collectAsStateWithLifecycle()
@@ -489,12 +487,6 @@ fun ExternalAppDetailScreen(
                                 contentDescription = stringResource(R.string.share),
                             )
                         }
-                        IconButton(onClick = { showQuickShare = true }) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_tv_device),
-                                contentDescription = stringResource(R.string.quick_share_title),
-                            )
-                        }
                         HideAppAction(
                             isHidden = app.key in hiddenApps,
                             onToggle = { viewModel.toggleHidden(app) },
@@ -541,9 +533,6 @@ fun ExternalAppDetailScreen(
                 onUninstall = {},
                 onDismiss = { versionToInstall = null },
             )
-        }
-        if (showQuickShare) {
-            QuickShareSendDialog(app = app, onDismiss = { showQuickShare = false })
         }
         if (showChangelog) {
             ChangelogDialog(
