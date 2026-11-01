@@ -1,6 +1,7 @@
 package com.looker.droidify.utility.common
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -35,5 +36,14 @@ class AppCapabilitiesTest {
         assertTrue(ShizukuDetection.textIndicatesShizuku("Fonctionne avec le module Sui."))
         assertFalse(ShizukuDetection.textIndicatesShizuku("Je suis une appli, suivez le guide."))
         assertFalse(ShizukuDetection.textIndicatesShizuku("Works without Shizuku."))
+    }
+
+    @Test
+    fun `an APK's permissions and the app's text both count`() {
+        val declared = AppCapabilities.declaredBy(setOf("android.permission.INTERNET", ShizukuDetection.PERMISSION))
+        assertEquals(AppCapabilities(root = false, shizuku = true), declared)
+        val described = AppCapabilities.describedBy("Requires root to back up apps.")
+        assertEquals(AppCapabilities(root = true, shizuku = true), described or declared)
+        assertFalse(AppCapabilities.declaredBy(setOf("android.permission.INTERNET")).any)
     }
 }

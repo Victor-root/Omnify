@@ -4,8 +4,6 @@ import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.SupportedLanguagesSection
-import com.looker.droidify.utility.common.RootDetection
-import com.looker.droidify.utility.common.ShizukuDetection
 import com.looker.droidify.utility.common.extension.openAppInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -70,6 +68,7 @@ import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.singleSignature
 import androidx.compose.ui.Alignment
 import com.looker.droidify.compose.externalApps.PrereleaseModeChooser
+import com.looker.droidify.compose.externalApps.capabilities
 import com.looker.droidify.compose.externalApps.cardVersion
 import com.looker.droidify.compose.externalApps.offersPrereleaseChoice
 
@@ -176,12 +175,14 @@ fun TvExternalAppDetailScreen(
     }
     val expectedSigners = certificateApkUrl?.let { expectedSignersByApkUrl[it] }
 
-    // Read off the same text as the phone screen's badge: the app's name and its README.
-    val isRootCompatible = remember(app.key, readme) {
-        RootDetection.textIndicatesRoot("${app.label} ${readme?.html.orEmpty()}")
+    // Read the same way as the phone screen's badges: the latest APK's manifest, the name and README.
+    val declaredCapabilitiesByApkUrl by viewModel.declaredCapabilitiesByApkUrl.collectAsStateWithLifecycle()
+    LaunchedEffect(app.key, app.latestApkUrl) {
+        app.latestApkUrl?.let { viewModel.loadManifestInfo(app, it) }
     }
-    val isShizukuCompatible = remember(app.key, readme) {
-        ShizukuDetection.textIndicatesShizuku("${app.label} ${readme?.html.orEmpty()}")
+    val declaredCapabilities = app.latestApkUrl?.let { declaredCapabilitiesByApkUrl[it] }
+    val capabilities = remember(app.key, readme, declaredCapabilities) {
+        app.capabilities(readme?.html, declaredCapabilities)
     }
 
     // Same content the phone screen loads, so an external app's page is as rich as a catalogue one
@@ -292,9 +293,7 @@ fun TvExternalAppDetailScreen(
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                if (isRootCompatible || isShizukuCompatible) {
-                                    CapabilityBadges(root = isRootCompatible, shizuku = isShizukuCompatible)
-                                }
+                                if (capabilities.any) CapabilityBadges(capabilities)
                             }
                         }
                         // Under the icon, across the card: beside it, the column was too narrow for two of

@@ -14,8 +14,7 @@ import com.looker.droidify.data.model.Html
 import com.looker.droidify.data.model.Metadata
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.sync.v2.model.MetadataV2
-import com.looker.droidify.utility.common.RootDetection
-import com.looker.droidify.utility.common.ShizukuDetection
+import com.looker.droidify.utility.common.AppCapabilities
 
 @Entity(
     tableName = "app",
@@ -143,8 +142,7 @@ private fun AppEntity.toMetadata(
     iconUrl: String?,
     baseAddress: String,
     versions: List<VersionEntity>?,
-    describesRoot: Boolean,
-    describesShizuku: Boolean,
+    describedCapabilities: AppCapabilities,
 ): Metadata {
     val suggestedVersion = versions?.maxByOrNull { it.versionCode }
 
@@ -159,8 +157,7 @@ private fun AppEntity.toMetadata(
         suggestedVersionCode = suggestedVersion?.versionCode ?: 0,
         suggestedVersionName = suggestedVersion?.versionName ?: "",
         summary = appSummary,
-        describesRoot = describesRoot,
-        describesShizuku = describesShizuku,
+        describedCapabilities = describedCapabilities,
     )
 }
 
@@ -171,8 +168,6 @@ fun AppEntityRelations.toApp(
     val name = names.findLocale(locale).name
     val description = if (descriptions.isEmpty()) "" else descriptions.findLocale(locale).description
     val summary = if (summaries.isEmpty()) "" else summaries.findLocale(locale).summary
-    val localizedText = "$name $summary $description"
-    val englishText = englishText()
     return App(
         repoId = app.repoId.toLong(),
         appId = app.id.toLong(),
@@ -185,8 +180,7 @@ fun AppEntityRelations.toApp(
             appDescription = description,
             iconUrl = icons.ifEmpty { null }?.findLocale(locale)?.icon?.name,
             appSummary = summary,
-            describesRoot = RootDetection.textIndicatesRoot(localizedText, englishText),
-            describesShizuku = ShizukuDetection.textIndicatesShizuku(localizedText, englishText),
+            describedCapabilities = AppCapabilities.describedBy("$name $summary $description", englishText()),
         ),
         author = author.toAuthor(),
         screenshots = screenshots?.toScreenshots(locale, repo.address),

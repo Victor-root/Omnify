@@ -4,7 +4,7 @@
 
 ### ✨ Added
 - **Send an external source to your TV in one tap**: pair your devices once in Settings > Paired devices, then Send to a device in a source's ⋮ menu in the repository list. The TV asks before adding it. Local network only, end-to-end encrypted, no code after the first time.
-- **A "Shizuku compatible" badge** on the page of apps that can use Shizuku or Sui, next to the Root one, on phone and TV.
+- **A "Shizuku compatible" badge** on the page of apps that can use Shizuku or Sui, next to the Root one, on phone and TV. Both badges now show on external sources too, from the permissions their APK declares.
 
 ### 🔄 Changed
 - **"Update all" works on three apps at once**: a slow server no longer holds up the rest, the next app starts as soon as one is through, and whichever finishes downloading first is installed first.
