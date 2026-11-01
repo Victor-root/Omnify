@@ -10,9 +10,27 @@ import javax.crypto.Mac
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-/** Marks the start of a transfer stream, so a stray connection (a port scanner, a browser) is turned
- *  away on its first bytes instead of being read as a truncated backup. */
-private val PROTOCOL_MAGIC = "OMNIFYT2".toByteArray(Charsets.US_ASCII)
+/**
+ * The three conversations devices hold over the local network, each with markers of its own.
+ *
+ * [protocolMagic] opens every connection and is authenticated into every encrypted block, so a block
+ * made for one conversation never opens in another. [discoveryMagic] heads the announcements, so a
+ * device looking for one kind of peer never even sees the others.
+ *
+ * - [BACKUP] moves a whole backup once, behind a code read off the other screen.
+ * - [PAIRING] is the same code exchange, used once to make two devices remember each other.
+ * - [QUICK_SHARE] sends external sources between devices that already remember each other, with no
+ *   code (see QuickShare).
+ */
+enum class TransferChannel(protocol: String, discovery: String) {
+    BACKUP("OMNIFYT2", "OMNIFYD2"),
+    PAIRING("OMNIFYP1", "OMNIFYE1"),
+    QUICK_SHARE("OMNIFYQ1", "OMNIFYF1"),
+    ;
+
+    internal val protocolMagic: ByteArray = protocol.toByteArray(Charsets.US_ASCII)
+    internal val discoveryMagic: ByteArray = discovery.toByteArray(Charsets.US_ASCII)
+}
 
 internal const val STATUS_OK: Byte = 0
 internal const val STATUS_REJECTED: Byte = 1
@@ -32,6 +50,8 @@ internal const val CONFIRMATION_SIZE = 32
 private const val LABEL_SENDER = "omnify-transfer-sender"
 private const val LABEL_RECEIVER = "omnify-transfer-receiver"
 private const val LABEL_RECEIVED = "omnify-transfer-received"
+private const val LABEL_REPLY = "omnify-transfer-reply"
+private const val LABEL_PAIRING_SECRET = "omnify-pairing-secret"
 
 /**
  * Ceiling on a single transferred payload. A backup of this app's data is comfortably under a
@@ -200,13 +220,33 @@ internal fun receiverConfirmation(key: ByteArray, transcript: ByteArray): ByteAr
 internal fun receivedConfirmation(key: ByteArray, transcript: ByteArray): ByteArray =
     confirmation(key, LABEL_RECEIVED, transcript)
 
-private fun confirmation(key: ByteArray, label: String, transcript: ByteArray): ByteArray {
+/**
+ * The key the receiving device encrypts its answer under, when the conversation has one (pairing).
+ *
+ * Its own key rather than the session key itself: the answer travels the other way down the same
+ * connection, and under the same key someone relaying the exchange could hand the sending device its
+ * own payload back as though it were the answer. Under this key that block no longer opens.
+ */
+internal fun replyKey(key: ByteArray): ByteArray = hmac(key, LABEL_REPLY.toByteArray(Charsets.US_ASCII))
+
+/**
+ * The secret two devices keep after pairing, which every later quick share is proved under.
+ *
+ * Derived on each side from the session key and the transcript, never sent: only the two devices that
+ * completed this exchange with the same code can arrive at it, and nothing on the wire carries it.
+ */
+internal fun pairingSecret(key: ByteArray, transcript: ByteArray): ByteArray =
+    confirmation(key, LABEL_PAIRING_SECRET, transcript)
+
+internal fun hmac(key: ByteArray, vararg parts: ByteArray): ByteArray {
     val mac = Mac.getInstance("HmacSHA256")
     mac.init(SecretKeySpec(key, "HmacSHA256"))
-    mac.update(label.toByteArray(Charsets.US_ASCII))
-    mac.update(transcript)
+    parts.forEach(mac::update)
     return mac.doFinal()
 }
+
+private fun confirmation(key: ByteArray, label: String, transcript: ByteArray): ByteArray =
+    hmac(key, label.toByteArray(Charsets.US_ASCII), transcript)
 
 /** Whether [received] is the proof that was expected, compared in constant time so that a wrong one
  *  cannot be improved a byte at a time by watching how long the comparison took. */
@@ -217,36 +257,48 @@ internal fun confirms(expected: ByteArray, received: ByteArray?): Boolean =
  * [payload] encrypted under [key], as one self-contained block of `nonce || ciphertext+tag`.
  *
  * GCM authenticates as well as encrypts, and [transcript] is authenticated alongside the payload
- * without being sent, so the block only opens on a device that took part in this exact exchange.
+ * without being sent, so the block only opens on a device that took part in this exact exchange, and
+ * [channel]'s marker with it, so it only opens in the conversation it was made for.
  */
-internal fun encryptTransfer(key: ByteArray, transcript: ByteArray, payload: ByteArray): ByteArray {
+internal fun encryptTransfer(
+    channel: TransferChannel,
+    key: ByteArray,
+    transcript: ByteArray,
+    payload: ByteArray,
+): ByteArray {
     val nonce = ByteArray(NONCE_SIZE).also { SecureRandom().nextBytes(it) }
     val cipher = Cipher.getInstance(TRANSFORMATION)
     cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(TAG_BITS, nonce))
-    cipher.updateAAD(PROTOCOL_MAGIC)
+    cipher.updateAAD(channel.protocolMagic)
     cipher.updateAAD(transcript)
     return nonce + cipher.doFinal(payload)
 }
 
 /** The plaintext behind [block], or null when it was not produced by [encryptTransfer] under the same
- *  [key] and [transcript]: a wrong code, a truncated read, and a tampered payload all land here. */
-internal fun decryptTransfer(key: ByteArray, transcript: ByteArray, block: ByteArray): ByteArray? = runCatching {
+ *  [channel], [key] and [transcript]: a wrong code, a truncated read, and a tampered payload all land
+ *  here. */
+internal fun decryptTransfer(
+    channel: TransferChannel,
+    key: ByteArray,
+    transcript: ByteArray,
+    block: ByteArray,
+): ByteArray? = runCatching {
     if (block.size <= NONCE_SIZE) return null
     val cipher = Cipher.getInstance(TRANSFORMATION)
     val nonce = block.copyOfRange(0, NONCE_SIZE)
     cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(TAG_BITS, nonce))
-    cipher.updateAAD(PROTOCOL_MAGIC)
+    cipher.updateAAD(channel.protocolMagic)
     cipher.updateAAD(transcript)
     cipher.doFinal(block, NONCE_SIZE, block.size - NONCE_SIZE)
 }.getOrNull()
 
-internal fun OutputStream.writeMagic() = write(PROTOCOL_MAGIC)
+internal fun OutputStream.writeMagic(channel: TransferChannel) = write(channel.protocolMagic)
 
-/** True when the stream opens with [PROTOCOL_MAGIC]. Consumes exactly those bytes either way. */
-internal fun InputStream.readMagic(): Boolean = runCatching {
-    val header = ByteArray(PROTOCOL_MAGIC.size)
+/** True when the stream opens with [channel]'s marker. Consumes exactly those bytes either way. */
+internal fun InputStream.readMagic(channel: TransferChannel): Boolean = runCatching {
+    val header = ByteArray(channel.protocolMagic.size)
     DataInputStream(this).readFully(header)
-    header.contentEquals(PROTOCOL_MAGIC)
+    header.contentEquals(channel.protocolMagic)
 }.getOrDefault(false)
 
 /** Writes [block] with its own length in front, so the reader knows where it ends without relying on

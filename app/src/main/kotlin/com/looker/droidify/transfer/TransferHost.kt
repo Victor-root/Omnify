@@ -53,8 +53,13 @@ private const val MAX_FAILED_ATTEMPTS = 3
 
 /** How one wait ended. */
 sealed interface TransferHostResult {
-    /** A backup arrived and decrypted. Still just bytes: reading it is the backup layer's job. */
-    class Received(val backup: ByteArray) : TransferHostResult
+    /**
+     * A payload arrived and decrypted. Still just bytes: reading it is the caller's job.
+     *
+     * [secret] is what the two devices can keep to recognise each other later (see [pairingSecret]),
+     * known only to them. Only pairing keeps it; a backup transfer simply lets it go.
+     */
+    class Received(val payload: ByteArray, internal val secret: ByteArray) : TransferHostResult
 
     /** Too many wrong codes were tried against this session, so it closed itself (see
      *  [MAX_FAILED_ATTEMPTS]). */
@@ -74,7 +79,13 @@ sealed interface TransferHostResult {
  * right way round for a television, which is the device you would least want to type on and the one
  * most likely to be receiving a phone's settings in the first place.
  */
-class TransferHost(private val ioDispatcher: CoroutineDispatcher) {
+class TransferHost(
+    private val ioDispatcher: CoroutineDispatcher,
+    private val channel: TransferChannel,
+    /** Sent back, encrypted, once the payload has arrived, for a conversation that answers (pairing:
+     *  this device's own identity). Null for one that does not. */
+    private val reply: ByteArray? = null,
+) {
 
     private var serverSocket: ServerSocket? = null
 
@@ -124,7 +135,7 @@ class TransferHost(private val ioDispatcher: CoroutineDispatcher) {
         // On the IO dispatcher rather than the caller's: generating the key pair is not free, and
         // deriving a session key once a peer connects is deliberately slow (see PBKDF2_ITERATIONS).
         val announcer = launch(ioDispatcher) {
-            announceTransfer(TransferAnnouncement(socket.localPort, keyPair.publicKeyBytes), ioDispatcher)
+            announceTransfer(channel, TransferAnnouncement(socket.localPort, keyPair.publicKeyBytes), ioDispatcher)
         }
         // Closing the socket is the only thing that wakes a blocked accept, so an expiry has to be
         // spent rather than merely noticed.
@@ -217,7 +228,7 @@ class TransferHost(private val ioDispatcher: CoroutineDispatcher) {
         peer.soTimeout = PEER_READ_TIMEOUT_MS
         val input = peer.getInputStream().buffered()
         val output = peer.getOutputStream().buffered()
-        if (!input.readMagic()) return PeerOutcome.Ignored
+        if (!input.readMagic(channel)) return PeerOutcome.Ignored
         // The peer's half of the exchange, then ours: only the two of us can arrive at the secret
         // behind them, so nothing recorded off the network lets a third party test a guessed code.
         val peerPublicKey = input.readBlock(MAX_PUBLIC_KEY_BYTES) ?: return PeerOutcome.Ignored
@@ -244,8 +255,9 @@ class TransferHost(private val ioDispatcher: CoroutineDispatcher) {
         // Cannot fail on a peer that got this far, since the key is already proved on both sides.
         // Anything landing here is a connection that broke rather than a wrong code, so it does not
         // count against the session.
-        val plaintext = decryptTransfer(key, transcript, block) ?: return PeerOutcome.Ignored
+        val plaintext = decryptTransfer(channel, key, transcript, block) ?: return PeerOutcome.Ignored
         output.writeBlock(receivedConfirmation(key, transcript))
-        return PeerOutcome.Completed(TransferHostResult.Received(plaintext))
+        reply?.let { output.writeBlock(encryptTransfer(channel, replyKey(key), transcript, it)) }
+        return PeerOutcome.Completed(TransferHostResult.Received(plaintext, pairingSecret(key, transcript)))
     }
 }
