@@ -64,6 +64,7 @@ import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.PendingSharedSource
 import com.looker.droidify.compose.externalApps.rememberObtainiumImportPicker
+import com.looker.droidify.compose.quickshare.QuickShareSendDialog
 import com.looker.droidify.compose.repoList.AddExternalAccountDialog
 import com.looker.droidify.compose.repoList.AddExternalSourceDialog
 import com.looker.droidify.compose.repoList.AddSourceChooserDialog
@@ -121,6 +122,7 @@ fun TvRepoListScreen(
     var showAddExternal by rememberSaveable { mutableStateOf(false) }
     var showAddAccount by rememberSaveable { mutableStateOf(false) }
     var editingExternal by remember { mutableStateOf<ExternalApp?>(null) }
+    var sendingExternal by remember { mutableStateOf<ExternalApp?>(null) }
     var prefill by rememberSaveable { mutableStateOf(SourceDraft()) }
 
     // A link shared into the app (system "Share" sheet, or a "Get it on Omnify" badge) waiting to be
@@ -274,6 +276,7 @@ fun TvRepoListScreen(
                 onOpen = { onSourceClick(app.key) },
                 onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
                 onEdit = { editingExternal = app },
+                onSend = { sendingExternal = app },
                 onRemove = { externalViewModel.remove(app.key) },
             )
         }
@@ -302,6 +305,7 @@ fun TvRepoListScreen(
                 onOpen = { onSourceClick(app.key) },
                 onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
                 onEdit = null,
+                onSend = null,
                 onRemove = null,
             )
         }
@@ -343,6 +347,7 @@ fun TvRepoListScreen(
                     onOpen = { onSourceClick(app.key) },
                     onToggle = { externalViewModel.setSourceEnabled(app, !app.enabled) },
                     onEdit = null,
+                    onSend = null,
                     onRemove = null,
                 )
             }
@@ -434,6 +439,9 @@ fun TvRepoListScreen(
             onAdd = externalViewModel::addSource,
             onAddFamilies = externalViewModel::addFamilies,
         )
+    }
+    sendingExternal?.let { app ->
+        QuickShareSendDialog(app = app, onDismiss = { sendingExternal = null })
     }
     editingExternal?.let { app ->
         val iconCandidates by produceState<List<String>?>(initialValue = null, app.key) {
@@ -640,6 +648,7 @@ private fun TvSourceRow(
     onOpen: () -> Unit,
     onToggle: () -> Unit,
     onEdit: (() -> Unit)?,
+    onSend: (() -> Unit)?,
     onRemove: (() -> Unit)?,
 ) {
     TvManagementRow(
@@ -657,13 +666,20 @@ private fun TvSourceRow(
                 overflow = TextOverflow.Ellipsis,
             )
         },
-        extraMenuItems = if (onEdit != null || onRemove != null) {
+        extraMenuItems = if (onEdit != null || onSend != null || onRemove != null) {
             { dismiss ->
                 if (onEdit != null) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.external_edit_source)) },
                         leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
                         onClick = { dismiss(); onEdit() },
+                    )
+                }
+                if (onSend != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.quick_share_title)) },
+                        leadingIcon = { Icon(painterResource(R.drawable.ic_tv_device), contentDescription = null) },
+                        onClick = { dismiss(); onSend() },
                     )
                 }
                 if (onRemove != null) {
