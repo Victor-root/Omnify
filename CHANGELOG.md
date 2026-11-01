@@ -2,6 +2,9 @@
 
 ## 🚀 v1.0.8-beta.9 (Unreleased)
 
+### ✨ Added
+- **Send an external source to your TV in one tap**: pair your devices once in Settings > Paired devices, then Send to a device on a source's page. The TV asks before adding it. Local network only, end-to-end encrypted, no code after the first time.
+
 ### 🔄 Changed
 - **"Update all" works on three apps at once**: a slow server no longer holds up the rest, the next app starts as soon as one is through, and whichever finishes downloading first is installed first.
 - **Repositories sync all at once**: a slow server, F-Droid's on a bad night, no longer holds up your other repositories, and external sources are checked at the same time instead of afterwards.
