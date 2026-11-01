@@ -100,7 +100,7 @@ import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.LoadingBar
 import com.looker.droidify.compose.components.LoadingSpinner
-import com.looker.droidify.compose.components.RootBadge
+import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionSeparator
 import com.looker.droidify.compose.components.ShowMoreRow
@@ -127,6 +127,7 @@ import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.common.RootDetection
+import com.looker.droidify.utility.common.ShizukuDetection
 import com.looker.droidify.utility.common.rememberIconAccent
 import com.looker.droidify.utility.common.extension.calculateHash
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
@@ -587,6 +588,9 @@ fun ExternalAppDetailScreen(
         val isRootCompatible = remember(app.key, readmeHtml) {
             RootDetection.textIndicatesRoot("${app.label} ${readmeHtml.orEmpty()}")
         }
+        val isShizukuCompatible = remember(app.key, readmeHtml) {
+            ShizukuDetection.textIndicatesShizuku("${app.label} ${readmeHtml.orEmpty()}")
+        }
 
         // The installed version, if any — folded into the card's footer, mirroring how the F-Droid
         // catalogue card shows its installed version there. Also names where it actually came from when
@@ -646,13 +650,9 @@ fun ExternalAppDetailScreen(
                 onToggleInstallSource = app.packageName?.let { packageName ->
                     { viewModel.toggleInstallSource(packageName) }
                 },
-                badge = if (isRootCompatible || offersPrerelease) {
+                badge = if (isRootCompatible || isShizukuCompatible || offersPrerelease) {
                     {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            if (isRootCompatible) RootBadge()
+                        CapabilityBadges(root = isRootCompatible, shizuku = isShizukuCompatible, centred = true) {
                             if (offersPrerelease) PrereleaseBadge(onCard = true)
                         }
                     }

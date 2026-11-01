@@ -255,8 +255,8 @@ private fun formatReleaseDate(context: Context, iso: String): String? {
 private fun sdkLabel(version: Int): String = sdkName[version] ?: version.toString()
 
 /** Marks a pre-release, in the version list and on the app's card when it is the version offered.
- *  On the card it sits beside [com.looker.droidify.compose.components.RootBadge] and takes its size
- *  ([onCard]). */
+ *  On the card it sits beside the capability badges
+ *  ([com.looker.droidify.compose.components.CapabilityBadges]) and takes their size ([onCard]). */
 @Composable
 internal fun PrereleaseBadge(onCard: Boolean = false) {
     VersionChip(

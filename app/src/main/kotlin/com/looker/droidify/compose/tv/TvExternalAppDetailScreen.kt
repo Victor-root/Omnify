@@ -2,9 +2,10 @@ package com.looker.droidify.compose.tv
 
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.network.DataSize
-import com.looker.droidify.compose.components.RootBadge
+import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.utility.common.RootDetection
+import com.looker.droidify.utility.common.ShizukuDetection
 import com.looker.droidify.utility.common.extension.openAppInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -179,6 +180,9 @@ fun TvExternalAppDetailScreen(
     val isRootCompatible = remember(app.key, readme) {
         RootDetection.textIndicatesRoot("${app.label} ${readme?.html.orEmpty()}")
     }
+    val isShizukuCompatible = remember(app.key, readme) {
+        ShizukuDetection.textIndicatesShizuku("${app.label} ${readme?.html.orEmpty()}")
+    }
 
     // Same content the phone screen loads, so an external app's page is as rich as a catalogue one
     // (Omnify deliberately blurs the line between the two). Unlike the phone screen, TV's version
@@ -288,7 +292,9 @@ fun TvExternalAppDetailScreen(
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                if (isRootCompatible) RootBadge()
+                                if (isRootCompatible || isShizukuCompatible) {
+                                    CapabilityBadges(root = isRootCompatible, shizuku = isShizukuCompatible)
+                                }
                             }
                         }
                         // Under the icon, across the card: beside it, the column was too narrow for two of

@@ -128,7 +128,7 @@ import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.components.premiumCardBorder
-import com.looker.droidify.compose.components.RootBadge
+import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionSeparator
 import com.looker.droidify.compose.components.SectionTitle
@@ -168,6 +168,7 @@ import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.model.TestRepository
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.RootDetection
+import com.looker.droidify.utility.common.ShizukuDetection
 import com.looker.droidify.utility.common.rememberIconAccent
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.toSafeBitmap
@@ -1565,6 +1566,9 @@ private fun AppHeaderCard(
     val isRootCompatible = remember(app, installablePackage, installedPackage) {
         app != null && app.isRootCompatible(installablePackage ?: installedPackage)
     }
+    val isShizukuCompatible = remember(app, installablePackage, installedPackage) {
+        app != null && app.isShizukuCompatible(installablePackage ?: installedPackage)
+    }
 
     HeroCard(
         modifier = modifier,
@@ -1618,7 +1622,11 @@ private fun AppHeaderCard(
         },
         playStoreSource = playStoreInstallSource,
         onToggleInstallSource = onToggleInstallSource,
-        badge = if (isRootCompatible) { { RootBadge() } } else null,
+        badge = if (isRootCompatible || isShizukuCompatible) {
+            { CapabilityBadges(root = isRootCompatible, shizuku = isShizukuCompatible, centred = true) }
+        } else {
+            null
+        },
         stats = if (version != null || size != null || onSourceCodeClick != null) {
             { HeroStatsRow(version = version, size = size, onSourceCodeClick = onSourceCodeClick) }
         } else {
@@ -1924,13 +1932,20 @@ private fun antiFeatureLabel(tag: String): String = when (tag) {
 }
 
 /**
- * Whether [this] app is meant for rooted devices, shown as [RootBadge]. Fuzzy but shared with the
- * Discover home's "For rooted devices" carousel (see RootDetection): the legacy superuser permission
- * declared by [pkg], or strong root phrasing (Magisk/KernelSU/"requires root"…) in the app's own
- * name/summary/description, in the user's language or in English ([Metadata.describesRoot]).
+ * Whether [this] app is meant for rooted devices, shown as the Root badge (see [CapabilityBadges]).
+ * Fuzzy but shared with the Discover home's "For rooted devices" carousel (see RootDetection): the
+ * legacy superuser permission declared by [pkg], or strong root phrasing (Magisk/KernelSU/"requires
+ * root"…) in the app's own name/summary/description, in the user's language or in English
+ * ([Metadata.describesRoot]).
  */
 internal fun App.isRootCompatible(pkg: Package?): Boolean =
     metadata.describesRoot || pkg?.manifest?.permissions?.any { it.name == RootDetection.PERMISSION } == true
+
+/** Whether [this] app can use Shizuku or Sui, shown as the Shizuku badge: the Shizuku API permission
+ *  declared by [pkg], or its own text ([Metadata.describesShizuku]). */
+internal fun App.isShizukuCompatible(pkg: Package?): Boolean =
+    metadata.describesShizuku ||
+        pkg?.manifest?.permissions?.any { it.name == ShizukuDetection.PERMISSION } == true
 
 @Composable
 internal fun PermissionsSection(permissions: List<Permission>) {
