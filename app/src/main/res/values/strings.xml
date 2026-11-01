@@ -203,9 +203,9 @@
     <string name="paired_devices_pairing">Pairing…</string>
     <string name="paired_devices_paired_FORMAT">Paired with %1$s.</string>
     <string name="paired_devices_not_stored">This device can\'t store the pairing safely, so it wasn\'t kept.</string>
-    <string name="paired_devices_confirm_FORMAT">The code was typed on %1$s. Pair only if that's the device you're pairing right now.</string>
+    <string name="paired_devices_confirm_FORMAT">The code was typed on %1$s. Pair only if that\'s the device you\'re pairing right now.</string>
     <string name="paired_devices_already_paired">This device is already paired. Forget it in the list on both devices to pair them again.</string>
-    <string name="paired_devices_full">You can't pair more devices. Forget one first.</string>
+    <string name="paired_devices_full">You can\'t pair more devices. Forget one first.</string>
     <string name="quick_share_title">Send to a device</string>
     <string name="quick_share_DESC">Send %1$s to:</string>
     <string name="quick_share_no_device">No device is paired with this one yet. Pair one first, it only takes a code once.</string>
@@ -215,7 +215,7 @@
     <string name="quick_share_not_found_FORMAT">%1$s wasn\'t found. Open Omnify on it, on the same Wi-Fi as this device.</string>
     <string name="quick_share_failed_FORMAT">%1$s didn\'t accept it. It may no longer be paired with this device: pair them again.</string>
     <string name="quick_share_retry">Try again</string>
-    <string name="quick_share_refused_FORMAT">%1$s turned it away: something it received is still waiting for an answer there, or this source can't be added on it.</string>
+    <string name="quick_share_refused_FORMAT">%1$s turned it away: something it received is still waiting for an answer there, or this source can\'t be added on it.</string>
     <string name="quick_share_received_title">External source received</string>
     <string name="quick_share_received_FORMAT">%1$s sent you this. Nothing is added until you accept.</string>
     <string name="quick_share_add_action">Add</string>
