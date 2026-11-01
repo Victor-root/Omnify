@@ -1027,7 +1027,7 @@ private fun ExternalAppDetailBody(
     sdkInfoByApkUrl: Map<String, ApkBinaryManifest.UsesSdk?>,
     onRequestSdkInfo: (String) -> Unit,
     // Lazily-fetched Google-services dependencies for the app's latest release (see
-    // ExternalAppsViewModel.loadManifestInfo) — empty while unresolved or when none are detected.
+    // ExternalAppsViewModel.loadManifestInfo): empty while unresolved or when none are detected.
     googleServicesDependencies: List<GoogleServiceDependency>,
     installedSignerRaw: String?,
     expectedSigners: Set<String>?,
