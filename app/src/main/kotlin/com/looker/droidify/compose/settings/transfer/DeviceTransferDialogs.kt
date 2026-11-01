@@ -265,7 +265,7 @@ fun DeviceTransferSendDialog(
 /** A spinner beside a line of status text, the shape every waiting state on both dialogs takes. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun WorkingRow(label: String) {
+internal fun WorkingRow(label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         CircularWavyProgressIndicator(modifier = Modifier.size(18.dp))
         Spacer(Modifier.size(12.dp))
@@ -275,11 +275,11 @@ private fun WorkingRow(label: String) {
 
 /** A finished state: one sentence saying what happened, and nothing else to do but close. */
 @Composable
-private fun Message(text: String) {
+internal fun Message(text: String) {
     Text(text = text, style = MaterialTheme.typography.bodyMedium)
 }
 
-private fun TransferFailure.messageRes(): Int = when (this) {
+internal fun TransferFailure.messageRes(): Int = when (this) {
     TransferFailure.NOT_FOUND -> R.string.transfer_error_not_found
     TransferFailure.UNREACHABLE -> R.string.transfer_error_unreachable
     TransferFailure.REJECTED -> R.string.transfer_error_rejected
