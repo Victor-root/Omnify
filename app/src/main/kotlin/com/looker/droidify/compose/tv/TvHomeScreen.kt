@@ -597,23 +597,23 @@ private fun TvNavRail(
             icon = painterResource(R.drawable.ic_tv_sync),
             label = stringResource(R.string.sync),
             selected = false,
-            // Only the label swaps for a progress bar while syncing (see labelContent's own doc
-            // comment on TvRailButton). The icon above stays the sync glyph throughout, never hidden.
+            // While syncing, the percentage takes the icon's place, where the narrow rail always has
+            // room for it (beside the progress bar it was cut off), and the label becomes the bar. Both
+            // go back to the sync glyph and its label once the sync is over.
+            iconContent = if (syncing && syncFraction != null) {
+                { SyncPercent(fraction = syncFraction, color = RailNeutralContent) }
+            } else {
+                null
+            },
             labelContent = {
                 val syncLabel = stringResource(R.string.sync)
                 Crossfade(targetState = syncing, label = "tvSyncLabel") { isSyncing ->
                     if (isSyncing) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            LinearWavyProgressIndicator(
-                                modifier = Modifier.width(80.dp),
-                                color = RailNeutralContent,
-                                trackColor = RailNeutralContent.copy(alpha = 0.24f),
-                            )
-                            if (syncFraction != null) {
-                                Spacer(Modifier.width(8.dp))
-                                SyncPercent(fraction = syncFraction, color = RailNeutralContent)
-                            }
-                        }
+                        LinearWavyProgressIndicator(
+                            modifier = Modifier.width(80.dp),
+                            color = RailNeutralContent,
+                            trackColor = RailNeutralContent.copy(alpha = 0.24f),
+                        )
                     } else {
                         Text(
                             text = syncLabel,
@@ -672,6 +672,9 @@ private fun TvRailButton(
     // swap) while the icon, badge, focus and click handling stay exactly the same either way. Null
     // (every other button) renders [label] as the plain Text below, unchanged.
     labelContent: (@Composable () -> Unit)? = null,
+    // Takes the icon's place while set (the sync button's percentage), the icon coming back with a
+    // crossfade once it is null again.
+    iconContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -690,14 +693,23 @@ private fun TvRailButton(
             .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            if (preserveIconColor) {
-                androidx.compose.foundation.Image(
-                    painter = icon,
-                    contentDescription = label,
-                    modifier = Modifier.size(26.dp),
-                )
-            } else {
-                Icon(painter = icon, contentDescription = label, tint = tint, modifier = Modifier.size(26.dp))
+            // Keyed on whether there is a replacement, not on the replacement itself, which is a new
+            // lambda at each percentage and would restart the crossfade every time.
+            Crossfade(targetState = iconContent != null, label = "tvRailIcon") { replaced ->
+                when {
+                    replaced -> iconContent?.invoke()
+                    preserveIconColor -> androidx.compose.foundation.Image(
+                        painter = icon,
+                        contentDescription = label,
+                        modifier = Modifier.size(26.dp),
+                    )
+                    else -> Icon(
+                        painter = icon,
+                        contentDescription = label,
+                        tint = tint,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
             }
             if (badge != null) {
                 Box(
