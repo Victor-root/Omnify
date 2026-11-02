@@ -335,6 +335,8 @@
     <string name="root_compatible_DESC">This app can use root access on rooted devices — it isn\'t required to install or use it.</string>
     <string name="shizuku_compatible">Shizuku compatible</string>
     <string name="shizuku_compatible_DESC">This app can use Shizuku or Sui for advanced actions without root. Neither is required to install or use it.</string>
+    <string name="root_compatible_short">Root</string>
+    <string name="shizuku_compatible_short">Shizuku</string>
     <string name="shizuku_installer">Shizuku/Sui installer</string>
     <string name="shizuku_legacy_installer">Shizuku/Sui legacy installer</string>
     <string name="shizuku_not_alive">Shizuku/Sui isn\'t running</string>

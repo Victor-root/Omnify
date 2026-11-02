@@ -48,10 +48,13 @@ fun CapabilityBadges(
         },
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        // Both at once: the short names, so the two fit side by side on a phone, read together as
+        // "compatible with root and Shizuku". Each still says so in full to screen readers.
+        val short = capabilities.root && capabilities.shizuku
         if (capabilities.root) {
             CapabilityBadge(
                 icon = Icons.Filled.Terminal,
-                label = stringResource(R.string.root_compatible),
+                label = stringResource(if (short) R.string.root_compatible_short else R.string.root_compatible),
                 description = stringResource(R.string.root_compatible_DESC),
                 container = MaterialTheme.colorScheme.tertiaryContainer,
                 content = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -60,7 +63,9 @@ fun CapabilityBadges(
         if (capabilities.shizuku) {
             CapabilityBadge(
                 icon = Icons.Filled.Adb,
-                label = stringResource(R.string.shizuku_compatible),
+                label = stringResource(
+                    if (short) R.string.shizuku_compatible_short else R.string.shizuku_compatible,
+                ),
                 description = stringResource(R.string.shizuku_compatible_DESC),
                 container = MaterialTheme.colorScheme.secondaryContainer,
                 content = MaterialTheme.colorScheme.onSecondaryContainer,
