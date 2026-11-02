@@ -185,6 +185,8 @@ already there, never wipes it.
   flickers.
 
 **Updates & installs**
+- Silent installs and updates with root access, Shizuku or Sui, or Android's own
+  installer when neither is available.
 - Hides system-app updates that can't be installed and stops the uninstall-prompt
   loop for differently-signed system apps.
 - Reuses an already-downloaded APK after a signature-conflict uninstall, with no
