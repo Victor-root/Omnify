@@ -32,6 +32,7 @@ import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.InstallPrompt
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.receivers.InstalledAppReceiver
+import com.looker.droidify.translation.bergamot.isBergamotWorkerProcess
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.applicationLocale
 import com.looker.droidify.utility.common.cache.Cache
@@ -95,6 +96,9 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
 
     override fun onCreate() {
         super.onCreate()
+        // An offline translation worker's process (see BergamotWorkerService) runs one engine and
+        // nothing of the app: no settings, sync, installs or log of its own beside the app's.
+        if (SdkCheck.isPie && isBergamotWorkerProcess(Application.getProcessName())) return
         DiagnosticLog.init(this)
 
         // A fresh install seeds its default repos from MainComposeActivity and syncs the ones picked on
