@@ -94,6 +94,7 @@ import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvTypeOnOk
+import com.looker.droidify.compose.components.rememberDepartures
 import com.looker.droidify.compose.components.updateDeparture
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -954,11 +955,13 @@ private fun TvAppGrid(
     onExternalAppClick: (String) -> Unit = {},
     // The Updates grid only: what a batch is downloading or the installer is installing, as on the phone.
     updating: UpdatingApps = UpdatingApps.None,
-    // The Updates grid only: each updated app's tile fades out and the others close the gap.
+    // The Updates grid only: each updated app's tile shrinks away and the others close the gap.
     animateDepartures: Boolean = false,
     restoreFocusId: String? = null,
     restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
+    val appTiles = rememberDepartures(apps, key = { it.appId }, enabled = animateDepartures)
+    val externalTiles = rememberDepartures(externalApps, key = { it.key }, enabled = animateDepartures)
     Column(modifier = Modifier.fillMaxSize().padding(top = TvOverscan + 12.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -970,7 +973,7 @@ private fun TvAppGrid(
             Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             header?.invoke()
         }
-        if (apps.isEmpty() && externalApps.isEmpty()) {
+        if (appTiles.isEmpty() && externalTiles.isEmpty()) {
             TvEmpty(stringResource(R.string.no_applications_available))
         } else {
             LazyVerticalGrid(
@@ -979,11 +982,12 @@ private fun TvAppGrid(
                 horizontalArrangement = spacedBy(18.dp),
                 verticalArrangement = spacedBy(18.dp),
             ) {
-                gridItems(apps, key = { it.appId }, contentType = { "tv-app" }) { app ->
+                gridItems(appTiles, key = { it.item.appId }, contentType = { "tv-app" }) { tile ->
+                    val app = tile.item
                     TvAppCard(
                         name = app.name,
                         onClick = { onAppClick(app.packageName.name) },
-                        modifier = (if (animateDepartures) updateDeparture() else Modifier)
+                        modifier = (if (animateDepartures) updateDeparture(tile.leaving) else Modifier)
                             .restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
                         isUpdating = updating.isUpdating(app.packageName.name),
                         updateFraction = updating.fraction(app.packageName.name),
@@ -996,11 +1000,12 @@ private fun TvAppGrid(
                         )
                     }
                 }
-                gridItems(externalApps, key = { "ext-${it.key}" }, contentType = { "tv-ext" }) { app ->
+                gridItems(externalTiles, key = { "ext-${it.item.key}" }, contentType = { "tv-ext" }) { tile ->
+                    val app = tile.item
                     TvAppCard(
                         name = app.label,
                         onClick = { onExternalAppClick(app.key) },
-                        modifier = (if (animateDepartures) updateDeparture() else Modifier)
+                        modifier = (if (animateDepartures) updateDeparture(tile.leaving) else Modifier)
                             .restoreFocusTarget(restoreFocusId == "ext:${app.key}", restoreRequester),
                         // A batch names a source by its own key (see UpdateAllWorker).
                         isUpdating = updating.isUpdating(app.key),
