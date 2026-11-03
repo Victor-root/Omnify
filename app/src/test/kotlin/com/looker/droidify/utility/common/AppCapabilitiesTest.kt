@@ -31,7 +31,7 @@ class AppCapabilitiesTest {
     }
 
     @Test
-    fun `Shizuku and Sui are recognised, a passing "sui" is not`() {
+    fun `Shizuku and Sui are recognised, a passing sui is not`() {
         assertTrue(ShizukuDetection.textIndicatesShizuku("Uses Shizuku to freeze apps."))
         assertTrue(ShizukuDetection.textIndicatesShizuku("Fonctionne avec le module Sui."))
         assertFalse(ShizukuDetection.textIndicatesShizuku("Je suis une appli, suivez le guide."))
