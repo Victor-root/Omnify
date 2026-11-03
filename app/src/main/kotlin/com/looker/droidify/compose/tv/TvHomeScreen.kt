@@ -94,6 +94,7 @@ import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvTypeOnOk
+import com.looker.droidify.compose.components.updateDeparture
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.WebViewWarmUp
@@ -953,6 +954,8 @@ private fun TvAppGrid(
     onExternalAppClick: (String) -> Unit = {},
     // The Updates grid only: what a batch is downloading or the installer is installing, as on the phone.
     updating: UpdatingApps = UpdatingApps.None,
+    // The Updates grid only: each updated app's tile fades out and the others close the gap.
+    animateDepartures: Boolean = false,
     restoreFocusId: String? = null,
     restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
@@ -980,7 +983,8 @@ private fun TvAppGrid(
                     TvAppCard(
                         name = app.name,
                         onClick = { onAppClick(app.packageName.name) },
-                        modifier = Modifier.restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
+                        modifier = (if (animateDepartures) updateDeparture() else Modifier)
+                            .restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
                         isUpdating = updating.isUpdating(app.packageName.name),
                         updateFraction = updating.fraction(app.packageName.name),
                         isInstalled = app.packageName.name in installedPackages,
@@ -996,7 +1000,8 @@ private fun TvAppGrid(
                     TvAppCard(
                         name = app.label,
                         onClick = { onExternalAppClick(app.key) },
-                        modifier = Modifier.restoreFocusTarget(restoreFocusId == "ext:${app.key}", restoreRequester),
+                        modifier = (if (animateDepartures) updateDeparture() else Modifier)
+                            .restoreFocusTarget(restoreFocusId == "ext:${app.key}", restoreRequester),
                         // A batch names a source by its own key (see UpdateAllWorker).
                         isUpdating = updating.isUpdating(app.key),
                         updateFraction = updating.fraction(app.key),
@@ -1044,6 +1049,7 @@ private fun TvUpdates(
         externalInstalledKeys = externalInstalledKeys,
         onExternalAppClick = onExternalAppClick,
         updating = updating,
+        animateDepartures = true,
         restoreFocusId = restoreFocusId,
         restoreRequester = restoreRequester,
         header = {
