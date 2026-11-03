@@ -44,7 +44,7 @@ fun bergamotSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.
 class BergamotTranslator @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val models: BergamotModels,
-    @param:ApplicationScope scope: CoroutineScope,
+    @ApplicationScope scope: CoroutineScope,
 ) {
     /** One translation at a time, and detection apart from it. */
     private val lock = Mutex()
