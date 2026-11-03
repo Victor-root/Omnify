@@ -135,6 +135,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.components.SyncPercent
 import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvTypeOnOk
+import com.looker.droidify.compose.components.rememberDepartures
 import com.looker.droidify.compose.components.updateDeparture
 import com.looker.droidify.compose.trailUpdatesNav
 import com.looker.droidify.compose.externalApps.ExternalAppTile
@@ -366,6 +367,14 @@ fun AppListScreen(
     val searchedExternalUpdates = remember(externalUpdates, activeSearch) {
         externalUpdates.filter { it.matchesSearch(activeSearch) }
     }
+    // The Updates tab's two halves as its grid shows them: an app whose update is done shrinks away
+    // in its place before the others close the gap (see rememberDepartures).
+    val appTiles = rememberDepartures(apps, key = { it.appId }, enabled = selectedTab == AppTab.UPDATES)
+    val externalUpdateTiles = rememberDepartures(
+        searchedExternalUpdates,
+        key = { it.key },
+        enabled = selectedTab == AppTab.UPDATES,
+    )
     // The Installed tab's external half. A package the catalogue half already lists stays its tile
     // alone, which opens the source's page when the source is what installed it (openInstalledApp).
     val searchedInstalledExternal = remember(installedExternalApps, apps, activeSearch) {
@@ -1167,10 +1176,11 @@ fun AppListScreen(
                 }
             } else {
                 items(
-                    items = apps,
-                    key = { it.appId },
+                    items = appTiles,
+                    key = { it.item.appId },
                     contentType = { "app-tile" },
-                ) { app ->
+                ) { tile ->
+                    val app = tile.item
                     CatalogAppTile(
                         app = app,
                         isInstalled = app.packageName.name in installedPackages,
@@ -1187,7 +1197,7 @@ fun AppListScreen(
                             }
                         },
                         // On the Updates tab, an updated app's tile fades out and the others close the gap.
-                        modifier = (if (selectedTab == AppTab.UPDATES) updateDeparture() else Modifier)
+                        modifier = (if (selectedTab == AppTab.UPDATES) updateDeparture(tile.leaving) else Modifier)
                             .restoreFocusTarget(
                                 isTelevision && restoreFocusId == "app:${app.packageName.name}",
                                 restoreRequester,
@@ -1216,10 +1226,11 @@ fun AppListScreen(
             // External-repo updates, shown alongside the F-Droid ones on the Updates tab.
             if (selectedTab == AppTab.UPDATES) {
                 items(
-                    items = searchedExternalUpdates,
-                    key = { "ext-${it.key}" },
+                    items = externalUpdateTiles,
+                    key = { "ext-${it.item.key}" },
                     contentType = { "ext-tile" },
-                ) { app ->
+                ) { tile ->
+                    val app = tile.item
                     ExternalAppTile(
                         app = app,
                         isInstalled = app.key in externalInstalledKeys,
@@ -1229,7 +1240,7 @@ fun AppListScreen(
                         isUpdating = updating.isUpdating(app.key),
                         updateFraction = updating.fraction(app.key),
                         onClick = { openExternalApp(app.key) },
-                        modifier = updateDeparture().restoreFocusTarget(
+                        modifier = updateDeparture(tile.leaving).restoreFocusTarget(
                             isTelevision && restoreFocusId == "ext:${app.key}",
                             restoreRequester,
                         ),
