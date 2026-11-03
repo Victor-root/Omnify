@@ -238,6 +238,25 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Offline translation engines, one process each: the engine is not thread-safe (see
+             BergamotWorkerService). -->
+        <service
+            android:name=".translation.bergamot.BergamotWorker0"
+            android:exported="false"
+            android:process=":translate0" />
+        <service
+            android:name=".translation.bergamot.BergamotWorker1"
+            android:exported="false"
+            android:process=":translate1" />
+        <service
+            android:name=".translation.bergamot.BergamotWorker2"
+            android:exported="false"
+            android:process=":translate2" />
+        <service
+            android:name=".translation.bergamot.BergamotWorker3"
+            android:exported="false"
+            android:process=":translate3" />
+
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
             android:enabled="false"
