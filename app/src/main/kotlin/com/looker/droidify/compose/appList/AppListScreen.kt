@@ -135,6 +135,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.components.SyncPercent
 import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvTypeOnOk
+import com.looker.droidify.compose.components.updateDeparture
 import com.looker.droidify.compose.trailUpdatesNav
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -1185,10 +1186,12 @@ fun AppListScreen(
                                 openApp(app.packageName.name)
                             }
                         },
-                        modifier = Modifier.restoreFocusTarget(
-                            isTelevision && restoreFocusId == "app:${app.packageName.name}",
-                            restoreRequester,
-                        ),
+                        // On the Updates tab, an updated app's tile fades out and the others close the gap.
+                        modifier = (if (selectedTab == AppTab.UPDATES) updateDeparture() else Modifier)
+                            .restoreFocusTarget(
+                                isTelevision && restoreFocusId == "app:${app.packageName.name}",
+                                restoreRequester,
+                            ),
                     )
                 }
             }
@@ -1226,7 +1229,7 @@ fun AppListScreen(
                         isUpdating = updating.isUpdating(app.key),
                         updateFraction = updating.fraction(app.key),
                         onClick = { openExternalApp(app.key) },
-                        modifier = Modifier.restoreFocusTarget(
+                        modifier = updateDeparture().restoreFocusTarget(
                             isTelevision && restoreFocusId == "ext:${app.key}",
                             restoreRequester,
                         ),
