@@ -880,7 +880,8 @@ class ExternalApi @Inject constructor(
         // body, so a host that simply omits Content-Length could send as much as it liked and the
         // check came too late to matter.
         val bytes = response.bodyBytesAtMost(MAX_INLINE_IMAGE_BYTES) ?: return null
-        return "data:$contentType;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
+        val image = InlineImage(contentType, bytes).shrunkToFit()
+        return "data:${image.contentType};base64," + Base64.encodeToString(image.bytes, Base64.NO_WRAP)
     }
 
     /**
