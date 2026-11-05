@@ -445,7 +445,7 @@ object ApkResourceLocales {
     /** Runs [onEntry] with where each populated entry of the `ResTable_type` at [chunkStart] starts.
      *  False, having run it for none, when the chunk can't be walked. */
     private inline fun forEachPopulatedEntry(arsc: ByteArray, chunkStart: Long, onEntry: (Long) -> Unit): Boolean {
-        // The offsets-array encoding (see FLAG_SPARSE/FLAG_OFFSET16) — the byte at chunkStart+9. A flag
+        // The offsets-array encoding (see FLAG_SPARSE/FLAG_OFFSET16): the byte at chunkStart+9. A flag
         // bit outside the two we can decode means an encoding we don't understand, so bail to "couldn't
         // determine" rather than misparse a dense uint32 array out of a compact one.
         val flags = arsc[(chunkStart + 9).toInt()].toInt() and 0xFF
