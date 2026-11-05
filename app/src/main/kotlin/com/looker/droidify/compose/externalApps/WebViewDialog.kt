@@ -171,7 +171,7 @@ fun WebViewDialog(
                                     // See ReadmeWebView's forceSoftwareLayer doc comment: its software layer
                                     // draws only ~one screen of pixels, so anything taller must switch to a
                                     // hardware layer or render fully blank.
-                                    forceSoftwareLayer = viewportPx <= 0 || heightPx <= viewportPx,
+                                    forceSoftwareLayer = heightPx in 1..viewportPx,
                                     onRendererGone = { rendererGone = true },
                                     modifier = Modifier
                                         .fillMaxWidth()

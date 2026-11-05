@@ -40,6 +40,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -133,8 +134,10 @@ import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.isInstalledFromGooglePlay
 import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.singleSignature
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -261,16 +264,7 @@ fun ExternalAppDetailScreen(
     // could claim, this reads the real, on-device signature), so it can be shown, compared, and copied,
     // e.g. against a build the user just compiled themselves. Null when not installed, the package id
     // isn't known yet, or on the rare PackageManager read failure.
-    val installedSignerRaw = remember(isInstalled, signatureMismatch, app?.packageName) {
-        val packageName = app?.packageName
-        if (!(isInstalled || signatureMismatch) || packageName == null) {
-            null
-        } else {
-            context.packageManager.getPackageInfoCompat(packageName)
-                ?.singleSignature
-                ?.calculateHash()
-        }
-    }
+    val installedSignerRaw = rememberInstalledSigner(app?.packageName.takeIf { isInstalled || signatureMismatch })
     // Hoisted above the Scaffold (not inside its content lambda) so both the content column and the
     // scroll-to-top FAB can read/drive the same scroll position.
     val scrollState = rememberScrollState()
@@ -583,9 +577,7 @@ fun ExternalAppDetailScreen(
         // The version shown is a pre-release: said on the card, next to it, as in the version list.
         val offersPrerelease = cardVersion.isPrerelease
         val declaredCapabilities = app.latestApkUrl?.let { declaredCapabilitiesByApkUrl[it] }
-        val capabilities = remember(app.key, readmeHtml, declaredCapabilities) {
-            app.capabilities(readmeHtml, declaredCapabilities)
-        }
+        val capabilities = app.rememberCapabilities(readmeHtml, declaredCapabilities)
 
         // The installed version, if any — folded into the card's footer, mirroring how the F-Droid
         // catalogue card shows its installed version there. Also names where it actually came from when
@@ -980,8 +972,35 @@ fun ExternalAppDetailScreen(
  * app's (see AppDetailScreen's capabilities): the permissions its latest APK declares ([declared], once
  * read, see ExternalAppsViewModel.loadManifestInfo) or its own name and [readme] (once loaded).
  */
-internal fun ExternalApp.capabilities(readme: String?, declared: AppCapabilities?): AppCapabilities =
-    AppCapabilities.describedBy("$label ${readme.orEmpty()}") or (declared ?: AppCapabilities.NONE)
+internal fun ExternalApp.capabilities(readme: String?, declared: AppCapabilities?): AppCapabilities {
+    // An inlined image is only noise here, and long enough to spell "root" by chance.
+    val text = readme.orEmpty().replace(DATA_URI, "")
+    return AppCapabilities.describedBy("$label $text") or (declared ?: AppCapabilities.NONE)
+}
+
+private val DATA_URI = Regex("""data:[^"'\s)]+""")
+
+/** [capabilities], worked out off the main thread: a README can run to hundreds of kilobytes, scanned
+ *  several times over. Keeps its last answer while a new one is on its way. */
+@Composable
+internal fun ExternalApp.rememberCapabilities(readme: String?, declared: AppCapabilities?): AppCapabilities =
+    produceState(declared ?: AppCapabilities.NONE, key, readme, declared) {
+        value = withContext(Dispatchers.Default) { capabilities(readme, declared) }
+    }.value
+
+/** The signing certificate of the copy of [packageName] on this device, null while it is being read and
+ *  when there is none or [packageName] is null. Off the main thread: a package lookup, then a hash. */
+@Composable
+internal fun rememberInstalledSigner(packageName: String?): String? {
+    val context = LocalContext.current
+    return produceState<String?>(null, packageName) {
+        value = packageName?.let {
+            withContext(Dispatchers.Default) {
+                context.packageManager.getPackageInfoCompat(it)?.singleSignature?.calculateHash()
+            }
+        }
+    }.value
+}
 
 @Composable
 private fun ExternalAppDetailBody(
@@ -1086,13 +1105,8 @@ private fun ExternalAppDetailBody(
             README_COLLAPSED_HEIGHT * README_COLLAPSED_VIEWPORTS
         }
         val readmeCanCollapse = showSidebarSections && fullReadmeHeight > collapsedReadmeHeight
-        // A software-layered WebView (see ReadmeWebView's forceSoftwareLayer doc comment) can only ever
-        // draw into a bitmap capped to roughly one screen's worth of pixels — confirmed on a real device
-        // via logcat: "not displayed because it is too large to fit into a software layer", an
-        // unrecoverable, fully blank render, not a partial one. A README taller than one viewport is
-        // switched to the (small, historically emulator-only) hardware-rendering crash risk instead of a
-        // *guaranteed* blank screen on real hardware for anything past a short README.
-        val readmeNeedsHardwareLayer = viewportPx > 0 && readmeHeightPx > viewportPx
+        // See ReadmeWebView's forceSoftwareLayer doc comment: only a README known to fit one viewport.
+        val readmeFitsSoftwareLayer = readmeHeightPx in 1..viewportPx
         // On TV this Box is the single focus stop for the whole README: landing here, the D-pad
         // pages the screen up/down through it (the WebView itself is non-focusable on TV, so the
         // remote no longer steps over its links and images). A plain wrapper on touch.
@@ -1125,7 +1139,7 @@ private fun ExternalAppDetailBody(
                     readmeHeightPx = it
                 },
                 scrollState = scrollState,
-                forceSoftwareLayer = !readmeNeedsHardwareLayer,
+                forceSoftwareLayer = readmeFitsSoftwareLayer,
                 onRendererGone = { readmeRendererGone = true },
                 modifier = Modifier
                     .fillMaxWidth()

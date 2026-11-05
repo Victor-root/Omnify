@@ -159,7 +159,7 @@ fun ChangelogDialog(
                                     // several releases' worth of notes can easily run taller than that, and
                                     // without this the WebView would silently render nothing at all past a
                                     // short one.
-                                    forceSoftwareLayer = viewportPx <= 0 || heightPx <= viewportPx,
+                                    forceSoftwareLayer = heightPx in 1..viewportPx,
                                     onRendererGone = { rendererGone = true },
                                     modifier = Modifier
                                         .fillMaxWidth()
