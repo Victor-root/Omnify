@@ -1107,8 +1107,6 @@ private fun ExternalAppDetailBody(
             README_COLLAPSED_HEIGHT * README_COLLAPSED_VIEWPORTS
         }
         val readmeCanCollapse = showSidebarSections && fullReadmeHeight > collapsedReadmeHeight
-        // See ReadmeWebView's forceSoftwareLayer doc comment: only a README known to fit one viewport.
-        val readmeFitsSoftwareLayer = readmeHeightPx in 1..viewportPx
         // On TV this Box is the single focus stop for the whole README: landing here, the D-pad
         // pages the screen up/down through it (the WebView itself is non-focusable on TV, so the
         // remote no longer steps over its links and images). A plain wrapper on touch.
@@ -1141,7 +1139,6 @@ private fun ExternalAppDetailBody(
                     readmeHeightPx = it
                 },
                 scrollState = scrollState,
-                forceSoftwareLayer = readmeFitsSoftwareLayer,
                 onRendererGone = { readmeRendererGone = true },
                 modifier = Modifier
                     .fillMaxWidth()

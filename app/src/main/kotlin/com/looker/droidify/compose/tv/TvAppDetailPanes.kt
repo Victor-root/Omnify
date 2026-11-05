@@ -345,9 +345,6 @@ internal fun TvDescriptionPane(
             scrollState = scrollState,
             // Translucent so the screen's accent wash shows through instead of a hard white block.
             translucentBackground = true,
-            // A software layer only holds about one screen of pixels; taller content needs a hardware
-            // layer or it renders blank (see ReadmeWebView).
-            forceSoftwareLayer = heightPx in 1..viewportPx,
             onRendererGone = { rendererGone = true },
             modifier = Modifier
                 .fillMaxWidth()
