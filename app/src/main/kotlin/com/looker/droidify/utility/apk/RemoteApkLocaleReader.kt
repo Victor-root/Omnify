@@ -42,6 +42,12 @@ object RemoteApkLocaleReader {
      *  longer at a size a legitimate heavily-localized app can actually exceed. */
     private const val MAX_ARSC_BYTES = 64L * 1024 * 1024
 
+    /** The code of an app with no string resources (see [DexText]). */
+    const val DEX_ENTRY_NAME = "classes.dex"
+
+    /** Read only for such an app, which tends to be a small one, so this needs no more. */
+    private const val MAX_DEX_BYTES = 16L * 1024 * 1024
+
     /** EOCD is 22 bytes plus an optional (near-always empty, for an APK) comment of up to 65535 bytes
      *  — this tail comfortably covers both with margin to spare. */
     private const val TAIL_FETCH_BYTES = 128L * 1024
@@ -135,46 +141,8 @@ object RemoteApkLocaleReader {
         val entry = ApkZipLocator.findEntry(centralDirectoryBytes, ENTRY_NAME)
             ?: return assetLocales.ifEmpty { null }
                 .also { logD("$apkUrl: no $ENTRY_NAME entry in central directory") }
-        if (entry.uncompressedSize <= 0 || entry.uncompressedSize > MAX_ARSC_BYTES) {
-            logD("$apkUrl: $ENTRY_NAME uncompressed size out of bounds (${entry.uncompressedSize}B)")
-            return assetLocales.ifEmpty { null }
-        }
-        if (entry.compressionMethod != COMPRESSION_STORED && entry.compressionMethod != COMPRESSION_DEFLATED) {
-            logD("$apkUrl: unsupported compression method ${entry.compressionMethod}")
-            return assetLocales.ifEmpty { null }
-        }
-
-        // The Local File Header's own name/extra-field lengths can differ slightly from the Central
-        // Directory's copy, so the exact data offset can only be known by reading it — 30 bytes covers
-        // the header's fixed part; its variable name/extra fields aren't needed, only their lengths.
-        val localHeaderBytes = fetchBytes(downloader, apkUrl) {
-            inRange(entry.localHeaderOffset, entry.localHeaderOffset + 29)
-            headers()
-        } ?: return assetLocales.ifEmpty { null }
-            .also { logD("$apkUrl: local file header fetch failed") }
-        val dataStart = ApkZipLocator.localFileDataOffset(localHeaderBytes, entry.localHeaderOffset)
+        val arscBytes = fetchEntry(downloader, apkUrl, ENTRY_NAME, entry, MAX_ARSC_BYTES, headers)
             ?: return assetLocales.ifEmpty { null }
-                .also { logD("$apkUrl: couldn't compute local file data offset") }
-
-        val compressedBytes = fetchBytes(downloader, apkUrl) {
-            inRange(dataStart, dataStart + entry.compressedSize - 1)
-            headers()
-        } ?: return assetLocales.ifEmpty { null }
-            .also { logD("$apkUrl: $ENTRY_NAME data fetch failed (${entry.compressedSize}B)") }
-
-        val arscBytes = when (entry.compressionMethod) {
-            COMPRESSION_STORED -> compressedBytes
-            else -> inflateRaw(compressedBytes, entry.uncompressedSize.toInt())
-                ?: return assetLocales.ifEmpty { null }
-                    .also { logD("$apkUrl: inflate failed (${compressedBytes.size}B compressed)") }
-        }
-        if (arscBytes.size.toLong() != entry.uncompressedSize) {
-            logD(
-                "$apkUrl: decoded $ENTRY_NAME size mismatch (got ${arscBytes.size}B, " +
-                    "expected ${entry.uncompressedSize}B)",
-            )
-            return assetLocales.ifEmpty { null }
-        }
 
         val arscLocales = ApkResourceLocales.localeCodes(arscBytes)
         logD(
@@ -185,7 +153,57 @@ object RemoteApkLocaleReader {
         // Chromium-derived apps keep a few Android-native strings — e.g. notification channel names —
         // in res/values-xx/ on top of their .pak-bundled UI text), and either list alone can be null/
         // empty while the other still has a real answer.
-        return ((arscLocales.orEmpty()) + assetLocales).distinct().sorted().ifEmpty { arscLocales }
+        val locales = ((arscLocales.orEmpty()) + assetLocales).distinct().sorted().ifEmpty { arscLocales }
+        if (locales == null || !ApkResourceLocales.isOnlyTheDefaultOfNoText(arscBytes, locales)) return locales
+        val dexEntry = ApkZipLocator.findEntry(centralDirectoryBytes, DEX_ENTRY_NAME) ?: return locales
+        val dex = fetchEntry(downloader, apkUrl, DEX_ENTRY_NAME, dexEntry, MAX_DEX_BYTES, headers)
+        return dex?.let(DexText::language)?.let(::listOf) ?: locales
+    }
+
+    /** The bytes of [entry], named [name] in the logs, or null when they can't be read: larger than
+     *  [maxBytes], compressed some other way, or the fetch failed. */
+    private suspend fun fetchEntry(
+        downloader: Downloader,
+        apkUrl: String,
+        name: String,
+        entry: ApkZipLocator.CentralDirectoryEntry,
+        maxBytes: Long,
+        headers: HeadersBuilder.() -> Unit,
+    ): ByteArray? {
+        if (entry.uncompressedSize <= 0 || entry.uncompressedSize > maxBytes) {
+            logD("$apkUrl: $name uncompressed size out of bounds (${entry.uncompressedSize}B)")
+            return null
+        }
+        if (entry.compressionMethod != COMPRESSION_STORED && entry.compressionMethod != COMPRESSION_DEFLATED) {
+            logD("$apkUrl: unsupported compression method ${entry.compressionMethod}")
+            return null
+        }
+
+        // The Local File Header's own name/extra-field lengths can differ slightly from the Central
+        // Directory's copy, so the exact data offset can only be known by reading it — 30 bytes covers
+        // the header's fixed part; its variable name/extra fields aren't needed, only their lengths.
+        val localHeaderBytes = fetchBytes(downloader, apkUrl) {
+            inRange(entry.localHeaderOffset, entry.localHeaderOffset + 29)
+            headers()
+        } ?: return null.also { logD("$apkUrl: local file header fetch failed") }
+        val dataStart = ApkZipLocator.localFileDataOffset(localHeaderBytes, entry.localHeaderOffset)
+            ?: return null.also { logD("$apkUrl: couldn't compute local file data offset") }
+
+        val compressedBytes = fetchBytes(downloader, apkUrl) {
+            inRange(dataStart, dataStart + entry.compressedSize - 1)
+            headers()
+        } ?: return null.also { logD("$apkUrl: $name data fetch failed (${entry.compressedSize}B)") }
+
+        val bytes = when (entry.compressionMethod) {
+            COMPRESSION_STORED -> compressedBytes
+            else -> inflateRaw(compressedBytes, entry.uncompressedSize.toInt())
+                ?: return null.also { logD("$apkUrl: inflate failed (${compressedBytes.size}B compressed)") }
+        }
+        if (bytes.size.toLong() != entry.uncompressedSize) {
+            logD("$apkUrl: decoded $name size mismatch (got ${bytes.size}B, expected ${entry.uncompressedSize}B)")
+            return null
+        }
+        return bytes
     }
 
     /** Matches a Chromium `.pak` locale-resource-bundle file name under `assets/locales/` (e.g.
