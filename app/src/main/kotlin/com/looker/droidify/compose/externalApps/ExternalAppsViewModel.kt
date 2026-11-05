@@ -816,9 +816,23 @@ class ExternalAppsViewModel @Inject constructor(
             // RemoteApkLocaleReader had already verified straight from the real APK. The source-tree
             // scan is only ever consulted for the default-English-only/unreliable cases above, and even
             // then a disagreeing answer is unioned in rather than replacing the APK-based one.
+            // Nothing but a default config to go on: what the app's source is written in, as the catalogue
+            // screen does, since that default is only English by convention. See
+            // ExternalApi.detectBaseLanguage.
+            val writtenIn = if (apkLocales.isNullOrEmpty() || onlyDefaultEnglish) {
+                externalApi.detectBaseLanguage(app)
+                    ?.takeUnless { it.equals("en", ignoreCase = true) }
+                    ?.takeIf { sourceLocales.orEmpty().all { locale -> locale.equals("en", ignoreCase = true) } }
+            } else {
+                null
+            }
             val languages: List<String>?
             val sourceCrossChecked: Boolean
             when {
+                writtenIn != null -> {
+                    languages = listOf(writtenIn)
+                    sourceCrossChecked = false
+                }
                 apkLocales.isNullOrEmpty() -> {
                     languages = sourceLocales
                     sourceCrossChecked = false

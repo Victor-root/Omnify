@@ -375,6 +375,6 @@ fun hasCatalogueUpdate(
  *  cache already had entries) — folded into the cache key so old rows, computed with the previous
  *  logic, are never read back as if they were still correct. Old rows are simply orphaned, not
  *  actively cleaned up, which is harmless for a small text cache. */
-private const val APK_LOCALE_PARSER_VERSION = "v4"
+private const val APK_LOCALE_PARSER_VERSION = "v6"
 
 private fun String.withParserVersion(): String = "$APK_LOCALE_PARSER_VERSION:$this"

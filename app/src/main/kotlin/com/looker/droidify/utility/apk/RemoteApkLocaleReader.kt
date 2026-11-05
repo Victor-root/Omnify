@@ -42,11 +42,12 @@ object RemoteApkLocaleReader {
      *  longer at a size a legitimate heavily-localized app can actually exceed. */
     private const val MAX_ARSC_BYTES = 64L * 1024 * 1024
 
-    /** The code of an app with no string resources (see [DexText]). */
+    /** The code of an app with next to no string resources (see [DexText]). */
     const val DEX_ENTRY_NAME = "classes.dex"
 
-    /** Read only for such an app, which tends to be a small one, so this needs no more. */
-    private const val MAX_DEX_BYTES = 16L * 1024 * 1024
+    /** Past this it is not worth the download: a dex this large is mostly its libraries, whose English
+     *  would drown out whatever the app says anyway. */
+    const val MAX_DEX_BYTES = 4L * 1024 * 1024
 
     /** EOCD is 22 bytes plus an optional (near-always empty, for an APK) comment of up to 65535 bytes
      *  — this tail comfortably covers both with margin to spare. */
@@ -154,7 +155,7 @@ object RemoteApkLocaleReader {
         // in res/values-xx/ on top of their .pak-bundled UI text), and either list alone can be null/
         // empty while the other still has a real answer.
         val locales = ((arscLocales.orEmpty()) + assetLocales).distinct().sorted().ifEmpty { arscLocales }
-        if (locales == null || !ApkResourceLocales.isOnlyTheDefaultOfNoText(arscBytes, locales)) return locales
+        if (locales == null || !ApkResourceLocales.isUnprovenEnglish(arscBytes, locales)) return locales
         val dexEntry = ApkZipLocator.findEntry(centralDirectoryBytes, DEX_ENTRY_NAME) ?: return locales
         val dex = fetchEntry(downloader, apkUrl, DEX_ENTRY_NAME, dexEntry, MAX_DEX_BYTES, headers)
         return dex?.let(DexText::language)?.let(::listOf) ?: locales

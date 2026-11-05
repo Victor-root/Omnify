@@ -52,10 +52,11 @@ object InstalledApkLocaleReader {
                 // Union, not "prefer one over the other" — see this object's own doc comment for why
                 // either signal alone can miss real locales the other one catches.
                 val locales = (arscLocales.orEmpty() + assetLocales).distinct().sorted().ifEmpty { arscLocales }
-                val textInCode = arsc != null && locales != null &&
-                    ApkResourceLocales.isOnlyTheDefaultOfNoText(arsc, locales)
-                val dexLanguage = if (textInCode) {
+                val unproven = arsc != null && locales != null &&
+                    ApkResourceLocales.isUnprovenEnglish(arsc, locales)
+                val dexLanguage = if (unproven) {
                     zip.getEntry(RemoteApkLocaleReader.DEX_ENTRY_NAME)
+                        ?.takeIf { it.size <= RemoteApkLocaleReader.MAX_DEX_BYTES }
                         ?.let { entry -> zip.getInputStream(entry).use { it.readBytes() } }
                         ?.let(DexText::language)
                 } else {

@@ -16,7 +16,7 @@
 - **An app's short description moves into its card**, under the author and set off by a bar in the app's colour, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
 
 ### 🐛 Fixed
-- **An app that writes its text in its code shows its real language**: with no translatable text in its resources it read as English whatever it was written in, so French-only Prochain train said English. Omnify now reads the language from the app's code.
+- **Apps not written in English show their real language**: an app's base text was taken for English by convention, so a French or German app could say English, or lose its own language from the list. Omnify now reads what that text says, in the app's resources, its code, or its source for Flutter and web apps, which no longer pass as "confirmed English".
 - **No more false Shizuku or Root badge on external sources**: the check read a README's links as well as its text, so any project with a "Get it on Obtainium" button showed as Shizuku compatible.
 - **Offline translation no longer crashes the app**: the engine cannot translate several parts of a page at once in one process, so each part is now translated in a process of its own. Just as fast, and should an engine still fail, only that part is translated again.
 - **A large download no longer hangs at the very end**: once every byte has arrived, it goes on to the install instead of waiting on a connection that has nothing left to send. A download now reads 99 % at most, so it can't be taken for the install.

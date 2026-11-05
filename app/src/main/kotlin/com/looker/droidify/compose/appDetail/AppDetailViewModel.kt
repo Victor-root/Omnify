@@ -638,10 +638,12 @@ class AppDetailViewModel @Inject constructor(
         // both the reliable default-English-only result AND the unreliable tier-3 result a monolingual
         // app falls into (empty remote read), since either can leave the answer a bare "en". English
         // needs no correction, so a detected "en" (or an undetermined null) leaves the answer untouched.
+        // The store listing's languages are only a guess too, and what a monolingual app is really
+        // written in beats it: a Russian-only Flutter app often has an English listing beside its own.
         val resolvedToLoneEnglish = withoutDetection.codes.size == 1 &&
             withoutDetection.codes.single().equals("en", ignoreCase = true)
         val merged = if (
-            resolvedToLoneEnglish &&
+            (resolvedToLoneEnglish || !withoutDetection.reliable) &&
             detectedBase != null &&
             !detectedBase.equals("en", ignoreCase = true)
         ) {
