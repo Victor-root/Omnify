@@ -1,5 +1,7 @@
 package com.looker.droidify.utility.apk
 
+import com.looker.droidify.utility.common.LanguageDetector
+
 /**
  * Parses an Android compiled resource table (`resources.arsc`, found inside every APK's ZIP) to find
  * every distinct locale its resources are configured for — the app's REAL supported UI languages,
@@ -86,6 +88,20 @@ object ApkResourceLocales {
     /** Where a `ResTable_package` holds its `typeStrings` field, see [PACKAGE_KEY_STRINGS_OFFSET]. */
     private const val PACKAGE_TYPE_STRINGS_OFFSET = 268
 
+    /** Where a `ResTable_type` chunk embeds its `ResTable_config`, see [readTypeChunk]. */
+    private const val TYPE_CONFIG_OFFSET = 20
+
+    /** `ResTable_entry.flags`: a bag of values (a plural, an array), and the 8-byte compact form, whose
+     *  key is in the first field, value type in the flags' high byte, and value in the last field. */
+    private const val ENTRY_FLAG_COMPLEX = 0x0001
+    private const val ENTRY_FLAG_COMPACT = 0x0008
+
+    /** `Res_value.dataType` for an index into the table's string pool. */
+    private const val VALUE_TYPE_STRING = 0x03
+
+    /** Far more than [LanguageDetector] looks at. */
+    private const val MAX_DEFAULT_TEXT_CHARS = 20_000
+
     /** A `ResTable_config`'s locale, as language + region + script — script kept distinct from region
      *  rather than folded together (see [readTypeChunk]'s doc comment), so e.g. Serbian's Cyrillic
      *  (default, [script] empty) and Latin (`script` = "Latn") variants are counted, and reported,
@@ -93,8 +109,13 @@ object ApkResourceLocales {
     private data class Locale(val language: String, val region: String, val script: String)
 
     /** The default/"any locale" config, matching what a config with all-zero language and region
-     *  bytes AND no script/variant extension is treated as (see [readTypeChunk]). */
-    private val DEFAULT_LOCALE = Locale("en", "", "")
+     *  bytes AND no script/variant extension is treated as (see [readTypeChunk]). Kept apart from an
+     *  explicit `values-en`: which language it is depends on what it says (see [defaultLanguage]). */
+    private val DEFAULT_LOCALE = Locale("", "", "")
+    private val ENGLISH = Locale("en", "", "")
+
+    /** `values-qq`: notes for translators, in the format translatewiki.net projects use, not a language. */
+    const val TRANSLATOR_NOTES_LOCALE = "qq"
 
     /** One resource type's populated-entry counts for one locale config: [total] populated slots (see
      *  [readTypeChunk]), and [nonBoilerplate] of those whose key name didn't match
@@ -106,9 +127,9 @@ object ApkResourceLocales {
 
     /**
      * Every distinct locale code (e.g. "fr", "pt-BR", "sr-Latn") with at least one configured
-     * resource, in BCP47 form (see the mapping block below for why, specifically). Always includes
-     * "en" when the table has any real content, since the unqualified default `res/values/` config is
-     * treated as English (see [readTypeChunk]).
+     * resource, in BCP47 form (see the mapping block below for why, specifically). The unqualified
+     * default `res/values/` config counts as the language it is written in ([defaultLanguage]), or as
+     * English when its text is too thin to tell (see [readTypeChunk]).
      *
      * The comparison type is the one with the largest *default*-locale populated-entry total among
      * types that actually vary by locale at all (more than just the default config) — falling back to
@@ -152,11 +173,17 @@ object ApkResourceLocales {
         if (byType.isEmpty()) return@runCatching emptyList()
         val localeVaryingTypes = byType.values.filter { it.size > 1 }
         val localeCounts = (localeVaryingTypes.ifEmpty { byType.values })
-            .maxByOrNull { it[DEFAULT_LOCALE]?.total ?: 0L } ?: return@runCatching emptyList()
-        val defaultCount = localeCounts[DEFAULT_LOCALE]?.nonBoilerplate?.takeIf { it > 0 }
+            .maxByOrNull { (it[DEFAULT_LOCALE]?.total ?: 0L) + (it[ENGLISH]?.total ?: 0L) }
             ?: return@runCatching emptyList()
+        val defaultCount = listOf(DEFAULT_LOCALE, ENGLISH).sumOf { localeCounts[it]?.nonBoilerplate ?: 0L }
+            .takeIf { it > 0 } ?: return@runCatching emptyList()
         val threshold = defaultCount * MIN_ENTRY_FRACTION
-        localeCounts.filterValues { it.nonBoilerplate >= threshold }.keys.map { locale ->
+        val defaultCode = defaultLanguage(arsc) ?: "en"
+        val languages = localeCounts.filter { (locale, counts) ->
+            counts.nonBoilerplate >= threshold && locale.language != TRANSLATOR_NOTES_LOCALE
+        }
+        languages.keys.map { locale ->
+            if (locale == DEFAULT_LOCALE) return@map defaultCode
             // BCP47 form ("pt-BR", "sr-Latn"), matching what java.util.Locale.forLanguageTag() (used
             // by the display code downstream) actually understands — NOT the "-r" infix Android uses
             // only for resource *directory names* ("values-pt-rBR"); forLanguageTag() silently drops
@@ -171,31 +198,86 @@ object ApkResourceLocales {
     }.getOrNull()
 
     /**
-     * Whether [locales], read from [arsc], is only the "en" every default config counts as (see
-     * [readTypeChunk]) in a table with no text in it: nothing but images, say, in an app that writes its
-     * text in its code. That "en" says nothing about the language of such an app (see [DexText]).
+     * Whether [locales], read from [arsc], is only the "en" a default config counts as for want of
+     * anything to tell: too little text in the table to say what language it is, or none at all, in an
+     * app that writes its text in its code (see [DexText]).
      */
-    fun isOnlyTheDefaultOfNoText(arsc: ByteArray, locales: List<String>): Boolean =
-        locales == listOf("en") && runCatching { !holdsStrings(arsc) }.getOrDefault(false)
+    fun isUnprovenEnglish(arsc: ByteArray, locales: List<String>): Boolean =
+        locales == listOf("en") && defaultLanguage(arsc) == null
 
-    /** Whether any package of [arsc] declares the `string` resource type. Only called on a table
-     *  [localeCodes] has already walked, so what is left to check is the type pool itself. */
-    private fun holdsStrings(arsc: ByteArray): Boolean {
+    /**
+     * The language the app's own default strings are written in, null when they're too few to tell.
+     *
+     * "Written in English" is only a convention, and a French or Czech app with no `values-en` breaks
+     * it: its strings sit in the default config just the same, and calling them English hid the app's
+     * real language, in favour of one it may not have at all.
+     */
+    private fun defaultLanguage(arsc: ByteArray): String? =
+        runCatching { LanguageDetector.detectDominant(defaultText(arsc)) }.getOrNull()
+
+    /** The default config's `string` resources, a dependency's own left out (see [isBoilerplateKeyName]),
+     *  as one text of at most [MAX_DEFAULT_TEXT_CHARS]. */
+    private fun defaultText(arsc: ByteArray): String = buildString {
+        var valuePool = -1
         var pos = u16(arsc, 2).toLong()
         val end = minOf(u32(arsc, 4), arsc.size.toLong())
-        while (pos + 8 <= end) {
+        while (pos + 8 <= end && length < MAX_DEFAULT_TEXT_CHARS) {
             val chunkSize = u32(arsc, pos.toInt() + 4)
             if (chunkSize <= 0) break
-            if (u16(arsc, pos.toInt()) == RES_TABLE_PACKAGE_TYPE &&
-                pos + PACKAGE_TYPE_STRINGS_OFFSET + Int.SIZE_BYTES <= minOf(pos + chunkSize, end)
-            ) {
-                val typeStrings = u32(arsc, pos.toInt() + PACKAGE_TYPE_STRINGS_OFFSET)
-                val types = parseStringPool(arsc, (pos + typeStrings).toInt()) ?: return true
-                if ("string" in types) return true
+            when (u16(arsc, pos.toInt())) {
+                RES_STRING_POOL_TYPE -> valuePool = pos.toInt()
+                RES_TABLE_PACKAGE_TYPE -> appendPackageText(arsc, pos, minOf(pos + chunkSize, end), valuePool, this)
             }
             pos += chunkSize
         }
-        return false
+    }
+
+    private fun appendPackageText(arsc: ByteArray, pkgStart: Long, pkgEnd: Long, valuePool: Int, text: StringBuilder) {
+        if (valuePool < 0 || pkgStart + PACKAGE_KEY_STRINGS_OFFSET + Int.SIZE_BYTES > pkgEnd) return
+        val typeNames = parseStringPool(arsc, (pkgStart + u32(arsc, pkgStart.toInt() + PACKAGE_TYPE_STRINGS_OFFSET)).toInt())
+        // A type's id is its position in that pool, from 1.
+        val stringType = typeNames?.indexOf("string")?.plus(1)?.takeIf { it > 0 } ?: return
+        val keyPool = parseStringPool(arsc, (pkgStart + u32(arsc, pkgStart.toInt() + PACKAGE_KEY_STRINGS_OFFSET)).toInt())
+        var pos = pkgStart + u16(arsc, pkgStart.toInt() + 2)
+        while (pos + 8 <= pkgEnd && text.length < MAX_DEFAULT_TEXT_CHARS) {
+            val chunkSize = u32(arsc, pos.toInt() + 4)
+            if (chunkSize <= 0) break
+            if (u16(arsc, pos.toInt()) == RES_TABLE_TYPE_TYPE &&
+                (arsc[pos.toInt() + 8].toInt() and 0xFF) == stringType &&
+                configLocale(arsc, pos.toInt() + TYPE_CONFIG_OFFSET) == DEFAULT_LOCALE
+            ) {
+                forEachPopulatedEntry(arsc, pos) { entry ->
+                    entryText(arsc, entry, valuePool, keyPool)?.let { text.append(it).append(' ') }
+                }
+            }
+            pos += chunkSize
+        }
+    }
+
+    /** The text of the `ResTable_entry` at [entry], null for anything else: a plural, a reference, a
+     *  dependency's own string. */
+    private fun entryText(arsc: ByteArray, entry: Long, valuePool: Int, keyPool: List<String>?): String? {
+        if (entry + 16 > arsc.size) return null
+        val start = entry.toInt()
+        val flags = u16(arsc, start + 2)
+        if ((flags and ENTRY_FLAG_COMPLEX) != 0) return null
+        val compact = (flags and ENTRY_FLAG_COMPACT) != 0
+        val key = if (compact) u16(arsc, start).toLong() else u32(arsc, start + 4)
+        if (keyPool?.getOrNull(key.toInt())?.let(::isBoilerplateKeyName) == true) return null
+        val type = if (compact) flags ushr 8 else arsc[start + 11].toInt() and 0xFF
+        if (type != VALUE_TYPE_STRING) return null
+        return poolString(arsc, valuePool, u32(arsc, start + if (compact) 4 else 12).toInt())
+    }
+
+    /** String [index] of the `ResStringPool` at [poolStart], read alone: a table's value pool holds every
+     *  string of every language, which there's no need to decode to read the few asked for here. */
+    private fun poolString(arsc: ByteArray, poolStart: Int, index: Int): String? {
+        val count = u32(arsc, poolStart + 8)
+        if (index < 0 || index >= count) return null
+        val utf8 = (u32(arsc, poolStart + 16).toInt() and UTF8_FLAG) != 0
+        val offsetSlot = poolStart + u16(arsc, poolStart + 2) + index * Int.SIZE_BYTES
+        if (offsetSlot + Int.SIZE_BYTES > arsc.size) return null
+        return readPoolString(arsc, poolStart + u32(arsc, poolStart + 20).toInt(), u32(arsc, offsetSlot).toInt(), utf8)
     }
 
     /** Every `ResTable_type` chunk's populated-entry counts, grouped first by its resource type ID
@@ -312,18 +394,23 @@ object ApkResourceLocales {
      */
     private fun readTypeChunk(arsc: ByteArray, chunkStart: Long, keyPool: List<String>?): Triple<Int, Locale, EntryCounts>? {
         val typeId = arsc[(chunkStart + 8).toInt()].toInt() and 0xFF
-        // The offsets-array encoding (see FLAG_SPARSE/FLAG_OFFSET16) — the byte at chunkStart+9. A flag
-        // bit outside the two we can decode means an encoding we don't understand, so bail to "couldn't
-        // determine" rather than misparse a dense uint32 array out of a compact one.
-        val flags = arsc[(chunkStart + 9).toInt()].toInt() and 0xFF
-        if ((flags and (FLAG_SPARSE or FLAG_OFFSET16).inv()) != 0) return null
-        val sparse = (flags and FLAG_SPARSE) != 0
-        val offset16 = (flags and FLAG_OFFSET16) != 0
-        if (sparse && offset16) return null
-        val entryCount = u32(arsc, (chunkStart + 12).toInt())
-        if (entryCount > arsc.size) return null
-        val entriesStart = u32(arsc, (chunkStart + 16).toInt())
-        val configStart = (chunkStart + 20).toInt()
+        val locale = configLocale(arsc, (chunkStart + TYPE_CONFIG_OFFSET).toInt()) ?: return null
+        var total = 0L
+        var nonBoilerplate = 0L
+        val walked = forEachPopulatedEntry(arsc, chunkStart) { entryDataStart ->
+            total++
+            val name = keyPool?.let { pool ->
+                if (entryDataStart + 8 > arsc.size) return@let null
+                val keyIndex = u32(arsc, (entryDataStart + 4).toInt()).toInt()
+                pool.getOrNull(keyIndex)
+            }
+            if (name == null || !isBoilerplateKeyName(name)) nonBoilerplate++
+        }
+        return if (walked) Triple(typeId, locale, EntryCounts(total, nonBoilerplate)) else null
+    }
+
+    /** The locale of the `ResTable_config` at [configStart], null when it's cut short. */
+    private fun configLocale(arsc: ByteArray, configStart: Int): Locale? {
         if (configStart + 12 > arsc.size) return null
         val configSize = u32(arsc, configStart)
         if (configSize < 12) return null
@@ -344,7 +431,7 @@ object ApkResourceLocales {
             ""
         }
         val isDefaultConfig = isDefaultLangRegion && script.isEmpty()
-        val locale = if (isDefaultConfig) {
+        return if (isDefaultConfig) {
             DEFAULT_LOCALE
         } else {
             Locale(
@@ -353,16 +440,31 @@ object ApkResourceLocales {
                 script = script,
             )
         }
+    }
+
+    /** Runs [onEntry] with where each populated entry of the `ResTable_type` at [chunkStart] starts.
+     *  False, having run it for none, when the chunk can't be walked. */
+    private inline fun forEachPopulatedEntry(arsc: ByteArray, chunkStart: Long, onEntry: (Long) -> Unit): Boolean {
+        // The offsets-array encoding (see FLAG_SPARSE/FLAG_OFFSET16) — the byte at chunkStart+9. A flag
+        // bit outside the two we can decode means an encoding we don't understand, so bail to "couldn't
+        // determine" rather than misparse a dense uint32 array out of a compact one.
+        val flags = arsc[(chunkStart + 9).toInt()].toInt() and 0xFF
+        if ((flags and (FLAG_SPARSE or FLAG_OFFSET16).inv()) != 0) return false
+        val sparse = (flags and FLAG_SPARSE) != 0
+        val offset16 = (flags and FLAG_OFFSET16) != 0
+        if (sparse && offset16) return false
+        val entryCount = u32(arsc, (chunkStart + 12).toInt())
+        if (entryCount > arsc.size) return false
+        val entriesStart = u32(arsc, (chunkStart + 16).toInt())
+        val configStart = (chunkStart + TYPE_CONFIG_OFFSET).toInt()
         // The offsets array starts right after the embedded ResTable_config, whose own leading "size"
         // field is how long it actually is. Its slot width depends on the encoding: a dense uint32 slot
         // per potential resource id (default, and FLAG_OFFSET16's uint16 variant), or a compact 4-byte
         // (idx, offset/4) pair per POPULATED entry only under FLAG_SPARSE.
-        val offsetsStart = configStart + configSize.toInt()
+        val offsetsStart = configStart + u32(arsc, configStart).toInt()
         val entryCountInt = entryCount.toInt()
         val slotWidth = if (offset16) 2 else 4
-        if (offsetsStart + entryCountInt * slotWidth > arsc.size) return null
-        var total = 0L
-        var nonBoilerplate = 0L
+        if (offsetsStart + entryCountInt * slotWidth > arsc.size) return false
         for (i in 0 until entryCountInt) {
             // The byte offset (from entriesStart) to this populated entry's data, or `continue` for a
             // dense slot that isn't populated. Sparse arrays list only populated entries, so every slot
@@ -380,16 +482,9 @@ object ApkResourceLocales {
                     raw
                 }
             }
-            total++
-            val entryDataStart = chunkStart + entriesStart + entryOffset
-            val name = keyPool?.let { pool ->
-                if (entryDataStart + 8 > arsc.size) return@let null
-                val keyIndex = u32(arsc, (entryDataStart + 4).toInt()).toInt()
-                pool.getOrNull(keyIndex)
-            }
-            if (name == null || !isBoilerplateKeyName(name)) nonBoilerplate++
+            onEntry(chunkStart + entriesStart + entryOffset)
         }
-        return Triple(typeId, locale, EntryCounts(total, nonBoilerplate))
+        return true
     }
 
     /** A dependency's own pre-translated resource-key names — AndroidX AppCompat, Material Components

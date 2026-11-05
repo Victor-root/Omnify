@@ -5,13 +5,13 @@ import com.looker.droidify.utility.common.LanguageDetector
 /**
  * The language of an app that keeps its text in its code rather than in string resources.
  *
- * Such an app has nothing for [ApkResourceLocales] to read, yet what it shows the user is all there in
+ * Such an app gives [ApkResourceLocales] too little to read, yet what it shows the user is all there in
  * its `classes.dex`, in the table of every string the code uses. Prochain train, French only and under
- * 100 KB, is one: a resource table of nothing but drawables, which reads as an English app.
+ * 100 KB, is one: a resource table of nothing but drawables.
  *
  * Only sentences are looked at, so class names, keys and addresses don't count. Whatever a library logs
- * counts as much as what the app says, so a large app with no string resources can come out English; it
- * was going to be called that anyway.
+ * counts as much as what the app says, so a large app can come out English, which is what it was going
+ * to be called anyway.
  */
 internal object DexText {
 
@@ -22,7 +22,7 @@ internal object DexText {
 
     /** The language of [dex]'s sentences, null when it isn't a dex file or they don't tell. Never
      *  throws, since [dex] comes from an untrusted remote server. */
-    fun language(dex: ByteArray): String? = runCatching { LanguageDetector.detect(sentences(dex)) }.getOrNull()
+    fun language(dex: ByteArray): String? = runCatching { LanguageDetector.detectDominant(sentences(dex)) }.getOrNull()
 
     /** Every string of [dex] holding a space and a letter, separated by spaces. */
     private fun sentences(dex: ByteArray): String {

@@ -26,6 +26,12 @@ object LanguageDetector {
      *  this many, so it cleanly separates "written in Korean" from "one Korean word in an English app." */
     private const val MIN_SCRIPT_CHARS = 8
 
+    /** The share of a text's letters a script needs for [detectDominant] to go by it. */
+    private const val MIN_SCRIPT_SHARE = 0.25
+
+    /** The end of Latin Extended-B: every letter past it belongs to another script. */
+    private const val LAST_LATIN_LETTER = 0x024F
+
     /** Below this many word tokens the stopword signal is too thin to trust — return null instead. */
     private const val MIN_TOKENS = 20
 
@@ -48,6 +54,22 @@ object LanguageDetector {
     fun detect(text: String): String? {
         val sample = text.take(MAX_SAMPLE_CHARS)
         scriptLanguage(sample)?.let { return it }
+        return stopwordLanguage(sample)
+    }
+
+    /**
+     * As [detect], for a text that may be in one language with a few words of another: an English app
+     * listing "中文" and "日本語" among its language settings, or thanking its translators by name. A script
+     * of its own only names the text's language here when it makes up a good part of its letters.
+     */
+    fun detectDominant(text: String): String? {
+        val sample = text.take(MAX_SAMPLE_CHARS)
+        val script = scriptLanguage(sample)
+        if (script != null) {
+            val letters = sample.count { it.isLetter() }
+            val ownScript = sample.count { it.isLetter() && it.code > LAST_LATIN_LETTER }
+            if (ownScript >= letters * MIN_SCRIPT_SHARE) return script
+        }
         return stopwordLanguage(sample)
     }
 

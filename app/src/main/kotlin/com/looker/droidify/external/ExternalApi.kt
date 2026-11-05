@@ -7,6 +7,7 @@ import android.util.Log
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.di.ApplicationScope
+import com.looker.droidify.utility.apk.ApkResourceLocales
 import com.looker.droidify.utility.common.LanguageDetector
 import com.looker.droidify.utility.common.SingleFlight
 import com.looker.droidify.utility.common.withoutNonLocalePrefix
@@ -342,7 +343,9 @@ class ExternalApi @Inject constructor(
         // Android's near-universal convention, written in English, with values-xx/ only for the
         // *other* languages layered on top. Without this, the language the app was actually written in
         // never showed up at all, only the translations on top of it.
-        val hasDefaultValues = paths.any { RES_DEFAULT_VALUES_REGEX.containsMatchIn(it) }
+        // Strings, not just any file there: a Flutter or web app's Android shell has res/values/styles.xml
+        // from the template, with the whole of its UI somewhere else, in whatever language it's in.
+        val hasDefaultValues = paths.any { RES_DEFAULT_STRINGS_REGEX.containsMatchIn(it) }
         // A cross-platform (Flutter, React Native, …) app has no res/values-xx/ at all — its UI strings
         // are its own asset files, not Android resources — so this is tried too, whether or not the
         // first found anything, and the two are merged (a project can plausibly use both for different
@@ -373,8 +376,9 @@ class ExternalApi @Inject constructor(
         val paths = fetchTreePaths(app)
         if (paths.isEmpty()) return@withContext null
         // The classic case first: base strings declared in res/values/ XML. When that carries nothing
-        // detectable — a Compose-first app whose only res/values/ string is its app name — fall back to
-        // the app's own Kotlin UI source, where such an app writes its visible text instead.
+        // detectable — a Compose-first app whose only res/values/ string is its app name, a Flutter or
+        // web app with an Android shell around it — fall back to the app's own UI source, where such an
+        // app writes its visible text instead.
         detectLanguageFromValuesXml(app, paths)
             ?: detectLanguageFromUiSource(app, paths)
     }
@@ -410,33 +414,30 @@ class ExternalApi @Inject constructor(
     }
 
     /**
-     * Language of the app's own UI text when it's written straight into Jetpack Compose / Kotlin source
-     * as string literals rather than `res/values/` resources — an increasingly common pattern for
-     * Compose-first apps (a real example: a French-only call blocker whose entire `res/values/strings.xml`
-     * is just its app name, with every visible label a hardcoded French string literal inside its
-     * `@Composable` screens). Reads only the UI-layer Kotlin files (screens, sheets, dialogs, …, see
-     * [isUiSourcePath]) — not service/network/util code, which is far likelier to hold English log and
-     * error strings that would skew the guess — and language-detects their multi-word string literals.
-     * A single bare token ("app_name", an identifier, a tag) is a key, not a sentence, so only literals
-     * with an internal space are sampled. Null when no UI source is found or the text is too thin or too
-     * ambiguous to tell confidently.
+     * Language of the app's own UI text when it's written straight into its source rather than
+     * `res/values/` resources: string literals in Compose or Java screens, in Dart for a Flutter app, in
+     * a web app's scripts, and the text of its templates. An increasingly common pattern (a real example:
+     * a French-only call blocker whose entire `res/values/strings.xml` is just its app name, with every
+     * visible label a hardcoded French string literal inside its `@Composable` screens). Reads only
+     * UI-layer files (see [isUiSourceFile]), not service/network/util code, which is far likelier to
+     * hold English log and error strings that would skew the guess. A single bare token ("app_name", an
+     * identifier, a tag) is a key, not a sentence, so only text with an internal space is sampled. Null
+     * when no UI source is found or the text is too thin or too ambiguous to tell confidently.
      */
     private suspend fun detectLanguageFromUiSource(app: ExternalApp, paths: List<String>): String? {
         val uiFiles = paths
-            .filter { it.endsWith(".kt", ignoreCase = true) && isUiSourcePath(it) }
+            .filter(::isUiSourceFile)
             .sortedBy { uiSourceFileOrder(it) }
             .take(MAX_UI_SOURCE_FILES)
         if (uiFiles.isEmpty()) return null
         val text = buildString {
             for (file in uiFiles) {
                 val source = fetchRaw(app, file) ?: continue
-                KOTLIN_STRING_LITERAL_REGEX.findAll(source).forEach { match ->
-                    val literal = match.groupValues[1]
-                    // Only multi-word literals are UI sentences carrying function words to score; a lone
-                    // token is a key/tag/identifier. An interpolated `${'$'}count` just adds an unmatched
-                    // long token, so no template stripping is needed to keep the sample clean.
-                    if (literal.any { it.isWhitespace() } && literal.any { it.isLetter() }) {
-                        append(literal)
+                uiTextPieces(file, source).forEach { piece ->
+                    // An interpolated `${'$'}count` just adds an unmatched long token, so no template
+                    // stripping is needed to keep the sample clean.
+                    if (piece.any { it.isWhitespace() } && piece.any { it.isLetter() }) {
+                        append(piece)
                         append(' ')
                     }
                 }
@@ -1445,6 +1446,9 @@ private val RES_VALUES_DIR_REGEX = Regex("""/(?:res|composeResources)/values-([^
  *  `composeResources/values/` equivalent — see [RES_VALUES_DIR_REGEX]. */
 private val RES_DEFAULT_VALUES_REGEX = Regex("""/(?:res|composeResources)/values/[^/]+$""")
 
+/** The string files among [RES_DEFAULT_VALUES_REGEX]'s, as opposed to a project's styles and colours. */
+private val RES_DEFAULT_STRINGS_REGEX = Regex("""/(?:res|composeResources)/values/strings[^/]*\.xml$""")
+
 /** A plain locale qualifier: a 2-3 letter ISO 639 code, optionally with a `-r<REGION>` region (a
  *  2-letter ISO 3166 code or a 3-digit UN M.49 area code) — e.g. "fr", "pt-rBR", "es-r419". */
 private val SIMPLE_LOCALE_QUALIFIER_REGEX = Regex("""^([a-z]{2,3})(-r([A-Z]{2}|[0-9]{3}))?$""")
@@ -1477,7 +1481,7 @@ private fun localeCodeFromQualifier(qualifier: String): String? {
  *  locale-qualified directory at all (the default `values/`, or a non-locale qualifier). */
 private fun localeFromResValuesPath(path: String): String? {
     val qualifier = RES_VALUES_DIR_REGEX.find(path)?.groupValues?.get(1) ?: return null
-    return localeCodeFromQualifier(qualifier)
+    return localeCodeFromQualifier(qualifier)?.takeIf { it != ApkResourceLocales.TRANSLATOR_NOTES_LOCALE }
 }
 
 /** Matches a `moko-resources/<qualifier>/<file>` path, capturing the qualifier. moko-resources (a
@@ -1805,19 +1809,58 @@ private const val MAX_VALUE_FILES = 12
 private const val MAX_BASE_STRING_FILES = 8
 private const val MAX_BASE_STRING_CHARS = 20_000
 
-/** Bounds for the Compose/Kotlin UI-source fallback (see [ExternalApi.detectLanguageFromUiSource]):
- *  how many UI-layer `.kt` files to fetch, and how much extracted literal text is enough. Screens come
- *  first (see [uiSourceFileOrder]), so the cap is rarely reached before the language is already clear. */
+/** Bounds for the UI-source fallback (see [ExternalApi.detectLanguageFromUiSource]): how many UI-layer
+ *  files to fetch, and how much extracted text is enough. Screens come first (see [uiSourceFileOrder]),
+ *  so the cap is rarely reached before the language is already clear. */
 private const val MAX_UI_SOURCE_FILES = 12
 private const val MAX_UI_SOURCE_CHARS = 20_000
 
-/** The inner text of a single-line double-quoted Kotlin string literal, for sampling a Compose app's
- *  hardcoded UI text ([ExternalApi.detectLanguageFromUiSource]). The delimiting double-quotes are the
- *  two escaped-quote string fragments on either side of the raw-string body, so the pattern reads as
- *  `"…"` (match from one double-quote to the next) while keeping the backslash-heavy body a raw string.
- *  The body allows an escaped char so an embedded escaped quote doesn't end the match early. Triple-
- *  quoted source literals aren't specifically handled; UI labels almost never use them. */
-private val KOTLIN_STRING_LITERAL_REGEX = Regex("\"" + """((?:\\.|[^"\\\n])*)""" + "\"")
+/** The inner text of a single-line double-quoted string literal, for sampling an app's hardcoded UI text
+ *  ([ExternalApi.detectLanguageFromUiSource]). The delimiting double-quotes are the two escaped-quote
+ *  string fragments on either side of the raw-string body, so the pattern reads as `"…"` (match from one
+ *  double-quote to the next) while keeping the backslash-heavy body a raw string. The body allows an
+ *  escaped char so an embedded escaped quote doesn't end the match early, and is written with possessive
+ *  runs rather than as one repeated alternative: on a literal the size of a dictionary, which a word
+ *  game's script is, that overflows the regex engine's stack. Triple-quoted source literals aren't
+ *  specifically handled; UI labels almost never use them. */
+private val DOUBLE_QUOTED_LITERAL_REGEX = Regex("\"" + """([^"\\\n]*+(?:\\.[^"\\\n]*+)*+)""" + "\"")
+
+/** The same in single quotes, as much a string in Dart and JavaScript as double quotes. Only for those:
+ *  in Kotlin and Java, an apostrophe in a comment would start a match. */
+private val SINGLE_QUOTED_LITERAL_REGEX = Regex("""'([^'\\\n]*+(?:\\.[^'\\\n]*+)*+)'""")
+
+/** Files that are a template first, whatever else they hold. */
+private val UI_TEMPLATE_EXTENSIONS = setOf("html", "vue", "svelte")
+
+/** The text between two tags of a template. */
+private val MARKUP_TEXT_REGEX = Regex(""">([^<>{}]+)<""")
+
+/** What a [path] of the app's UI source shows the user, by the kind of file it is. */
+private fun uiTextPieces(path: String, source: String): Sequence<String> {
+    fun Regex.pieces() = findAll(source).map { it.groupValues[1] }
+    return when (path.substringAfterLast('.').lowercase()) {
+        "kt", "java" -> DOUBLE_QUOTED_LITERAL_REGEX.pieces()
+        "dart", "js", "ts" -> DOUBLE_QUOTED_LITERAL_REGEX.pieces() + SINGLE_QUOTED_LITERAL_REGEX.pieces()
+        else -> MARKUP_TEXT_REGEX.pieces() + DOUBLE_QUOTED_LITERAL_REGEX.pieces() +
+            SINGLE_QUOTED_LITERAL_REGEX.pieces()
+    }
+}
+
+/** Whether [path] is a file of the app's UI: see [isUiSourcePath] for Kotlin and Java, where most of a
+ *  project is not, and any Dart file of `lib/` or template or script of a web app's own sources. */
+private fun isUiSourceFile(path: String): Boolean {
+    val lower = path.lowercase()
+    if ("node_modules/" in lower || "/dist/" in lower || "/vendor/" in lower || "test/" in lower) return false
+    // Written by a generator, and full of a project's identifiers.
+    if (lower.endsWith(".g.dart") || lower.endsWith(".freezed.dart")) return false
+    return when (lower.substringAfterLast('.')) {
+        "kt", "java" -> isUiSourcePath(path)
+        "dart" -> lower.startsWith("lib/") || "/lib/" in lower
+        "vue", "svelte", "tsx", "jsx" -> true
+        "html", "js", "ts" -> lower.startsWith("src/") || "/src/" in lower || lower.startsWith("www/")
+        else -> false
+    }
+}
 
 /** Whether a source path is UI-layer code — Compose screens/sheets/dialogs/components, or a classic
  *  Activity/Fragment — where an app's own visible text lives, as opposed to service/network/util code
@@ -1833,14 +1876,15 @@ private fun isUiSourcePath(path: String): Boolean {
 }
 
 /** A UI-layer Kotlin file by its name alone, for repos that don't package UI under a `/ui/` directory. */
-private val UI_FILE_NAME_REGEX = Regex("""(Screen|Activity|Fragment|Sheet|Dialog|Composable|Page|Nav)s?\.kt$""")
+private val UI_FILE_NAME_REGEX = Regex("""(Screen|Activity|Fragment|Sheet|Dialog|Composable|Page|Nav)s?\.(kt|java)$""")
 
-/** Richest-text UI files first: full screens and sheets carry the most labels, so they alone usually
- *  suffice within [MAX_UI_SOURCE_FILES] before thinner dialog/component files are ever reached. */
+/** Richest-text UI files first: full screens, pages and sheets carry the most labels, and a template is
+ *  nearly all text, so they alone usually suffice within [MAX_UI_SOURCE_FILES] before thinner
+ *  dialog/component files are ever reached. */
 private fun uiSourceFileOrder(path: String): Int {
     val lower = path.lowercase()
     return when {
-        "screen" in lower -> 0
+        "screen" in lower || "page" in lower || lower.substringAfterLast('.') in UI_TEMPLATE_EXTENSIONS -> 0
         "sheet" in lower -> 1
         "activity" in lower || "fragment" in lower -> 2
         "dialog" in lower -> 3
