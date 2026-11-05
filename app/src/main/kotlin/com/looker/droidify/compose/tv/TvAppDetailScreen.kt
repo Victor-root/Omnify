@@ -56,6 +56,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.AppDetailState
 import com.looker.droidify.compose.appDetail.AppDetailViewModel
 import com.looker.droidify.compose.appDetail.DownloadStatus
+import com.looker.droidify.compose.appDetail.MAX_VERSIONS_SHOWN
 import com.looker.droidify.compose.appDetail.PrimaryActions
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appDetail.components.PackageItem
@@ -602,7 +603,7 @@ private fun TvVersionsList(
         shownPackages.selectForDevice(suggestedVersionCode)?.first?.manifest?.versionCode
     }
     Column(verticalArrangement = spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
-        shownPackages.forEach { (pkg, repo) ->
+        shownPackages.take(MAX_VERSIONS_SHOWN).forEach { (pkg, repo) ->
             val isSuggested = suggestedVersion != null && pkg.manifest.versionCode == suggestedVersion
             PackageItem(
                 item = pkg,

@@ -318,7 +318,9 @@ fun AppListScreen(
     val externalViewModel: ExternalAppsViewModel = hiltViewModel()
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
     val externalInstallStates by externalViewModel.installStates.collectAsStateWithLifecycle()
-    val updating = UpdatingApps(updatingPackages, batchUpdate, installingPackages, externalInstallStates)
+    val updating = remember(updatingPackages, batchUpdate, installingPackages, externalInstallStates) {
+        UpdatingApps(updatingPackages, batchUpdate, installingPackages, externalInstallStates)
+    }
     val hiddenExternalApps by externalViewModel.hidden.collectAsStateWithLifecycle()
     val recentlyUpdatedExternalApps by externalViewModel.recentlyUpdatedApps.collectAsStateWithLifecycle()
     val favouriteExternalApps by externalViewModel.favouriteApps.collectAsStateWithLifecycle()
