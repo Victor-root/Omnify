@@ -16,6 +16,7 @@
 - **An app's short description moves into its card**, under the author and set off by a bar in the app's colour, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
 
 ### 🐛 Fixed
+- **No more false Shizuku or Root badge on external sources**: the check read a README's links as well as its text, so any project with a "Get it on Obtainium" button showed as Shizuku compatible.
 - **Offline translation no longer crashes the app**: the engine cannot translate several parts of a page at once in one process, so each part is now translated in a process of its own. Just as fast, and should an engine still fail, only that part is translated again.
 - **A large download no longer hangs at the very end**: once every byte has arrived, it goes on to the install instead of waiting on a connection that has nothing left to send. A download now reads 99 % at most, so it can't be taken for the install.
 - **F-Droid syncs again for those it stopped for**: the day's changes were applied to an older copy of its catalogue left behind by an earlier sync, which produced a catalogue that could not be read; the whole catalogue is now fetched again instead.

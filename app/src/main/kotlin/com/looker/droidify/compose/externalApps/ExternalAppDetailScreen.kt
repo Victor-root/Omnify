@@ -975,12 +975,14 @@ fun ExternalAppDetailScreen(
  * read, see ExternalAppsViewModel.loadManifestInfo) or its own name and [readme] (once loaded).
  */
 internal fun ExternalApp.capabilities(readme: String?, declared: AppCapabilities?): AppCapabilities {
-    // An inlined image is only noise here, and long enough to spell "root" by chance.
-    val text = readme.orEmpty().replace(DATA_URI, "")
+    // What the README says, not its markup. Every "Get it on Obtainium" button links to a long address
+    // holding the setting shizukuPretendToBeGooglePlay, which read as a project mentioning Shizuku, and
+    // an inlined image is long enough to spell "root" by chance.
+    val text = readme.orEmpty().replace(HTML_TAG, " ")
     return AppCapabilities.describedBy("$label $text") or (declared ?: AppCapabilities.NONE)
 }
 
-private val DATA_URI = Regex("""data:[^"'\s)]+""")
+private val HTML_TAG = Regex("<[^>]*>")
 
 /** [capabilities], worked out off the main thread: a README can run to hundreds of kilobytes, scanned
  *  several times over. Keeps its last answer while a new one is on its way. */
