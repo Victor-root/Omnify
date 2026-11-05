@@ -39,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -57,6 +58,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onFirstVisible
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
@@ -196,7 +198,7 @@ fun ExternalAppDetailScreen(
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
-        viewModel.reconcileInstalledLabels()
+        viewModel.reconcileInstalledLabels(appKey)
     }
     // Re-query install state on every resume — in particular when returning from the system uninstall
     // dialog — so the buttons switch from Open/Uninstall back to Install without having to leave and
@@ -1430,14 +1432,11 @@ private fun ExternalVersionsSection(
             val rows = remember(releaseHistory, visibleCount, app.apkFilter, installedVersion, installedTag) {
                 releaseVersionRows(releaseHistory.take(visibleCount), app.apkFilter, installedVersion, installedTag)
             }
-            rows.forEach { row ->
+            rows.forEach { row -> key(row.release.tag) {
                 val release = row.release
                 val isThisRowDownloading = activeDownloadTag == release.tag &&
                     (downloadStatus != null || installing)
                 val apkUrl = row.apkUrl
-                if (apkUrl != null) {
-                    LaunchedEffect(apkUrl) { onRequestSdkInfo(apkUrl) }
-                }
                 ReleaseVersionItem(
                     release = release,
                     apkName = row.apkName,
@@ -1450,16 +1449,26 @@ private fun ExternalVersionsSection(
                     downloadStatus = if (isThisRowDownloading) downloadStatus else null,
                     installing = isThisRowDownloading && downloadStatus == null,
                     onCancel = if (isThisRowDownloading) onCancel else null,
-                    modifier = Modifier.onFocusChanged {
-                        if (it.isFocused) {
-                            tvFocusDebugLog {
-                                "FOCUS -> external-version-row (${release.tag}) at " +
-                                    "${System.currentTimeMillis()}"
+                    modifier = Modifier
+                        .onFocusChanged {
+                            if (it.isFocused) {
+                                tvFocusDebugLog {
+                                    "FOCUS -> external-version-row (${release.tag}) at " +
+                                        "${System.currentTimeMillis()}"
+                                }
                             }
                         }
-                    },
+                        // Each row reads its APK's manifest over the network, for a line of text at the
+                        // far end of a long page, so only once the row is scrolled to.
+                        .then(
+                            if (apkUrl != null) {
+                                Modifier.onFirstVisible(minFractionVisible = 0f) { onRequestSdkInfo(apkUrl) }
+                            } else {
+                                Modifier
+                            },
+                        ),
                 )
-            }
+            } }
             if (releaseHistory.size > VERSIONS_COLLAPSED_COUNT) {
                 ShowMoreRow(
                     // Null rather than the true remaining count: the screen only ever asked for enough

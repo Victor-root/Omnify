@@ -2,7 +2,6 @@ package com.looker.droidify.compose.externalApps
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
@@ -21,13 +20,13 @@ import com.looker.droidify.compose.appDetail.pushCapabilityIsVestigial
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.data.AppRepository
-import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApi
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
 import com.looker.droidify.external.ExternalIconCache
+import com.looker.droidify.external.ExternalInstalledState
 import com.looker.droidify.external.ExternalInstaller
 import com.looker.droidify.external.followsSameAppAs
 import com.looker.droidify.external.ExternalReadme
@@ -40,6 +39,7 @@ import com.looker.droidify.external.filtersFor
 import com.looker.droidify.external.isFollowedBy
 import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.external.ReleaseLookup
+import com.looker.droidify.external.RemoteApkCache
 import com.looker.droidify.external.RepoRef
 import com.looker.droidify.external.apkDownloadUrl
 import com.looker.droidify.external.apkFileName
@@ -72,17 +72,14 @@ import com.looker.droidify.network.ProgressListener
 import com.looker.droidify.translation.TranslationManager
 import com.looker.droidify.translation.translateHtml
 import com.looker.droidify.utility.apk.ApkBinaryManifest
-import com.looker.droidify.utility.apk.ApkSigningBlockReader
 import com.looker.droidify.utility.apk.InstalledApkLocaleReader
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
-import com.looker.droidify.utility.apk.RemoteApkManifestReader
 import com.looker.droidify.utility.common.AppCapabilities
 import com.looker.droidify.utility.common.cache.Cache
 import com.looker.droidify.utility.common.extension.archiveApplicationInfo
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.installedWithDifferentSignature
-import com.looker.droidify.utility.common.extension.installerSourceLabel
 import com.looker.droidify.utility.common.extension.isVersionDowngrade
 import com.looker.droidify.work.BatchUpdateProgress
 import com.looker.droidify.work.UpdateAllWorker
@@ -115,7 +112,6 @@ class ExternalAppsViewModel @Inject constructor(
     private val installManager: InstallManager,
     private val translationManager: TranslationManager,
     private val settingsRepository: SettingsRepository,
-    private val installedRepository: InstalledRepository,
     // The F-Droid catalogue's repository, reused here only for its generic (provider-agnostic)
     // APK-locale cache — see loadSupportedLanguages().
     private val appRepository: AppRepository,
@@ -123,10 +119,14 @@ class ExternalAppsViewModel @Inject constructor(
     // that download too rather than offering to start it again.
     private val batchProgress: BatchUpdateProgress,
     private val apkDownloads: ApkDownloads,
+    private val installedState: ExternalInstalledState,
+    private val remoteApk: RemoteApkCache,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
-    val apps: StateFlow<List<ExternalApp>> = repository.apps.asStateFlow(emptyList())
+    // Starts from what the repository already holds, so a source's page opens with its app rather than
+    // blank for its first frame.
+    val apps: StateFlow<List<ExternalApp>> = repository.apps.asStateFlow(repository.loadedApps)
 
     /** Keys of tracked apps the user has hidden from every app listing: the same store the F-Droid
      *  catalogue's own hidden apps use ([SettingsRepository.toggleHidden]/`hiddenApps`), keyed by
@@ -228,94 +228,17 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    /** Bumped to re-query the package manager (e.g. when the screen is reopened). */
-    private val installedRefresh = MutableStateFlow(0)
+    /** See [ExternalInstalledState.deviceVersions]. */
+    val deviceVersions: StateFlow<Map<String, String>> = installedState.deviceVersions
 
-    // Emits on any install/uninstall on the device (kept up to date by InstalledAppReceiver). Using it
-    // as a trigger makes install-state react to the authoritative package-change broadcast, so an
-    // uninstall from this very screen updates the button without a resume-timing race.
-    private val installedChanges = installedRepository.getAllStream()
+    /** See [ExternalInstalledState.signatureMismatches]. */
+    val signatureMismatches: StateFlow<Map<String, Boolean>> = installedState.signatureMismatches
 
-    /** Per-app versionName of whatever is installed under its package name (read from the package
-     *  manager), keyed by [ExternalApp.key], this source's own build or another one: what the detail
-     *  screen names when warning that another build holds the package ([signatureMismatches]). */
-    val deviceVersions: StateFlow<Map<String, String>> = combine(
-        repository.apps,
-        installManager.state,
-        installedRefresh,
-        installedChanges,
-    ) { apps, _, _, _ ->
-        apps.mapNotNull { app ->
-            val pkg = app.packageName
-            if (pkg == null) {
-                if (BuildConfig.TRACES) Log.d(TAG, "installedVersions ${app.key}: no packageName on record")
-                return@mapNotNull null
-            }
-            val version = externalRefresher.installedVersionName(pkg)
-            if (version == null) {
-                if (BuildConfig.TRACES) {
-                    Log.d(TAG, "installedVersions ${app.key}: pkg=$pkg but not found by the package manager")
-                }
-                return@mapNotNull null
-            }
-            app.key to version
-        }.toMap()
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
+    /** See [ExternalInstalledState.installedVersions]. */
+    val installedVersions: StateFlow<Map<String, String>> = installedState.installedVersions
 
-    /**
-     * Keys ([ExternalApp.key]) whose package name is held on the device by another build than the
-     * source's own: one none of the source's APK signers signed ([ExternalApp.isForeignCopy]), such as
-     * Google's own Gboard next to a source publishing a modified one under the same package name. A
-     * package name alone isn't proof of identity. The value is whether that installed app is a system
-     * app, i.e. can't actually be uninstalled. A key is absent while either signer is unknown.
-     */
-    val signatureMismatches: StateFlow<Map<String, Boolean>> = combine(
-        repository.apps,
-        deviceVersions,
-    ) { apps, versions ->
-        apps.mapNotNull { app ->
-            val pkg = app.packageName?.takeIf { app.key in versions && app.latestApkSigners.isNotEmpty() }
-                ?: return@mapNotNull null
-            // The copy this source installed itself is its own build, whatever key signed it: a
-            // development build installed on purpose is often signed with another than the releases'.
-            if (app.ownsInstalled(versions[app.key])) return@mapNotNull null
-            if (!app.isForeignCopy(externalRefresher.installedSigner(pkg))) return@mapNotNull null
-            app.key to isSystemApp(pkg)
-        }.toMap()
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
-
-    /** Per-app real installed versionName of the source's own build, keyed by [ExternalApp.key]: so the
-     *  detail shows the version actually on the device vs. the repo's. Another build holding the package
-     *  name ([signatureMismatches]) isn't this app installed, and is left out. */
-    val installedVersions: StateFlow<Map<String, String>> = combine(deviceVersions, signatureMismatches) {
-            versions, mismatches ->
-        versions - mismatches.keys
-    }.distinctUntilChanged().asStateFlow(emptyMap())
-
-    /** Where each installed tracked app actually came from (Play, F-Droid, this app…), keyed by
-     *  [ExternalApp.key] — shown next to the installed version so a mismatch with what Omnify expects
-     *  (e.g. a copy installed by another client, which can't be updated across signing keys in place)
-     *  is visible instead of silently offering "Launch" with no explanation. Derived from
-     *  [deviceVersions] so a key only ever appears here once something is installed under it. */
-    val installSources: StateFlow<Map<String, String>> = combine(
-        deviceVersions,
-        repository.apps,
-    ) { versions, apps ->
-        val byKey = apps.associateBy { it.key }
-        versions.mapNotNull { (key, version) ->
-            val app = byKey[key] ?: return@mapNotNull null
-            val pkg = app.packageName ?: return@mapNotNull null
-            // Android can lose track of its own "who installed this" record for a package that was
-            // genuinely installed through Omnify. Observed after fully uninstalling and reinstalling
-            // Omnify itself, even though the tracked app was never touched. installedVersionName is only
-            // ever written once ExternalInstaller.awaitAndRecordInstall confirms a real install, so it
-            // matching the version actually on the device right now is Omnify's own proof of having put
-            // it there, used as a fallback rather than showing "unknown source" for an app it demonstrably
-            // installed.
-            val knownInstalledByOmnify = app.installedVersionName != null && app.installedVersionName == version
-            key to context.installerSourceLabel(pkg, knownInstalledByOmnify)
-        }.toMap()
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(emptyMap())
+    /** See [ExternalInstalledState.installSources]. */
+    val installSources: StateFlow<Map<String, String>> = installedState.installSources
 
     /** Keys of tracked apps whose own build is installed on the device ([installedVersions]), matching
      *  the detail screen's own [ExternalAppDetailScreen] `isInstalled`. Drives the Explorer/account grid
@@ -492,13 +415,6 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    /** True when [packageName] is a system app (or an update to one). Those can't be uninstalled, so a
-     *  differently-signed release can never replace them — there's no point offering to. */
-    private fun isSystemApp(packageName: String): Boolean = runCatching {
-        val flags = context.packageManager.getApplicationInfo(packageName, 0).flags
-        (flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
-    }.getOrDefault(false)
-
     /** Drives the Add-source dialog: it stays open with a spinner while the (network) add runs, then
      *  closes itself on success. */
     private val _addState = MutableStateFlow(AddSourceState.IDLE)
@@ -619,7 +535,7 @@ class ExternalAppsViewModel @Inject constructor(
         viewModelScope.launch {
             // Off the main thread: the reader inflates the manifest and this parses it.
             val sdk = withContext(Dispatchers.Default) {
-                RemoteApkManifestReader.fetchManifestBytes(downloader, apkUrl)?.let(ApkBinaryManifest::usesSdk)
+                remoteApk.manifest(apkUrl)?.let(ApkBinaryManifest::usesSdk)
             }
             _sdkInfoByApkUrl.update { it + (apkUrl to sdk) }
         }
@@ -631,8 +547,7 @@ class ExternalAppsViewModel @Inject constructor(
      *  source, which carries no F-Droid-index manifest metadata of its own to feed the check from — read
      *  here straight from the release APK's own compiled manifest instead ([ApkBinaryManifest.
      *  permissionsAndFeatures]). A key present with an empty list means the check completed and found
-     *  nothing detected (or the app's package id couldn't be resolved at all — see [ExternalApi.
-     *  fetchPackageId]); a key absent means it hasn't been requested yet. */
+     *  nothing detected; a key absent means it hasn't been requested yet. */
     private val _googleServicesByApkUrl =
         MutableStateFlow<Map<String, List<GoogleServiceDependency>>>(emptyMap())
     val googleServicesByApkUrl: StateFlow<Map<String, List<GoogleServiceDependency>>> =
@@ -655,9 +570,9 @@ class ExternalAppsViewModel @Inject constructor(
         viewModelScope.launch {
             // Off the main thread: the reader inflates the manifest and the checks below parse it.
             val (declared, dependencies) = withContext(Dispatchers.Default) {
-                val manifest = RemoteApkManifestReader.fetchManifestBytes(downloader, apkUrl)
+                val manifest = remoteApk.manifest(apkUrl)
                 val parsed = manifest?.let(ApkBinaryManifest::permissionsAndFeatures)
-                val packageId = parsed?.let { app.packageName ?: externalApi.fetchPackageId(app) }
+                val packageId = app.packageName ?: manifest?.let(ApkBinaryManifest::packageName)
                 val detected = if (manifest != null && parsed != null && packageId != null) {
                     val found = detectGoogleServicesDependencies(packageId, parsed.permissionNames, parsed.featureNames)
                     // Same precision refinement the catalogue applies: a merged manifest can still declare
@@ -699,9 +614,7 @@ class ExternalAppsViewModel @Inject constructor(
         if (!expectedCertificateRequested.add(apkUrl)) return
         viewModelScope.launch {
             // On Dispatchers.Default: the signing block is parsed after each range request.
-            val hashes = withContext(Dispatchers.Default) {
-                ApkSigningBlockReader.fetchSignerHashes(downloader, apkUrl)
-            }
+            val hashes = withContext(Dispatchers.Default) { remoteApk.signers(apkUrl) }
             _expectedSignersByApkUrl.update { it + (apkUrl to hashes) }
         }
     }
@@ -805,9 +718,13 @@ class ExternalAppsViewModel @Inject constructor(
      *  (mirrors [issueTrackerCache]'s freshness window). */
     private val sourceLocalesCache = mutableMapOf<String, Pair<Long, List<String>>>()
 
+    /** The check running for this page, replaced when the install state it was asked with changes. */
+    private var supportedLanguagesJob: Job? = null
+
     fun loadSupportedLanguages(app: ExternalApp, isInstalled: Boolean) {
         _supportedLanguages.value = null
-        viewModelScope.launch {
+        supportedLanguagesJob?.cancel()
+        supportedLanguagesJob = viewModelScope.launch {
             // The installed APK's own real locales win outright when readable — the ground truth, no
             // network needed. Falls through to the remote release check below when it comes back empty
             // (unlike a real read, that can plausibly mean the read itself silently missed something)
@@ -823,8 +740,12 @@ class ExternalAppsViewModel @Inject constructor(
             } else {
                 emptyList()
             }
+            // What was already read from the APK of the latest release spares looking that release up.
+            val knownLocales = app.latestApkToken?.let { appRepository.cachedApkLocales(it) }
             val apkLocales = if (installedLocales.isNotEmpty()) {
                 installedLocales
+            } else if (knownLocales != null) {
+                knownLocales
             } else {
                 val release = externalApi.latestReleaseFor(app)
                 val asset = release?.let {
@@ -1657,18 +1578,19 @@ class ExternalAppsViewModel @Inject constructor(
 
     /** Forces a re-query of which tracked apps are installed (e.g. after returning to the screen). */
     fun refreshInstalled() {
-        installedRefresh.value++
+        installedState.refresh()
     }
 
     /**
      * Replaces each installed app's stored label with the real on-device app name (e.g. "GlassKeep"
      * instead of the repo name "glasskeep-enhanced"). Reads the package manager off the main thread;
-     * one upsert per changed label, so it converges and is safe to call on every screen open.
+     * one upsert per changed label, so it converges and is safe to call on every screen open. A source's
+     * own page passes [onlyKey], having only that app to look at.
      */
-    fun reconcileInstalledLabels() {
+    fun reconcileInstalledLabels(onlyKey: String? = null) {
         viewModelScope.launch {
             val updated = withContext(Dispatchers.Default) {
-                apps.value.mapNotNull { app ->
+                apps.value.filter { onlyKey == null || it.key == onlyKey }.mapNotNull { app ->
                     if (app.nameOverridden) return@mapNotNull null
                     val realLabel = externalRefresher.installedLabelOf(app) ?: return@mapNotNull null
                     if (realLabel != app.label) app.copy(label = realLabel) else null
@@ -1835,7 +1757,7 @@ class ExternalAppsViewModel @Inject constructor(
                 }
                 label to reason?.let {
                     InstallConflict(
-                        isSystemApp = isSystemApp(packageName),
+                        isSystemApp = installedState.isSystemApp(packageName),
                         reason = it,
                         packageName = packageName,
                         cacheFileName = cacheFileName,

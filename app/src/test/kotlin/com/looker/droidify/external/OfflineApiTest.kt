@@ -6,6 +6,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -40,6 +43,7 @@ class OfflineApiTest {
             ),
             settingsRepository = settingsRepository,
             responseCache = ConditionalGetCache(cacheDir),
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         )
     }
 
