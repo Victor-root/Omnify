@@ -376,8 +376,8 @@ class ExternalApi @Inject constructor(
         val paths = fetchTreePaths(app)
         if (paths.isEmpty()) return@withContext null
         // The classic case first: base strings declared in res/values/ XML. When that carries nothing
-        // detectable — a Compose-first app whose only res/values/ string is its app name, a Flutter or
-        // web app with an Android shell around it — fall back to the app's own UI source, where such an
+        // detectable (a Compose-first app whose only res/values/ string is its app name, a Flutter or
+        // web app with an Android shell around it), fall back to the app's own UI source, where such an
         // app writes its visible text instead.
         detectLanguageFromValuesXml(app, paths)
             ?: detectLanguageFromUiSource(app, paths)
