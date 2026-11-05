@@ -63,12 +63,10 @@ import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.rememberIconAccent
-import com.looker.droidify.utility.common.extension.calculateHash
-import com.looker.droidify.utility.common.extension.getPackageInfoCompat
-import com.looker.droidify.utility.common.extension.singleSignature
 import androidx.compose.ui.Alignment
 import com.looker.droidify.compose.externalApps.PrereleaseModeChooser
-import com.looker.droidify.compose.externalApps.capabilities
+import com.looker.droidify.compose.externalApps.rememberCapabilities
+import com.looker.droidify.compose.externalApps.rememberInstalledSigner
 import com.looker.droidify.compose.externalApps.cardVersion
 import com.looker.droidify.compose.externalApps.offersPrereleaseChoice
 
@@ -142,16 +140,7 @@ fun TvExternalAppDetailScreen(
     // could claim, this reads the real, on-device signature), so it can be shown, compared, and copied,
     // e.g. against a build the user just compiled themselves. Null when not installed, the package id
     // isn't known yet, or on the rare PackageManager read failure.
-    val installedSignerRaw = remember(isInstalled, app.packageName) {
-        val packageName = app.packageName
-        if (!isInstalled || packageName == null) {
-            null
-        } else {
-            context.packageManager.getPackageInfoCompat(packageName)
-                ?.singleSignature
-                ?.calculateHash()
-        }
-    }
+    val installedSignerRaw = rememberInstalledSigner(app.packageName.takeIf { isInstalled })
     // Set as the hero icon loads (see the ExternalAppIcon call below); reset per screen
     // instance, i.e. per app, since a different app's detail page is a fresh composition of this screen.
     // Follows the picture on screen: the app's own icon read off the device replaces the one shown before
@@ -181,9 +170,7 @@ fun TvExternalAppDetailScreen(
         app.latestApkUrl?.let { viewModel.loadManifestInfo(app, it) }
     }
     val declaredCapabilities = app.latestApkUrl?.let { declaredCapabilitiesByApkUrl[it] }
-    val capabilities = remember(app.key, readme, declaredCapabilities) {
-        app.capabilities(readme?.html, declaredCapabilities)
-    }
+    val capabilities = app.rememberCapabilities(readme?.html, declaredCapabilities)
 
     // Same content the phone screen loads, so an external app's page is as rich as a catalogue one
     // (Omnify deliberately blurs the line between the two). Unlike the phone screen, TV's version

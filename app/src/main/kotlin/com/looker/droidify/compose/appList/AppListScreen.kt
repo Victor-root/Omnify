@@ -114,6 +114,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -140,6 +141,7 @@ import com.looker.droidify.compose.components.updateDeparture
 import com.looker.droidify.compose.trailUpdatesNav
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
+import com.looker.droidify.compose.externalApps.WebViewWarmUp
 import com.looker.droidify.compose.settings.components.InfoBanner
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.CatalogCategory
@@ -462,6 +464,11 @@ fun AppListScreen(
         // wait is spent held back by the network constraint or on a retry delay, and reading only
         // "running" is what left the screen blank and silent for the whole of it.
         (isSyncing || isSyncScheduled) && catalogTabEmpty
+    }
+    // Once the home has its content, so it doesn't compete with the first screen of the run.
+    val context = LocalContext.current
+    LaunchedEffect(catalogLoading) {
+        if (!catalogLoading) WebViewWarmUp.run(context.applicationContext)
     }
     // Nothing to list and no connection to fetch it with. Shown ahead of the loader: a sync that
     // cannot run yet is not a wait to watch a spinner over, it is one to explain.

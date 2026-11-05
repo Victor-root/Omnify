@@ -19,7 +19,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
@@ -85,13 +84,14 @@ fun ReadmeWebView(
     onContentHeight: (Int) -> Unit,
     modifier: Modifier = Modifier,
     scrollState: ScrollState? = null,
-    // True (the default, and always true before the content height is first known) forces a software
-    // draw layer — see the comment further down for why. A software layer's backing bitmap is capped to
-    // roughly one screen's worth of pixels (confirmed via logcat: "not displayed because it is too large
-    // to fit into a software layer" — an unrecoverable, silent failure with no visible content at all,
-    // not a partial render), so a caller whose README is taller than that must pass false here once it
-    // knows, or the whole WebView renders nothing.
-    forceSoftwareLayer: Boolean = true,
+    // True forces a software draw layer — see the comment further down for why — so pass it only once
+    // the content is known to fit one screen. A software layer's backing bitmap is capped to roughly
+    // that many pixels (confirmed via logcat: "not displayed because it is too large to fit into a
+    // software layer" — an unrecoverable, silent failure with no visible content at all, not a partial
+    // render). It also draws on the main thread, a frame of over 150 ms for a long page, for as many
+    // times as the page redraws while it loads: starting every page on it froze the screen that
+    // opened it, for a layer most READMEs leave again as soon as their height is known.
+    forceSoftwareLayer: Boolean,
     // Called if the WebView's renderer process dies (system-triggered, typically under memory pressure —
     // see onRenderProcessGone below) so the caller can show a fallback instead of a permanently blank gap.
     // Never called under normal operation.
@@ -141,8 +141,10 @@ fun ReadmeWebView(
             }
         }
     }
-    val document = remember(body, colorScheme, pageBackground) {
-        body?.let { sanitized ->
+    // Off the main thread too: this copies the whole body, and goes over it line by line.
+    val document by produceState<String?>(null, body, colorScheme, pageBackground) {
+        val sanitized = body ?: return@produceState
+        value = withContext(Dispatchers.Default) {
             wrapReadmeHtml(
                 body = sanitized,
                 // The app background (not the raised surface) when translucentBackground is set, so the
@@ -184,9 +186,9 @@ fun ReadmeWebView(
                     allowContentAccess = false
                 }
                 setBackgroundColor(AndroidColor.TRANSPARENT)
-                // Software layer, not hardware, while forceSoftwareLayer holds — see its own doc comment
-                // for why this can't just always be on for every caller (a size cap far too small for
-                // anything but a short README). The hardware path's real risk (RenderThread crashing in
+                // Software layer, not hardware, when forceSoftwareLayer holds — see its own doc comment
+                // for why this can't just always be on (a size cap far too small for anything but a
+                // short README, and the main thread). The hardware path's real risk (RenderThread crashing in
                 // GLFunctorDrawable::onDraw when the WebView's renderer process has died — confirmed via a
                 // real Android TV tombstone) is handled below via onRenderProcessGone instead of avoided
                 // by force here, since disabling hardware rendering outright would silently blank every
@@ -305,16 +307,17 @@ fun ReadmeWebView(
             // already-composed screen (factory only runs once, at first creation).
             web.settings.javaScriptEnabled = allowJavaScript
             // Re-applied on every recomposition where it changed (factory only sets the *initial* value,
-            // taken when the content height wasn't known yet — see forceSoftwareLayer's doc comment).
+            // taken before the content height is known — see forceSoftwareLayer's doc comment).
             // setLayerType with the same type it's already on is a cheap no-op.
             val wantedLayerType = if (forceSoftwareLayer) View.LAYER_TYPE_SOFTWARE else View.LAYER_TYPE_NONE
             if (web.layerType != wantedLayerType) {
                 web.setLayerType(wantedLayerType, null)
             }
             // Reload only when the rendered document actually changes (not on every recomposition).
-            if (document != null && web.tag != document) {
-                web.tag = document
-                web.loadDataWithBaseURL(baseUrl, document, "text/html", "UTF-8", null)
+            val page = document
+            if (page != null && web.tag != page) {
+                web.tag = page
+                web.loadDataWithBaseURL(baseUrl, page, "text/html", "UTF-8", null)
             }
         },
         // Detach from the view hierarchy before destroying, not just destroy() alone: a WebView still
