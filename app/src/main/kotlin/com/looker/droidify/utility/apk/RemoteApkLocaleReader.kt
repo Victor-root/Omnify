@@ -151,7 +151,7 @@ object RemoteApkLocaleReader {
                 "locale(s), plus ${assetLocales.size} from per-locale asset files",
         )
         // Union, not "prefer one over the other": an app can genuinely mix both mechanisms (some
-        // Chromium-derived apps keep a few Android-native strings — e.g. notification channel names —
+        // Chromium-derived apps keep a few Android-native strings, e.g. notification channel names,
         // in res/values-xx/ on top of their .pak-bundled UI text), and either list alone can be null/
         // empty while the other still has a real answer.
         val locales = ((arscLocales.orEmpty()) + assetLocales).distinct().sorted().ifEmpty { arscLocales }
