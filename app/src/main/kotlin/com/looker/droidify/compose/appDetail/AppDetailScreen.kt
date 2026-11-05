@@ -186,7 +186,7 @@ import java.io.File
  * of historical releases, which froze the UI. The list is sorted newest-first, so the cap
  * keeps the releases users actually care about.
  */
-private const val MAX_VERSIONS_SHOWN = 50
+internal const val MAX_VERSIONS_SHOWN = 50
 
 /** Pixel size the hero icon is sampled at for the "match accent to app icon" setting, independent of
  *  its 88.dp display size. */
