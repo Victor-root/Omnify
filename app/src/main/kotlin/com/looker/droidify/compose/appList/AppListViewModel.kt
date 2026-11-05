@@ -56,7 +56,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
@@ -245,9 +247,12 @@ class AppListViewModel @Inject constructor(
     // Emits whenever the catalogue (apps/versions) changes — e.g. after a sync — so every list
     // below re-queries automatically instead of waiting for the user to change a filter. Throttled
     // during a sync, see AppRepository.throttledCatalogChanges.
-    private val catalogChanges: StateFlow<Int> = appRepository.throttledCatalogChanges
-        .distinctUntilChanged()
-        .asHomeState(0)
+    // Null until the database has answered: a placeholder value would start every list below once for
+    // nothing, and a Room query cannot be cancelled, so the real one would wait for that first run.
+    private val catalogChanges: Flow<Int> = appRepository.throttledCatalogChanges
+        .distinctUntilChanged<Int?>()
+        .asHomeState(null)
+        .filterNotNull()
 
     // Throttled trigger for the download-stats table — the stats worker inserts roughly one batch per
     // month, so this mirrors catalogChanges to refresh the "Most downloaded" carousel when stats land
@@ -288,8 +293,11 @@ class AppListViewModel @Inject constructor(
      *  heuristic when capped to a handful of results, but turned out far too broad ("openbar") once used
      *  uncapped as a strict hide-everything-else filter. Here we only trust the technical signals of
      *  [MadeForTv]. */
-    private val tvPackageNames: StateFlow<Set<String>> = combine(catalogChanges, madeForTv) { _, tv -> tv }
+    private val tvPackageNames: StateFlow<Set<String>> = combine(catalogChanges, madeForTv, tvOnly) { _, tv, only ->
+        tv.takeIf { isTelevisionDevice || only }
+    }
         .mapLatest { tv ->
+            if (tv == null) return@mapLatest emptySet()
             appRepository.apps(
                 // Order is irrelevant here — only used to build a membership set, never shown directly.
                 sortOrder = SortOrder.UPDATED,
@@ -662,9 +670,9 @@ class AppListViewModel @Inject constructor(
                 // NAME is just a stable base order for apps with no recorded timestamp (favourited
                 // before this was tracked, or two favourited the same millisecond) to tie-break on,
                 // rather than the arbitrary order the catalogue query happens to return.
-                appRepository.apps(sortOrder = SortOrder.NAME)
+                favourites.chunked(MAX_QUERY_PACKAGES)
+                    .flatMap { appRepository.apps(sortOrder = SortOrder.NAME, packageNames = it) }
                     .excludingHidden(hidden)
-                    .filter { it.packageName.name in favourites }
                     .sortedByDescending { timestamps[it.packageName.name] ?: 0L }
             }
         }
@@ -713,7 +721,9 @@ class AppListViewModel @Inject constructor(
     /** "What's new" carousel on the Discover home — the most recently added apps. */
     val newApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
         .mapLatest { hidden ->
-            appRepository.apps(sortOrder = SortOrder.ADDED).excludingHidden(hidden).take(DISCOVER_ROW_COUNT)
+            appRepository.latestApps(SortOrder.ADDED, DISCOVER_ROW_COUNT + hidden.size)
+                .excludingHidden(hidden)
+                .take(DISCOVER_ROW_COUNT)
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
@@ -724,7 +734,7 @@ class AppListViewModel @Inject constructor(
      *  app has lastUpdated == added and would otherwise head both lists identically). */
     val recentlyUpdatedApps: StateFlow<List<AppMinimal>> = catalogChanges.combine(hiddenApps) { _, hidden -> hidden }
         .mapLatest { hidden ->
-            appRepository.apps(sortOrder = SortOrder.UPDATED, updatedOnly = true)
+            appRepository.latestApps(SortOrder.UPDATED, DISCOVER_ROW_COUNT + hidden.size, updatedOnly = true)
                 .excludingHidden(hidden)
                 .take(DISCOVER_ROW_COUNT)
         }
@@ -813,16 +823,15 @@ class AppListViewModel @Inject constructor(
      *  the filter — fetch it by package when it's missing, then prepend (deduping if already present). */
     private suspend fun shizukuFirst(apps: List<AppMinimal>): List<AppMinimal> {
         val shizuku = apps.firstOrNull { it.packageName.name == SHIZUKU_PACKAGE }
-            ?: appRepository.apps(
-                sortOrder = SortOrder.UPDATED,
-                searchQuery = SHIZUKU_PACKAGE,
-            ).firstOrNull { it.packageName.name == SHIZUKU_PACKAGE }
+            ?: appRepository.appsByPackageNames(listOf(SHIZUKU_PACKAGE)).firstOrNull()
             ?: return apps
         return listOf(shizuku) + apps.filter { it.packageName.name != SHIZUKU_PACKAGE }
     }
 
     /** The enabled repositories the user added, rather than one Omnify ships. */
-    private val ownRepos: StateFlow<List<Repo>> = repoRepository.getEnabledRepos()
+    private val ownRepos: StateFlow<List<Repo>> = (
+        if (isTelevisionDevice) repoRepository.getEnabledRepos() else flowOf(emptyList())
+    )
         .map { repos -> repos.filter { it.address.trimEnd('/') !in Repository.defaultAddresses } }
         .distinctUntilChanged()
         .asHomeState(emptyList())
@@ -1010,9 +1019,11 @@ class AppListViewModel @Inject constructor(
             .mapLatest { (section, hidden, tv) ->
                 when (section) {
                     SECTION_WHATS_NEW ->
-                        appRepository.apps(sortOrder = SortOrder.ADDED).excludingHidden(hidden).take(SECTION_PAGE_LIMIT)
+                        appRepository.latestApps(SortOrder.ADDED, SECTION_PAGE_LIMIT + hidden.size)
+                            .excludingHidden(hidden)
+                            .take(SECTION_PAGE_LIMIT)
                     SECTION_RECENTLY_UPDATED ->
-                        appRepository.apps(sortOrder = SortOrder.UPDATED, updatedOnly = true)
+                        appRepository.latestApps(SortOrder.UPDATED, SECTION_PAGE_LIMIT + hidden.size, updatedOnly = true)
                             .excludingHidden(hidden)
                             .take(SECTION_PAGE_LIMIT)
                     SECTION_MOST_DOWNLOADED ->
@@ -1087,6 +1098,9 @@ class AppListViewModel @Inject constructor(
 }
 
 private const val DISCOVER_ROW_COUNT = 16
+
+/** The most package names one query binds: older Android builds of SQLite refuse more than 999. */
+private const val MAX_QUERY_PACKAGES = 900
 
 private const val TAG = "AppListViewModel"
 
