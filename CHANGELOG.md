@@ -7,6 +7,8 @@
 - **A "Shizuku compatible" badge** on the page of apps that can use Shizuku or Sui, next to the Root one, on phone and TV. Both badges now show on external sources too, from the permissions their APK declares.
 
 ### 🔄 Changed
+- **Omnify starts and runs far faster, on phone and TV**: one carousel kept the database busy for several seconds at every launch while everything else waited behind it, and the animated background redrew the whole screen on every frame. A screen at rest now leaves the processor and the graphics chip alone, for a smoother app and a longer battery life, with the same look.
+- **App pages open without freezing and download far less**: a README no longer holds up the screen while it loads, images far larger than any screen are scaled down, and a page opened again costs almost no data instead of fetching the same things again (Ente Auth: 4.5 MB down to a few KB).
 - **"Update all" works on three apps at once**: a slow server no longer holds up the rest, the next app starts as soon as one is through, and whichever finishes downloading first is installed first.
 - **Repositories sync all at once**: a slow server, F-Droid's on a bad night, no longer holds up your other repositories, and external sources are checked at the same time instead of afterwards.
 - **The header shows how far a sync has come**, a percentage covering repositories and external sources together: beside the progress bar on phone, in place of the sync icon on TV.
