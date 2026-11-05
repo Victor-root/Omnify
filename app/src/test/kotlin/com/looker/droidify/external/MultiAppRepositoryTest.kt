@@ -10,6 +10,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
@@ -107,6 +110,7 @@ class MultiAppRepositoryTest {
             ),
             settingsRepository = settingsRepository,
             responseCache = ConditionalGetCache(tmpFolder.newFolder()),
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         )
     }
 

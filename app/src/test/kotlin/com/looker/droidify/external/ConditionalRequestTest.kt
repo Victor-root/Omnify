@@ -13,6 +13,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.io.TempDir
@@ -63,6 +66,7 @@ class ConditionalRequestTest {
             ),
             settingsRepository = settingsRepository,
             responseCache = ConditionalGetCache(dir),
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         )
     }
 

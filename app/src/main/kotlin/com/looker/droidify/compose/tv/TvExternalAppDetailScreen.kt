@@ -111,7 +111,7 @@ fun TvExternalAppDetailScreen(
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
-        viewModel.reconcileInstalledLabels()
+        viewModel.reconcileInstalledLabels(appKey)
     }
     // Re-read install state on resume — notably returning from the system uninstall dialog — so the
     // button flips back to Install without leaving the screen (installManager.state alone doesn't

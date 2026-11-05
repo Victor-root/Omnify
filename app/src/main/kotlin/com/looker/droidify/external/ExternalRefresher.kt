@@ -15,7 +15,6 @@ import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.apk.ApkSigningBlockReader
 import com.looker.droidify.utility.apk.RemoteApkIconReader
 import com.looker.droidify.utility.apk.RemoteApkIconReader.IconArchive
-import com.looker.droidify.utility.apk.RemoteApkManifestReader
 import com.looker.droidify.utility.common.extension.archiveApplicationInfo
 import com.looker.droidify.utility.common.extension.installedSignerHash
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -44,6 +43,7 @@ class ExternalRefresher @Inject constructor(
     private val externalApi: ExternalApi,
     private val repository: ExternalAppRepository,
     private val downloader: Downloader,
+    private val remoteApk: RemoteApkCache,
     @param:ApplicationContext private val context: Context,
     private val syncProgress: SyncProgress,
 ) {
@@ -546,8 +546,7 @@ class ExternalRefresher @Inject constructor(
     /** The package id declared by the APK at [apkUrl], read from its own binary manifest via a range
      *  request rather than downloading the whole file. Null when it can't be read. */
     suspend fun readApkPackageId(apkUrl: String): String? = runCatching {
-        RemoteApkManifestReader.fetchManifestBytes(downloader, apkUrl)
-            ?.let(ApkBinaryManifest::packageName)
+        remoteApk.manifest(apkUrl)?.let(ApkBinaryManifest::packageName)
     }.getOrNull()
 
     fun isInstalled(packageName: String): Boolean = try {

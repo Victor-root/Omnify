@@ -43,6 +43,9 @@ class ExternalAppRepository @Inject constructor(
         emitAll(_apps)
     }
 
+    /** The sources as they stand, without waiting: empty until [apps] or [getApps] has loaded them. */
+    val loadedApps: List<ExternalApp> get() = _apps.value
+
     /** Tracked whole-account sources (each expands to several [apps]). */
     val accounts: Flow<List<ExternalAccount>> = flow {
         ensureAccountsLoaded()

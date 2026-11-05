@@ -6,7 +6,9 @@ import android.util.Base64
 import android.util.Log
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.datastore.SettingsRepository
+import com.looker.droidify.di.ApplicationScope
 import com.looker.droidify.utility.common.LanguageDetector
+import com.looker.droidify.utility.common.SingleFlight
 import com.looker.droidify.utility.common.withoutNonLocalePrefix
 import com.looker.droidify.utility.common.withoutNonLocalePrefixes
 import io.ktor.client.HttpClient
@@ -18,6 +20,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,8 +51,13 @@ class ExternalApi @Inject constructor(
     private val httpClient: HttpClient,
     private val settingsRepository: SettingsRepository,
     private val responseCache: ConditionalGetCache,
+    @param:ApplicationScope scope: CoroutineScope,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
+
+    /** A page asks for the same address from several places at once as it opens (the repository's own
+     *  record for its links, the first page of releases for its versions and its languages). */
+    private val textRequests = SingleFlight<String, String?>(scope)
 
     /** Whether the most recent api.github.com request was rejected by the rate limit (HTTP 403/429 with
      *  no remaining quota). Best-effort hint, read right after a failed call on the same coroutine. */
@@ -795,13 +803,26 @@ class ExternalApi @Inject constructor(
      * file nor any release with actual notes exists.
      */
     suspend fun fetchChangelogUrl(app: ExternalApp): String? = withContext(Dispatchers.IO) {
+        changelogUrlCache[app.key]?.let { (fetchedAt, url) ->
+            if (SystemClock.elapsedRealtime() - fetchedAt < TREE_CACHE_TTL_MS) return@withContext url
+        }
+        val url = findChangelogUrl(app)
+        changelogUrlCache.putFresh(app.key, url)
+        url
+    }
+
+    /** Shared cache for [fetchChangelogUrl], bounded like [treeCache]. Most repositories have none of
+     *  [CHANGELOG_NAMES], and a 404 is cached nowhere else, so every page opened asked for all of them. */
+    private val changelogUrlCache = ConcurrentHashMap<String, Pair<Long, String?>>()
+
+    private suspend fun findChangelogUrl(app: ExternalApp): String? {
         for (name in CHANGELOG_NAMES) {
             if (runCatching { getText(app.readmeBaseUrl + name) }.getOrNull() != null) {
-                return@withContext app.fileViewUrl(name)
+                return app.fileViewUrl(name)
             }
         }
         val hasReleaseNotes = runCatching { genuineReleaseNotes(app).isNotEmpty() }.getOrDefault(false)
-        if (hasReleaseNotes) app.releasesUrl else null
+        return if (hasReleaseNotes) app.releasesUrl else null
     }
 
     /**
@@ -1116,7 +1137,13 @@ class ExternalApi @Inject constructor(
         url: String,
         github: Boolean = false,
         revalidate: Boolean = false,
-    ): String? {
+    ): String? = if (revalidate) {
+        requestText(url, github, revalidate = true)
+    } else {
+        textRequests.run(url) { withContext(Dispatchers.IO) { requestText(url, github, revalidate = false) } }
+    }
+
+    private suspend fun requestText(url: String, github: Boolean, revalidate: Boolean): String? {
         val cached = responseCache.load(url)
         if (!revalidate && cached != null && responseCache.isFresh(cached)) return cached.body
         val response = try {
