@@ -104,7 +104,7 @@ class ExternalInstalledState @Inject constructor(
     }.distinctUntilChanged().shared()
 
     /** Where each installed tracked app actually came from (Play, F-Droid, this app…), keyed by
-     *  [ExternalApp.key] — shown next to the installed version so a mismatch with what Omnify expects
+     *  [ExternalApp.key], shown next to the installed version so a mismatch with what Omnify expects
      *  (e.g. a copy installed by another client, which can't be updated across signing keys in place)
      *  is visible instead of silently offering "Launch" with no explanation. Derived from
      *  [deviceVersions] so a key only ever appears here once something is installed under it. */
@@ -133,7 +133,7 @@ class ExternalInstalledState @Inject constructor(
     }
 
     /** True when [packageName] is a system app (or an update to one). Those can't be uninstalled, so a
-     *  differently-signed release can never replace them — there's no point offering to. */
+     *  differently-signed release can never replace them, so there's no point offering to. */
     fun isSystemApp(packageName: String): Boolean = runCatching {
         val flags = context.packageManager.getApplicationInfo(packageName, 0).flags
         (flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
