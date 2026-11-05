@@ -83,6 +83,9 @@ object ApkResourceLocales {
      *  the chunk's overall headerSize. */
     private const val PACKAGE_KEY_STRINGS_OFFSET = 276
 
+    /** Where a `ResTable_package` holds its `typeStrings` field, see [PACKAGE_KEY_STRINGS_OFFSET]. */
+    private const val PACKAGE_TYPE_STRINGS_OFFSET = 268
+
     /** A `ResTable_config`'s locale, as language + region + script — script kept distinct from region
      *  rather than folded together (see [readTypeChunk]'s doc comment), so e.g. Serbian's Cyrillic
      *  (default, [script] empty) and Latin (`script` = "Latn") variants are counted, and reported,
@@ -166,6 +169,34 @@ object ApkResourceLocales {
             ).joinToString("-")
         }.distinct()
     }.getOrNull()
+
+    /**
+     * Whether [locales], read from [arsc], is only the "en" every default config counts as (see
+     * [readTypeChunk]) in a table with no text in it: nothing but images, say, in an app that writes its
+     * text in its code. That "en" says nothing about the language of such an app (see [DexText]).
+     */
+    fun isOnlyTheDefaultOfNoText(arsc: ByteArray, locales: List<String>): Boolean =
+        locales == listOf("en") && runCatching { !holdsStrings(arsc) }.getOrDefault(false)
+
+    /** Whether any package of [arsc] declares the `string` resource type. Only called on a table
+     *  [localeCodes] has already walked, so what is left to check is the type pool itself. */
+    private fun holdsStrings(arsc: ByteArray): Boolean {
+        var pos = u16(arsc, 2).toLong()
+        val end = minOf(u32(arsc, 4), arsc.size.toLong())
+        while (pos + 8 <= end) {
+            val chunkSize = u32(arsc, pos.toInt() + 4)
+            if (chunkSize <= 0) break
+            if (u16(arsc, pos.toInt()) == RES_TABLE_PACKAGE_TYPE &&
+                pos + PACKAGE_TYPE_STRINGS_OFFSET + Int.SIZE_BYTES <= minOf(pos + chunkSize, end)
+            ) {
+                val typeStrings = u32(arsc, pos.toInt() + PACKAGE_TYPE_STRINGS_OFFSET)
+                val types = parseStringPool(arsc, (pos + typeStrings).toInt()) ?: return true
+                if ("string" in types) return true
+            }
+            pos += chunkSize
+        }
+        return false
+    }
 
     /** Every `ResTable_type` chunk's populated-entry counts, grouped first by its resource type ID
      *  (the package's own numbering — never assumed to be any particular value, since it depends on
