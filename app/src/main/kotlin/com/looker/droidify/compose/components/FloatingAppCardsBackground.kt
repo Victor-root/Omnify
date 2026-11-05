@@ -1,15 +1,7 @@
 package com.looker.droidify.compose.components
 
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.StartOffset
-import androidx.compose.animation.core.StartOffsetType
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.InfiniteTransition
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,8 +9,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
@@ -35,6 +30,7 @@ import com.looker.droidify.compose.theme.LocalBackgroundStyle
 import com.looker.droidify.compose.theme.LocalEdgeToEdge
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.datastore.model.BackgroundStyle
+import kotlinx.coroutines.delay
 import kotlin.math.PI
 
 /**
@@ -81,13 +77,8 @@ fun FloatingAppCardsBackground(
     val tones = remember(accent, dark, background, intensity) {
         BackdropTones(accent, dark, black = background == Color.Black, intensity)
     }
-    val phase = rememberInfiniteTransition(label = "backdrop").animateFloat(
-        initialValue = 0f,
-        targetValue = 2 * PI.toFloat(),
-        animationSpec = infiniteRepeatable(tween(BackdropCycleMillis, easing = LinearEasing)),
-        label = "backdropPhase",
-    )
-    // The phase is read inside the draw lambda only, so each frame re-runs that draw and nothing else.
+    val clock = rememberDriftClock()
+    // The clock is read inside the draw lambda only, so each tick re-runs that draw and nothing else.
     Spacer(
         modifier
             .fillMaxSize()
@@ -96,10 +87,45 @@ fun FloatingAppCardsBackground(
             .clipToBounds()
             .drawWithCache {
                 val backdrop = Backdrop(style, tones, size, density)
-                onDrawBehind { with(backdrop) { drawBackdrop(phase.value) } }
+                onDrawBehind {
+                    val phase = 2 * PI.toFloat() * (clock.value % BackdropCycleMillis) / BackdropCycleMillis
+                    with(backdrop) { drawBackdrop(phase) }
+                }
             },
     )
 }
+
+/**
+ * How long a backdrop's drift has been running, in milliseconds, moving on every [DriftStepMillis].
+ *
+ * A drift this slow moves less than a pixel between two steps, so following the display's refresh rate
+ * showed nothing more, and it cost a full-screen redraw on every frame of every screen, for as long as
+ * the app is open: on a 120 Hz phone or a TV's slow GPU, the bulk of what the app ever draws. Between two
+ * steps nothing runs at all, so a screen at rest lets the CPU and GPU sleep.
+ *
+ * Follows the system's animation scale like any other animation, and stands still when it is off.
+ */
+@Composable
+private fun rememberDriftClock(): State<Long> {
+    val clock = remember { mutableLongStateOf(0L) }
+    LaunchedEffect(Unit) {
+        var last = withInfiniteAnimationFrameNanos { it }
+        var elapsedNanos = 0L
+        while (true) {
+            delay(DriftStepMillis)
+            val now = withInfiniteAnimationFrameNanos { it }
+            val scale = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
+            if (scale > 0f) {
+                elapsedNanos += ((now - last) / scale).toLong()
+                clock.longValue = elapsedNanos / 1_000_000
+            }
+            last = now
+        }
+    }
+    return clock
+}
+
+private const val DriftStepMillis = 50L
 
 /**
  * The original backdrop, kept as [BackgroundStyle.AURORA]: a handful of large, softly overlapping
@@ -110,11 +136,9 @@ fun FloatingAppCardsBackground(
 private fun AuroraBackground(modifier: Modifier, accent: Color, dark: Boolean, intensity: Float) {
     val alpha = (if (dark) DarkAlpha else LightAlpha) * intensity
     val palette = remember(accent) { auroraPaletteFrom(accent) }
-    val transition = rememberInfiniteTransition(label = "aurora")
-    // One State pair per blob, all driven by the same shared transition — read directly inside the
-    // Canvas draw lambda below (not hoisted via `by`), so only that draw phase re-runs on each frame
-    // instead of the whole composable recomposing.
-    val drifts = AURORA_BLOB_SPECS.map { spec -> spec.driftXState(transition) to spec.driftYState(transition) }
+    // Read directly inside the Canvas draw lambda below (not hoisted via `by`), so only that draw phase
+    // re-runs on each tick instead of the whole composable recomposing.
+    val clock = rememberDriftClock()
     // Everything is drawn into ONE Canvas/layer with additive blending, not one Box per blob: several
     // separately composited layers (even borderless ones) still showed as visually distinct dots
     // where they overlapped instead of merging into a continuous colour field. A single draw pass
@@ -131,10 +155,9 @@ private fun AuroraBackground(modifier: Modifier, accent: Color, dark: Boolean, i
             .graphicsLayer(clip = true, compositingStrategy = CompositingStrategy.Offscreen),
     ) {
         AURORA_BLOB_SPECS.forEachIndexed { index, spec ->
-            val (driftX, driftY) = drifts[index]
             val center = Offset(
-                x = size.width * (0.5f + spec.xBias / 2f) + spec.driftDp.dp.toPx() * driftX.value,
-                y = size.height * (0.5f + spec.yBias / 2f) + spec.driftDp.dp.toPx() * driftY.value,
+                x = size.width * (0.5f + spec.xBias / 2f) + spec.driftDp.dp.toPx() * spec.driftX(clock.value),
+                y = size.height * (0.5f + spec.yBias / 2f) + spec.driftDp.dp.toPx() * spec.driftY(clock.value),
             )
             val radius = spec.sizeDp.dp.toPx()
             val color = palette[index]
@@ -238,29 +261,15 @@ private const val DarkAlpha = 0.22f
 
 /** Two independent, oddly-ratioed axes (this duration vs. its own *1.3) so the drift traces a slow,
  *  organic loop rather than a straight line back and forth — an aurora doesn't pulse on a metronome.
- *  initialStartOffset staggers each blob's phase, same idea as a negative CSS animation-delay. */
-@Composable
-private fun AuroraBlobSpec.driftXState(transition: InfiniteTransition): State<Float> =
-    transition.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = durationMs, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-            initialStartOffset = StartOffset(delayMs, StartOffsetType.FastForward),
-        ),
-        label = "driftX",
-    )
+ *  The delay staggers each blob's phase, same idea as a negative CSS animation-delay. */
+private fun AuroraBlobSpec.driftX(elapsedMillis: Long): Float = drift(elapsedMillis + delayMs, durationMs)
 
-@Composable
-private fun AuroraBlobSpec.driftYState(transition: InfiniteTransition): State<Float> =
-    transition.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = (durationMs * 1.3f).toInt(), easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-            initialStartOffset = StartOffset(delayMs + 900, StartOffsetType.FastForward),
-        ),
-        label = "driftY",
-    )
+private fun AuroraBlobSpec.driftY(elapsedMillis: Long): Float =
+    drift(elapsedMillis + delayMs + 900, (durationMs * 1.3f).toInt())
+
+/** Eased from -1 to 1 over [durationMillis], then back again. */
+private fun drift(timeMillis: Long, durationMillis: Int): Float {
+    val position = (timeMillis % (2L * durationMillis)).toFloat() / durationMillis
+    val fraction = if (position <= 1f) position else 2f - position
+    return 2f * LinearOutSlowInEasing.transform(fraction) - 1f
+}
