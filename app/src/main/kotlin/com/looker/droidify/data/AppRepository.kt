@@ -86,6 +86,15 @@ class AppRepository @Inject constructor(
         )
     }
 
+    /** The newest [limit] apps by [sortOrder], for a row that shows no more than that (see [AppDao.latest]). */
+    suspend fun latestApps(
+        sortOrder: SortOrder,
+        limit: Int,
+        updatedOnly: Boolean = false,
+    ): List<AppMinimal> = withContext(Dispatchers.Default) {
+        appDao.latest(sortOrder, updatedOnly, limit, localeStream.first())
+    }
+
     /**
      * Highest version *installable on this device* for every app **across all repos**, keyed by
      * packageName — used to detect updates so the Updates tab matches what the detail screen will

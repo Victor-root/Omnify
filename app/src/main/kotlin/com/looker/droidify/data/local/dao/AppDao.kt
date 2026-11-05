@@ -86,16 +86,7 @@ interface AppDao {
             shippedAddressesLast = shippedAddressesLast,
             locale = locale,
         ),
-    ).map {
-        AppMinimal(
-            appId = it.appId.toLong(),
-            packageName = PackageName(it.packageName),
-            name = it.name,
-            summary = it.summary,
-            icon = FilePath(it.baseAddress, it.iconName),
-            suggestedVersion = it.suggestedVersion ?: "",
-        )
-    }
+    ).map { it.toAppMinimal() }
 
     data class AppMinimalRow(
         val appId: Int,
@@ -105,7 +96,16 @@ interface AppDao {
         val baseAddress: String,
         val iconName: String?,
         val suggestedVersion: String?,
-    )
+    ) {
+        fun toAppMinimal() = AppMinimal(
+            appId = appId.toLong(),
+            packageName = PackageName(packageName),
+            name = name,
+            summary = summary,
+            icon = FilePath(baseAddress, iconName),
+            suggestedVersion = suggestedVersion ?: "",
+        )
+    }
 
     @RawQuery
     suspend fun _rawQueryAppMinimal(query: SimpleSQLiteQuery): List<AppMinimalRow>
@@ -120,32 +120,12 @@ interface AppDao {
     suspend fun mostDownloaded(locale: String, limit: Int): List<AppMinimal> {
         val query = SimpleSQLiteQuery(
             """
-            SELECT
-                app.id AS appId,
-                app.packageName AS packageName,
-                COALESCE(n_loc.name, n_en.name, app.packageName) AS name,
-                COALESCE(s_loc.summary, s_en.summary) AS summary,
-                repo.address AS baseAddress,
-                COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName,
-                (
-                    SELECT v.versionName FROM version v
-                    WHERE v.appId = app.id
-                    ORDER BY v.versionCode DESC
-                    LIMIT 1
-                ) AS suggestedVersion
-            FROM app
-            JOIN repository AS repo ON app.repoId = repo.id
+            ${appMinimalSelect()}
             JOIN (
                 SELECT packageName, SUM(downloads) AS total
                 FROM download_stats
                 GROUP BY packageName
             ) AS ds ON ds.packageName = app.packageName
-            LEFT JOIN localized_app_name AS n_loc ON n_loc.appId = app.id AND n_loc.locale = ?
-            LEFT JOIN localized_app_name AS n_en ON n_en.appId = app.id AND n_en.locale = 'en-US'
-            LEFT JOIN localized_app_summary AS s_loc ON s_loc.appId = app.id AND s_loc.locale = ?
-            LEFT JOIN localized_app_summary AS s_en ON s_en.appId = app.id AND s_en.locale = 'en-US'
-            LEFT JOIN localized_app_icon AS i_loc ON i_loc.appId = app.id AND i_loc.locale = ?
-            LEFT JOIN localized_app_icon AS i_en ON i_en.appId = app.id AND i_en.locale = 'en-US'
             GROUP BY app.packageName
             ORDER BY ds.total DESC
             LIMIT ?
@@ -154,89 +134,106 @@ interface AppDao {
             // (matches deviceCompatibleVersions' `listOf<Any>(...)`).
             arrayOf<Any>(locale, locale, locale, limit),
         )
-        return _rawQueryAppMinimal(query).map {
-            AppMinimal(
-                appId = it.appId.toLong(),
-                packageName = PackageName(it.packageName),
-                name = it.name,
-                summary = it.summary,
-                icon = FilePath(it.baseAddress, it.iconName),
-                suggestedVersion = it.suggestedVersion ?: "",
-            )
-        }
+        return _rawQueryAppMinimal(query).map { it.toAppMinimal() }
     }
 
     /**
-     * Apps for the "For rooted devices" carousel. Detecting root is fuzzy: the legacy ACCESS_SUPERUSER
-     * permission is declared by only a fraction of root apps (root itself needs no manifest permission
-     * — an app just runs `su` at runtime), so relying on it alone misses most. This also scans the
-     * localized name/summary/description for strong root phrasing (Magisk/KernelSU/"requires root"…),
-     * while excluding negations ("no root", "without root"…) so an app that advertises "works without
-     * root" isn't wrongly included. Union of the permission and the keyword match, newest first.
+     * The newest [limit] apps by [sortOrder] ([SortOrder.ADDED] or [SortOrder.UPDATED]), for a carousel
+     * that shows a handful of them: picked in a subquery first, so the columns and joins are only
+     * worked out for those rather than for the whole catalogue. [updatedOnly] as in [query].
      */
-    suspend fun rootApps(locale: String, limit: Int): List<AppMinimal> {
-        // The searchable blobs, judged each on its own like RootDetection.textIndicatesRoot: the
-        // localized (falling back to en-US) description + summary + name, and the en-US original, where
-        // a translation may have turned "Requires root" into a phrase the keywords miss.
-        val localized = "LOWER(" +
-            "COALESCE(d_loc.description, d_en.description, '') || ' ' || " +
-            "COALESCE(s_loc.summary, s_en.summary, '') || ' ' || " +
-            "COALESCE(n_loc.name, n_en.name, ''))"
-        val english = "LOWER(" +
-            "COALESCE(d_en.description, '') || ' ' || " +
-            "COALESCE(s_en.summary, '') || ' ' || " +
-            "COALESCE(n_en.name, ''))"
-        fun clause(text: String, words: List<String>, op: String, join: String) = words.joinToString(join) {
-            "$text $op '%${it.replace("'", "''")}%'"
-        }
-        fun keywordMatch(text: String) = "((${clause(text, RootDetection.KEYWORDS, "LIKE", " OR ")}) AND " +
-            "(${clause(text, RootDetection.NEGATIONS, "NOT LIKE", " AND ")}))"
-        val permMatch = "EXISTS (SELECT 1 FROM version WHERE version.appId = app.id AND " +
-            "(version.permissions LIKE '%\"${RootDetection.PERMISSION}\"%' OR " +
-            "version.permissionsSdk23 LIKE '%\"${RootDetection.PERMISSION}\"%'))"
-        val keywordMatch = "(${keywordMatch(localized)} OR ${keywordMatch(english)})"
+    suspend fun latest(sortOrder: SortOrder, updatedOnly: Boolean, limit: Int, locale: String): List<AppMinimal> {
+        val column = if (sortOrder == SortOrder.ADDED) "added" else "lastUpdated"
+        val filter = if (updatedOnly) "WHERE lastUpdated > added" else ""
         val query = SimpleSQLiteQuery(
             """
-            SELECT
-                app.id AS appId,
-                app.packageName AS packageName,
-                COALESCE(n_loc.name, n_en.name, app.packageName) AS name,
-                COALESCE(s_loc.summary, s_en.summary) AS summary,
-                repo.address AS baseAddress,
-                COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName,
-                (
-                    SELECT v.versionName FROM version v
-                    WHERE v.appId = app.id
-                    ORDER BY v.versionCode DESC
-                    LIMIT 1
-                ) AS suggestedVersion
-            FROM app
-            JOIN repository AS repo ON app.repoId = repo.id
-            LEFT JOIN localized_app_name AS n_loc ON n_loc.appId = app.id AND n_loc.locale = ?
-            LEFT JOIN localized_app_name AS n_en ON n_en.appId = app.id AND n_en.locale = 'en-US'
-            LEFT JOIN localized_app_summary AS s_loc ON s_loc.appId = app.id AND s_loc.locale = ?
-            LEFT JOIN localized_app_summary AS s_en ON s_en.appId = app.id AND s_en.locale = 'en-US'
-            LEFT JOIN localized_app_icon AS i_loc ON i_loc.appId = app.id AND i_loc.locale = ?
-            LEFT JOIN localized_app_icon AS i_en ON i_en.appId = app.id AND i_en.locale = 'en-US'
-            LEFT JOIN localized_app_description AS d_loc ON d_loc.appId = app.id AND d_loc.locale = ?
-            LEFT JOIN localized_app_description AS d_en ON d_en.appId = app.id AND d_en.locale = 'en-US'
-            WHERE ($permMatch OR $keywordMatch)
-            GROUP BY app.packageName
-            ORDER BY app.lastUpdated DESC
-            LIMIT ?
+            ${appMinimalSelect("(SELECT * FROM app $filter GROUP BY packageName ORDER BY $column DESC LIMIT $limit) AS app")}
+            ORDER BY app.$column DESC
             """.trimIndent(),
-            arrayOf<Any>(locale, locale, locale, locale, limit),
+            arrayOf(locale, locale, locale),
         )
-        return _rawQueryAppMinimal(query).map {
-            AppMinimal(
-                appId = it.appId.toLong(),
-                packageName = PackageName(it.packageName),
-                name = it.name,
-                summary = it.summary,
-                icon = FilePath(it.baseAddress, it.iconName),
-                suggestedVersion = it.suggestedVersion ?: "",
-            )
+        return _rawQueryAppMinimal(query).map { it.toAppMinimal() }
+    }
+
+    /**
+     * Apps for the "For rooted devices" carousel, newest first. Detecting root is fuzzy: the legacy
+     * ACCESS_SUPERUSER permission is declared by only a fraction of root apps (root itself needs no
+     * manifest permission, an app just runs `su` at runtime), so relying on it alone misses most. This
+     * also judges the localized name/summary/description with [RootDetection.textIndicatesRoot], which
+     * leaves out negations ("no root", "without root"…), so the union covers both.
+     *
+     * Judged here rather than in SQL, page by page and stopping at [limit]. On Android, LIKE and LOWER
+     * go through ICU: the same test as a WHERE clause took 5 s on an emulator for 6000 apps, ran over
+     * the whole catalogue whatever the LIMIT because of its sort, and held one of Room's few threads
+     * while every other screen queued behind it.
+     */
+    suspend fun rootApps(locale: String, limit: Int): List<AppMinimal> {
+        val found = LinkedHashSet<String>()
+        var offset = 0
+        while (found.size < limit) {
+            val page = _rootCandidates(locale, RootDetection.PERMISSION, ROOT_CANDIDATES_PAGE, offset)
+            page.filter(RootCandidateRow::indicatesRoot).mapTo(found) { it.packageName }
+            if (page.size < ROOT_CANDIDATES_PAGE) break
+            offset += page.size
         }
+        val names = found.take(limit)
+        val rank = names.withIndex().associate { (index, name) -> name to index }
+        return byPackageNames(names, locale).sortedBy { rank[it.packageName.name] }
+    }
+
+    /** One page of the catalogue by last update, with what [rootApps] judges each app on. The page is
+     *  cut in a subquery so that sorting never carries the texts of every app along. */
+    @Query(
+        """
+        SELECT
+            page.packageName AS packageName,
+            EXISTS (
+                SELECT 1 FROM version WHERE version.appId = page.id
+                AND (version.permissions LIKE '%"' || :permission || '"%'
+                    OR version.permissionsSdk23 LIKE '%"' || :permission || '"%')
+            ) AS declaresRoot,
+            COALESCE(d_loc.description, d_en.description) AS description,
+            COALESCE(s_loc.summary, s_en.summary) AS summary,
+            COALESCE(n_loc.name, n_en.name) AS name,
+            d_en.description AS englishDescription,
+            s_en.summary AS englishSummary,
+            n_en.name AS englishName
+        FROM (
+            SELECT id, packageName, lastUpdated FROM app
+            ORDER BY lastUpdated DESC, id
+            LIMIT :pageSize OFFSET :offset
+        ) AS page
+        LEFT JOIN localized_app_name AS n_loc ON n_loc.appId = page.id AND n_loc.locale = :locale
+        LEFT JOIN localized_app_name AS n_en ON n_en.appId = page.id AND n_en.locale = 'en-US'
+        LEFT JOIN localized_app_summary AS s_loc ON s_loc.appId = page.id AND s_loc.locale = :locale
+        LEFT JOIN localized_app_summary AS s_en ON s_en.appId = page.id AND s_en.locale = 'en-US'
+        LEFT JOIN localized_app_description AS d_loc ON d_loc.appId = page.id AND d_loc.locale = :locale
+        LEFT JOIN localized_app_description AS d_en ON d_en.appId = page.id AND d_en.locale = 'en-US'
+        ORDER BY page.lastUpdated DESC, page.id
+        """,
+    )
+    suspend fun _rootCandidates(
+        locale: String,
+        permission: String,
+        pageSize: Int,
+        offset: Int,
+    ): List<RootCandidateRow>
+
+    data class RootCandidateRow(
+        val packageName: String,
+        val declaresRoot: Boolean,
+        val description: String?,
+        val summary: String?,
+        val name: String?,
+        val englishDescription: String?,
+        val englishSummary: String?,
+        val englishName: String?,
+    ) {
+        val indicatesRoot: Boolean
+            get() = declaresRoot || RootDetection.textIndicatesRoot(
+                "${description.orEmpty()} ${summary.orEmpty()} ${name.orEmpty()}",
+                "${englishDescription.orEmpty()} ${englishSummary.orEmpty()} ${englishName.orEmpty()}",
+            )
     }
 
     /**
@@ -253,42 +250,13 @@ interface AppDao {
         val placeholders = packageNames.joinToString(",") { "?" }
         val query = SimpleSQLiteQuery(
             """
-            SELECT
-                app.id AS appId,
-                app.packageName AS packageName,
-                COALESCE(n_loc.name, n_en.name, app.packageName) AS name,
-                COALESCE(s_loc.summary, s_en.summary) AS summary,
-                repo.address AS baseAddress,
-                COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName,
-                (
-                    SELECT v.versionName FROM version v
-                    WHERE v.appId = app.id
-                    ORDER BY v.versionCode DESC
-                    LIMIT 1
-                ) AS suggestedVersion
-            FROM app
-            JOIN repository AS repo ON app.repoId = repo.id
-            LEFT JOIN localized_app_name AS n_loc ON n_loc.appId = app.id AND n_loc.locale = ?
-            LEFT JOIN localized_app_name AS n_en ON n_en.appId = app.id AND n_en.locale = 'en-US'
-            LEFT JOIN localized_app_summary AS s_loc ON s_loc.appId = app.id AND s_loc.locale = ?
-            LEFT JOIN localized_app_summary AS s_en ON s_en.appId = app.id AND s_en.locale = 'en-US'
-            LEFT JOIN localized_app_icon AS i_loc ON i_loc.appId = app.id AND i_loc.locale = ?
-            LEFT JOIN localized_app_icon AS i_en ON i_en.appId = app.id AND i_en.locale = 'en-US'
+            ${appMinimalSelect()}
             WHERE app.packageName IN ($placeholders)
             GROUP BY app.packageName
             """.trimIndent(),
             arrayOf(locale, locale, locale, *packageNames.toTypedArray()),
         )
-        return _rawQueryAppMinimal(query).map {
-            AppMinimal(
-                appId = it.appId.toLong(),
-                packageName = PackageName(it.packageName),
-                name = it.name,
-                summary = it.summary,
-                icon = FilePath(it.baseAddress, it.iconName),
-                suggestedVersion = it.suggestedVersion ?: "",
-            )
-        }
+        return _rawQueryAppMinimal(query).map { it.toAppMinimal() }
     }
 
     /**
@@ -356,29 +324,10 @@ interface AppDao {
         val args = arrayListOf<Any?>()
 
         val query = buildString(2048) {
+            append(appMinimalSelect())
             append(
                 """
-                SELECT
-                    app.id AS appId,
-                    app.packageName AS packageName,
-                    COALESCE(n_loc.name, n_en.name, app.packageName) AS name,
-                    COALESCE(s_loc.summary, s_en.summary) AS summary,
-                    repo.address AS baseAddress,
-                    COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName,
-                    (
-                        SELECT v.versionName FROM version v
-                        WHERE v.appId = app.id
-                        ORDER BY v.versionCode DESC
-                        LIMIT 1
-                    ) AS suggestedVersion
-                FROM app
-                JOIN repository AS repo ON app.repoId = repo.id
-                LEFT JOIN localized_app_name AS n_loc ON n_loc.appId = app.id AND n_loc.locale = ?
-                LEFT JOIN localized_app_name AS n_en ON n_en.appId = app.id AND n_en.locale = 'en-US'
-                LEFT JOIN localized_app_summary AS s_loc ON s_loc.appId = app.id AND s_loc.locale = ?
-                LEFT JOIN localized_app_summary AS s_en ON s_en.appId = app.id AND s_en.locale = 'en-US'
-                LEFT JOIN localized_app_icon AS i_loc ON i_loc.appId = app.id AND i_loc.locale = ?
-                LEFT JOIN localized_app_icon AS i_en ON i_en.appId = app.id AND i_en.locale = 'en-US'
+
                 LEFT JOIN localized_app_description AS d_loc ON d_loc.appId = app.id AND d_loc.locale = ?
                 LEFT JOIN localized_app_description AS d_en ON d_en.appId = app.id AND d_en.locale = 'en-US'
                 """.trimIndent(),
@@ -692,6 +641,39 @@ interface AppDao {
     @Query("SELECT * FROM localized_app_icon WHERE appId = :id AND (locale = :locale OR locale = \'en-US\')")
     suspend fun icon(id: Int, locale: String): LocalizedAppIconEntity?
 }
+
+/**
+ * What every list of [AppMinimal] selects, up to the point where each query adds its own conditions.
+ * Takes the locale three times, for the localized name, summary and icon. [from] is the source of the
+ * `app` rows, a subquery for a query that picks them before joining anything.
+ */
+private fun appMinimalSelect(from: String = "app") =
+    """
+    SELECT
+        app.id AS appId,
+        app.packageName AS packageName,
+        COALESCE(n_loc.name, n_en.name, app.packageName) AS name,
+        COALESCE(s_loc.summary, s_en.summary) AS summary,
+        repo.address AS baseAddress,
+        COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName,
+        (
+            SELECT v.versionName FROM version v
+            WHERE v.appId = app.id
+            ORDER BY v.versionCode DESC
+            LIMIT 1
+        ) AS suggestedVersion
+    FROM $from
+    JOIN repository AS repo ON app.repoId = repo.id
+    LEFT JOIN localized_app_name AS n_loc ON n_loc.appId = app.id AND n_loc.locale = ?
+    LEFT JOIN localized_app_name AS n_en ON n_en.appId = app.id AND n_en.locale = 'en-US'
+    LEFT JOIN localized_app_summary AS s_loc ON s_loc.appId = app.id AND s_loc.locale = ?
+    LEFT JOIN localized_app_summary AS s_en ON s_en.appId = app.id AND s_en.locale = 'en-US'
+    LEFT JOIN localized_app_icon AS i_loc ON i_loc.appId = app.id AND i_loc.locale = ?
+    LEFT JOIN localized_app_icon AS i_en ON i_en.appId = app.id AND i_en.locale = 'en-US'
+    """.trimIndent()
+
+/** How many apps [AppDao.rootApps] reads at a time. */
+private const val ROOT_CANDIDATES_PAGE = 200
 
 /** The [MadeForTv] condition, as one parenthesised clause. `features` is a JSON list (e.g.
  *  ["android.software.leanback"]); matching the quoted name avoids a prefix matching a longer feature.
