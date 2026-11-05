@@ -5,7 +5,6 @@ import android.graphics.Color as AndroidColor
 import android.os.Build
 import android.os.SystemClock
 import android.view.MotionEvent
-import android.view.View
 import android.view.ViewGroup
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
@@ -84,14 +83,6 @@ fun ReadmeWebView(
     onContentHeight: (Int) -> Unit,
     modifier: Modifier = Modifier,
     scrollState: ScrollState? = null,
-    // True forces a software draw layer — see the comment further down for why — so pass it only once
-    // the content is known to fit one screen. A software layer's backing bitmap is capped to roughly
-    // that many pixels (confirmed via logcat: "not displayed because it is too large to fit into a
-    // software layer" — an unrecoverable, silent failure with no visible content at all, not a partial
-    // render). It also draws on the main thread, a frame of over 150 ms for a long page, for as many
-    // times as the page redraws while it loads: starting every page on it froze the screen that
-    // opened it, for a layer most READMEs leave again as soon as their height is known.
-    forceSoftwareLayer: Boolean,
     // Called if the WebView's renderer process dies (system-triggered, typically under memory pressure —
     // see onRenderProcessGone below) so the caller can show a fallback instead of a permanently blank gap.
     // Never called under normal operation.
@@ -186,17 +177,12 @@ fun ReadmeWebView(
                     allowContentAccess = false
                 }
                 setBackgroundColor(AndroidColor.TRANSPARENT)
-                // Software layer, not hardware, when forceSoftwareLayer holds — see its own doc comment
-                // for why this can't just always be on (a size cap far too small for anything but a
-                // short README, and the main thread). The hardware path's real risk (RenderThread crashing in
+                // Hardware drawn. The real risk of that path (RenderThread crashing in
                 // GLFunctorDrawable::onDraw when the WebView's renderer process has died — confirmed via a
-                // real Android TV tombstone) is handled below via onRenderProcessGone instead of avoided
-                // by force here, since disabling hardware rendering outright would silently blank every
-                // README taller than one screen, which is most of them.
-                setLayerType(
-                    if (forceSoftwareLayer) View.LAYER_TYPE_SOFTWARE else View.LAYER_TYPE_NONE,
-                    null,
-                )
+                // real Android TV tombstone) is handled below via onRenderProcessGone. A software layer
+                // would avoid it, but holds about one screen of pixels and leaves anything taller blank
+                // ("not displayed because it is too large to fit into a software layer"), and it draws on
+                // the main thread: over 150 ms a frame for a long page, 370 ms on a slow TV for a short one.
                 // The parent scroll owns scrolling; the WebView is sized to its content.
                 isVerticalScrollBarEnabled = false
                 isNestedScrollingEnabled = false
@@ -306,13 +292,6 @@ fun ReadmeWebView(
             // Keep the live setting in sync even if the user flips it in Settings and returns to an
             // already-composed screen (factory only runs once, at first creation).
             web.settings.javaScriptEnabled = allowJavaScript
-            // Re-applied on every recomposition where it changed (factory only sets the *initial* value,
-            // taken before the content height is known — see forceSoftwareLayer's doc comment).
-            // setLayerType with the same type it's already on is a cheap no-op.
-            val wantedLayerType = if (forceSoftwareLayer) View.LAYER_TYPE_SOFTWARE else View.LAYER_TYPE_NONE
-            if (web.layerType != wantedLayerType) {
-                web.setLayerType(wantedLayerType, null)
-            }
             // Reload only when the rendered document actually changes (not on every recomposition).
             val page = document
             if (page != null && web.tag != page) {
