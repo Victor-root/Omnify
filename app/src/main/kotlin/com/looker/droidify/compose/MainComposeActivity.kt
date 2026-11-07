@@ -77,6 +77,7 @@ import com.looker.droidify.external.parseAccountSource
 import com.looker.droidify.external.parseExternalSource
 import com.looker.droidify.datastore.extension.getThemeRes
 import com.looker.droidify.datastore.get
+import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.model.Repository
@@ -89,6 +90,7 @@ import com.looker.droidify.utility.common.deeplinkType
 import com.looker.droidify.utility.common.sharedSource
 import com.looker.droidify.utility.common.wallpaperAccentColor
 import com.looker.droidify.work.SyncWorker
+import com.looker.droidify.work.UpdateCheckHistory
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.AndroidEntryPoint
@@ -121,6 +123,12 @@ class MainComposeActivity : ComponentActivity() {
 
     @Inject
     lateinit var externalRefresher: ExternalRefresher
+
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
+
+    @Inject
+    lateinit var updateCheckHistory: UpdateCheckHistory
 
     companion object {
         const val ACTION_UPDATES = "${BuildConfig.APPLICATION_ID}.intent.action.UPDATES"
@@ -509,6 +517,22 @@ class MainComposeActivity : ComponentActivity() {
      * the intent is dropped, and the app reopens on whatever screen was left on top. Making it the
      * activity's intent lets the launch handling below find it when the content does start.
      */
+    /**
+     * Makes up for a background check that didn't happen, every time the app comes back to the front
+     * rather than once per process, as one left in the recents can stay alive for days. Not before the
+     * welcome page is through, since nothing syncs until then.
+     */
+    override fun onStart() {
+        super.onStart()
+        lifecycleScope.launch {
+            if (FirstRun.isWelcomePending(this@MainComposeActivity)) return@launch
+            val settings = settingsRepository.getInitial()
+            if (settings.autoSync != AutoSync.NEVER && updateCheckHistory.isCheckDue(settings.syncInterval)) {
+                SyncWorker.enqueueCatchUp(this@MainComposeActivity, settings.autoSync)
+            }
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         trailUpdatesNav { "Activity.onNewIntent action=${intent.action}" }
         setIntent(intent)

@@ -72,6 +72,7 @@ import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.cleanUpIntervals
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.localeCodesList
+import com.looker.droidify.compose.settings.SettingsViewModel.Companion.syncIntervals
 import com.looker.droidify.compose.settings.components.ActionSettingItem
 import com.looker.droidify.compose.settings.components.BackupCategoryDialog
 import com.looker.droidify.compose.settings.components.RestoreCategoriesDialog
@@ -447,6 +448,16 @@ fun SettingsScreen(
                     selectedAutoSync = settings.autoSync,
                     onAutoSyncSelected = viewModel::setAutoSync,
                 )
+            }
+
+            if (settings.autoSync != AutoSync.NEVER) {
+                item {
+                    SyncIntervalSetting(
+                        icon = painterResource(R.drawable.ic_time),
+                        selectedInterval = settings.syncInterval,
+                        onIntervalSelected = viewModel::setSyncInterval,
+                    )
+                }
             }
 
             item {
@@ -1106,6 +1117,22 @@ private fun AutoSyncSetting(
                 AutoSync.ALWAYS -> stringResource(R.string.always)
             }
         },
+    )
+}
+
+@Composable
+private fun SyncIntervalSetting(
+    icon: Painter,
+    selectedInterval: Duration,
+    onIntervalSelected: (Duration) -> Unit,
+) {
+    SelectionSettingItem(
+        title = stringResource(R.string.sync_interval_title),
+        icon = icon,
+        selectedValue = selectedInterval,
+        values = syncIntervals,
+        onValueSelected = onIntervalSelected,
+        valueToString = { duration -> duration.toDisplayString() },
     )
 }
 

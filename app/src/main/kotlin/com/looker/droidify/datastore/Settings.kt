@@ -50,6 +50,8 @@ data class Settings(
     val legacyInstallerComponent: LegacyInstallerComponent? = null,
     val autoUpdate: Boolean = false,
     val autoSync: AutoSync = AutoSync.WIFI_ONLY,
+    /** How often updates are checked for in the background, as long as [autoSync] allows it at all. */
+    val syncInterval: Duration = 12.hours,
     val sortOrder: SortOrder = SortOrder.UPDATED,
     val proxy: ProxyPreference = ProxyPreference(),
     val cleanUpInterval: Duration = 12.hours,

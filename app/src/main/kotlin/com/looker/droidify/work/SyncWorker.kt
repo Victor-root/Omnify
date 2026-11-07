@@ -53,6 +53,7 @@ class SyncWorker @AssistedInject constructor(
     private val externalRefresher: ExternalRefresher,
     private val settingsRepository: SettingsRepository,
     private val pendingUpdates: PendingUpdates,
+    private val updateCheckHistory: UpdateCheckHistory,
 ) : CoroutineWorker(context, workerParams) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val repoId = if (inputData.hasKeyWithValueOfType<Int>(KEY_REPO_ID)) {
@@ -60,11 +61,18 @@ class SyncWorker @AssistedInject constructor(
         } else {
             null
         }
+        val trigger = inputData.getString(KEY_TRIGGER)
         Log.i(TAG, "SyncWorker started (repoId=$repoId)")
         DiagnosticLog.log(
-            "worker start: ${inputData.getString(KEY_TRIGGER) ?: "launch"} sync, repo=${repoId ?: "all"}, " +
+            "worker start: ${trigger ?: "launch"} sync, repo=${repoId ?: "all"}, " +
                 "attempt ${runAttemptCount + 1}",
         )
+        // A catch-up can wait a long while for its connection, and another check may have run by then.
+        if (trigger == TRIGGER_CATCH_UP &&
+            !updateCheckHistory.isCheckDue(settingsRepository.getInitial().syncInterval)
+        ) {
+            return@withContext Result.success()
+        }
         try {
             val success = coroutineScope {
                 // "Sync everything" means the external sources too, not just the catalogue
@@ -86,12 +94,18 @@ class SyncWorker @AssistedInject constructor(
                 }
                 syncCatalogue(repoId)
             }
+            if (repoId == null && success) updateCheckHistory.checkFinished()
+            if (trigger == TRIGGER_PERIODIC) updateCheckHistory.backgroundRan()
             // Now that both halves have been re-checked, hand over to the automatic installer if the
-            // user asked for one. Only on the scheduled pass: a manual sync happens with the app in
-            // front of the user, where the Updates tab and its "Update all" button are right there, and
-            // starting installs out from under a deliberate tap on Sync would be a surprise.
-            if (repoId == null && inputData.getString(KEY_TRIGGER) == TRIGGER_PERIODIC) {
+            // user asked for one. Only on a pass nobody pressed for, the catch-up being a scheduled one
+            // arriving late: a manual sync happens with the app in front of the user, where the Updates
+            // tab and its "Update all" button are right there, and starting installs out from under a
+            // deliberate tap on Sync would be a surprise. The catch-up posts no notification, as it was
+            // started by opening the app, where that same tab shows what it finds.
+            if (repoId == null && (trigger == TRIGGER_PERIODIC || trigger == TRIGGER_CATCH_UP)) {
                 AutoUpdateWorker.enqueue(applicationContext, settingsRepository)
+            }
+            if (repoId == null && trigger == TRIGGER_PERIODIC) {
                 try {
                     notifyAvailableUpdates()
                 } catch (t: Throwable) {
@@ -217,10 +231,13 @@ class SyncWorker @AssistedInject constructor(
         private const val KEY_TRIGGER = "trigger"
         private const val TRIGGER_USER = "user"
         private const val TRIGGER_PERIODIC = "periodic"
+        private const val TRIGGER_CATCH_UP = "catchUp"
 
         /** The one queue every sync the user is waiting on goes through, so they run one after another
          *  rather than several large indexes at once. */
         private const val USER_WORK_NAME = "$TAG.user"
+
+        private const val CATCH_UP_WORK_NAME = "$TAG.catchUp"
 
         /** For a sync the user asked for: any connection will do, since they are waiting on it. The
          *  scheduled one goes by their auto-sync choice instead (see [workConstraints]). */
@@ -228,15 +245,19 @@ class SyncWorker @AssistedInject constructor(
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
-        private fun userSyncRequest(repoId: Int?): OneTimeWorkRequest {
+        private fun oneTimeRequest(
+            trigger: String,
+            constraints: Constraints,
+            repoId: Int? = null,
+        ): OneTimeWorkRequest {
             val data = Data.Builder()
-                .putString(KEY_TRIGGER, TRIGGER_USER)
+                .putString(KEY_TRIGGER, trigger)
                 .apply { if (repoId != null) putInt(KEY_REPO_ID, repoId) }
                 .build()
 
             return OneTimeWorkRequestBuilder<SyncWorker>()
                 .setInputData(data)
-                .setConstraints(userSyncConstraints)
+                .setConstraints(constraints)
                 .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS)
                 .addTag(TAG)
                 // A per-repo tag, since WorkInfo never exposes its own inputData back (only tags,
@@ -245,6 +266,9 @@ class SyncWorker @AssistedInject constructor(
                 .apply { if (repoId != null) addTag(repoSyncTag(repoId)) }
                 .build()
         }
+
+        private fun userSyncRequest(repoId: Int?): OneTimeWorkRequest =
+            oneTimeRequest(TRIGGER_USER, userSyncConstraints, repoId)
 
         fun enqueueUserSync(context: Context, repoId: Int? = null) {
             // APPEND_OR_REPLACE, not KEEP: enabling several repos in quick succession enqueues one sync
@@ -292,9 +316,37 @@ class SyncWorker @AssistedInject constructor(
             enqueueUserSync(context, repoId)
         }
 
-        /** [autoSync] is the user's own choice of when background work may run; see [workConstraints].
-         *  A sync they press for themselves goes through [enqueueUserSync] instead and ignores it. */
-        fun schedulePeriodicSync(context: Context, repeatInterval: Duration, autoSync: AutoSync) {
+        /**
+         * Makes up for a scheduled check that never came, which is all a phone that stops Omnify in the
+         * background leaves to go on. Nobody pressed for this one, so it waits for what [autoSync] says
+         * scheduled work should wait for. Kept out of the user's queue: [isSyncScheduled] would show it
+         * as a sync under way for as long as it waits.
+         */
+        fun enqueueCatchUp(context: Context, autoSync: AutoSync) {
+            WorkManager
+                .getInstance(context)
+                .enqueueUniqueWork(
+                    uniqueWorkName = CATCH_UP_WORK_NAME,
+                    existingWorkPolicy = ExistingWorkPolicy.KEEP,
+                    request = oneTimeRequest(TRIGGER_CATCH_UP, autoSync.workConstraints()),
+                )
+        }
+
+        /**
+         * [autoSync] is the user's own choice of when background work may run; see [workConstraints].
+         * A sync they press for themselves goes through [enqueueUserSync] instead and ignores it.
+         *
+         * [existing] is what happens to the schedule in place: [ExistingPeriodicWorkPolicy.UPDATE] for
+         * a changed setting, [ExistingPeriodicWorkPolicy.KEEP] otherwise. A process can start because
+         * the job itself woke it, and updating the schedule at that moment stopped the job and lost it
+         * until the app was next opened.
+         */
+        fun schedulePeriodicSync(
+            context: Context,
+            repeatInterval: Duration,
+            autoSync: AutoSync,
+            existing: ExistingPeriodicWorkPolicy,
+        ) {
             val data = Data.Builder()
                 .putString(KEY_TRIGGER, TRIGGER_PERIODIC)
                 .build()
@@ -314,7 +366,7 @@ class SyncWorker @AssistedInject constructor(
                 .getInstance(context)
                 .enqueueUniquePeriodicWork(
                     uniqueWorkName = TAG,
-                    existingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE,
+                    existingPeriodicWorkPolicy = existing,
                     request = request,
                 )
             Log.i(TAG, "Periodic sync scheduled every $repeatInterval ($autoSync)")

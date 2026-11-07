@@ -2,16 +2,23 @@ package com.looker.droidify.compose.settings.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.looker.droidify.R
 import com.looker.droidify.compose.components.tvFocusOutline
 
 @Composable
@@ -24,27 +31,38 @@ private fun Banner(
     containerColor: Color,
     contentColor: Color,
     modifier: Modifier = Modifier,
+    onDismiss: (() -> Unit)? = null,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(containerColor)
-            // TV only: an accent outline around the focused banner (no-op on touch); a full-width block
-            // can't scale without overflowing the screen.
-            .tvFocusOutline(RectangleShape)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = contentColor,
-        )
-        Text(
-            text = description,
-            style = MaterialTheme.typography.bodyMedium,
-            color = contentColor,
-        )
+    Box(modifier = modifier.fillMaxWidth().background(containerColor)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                // TV only: an accent outline around the focused banner (no-op on touch); a full-width
+                // block can't scale without overflowing the screen.
+                .tvFocusOutline(RectangleShape)
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(start = 16.dp, end = if (onDismiss != null) 48.dp else 16.dp, top = 12.dp, bottom = 12.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = contentColor,
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = contentColor,
+            )
+        }
+        if (onDismiss != null) {
+            IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopEnd)) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_cancel),
+                    contentDescription = stringResource(R.string.close),
+                    tint = contentColor,
+                )
+            }
+        }
     }
 }
 
@@ -75,6 +93,7 @@ fun InfoBanner(
     description: String,
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onDismiss: (() -> Unit)? = null,
 ) {
     Banner(
         title = title,
@@ -83,5 +102,6 @@ fun InfoBanner(
         containerColor = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         modifier = modifier,
+        onDismiss = onDismiss,
     )
 }

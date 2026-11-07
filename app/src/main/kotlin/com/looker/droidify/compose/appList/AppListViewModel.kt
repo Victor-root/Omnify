@@ -25,6 +25,7 @@ import com.looker.droidify.data.model.excludingHidden
 import com.looker.droidify.model.Repository
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
+import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
@@ -42,6 +43,7 @@ import com.looker.droidify.utility.common.extension.tvLauncherPackages
 import com.looker.droidify.work.BatchUpdateProgress
 import com.looker.droidify.work.SyncWorker
 import com.looker.droidify.work.UpdateAllWorker
+import com.looker.droidify.work.UpdateCheckHistory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -162,6 +164,7 @@ class AppListViewModel @Inject constructor(
     private val installManager: InstallManager,
     private val networkMonitor: NetworkMonitor,
     private val pendingUpdates: PendingUpdates,
+    private val updateCheckHistory: UpdateCheckHistory,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -596,6 +599,26 @@ class AppListViewModel @Inject constructor(
                 SyncWorker.restartUserSync(context)
             }
         }
+    }
+
+    private val _backgroundChecksStalled = MutableStateFlow(false)
+
+    /** Whether to say that background checks seem to have stopped, which a TV has nothing to do about:
+     *  it has no such setting. Read by [refreshBackgroundChecks], as time alone can make it true. */
+    val backgroundChecksStalled: StateFlow<Boolean> = _backgroundChecksStalled
+
+    fun refreshBackgroundChecks() {
+        viewModelScope.launch {
+            val settings = settingsRepository.getInitial()
+            _backgroundChecksStalled.value = !isTelevisionDevice &&
+                settings.autoSync != AutoSync.NEVER &&
+                updateCheckHistory.isBackgroundStalled(settings.syncInterval)
+        }
+    }
+
+    fun dismissBackgroundChecksWarning() {
+        updateCheckHistory.dismissBackgroundWarning()
+        _backgroundChecksStalled.value = false
     }
 
     /** True while a batch "update all" is downloading its apps — locks the button and shows progress. */

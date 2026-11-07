@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import androidx.work.ExistingPeriodicWorkPolicy
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -45,6 +46,7 @@ import com.looker.droidify.work.AutoUpdateWorker
 import com.looker.droidify.work.CleanUpWorker
 import com.looker.droidify.work.DownloadStatsWorker
 import com.looker.droidify.work.SyncWorker
+import com.looker.droidify.work.UpdateCheckHistory
 import dagger.hilt.android.HiltAndroidApp
 import io.ktor.client.HttpClient
 import io.ktor.http.HttpHeaders
@@ -61,8 +63,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.INFINITE
-import kotlin.time.Duration.Companion.hours
 
 @HiltAndroidApp
 class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Provider {
@@ -90,6 +92,9 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
 
     @Inject
     lateinit var repoCatalogue: RepoCatalogue
+
+    @Inject
+    lateinit var updateCheckHistory: UpdateCheckHistory
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
@@ -178,9 +183,9 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
                 }
             }
             launch {
-                settingsRepository.get { autoSync }.collectIndexed { index, syncMode ->
-                    // Don't update sync job on initial collect
-                    updateSyncJob(index > 0, syncMode)
+                settingsRepository.get { autoSync to syncInterval }.collectIndexed { index, (mode, interval) ->
+                    // Only a changed setting updates the sync job, not the initial collect
+                    updateSyncJob(index > 0, mode, interval)
                 }
             }
             launch {
@@ -210,7 +215,7 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
         }
     }
 
-    private fun updateSyncJob(force: Boolean, autoSync: AutoSync) {
+    private fun updateSyncJob(force: Boolean, autoSync: AutoSync, interval: Duration) {
         if (autoSync == AutoSync.NEVER) {
             SyncWorker.cancelAll(this)
             return
@@ -218,7 +223,13 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
         // Auto-sync runs through the single data layer (SyncWorker -> RepoRepository -> Room), the
         // same engine as the manual Sync button. The chosen mode decides what the scheduled run waits
         // for, so Wi-Fi only really does mean Wi-Fi only.
-        SyncWorker.schedulePeriodicSync(this, 12.hours, autoSync)
+        SyncWorker.schedulePeriodicSync(
+            context = this,
+            repeatInterval = interval,
+            autoSync = autoSync,
+            existing = if (force) ExistingPeriodicWorkPolicy.UPDATE else ExistingPeriodicWorkPolicy.KEEP,
+        )
+        updateCheckHistory.expectBackgroundRun(afresh = force)
     }
 
     private fun forceSyncAll() {

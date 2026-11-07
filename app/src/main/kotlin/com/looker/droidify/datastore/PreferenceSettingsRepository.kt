@@ -140,6 +140,9 @@ class PreferenceSettingsRepository(
     override suspend fun setAutoSync(autoSync: AutoSync) =
         AUTO_SYNC.update(autoSync.name)
 
+    override suspend fun setSyncInterval(interval: Duration) =
+        SYNC_INTERVAL.update(interval.inWholeHours)
+
     override suspend fun setSortOrder(sortOrder: SortOrder) =
         SORT_ORDER.update(sortOrder.name)
 
@@ -327,6 +330,7 @@ class PreferenceSettingsRepository(
         }.getOrDefault(defaultBackgroundStyle)
         val autoUpdate = preferences[AUTO_UPDATE] ?: false
         val autoSync = AutoSync.valueOf(preferences[AUTO_SYNC] ?: AutoSync.WIFI_ONLY.name)
+        val syncInterval = preferences[SYNC_INTERVAL]?.hours ?: 12L.hours
         val sortOrder = SortOrder.valueOf(preferences[SORT_ORDER] ?: SortOrder.UPDATED.name)
         val type = ProxyType.valueOf(preferences[PROXY_TYPE] ?: ProxyType.DIRECT.name)
         val host = preferences[PROXY_HOST] ?: "localhost"
@@ -378,6 +382,7 @@ class PreferenceSettingsRepository(
             legacyInstallerComponent = legacyInstallerComponent,
             autoUpdate = autoUpdate,
             autoSync = autoSync,
+            syncInterval = syncInterval,
             sortOrder = sortOrder,
             proxy = proxy,
             cleanUpInterval = cleanUpInterval,
@@ -463,6 +468,7 @@ class PreferenceSettingsRepository(
         val THEME = stringPreferencesKey("key_theme")
         val INSTALLER_TYPE = stringPreferencesKey("key_installer_type")
         val AUTO_SYNC = stringPreferencesKey("key_auto_sync")
+        val SYNC_INTERVAL = longPreferencesKey("key_sync_interval")
         val SORT_ORDER = stringPreferencesKey("key_sort_order")
         val PROXY_TYPE = stringPreferencesKey("key_proxy_type")
         val BACKGROUND_STYLE = stringPreferencesKey("key_background_style")
@@ -504,6 +510,7 @@ class PreferenceSettingsRepository(
             set(INSTALLER_TYPE, settings.installerType.name)
             set(AUTO_UPDATE, settings.autoUpdate)
             set(AUTO_SYNC, settings.autoSync.name)
+            set(SYNC_INTERVAL, settings.syncInterval.inWholeHours)
             set(SORT_ORDER, settings.sortOrder.name)
             set(PROXY_TYPE, settings.proxy.type.name)
             set(PROXY_HOST, settings.proxy.host)

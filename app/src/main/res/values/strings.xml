@@ -481,6 +481,10 @@
     <string name="copy_error_details">Copy error details</string>
     <string name="copied_to_clipboard">Copied</string>
     <string name="sync_repositories_automatically">Sync repositories automatically</string>
+    <string name="sync_interval_title">Check frequency</string>
+    <string name="background_checks_stalled_title">Automatic checks seem to have stopped</string>
+    <string name="background_checks_stalled_allow">No check has run in the background for a while. Tap to allow background activity.</string>
+    <string name="background_checks_stalled_conditions">No check has run in the background for a while. The connection or charging condition chosen in Settings may not have been met. Tap to review it.</string>
     <string name="syncing">Syncing</string>
     <string name="syncing_FORMAT">Syncing %s…</string>
     <string name="fetching_repositories">Fetching application repositories…</string>

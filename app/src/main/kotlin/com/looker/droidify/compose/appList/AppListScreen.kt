@@ -129,6 +129,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.looker.droidify.BuildConfig
@@ -164,6 +166,9 @@ import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.shownOnExternalTab
+import com.looker.droidify.utility.common.hasOwnBackgroundControls
+import com.looker.droidify.utility.common.isIgnoreBatteryEnabled
+import com.looker.droidify.utility.common.openBackgroundActivitySettings
 import com.looker.droidify.work.BatchUpdateProgress
 import kotlinx.coroutines.delay
 
@@ -182,6 +187,8 @@ fun AppListScreen(
     val syncFraction by viewModel.syncFraction.collectAsStateWithLifecycle()
     val isSyncScheduled by viewModel.isSyncScheduled.collectAsStateWithLifecycle()
     val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
+    val backgroundChecksStalled by viewModel.backgroundChecksStalled.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshBackgroundChecks() }
     val catalogEmpty by viewModel.catalogEmpty.collectAsStateWithLifecycle()
     val noRepositoryEnabled by viewModel.noRepositoryEnabled.collectAsStateWithLifecycle()
     val updatesLoaded by viewModel.updatesLoaded.collectAsStateWithLifecycle()
@@ -681,6 +688,12 @@ fun AppListScreen(
                         InfoBanner(
                             title = stringResource(R.string.no_connection_title),
                             description = stringResource(R.string.no_connection_DESC),
+                        )
+                    }
+                    if (selectedTab == AppTab.UPDATES && backgroundChecksStalled) {
+                        BackgroundChecksBanner(
+                            onOpenSettings = onNavigateToSettings,
+                            onDismiss = viewModel::dismissBackgroundChecksWarning,
                         )
                     }
                     // A token GitHub is actively rejecting silently stops every GitHub-backed source
@@ -2228,3 +2241,27 @@ private val FavouritesSortOrder.labelRes: Int
         FavouritesSortOrder.INSTALLED_AT -> R.string.date_installed
     }
 
+/**
+ * Says that background checks seem to have stopped, and offers what can be done: allowing background
+ * activity, or, once that is done on a phone where it can be read, the conditions chosen in Settings,
+ * since a phone that never meets them looks just the same from here.
+ */
+@Composable
+private fun BackgroundChecksBanner(onOpenSettings: () -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var allowed by remember { mutableStateOf(context.isIgnoreBatteryEnabled()) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { allowed = context.isIgnoreBatteryEnabled() }
+    val ownControls = hasOwnBackgroundControls()
+    InfoBanner(
+        title = stringResource(R.string.background_checks_stalled_title),
+        description = stringResource(
+            when {
+                ownControls -> R.string.welcome_background_hint_app_page
+                allowed -> R.string.background_checks_stalled_conditions
+                else -> R.string.background_checks_stalled_allow
+            },
+        ),
+        onClick = if (allowed && !ownControls) onOpenSettings else context::openBackgroundActivitySettings,
+        onDismiss = onDismiss,
+    )
+}

@@ -4,6 +4,9 @@
 
 ### ✨ Added
 - **The welcome page asks to allow background activity**, needed for updates to be checked while Omnify is closed, and on phones whose maker adds its own setting for it, says where to find it.
+- **Choose how often updates are checked**: every 6 hours, 12 hours or once a day, in Settings.
+- **A missed check is made up for when you open Omnify**: if the last one is older than that frequency, one starts right away, on the connection you allowed for automatic checks.
+- **The Updates tab says when automatic checks seem to have stopped**, with what to do about it, and can be dismissed.
 - **Send an external source to your TV in one tap**: pair your devices once in Settings > Paired devices, then Send to a device in a source's ⋮ menu in the repository list. The TV asks before adding it. Local network only, end-to-end encrypted, no code after the first time.
 - **A "Shizuku compatible" badge** on the page of apps that can use Shizuku or Sui, next to the Root one, on phone and TV. Both badges now show on external sources too, from the permissions their APK declares.
 
@@ -17,6 +20,7 @@
 - **An app's short description moves into its card**, under the author and set off by a bar in the app's colour, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
 
 ### 🐛 Fixed
+- **Background checks no longer vanish until the next launch**: a check starting while Omnify was closed could cancel itself as the app woke up for it.
 - **Apps not written in English show their real language**: an app's base text was taken for English by convention, so a French or German app could say English, or lose its own language from the list. Omnify now reads what that text says, in the app's resources, its code, or its source for Flutter and web apps, which no longer pass as "confirmed English".
 - **No more false Shizuku or Root badge on external sources**: the check read a README's links as well as its text, so any project with a "Get it on Obtainium" button showed as Shizuku compatible.
 - **Offline translation no longer crashes the app**: the engine cannot translate several parts of a page at once in one process, so each part is now translated in a process of its own. Just as fast, and should an engine still fail, only that part is translated again.
