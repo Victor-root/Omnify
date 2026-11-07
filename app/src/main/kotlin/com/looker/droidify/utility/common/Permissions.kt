@@ -7,6 +7,7 @@ import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
 import com.looker.droidify.utility.common.extension.intent
+import com.looker.droidify.utility.common.extension.openAppInfo
 import com.looker.droidify.utility.common.extension.powerManager
 
 fun Context.isIgnoreBatteryEnabled() =
@@ -52,6 +53,24 @@ fun Context.requestBatteryFreedom() {
         }
     }
 }
+
+/**
+ * Takes the user to where background activity is allowed for Omnify: Android's own prompt, or, where
+ * the maker has a say of its own ([hasOwnBackgroundControls]), the app's page, since that prompt doesn't
+ * reach the maker's setting and no address leads straight to it.
+ */
+fun Context.openBackgroundActivitySettings() {
+    if (hasOwnBackgroundControls()) openAppInfo(packageName) else requestBatteryFreedom()
+}
+
+/** Whether phones by [manufacturer] limit apps in the background through a setting of their own, on the
+ *  app's battery page, on top of Android's. */
+fun hasOwnBackgroundControls(manufacturer: String = Build.MANUFACTURER): Boolean =
+    manufacturer.lowercase() in MAKERS_WITH_OWN_BACKGROUND_CONTROLS
+
+private val MAKERS_WITH_OWN_BACKGROUND_CONTROLS = setOf(
+    "oppo", "realme", "oneplus", "xiaomi", "redmi", "poco", "vivo", "iqoo", "huawei", "honor", "meizu",
+)
 
 /** Whether Omnify may post notifications right now: the permission from Android 13, and the app's own
  *  notification switch before it. */
