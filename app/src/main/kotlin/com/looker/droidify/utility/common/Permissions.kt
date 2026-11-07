@@ -56,22 +56,12 @@ fun Context.requestBatteryFreedom() {
 
 /**
  * Takes the user to where background activity is allowed for Omnify: Android's own prompt, or, where
- * the maker has a say of its own ([hasOwnBackgroundControls]), the app's battery page, as that prompt
- * doesn't reach the maker's setting. The setting itself can't be opened from here: on an Oppo it sits
- * one step further, on a screen of com.oplus.battery that other apps aren't allowed to start.
+ * the maker has a say of its own ([hasOwnBackgroundControls]), the app's page, since that prompt doesn't
+ * reach the maker's setting and no address leads straight to it.
  */
 fun Context.openBackgroundActivitySettings() {
-    if (!hasOwnBackgroundControls()) {
-        requestBatteryFreedom()
-        return
-    }
-    val batteryPage = intent(ACTION_APP_BATTERY_PAGE) { data = "package:$packageName".toUri() }
-    runCatching { startActivity(batteryPage) }.onFailure { openAppInfo(packageName) }
+    if (hasOwnBackgroundControls()) openAppInfo(packageName) else requestBatteryFreedom()
 }
-
-/** The app's battery page, exported by the Settings app but left out of the public API, so absent on
- *  older Android versions and on a maker's own Settings: hence the fallback where it is used. */
-private const val ACTION_APP_BATTERY_PAGE = "android.settings.VIEW_ADVANCED_POWER_USAGE_DETAIL"
 
 /** Whether phones by [manufacturer] limit apps in the background through a setting of their own, on the
  *  app's battery page, on top of Android's. */

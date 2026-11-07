@@ -89,7 +89,7 @@
     <string name="welcome_background_title">Background activity</string>
     <string name="welcome_background_hint">Lets Omnify check for updates while it is closed.</string>
     <string name="welcome_background_open">Open</string>
-    <string name="welcome_background_hint_app_page">Lets Omnify check for updates while it is closed. On this device, open the background usage setting on the next page, then allow background activity.</string>
+    <string name="welcome_background_hint_app_page">Lets Omnify check for updates while it is closed. On this device, open the battery section of the app\'s page, then allow background activity.</string>
     <string name="welcome_allowed">Allowed</string>
     <string name="welcome_next">Next</string>
     <string name="welcome_page_FORMAT">Page %1$d of %2$d</string>

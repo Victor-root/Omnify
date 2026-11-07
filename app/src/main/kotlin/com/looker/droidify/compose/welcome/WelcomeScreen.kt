@@ -91,6 +91,9 @@ private val ContentMaxWidth = 560.dp
 /** What the bar under the pages takes: the dots, then the way back and the way forward. */
 private val NavigationBarHeight = 84.dp
 
+private val StepIconSize = 24.dp
+private val StepIconGap = 20.dp
+
 private const val PAGE_COUNT = 4
 
 /** How much of the header the screen's height leaves room for. */
@@ -585,46 +588,50 @@ private fun WelcomeCard(
 }
 
 /**
- * One permission: what it is, and a button to give it, or a tick once it is given. The button sits in
- * the title's row and the sentence runs under both, so neither is squeezed by the other.
+ * One permission: what it is, and a button to give it, or a tick once it is given. The icon, the title
+ * and the button share a row, centred on one another, and the sentence runs under the title.
  */
 @Composable
 private fun WelcomeStepCard(step: WelcomeStep) {
     WelcomeCard {
-        Row(modifier = Modifier.padding(16.dp)) {
-            Icon(
-                painter = painterResource(step.icon),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 8.dp).size(24.dp),
-            )
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = stringResource(step.title),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f),
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(step.icon),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(StepIconSize),
+                )
+                Spacer(Modifier.width(StepIconGap))
+                Text(
+                    text = stringResource(step.title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(12.dp))
+                if (step.done) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_check),
+                        contentDescription = stringResource(step.doneLabel),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 8.dp),
                     )
-                    if (step.done) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_check),
-                            contentDescription = stringResource(step.doneLabel),
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                        )
-                    } else {
-                        FilledTonalButton(onClick = step.onClick, enabled = step.enabled) {
-                            Text(stringResource(step.actionLabel))
-                        }
+                } else {
+                    FilledTonalButton(
+                        onClick = step.onClick,
+                        enabled = step.enabled,
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                    ) {
+                        Text(stringResource(step.actionLabel))
                     }
                 }
-                Text(
-                    text = stringResource(step.description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
+            Text(
+                text = stringResource(step.description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = StepIconSize + StepIconGap),
+            )
         }
     }
 }
