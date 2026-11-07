@@ -621,6 +621,16 @@ class AppListViewModel @Inject constructor(
         _backgroundChecksStalled.value = false
     }
 
+    private val _backgroundActivityMissing = MutableStateFlow(false)
+
+    /** Whether to say that background activity isn't allowed. Nothing sets it yet: the check that will
+     *  is still being confirmed on a real phone. */
+    val backgroundActivityMissing: StateFlow<Boolean> = _backgroundActivityMissing
+
+    fun dismissBackgroundActivityWarning() {
+        _backgroundActivityMissing.value = false
+    }
+
     /** True while a batch "update all" is downloading its apps — locks the button and shows progress. */
     val isUpdatingAll: StateFlow<Boolean> = UpdateAllWorker.isUpdating(context).asHomeState(false)
 

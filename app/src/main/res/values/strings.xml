@@ -483,6 +483,7 @@
     <string name="sync_repositories_automatically">Sync repositories automatically</string>
     <string name="sync_interval_title">Check frequency</string>
     <string name="sync_interval_battery_FORMAT">%1$s (may use more battery)</string>
+    <string name="background_activity_missing_title">Background activity isn\'t allowed</string>
     <string name="background_checks_stalled_title">Automatic checks seem to have stopped</string>
     <string name="background_checks_stalled_allow">No check has run in the background for a while. Tap to allow background activity.</string>
     <string name="background_checks_stalled_conditions">No check has run in the background for a while. The connection or charging condition chosen in Settings may not have been met. Tap to review it.</string>

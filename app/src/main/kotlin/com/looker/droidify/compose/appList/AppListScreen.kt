@@ -188,6 +188,7 @@ fun AppListScreen(
     val isSyncScheduled by viewModel.isSyncScheduled.collectAsStateWithLifecycle()
     val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
     val backgroundChecksStalled by viewModel.backgroundChecksStalled.collectAsStateWithLifecycle()
+    val backgroundActivityMissing by viewModel.backgroundActivityMissing.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshBackgroundChecks() }
     val catalogEmpty by viewModel.catalogEmpty.collectAsStateWithLifecycle()
     val noRepositoryEnabled by viewModel.noRepositoryEnabled.collectAsStateWithLifecycle()
@@ -689,6 +690,9 @@ fun AppListScreen(
                             title = stringResource(R.string.no_connection_title),
                             description = stringResource(R.string.no_connection_DESC),
                         )
+                    }
+                    if (selectedTab == AppTab.UPDATES && backgroundActivityMissing) {
+                        BackgroundActivityBanner(onDismiss = viewModel::dismissBackgroundActivityWarning)
                     }
                     if (selectedTab == AppTab.UPDATES && backgroundChecksStalled) {
                         BackgroundChecksBanner(
@@ -2240,6 +2244,18 @@ private val FavouritesSortOrder.labelRes: Int
         FavouritesSortOrder.FAVOURITED_AT -> R.string.date_favourited
         FavouritesSortOrder.INSTALLED_AT -> R.string.date_installed
     }
+
+/** Says that background activity isn't allowed, and takes the user to where it is. */
+@Composable
+private fun BackgroundActivityBanner(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    InfoBanner(
+        title = stringResource(R.string.background_activity_missing_title),
+        description = stringResource(R.string.welcome_background_hint_app_page),
+        onClick = context::openBackgroundActivitySettings,
+        onDismiss = onDismiss,
+    )
+}
 
 /**
  * Says that background checks seem to have stopped, and offers what can be done: allowing background
