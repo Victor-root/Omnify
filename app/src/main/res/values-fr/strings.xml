@@ -68,7 +68,8 @@
     <string name="welcome_notifications_hint">Être prévenu quand une mise à jour est disponible.</string>
     <string name="welcome_background_title">Activité en arrière-plan</string>
     <string name="welcome_background_hint">Permet à Omnify de vérifier les mises à jour lorsqu\'il est fermé.</string>
-    <string name="welcome_background_hint_app_page">Permet à Omnify de vérifier les mises à jour lorsqu\'il est fermé. Sur cet appareil, ouvrez les réglages de batterie de l\'appli à la page suivante, puis autorisez l\'activité en arrière-plan.</string>
+    <string name="welcome_background_open">Ouvrir</string>
+    <string name="welcome_background_hint_app_page">Permet à Omnify de vérifier les mises à jour lorsqu\'il est fermé. Sur cet appareil, ouvrez le réglage d\'utilisation en arrière-plan à la page suivante, puis autorisez l\'activité en arrière-plan.</string>
     <string name="welcome_allowed">Autorisé</string>
     <string name="welcome_next">Suivant</string>
     <string name="welcome_page_FORMAT">Page %1$d sur %2$d</string>

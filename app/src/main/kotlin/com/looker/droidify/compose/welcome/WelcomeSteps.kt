@@ -60,6 +60,7 @@ internal fun rememberWelcomeSteps(): List<WelcomeStep> {
     var backgroundAllowed by remember { mutableStateOf(context.isIgnoreBatteryEnabled()) }
     var notificationsAsked by rememberSaveable { mutableStateOf(false) }
     val isTelevision = LocalIsTelevision.current
+    val ownBackgroundControls = hasOwnBackgroundControls()
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { notificationsAllowed = context.areNotificationsEnabled() }
@@ -94,12 +95,14 @@ internal fun rememberWelcomeSteps(): List<WelcomeStep> {
         WelcomeStep(
             icon = R.drawable.ic_sync,
             title = R.string.welcome_background_title,
-            description = if (hasOwnBackgroundControls()) {
+            description = if (ownBackgroundControls) {
                 R.string.welcome_background_hint_app_page
             } else {
                 R.string.welcome_background_hint
             },
-            done = backgroundAllowed,
+            // What a maker's own setting says can't be read, so it is offered without ever being ticked.
+            done = backgroundAllowed && !ownBackgroundControls,
+            actionLabel = if (ownBackgroundControls) R.string.welcome_background_open else R.string.allow,
             onClick = { context.openBackgroundActivitySettings() },
         ).takeUnless { isTelevision },
     )
