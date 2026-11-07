@@ -25,6 +25,14 @@ class UpdateCheckTimingTest {
     }
 
     @Test
+    fun `a frequent check is given a full day before counting as stopped`() {
+        assertFalse(isBackgroundStalled(hoursAgo(23), 1.hours, now))
+        assertTrue(isBackgroundStalled(hoursAgo(24), 1.hours, now))
+        assertFalse(isBackgroundStalled(hoursAgo(23), 3.hours, now))
+        assertTrue(isBackgroundStalled(hoursAgo(24), 3.hours, now))
+    }
+
+    @Test
     fun `background checks count as stopped after two missed runs and a margin`() {
         assertFalse(isBackgroundStalled(hoursAgo(23), 6.hours, now))
         assertTrue(isBackgroundStalled(hoursAgo(24), 6.hours, now))

@@ -70,6 +70,7 @@ import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.TvInitialFocus
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.settings.SettingsViewModel.Companion.batteryHungrySyncIntervals
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.cleanUpIntervals
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.localeCodesList
 import com.looker.droidify.compose.settings.SettingsViewModel.Companion.syncIntervals
@@ -1132,7 +1133,14 @@ private fun SyncIntervalSetting(
         selectedValue = selectedInterval,
         values = syncIntervals,
         onValueSelected = onIntervalSelected,
-        valueToString = { duration -> duration.toDisplayString() },
+        valueToString = { duration ->
+            val label = duration.toDisplayString()
+            if (duration in batteryHungrySyncIntervals) {
+                stringResource(R.string.sync_interval_battery_FORMAT, label)
+            } else {
+                label
+            }
+        },
     )
 }
 

@@ -70,9 +70,12 @@ internal fun isCheckDue(lastCheck: Long?, interval: Duration, now: Long): Boolea
 
 /**
  * Whether background checks seem to have stopped: two have been missed, plus a margin for what can
- * rightly hold one back for a while, like Android's idle mode or waiting for Wi-Fi.
+ * rightly hold one back for a while, like Android's idle mode or waiting for Wi-Fi. Never under
+ * [MIN_STALL], as Android can limit an app it sees little of to about one job a day, however often
+ * the app asks.
  */
 internal fun isBackgroundStalled(lastRun: Long, interval: Duration, now: Long): Boolean =
-    now - lastRun >= (interval * 2 + STALL_MARGIN).inWholeMilliseconds
+    now - lastRun >= maxOf(interval * 2 + STALL_MARGIN, MIN_STALL).inWholeMilliseconds
 
 private val STALL_MARGIN = 12.hours
+private val MIN_STALL = 24.hours

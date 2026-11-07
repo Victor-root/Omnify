@@ -291,6 +291,7 @@
     <string name="socks_proxy">Proxy SOCKS</string>
     <string name="sync_repositories_automatically">Synchroniser les dépôts automatiquement</string>
     <string name="sync_interval_title">Fréquence de vérification</string>
+    <string name="sync_interval_battery_FORMAT">%1$s (peut consommer plus de batterie)</string>
     <string name="background_checks_stalled_title">Les vérifications automatiques semblent arrêtées</string>
     <string name="background_checks_stalled_allow">Aucune vérification n\'a eu lieu en arrière-plan depuis un moment. Touchez pour autoriser l\'activité en arrière-plan.</string>
     <string name="background_checks_stalled_conditions">Aucune vérification n\'a eu lieu en arrière-plan depuis un moment. La condition de connexion ou de charge choisie dans les paramètres n\'a peut-être pas été remplie. Touchez pour la revoir.</string>

@@ -351,7 +351,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     companion object {
-        val syncIntervals: List<Duration> = listOf(6.hours, 12.hours, 1.days)
+        val syncIntervals: List<Duration> = listOf(1.hours, 3.hours, 6.hours, 12.hours, 1.days)
+
+        /** The [syncIntervals] offered with a word about what they cost in battery. */
+        val batteryHungrySyncIntervals: Set<Duration> = setOf(1.hours, 3.hours)
 
         val cleanUpIntervals: List<Duration> = listOf(
             6.hours,
