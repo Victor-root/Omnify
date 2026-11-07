@@ -19,10 +19,14 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.settings.components.RestoreCategoriesDialog
 import com.looker.droidify.compose.settings.components.rememberRestoreFilePicker
 import com.looker.droidify.compose.settings.transfer.DeviceTransferReceiveDialog
+import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.migration.ImportStep
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.areNotificationsEnabled
 import com.looker.droidify.utility.common.canRequestPackageInstalls
+import com.looker.droidify.utility.common.hasOwnBackgroundControls
+import com.looker.droidify.utility.common.isIgnoreBatteryEnabled
+import com.looker.droidify.utility.common.openBackgroundActivitySettings
 import com.looker.droidify.utility.common.openNotificationSettings
 import com.looker.droidify.utility.common.openUnknownAppSourcesSettings
 
@@ -41,10 +45,10 @@ internal class WelcomeStep(
 
 /**
  * The permissions the first page asks for, each behind a button of its own rather than a system dialog
- * out of nowhere: notifications, which open Android's own prompt, and the install of apps, which is
- * given on a system page.
+ * out of nowhere: notifications, which open Android's own prompt, the install of apps, which is given
+ * on a system page, and, except on a TV, which has no such setting, activity in the background.
  *
- * Both are read again every time the app comes back to the front, since both are answered outside it.
+ * All are read again every time the app comes back to the front, since all are answered outside it.
  * Android only asks for notifications a limited number of times, so once it has been asked here the
  * button leads to the app's notification settings instead, where it always works.
  */
@@ -53,15 +57,18 @@ internal fun rememberWelcomeSteps(): List<WelcomeStep> {
     val context = LocalContext.current
     var notificationsAllowed by remember { mutableStateOf(context.areNotificationsEnabled()) }
     var canInstallApps by remember { mutableStateOf(context.canRequestPackageInstalls()) }
+    var backgroundAllowed by remember { mutableStateOf(context.isIgnoreBatteryEnabled()) }
     var notificationsAsked by rememberSaveable { mutableStateOf(false) }
+    val isTelevision = LocalIsTelevision.current
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { notificationsAllowed = context.areNotificationsEnabled() }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         notificationsAllowed = context.areNotificationsEnabled()
         canInstallApps = context.canRequestPackageInstalls()
+        backgroundAllowed = context.isIgnoreBatteryEnabled()
     }
-    return listOf(
+    return listOfNotNull(
         WelcomeStep(
             icon = R.drawable.ic_tabler_bell,
             title = R.string.welcome_notifications_title,
@@ -84,6 +91,17 @@ internal fun rememberWelcomeSteps(): List<WelcomeStep> {
             done = canInstallApps,
             onClick = { context.openUnknownAppSourcesSettings() },
         ),
+        WelcomeStep(
+            icon = R.drawable.ic_sync,
+            title = R.string.welcome_background_title,
+            description = if (hasOwnBackgroundControls()) {
+                R.string.welcome_background_hint_app_page
+            } else {
+                R.string.welcome_background_hint
+            },
+            done = backgroundAllowed,
+            onClick = { context.openBackgroundActivitySettings() },
+        ).takeUnless { isTelevision },
     )
 }
 
