@@ -7,6 +7,7 @@
 - **Choose how often updates are checked**: from every hour to once a day, in Settings. The two shortest say they may use more battery.
 - **A missed check is made up for when you open Omnify**: if the last one is older than that frequency, one starts right away, on the connection you allowed for automatic checks.
 - **The Updates tab says when automatic checks seem to have stopped**, with what to do about it, and can be dismissed.
+- **The Updates tab says when background activity isn't allowed**, on phones where it can be read, and the welcome page ticks it once it is.
 - **Send an external source to your TV in one tap**: pair your devices once in Settings > Paired devices, then Send to a device in a source's ⋮ menu in the repository list. The TV asks before adding it. Local network only, end-to-end encrypted, no code after the first time.
 - **A "Shizuku compatible" badge** on the page of apps that can use Shizuku or Sui, next to the Root one, on phone and TV. Both badges now show on external sources too, from the permissions their APK declares.
 

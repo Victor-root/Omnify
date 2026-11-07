@@ -53,6 +53,17 @@ class UpdateCheckHistory @Inject constructor(@ApplicationContext context: Contex
         prefs.time(KEY_LAST_BACKGROUND_RUN)?.let { prefs.edit { putLong(KEY_DISMISSED_FOR, it) } }
     }
 
+    /** Whether to say that background activity isn't [allowed]. A dismissal lasts until it is allowed,
+     *  so that losing it again is said afresh. */
+    fun isActivityWarningDue(allowed: Boolean): Boolean {
+        if (allowed) prefs.edit { remove(KEY_ACTIVITY_WARNING_DISMISSED) }
+        return !allowed && !prefs.getBoolean(KEY_ACTIVITY_WARNING_DISMISSED, false)
+    }
+
+    fun dismissActivityWarning() {
+        prefs.edit { putBoolean(KEY_ACTIVITY_WARNING_DISMISSED, true) }
+    }
+
     private fun SharedPreferences.time(key: String): Long? =
         if (contains(key)) getLong(key, 0L) else null
 
@@ -61,6 +72,7 @@ class UpdateCheckHistory @Inject constructor(@ApplicationContext context: Contex
         const val KEY_LAST_CHECK = "last_check"
         const val KEY_LAST_BACKGROUND_RUN = "last_background_run"
         const val KEY_DISMISSED_FOR = "dismissed_for"
+        const val KEY_ACTIVITY_WARNING_DISMISSED = "activity_warning_dismissed"
     }
 }
 

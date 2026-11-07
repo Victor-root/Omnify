@@ -30,6 +30,14 @@ import com.looker.droidify.utility.common.openBackgroundActivitySettings
 import com.looker.droidify.utility.common.openNotificationSettings
 import com.looker.droidify.utility.common.openUnknownAppSourcesSettings
 
+/** What allowing background activity does, and, where the maker has its own setting, how to go about it. */
+@StringRes
+internal fun backgroundActivityHint(): Int = if (hasOwnBackgroundControls()) {
+    R.string.welcome_background_hint_app_page
+} else {
+    R.string.welcome_background_hint
+}
+
 /** Something a welcome page offers behind a button: [onClick] goes and does it, [done] is whether it
  *  has been done, which swaps the button for a tick. By default it asks the person to allow something. */
 internal class WelcomeStep(
@@ -95,13 +103,8 @@ internal fun rememberWelcomeSteps(): List<WelcomeStep> {
         WelcomeStep(
             icon = R.drawable.ic_sync,
             title = R.string.welcome_background_title,
-            description = if (ownBackgroundControls) {
-                R.string.welcome_background_hint_app_page
-            } else {
-                R.string.welcome_background_hint
-            },
-            // What a maker's own setting says can't be read, so it is offered without ever being ticked.
-            done = backgroundAllowed && !ownBackgroundControls,
+            description = backgroundActivityHint(),
+            done = backgroundAllowed,
             actionLabel = if (ownBackgroundControls) R.string.welcome_background_open else R.string.allow,
             onClick = { context.openBackgroundActivitySettings() },
         ).takeUnless { isTelevision },

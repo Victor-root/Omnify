@@ -40,6 +40,7 @@ import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.common.extension.asStateFlow
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
 import com.looker.droidify.utility.common.extension.tvLauncherPackages
+import com.looker.droidify.utility.common.isIgnoreBatteryEnabled
 import com.looker.droidify.work.BatchUpdateProgress
 import com.looker.droidify.work.SyncWorker
 import com.looker.droidify.work.UpdateAllWorker
@@ -607,11 +608,19 @@ class AppListViewModel @Inject constructor(
      *  it has no such setting. Read by [refreshBackgroundChecks], as time alone can make it true. */
     val backgroundChecksStalled: StateFlow<Boolean> = _backgroundChecksStalled
 
+    private val _backgroundActivityMissing = MutableStateFlow(false)
+
+    /** Whether to say that background activity isn't allowed. Read by [refreshBackgroundChecks], as it
+     *  is changed outside the app. */
+    val backgroundActivityMissing: StateFlow<Boolean> = _backgroundActivityMissing
+
     fun refreshBackgroundChecks() {
         viewModelScope.launch {
             val settings = settingsRepository.getInitial()
-            _backgroundChecksStalled.value = !isTelevisionDevice &&
-                settings.autoSync != AutoSync.NEVER &&
+            val checksInBackground = !isTelevisionDevice && settings.autoSync != AutoSync.NEVER
+            _backgroundActivityMissing.value = checksInBackground &&
+                updateCheckHistory.isActivityWarningDue(context.isIgnoreBatteryEnabled())
+            _backgroundChecksStalled.value = checksInBackground &&
                 updateCheckHistory.isBackgroundStalled(settings.syncInterval)
         }
     }
@@ -621,13 +630,8 @@ class AppListViewModel @Inject constructor(
         _backgroundChecksStalled.value = false
     }
 
-    private val _backgroundActivityMissing = MutableStateFlow(false)
-
-    /** Whether to say that background activity isn't allowed. Nothing sets it yet: the check that will
-     *  is still being confirmed on a real phone. */
-    val backgroundActivityMissing: StateFlow<Boolean> = _backgroundActivityMissing
-
     fun dismissBackgroundActivityWarning() {
+        updateCheckHistory.dismissActivityWarning()
         _backgroundActivityMissing.value = false
     }
 

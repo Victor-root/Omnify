@@ -43,7 +43,7 @@ fun Context.openUnknownAppSourcesSettings() {
     runCatching { startActivity(intent) }
 }
 
-fun Context.requestBatteryFreedom() {
+private fun Context.requestBatteryFreedom() {
     if (!isIgnoreBatteryEnabled()) {
         val intent = intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS) {
             data = "package:$packageName".toUri()

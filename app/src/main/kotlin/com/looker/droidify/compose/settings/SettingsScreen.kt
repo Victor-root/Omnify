@@ -102,9 +102,10 @@ import com.looker.droidify.utility.common.SYSTEM_LANGUAGE
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.applicationLocale
 import com.looker.droidify.utility.common.extension.openLink
+import com.looker.droidify.utility.common.hasOwnBackgroundControls
 import com.looker.droidify.utility.common.isIgnoreBatteryEnabled
 import com.looker.droidify.utility.common.localeOfCode
-import com.looker.droidify.utility.common.requestBatteryFreedom
+import com.looker.droidify.utility.common.openBackgroundActivitySettings
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
@@ -296,10 +297,16 @@ fun SettingsScreen(
                 item {
                     WarningBanner(
                         title = stringResource(R.string.require_background_access),
-                        description = stringResource(R.string.require_background_access_DESC),
+                        description = stringResource(
+                            if (hasOwnBackgroundControls()) {
+                                R.string.welcome_background_hint_app_page
+                            } else {
+                                R.string.require_background_access_DESC
+                            },
+                        ),
                         // The state refreshes on resume (see LifecycleEventEffect above) once the user
                         // returns from the system dialog, so the banner clears on its own.
-                        onClick = { context.requestBatteryFreedom() },
+                        onClick = { context.openBackgroundActivitySettings() },
                     )
                 }
             }

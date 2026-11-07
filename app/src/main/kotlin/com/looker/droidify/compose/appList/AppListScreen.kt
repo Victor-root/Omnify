@@ -166,6 +166,7 @@ import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.shownOnExternalTab
+import com.looker.droidify.compose.welcome.backgroundActivityHint
 import com.looker.droidify.utility.common.hasOwnBackgroundControls
 import com.looker.droidify.utility.common.isIgnoreBatteryEnabled
 import com.looker.droidify.utility.common.openBackgroundActivitySettings
@@ -691,14 +692,18 @@ fun AppListScreen(
                             description = stringResource(R.string.no_connection_DESC),
                         )
                     }
-                    if (selectedTab == AppTab.UPDATES && backgroundActivityMissing) {
-                        BackgroundActivityBanner(onDismiss = viewModel::dismissBackgroundActivityWarning)
-                    }
-                    if (selectedTab == AppTab.UPDATES && backgroundChecksStalled) {
-                        BackgroundChecksBanner(
-                            onOpenSettings = onNavigateToSettings,
-                            onDismiss = viewModel::dismissBackgroundChecksWarning,
-                        )
+                    // One at a time: not being allowed in the background already explains the checks
+                    // having stopped, and says what to do about it.
+                    if (selectedTab == AppTab.UPDATES) {
+                        when {
+                            backgroundActivityMissing -> BackgroundActivityBanner(
+                                onDismiss = viewModel::dismissBackgroundActivityWarning,
+                            )
+                            backgroundChecksStalled -> BackgroundChecksBanner(
+                                onOpenSettings = onNavigateToSettings,
+                                onDismiss = viewModel::dismissBackgroundChecksWarning,
+                            )
+                        }
                     }
                     // A token GitHub is actively rejecting silently stops every GitHub-backed source
                     // from refreshing (see ExternalAppsViewModel.refresh), with nothing else on this tab
@@ -2251,7 +2256,7 @@ private fun BackgroundActivityBanner(onDismiss: () -> Unit) {
     val context = LocalContext.current
     InfoBanner(
         title = stringResource(R.string.background_activity_missing_title),
-        description = stringResource(R.string.welcome_background_hint_app_page),
+        description = stringResource(backgroundActivityHint()),
         onClick = context::openBackgroundActivitySettings,
         onDismiss = onDismiss,
     )
