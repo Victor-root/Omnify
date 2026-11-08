@@ -190,6 +190,9 @@ fun AppListScreen(
     val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
     val backgroundChecksStalled by viewModel.backgroundChecksStalled.collectAsStateWithLifecycle()
     val backgroundActivityMissing by viewModel.backgroundActivityMissing.collectAsStateWithLifecycle()
+    val lastUpdateCheck by viewModel.lastUpdateCheck.collectAsStateWithLifecycle()
+    val updateCheckInterval by viewModel.updateCheckInterval.collectAsStateWithLifecycle()
+    val installedCatalogueApps by viewModel.installedApps.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshBackgroundChecks() }
     val catalogEmpty by viewModel.catalogEmpty.collectAsStateWithLifecycle()
     val noRepositoryEnabled by viewModel.noRepositoryEnabled.collectAsStateWithLifecycle()
@@ -390,6 +393,15 @@ fun AppListScreen(
     )
     // The Installed tab's external half. A package the catalogue half already lists stays its tile
     // alone, which opens the source's page when the source is what installed it (openInstalledApp).
+    // Every installed app Omnify updates, each once: a package in the catalogue and followed from a
+    // source too counts as the catalogue's.
+    val followedApps = remember(installedCatalogueApps, installedExternalApps) {
+        val catalogue = installedCatalogueApps.map { FollowedApp.Catalogue(it) }
+        val cataloguePackages = catalogue.mapTo(HashSet()) { it.packageName }
+        catalogue + installedExternalApps.mapNotNull { app ->
+            app.packageName?.takeIf { it !in cataloguePackages }?.let { FollowedApp.External(app, it) }
+        }
+    }
     val searchedInstalledExternal = remember(installedExternalApps, apps, activeSearch) {
         val listed = apps.mapTo(HashSet()) { it.packageName.name }
         installedExternalApps.filter { it.packageName !in listed && it.matchesSearch(activeSearch) }
@@ -1075,6 +1087,20 @@ fun AppListScreen(
                     // ("Everything is up to date") claiming something the search only hid.
                     if (activeSearch.isNotEmpty()) {
                         NoSearchResults(query = activeSearch)
+                    } else if (selectedTab == AppTab.UPDATES) {
+                        UpToDateState(
+                            followedApps = followedApps,
+                            lastCheck = lastUpdateCheck,
+                            checkInterval = updateCheckInterval,
+                            isChecking = isSyncing || isRefreshingExternal,
+                            onCheckNow = viewModel::sync,
+                            onOpenApp = { app ->
+                                when (app) {
+                                    is FollowedApp.Catalogue -> openInstalledApp(app.packageName)
+                                    is FollowedApp.External -> openExternalApp(app.app.key)
+                                }
+                            },
+                        )
                     } else {
                         EmptyTabMessage(tab = selectedTab)
                     }
@@ -1531,8 +1557,7 @@ private fun NoSearchResults(query: String) {
 private fun EmptyTabMessage(tab: AppTab) {
     val message = when (tab) {
         AppTab.INSTALLED -> stringResource(R.string.no_installed_apps)
-        AppTab.UPDATES -> stringResource(R.string.everything_up_to_date)
-        AppTab.AVAILABLE -> ""
+        AppTab.UPDATES, AppTab.AVAILABLE -> ""
         AppTab.EXTERNAL -> ""
     }
     Box(

@@ -290,6 +290,23 @@
     <string name="signed_using_unsafe_algorithm">Signé avec un algorithme qui n’est pas sécurisé</string>
     <string name="socks_proxy">Proxy SOCKS</string>
     <string name="sync_repositories_automatically">Synchroniser les dépôts automatiquement</string>
+    <plurals name="up_to_date_apps">
+        <item quantity="one">Votre appli a sa dernière version.</item>
+        <item quantity="many">Vos %d applis ont leur dernière version.</item>
+        <item quantity="other">Vos %d applis ont leur dernière version.</item>
+    </plurals>
+    <string name="up_to_date_checked">Vérifié</string>
+    <string name="up_to_date_not_checked_yet">Pas encore</string>
+    <string name="up_to_date_auto_check">Vérification auto</string>
+    <string name="up_to_date_auto_off">Désactivée</string>
+    <plurals name="up_to_date_every_hours">
+        <item quantity="one">Toutes les heures</item>
+        <item quantity="many">Toutes les %d h</item>
+        <item quantity="other">Toutes les %d h</item>
+    </plurals>
+    <string name="up_to_date_once_a_day">Une fois par jour</string>
+    <string name="up_to_date_recent">Vos dernières mises à jour</string>
+    <string name="up_to_date_check_now">Vérifier maintenant</string>
     <string name="sync_interval_title">Fréquence de vérification</string>
     <string name="sync_interval_battery_FORMAT">%1$s (peut consommer plus de batterie)</string>
     <string name="background_activity_missing_title">L\'activité en arrière-plan n\'est pas autorisée</string>

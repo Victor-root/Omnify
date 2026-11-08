@@ -481,6 +481,21 @@
     <string name="copy_error_details">Copy error details</string>
     <string name="copied_to_clipboard">Copied</string>
     <string name="sync_repositories_automatically">Sync repositories automatically</string>
+    <plurals name="up_to_date_apps">
+        <item quantity="one">Your app has its latest version.</item>
+        <item quantity="other">Your %d apps have their latest version.</item>
+    </plurals>
+    <string name="up_to_date_checked">Checked</string>
+    <string name="up_to_date_not_checked_yet">Not yet</string>
+    <string name="up_to_date_auto_check">Automatic check</string>
+    <string name="up_to_date_auto_off">Off</string>
+    <plurals name="up_to_date_every_hours">
+        <item quantity="one">Every hour</item>
+        <item quantity="other">Every %d hours</item>
+    </plurals>
+    <string name="up_to_date_once_a_day">Once a day</string>
+    <string name="up_to_date_recent">Your latest updates</string>
+    <string name="up_to_date_check_now">Check now</string>
     <string name="sync_interval_title">Check frequency</string>
     <string name="sync_interval_battery_FORMAT">%1$s (may use more battery)</string>
     <string name="background_activity_missing_title">Background activity isn\'t allowed</string>

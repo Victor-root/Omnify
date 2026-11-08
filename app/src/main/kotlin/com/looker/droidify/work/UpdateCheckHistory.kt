@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration
@@ -23,6 +26,16 @@ class UpdateCheckHistory @Inject constructor(@ApplicationContext context: Contex
 
     fun isCheckDue(interval: Duration): Boolean =
         isCheckDue(prefs.time(KEY_LAST_CHECK), interval, System.currentTimeMillis())
+
+    /** When the last check finished, as it changes; null while none has. */
+    val lastCheck: Flow<Long?> = callbackFlow {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == KEY_LAST_CHECK) trySend(prefs.time(KEY_LAST_CHECK))
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        send(prefs.time(KEY_LAST_CHECK))
+        awaitClose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
 
     fun checkFinished() {
         prefs.edit { putLong(KEY_LAST_CHECK, System.currentTimeMillis()) }

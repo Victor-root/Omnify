@@ -71,6 +71,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration
 
 /** One entry in the favourites full page: a catalogue app or an external one, unified so the page can
  *  sort and render either the same way (same shape as HiddenAppsViewModel's own HiddenApp). */
@@ -601,6 +602,13 @@ class AppListViewModel @Inject constructor(
             }
         }
     }
+
+    /** When updates were last checked for, for the Updates tab once there is nothing to update. */
+    val lastUpdateCheck: StateFlow<Long?> = updateCheckHistory.lastCheck.asHomeState(null)
+
+    /** How often updates are checked for in the background, or null when that is switched off. */
+    val updateCheckInterval: StateFlow<Duration?> =
+        settingsRepository.get { syncInterval.takeIf { autoSync != AutoSync.NEVER } }.asHomeState(null)
 
     private val _backgroundChecksStalled = MutableStateFlow(false)
 
