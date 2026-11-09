@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -26,12 +26,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
@@ -65,9 +68,13 @@ private data class RecentUpdate(val app: FollowedApp, val version: String?, val 
  * The Updates tab once there is nothing to update: says so, how many apps that covers, when updates
  * were last checked for and how often they are, and which apps were updated lately, so an empty tab
  * reads as everything being looked after rather than as nothing happening.
+ *
+ * Fits in [maxHeight], the room the tab has, when it is known: the latest updates then show only as
+ * many as fit whole, so that nothing below them needs a scroll to be reached.
  */
 @Composable
 internal fun UpToDateState(
+    maxHeight: Dp?,
     followedApps: List<FollowedApp>,
     lastCheck: Long?,
     checkInterval: Duration?,
@@ -90,17 +97,18 @@ internal fun UpToDateState(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 36.dp),
+            .then(if (maxHeight != null) Modifier.heightIn(max = maxHeight) else Modifier)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.widthIn(max = 480.dp),
         ) {
             CheckBadge()
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = stringResource(R.string.everything_up_to_date),
@@ -121,7 +129,6 @@ internal fun UpToDateState(
                     )
                 }
             }
-            Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 InfoTile(
                     icon = R.drawable.ic_time,
@@ -138,7 +145,13 @@ internal fun UpToDateState(
                 )
             }
             if (recentUpdates.isNotEmpty()) {
-                RecentUpdates(updates = recentUpdates, now = now, onOpenApp = onOpenApp)
+                RecentUpdates(
+                    updates = recentUpdates,
+                    now = now,
+                    onOpenApp = onOpenApp,
+                    // Without a known height a weight would leave it no room at all.
+                    modifier = if (maxHeight != null) Modifier.weight(1f, fill = false) else Modifier,
+                )
             }
             FilledTonalButton(onClick = onCheckNow, enabled = !isChecking) {
                 Icon(
@@ -158,22 +171,15 @@ private fun CheckBadge() {
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(96.dp)
-            .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+            .size(64.dp)
+            .background(MaterialTheme.colorScheme.primary, CircleShape),
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(64.dp)
-                .background(MaterialTheme.colorScheme.primary, CircleShape),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_check),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(36.dp),
-            )
-        }
+        Icon(
+            painter = painterResource(R.drawable.ic_check),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.size(34.dp),
+        )
     }
 }
 
@@ -181,16 +187,16 @@ private fun CheckBadge() {
 private fun InfoTile(icon: Int, label: String, value: String, modifier: Modifier = Modifier) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier
             .background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.large)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(18.dp),
         )
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
@@ -203,21 +209,35 @@ private fun InfoTile(icon: Int, label: String, value: String, modifier: Modifier
     }
 }
 
+/** The latest updates under their heading, as many as fit whole: none fitting, the heading goes too. */
 @Composable
-private fun RecentUpdates(updates: List<RecentUpdate>, now: Long, onOpenApp: (FollowedApp) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.up_to_date_recent),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.extraLarge),
-        ) {
-            updates.forEachIndexed { index, update ->
+private fun RecentUpdates(
+    updates: List<RecentUpdate>,
+    now: Long,
+    onOpenApp: (FollowedApp) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    WholeRowsOnly(
+        modifier = modifier.fillMaxWidth(),
+        card = {
+            Box(
+                Modifier.background(
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                    MaterialTheme.shapes.extraLarge,
+                ),
+            )
+        },
+        heading = {
+            Text(
+                text = stringResource(R.string.up_to_date_recent),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp),
+            )
+        },
+    ) {
+        updates.forEachIndexed { index, update ->
+            Column {
                 if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 RecentUpdateRow(update = update, now = now, onClick = { onOpenApp(update.app) })
             }
@@ -233,15 +253,15 @@ private fun RecentUpdateRow(update: RecentUpdate, now: Long, onClick: () -> Unit
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         when (val app = update.app) {
             is FollowedApp.Catalogue -> AppMinimalIcon(
                 app = app.app,
                 isInstalled = true,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(36.dp),
             )
-            is FollowedApp.External -> ExternalAppIcon(app = app.app, isInstalled = true, size = 40.dp)
+            is FollowedApp.External -> ExternalAppIcon(app = app.app, isInstalled = true, size = 36.dp)
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
@@ -275,8 +295,53 @@ private fun checkFrequency(interval: Duration): String =
         pluralStringResource(R.plurals.up_to_date_every_hours, hours, hours)
     }
 
+/**
+ * [heading], then [rows] top to bottom over a [card] of their size, leaving out the rows that would not
+ * fit whole in its height. With none fitting, nothing shows.
+ */
+@Composable
+private fun WholeRowsOnly(
+    card: @Composable () -> Unit,
+    heading: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    rows: @Composable () -> Unit,
+) {
+    Layout(contents = listOf(card, heading, rows), modifier = modifier) { (cards, headings, rowItems), constraints ->
+        val loose = constraints.copy(minHeight = 0)
+        val headingPlaceables = headings.map { it.measure(loose) }
+        val headingHeight = headingPlaceables.sumOf { it.height }
+        var rowsHeight = 0
+        val shown = rowItems.map { it.measure(loose) }.takeWhile { row ->
+            (headingHeight + rowsHeight + row.height <= constraints.maxHeight)
+                .also { fits -> if (fits) rowsHeight += row.height }
+        }
+        if (shown.isEmpty()) return@Layout layout(constraints.minWidth, constraints.minHeight) {}
+        val cardPlaceables = cards.map {
+            it.measure(Constraints.fixed(constraints.maxWidth, rowsHeight))
+        }
+        layout(constraints.maxWidth, headingHeight + rowsHeight) {
+            var y = 0
+            headingPlaceables.forEach { placeable ->
+                placeable.place(0, y)
+                y += placeable.height
+            }
+            cardPlaceables.forEach { it.place(0, y) }
+            shown.forEach { placeable ->
+                placeable.place(0, y)
+                y += placeable.height
+            }
+        }
+    }
+}
+
+/** "3 minutes ago", or "Just now" under a minute, where Android would say "0 minutes ago". */
+@Composable
 private fun relativeTime(time: Long, now: Long): String =
-    DateUtils.getRelativeTimeSpanString(time, now, DateUtils.MINUTE_IN_MILLIS).toString()
+    if (now - time < DateUtils.MINUTE_IN_MILLIS) {
+        stringResource(R.string.up_to_date_just_now)
+    } else {
+        DateUtils.getRelativeTimeSpanString(time, now, DateUtils.MINUTE_IN_MILLIS).toString()
+    }
 
 /** The [apps] updated in the last [RECENT_WINDOW], most recent first, at most [RECENT_COUNT] of them. */
 private fun Context.recentUpdates(apps: List<FollowedApp>): List<RecentUpdate> {

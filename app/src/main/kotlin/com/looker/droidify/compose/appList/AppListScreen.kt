@@ -115,6 +115,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -400,6 +401,12 @@ fun AppListScreen(
         val cataloguePackages = catalogue.mapTo(HashSet()) { it.packageName }
         catalogue + installedExternalApps.mapNotNull { app ->
             app.packageName?.takeIf { it !in cataloguePackages }?.let { FollowedApp.External(app, it) }
+        }
+    }
+    // The room the grid leaves for its content, which the up-to-date state fits itself in.
+    val gridContentHeight by remember(gridState) {
+        derivedStateOf {
+            gridState.layoutInfo.run { viewportSize.height - beforeContentPadding - afterContentPadding }
         }
     }
     val searchedInstalledExternal = remember(installedExternalApps, apps, activeSearch) {
@@ -1089,6 +1096,9 @@ fun AppListScreen(
                         NoSearchResults(query = activeSearch)
                     } else if (selectedTab == AppTab.UPDATES) {
                         UpToDateState(
+                            maxHeight = with(LocalDensity.current) {
+                                gridContentHeight.takeIf { it > 0 }?.toDp()
+                            },
                             followedApps = followedApps,
                             lastCheck = lastUpdateCheck,
                             checkInterval = updateCheckInterval,

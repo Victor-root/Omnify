@@ -487,6 +487,7 @@
     </plurals>
     <string name="up_to_date_checked">Checked</string>
     <string name="up_to_date_not_checked_yet">Not yet</string>
+    <string name="up_to_date_just_now">Just now</string>
     <string name="up_to_date_auto_check">Automatic check</string>
     <string name="up_to_date_auto_off">Off</string>
     <plurals name="up_to_date_every_hours">
