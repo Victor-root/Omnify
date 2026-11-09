@@ -370,6 +370,8 @@
     <string name="favourites">Favoris</string>
     <string name="show_favourites">Afficher les favoris</string>
     <string name="hide_favourites">Masquer les favoris</string>
+    <string name="hide_tabs">Masquer les onglets</string>
+    <string name="show_tabs">Afficher les onglets</string>
     <string name="date_favourited">Date d\'ajout en favoris</string>
     <string name="date_installed">Date d\'installation</string>
     <string name="hide_app">Masquer l\'application</string>

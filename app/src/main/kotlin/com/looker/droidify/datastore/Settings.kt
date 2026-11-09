@@ -73,6 +73,9 @@ data class Settings(
      *  carousel only actually appears once a favourite exists, so this only matters once the user has
      *  explicitly hidden it via the overflow menu ("Hide favourites"). */
     val showFavouritesCarousel: Boolean = true,
+    /** Whether the home shows its tab bar (Explore, Installed, Updates, External). Hidden, the overflow
+     *  menu leads to the tabs instead. */
+    val showTabs: Boolean = true,
     /** Android TV: the home lists only apps made for TV. On by default on a television. */
     val tvOnly: Boolean = false,
     val enabledRepoIds: Set<Int> = emptySet(),

@@ -75,6 +75,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults.IconButtonWidthOption.Companion.Narrow
@@ -90,6 +91,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -213,6 +215,7 @@ fun AppListScreen(
     val favouriteInstallDates by viewModel.favouriteInstallDates.collectAsStateWithLifecycle()
     val favouritesSortOrder by viewModel.favouritesSortOrder.collectAsStateWithLifecycle()
     val showFavouritesCarousel by viewModel.showFavouritesCarousel.collectAsStateWithLifecycle()
+    val showTabs by viewModel.showTabs.collectAsStateWithLifecycle()
     val showDiagnosticsButton by viewModel.showDiagnosticsButton.collectAsStateWithLifecycle()
     val tvOnly by viewModel.tvOnly.collectAsStateWithLifecycle()
     val expandedSections by viewModel.expandedSections.collectAsStateWithLifecycle()
@@ -676,11 +679,23 @@ fun AppListScreen(
                         },
                         showFavouritesCarousel = showFavouritesCarousel,
                         onToggleFavouritesCarousel = viewModel::toggleFavouritesCarousel,
+                        // A TV keeps its tab bar: it is where focus starts.
+                        tabsMenu = if (isTelevision) {
+                            null
+                        } else {
+                            TabsMenu(
+                                shown = showTabs,
+                                selectedTab = selectedTab,
+                                updatesCount = updatesCount,
+                                onToggle = viewModel::toggleTabs,
+                                onSelect = viewModel::selectTab,
+                            )
+                        },
                         tvOnly = tvOnly,
                         onToggleTvOnly = viewModel::toggleTvOnly,
                         showDiagnosticsButton = showDiagnosticsButton,
                     )
-                    AppTabRow(
+                    if (showTabs || isTelevision) AppTabRow(
                         selectedTab = selectedTab,
                         updatesCount = updatesCount,
                         onSelectTab = viewModel::selectTab,
@@ -1336,25 +1351,38 @@ private fun AppTabRow(
                 selectedContentColor = LocalOnAccentBarColor.current,
                 unselectedContentColor = LocalOnAccentBarColor.current.copy(alpha = 0.7f),
                 text = {
-                    val label = when (tab) {
-                        AppTab.AVAILABLE -> stringResource(R.string.available)
-                        AppTab.INSTALLED -> stringResource(R.string.installed)
-                        // Short label ("MàJ") so the count fits on one line — a wrapping label would
-                        // otherwise make the whole tab bar taller.
-                        AppTab.UPDATES -> if (updatesCount > 0) {
-                            "${stringResource(R.string.tab_updates_short)} ($updatesCount)"
-                        } else {
-                            stringResource(R.string.tab_updates_short)
-                        }
-                        AppTab.EXTERNAL -> stringResource(R.string.tab_external)
-                    }
                     // Never wrap: one line keeps every tab — and the bar — the same height.
-                    Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(tabLabel(tab, updatesCount), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 },
             )
         }
     }
 }
+
+/** [tab]'s name, with the number of updates on the Updates tab. */
+@Composable
+private fun tabLabel(tab: AppTab, updatesCount: Int): String = when (tab) {
+    AppTab.AVAILABLE -> stringResource(R.string.available)
+    AppTab.INSTALLED -> stringResource(R.string.installed)
+    // Short label ("MàJ") so the count fits on one line in the tab bar.
+    AppTab.UPDATES -> if (updatesCount > 0) {
+        "${stringResource(R.string.tab_updates_short)} ($updatesCount)"
+    } else {
+        stringResource(R.string.tab_updates_short)
+    }
+    AppTab.EXTERNAL -> stringResource(R.string.tab_external)
+}
+
+/** The tab bar's show/hide choice for the overflow menu and, while the bar is hidden, the way to the
+ *  other tabs. */
+@Immutable
+private class TabsMenu(
+    val shown: Boolean,
+    val selectedTab: AppTab,
+    val updatesCount: Int,
+    val onToggle: () -> Unit,
+    val onSelect: (AppTab) -> Unit,
+)
 
 /**
  * Full-screen state shown on first launch while the catalogue is being fetched — mirrors F-Droid: a
@@ -1803,6 +1831,7 @@ private fun AppListTopBar(
     onNavigateToSettings: () -> Unit,
     showFavouritesCarousel: Boolean,
     onToggleFavouritesCarousel: () -> Unit,
+    tabsMenu: TabsMenu?,
     tvOnly: Boolean,
     onToggleTvOnly: () -> Unit,
     showDiagnosticsButton: Boolean,
@@ -1820,6 +1849,7 @@ private fun AppListTopBar(
             onNavigateToSettings = onNavigateToSettings,
             showFavouritesCarousel = showFavouritesCarousel,
             onToggleFavouritesCarousel = onToggleFavouritesCarousel,
+            tabsMenu = tabsMenu,
             tvOnly = tvOnly,
             onToggleTvOnly = onToggleTvOnly,
             showDiagnosticsButton = showDiagnosticsButton,
@@ -1851,6 +1881,7 @@ private fun AppListMainTopBar(
     onNavigateToSettings: () -> Unit,
     showFavouritesCarousel: Boolean,
     onToggleFavouritesCarousel: () -> Unit,
+    tabsMenu: TabsMenu?,
     tvOnly: Boolean,
     onToggleTvOnly: () -> Unit,
     showDiagnosticsButton: Boolean,
@@ -1959,6 +1990,7 @@ private fun AppListMainTopBar(
                 isTablet = isTablet,
                 showFavouritesCarousel = showFavouritesCarousel,
                 onToggleFavouritesCarousel = onToggleFavouritesCarousel,
+                tabsMenu = tabsMenu,
                 onNavigateToRepos = onNavigateToRepos,
                 onNavigateToSettings = onNavigateToSettings,
             )
@@ -1976,6 +2008,7 @@ private fun HomeOverflowMenu(
     isTablet: Boolean,
     showFavouritesCarousel: Boolean,
     onToggleFavouritesCarousel: () -> Unit,
+    tabsMenu: TabsMenu?,
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
 ) {
@@ -2004,78 +2037,73 @@ private fun HomeOverflowMenu(
             onDismissRequest = { onExpandedChange(false) },
             modifier = if (isTablet) Modifier.widthIn(min = 280.dp) else Modifier,
         ) {
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        stringResource(
-                            if (showFavouritesCarousel) {
-                                R.string.hide_favourites
-                            } else {
-                                R.string.show_favourites
-                            },
-                        ),
-                        style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
-                    )
-                },
-                onClick = {
-                    onToggleFavouritesCarousel()
+            val item: @Composable (String, @Composable () -> Unit, () -> Unit) -> Unit = { text, icon, onClick ->
+                HomeMenuItem(text = text, icon = icon, isTablet = isTablet) {
+                    onClick()
                     onExpandedChange(false)
-                },
-                leadingIcon = {
-                    Icon(Icons.Filled.Favorite, contentDescription = null)
-                },
-                contentPadding = if (isTablet) {
-                    PaddingValues(horizontal = 20.dp, vertical = 4.dp)
-                } else {
-                    MenuDefaults.DropdownMenuItemContentPadding
-                },
+                }
+            }
+            // With the tab bar hidden, the menu is the way to the other tabs.
+            if (tabsMenu != null && !tabsMenu.shown) {
+                AppTab.entries.filter { it != tabsMenu.selectedTab }.forEach { tab ->
+                    item(
+                        tabLabel(tab, tabsMenu.updatesCount),
+                        { Icon(painterResource(tab.menuIcon), contentDescription = null) },
+                        { tabsMenu.onSelect(tab) },
+                    )
+                }
+                HorizontalDivider()
+            }
+            item(
+                stringResource(if (showFavouritesCarousel) R.string.hide_favourites else R.string.show_favourites),
+                { Icon(Icons.Filled.Favorite, contentDescription = null) },
+                onToggleFavouritesCarousel,
             )
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        stringResource(R.string.repositories),
-                        style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
-                    )
-                },
-                onClick = {
-                    onNavigateToRepos()
-                    onExpandedChange(false)
-                },
-                leadingIcon = {
-                    Icon(painterResource(R.drawable.ic_tabler_box), contentDescription = null)
-                },
-                contentPadding = if (isTablet) {
-                    PaddingValues(horizontal = 20.dp, vertical = 4.dp)
-                } else {
-                    MenuDefaults.DropdownMenuItemContentPadding
-                },
+            if (tabsMenu != null) {
+                item(
+                    stringResource(if (tabsMenu.shown) R.string.hide_tabs else R.string.show_tabs),
+                    { Icon(painterResource(R.drawable.ic_tabler_arrows_horizontal), contentDescription = null) },
+                    tabsMenu.onToggle,
+                )
+            }
+            item(
+                stringResource(R.string.repositories),
+                { Icon(painterResource(R.drawable.ic_tabler_box), contentDescription = null) },
+                onNavigateToRepos,
             )
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        stringResource(R.string.settings),
-                        style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current,
-                    )
-                },
-                onClick = {
-                    onNavigateToSettings()
-                    onExpandedChange(false)
-                },
-                leadingIcon = {
-                    Icon(
-                        painterResource(R.drawable.ic_tabler_settings),
-                        contentDescription = null,
-                    )
-                },
-                contentPadding = if (isTablet) {
-                    PaddingValues(horizontal = 20.dp, vertical = 4.dp)
-                } else {
-                    MenuDefaults.DropdownMenuItemContentPadding
-                },
+            item(
+                stringResource(R.string.settings),
+                { Icon(painterResource(R.drawable.ic_tabler_settings), contentDescription = null) },
+                onNavigateToSettings,
             )
         }
     }
 }
+
+/** One entry of [HomeOverflowMenu], roomier on a tablet. */
+@Composable
+private fun HomeMenuItem(text: String, icon: @Composable () -> Unit, isTablet: Boolean, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = {
+            Text(text, style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current)
+        },
+        onClick = onClick,
+        leadingIcon = icon,
+        contentPadding = if (isTablet) {
+            PaddingValues(horizontal = 20.dp, vertical = 4.dp)
+        } else {
+            MenuDefaults.DropdownMenuItemContentPadding
+        },
+    )
+}
+
+private val AppTab.menuIcon: Int
+    get() = when (this) {
+        AppTab.AVAILABLE -> R.drawable.ic_tabler_apps
+        AppTab.INSTALLED -> R.drawable.ic_tabler_package
+        AppTab.UPDATES -> R.drawable.ic_download
+        AppTab.EXTERNAL -> R.drawable.ic_tabler_link
+    }
 
 @Composable
 private fun ExternalTabEmpty() {
