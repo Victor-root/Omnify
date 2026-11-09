@@ -59,6 +59,9 @@ class NetworkMonitor @Inject constructor(
         trySend(usable.isNotEmpty())
         val request = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            // A request leaves out VPNs unless told otherwise, and a phone whose only way out is one
+            // (USB tethering through one, say) stayed offline here once it came up after the start.
+            .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
             .build()
         val listening = runCatching { manager.registerNetworkCallback(request, callback) }.isSuccess
         // A device that refuses to be watched would otherwise be stuck on whatever it read above,
