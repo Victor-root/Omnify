@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,6 +21,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
@@ -37,6 +39,10 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.HeroStatItem
+import com.looker.droidify.compose.components.PremiumCard
+import com.looker.droidify.compose.components.SectionHeading
+import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.external.ExternalApp
@@ -98,51 +104,68 @@ internal fun UpToDateState(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (maxHeight != null) Modifier.heightIn(max = maxHeight) else Modifier)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
+            .padding(16.dp),
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.widthIn(max = 480.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.widthIn(max = 560.dp),
         ) {
-            CheckBadge()
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.everything_up_to_date),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                )
-                if (followedApps.isNotEmpty()) {
+            // Shaped like an app page's hero card: the state, then its figures, then the action.
+            PremiumCard {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(20.dp),
+                ) {
+                    CheckBadge()
+                    Spacer(Modifier.height(12.dp))
                     Text(
-                        text = pluralStringResource(
-                            R.plurals.up_to_date_apps,
-                            followedApps.size,
-                            followedApps.size,
-                        ),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = stringResource(R.string.everything_up_to_date),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
                     )
+                    if (followedApps.isNotEmpty()) {
+                        Text(
+                            text = pluralStringResource(
+                                R.plurals.up_to_date_apps,
+                                followedApps.size,
+                                followedApps.size,
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        HeroStatItem(
+                            label = stringResource(R.string.up_to_date_checked),
+                            value = lastCheck?.let { relativeTime(it, now) }
+                                ?: stringResource(R.string.up_to_date_not_checked_yet),
+                            modifier = Modifier.weight(1f),
+                        )
+                        VerticalDivider(
+                            modifier = Modifier.height(28.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                        )
+                        HeroStatItem(
+                            label = stringResource(R.string.up_to_date_auto_check),
+                            value = checkInterval?.let { checkFrequency(it) }
+                                ?: stringResource(R.string.up_to_date_auto_off),
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    FilledTonalButton(onClick = onCheckNow, enabled = !isChecking) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_sync),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.up_to_date_check_now))
+                    }
                 }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                InfoTile(
-                    icon = R.drawable.ic_time,
-                    label = stringResource(R.string.up_to_date_checked),
-                    value = lastCheck?.let { relativeTime(it, now) }
-                        ?: stringResource(R.string.up_to_date_not_checked_yet),
-                    modifier = Modifier.weight(1f),
-                )
-                InfoTile(
-                    icon = R.drawable.ic_sync,
-                    label = stringResource(R.string.up_to_date_auto_check),
-                    value = checkInterval?.let { checkFrequency(it) } ?: stringResource(R.string.up_to_date_auto_off),
-                    modifier = Modifier.weight(1f),
-                )
             }
             if (recentUpdates.isNotEmpty()) {
                 RecentUpdates(
@@ -152,15 +175,6 @@ internal fun UpToDateState(
                     // Without a known height a weight would leave it no room at all.
                     modifier = if (maxHeight != null) Modifier.weight(1f, fill = false) else Modifier,
                 )
-            }
-            FilledTonalButton(onClick = onCheckNow, enabled = !isChecking) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_sync),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.size(8.dp))
-                Text(stringResource(R.string.up_to_date_check_now))
             }
         }
     }
@@ -183,32 +197,6 @@ private fun CheckBadge() {
     }
 }
 
-@Composable
-private fun InfoTile(icon: Int, label: String, value: String, modifier: Modifier = Modifier) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.large)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(18.dp),
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(text = value, style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
 /** The latest updates under their heading, as many as fit whole: none fitting, the heading goes too. */
 @Composable
 private fun RecentUpdates(
@@ -220,19 +208,18 @@ private fun RecentUpdates(
     WholeRowsOnly(
         modifier = modifier.fillMaxWidth(),
         card = {
+            // The same frame as PremiumCard, drawn behind the rows that fit.
+            val shape = MaterialTheme.shapes.large
             Box(
-                Modifier.background(
-                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                    MaterialTheme.shapes.extraLarge,
-                ),
+                Modifier
+                    .then(premiumCardBorder(shape))
+                    .background(MaterialTheme.colorScheme.surface, shape),
             )
         },
         heading = {
-            Text(
-                text = stringResource(R.string.up_to_date_recent),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp),
+            SectionHeading(
+                title = stringResource(R.string.up_to_date_recent),
+                modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             )
         },
     ) {

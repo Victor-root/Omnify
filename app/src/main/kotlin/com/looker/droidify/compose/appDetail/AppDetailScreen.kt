@@ -47,7 +47,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -116,6 +115,7 @@ import com.looker.droidify.compose.components.CountBadge
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DownloadProgressRow
 import com.looker.droidify.compose.components.ExpandableText
+import com.looker.droidify.compose.components.SectionHeading
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.forFloatingBackground
@@ -1136,7 +1136,10 @@ private fun AppDetailBody(
     // The description comes first, right after the hero card, before anything else.
     Spacer(modifier = Modifier.height(8.dp))
     if (app.metadata.description.isNotBlank()) {
-        DescriptionHeader()
+        SectionHeading(
+            title = stringResource(R.string.description),
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
+        )
         val handler = LocalUriHandler.current
         // Parsing the HTML description is expensive; do it once per description instead of on
         // every recomposition (the detail screen recomposes repeatedly while data loads).
@@ -1484,26 +1487,6 @@ private fun VersionsSection(
 
 /** "Description" in the accent colour, then a line across: says the text below is the description,
  *  set apart from the hero card above it. */
-@Composable
-private fun DescriptionHeader() {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
-    ) {
-        Text(
-            text = stringResource(R.string.description),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        HorizontalDivider(
-            modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.outlineVariant,
-        )
-    }
-}
-
 /**
  * The app's data resolved into the shared [HeroCard] shell: icon, name, author, a favourite toggle, a
  * version/size/source-code stats row, and the primary install/update/launch action — the F-Droid

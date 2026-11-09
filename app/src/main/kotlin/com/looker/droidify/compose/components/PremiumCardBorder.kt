@@ -1,7 +1,10 @@
 package com.looker.droidify.compose.components
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -43,4 +46,20 @@ fun premiumCardBorder(shape: Shape, width: Dp = 1.dp): Modifier {
         Brush.linearGradient(colors = listOf(accent, sibling, accent))
     }
     return Modifier.border(width = width, brush = brush, shape = shape)
+}
+
+/** A plain white card in [premiumCardBorder]'s frame, the app page's own card (see [HeroCard]). */
+@Composable
+fun PremiumCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val shape = MaterialTheme.shapes.large
+    // The border on a wrapping Box: a Surface paints its own background over a border it is given.
+    Box(modifier = modifier.fillMaxWidth().then(premiumCardBorder(shape))) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = shape,
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            content = content,
+        )
+    }
 }
