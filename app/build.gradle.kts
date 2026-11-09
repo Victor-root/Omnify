@@ -28,7 +28,9 @@ plugins {
 //
 // The first is one person's own path and means nothing on any other machine, which costs nothing: a
 // folder that isn't there is skipped. With neither present — CI, or an F-Droid/IzzyOnDroid server
-// that signs the APK itself — the release build is simply left unsigned instead of failing.
+// that signs the APK itself — the release build is simply left unsigned instead of failing. So is it
+// with a keystore.properties that names no storeFile: one that only carries the other settings below,
+// on a build machine that sends its APKs to be signed elsewhere.
 val keystorePropertiesFile = listOf(
     File("D:/NextCloud/Victor/Documents/AndroidStudio-KEYS/keystore.properties"),
     rootProject.file("keystore.properties"),
@@ -54,7 +56,7 @@ val releaseKeystore = keystoreProperties
     .getProperty("storeFile")
     ?.trim()
     ?.let { path -> File(path).takeIf { it.isAbsolute } ?: File(keystorePropertiesFile?.parentFile, path) }
-val hasReleaseSigning = keystorePropertiesFile != null
+val hasReleaseSigning = releaseKeystore != null
 
 // The repository the test build updates itself from (see TestRepository), read from the same file so
 // its address never reaches the source. Handed to the "trial" build type only, below.
@@ -67,7 +69,7 @@ if (testRepoAddress.isEmpty() && gradle.startParameter.taskNames.any { it.contai
     )
 }
 
-// A keystore.properties on the machine means "sign with this key", so the build never quietly signs
+// A storeFile in keystore.properties means "sign with this key", so the build never quietly signs
 // with another one: it stops right here instead, and says what it looked for. Every build is
 // affected, the plain Run button included, since debug builds carry this key too.
 //
@@ -157,7 +159,7 @@ android {
         configureEach {
             isMinifyEnabled = true
             isShrinkResources = true
-            // Signed only when keystore.properties is present (see top of file). Without it the
+            // Signed only when keystore.properties names a key (see top of file). Without one the
             // release APK is unsigned (fine for an F-Droid/IzzyOnDroid build that signs on their end)
             // and debug keeps Android Studio's own debug key.
             if (hasReleaseSigning) {
