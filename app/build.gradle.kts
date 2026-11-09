@@ -27,8 +27,8 @@ plugins {
 //   2. keystore.properties at the project root, for anyone else.
 //
 // The first is one person's own path and means nothing on any other machine, which costs nothing: a
-// folder that isn't there is skipped. With neither present — CI, or an F-Droid/IzzyOnDroid server
-// that signs the APK itself — the release build is simply left unsigned instead of failing. So is it
+// folder that isn't there is skipped. With neither present (CI, or an F-Droid/IzzyOnDroid server
+// that signs the APK itself), the release build is simply left unsigned instead of failing. So is it
 // with a keystore.properties that names no storeFile: one that only carries the other settings below,
 // on a build machine that sends its APKs to be signed elsewhere.
 val keystorePropertiesFile = listOf(
