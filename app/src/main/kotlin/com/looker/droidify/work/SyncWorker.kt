@@ -68,9 +68,7 @@ class SyncWorker @AssistedInject constructor(
                 "attempt ${runAttemptCount + 1}",
         )
         // A catch-up can wait a long while for its connection, and another check may have run by then.
-        if (trigger == TRIGGER_CATCH_UP &&
-            !updateCheckHistory.isCheckDue(settingsRepository.getInitial().syncInterval)
-        ) {
+        if (trigger == TRIGGER_CATCH_UP && !updateCheckHistory.isCheckDue(OPENING_CHECK_AGE)) {
             return@withContext Result.success()
         }
         try {
@@ -317,9 +315,9 @@ class SyncWorker @AssistedInject constructor(
         }
 
         /**
-         * Makes up for a scheduled check that never came, which is all a phone that stops Omnify in the
-         * background leaves to go on. Nobody pressed for this one, so it waits for what [autoSync] says
-         * scheduled work should wait for. Kept out of the user's queue: [isSyncScheduled] would show it
+         * The check made when the app is opened, which also makes up for a scheduled one that never came,
+         * all a phone that stops Omnify in the background leaves to go on. Nobody pressed for this one,
+         * so it waits for what [autoSync] says scheduled work should wait for. Kept out of the user's queue: [isSyncScheduled] would show it
          * as a sync under way for as long as it waits.
          */
         fun enqueueCatchUp(context: Context, autoSync: AutoSync) {

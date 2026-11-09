@@ -11,6 +11,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * When Omnify last looked for updates, which tells whether opening the app has a missed check to make up
@@ -88,6 +89,10 @@ class UpdateCheckHistory @Inject constructor(@ApplicationContext context: Contex
         const val KEY_ACTIVITY_WARNING_DISMISSED = "activity_warning_dismissed"
     }
 }
+
+/** How old the last full check may be when the app is opened before opening it checks again: about
+ *  what the screens refresh their external sources at, so the two agree on what "checked" means. */
+val OPENING_CHECK_AGE = 10.minutes
 
 /** Whether a check is owed: one has never finished here, or the last is at least [interval] old. */
 internal fun isCheckDue(lastCheck: Long?, interval: Duration, now: Long): Boolean =

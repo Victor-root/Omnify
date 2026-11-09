@@ -6,7 +6,7 @@
 - **Hide the tab bar** (Explore, Installed, Updates, External) from the ⋮ menu, which then leads to the other tabs.
 - **The welcome page asks to allow background activity**, needed for updates to be checked while Omnify is closed, and on phones whose maker adds its own setting for it, says where to find it.
 - **Choose how often updates are checked**: from every hour to once a day, in Settings. The two shortest say they may use more battery.
-- **A missed check is made up for when you open Omnify**: if the last one is older than that frequency, one starts right away, on the connection you allowed for automatic checks.
+- **Opening Omnify checks for updates**, repositories and external sources alike, when the last check is more than 10 minutes old, on the connection you allowed for automatic checks. This also makes up for a background check the phone held back.
 - **The Updates tab says when automatic checks seem to have stopped**, with what to do about it, and can be dismissed.
 - **The Updates tab says when background activity isn't allowed**, on phones where it can be read, and the welcome page ticks it once it is.
 - **Send an external source to your TV in one tap**: pair your devices once in Settings > Paired devices, then Send to a device in a source's ⋮ menu in the repository list. The TV asks before adding it. Local network only, end-to-end encrypted, no code after the first time.
