@@ -161,7 +161,7 @@ fun TvHomeScreen(
     val updating = remember(updatingPackages, batchUpdate, installingPackages, externalInstallStates) {
         UpdatingApps(updatingPackages, batchUpdate, installingPackages, externalInstallStates)
     }
-    val displayedApps by viewModel.displayedApps.collectAsStateWithLifecycle()
+    val displayedApps = viewModel.displayedApps.collectAsStateWithLifecycle().value.apps
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
     val externallyInstalled by viewModel.externallyInstalledPackages.collectAsStateWithLifecycle()
 

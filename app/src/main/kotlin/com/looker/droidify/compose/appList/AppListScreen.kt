@@ -186,7 +186,8 @@ fun AppListScreen(
     onNavigateToSettings: () -> Unit,
     onFixGithubToken: () -> Unit,
 ) {
-    val apps by viewModel.displayedApps.collectAsStateWithLifecycle()
+    val displayed by viewModel.displayedApps.collectAsStateWithLifecycle()
+    val apps = displayed.apps
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     val syncFraction by viewModel.syncFraction.collectAsStateWithLifecycle()
     val isSyncScheduled by viewModel.isSyncScheduled.collectAsStateWithLifecycle()
@@ -389,7 +390,7 @@ fun AppListScreen(
     }
     // The Updates tab's two halves as its grid shows them: an app whose update is done shrinks away
     // in its place before the others close the gap (see rememberDepartures).
-    val appTiles = rememberDepartures(apps, key = { it.appId }, enabled = selectedTab == AppTab.UPDATES)
+    val appTiles = rememberDepartures(apps, key = { it.appId }, enabled = displayed.tab == AppTab.UPDATES)
     val externalUpdateTiles = rememberDepartures(
         searchedExternalUpdates,
         key = { it.key },

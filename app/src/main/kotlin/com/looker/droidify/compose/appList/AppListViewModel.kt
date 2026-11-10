@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -508,21 +509,25 @@ class AppListViewModel @Inject constructor(
      * Apps shown for the current tab. Search / sort / category / favourites filters are already applied
      * by [appsState]; this only picks the precomputed list for the selected tab, so a tab switch is a
      * cheap selection rather than a fresh filter pass.
+     *
+     * Carries the tab it was picked for: it arrives a moment after [selectedTab] changes, and taken for
+     * the new tab's list in between, the Installed tab's apps were seen leaving the Updates tab.
      */
-    val displayedApps: StateFlow<List<AppMinimal>> = combine(
+    val displayedApps: StateFlow<TabApps> = combine(
         _selectedTab,
         appsState,
         installedApps,
         updatableApps,
     ) { tab, available, installed, updatable ->
-        when (tab) {
+        val apps = when (tab) {
             AppTab.AVAILABLE -> available
             AppTab.INSTALLED -> installed
             AppTab.UPDATES -> updatable
             // The External tab renders its own (non-F-Droid) list, so the catalogue list is empty.
             AppTab.EXTERNAL -> emptyList()
         }
-    }.distinctUntilChanged().flowOn(Dispatchers.Default).asHomeState(emptyList())
+        TabApps(tab, apps)
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asHomeState(TabApps(AppTab.AVAILABLE, emptyList()))
 
     /** Number of apps with an available, installable update, catalogue and external sources together
      *  (shown on the Updates tab), the same count the notification gives. */
@@ -1241,3 +1246,7 @@ private data class InstalledInfo(
 )
 
 enum class AppTab { AVAILABLE, INSTALLED, UPDATES, EXTERNAL }
+
+/** The [apps] a list shows, and the [tab] they were picked for. */
+@Immutable
+data class TabApps(val tab: AppTab, val apps: List<AppMinimal>)
