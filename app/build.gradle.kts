@@ -129,7 +129,7 @@ android {
         // Raising it is a deliberate decision with its own testing, not a side effect.
         targetSdk = 36
         versionName = latestVersionName
-        // Debug's only: every other build numbers itself when it is made (see BuildMinute below).
+        // Only where there is no git history to number debug from (see buildMinute below).
         versionCode = 1008
 
         testInstrumentationRunner = "com.looker.droidify.TestRunner"
@@ -337,17 +337,28 @@ android {
 
 /**
  * The minutes since the start of 2025, read again on every build, configuration cache included. It is
- * the versionCode of every build but debug: Android refuses to install over a build whose versionCode
- * isn't lower, and an update repository only offers a higher one, so each published APK has to carry a
- * new, higher number. Taken from the clock, nobody has to remember to raise it and no file changes.
+ * the versionCode of every build but debug, which is numbered from its commit (see commitMinute):
+ * Android refuses to install over a build whose versionCode isn't lower, and an update repository only
+ * offers a higher one, so each published APK has to carry a new, higher number. Taken from the clock,
+ * nobody has to remember to raise it and no file changes.
  * Already far above the last hand-set number (1008), and within Android's limit for thousands of years.
  */
 abstract class BuildMinute : ValueSource<Int, ValueSourceParameters.None> {
     override fun obtain(): Int = (System.currentTimeMillis() / 60_000 - 28_928_160).toInt()
 }
 
-// Debug keeps its fixed number: a new one on every run would rebuild everything that reads BuildConfig.
 val buildMinute = providers.of(BuildMinute::class.java) {}
+
+// Debug is numbered the same way from its last commit instead: a number changing on every run made each
+// run recompile more (measured: 64 s instead of 50 s for a one-file change), while one that changes with
+// each commit still lets a debug build sent to a repository update the one before it, and a build of the
+// same commit from Android Studio install over it.
+val commitMinute = providers.exec {
+    commandLine("git", "log", "-1", "--format=%ct")
+    isIgnoreExitValue = true
+}.standardOutput.asText.map { output ->
+    output.trim().toLongOrNull()?.let { seconds -> (seconds / 60 - 28_928_160).toInt() } ?: 1008
+}
 
 androidComponents {
     onVariants { variant ->
@@ -356,7 +367,7 @@ androidComponents {
             // plus that build type's own versionNameSuffix, e.g. beta's "-beta.2"), so the file name
             // always matches what the build type actually is without repeating that logic here.
             (output as? VariantOutputImpl)?.outputFileName?.set(output.versionName.map { "Omnify-v$it.apk" })
-            if (variant.buildType != "debug") output.versionCode.set(buildMinute)
+            output.versionCode.set(if (variant.buildType == "debug") commitMinute else buildMinute)
         }
     }
 }
