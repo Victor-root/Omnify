@@ -610,12 +610,21 @@ interface AppDao {
     @Query("SELECT COUNT(*) FROM app")
     suspend fun count(): Int
 
-    /**
-     * Emits on any change to the app or version tables (e.g. after a sync). Used to trigger
-     * reactive re-queries of the catalogue; the numeric value itself is not meaningful.
-     */
+    /** How many apps and versions the catalogue holds, as it changes: zero while it is empty. */
     @Query("SELECT (SELECT COUNT(*) FROM app) + (SELECT COUNT(*) FROM version)")
     fun catalogSizeStream(): Flow<Int>
+
+    /**
+     * A value that changes whenever the catalogue does, to re-query lists from it; it means nothing
+     * itself. The repositories' index timestamps are in it because a sync can change an app without
+     * changing how many apps and versions there are: a new name was left out of every list until the
+     * app was restarted.
+     */
+    @Query(
+        "SELECT (SELECT COUNT(*) FROM app) + (SELECT COUNT(*) FROM version) + " +
+            "(SELECT COALESCE(SUM(timestamp), 0) FROM repository)",
+    )
+    fun catalogChangeStream(): Flow<Long>
 
     @Query("DELETE FROM app WHERE id = :id")
     suspend fun delete(id: Int)

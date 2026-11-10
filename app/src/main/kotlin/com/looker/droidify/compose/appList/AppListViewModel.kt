@@ -262,8 +262,8 @@ class AppListViewModel @Inject constructor(
     // during a sync, see AppRepository.throttledCatalogChanges.
     // Null until the database has answered: a placeholder value would start every list below once for
     // nothing, and a Room query cannot be cancelled, so the real one would wait for that first run.
-    private val catalogChanges: Flow<Int> = appRepository.throttledCatalogChanges
-        .distinctUntilChanged<Int?>()
+    private val catalogChanges: Flow<Long> = appRepository.throttledCatalogChanges
+        .distinctUntilChanged<Long?>()
         .asHomeState(null)
         .filterNotNull()
 
@@ -756,7 +756,7 @@ class AppListViewModel @Inject constructor(
      * spends reading the catalogue: a full catalogue opened with the network off flashed "no
      * connection" before the apps appeared. Nothing is claimed while this is null.
      */
-    val catalogEmpty: StateFlow<Boolean?> = appRepository.catalogChanges
+    val catalogEmpty: StateFlow<Boolean?> = appRepository.catalogSize
         .map { it == 0 }
         .distinctUntilChanged()
         .asHomeState(null)

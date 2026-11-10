@@ -23,6 +23,7 @@
 - **An app's short description moves into its card**, under the author and set off by a bar in the app's colour, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
 
 ### 🐛 Fixed
+- **An app renamed in its repository is renamed everywhere after a sync**: the home's lists (Installed, New apps, Shizuku…) only refreshed when the number of apps or versions changed, so they kept the old name until Omnify was restarted.
 - **Background checks no longer vanish until the next launch**: a check starting while Omnify was closed could cancel itself as the app woke up for it.
 - **Apps not written in English show their real language**: an app's base text was taken for English by convention, so a French or German app could say English, or lose its own language from the list. Omnify now reads what that text says, in the app's resources, its code, or its source for Flutter and web apps, which no longer pass as "confirmed English".
 - **No more false Shizuku or Root badge on external sources**: the check read a README's links as well as its text, so any project with a "Get it on Obtainium" button showed as Shizuku compatible.

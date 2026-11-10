@@ -183,7 +183,11 @@ class AppRepository @Inject constructor(
     }
 
     /** Emits whenever the catalogue (apps/versions) changes, e.g. after a sync. */
-    val catalogChanges: Flow<Int>
+    val catalogChanges: Flow<Long>
+        get() = appDao.catalogChangeStream()
+
+    /** How many apps and versions the catalogue holds: zero while it is empty. */
+    val catalogSize: Flow<Int>
         get() = appDao.catalogSizeStream()
 
     /**
@@ -197,7 +201,7 @@ class AppRepository @Inject constructor(
      * second during a sync: plenty to show progress while keeping the UI responsive.
      */
     @OptIn(FlowPreview::class)
-    val throttledCatalogChanges: Flow<Int>
+    val throttledCatalogChanges: Flow<Long>
         get() = merge(
             catalogChanges.take(1),
             catalogChanges.drop(1).sample(CATALOG_REFRESH_MS),
