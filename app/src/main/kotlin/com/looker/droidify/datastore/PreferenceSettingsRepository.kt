@@ -174,9 +174,6 @@ class PreferenceSettingsRepository(
     override suspend fun setShowFavouritesCarousel(value: Boolean) =
         SHOW_FAVOURITES_CAROUSEL.update(value)
 
-    override suspend fun setShowTabs(value: Boolean) =
-        SHOW_TABS.update(value)
-
     override suspend fun setTvOnly(value: Boolean) =
         TV_ONLY.update(value)
 
@@ -349,7 +346,6 @@ class PreferenceSettingsRepository(
         val hiddenApps = preferences[HIDDEN_APPS] ?: emptySet()
         val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: false
         val showFavouritesCarousel = preferences[SHOW_FAVOURITES_CAROUSEL] ?: true
-        val showTabs = preferences[SHOW_TABS] ?: true
         val tvOnly = preferences[TV_ONLY] ?: defaultTvOnly
         val enabledRepoIds =
             preferences[ENABLED_REPO_IDS]?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
@@ -397,7 +393,6 @@ class PreferenceSettingsRepository(
             hiddenApps = hiddenApps,
             homeScreenSwiping = homeScreenSwiping,
             showFavouritesCarousel = showFavouritesCarousel,
-            showTabs = showTabs,
             tvOnly = tvOnly,
             enabledRepoIds = enabledRepoIds,
             deleteApkOnInstall = deleteApkOnInstall,
@@ -444,7 +439,6 @@ class PreferenceSettingsRepository(
         val HIDDEN_APPS = stringSetPreferencesKey("key_hidden_apps")
         val HOME_SCREEN_SWIPING = booleanPreferencesKey("key_home_swiping")
         val SHOW_FAVOURITES_CAROUSEL = booleanPreferencesKey("key_show_favourites_carousel")
-        val SHOW_TABS = booleanPreferencesKey("key_show_tabs")
         val TV_ONLY = booleanPreferencesKey("key_tv_only")
         val DELETE_APK_ON_INSTALL = booleanPreferencesKey("key_delete_apk_on_install")
         val SHOW_DIAGNOSTICS_BUTTON = booleanPreferencesKey("key_show_diagnostics_button")
@@ -529,7 +523,6 @@ class PreferenceSettingsRepository(
             set(HIDDEN_APPS, settings.hiddenApps)
             set(HOME_SCREEN_SWIPING, settings.homeScreenSwiping)
             set(SHOW_FAVOURITES_CAROUSEL, settings.showFavouritesCarousel)
-            set(SHOW_TABS, settings.showTabs)
             set(TV_ONLY, settings.tvOnly)
             set(ENABLED_REPO_IDS, settings.enabledRepoIds.map { it.toString() }.toSet())
             set(DELETE_APK_ON_INSTALL, settings.deleteApkOnInstall)

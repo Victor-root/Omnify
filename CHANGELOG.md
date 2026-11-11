@@ -3,7 +3,6 @@
 ## 🚀 v1.0.8-beta.9 (Unreleased)
 
 ### ✨ Added
-- **Hide the tab bar** (Explore, Installed, Updates, External) from the ⋮ menu, which then leads to the other tabs.
 - **The welcome page asks to allow background activity**, needed for updates to be checked while Omnify is closed, and on phones whose maker adds its own setting for it, says where to find it.
 - **Choose how often updates are checked**: from every hour to once a day, in Settings. The two shortest say they may use more battery.
 - **Opening Omnify checks for updates**, repositories and external sources alike, unless the last check is under a minute old, on any connection, like the sync button. This also makes up for a background check the phone held back.

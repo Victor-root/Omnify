@@ -238,14 +238,6 @@ class AppListViewModel @Inject constructor(
     val showFavouritesCarousel: StateFlow<Boolean> =
         settingsRepository.get { showFavouritesCarousel }.asHomeState(true)
 
-    /** Whether the home shows its tab bar (persisted, on by default); see [com.looker.droidify.datastore.Settings.showTabs]. */
-    val showTabs: StateFlow<Boolean> = settingsRepository.get { showTabs }.asHomeState(true)
-
-    /** Flips [showTabs]. */
-    fun toggleTabs() {
-        viewModelScope.launch { settingsRepository.setShowTabs(!showTabs.value) }
-    }
-
     /** Whether the header shows the diagnostic log button: always in the test build, as chosen in
      *  the debug build, never in the others. */
     val showDiagnosticsButton: StateFlow<Boolean> = settingsRepository

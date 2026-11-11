@@ -74,8 +74,6 @@ interface SettingsRepository {
 
     suspend fun setShowFavouritesCarousel(value: Boolean)
 
-    suspend fun setShowTabs(value: Boolean)
-
     suspend fun setTvOnly(value: Boolean)
 
     suspend fun toggleFavourites(packageName: String)

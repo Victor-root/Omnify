@@ -275,8 +275,6 @@
     <string name="favourites">Favourites</string>
     <string name="show_favourites">Show favourites</string>
     <string name="hide_favourites">Hide favourites</string>
-    <string name="hide_tabs">Hide tabs</string>
-    <string name="show_tabs">Show tabs</string>
     <string name="date_favourited">Date favourited</string>
     <string name="date_installed">Date installed</string>
     <string name="hide_app">Hide app</string>
