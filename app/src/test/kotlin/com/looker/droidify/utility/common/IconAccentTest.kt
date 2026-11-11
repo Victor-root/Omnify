@@ -45,6 +45,16 @@ class IconAccentTest {
     }
 
     @Test
+    fun `a dull dark plate loses to a vivid logo even when the plate is a little bigger`() {
+        // Sable's real icon: a near-black navy plate on 51% of it, a bright violet animal on 46%.
+        val navy = 0xFF1A1C28.toInt()
+        val violet = 0xFF9886F6.toInt()
+        val accent = iconAccentOf(icon(navy to 51, violet to 46))
+
+        assertEquals(violet, colourOf(accent))
+    }
+
+    @Test
     fun `an icon that really is one colour keeps that colour`() {
         // Signal's icon is overwhelmingly its own blue. Nothing to correct, and correcting it anyway
         // would be the same bug in reverse.

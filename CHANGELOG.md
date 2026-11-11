@@ -24,6 +24,7 @@
 - **An app's short description moves into its card**, under the author and set off by a bar in the app's colour, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
 
 ### 🐛 Fixed
+- **"Match accent to app icon" takes the colour you see**: a dull, near-black plate a little bigger than a bright logo (Sable's navy behind its violet animal) no longer wins; colours now count by how vivid they are as well as by how much of the icon they cover.
 - **An app renamed in its repository is renamed everywhere after a sync**: the home's lists (Installed, New apps, Shizuku…) only refreshed when the number of apps or versions changed, so they kept the old name until Omnify was restarted.
 - **Background checks no longer vanish until the next launch**: a check starting while Omnify was closed could cancel itself as the app woke up for it.
 - **Apps not written in English show their real language**: an app's base text was taken for English by convention, so a French or German app could say English, or lose its own language from the list. Omnify now reads what that text says, in the app's resources, its code, or its source for Flutter and web apps, which no longer pass as "confirmed English".

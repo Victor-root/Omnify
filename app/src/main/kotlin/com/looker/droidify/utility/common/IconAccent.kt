@@ -67,12 +67,16 @@ fun Bitmap.iconAccent(): IconAccent? {
 /**
  * The accent for an icon made of [pixels] (ARGB, row by row).
  *
- * Every colour in the icon is ranked by how much of it there is, and the first one that can actually
- * serve as an accent wins. Taking the most common colour outright, which is what this used to do, is
- * what made these pages white: on a logo sitting on a plate the plate is simply bigger, measured at
- * 58% white against 42% pink on a real ReVanced Manager icon, so the page took the colour of the
- * canvas instead of the colour of the app. Walking past the unusable ones costs nothing and lands on
- * the colour a person would have named.
+ * Every colour in the icon is ranked by how much of it there is, weighed by how vivid it is, and the
+ * first one that can actually serve as an accent wins. Taking the most common colour outright, which is
+ * what this used to do, is what made these pages white: on a logo sitting on a plate the plate is simply
+ * bigger, measured at 58% white against 42% pink on a real ReVanced Manager icon, so the page took the
+ * colour of the canvas instead of the colour of the app. Walking past the unusable ones costs nothing and
+ * lands on the colour a person would have named.
+ *
+ * The weighing is for a plate dark or dull enough to pass as a colour: Sable's is a near-black navy
+ * (#1A1C28) on 51% of its icon, against 46% of a bright violet logo, and the page came out navy. Counted
+ * by how much colour each actually shows, the logo comes out far ahead, as it does to the eye.
  *
  * Transparency is skipped rather than filled in. The previous approach had to flatten it onto
  * something, and whatever it chose (black, white, an average) became a large fake colour competing
@@ -102,7 +106,7 @@ internal fun iconAccentOf(pixels: IntArray): IconAccent? {
     }
     if (opaque == 0) return null
 
-    // Equally common buckets rank in the iteration order of a HashMap keyed by the bucket's channels at
+    // Buckets of equal weight rank in the iteration order of a HashMap keyed by the bucket's channels at
     // bits 16/8/0, the map this used to count into. Filling one with the same keys in the same
     // first-seen order rebuilds that order exactly, so ties still break the way they always have.
     val ranking = HashMap<Int, Int>()
@@ -114,8 +118,12 @@ internal fun iconAccentOf(pixels: IntArray): IconAccent? {
         ranking[key] = bucket
     }
     val accent = ranking.values
-        .sortedByDescending { populations[it] }
-        .map { averageColour(sums, it, populations[it]) }
+        .map { bucket ->
+            val colour = averageColour(sums, bucket, populations[bucket])
+            colour to populations[bucket] * chroma(colour)
+        }
+        .sortedByDescending { (_, weight) -> weight }
+        .map { (colour, _) -> colour }
         .firstOrNull(::isUsableAccent)
     return if (accent != null) IconAccent.Colour(accent) else IconAccent.Monochrome
 }
@@ -126,6 +134,15 @@ private fun averageColour(sums: LongArray, bucket: Int, count: Int): Int {
     val green = (sums[bucket * 3 + 1] / count).toInt()
     val blue = (sums[bucket * 3 + 2] / count).toInt()
     return (0xFF shl 24) or (red shl 16) or (green shl 8) or blue
+}
+
+/** How much colour [argb] shows, from 0 (a grey) to 1 (a pure hue): its brightest channel minus its
+ *  darkest. */
+private fun chroma(argb: Int): Float {
+    val red = argb shr 16 and 0xFF
+    val green = argb shr 8 and 0xFF
+    val blue = argb and 0xFF
+    return (maxOf(red, green, blue) - minOf(red, green, blue)) / 255f
 }
 
 /** Whether [argb] has a real hue and sits far enough from both white and black to be seen on either. */
