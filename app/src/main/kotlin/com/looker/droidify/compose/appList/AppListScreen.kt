@@ -306,17 +306,28 @@ fun AppListScreen(
     // a notification) slides to its page. Two tabs apart or more, it jumps next to it first, so the
     // pages in between, the Explore one with all its carousels above all, are never built on the way.
     val pagerState = rememberPagerState(initialPage = selectedTab.ordinal) { AppTab.entries.size }
+    // Set while the pages move to a tab picked some other way. A page they settle on along the way (the
+    // one next to the target it jumps to) is no choice of the user's: taken for one, it became the
+    // selected tab and stopped the slide one page short.
+    val steering = remember { mutableStateOf(false) }
     LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.collect { viewModel.selectTab(AppTab.entries[it]) }
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            if (!steering.value) viewModel.selectTab(AppTab.entries[page])
+        }
     }
     LaunchedEffect(selectedTab) {
         val target = selectedTab.ordinal
         if (pagerState.currentPage != target) {
-            val from = pagerState.currentPage
-            if (kotlin.math.abs(target - from) > 1) {
-                pagerState.scrollToPage(if (target > from) target - 1 else target + 1)
+            steering.value = true
+            try {
+                val from = pagerState.currentPage
+                if (kotlin.math.abs(target - from) > 1) {
+                    pagerState.scrollToPage(if (target > from) target - 1 else target + 1)
+                }
+                pagerState.animateScrollToPage(target)
+            } finally {
+                steering.value = false
             }
-            pagerState.animateScrollToPage(target)
         }
     }
 
