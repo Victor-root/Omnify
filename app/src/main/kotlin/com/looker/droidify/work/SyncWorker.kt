@@ -316,17 +316,19 @@ class SyncWorker @AssistedInject constructor(
 
         /**
          * The check made when the app is opened, which also makes up for a scheduled one that never came,
-         * all a phone that stops Omnify in the background leaves to go on. Nobody pressed for this one,
-         * so it waits for what [autoSync] says scheduled work should wait for. Kept out of the user's queue: [isSyncScheduled] would show it
-         * as a sync under way for as long as it waits.
+         * all a phone that stops Omnify in the background leaves to go on. On any connection, like a
+         * sync the user presses for: they are in front of the app and expect it to be up to date, and
+         * waiting for Wi-Fi left the repositories unchecked while the header showed the external
+         * sources being refreshed. Kept out of the user's queue: [isSyncScheduled] would show it as a
+         * sync under way for as long as it waits.
          */
-        fun enqueueCatchUp(context: Context, autoSync: AutoSync) {
+        fun enqueueCatchUp(context: Context) {
             WorkManager
                 .getInstance(context)
                 .enqueueUniqueWork(
                     uniqueWorkName = CATCH_UP_WORK_NAME,
                     existingWorkPolicy = ExistingWorkPolicy.KEEP,
-                    request = oneTimeRequest(TRIGGER_CATCH_UP, autoSync.workConstraints()),
+                    request = oneTimeRequest(TRIGGER_CATCH_UP, userSyncConstraints),
                 )
         }
 

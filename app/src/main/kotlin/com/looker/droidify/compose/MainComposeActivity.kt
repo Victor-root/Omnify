@@ -519,7 +519,7 @@ class MainComposeActivity : ComponentActivity() {
             if (FirstRun.isWelcomePending(this@MainComposeActivity)) return@launch
             val settings = settingsRepository.getInitial()
             if (settings.autoSync != AutoSync.NEVER && updateCheckHistory.isCheckDue(OPENING_CHECK_AGE)) {
-                SyncWorker.enqueueCatchUp(this@MainComposeActivity, settings.autoSync)
+                SyncWorker.enqueueCatchUp(this@MainComposeActivity)
             }
         }
     }

@@ -90,9 +90,9 @@ class UpdateCheckHistory @Inject constructor(@ApplicationContext context: Contex
     }
 }
 
-/** How old the last full check may be when the app is opened before opening it checks again: about
- *  what the screens refresh their external sources at, so the two agree on what "checked" means. */
-val OPENING_CHECK_AGE = 10.minutes
+/** How old the last full check may be when the app is opened before opening it checks again: just
+ *  enough that leaving for another app and coming straight back doesn't check all over again. */
+val OPENING_CHECK_AGE = 1.minutes
 
 /** Whether a check is owed: one has never finished here, or the last is at least [interval] old. */
 internal fun isCheckDue(lastCheck: Long?, interval: Duration, now: Long): Boolean =

@@ -6,7 +6,7 @@
 - **Hide the tab bar** (Explore, Installed, Updates, External) from the ⋮ menu, which then leads to the other tabs.
 - **The welcome page asks to allow background activity**, needed for updates to be checked while Omnify is closed, and on phones whose maker adds its own setting for it, says where to find it.
 - **Choose how often updates are checked**: from every hour to once a day, in Settings. The two shortest say they may use more battery.
-- **Opening Omnify checks for updates**, repositories and external sources alike, when the last check is more than 10 minutes old, on the connection you allowed for automatic checks. This also makes up for a background check the phone held back.
+- **Opening Omnify checks for updates**, repositories and external sources alike, unless the last check is under a minute old, on any connection, like the sync button. This also makes up for a background check the phone held back.
 - **The Updates tab says when automatic checks seem to have stopped**, with what to do about it, and can be dismissed.
 - **The Updates tab says when background activity isn't allowed**, on phones where it can be read, and the welcome page ticks it once it is.
 - **Send an external source to your TV in one tap**: pair your devices once in Settings > Paired devices, then Send to a device in a source's ⋮ menu in the repository list. The TV asks before adding it. Local network only, end-to-end encrypted, no code after the first time.
@@ -25,6 +25,7 @@
 - **An app's short description moves into its card**, under the author and set off by a bar in the app's colour, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
 
 ### 🐛 Fixed
+- **An update no longer needs "Check now" to show up after opening Omnify**: the header showed a sync at every opening, but it only covered external sources; the repositories were left alone for 10 minutes after a check, and on mobile data until Wi-Fi came back with "Wi-Fi only" chosen. "Check now" now also checks external sources at once, like the header's sync button.
 - **"Match accent to app icon" takes the colour you see**: a dull, near-black plate a little bigger than a bright logo (Sable's navy behind its violet animal) no longer wins; colours now count by how vivid they are as well as by how much of the icon they cover.
 - **An app renamed in its repository is renamed everywhere after a sync**: the home's lists (Installed, New apps, Shizuku…) only refreshed when the number of apps or versions changed, so they kept the old name until Omnify was restarted.
 - **Background checks no longer vanish until the next launch**: a check starting while Omnify was closed could cancel itself as the app woke up for it.

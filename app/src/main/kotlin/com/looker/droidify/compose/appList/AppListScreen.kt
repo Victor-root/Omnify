@@ -385,6 +385,16 @@ fun AppListScreen(
         externalViewModel.refresh()
         externalViewModel.refreshInstalled()
     }
+    // What the header's sync button and the Updates tab's "Check now" both do: both halves of the
+    // catalogue, since neither says which it means and an external source's update lands in the Updates
+    // tab like a repository's. Forced, so pressing it inside the external refresh's throttle window
+    // still does something: see ExternalAppsViewModel.refresh.
+    val syncEverything = remember(viewModel, externalViewModel) {
+        {
+            viewModel.sync()
+            externalViewModel.refresh(force = true)
+        }
+    }
     // Replace stored repo names with the real installed app names (e.g. "GlassKeep"). Keyed on the
     // count so it runs once apps load and converges (label-only changes don't change the count).
     LaunchedEffect(externalApps.size) {
@@ -662,15 +672,7 @@ fun AppListScreen(
                     )
                 } else {
                     AppListTopBar(
-                        // Both halves of the catalogue, since the toolbar's refresh doesn't say which
-                        // it means and the two are presented as equivalent everywhere else (an
-                        // external source's update lands in the Updates tab like a repository's).
-                        // Forced, so pressing it inside the external refresh's throttle window still
-                        // does something: see ExternalAppsViewModel.refresh.
-                        onSync = {
-                            viewModel.sync()
-                            externalViewModel.refresh(force = true)
-                        },
+                        onSync = syncEverything,
                         contentFocusRequester = contentFocusRequester,
                         overflowExpanded = { overflowExpanded },
                         onOverflowExpandedChange = { overflowExpanded = it },
@@ -1139,7 +1141,7 @@ fun AppListScreen(
                             lastCheck = lastUpdateCheck,
                             checkInterval = updateCheckInterval,
                             isChecking = isSyncing || isRefreshingExternal,
-                            onCheckNow = viewModel::sync,
+                            onCheckNow = syncEverything,
                             onOpenApp = { app ->
                                 when (app) {
                                     is FollowedApp.Catalogue -> openInstalledApp(app.packageName)
