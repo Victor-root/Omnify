@@ -17,7 +17,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
+import kotlin.math.roundToInt
 import com.looker.droidify.compose.theme.LocalAccentBarColor
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 
@@ -33,6 +36,10 @@ import com.looker.droidify.compose.theme.LocalOnAccentBarColor
  * screen whose tabs sit directly below the top app bar. Callers supply their own [Tab][androidx.compose.material3.Tab]
  * children (each still setting its own selected/unselected content colour), only the row's own chrome
  * lives here.
+ *
+ * [position] places the pill between tabs, as a tab index with a fraction (1.5 is halfway from the
+ * second tab to the third), for tabs that are pages it can follow as they are dragged. Read only when
+ * the pill is placed, so a drag moves it without recomposing the row.
  */
 @Suppress("DEPRECATION")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +47,7 @@ import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 fun AccentTabRow(
     selectedTabIndex: Int,
     modifier: Modifier = Modifier,
+    position: (() -> Float)? = null,
     tabs: @Composable () -> Unit,
 ) {
     TabRow(
@@ -47,7 +55,9 @@ fun AccentTabRow(
         selectedTabIndex = selectedTabIndex,
         containerColor = LocalAccentBarColor.current,
         contentColor = LocalOnAccentBarColor.current,
-        indicator = { tabPositions -> AccentTabIndicator(selectedTabIndex, tabPositions) },
+        indicator = { tabPositions ->
+            AccentTabIndicator(position ?: { selectedTabIndex.toFloat() }, tabPositions)
+        },
         divider = {},
         tabs = tabs,
     )
@@ -73,22 +83,31 @@ fun AccentScrollableTabRow(
         containerColor = LocalAccentBarColor.current,
         contentColor = LocalOnAccentBarColor.current,
         edgePadding = edgePadding,
-        indicator = { tabPositions -> AccentTabIndicator(selectedTabIndex, tabPositions) },
+        indicator = { tabPositions -> AccentTabIndicator({ selectedTabIndex.toFloat() }, tabPositions) },
         divider = {},
         tabs = tabs,
     )
 }
 
 @Composable
-private fun AccentTabIndicator(selectedTabIndex: Int, tabPositions: List<TabPosition>) {
-    if (selectedTabIndex < tabPositions.size) {
-        val pos = tabPositions[selectedTabIndex]
+private fun AccentTabIndicator(position: () -> Float, tabPositions: List<TabPosition>) {
+    if (tabPositions.isNotEmpty()) {
         val pillWidth = 28.dp
         Box(
             Modifier
                 .fillMaxWidth()
                 .wrapContentSize(Alignment.BottomStart)
-                .offset(x = pos.left + (pos.width - pillWidth) / 2, y = (-8).dp)
+                .offset {
+                    val at = position().coerceIn(0f, tabPositions.lastIndex.toFloat())
+                    val from = tabPositions[at.toInt()]
+                    val to = tabPositions[minOf(at.toInt() + 1, tabPositions.lastIndex)]
+                    val centre = lerp(
+                        (from.left + from.width / 2).toPx(),
+                        (to.left + to.width / 2).toPx(),
+                        at - at.toInt(),
+                    )
+                    IntOffset((centre - pillWidth.toPx() / 2).roundToInt(), (-8).dp.roundToPx())
+                }
                 .width(pillWidth)
                 .height(5.dp)
                 .clip(RoundedCornerShape(50))

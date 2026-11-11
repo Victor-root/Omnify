@@ -727,6 +727,7 @@ fun AppListScreen(
                         selectedTab = selectedTab,
                         updatesCount = updatesCount,
                         onSelectTab = viewModel::selectTab,
+                        position = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
                         // TV: the tab row is the startup focus target (see tabsFocusRequester), and a
                         // focus group so requesting focus here lands on a tab. "Down" from a tab drops
                         // into the content grid (the tab row won't release focus down on its own). No
@@ -1350,9 +1351,11 @@ private fun AppTabRow(
     selectedTab: AppTab,
     updatesCount: Int,
     onSelectTab: (AppTab) -> Unit,
+    // Where the pages stand, for the pill to follow a drag (see AccentTabRow).
+    position: () -> Float,
     modifier: Modifier = Modifier,
 ) {
-    AccentTabRow(selectedTabIndex = selectedTab.ordinal, modifier = modifier) {
+    AccentTabRow(selectedTabIndex = selectedTab.ordinal, modifier = modifier, position = position) {
         AppTab.entries.forEach { tab ->
             val selected = tab == selectedTab
             Tab(
