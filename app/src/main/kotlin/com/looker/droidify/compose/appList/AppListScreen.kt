@@ -7,6 +7,7 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
@@ -141,6 +142,8 @@ import com.looker.droidify.compose.components.tvTypeOnOk
 import com.looker.droidify.compose.components.Departing
 import com.looker.droidify.compose.components.rememberDepartures
 import com.looker.droidify.compose.components.updateDeparture
+import com.looker.droidify.compose.theme.EmphasizedAccelerate
+import com.looker.droidify.compose.theme.EmphasizedDecelerate
 import com.looker.droidify.compose.trailUpdatesNav
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -174,6 +177,7 @@ import com.looker.droidify.utility.common.isIgnoreBatteryEnabled
 import com.looker.droidify.utility.common.openBackgroundActivitySettings
 import com.looker.droidify.work.BatchUpdateProgress
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -302,13 +306,17 @@ fun AppListScreen(
     }
 
     // The tabs are pages side by side. A swipe moves them with the finger (when page swiping is on), and
-    // the page it settles on becomes the selected tab; picking a tab any other way (its title, the menu,
-    // a notification) slides to its page. Two tabs apart or more, it jumps next to it first, so the
-    // pages in between, the Explore one with all its carousels above all, are never built on the way.
+    // the page it settles on becomes the selected tab. A tab picked any other way (its title, a
+    // notification) fades through instead, as the system apps do: the pages fade out, the picked one
+    // is put in place at once and fades in, while the tab pill glides over to it. A whole screen width
+    // slid in a fraction of a second jumps visibly between frames, where a finger's drag does not.
     val pagerState = rememberPagerState(initialPage = selectedTab.ordinal) { AppTab.entries.size }
-    // Set while the pages move to a tab picked some other way. A page they settle on along the way (the
-    // one next to the target it jumps to) is no choice of the user's: taken for one, it became the
-    // selected tab and stopped the slide one page short.
+    val pagesAlpha = remember { Animatable(1f) }
+    // Where the tab pill stands while the pages fade through, the pager's own position jumping.
+    val pillPosition = remember { Animatable(selectedTab.ordinal.toFloat()) }
+    var pillGliding by remember { mutableStateOf(false) }
+    // Set while the pages go to a tab picked some other way, so that the page they settle on is not
+    // taken for a choice of the user's.
     val steering = remember { mutableStateOf(false) }
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }.collect { page ->
@@ -320,15 +328,23 @@ fun AppListScreen(
         if (pagerState.currentPage != target) {
             steering.value = true
             try {
-                val from = pagerState.currentPage
-                if (kotlin.math.abs(target - from) > 1) {
-                    pagerState.scrollToPage(if (target > from) target - 1 else target + 1)
+                pillPosition.snapTo(pagerState.currentPage + pagerState.currentPageOffsetFraction)
+                pillGliding = true
+                launch {
+                    try {
+                        pillPosition.animateTo(target.toFloat(), tween(TAB_PILL_MS, easing = EmphasizedDecelerate))
+                    } finally {
+                        pillGliding = false
+                    }
                 }
-                pagerState.animateScrollToPage(target)
+                pagesAlpha.animateTo(0f, tween(TAB_FADE_OUT_MS, easing = EmphasizedAccelerate))
+                pagerState.scrollToPage(target)
             } finally {
                 steering.value = false
             }
         }
+        // Also brings the pages back from a fade cut short by a tab picked again before it ended.
+        pagesAlpha.animateTo(1f, tween(TAB_FADE_IN_MS, easing = EmphasizedDecelerate))
     }
 
     // Cold/warm start: the Discover carousels are fed by independent flows that emit in a race, and
@@ -758,7 +774,13 @@ fun AppListScreen(
                             selectedTab = selectedTab,
                             updatesCount = updatesCount,
                             onSelectTab = viewModel::selectTab,
-                            position = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
+                            position = {
+                                if (pillGliding) {
+                                    pillPosition.value
+                                } else {
+                                    pagerState.currentPage + pagerState.currentPageOffsetFraction
+                                }
+                            },
                             // TV: the tab row is the startup focus target (see tabsFocusRequester), and a
                             // focus group so requesting focus here lands on a tab. "Down" from a tab drops
                             // into the content grid (the tab row won't release focus down on its own). No
@@ -827,9 +849,22 @@ fun AppListScreen(
             HorizontalPager(
                 state = pagerState,
                 userScrollEnabled = canSwipeTabs,
+                // Every page is kept once built (see below).
+                beyondViewportPageCount = AppTab.entries.size,
                 key = { AppTab.entries[it] },
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = pagesAlpha.value },
             ) { page ->
+            // Built once it comes within a page of the shown one, then kept: building a page again each
+            // time it came back cost a whole tab's work in one frame, the Explore one with all its
+            // carousels above all.
+            val inReach by remember(page) {
+                derivedStateOf { kotlin.math.abs(pagerState.currentPage - page) <= 1 }
+            }
+            var built by remember(page) { mutableStateOf(false) }
+            LaunchedEffect(inReach) { if (inReach) built = true }
+            if (!inReach && !built) return@HorizontalPager
             val tab = AppTab.entries[page]
             val tabApps = when (tab) {
                 AppTab.AVAILABLE -> availableApps
@@ -2310,3 +2345,9 @@ private fun BackgroundChecksBanner(onOpenSettings: () -> Unit, onDismiss: () -> 
         onDismiss = onDismiss,
     )
 }
+
+/** A tab picked rather than swiped to: how long the pages take to fade out, then in, and how long the
+ *  tab pill takes to glide over. */
+private const val TAB_FADE_OUT_MS = 100
+private const val TAB_FADE_IN_MS = 200
+private const val TAB_PILL_MS = 300

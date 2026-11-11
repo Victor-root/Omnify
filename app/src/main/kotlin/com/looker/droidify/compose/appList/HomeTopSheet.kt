@@ -2,7 +2,6 @@ package com.looker.droidify.compose.appList
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -40,6 +39,8 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.unit.dp
+import com.looker.droidify.compose.theme.EmphasizedAccelerate
+import com.looker.droidify.compose.theme.EmphasizedDecelerate
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -158,8 +159,6 @@ internal fun HomeTopSheet(
     }
 }
 
-private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
-private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
 private val SheetShape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
 private val SHEET_MAX_WIDTH = 640.dp
 private val SHEET_ELEVATION = 8.dp
