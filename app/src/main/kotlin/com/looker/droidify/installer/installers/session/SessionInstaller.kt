@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.looker.droidify.data.model.PackageName
+import com.looker.droidify.installer.SelfUpdate
 import com.looker.droidify.installer.installers.Installer
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.installer.model.InstallState
@@ -44,6 +45,8 @@ class SessionInstaller(private val context: Context) : Installer {
     override suspend fun install(
         installItem: InstallItem,
     ): InstallState = suspendCancellableCoroutine { cont ->
+        // Android's installer stops Omnify to update it and nothing may start it again: see SelfUpdate.
+        if (SelfUpdate.isSelf(context, installItem)) SelfUpdate.expectNotification(context)
         val cacheFile = Cache.getReleaseFile(context, installItem.installFileName)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM && installItem.unarchiveId != null) {
             sessionParams.setUnarchiveId(installItem.unarchiveId)

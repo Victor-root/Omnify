@@ -3,6 +3,7 @@
 ## 🚀 v1.0.8-beta.9 (Unreleased)
 
 ### ✨ Added
+- **Omnify comes back after updating itself**: with Shizuku or root it opens again on its own once the update is in place. With Android's own installer, which doesn't allow that, a notification offers to open it in one tap.
 - **Arrange Explore's carousels**: take away the ones you don't want, move the others up or down, add Omnify's back or make a carousel of any category, from the ⋮ menu or Settings > Explore carousels. Android TV follows the same arrangement.
 - **The welcome page asks to allow background activity**, needed for updates to be checked while Omnify is closed, and on phones whose maker adds its own setting for it, says where to find it.
 - **Choose how often updates are checked**: from every hour to once a day, in Settings. The two shortest say they may use more battery.

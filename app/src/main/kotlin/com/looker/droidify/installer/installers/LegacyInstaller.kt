@@ -10,6 +10,7 @@ import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
+import com.looker.droidify.installer.SelfUpdate
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.SdkCheck
@@ -32,6 +33,8 @@ class LegacyInstaller(
     override suspend fun install(
         installItem: InstallItem,
     ): InstallState {
+        // The system's installer stops Omnify to update it and nothing may start it again: see SelfUpdate.
+        if (SelfUpdate.isSelf(context, installItem)) SelfUpdate.expectNotification(context)
         val installFlag = if (SdkCheck.isNougat) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0
         val fileUri = if (SdkCheck.isNougat) {
             Cache.getReleaseUri(context, installItem.installFileName)

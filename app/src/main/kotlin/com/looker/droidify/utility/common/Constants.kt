@@ -25,5 +25,8 @@ object Constants {
      *  run at once, and the first to end would otherwise take the other's notification with it. */
     const val NOTIFICATION_ID_BATCH_DOWNLOAD = 9
 
+    /** Omnify updated through Android's installer, offering to open it again (see SelfUpdatedReceiver). */
+    const val NOTIFICATION_ID_SELF_UPDATED = 10
+
     const val JOB_ID_SYNC = 1
 }

@@ -221,6 +221,14 @@
             android:exported="false" />
 
         <receiver
+            android:name=".receivers.SelfUpdatedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".receivers.CopyErrorReceiver"
             android:exported="false">
             <intent-filter>

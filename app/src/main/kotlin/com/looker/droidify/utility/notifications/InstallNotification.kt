@@ -152,3 +152,18 @@ fun Context.createInstallConfirmationNotification(
         .setOnlyAlertOnce(true)
         .build()
 }
+
+/**
+ * Says that Omnify has just been updated, the update having stopped it, and opens it again on a tap:
+ * a start the system performs on a notification tap is allowed where one from a stopped app is not.
+ */
+fun Context.createSelfUpdatedNotification(contentIntent: PendingIntent): Notification =
+    NotificationCompat
+        .Builder(this, NOTIFICATION_CHANNEL_INSTALL)
+        .setSmallIcon(R.drawable.ic_check)
+        .setColor(Color.GREEN)
+        .setContentTitle(getString(R.string.self_updated, applicationInfo.loadLabel(packageManager)))
+        .setContentText(getString(R.string.self_updated_DESC))
+        .setContentIntent(contentIntent)
+        .setAutoCancel(true)
+        .build()

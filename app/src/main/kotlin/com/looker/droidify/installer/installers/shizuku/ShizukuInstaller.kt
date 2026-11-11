@@ -8,6 +8,7 @@ import android.widget.Toast
 import com.looker.droidify.R
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.datastore.SettingsRepository
+import com.looker.droidify.installer.SelfUpdate
 import com.looker.droidify.installer.installers.Installer
 import com.looker.droidify.installer.installers.installSourcePackage
 import com.looker.droidify.installer.installers.uninstallPackage
@@ -116,6 +117,8 @@ class ShizukuInstaller(
                 }
                 if (cont.isCompleted) return@suspendCancellableCoroutine
 
+                // Updating itself, Omnify is stopped by the commit: started again once it is through.
+                if (SelfUpdate.isSelf(context, installItem)) SelfUpdate.relaunchCommand(context)?.let(::exec)
                 val commitResult = exec("pm install-commit $sessionId")
                 if (commitResult.resultCode != 0) {
                     cont.cancel()
