@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onPlaced
@@ -79,6 +80,8 @@ internal fun HomeTopSheet(
     var pushed by remember { mutableFloatStateOf(0f) }
     var sheetHeight by remember { mutableIntStateOf(1) }
     val scrimColor = MaterialTheme.colorScheme.scrim
+    // The surface with a touch of the accent, so the sheet isn't a flat white or black.
+    val sheetColor = MaterialTheme.colorScheme.primary.copy(alpha = ACCENT_TINT).compositeOver(MaterialTheme.colorScheme.surface)
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -99,7 +102,7 @@ internal fun HomeTopSheet(
                     clip = true
                     shadowElevation = SHEET_ELEVATION.toPx()
                 }
-                .background(MaterialTheme.colorScheme.surface)
+                .background(sheetColor)
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .draggable(
                     orientation = Orientation.Vertical,
@@ -125,7 +128,7 @@ internal fun HomeTopSheet(
                 modifier = Modifier
                     .padding(top = 8.dp)
                     .size(width = 32.dp, height = 4.dp)
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(2.dp)),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(2.dp)),
             )
         }
     }
@@ -137,5 +140,6 @@ private val SHEET_ELEVATION = 8.dp
 private const val OPEN_MS = 320
 private const val CLOSE_MS = 220
 private const val SCRIM_ALPHA = 0.32f
+private const val ACCENT_TINT = 0.1f
 private const val FLING_VELOCITY = 800f
 private const val CLOSE_BELOW = 0.6f
