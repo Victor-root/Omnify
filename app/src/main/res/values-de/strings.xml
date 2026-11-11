@@ -179,8 +179,6 @@
     <string name="shizuku_installer">Shizuku/Sui-Installation</string>
     <string name="io_error_DESC">Bestimmte Aktionen können nicht ausgeführt werden</string>
     <string name="favourites">Favoriten</string>
-    <string name="show_favourites">Favoriten anzeigen</string>
-    <string name="hide_favourites">Favoriten ausblenden</string>
     <string name="date_favourited">Favorisierungsdatum</string>
     <string name="date_installed">Installationsdatum</string>
     <string name="material_you">Material You</string>

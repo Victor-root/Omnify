@@ -368,8 +368,9 @@
     <string name="material_you_desc">Utiliser les couleurs Material You</string>
     <string name="material_you">Material You</string>
     <string name="favourites">Favoris</string>
-    <string name="show_favourites">Afficher les favoris</string>
-    <string name="hide_favourites">Masquer les favoris</string>
+    <string name="home_menu_favourites_summary">En haut d\'Explorer</string>
+    <string name="home_menu_repositories_summary">Vos dépôts et sources externes</string>
+    <string name="home_menu_settings_summary">Apparence, mises à jour et installation</string>
     <string name="date_favourited">Date d\'ajout en favoris</string>
     <string name="date_installed">Date d\'installation</string>
     <string name="hide_app">Masquer l\'application</string>

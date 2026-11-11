@@ -187,8 +187,6 @@
     <string name="material_you">Material You</string>
     <string name="material_you_desc">Использовать цвета Material You</string>
     <string name="favourites">Избранное</string>
-    <string name="show_favourites">Показать избранное</string>
-    <string name="hide_favourites">Скрыть избранное</string>
     <string name="date_favourited">Дата добавления в избранное</string>
     <string name="date_installed">Дата установки</string>
     <string name="repository_unreachable">Репозиторий недоступен</string>

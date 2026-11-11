@@ -181,8 +181,6 @@
     <string name="updating">正在更新</string>
     <string name="updated">已更新</string>
     <string name="favourites">收藏夹</string>
-    <string name="show_favourites">显示收藏夹</string>
-    <string name="hide_favourites">隐藏收藏夹</string>
     <string name="date_favourited">收藏日期</string>
     <string name="date_installed">安装日期</string>
     <string name="material_you_desc">使用 Material You 配色</string>

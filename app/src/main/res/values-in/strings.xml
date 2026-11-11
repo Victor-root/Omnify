@@ -176,8 +176,6 @@
     <string name="cleanup_title">Interval pembersihan APK</string>
     <string name="downloaded_FORMAT">%s telah diunduh</string>
     <string name="favourites">Favorit</string>
-    <string name="show_favourites">Tampilkan favorit</string>
-    <string name="hide_favourites">Sembunyikan favorit</string>
     <string name="date_favourited">Tanggal difavoritkan</string>
     <string name="date_installed">Tanggal terpasang</string>
     <string name="material_you">Material You</string>

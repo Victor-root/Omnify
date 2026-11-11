@@ -192,8 +192,6 @@
     <string name="updated">Zaktualizowano</string>
     <string name="waiting_to_start_installation">Oczekiwanie na rozpoczęcie instalacji…</string>
     <string name="favourites">Ulubione</string>
-    <string name="show_favourites">Pokaż ulubione</string>
-    <string name="hide_favourites">Ukryj ulubione</string>
     <string name="date_favourited">Data dodania do ulubionych</string>
     <string name="date_installed">Data instalacji</string>
     <string name="force_clean_up">Wymuś oczyszczenie</string>

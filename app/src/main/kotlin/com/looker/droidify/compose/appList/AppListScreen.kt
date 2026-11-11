@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -40,7 +41,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -83,7 +83,6 @@ import androidx.compose.material3.IconButtonDefaults.smallContainerSize
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -113,6 +112,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
@@ -145,7 +145,9 @@ import com.looker.droidify.compose.trailUpdatesNav
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.WebViewWarmUp
+import com.looker.droidify.compose.settings.components.ActionSettingItem
 import com.looker.droidify.compose.settings.components.InfoBanner
+import com.looker.droidify.compose.settings.components.SwitchSettingItem
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.data.model.AppMinimal
@@ -495,6 +497,7 @@ fun AppListScreen(
     // tile currently has focus. Hoisted up from AppListMainTopBar so the key handler (attached to the
     // whole screen, not just the top bar) can reach it.
     var overflowExpanded by remember { mutableStateOf(false) }
+    val sheetAnchor = remember { TopSheetAnchor() }
 
     // First launch: show a full-screen "fetching" state (like F-Droid) instead of an empty grid.
     // [catalogEmpty] answers whether the catalogue holds anything, and is null until the database has
@@ -623,564 +626,471 @@ fun AppListScreen(
         }
     }
 
-    Scaffold(
-        modifier = header.scaffoldModifier.then(
-            if (isTelevision) {
-                // Attached at the screen root (not just the top bar) so it fires no matter which tile
-                // currently has focus — the top bar and the content grid are siblings under Scaffold,
-                // not ancestor/descendant, so a handler placed only on the former would never see a key
-                // event routed to the latter.
-                Modifier.onPreviewKeyEvent { event ->
-                    if (!sectionView && !searchExpanded &&
-                        event.type == KeyEventType.KeyDown && event.key == Key.Menu
-                    ) {
-                        overflowExpanded = true
-                        true
-                    } else {
-                        false
-                    }
-                }
-            } else {
-                Modifier
-            },
-        ),
-        floatingActionButton = { ScrollToTopFab(gridStateOf(selectedTab)) },
-        topBar = {
-            Column(
-                modifier = header.headerModifier,
-            ) {
-                // A carousel "see all" page takes over the whole header: a back arrow + the section
-                // title, with no tabs, so it reads as its own screen.
-                if (sectionView) {
-                    SectionTopBar(
-                        title = sectionTitle(openedSection, categories),
-                        onBack = { viewModel.closeSection() },
-                        contentFocusRequester = contentFocusRequester,
-                        actions = {
-                            // Only the favourites page can be sorted several ways; every other
-                            // section (New apps, Recently updated, …) has one fixed, curated order.
-                            if (openedSection == SECTION_FAVOURITES) {
-                                FavouritesSortMenu(
-                                    sortOrder = favouritesSortOrder,
-                                    onSortOrderChange = viewModel::setFavouritesSortOrder,
-                                )
-                            }
-                        },
-                    )
-                } else {
-                    AppListTopBar(
-                        onSync = syncEverything,
-                        contentFocusRequester = contentFocusRequester,
-                        overflowExpanded = { overflowExpanded },
-                        onOverflowExpandedChange = { overflowExpanded = it },
-                        searchExpanded = searchExpanded,
-                        onToggleSearch = {
-                            searchExpanded = !searchExpanded
-                            if (!searchExpanded) viewModel.searchQuery.clearText()
-                        },
-                        searchState = viewModel.searchQuery,
-                        onNavigateToRepos = onNavigateToRepos,
-                        onNavigateToSettings = onNavigateToSettings,
-                        title = {
-                            // Pull the whole logo+wordmark left, past the top bar's default title inset.
-                            // fillMaxWidth so the second child's weight(1f) below has the bar's true
-                            // available width (up to the action buttons) to divide, on any screen size.
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .offset(x = (-16).dp),
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_launcher_monochrome),
-                                    contentDescription = null,
-                                    tint = LocalOnAccentBarColor.current,
-                                    modifier = Modifier.size(60.dp),
-                                )
-                                // While a sync runs, this same spot hands itself over to a status bar
-                                // instead of a second strip elsewhere competing with the app list for
-                                // space (see TitleOrSyncIndicator). The wordmark isn't needed to orient
-                                // once the app is already open, so it's the one thing in the bar spare
-                                // enough to lend out. weight(1f), not a fixed width, so the bar reaches
-                                // to (almost) the action buttons on any screen size, phone or tablet.
-                                TitleOrSyncIndicator(
-                                    syncing = headerSyncing,
-                                    syncFraction = syncFraction,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                        },
-                        showFavouritesCarousel = showFavouritesCarousel,
-                        onToggleFavouritesCarousel = viewModel::toggleFavouritesCarousel,
-                        // A TV keeps its tab bar: it is where focus starts.
-                        tvOnly = tvOnly,
-                        onToggleTvOnly = viewModel::toggleTvOnly,
-                        showDiagnosticsButton = showDiagnosticsButton,
-                    )
-                    AppTabRow(
-                        selectedTab = selectedTab,
-                        updatesCount = updatesCount,
-                        onSelectTab = viewModel::selectTab,
-                        position = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
-                        // TV: the tab row is the startup focus target (see tabsFocusRequester), and a
-                        // focus group so requesting focus here lands on a tab. "Down" from a tab drops
-                        // into the content grid (the tab row won't release focus down on its own). No
-                        // effect on touch.
-                        modifier = if (isTelevision) {
-                            Modifier
-                                .focusRequester(tabsFocusRequester)
-                                .focusGroup()
-                                .tvDpadDownTo(contentFocusRequester)
+    // The overflow menu's sheet unrolls from under the header bar, over the tabs and the page.
+    Box(sheetAnchor.root) {
+        Scaffold(
+            modifier = header.scaffoldModifier.then(
+                if (isTelevision) {
+                    // Attached at the screen root (not just the top bar) so it fires no matter which tile
+                    // currently has focus — the top bar and the content grid are siblings under Scaffold,
+                    // not ancestor/descendant, so a handler placed only on the former would never see a key
+                    // event routed to the latter.
+                    Modifier.onPreviewKeyEvent { event ->
+                        if (!sectionView && !searchExpanded &&
+                            event.type == KeyEventType.KeyDown && event.key == Key.Menu
+                        ) {
+                            overflowExpanded = true
+                            true
                         } else {
-                            Modifier
-                        },
-                    )
-                    // Banners are glued directly under the tabs (not inside the grid below, whose own
-                    // content padding leaves a small gap meant for tile breathing room, wrong for a
-                    // banner that should read as part of the header).
-                    //
-                    // Offline with a catalogue already on the device: the lists work, so there is no
-                    // empty page to explain (CatalogOfflineState covers that), but nothing else would
-                    // say why syncing or installing is about to get nowhere. Every tab, since none of
-                    // them can fetch anything.
-                    if (isOffline && !catalogOffline) {
-                        InfoBanner(
-                            title = stringResource(R.string.no_connection_title),
-                            description = stringResource(R.string.no_connection_DESC),
-                        )
-                    }
-                    // One at a time: not being allowed in the background already explains the checks
-                    // having stopped, and says what to do about it.
-                    if (selectedTab == AppTab.UPDATES) {
-                        when {
-                            backgroundActivityMissing -> BackgroundActivityBanner(
-                                onDismiss = viewModel::dismissBackgroundActivityWarning,
-                            )
-                            backgroundChecksStalled -> BackgroundChecksBanner(
-                                onOpenSettings = onNavigateToSettings,
-                                onDismiss = viewModel::dismissBackgroundChecksWarning,
-                            )
+                            false
                         }
                     }
-                    // A token GitHub is actively rejecting silently stops every GitHub-backed source
-                    // from refreshing (see ExternalAppsViewModel.refresh), with nothing else on this tab
-                    // otherwise showing anything is wrong. Priority over the no-token hint below: a
-                    // rejected token is the more actionable problem, and the two states can't both be
-                    // true anyway (rejection requires a token to be set).
-                    if (selectedTab == AppTab.EXTERNAL) {
-                        when {
-                            githubTokenInvalid -> WarningBanner(
-                                title = stringResource(R.string.external_token_invalid_title),
-                                description = stringResource(R.string.external_token_invalid_DESC),
-                                onClick = onFixGithubToken,
-                            )
-                            // No token configured: a routine heads-up, not a problem. Explains why a
-                            // source might silently be missing its latest release (the anonymous
-                            // 60-requests/hour limit), which otherwise looks identical to the source
-                            // genuinely having nothing new.
-                            !hasGithubToken -> InfoBanner(
-                                title = stringResource(R.string.external_no_token_title),
-                                description = githubRateLimitRemaining?.let { remaining ->
-                                    stringResource(R.string.external_no_token_description_remaining, remaining)
-                                } ?: stringResource(R.string.external_no_token_description),
-                                onClick = onFixGithubToken,
-                            )
-                        }
-                    }
-                }
-            }
-        },
-    ) { contentPadding ->
-        FloatingAppCardsBackground(Modifier.padding(contentPadding.forFloatingBackground()))
-        // On TV, inset the grid content from the screen edges (overscan safe area) and so the focused
-        // tile's scaled-up highlight near an edge isn't clipped. Touch keeps the Scaffold padding as is.
-        val gridContentPadding = if (isTelevision) {
-            val direction = LocalLayoutDirection.current
-            PaddingValues(
-                start = contentPadding.calculateStartPadding(direction) + TvOverscan,
-                // Extra top gap so a focused first row's highlight doesn't tuck under the pinned header.
-                top = contentPadding.calculateTopPadding() + TvOverscan,
-                end = contentPadding.calculateEndPadding(direction) + TvOverscan,
-                bottom = contentPadding.calculateBottomPadding() + TvOverscan,
-            )
-        } else {
-            // Touch: the grid otherwise starts flush against the pinned header, tiles look cramped
-            // against it. A small extra top gap gives the first row some breathing room.
-            val direction = LocalLayoutDirection.current
-            PaddingValues(
-                start = contentPadding.calculateStartPadding(direction),
-                top = contentPadding.calculateTopPadding() + 8.dp,
-                end = contentPadding.calculateEndPadding(direction),
-                bottom = contentPadding.calculateBottomPadding(),
-            )
-        }
-        // "Page swiping" (user setting): the pages follow a horizontal drag. Only on touch, and only on
-        // the plain tab lists (not while searching or on a carousel "see all" page, where a horizontal
-        // drag means something else). A Discover carousel scrolls itself first and hands the drag over
-        // at its end, so the two never fight.
-        val canSwipeTabs = homeScreenSwiping && !isTelevision &&
-            !isSearching && !sectionView && !searchExpanded
-        HorizontalPager(
-            state = pagerState,
-            userScrollEnabled = canSwipeTabs,
-            key = { AppTab.entries[it] },
-            modifier = Modifier.fillMaxSize(),
-        ) { page ->
-        val tab = AppTab.entries[page]
-        val tabApps = when (tab) {
-            AppTab.AVAILABLE -> availableApps
-            AppTab.INSTALLED -> installedCatalogueApps
-            AppTab.UPDATES -> updatableCatalogueApps
-            AppTab.EXTERNAL -> emptyList()
-        }
-        // The catalogue is known to have nothing to show on a tab that comes from it. The External tab
-        // has content of its own and is never part of this.
-        val pageCatalogEmpty = catalogEmpty == true && tab != AppTab.EXTERNAL
-        when {
-            pageCatalogEmpty && noRepositoryEnabled ->
-                NoSourcesState(onOpenRepositories = onNavigateToRepos, modifier = Modifier.padding(contentPadding))
-            isOffline && pageCatalogEmpty -> CatalogOfflineState(modifier = Modifier.padding(contentPadding))
-            if (isTelevision) !catalogReady && tab != AppTab.EXTERNAL else (isSyncing || isSyncScheduled) && pageCatalogEmpty ->
-                RepoFetchingState(modifier = Modifier.padding(contentPadding))
-            else ->
-        LazyVerticalGrid(
-            // A tile grid (icon + name), the same density as the Discover carousels, shared by every
-            // tab so the apps look identical everywhere. Bigger cells on TV (larger icons, fewer columns)
-            // to use the screen and stay legible from the couch.
-            columns = GridCells.Adaptive(minSize = if (isTelevision) 150.dp else 100.dp),
-            state = gridStateOf(tab),
-            contentPadding = gridContentPadding,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            // Focus target for the header's D-pad "down": as a focus group, requesting focus here
-            // lands on the first focusable tile, so TV users can move from the tabs into the apps.
-            modifier = Modifier
-                // Fill the whole content area so the swipe gesture below covers the full screen even on
-                // an empty tab. A lazy grid otherwise only takes its content's height, so on an empty
-                // tab (e.g. "Updates" with nothing to update) the swipeable area shrank to the little
-                // centred message and the rest of the screen no longer responded to the page swipe.
-                .fillMaxSize()
-                .then(if (page == pagerState.currentPage) Modifier.focusRequester(contentFocusRequester) else Modifier)
-                .focusGroup(),
-        ) {
-            // Installed package names, used to badge every tile that's already installed.
-            val installedPackages = installedVersionNames.keys
-            if (tab == AppTab.EXTERNAL) {
-                if (gridExternalApps.isEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "external-empty") {
-                        ExternalTabEmpty()
-                    }
-                } else if (searchedExternalApps.isEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "no-search-results") {
-                        NoSearchResults(query = activeSearch)
-                    }
-                }
-                // Install happens on the detail screen; the grid mirrors the catalogue tabs exactly.
-                items(items = searchedExternalApps, key = { it.key }, contentType = { "ext-tile" }) { app ->
-                    ExternalAppTile(
-                        app = app,
-                        isInstalled = app.key in externalInstalledKeys,
-                        onClick = { openExternalApp(app.key) },
-                        modifier = Modifier.restoreFocusTarget(
-                            isTelevision && restoreFocusId == "ext:${app.key}",
-                            restoreRequester,
-                        ),
-                    )
-                }
-                return@LazyVerticalGrid
-            }
-            // Discover home (Explore tab, not searching, not on a "see all" page): the 3 curated
-            // carousels then the categories accordion. A carousel arrow opens that section as its own
-            // page; a category chevron expands its apps inline. When searching or on a section page,
-            // this is skipped and the apps render as a flat list below.
-            if (tab == AppTab.AVAILABLE && !isSearching && !sectionView) {
-                // Breathing room below the header: the first carousel's round "see all" button
-                // otherwise sits glued to the tabs.
-                item(span = { GridItemSpan(maxLineSpan) }, key = "discover-top-gap") {
-                    Spacer(Modifier.height(12.dp))
-                }
-                // Favourites lead the Discover home when there are any: a carousel the user built on
-                // purpose (the heart on any app's own page), not one Omnify curates, so it comes before
-                // every curated row. Hidden with nothing favourited yet; appears the moment a first
-                // favourite exists, and from then on follows the user's own show/hide choice in the
-                // overflow menu (see AppListViewModel.showFavouritesCarousel).
-                if (showFavouritesCarousel && (favouriteApps.isNotEmpty() || favouriteExternalApps.isNotEmpty())) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-favourites", contentType = "carousel") {
-                        DiscoverCarousel(
-                            title = stringResource(R.string.favourites),
-                            installedPackages = installedPackages,
-                            onAppClick = openApp,
-                            onSeeAll = { viewModel.openSection(SECTION_FAVOURITES) },
-                            modifier = Modifier.padding(bottom = 8.dp),
-                            externalInstalledKeys = externalInstalledKeys,
-                            onExternalAppClick = openExternalApp,
-                            restoreFocusId = restoreFocusId,
-                            restoreRequester = restoreRequester,
-                            // Catalogue and external favourites interleaved in the user's own sort
-                            // order (see DiscoverCarousel's unifiedOrder), not the default two-block
-                            // layout every other carousel uses: favourites make no distinction between
-                            // the two app kinds anywhere else in the app, so the carousel shouldn't
-                            // either.
-                            unifiedOrder = sortedFavourites,
-                        )
-                    }
-                }
-                // TV only: lead with apps actually built for the television (leanback launcher), both
-                // from the F-Droid catalogue and from tracked external sources. Hidden on touch and when
-                // none are present.
-                if (isTelevision && (tvApps.isNotEmpty() || tvExternalApps.isNotEmpty())) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-tv", contentType = "carousel") {
-                        DiscoverCarousel(
-                            title = stringResource(R.string.discover_tv_apps),
-                            apps = tvApps,
-                            installedPackages = installedPackages,
-                            onAppClick = openApp,
-                            onSeeAll = { viewModel.openSection(SECTION_TV) },
-                            modifier = Modifier.padding(bottom = 8.dp),
-                            externalApps = tvExternalApps,
-                            externalInstalledKeys = externalInstalledKeys,
-                            onExternalAppClick = openExternalApp,
-                            restoreFocusId = restoreFocusId,
-                            restoreRequester = restoreRequester,
-                        )
-                    }
-                }
-                if (newApps.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-new", contentType = "carousel") {
-                        DiscoverCarousel(
-                            title = stringResource(R.string.discover_new_apps),
-                            apps = newApps,
-                            installedPackages = installedPackages,
-                            onAppClick = openApp,
-                            onSeeAll = { viewModel.openSection(SECTION_WHATS_NEW) },
-                            modifier = Modifier.padding(bottom = 8.dp),
-                            restoreFocusId = restoreFocusId,
-                            restoreRequester = restoreRequester,
-                        )
-                    }
-                }
-                if (recentlyUpdatedApps.isNotEmpty() || recentlyUpdatedExternalApps.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-updated", contentType = "carousel") {
-                        DiscoverCarousel(
-                            title = stringResource(R.string.discover_recently_updated),
-                            apps = recentlyUpdatedApps,
-                            installedPackages = installedPackages,
-                            onAppClick = openApp,
-                            onSeeAll = { viewModel.openSection(SECTION_RECENTLY_UPDATED) },
-                            modifier = Modifier.padding(bottom = 8.dp),
-                            // External sources' recently-released apps join the row after the catalogue
-                            // ones — Omnify makes no distinction between catalogue and external apps.
-                            externalApps = recentlyUpdatedExternalApps,
-                            externalInstalledKeys = externalInstalledKeys,
-                            onExternalAppClick = openExternalApp,
-                            restoreFocusId = restoreFocusId,
-                            restoreRequester = restoreRequester,
-                        )
-                    }
-                }
-                // "Most downloaded" — F-Droid v2's third curated carousel. Hidden until the download-
-                // stats worker has fetched data, so it simply appears once stats land.
-                if (mostDownloadedApps.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-downloaded", contentType = "carousel") {
-                        DiscoverCarousel(
-                            title = stringResource(R.string.discover_most_downloaded),
-                            apps = mostDownloadedApps,
-                            installedPackages = installedPackages,
-                            onAppClick = openApp,
-                            onSeeAll = { viewModel.openSection(SECTION_MOST_DOWNLOADED) },
-                            modifier = Modifier.padding(bottom = 8.dp),
-                            restoreFocusId = restoreFocusId,
-                            restoreRequester = restoreRequester,
-                        )
-                    }
-                }
-                // "Shizuku" carousel — apps that integrate with Shizuku (detected from the Shizuku
-                // permission in their manifest). Hidden when the catalogue has none.
-                if (shizukuApps.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-shizuku", contentType = "carousel") {
-                        DiscoverCarousel(
-                            title = stringResource(R.string.discover_shizuku),
-                            apps = shizukuApps,
-                            installedPackages = installedPackages,
-                            onAppClick = openApp,
-                            onSeeAll = { viewModel.openSection(SECTION_SHIZUKU) },
-                            modifier = Modifier.padding(bottom = 8.dp),
-                            restoreFocusId = restoreFocusId,
-                            restoreRequester = restoreRequester,
-                        )
-                    }
-                }
-                // "For rooted devices" carousel — apps that declare the superuser permission, i.e. apps
-                // that need root. Hidden when the catalogue has none.
-                if (rootApps.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-root", contentType = "carousel") {
-                        DiscoverCarousel(
-                            title = stringResource(R.string.discover_root),
-                            apps = rootApps,
-                            installedPackages = installedPackages,
-                            onAppClick = openApp,
-                            onSeeAll = { viewModel.openSection(SECTION_ROOT) },
-                            modifier = Modifier.padding(bottom = 8.dp),
-                            restoreFocusId = restoreFocusId,
-                            restoreRequester = restoreRequester,
-                        )
-                    }
-                }
-                // The categories accordion. The chevron expands a category's apps inline; tapping
-                // again collapses it. "Recommended by Victor-root" leads the list as a hand-picked
-                // pseudo-category, expanding and collapsing exactly the same way as a real one.
-                if (categories.isNotEmpty() || recommendedByVictorApps.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "categories-title", contentType = "categories-title") {
-                        CategoriesTitle()
-                    }
-                    if (recommendedByVictorApps.isNotEmpty()) {
-                        item(
-                            span = { GridItemSpan(maxLineSpan) },
-                            key = "category-recommended-victor",
-                            contentType = "category",
-                        ) {
-                            CategoryRow(
-                                name = stringResource(R.string.discover_recommended_victor),
-                                defaultName = RECOMMENDED_VICTOR_KEY,
-                                expanded = RECOMMENDED_VICTOR_KEY in expandedSections,
-                                onClick = { viewModel.toggleSection(RECOMMENDED_VICTOR_KEY) },
-                            )
-                        }
-                        recommendedVictorAppItems(
-                            expandedSections = expandedSections,
-                            apps = recommendedByVictorApps,
-                            installedPackages = installedPackages,
-                            externalInstalledKeys = externalInstalledKeys,
-                            onAppClick = openApp,
-                            onExternalAppClick = openExternalApp,
-                            restoreFocusId = restoreFocusId.takeIf { isTelevision },
-                            restoreRequester = restoreRequester,
-                        )
-                    }
-                    categories.forEach { category ->
-                        item(
-                            span = { GridItemSpan(maxLineSpan) },
-                            key = "category-${category.defaultName}",
-                            contentType = "category",
-                        ) {
-                            CategoryRow(
-                                name = category.name,
-                                defaultName = category.defaultName,
-                                expanded = category.defaultName in expandedSections,
-                                ownRepo = category.ownRepo,
-                                onClick = { viewModel.toggleSection(category.defaultName) },
-                            )
-                        }
-                        expandedAppItems(
-                            category.defaultName,
-                            expandedSections,
-                            expandedSectionApps,
-                            installedPackages,
-                            openApp,
-                            { viewModel.openSection(category.defaultName) },
-                            restoreFocusId.takeIf { isTelevision },
-                            restoreRequester,
-                        )
-                    }
-                }
-            }
-            // Both halves of the Updates tab (updatableApps, externalUpdates) are empty until the one
-            // answer behind them has been worked out, see AppListViewModel.updates. While it has not, a
-            // spinner shows instead of "Everything is up to date", which would claim there is nothing
-            // when updates are only still being found.
-            val updatesStillLoading = tab == AppTab.UPDATES && !updatesLoaded
-            if (updatesStillLoading) {
-                item(span = { GridItemSpan(maxLineSpan) }, key = "updates-loading") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 48.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularWavyProgressIndicator()
-                    }
-                }
-            }
-            val showEmpty = when (tab) {
-                AppTab.AVAILABLE ->
-                    isSearching && !sectionView && activeSearch.isNotEmpty() &&
-                        tabApps.isEmpty() && searchedExternalApps.isEmpty()
-                AppTab.INSTALLED -> tabApps.isEmpty() && searchedInstalledExternal.isEmpty()
-                // The tiles rather than the lists: the last updated app shrinks away before anything
-                // takes its place.
-                AppTab.UPDATES -> !updatesStillLoading && !hasUpdateTiles
-                AppTab.EXTERNAL -> false
-            }
-            if (showEmpty) {
-                item(span = { GridItemSpan(maxLineSpan) }, key = "empty-tab") {
-                    // A search that emptied the list says so, rather than the tab's own empty message
-                    // ("Everything is up to date") claiming something the search only hid.
-                    if (activeSearch.isNotEmpty()) {
-                        NoSearchResults(query = activeSearch)
-                    } else if (tab == AppTab.UPDATES) {
-                        LaunchedEffect(Unit) { updatesListed = false }
-                        UpToDateState(
-                            animateIn = updatesListed,
-                            maxHeight = with(LocalDensity.current) {
-                                gridContentHeight.takeIf { it > 0 }?.toDp()
-                            },
-                            followedApps = followedApps,
-                            lastCheck = lastUpdateCheck,
-                            checkInterval = updateCheckInterval,
-                            isChecking = isSyncing || isRefreshingExternal,
-                            onCheckNow = syncEverything,
-                            onOpenApp = { app ->
-                                when (app) {
-                                    is FollowedApp.Catalogue -> openInstalledApp(app.packageName)
-                                    is FollowedApp.External -> openExternalApp(app.app.key)
+                } else {
+                    Modifier
+                },
+            ),
+            floatingActionButton = { ScrollToTopFab(gridStateOf(selectedTab)) },
+            topBar = {
+                Column(
+                    modifier = header.headerModifier,
+                ) {
+                    // A carousel "see all" page takes over the whole header: a back arrow + the section
+                    // title, with no tabs, so it reads as its own screen.
+                    if (sectionView) {
+                        SectionTopBar(
+                            title = sectionTitle(openedSection, categories),
+                            onBack = { viewModel.closeSection() },
+                            contentFocusRequester = contentFocusRequester,
+                            actions = {
+                                // Only the favourites page can be sorted several ways; every other
+                                // section (New apps, Recently updated, …) has one fixed, curated order.
+                                if (openedSection == SECTION_FAVOURITES) {
+                                    FavouritesSortMenu(
+                                        sortOrder = favouritesSortOrder,
+                                        onSortOrderChange = viewModel::setFavouritesSortOrder,
+                                    )
                                 }
                             },
                         )
                     } else {
-                        EmptyTabMessage(tab = tab)
+                        AppListTopBar(
+                            onSync = syncEverything,
+                            contentFocusRequester = contentFocusRequester,
+                            overflowExpanded = { overflowExpanded },
+                            onOverflowExpandedChange = { overflowExpanded = it },
+                            searchExpanded = searchExpanded,
+                            onToggleSearch = {
+                                searchExpanded = !searchExpanded
+                                if (!searchExpanded) viewModel.searchQuery.clearText()
+                            },
+                            searchState = viewModel.searchQuery,
+                            modifier = sheetAnchor.bar,
+                            title = {
+                                // Pull the whole logo+wordmark left, past the top bar's default title inset.
+                                // fillMaxWidth so the second child's weight(1f) below has the bar's true
+                                // available width (up to the action buttons) to divide, on any screen size.
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .offset(x = (-16).dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_launcher_monochrome),
+                                        contentDescription = null,
+                                        tint = LocalOnAccentBarColor.current,
+                                        modifier = Modifier.size(60.dp),
+                                    )
+                                    // While a sync runs, this same spot hands itself over to a status bar
+                                    // instead of a second strip elsewhere competing with the app list for
+                                    // space (see TitleOrSyncIndicator). The wordmark isn't needed to orient
+                                    // once the app is already open, so it's the one thing in the bar spare
+                                    // enough to lend out. weight(1f), not a fixed width, so the bar reaches
+                                    // to (almost) the action buttons on any screen size, phone or tablet.
+                                    TitleOrSyncIndicator(
+                                        syncing = headerSyncing,
+                                        syncFraction = syncFraction,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            },
+                            tvOnly = tvOnly,
+                            onToggleTvOnly = viewModel::toggleTvOnly,
+                            showDiagnosticsButton = showDiagnosticsButton,
+                        )
+                        AppTabRow(
+                            selectedTab = selectedTab,
+                            updatesCount = updatesCount,
+                            onSelectTab = viewModel::selectTab,
+                            position = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
+                            // TV: the tab row is the startup focus target (see tabsFocusRequester), and a
+                            // focus group so requesting focus here lands on a tab. "Down" from a tab drops
+                            // into the content grid (the tab row won't release focus down on its own). No
+                            // effect on touch.
+                            modifier = if (isTelevision) {
+                                Modifier
+                                    .focusRequester(tabsFocusRequester)
+                                    .focusGroup()
+                                    .tvDpadDownTo(contentFocusRequester)
+                            } else {
+                                Modifier
+                            },
+                        )
+                        // Banners are glued directly under the tabs (not inside the grid below, whose own
+                        // content padding leaves a small gap meant for tile breathing room, wrong for a
+                        // banner that should read as part of the header).
+                        //
+                        // Offline with a catalogue already on the device: the lists work, so there is no
+                        // empty page to explain (CatalogOfflineState covers that), but nothing else would
+                        // say why syncing or installing is about to get nowhere. Every tab, since none of
+                        // them can fetch anything.
+                        if (isOffline && !catalogOffline) {
+                            InfoBanner(
+                                title = stringResource(R.string.no_connection_title),
+                                description = stringResource(R.string.no_connection_DESC),
+                            )
+                        }
+                        // One at a time: not being allowed in the background already explains the checks
+                        // having stopped, and says what to do about it.
+                        if (selectedTab == AppTab.UPDATES) {
+                            when {
+                                backgroundActivityMissing -> BackgroundActivityBanner(
+                                    onDismiss = viewModel::dismissBackgroundActivityWarning,
+                                )
+                                backgroundChecksStalled -> BackgroundChecksBanner(
+                                    onOpenSettings = onNavigateToSettings,
+                                    onDismiss = viewModel::dismissBackgroundChecksWarning,
+                                )
+                            }
+                        }
+                        // A token GitHub is actively rejecting silently stops every GitHub-backed source
+                        // from refreshing (see ExternalAppsViewModel.refresh), with nothing else on this tab
+                        // otherwise showing anything is wrong. Priority over the no-token hint below: a
+                        // rejected token is the more actionable problem, and the two states can't both be
+                        // true anyway (rejection requires a token to be set).
+                        if (selectedTab == AppTab.EXTERNAL) {
+                            when {
+                                githubTokenInvalid -> WarningBanner(
+                                    title = stringResource(R.string.external_token_invalid_title),
+                                    description = stringResource(R.string.external_token_invalid_DESC),
+                                    onClick = onFixGithubToken,
+                                )
+                                // No token configured: a routine heads-up, not a problem. Explains why a
+                                // source might silently be missing its latest release (the anonymous
+                                // 60-requests/hour limit), which otherwise looks identical to the source
+                                // genuinely having nothing new.
+                                !hasGithubToken -> InfoBanner(
+                                    title = stringResource(R.string.external_no_token_title),
+                                    description = githubRateLimitRemaining?.let { remaining ->
+                                        stringResource(R.string.external_no_token_description_remaining, remaining)
+                                    } ?: stringResource(R.string.external_no_token_description),
+                                    onClick = onFixGithubToken,
+                                )
+                            }
+                        }
                     }
                 }
+            },
+        ) { contentPadding ->
+            FloatingAppCardsBackground(Modifier.padding(contentPadding.forFloatingBackground()))
+            // On TV, inset the grid content from the screen edges (overscan safe area) and so the focused
+            // tile's scaled-up highlight near an edge isn't clipped. Touch keeps the Scaffold padding as is.
+            val gridContentPadding = if (isTelevision) {
+                val direction = LocalLayoutDirection.current
+                PaddingValues(
+                    start = contentPadding.calculateStartPadding(direction) + TvOverscan,
+                    // Extra top gap so a focused first row's highlight doesn't tuck under the pinned header.
+                    top = contentPadding.calculateTopPadding() + TvOverscan,
+                    end = contentPadding.calculateEndPadding(direction) + TvOverscan,
+                    bottom = contentPadding.calculateBottomPadding() + TvOverscan,
+                )
+            } else {
+                // Touch: the grid otherwise starts flush against the pinned header, tiles look cramped
+                // against it. A small extra top gap gives the first row some breathing room.
+                val direction = LocalLayoutDirection.current
+                PaddingValues(
+                    start = contentPadding.calculateStartPadding(direction),
+                    top = contentPadding.calculateTopPadding() + 8.dp,
+                    end = contentPadding.calculateEndPadding(direction),
+                    bottom = contentPadding.calculateBottomPadding(),
+                )
             }
-            // "Update all" on the Updates tab: one tap to download and install everything listed
-            // below it, instead of opening each app. Both halves of the list, catalogue and external
-            // sources, so the count on the button is the count on the tab and the button does what it
-            // says. It counted and updated only the catalogue half before, which showed up as a
-            // "(3)" sitting above four apps.
-            if (tab == AppTab.UPDATES && (tabApps.isNotEmpty() || searchedExternalUpdates.isNotEmpty())) {
-                item(span = { GridItemSpan(maxLineSpan) }, key = "update-all") {
-                    // Fades out with the last update rather than vanishing ahead of its tile.
-                    Box(Modifier.animateItem(fadeInSpec = null, placementSpec = null, fadeOutSpec = tween(250))) {
-                        UpdateAllButton(
-                            count = tabApps.size + searchedExternalUpdates.size,
-                            isUpdating = isUpdatingAll,
-                            batch = batchUpdate,
-                            onClick = { viewModel.updateAll(searchedExternalUpdates.map { it.key }) },
-                            onCancel = viewModel::cancelUpdateAll,
+            // "Page swiping" (user setting): the pages follow a horizontal drag. Only on touch, and only on
+            // the plain tab lists (not while searching or on a carousel "see all" page, where a horizontal
+            // drag means something else). A Discover carousel scrolls itself first and hands the drag over
+            // at its end, so the two never fight.
+            val canSwipeTabs = homeScreenSwiping && !isTelevision &&
+                !isSearching && !sectionView && !searchExpanded
+            HorizontalPager(
+                state = pagerState,
+                userScrollEnabled = canSwipeTabs,
+                key = { AppTab.entries[it] },
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+            val tab = AppTab.entries[page]
+            val tabApps = when (tab) {
+                AppTab.AVAILABLE -> availableApps
+                AppTab.INSTALLED -> installedCatalogueApps
+                AppTab.UPDATES -> updatableCatalogueApps
+                AppTab.EXTERNAL -> emptyList()
+            }
+            // The catalogue is known to have nothing to show on a tab that comes from it. The External tab
+            // has content of its own and is never part of this.
+            val pageCatalogEmpty = catalogEmpty == true && tab != AppTab.EXTERNAL
+            when {
+                pageCatalogEmpty && noRepositoryEnabled ->
+                    NoSourcesState(onOpenRepositories = onNavigateToRepos, modifier = Modifier.padding(contentPadding))
+                isOffline && pageCatalogEmpty -> CatalogOfflineState(modifier = Modifier.padding(contentPadding))
+                if (isTelevision) !catalogReady && tab != AppTab.EXTERNAL else (isSyncing || isSyncScheduled) && pageCatalogEmpty ->
+                    RepoFetchingState(modifier = Modifier.padding(contentPadding))
+                else ->
+            LazyVerticalGrid(
+                // A tile grid (icon + name), the same density as the Discover carousels, shared by every
+                // tab so the apps look identical everywhere. Bigger cells on TV (larger icons, fewer columns)
+                // to use the screen and stay legible from the couch.
+                columns = GridCells.Adaptive(minSize = if (isTelevision) 150.dp else 100.dp),
+                state = gridStateOf(tab),
+                contentPadding = gridContentPadding,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                // Focus target for the header's D-pad "down": as a focus group, requesting focus here
+                // lands on the first focusable tile, so TV users can move from the tabs into the apps.
+                modifier = Modifier
+                    // Fill the whole content area so the swipe gesture below covers the full screen even on
+                    // an empty tab. A lazy grid otherwise only takes its content's height, so on an empty
+                    // tab (e.g. "Updates" with nothing to update) the swipeable area shrank to the little
+                    // centred message and the rest of the screen no longer responded to the page swipe.
+                    .fillMaxSize()
+                    .then(if (page == pagerState.currentPage) Modifier.focusRequester(contentFocusRequester) else Modifier)
+                    .focusGroup(),
+            ) {
+                // Installed package names, used to badge every tile that's already installed.
+                val installedPackages = installedVersionNames.keys
+                if (tab == AppTab.EXTERNAL) {
+                    if (gridExternalApps.isEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "external-empty") {
+                            ExternalTabEmpty()
+                        }
+                    } else if (searchedExternalApps.isEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "no-search-results") {
+                            NoSearchResults(query = activeSearch)
+                        }
+                    }
+                    // Install happens on the detail screen; the grid mirrors the catalogue tabs exactly.
+                    items(items = searchedExternalApps, key = { it.key }, contentType = { "ext-tile" }) { app ->
+                        ExternalAppTile(
+                            app = app,
+                            isInstalled = app.key in externalInstalledKeys,
+                            onClick = { openExternalApp(app.key) },
+                            modifier = Modifier.restoreFocusTarget(
+                                isTelevision && restoreFocusId == "ext:${app.key}",
+                                restoreRequester,
+                            ),
                         )
                     }
+                    return@LazyVerticalGrid
                 }
-            }
-            // The Explore tab ends at the categories accordion — no flat grid under the Discover home.
-            // A flat list of app tiles appears when searching (search results) or on a carousel "see
-            // all" page (the whole section). The Installed/Updates tabs use the same tiles.
-            if (tab == AppTab.AVAILABLE) {
-                // The favourites carousel's own "see all" reuses the exact list already backing it
-                // ([favouriteApps]/[favouriteExternalApps]) rather than a fresh query, so the row and
-                // this page can never disagree.
-                val flatList = when {
-                    sectionView -> openedSectionApps
-                    isSearching -> tabApps
-                    else -> emptyList()
+                // Discover home (Explore tab, not searching, not on a "see all" page): the 3 curated
+                // carousels then the categories accordion. A carousel arrow opens that section as its own
+                // page; a category chevron expands its apps inline. When searching or on a section page,
+                // this is skipped and the apps render as a flat list below.
+                if (tab == AppTab.AVAILABLE && !isSearching && !sectionView) {
+                    // Breathing room below the header: the first carousel's round "see all" button
+                    // otherwise sits glued to the tabs.
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "discover-top-gap") {
+                        Spacer(Modifier.height(12.dp))
+                    }
+                    // Favourites lead the Discover home when there are any: a carousel the user built on
+                    // purpose (the heart on any app's own page), not one Omnify curates, so it comes before
+                    // every curated row. Hidden with nothing favourited yet; appears the moment a first
+                    // favourite exists, and from then on follows the user's own show/hide choice in the
+                    // overflow menu (see AppListViewModel.showFavouritesCarousel).
+                    if (showFavouritesCarousel && (favouriteApps.isNotEmpty() || favouriteExternalApps.isNotEmpty())) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-favourites", contentType = "carousel") {
+                            DiscoverCarousel(
+                                title = stringResource(R.string.favourites),
+                                installedPackages = installedPackages,
+                                onAppClick = openApp,
+                                onSeeAll = { viewModel.openSection(SECTION_FAVOURITES) },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                                externalInstalledKeys = externalInstalledKeys,
+                                onExternalAppClick = openExternalApp,
+                                restoreFocusId = restoreFocusId,
+                                restoreRequester = restoreRequester,
+                                // Catalogue and external favourites interleaved in the user's own sort
+                                // order (see DiscoverCarousel's unifiedOrder), not the default two-block
+                                // layout every other carousel uses: favourites make no distinction between
+                                // the two app kinds anywhere else in the app, so the carousel shouldn't
+                                // either.
+                                unifiedOrder = sortedFavourites,
+                            )
+                        }
+                    }
+                    // TV only: lead with apps actually built for the television (leanback launcher), both
+                    // from the F-Droid catalogue and from tracked external sources. Hidden on touch and when
+                    // none are present.
+                    if (isTelevision && (tvApps.isNotEmpty() || tvExternalApps.isNotEmpty())) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-tv", contentType = "carousel") {
+                            DiscoverCarousel(
+                                title = stringResource(R.string.discover_tv_apps),
+                                apps = tvApps,
+                                installedPackages = installedPackages,
+                                onAppClick = openApp,
+                                onSeeAll = { viewModel.openSection(SECTION_TV) },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                                externalApps = tvExternalApps,
+                                externalInstalledKeys = externalInstalledKeys,
+                                onExternalAppClick = openExternalApp,
+                                restoreFocusId = restoreFocusId,
+                                restoreRequester = restoreRequester,
+                            )
+                        }
+                    }
+                    if (newApps.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-new", contentType = "carousel") {
+                            DiscoverCarousel(
+                                title = stringResource(R.string.discover_new_apps),
+                                apps = newApps,
+                                installedPackages = installedPackages,
+                                onAppClick = openApp,
+                                onSeeAll = { viewModel.openSection(SECTION_WHATS_NEW) },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                                restoreFocusId = restoreFocusId,
+                                restoreRequester = restoreRequester,
+                            )
+                        }
+                    }
+                    if (recentlyUpdatedApps.isNotEmpty() || recentlyUpdatedExternalApps.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-updated", contentType = "carousel") {
+                            DiscoverCarousel(
+                                title = stringResource(R.string.discover_recently_updated),
+                                apps = recentlyUpdatedApps,
+                                installedPackages = installedPackages,
+                                onAppClick = openApp,
+                                onSeeAll = { viewModel.openSection(SECTION_RECENTLY_UPDATED) },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                                // External sources' recently-released apps join the row after the catalogue
+                                // ones — Omnify makes no distinction between catalogue and external apps.
+                                externalApps = recentlyUpdatedExternalApps,
+                                externalInstalledKeys = externalInstalledKeys,
+                                onExternalAppClick = openExternalApp,
+                                restoreFocusId = restoreFocusId,
+                                restoreRequester = restoreRequester,
+                            )
+                        }
+                    }
+                    // "Most downloaded" — F-Droid v2's third curated carousel. Hidden until the download-
+                    // stats worker has fetched data, so it simply appears once stats land.
+                    if (mostDownloadedApps.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-downloaded", contentType = "carousel") {
+                            DiscoverCarousel(
+                                title = stringResource(R.string.discover_most_downloaded),
+                                apps = mostDownloadedApps,
+                                installedPackages = installedPackages,
+                                onAppClick = openApp,
+                                onSeeAll = { viewModel.openSection(SECTION_MOST_DOWNLOADED) },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                                restoreFocusId = restoreFocusId,
+                                restoreRequester = restoreRequester,
+                            )
+                        }
+                    }
+                    // "Shizuku" carousel — apps that integrate with Shizuku (detected from the Shizuku
+                    // permission in their manifest). Hidden when the catalogue has none.
+                    if (shizukuApps.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-shizuku", contentType = "carousel") {
+                            DiscoverCarousel(
+                                title = stringResource(R.string.discover_shizuku),
+                                apps = shizukuApps,
+                                installedPackages = installedPackages,
+                                onAppClick = openApp,
+                                onSeeAll = { viewModel.openSection(SECTION_SHIZUKU) },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                                restoreFocusId = restoreFocusId,
+                                restoreRequester = restoreRequester,
+                            )
+                        }
+                    }
+                    // "For rooted devices" carousel — apps that declare the superuser permission, i.e. apps
+                    // that need root. Hidden when the catalogue has none.
+                    if (rootApps.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-root", contentType = "carousel") {
+                            DiscoverCarousel(
+                                title = stringResource(R.string.discover_root),
+                                apps = rootApps,
+                                installedPackages = installedPackages,
+                                onAppClick = openApp,
+                                onSeeAll = { viewModel.openSection(SECTION_ROOT) },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                                restoreFocusId = restoreFocusId,
+                                restoreRequester = restoreRequester,
+                            )
+                        }
+                    }
+                    // The categories accordion. The chevron expands a category's apps inline; tapping
+                    // again collapses it. "Recommended by Victor-root" leads the list as a hand-picked
+                    // pseudo-category, expanding and collapsing exactly the same way as a real one.
+                    if (categories.isNotEmpty() || recommendedByVictorApps.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "categories-title", contentType = "categories-title") {
+                            CategoriesTitle()
+                        }
+                        if (recommendedByVictorApps.isNotEmpty()) {
+                            item(
+                                span = { GridItemSpan(maxLineSpan) },
+                                key = "category-recommended-victor",
+                                contentType = "category",
+                            ) {
+                                CategoryRow(
+                                    name = stringResource(R.string.discover_recommended_victor),
+                                    defaultName = RECOMMENDED_VICTOR_KEY,
+                                    expanded = RECOMMENDED_VICTOR_KEY in expandedSections,
+                                    onClick = { viewModel.toggleSection(RECOMMENDED_VICTOR_KEY) },
+                                )
+                            }
+                            recommendedVictorAppItems(
+                                expandedSections = expandedSections,
+                                apps = recommendedByVictorApps,
+                                installedPackages = installedPackages,
+                                externalInstalledKeys = externalInstalledKeys,
+                                onAppClick = openApp,
+                                onExternalAppClick = openExternalApp,
+                                restoreFocusId = restoreFocusId.takeIf { isTelevision },
+                                restoreRequester = restoreRequester,
+                            )
+                        }
+                        categories.forEach { category ->
+                            item(
+                                span = { GridItemSpan(maxLineSpan) },
+                                key = "category-${category.defaultName}",
+                                contentType = "category",
+                            ) {
+                                CategoryRow(
+                                    name = category.name,
+                                    defaultName = category.defaultName,
+                                    expanded = category.defaultName in expandedSections,
+                                    ownRepo = category.ownRepo,
+                                    onClick = { viewModel.toggleSection(category.defaultName) },
+                                )
+                            }
+                            expandedAppItems(
+                                category.defaultName,
+                                expandedSections,
+                                expandedSectionApps,
+                                installedPackages,
+                                openApp,
+                                { viewModel.openSection(category.defaultName) },
+                                restoreFocusId.takeIf { isTelevision },
+                                restoreRequester,
+                            )
+                        }
+                    }
                 }
-                // A "see all" page runs its query after opening, so on a slow device it's briefly empty.
-                // These sections always have apps (the carousel only appears when non-empty), so an empty
-                // list here means "still loading" — show a spinner so the page never looks blank/broken.
-                // The favourites page is exempt outright: it never runs a fresh query on open, it just
-                // re-sorts data the carousel already resolved, so there's nothing to wait on.
-                val sectionLoading = sectionView && flatList.isEmpty() &&
-                    !(isTelevision && openedSection == SECTION_TV && tvExternalApps.isNotEmpty()) &&
-                    openedSection != SECTION_FAVOURITES
-                if (sectionLoading) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "section-loading") {
+                // Both halves of the Updates tab (updatableApps, externalUpdates) are empty until the one
+                // answer behind them has been worked out, see AppListViewModel.updates. While it has not, a
+                // spinner shows instead of "Everything is up to date", which would claim there is nothing
+                // when updates are only still being found.
+                val updatesStillLoading = tab == AppTab.UPDATES && !updatesLoaded
+                if (updatesStillLoading) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "updates-loading") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1191,42 +1101,169 @@ fun AppListScreen(
                         }
                     }
                 }
-                // The "Made for TV" see-all page also lists the tracked external TV apps (TV only).
-                if (isTelevision && openedSection == SECTION_TV) {
-                    items(items = tvExternalApps, key = { "tv-ext-${it.key}" }, contentType = { "ext-tile" }) { app ->
-                        ExternalAppTile(
-                            app = app,
-                            isInstalled = app.key in externalInstalledKeys,
-                            onClick = { openExternalApp(app.key) },
-                            modifier = Modifier.restoreFocusTarget(
-                                isTelevision && restoreFocusId == "ext:${app.key}",
-                                restoreRequester,
-                            ),
-                        )
+                val showEmpty = when (tab) {
+                    AppTab.AVAILABLE ->
+                        isSearching && !sectionView && activeSearch.isNotEmpty() &&
+                            tabApps.isEmpty() && searchedExternalApps.isEmpty()
+                    AppTab.INSTALLED -> tabApps.isEmpty() && searchedInstalledExternal.isEmpty()
+                    // The tiles rather than the lists: the last updated app shrinks away before anything
+                    // takes its place.
+                    AppTab.UPDATES -> !updatesStillLoading && !hasUpdateTiles
+                    AppTab.EXTERNAL -> false
+                }
+                if (showEmpty) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "empty-tab") {
+                        // A search that emptied the list says so, rather than the tab's own empty message
+                        // ("Everything is up to date") claiming something the search only hid.
+                        if (activeSearch.isNotEmpty()) {
+                            NoSearchResults(query = activeSearch)
+                        } else if (tab == AppTab.UPDATES) {
+                            LaunchedEffect(Unit) { updatesListed = false }
+                            UpToDateState(
+                                animateIn = updatesListed,
+                                maxHeight = with(LocalDensity.current) {
+                                    gridContentHeight.takeIf { it > 0 }?.toDp()
+                                },
+                                followedApps = followedApps,
+                                lastCheck = lastUpdateCheck,
+                                checkInterval = updateCheckInterval,
+                                isChecking = isSyncing || isRefreshingExternal,
+                                onCheckNow = syncEverything,
+                                onOpenApp = { app ->
+                                    when (app) {
+                                        is FollowedApp.Catalogue -> openInstalledApp(app.packageName)
+                                        is FollowedApp.External -> openExternalApp(app.app.key)
+                                    }
+                                },
+                            )
+                        } else {
+                            EmptyTabMessage(tab = tab)
+                        }
                     }
                 }
-                // The favourites page renders catalogue and external favourites as one list, in
-                // whatever order favouritesSortOrder currently picks (see sortedFavourites above).
-                // Unlike every other section, which is catalogue apps then external apps as two
-                // separate groups, because only this one lets the user reorder them at all.
-                if (openedSection == SECTION_FAVOURITES) {
-                    items(items = sortedFavourites, key = { it.key }, contentType = { "fav-tile" }) { item ->
-                        when (item) {
-                            is FavouriteApp.Catalogue -> CatalogAppTile(
-                                app = item.app,
-                                isInstalled = item.app.packageName.name in installedPackages,
-                                onClick = { openApp(item.app.packageName.name) },
+                // "Update all" on the Updates tab: one tap to download and install everything listed
+                // below it, instead of opening each app. Both halves of the list, catalogue and external
+                // sources, so the count on the button is the count on the tab and the button does what it
+                // says. It counted and updated only the catalogue half before, which showed up as a
+                // "(3)" sitting above four apps.
+                if (tab == AppTab.UPDATES && (tabApps.isNotEmpty() || searchedExternalUpdates.isNotEmpty())) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "update-all") {
+                        // Fades out with the last update rather than vanishing ahead of its tile.
+                        Box(Modifier.animateItem(fadeInSpec = null, placementSpec = null, fadeOutSpec = tween(250))) {
+                            UpdateAllButton(
+                                count = tabApps.size + searchedExternalUpdates.size,
+                                isUpdating = isUpdatingAll,
+                                batch = batchUpdate,
+                                onClick = { viewModel.updateAll(searchedExternalUpdates.map { it.key }) },
+                                onCancel = viewModel::cancelUpdateAll,
+                            )
+                        }
+                    }
+                }
+                // The Explore tab ends at the categories accordion — no flat grid under the Discover home.
+                // A flat list of app tiles appears when searching (search results) or on a carousel "see
+                // all" page (the whole section). The Installed/Updates tabs use the same tiles.
+                if (tab == AppTab.AVAILABLE) {
+                    // The favourites carousel's own "see all" reuses the exact list already backing it
+                    // ([favouriteApps]/[favouriteExternalApps]) rather than a fresh query, so the row and
+                    // this page can never disagree.
+                    val flatList = when {
+                        sectionView -> openedSectionApps
+                        isSearching -> tabApps
+                        else -> emptyList()
+                    }
+                    // A "see all" page runs its query after opening, so on a slow device it's briefly empty.
+                    // These sections always have apps (the carousel only appears when non-empty), so an empty
+                    // list here means "still loading" — show a spinner so the page never looks blank/broken.
+                    // The favourites page is exempt outright: it never runs a fresh query on open, it just
+                    // re-sorts data the carousel already resolved, so there's nothing to wait on.
+                    val sectionLoading = sectionView && flatList.isEmpty() &&
+                        !(isTelevision && openedSection == SECTION_TV && tvExternalApps.isNotEmpty()) &&
+                        openedSection != SECTION_FAVOURITES
+                    if (sectionLoading) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "section-loading") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 48.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularWavyProgressIndicator()
+                            }
+                        }
+                    }
+                    // The "Made for TV" see-all page also lists the tracked external TV apps (TV only).
+                    if (isTelevision && openedSection == SECTION_TV) {
+                        items(items = tvExternalApps, key = { "tv-ext-${it.key}" }, contentType = { "ext-tile" }) { app ->
+                            ExternalAppTile(
+                                app = app,
+                                isInstalled = app.key in externalInstalledKeys,
+                                onClick = { openExternalApp(app.key) },
                                 modifier = Modifier.restoreFocusTarget(
-                                    isTelevision && restoreFocusId == "app:${item.app.packageName.name}",
+                                    isTelevision && restoreFocusId == "ext:${app.key}",
                                     restoreRequester,
                                 ),
                             )
-                            is FavouriteApp.External -> ExternalAppTile(
-                                app = item.app,
-                                isInstalled = item.app.key in externalInstalledKeys,
-                                onClick = { openExternalApp(item.app.key) },
+                        }
+                    }
+                    // The favourites page renders catalogue and external favourites as one list, in
+                    // whatever order favouritesSortOrder currently picks (see sortedFavourites above).
+                    // Unlike every other section, which is catalogue apps then external apps as two
+                    // separate groups, because only this one lets the user reorder them at all.
+                    if (openedSection == SECTION_FAVOURITES) {
+                        items(items = sortedFavourites, key = { it.key }, contentType = { "fav-tile" }) { item ->
+                            when (item) {
+                                is FavouriteApp.Catalogue -> CatalogAppTile(
+                                    app = item.app,
+                                    isInstalled = item.app.packageName.name in installedPackages,
+                                    onClick = { openApp(item.app.packageName.name) },
+                                    modifier = Modifier.restoreFocusTarget(
+                                        isTelevision && restoreFocusId == "app:${item.app.packageName.name}",
+                                        restoreRequester,
+                                    ),
+                                )
+                                is FavouriteApp.External -> ExternalAppTile(
+                                    app = item.app,
+                                    isInstalled = item.app.key in externalInstalledKeys,
+                                    onClick = { openExternalApp(item.app.key) },
+                                    modifier = Modifier.restoreFocusTarget(
+                                        isTelevision && restoreFocusId == "ext:${item.app.key}",
+                                        restoreRequester,
+                                    ),
+                                )
+                            }
+                        }
+                    } else {
+                        items(
+                            items = flatList,
+                            key = { it.appId },
+                            contentType = { "app-tile" },
+                        ) { app ->
+                            CatalogAppTile(
+                                app = app,
+                                isInstalled = app.packageName.name in installedPackages,
+                                onClick = { openApp(app.packageName.name) },
                                 modifier = Modifier.restoreFocusTarget(
-                                    isTelevision && restoreFocusId == "ext:${item.app.key}",
+                                    isTelevision && restoreFocusId == "app:${app.packageName.name}",
+                                    restoreRequester,
+                                ),
+                            )
+                        }
+                    }
+                    // Search results: the matching external sources after the catalogue ones, the same
+                    // order every carousel mixing the two uses.
+                    if (isSearching && !sectionView) {
+                        items(
+                            items = searchedExternalApps,
+                            key = { "search-ext-${it.key}" },
+                            contentType = { "ext-tile" },
+                        ) { app ->
+                            ExternalAppTile(
+                                app = app,
+                                isInstalled = app.key in externalInstalledKeys,
+                                onClick = { openExternalApp(app.key) },
+                                modifier = Modifier.restoreFocusTarget(
+                                    isTelevision && restoreFocusId == "ext:${app.key}",
                                     restoreRequester,
                                 ),
                             )
@@ -1234,32 +1271,45 @@ fun AppListScreen(
                     }
                 } else {
                     items(
-                        items = flatList,
-                        key = { it.appId },
+                        items = if (tab == AppTab.UPDATES) appTiles else installedTiles,
+                        key = { it.item.appId },
                         contentType = { "app-tile" },
-                    ) { app ->
+                    ) { tile ->
+                        val app = tile.item
                         CatalogAppTile(
                             app = app,
                             isInstalled = app.packageName.name in installedPackages,
-                            onClick = { openApp(app.packageName.name) },
-                            modifier = Modifier.restoreFocusTarget(
-                                isTelevision && restoreFocusId == "app:${app.packageName.name}",
-                                restoreRequester,
-                            ),
+                            // On the Updates tab, ring the tile of the app the "update all" batch is
+                            // downloading right now, so progress is visible in real time, and of every app
+                            // still waiting to be installed or being installed.
+                            isUpdating = tab == AppTab.UPDATES && updating.isUpdating(app.packageName.name),
+                            updateFraction = updating.fraction(app.packageName.name),
+                            onClick = {
+                                if (tab == AppTab.INSTALLED) {
+                                    openInstalledApp(app.packageName.name)
+                                } else {
+                                    openApp(app.packageName.name)
+                                }
+                            },
+                            // On the Updates tab, an updated app's tile fades out and the others close the gap.
+                            modifier = (if (tab == AppTab.UPDATES) updateDeparture(tile.leaving) else Modifier)
+                                .restoreFocusTarget(
+                                    isTelevision && restoreFocusId == "app:${app.packageName.name}",
+                                    restoreRequester,
+                                ),
                         )
                     }
                 }
-                // Search results: the matching external sources after the catalogue ones, the same
-                // order every carousel mixing the two uses.
-                if (isSearching && !sectionView) {
+                // Tracked sources installed on the device, after the catalogue's own on the Installed tab.
+                if (tab == AppTab.INSTALLED) {
                     items(
-                        items = searchedExternalApps,
-                        key = { "search-ext-${it.key}" },
+                        items = searchedInstalledExternal,
+                        key = { "ext-${it.key}" },
                         contentType = { "ext-tile" },
                     ) { app ->
                         ExternalAppTile(
                             app = app,
-                            isInstalled = app.key in externalInstalledKeys,
+                            isInstalled = true,
                             onClick = { openExternalApp(app.key) },
                             modifier = Modifier.restoreFocusTarget(
                                 isTelevision && restoreFocusId == "ext:${app.key}",
@@ -1268,81 +1318,46 @@ fun AppListScreen(
                         )
                     }
                 }
-            } else {
-                items(
-                    items = if (tab == AppTab.UPDATES) appTiles else installedTiles,
-                    key = { it.item.appId },
-                    contentType = { "app-tile" },
-                ) { tile ->
-                    val app = tile.item
-                    CatalogAppTile(
-                        app = app,
-                        isInstalled = app.packageName.name in installedPackages,
-                        // On the Updates tab, ring the tile of the app the "update all" batch is
-                        // downloading right now, so progress is visible in real time, and of every app
-                        // still waiting to be installed or being installed.
-                        isUpdating = tab == AppTab.UPDATES && updating.isUpdating(app.packageName.name),
-                        updateFraction = updating.fraction(app.packageName.name),
-                        onClick = {
-                            if (tab == AppTab.INSTALLED) {
-                                openInstalledApp(app.packageName.name)
-                            } else {
-                                openApp(app.packageName.name)
-                            }
-                        },
-                        // On the Updates tab, an updated app's tile fades out and the others close the gap.
-                        modifier = (if (tab == AppTab.UPDATES) updateDeparture(tile.leaving) else Modifier)
-                            .restoreFocusTarget(
-                                isTelevision && restoreFocusId == "app:${app.packageName.name}",
+                // External-repo updates, shown alongside the F-Droid ones on the Updates tab.
+                if (tab == AppTab.UPDATES) {
+                    items(
+                        items = externalUpdateTiles,
+                        key = { "ext-${it.item.key}" },
+                        contentType = { "ext-tile" },
+                    ) { tile ->
+                        val app = tile.item
+                        ExternalAppTile(
+                            app = app,
+                            isInstalled = app.key in externalInstalledKeys,
+                            // The same live ring a catalogue tile gets, now that a batch covers these
+                            // too. A batch names an external source by its own key, never by the package
+                            // it installs under (see UpdateAllWorker).
+                            isUpdating = updating.isUpdating(app.key),
+                            updateFraction = updating.fraction(app.key),
+                            onClick = { openExternalApp(app.key) },
+                            modifier = updateDeparture(tile.leaving).restoreFocusTarget(
+                                isTelevision && restoreFocusId == "ext:${app.key}",
                                 restoreRequester,
                             ),
-                    )
+                        )
+                    }
                 }
             }
-            // Tracked sources installed on the device, after the catalogue's own on the Installed tab.
-            if (tab == AppTab.INSTALLED) {
-                items(
-                    items = searchedInstalledExternal,
-                    key = { "ext-${it.key}" },
-                    contentType = { "ext-tile" },
-                ) { app ->
-                    ExternalAppTile(
-                        app = app,
-                        isInstalled = true,
-                        onClick = { openExternalApp(app.key) },
-                        modifier = Modifier.restoreFocusTarget(
-                            isTelevision && restoreFocusId == "ext:${app.key}",
-                            restoreRequester,
-                        ),
-                    )
-                }
             }
-            // External-repo updates, shown alongside the F-Droid ones on the Updates tab.
-            if (tab == AppTab.UPDATES) {
-                items(
-                    items = externalUpdateTiles,
-                    key = { "ext-${it.item.key}" },
-                    contentType = { "ext-tile" },
-                ) { tile ->
-                    val app = tile.item
-                    ExternalAppTile(
-                        app = app,
-                        isInstalled = app.key in externalInstalledKeys,
-                        // The same live ring a catalogue tile gets, now that a batch covers these
-                        // too. A batch names an external source by its own key, never by the package
-                        // it installs under (see UpdateAllWorker).
-                        isUpdating = updating.isUpdating(app.key),
-                        updateFraction = updating.fraction(app.key),
-                        onClick = { openExternalApp(app.key) },
-                        modifier = updateDeparture(tile.leaving).restoreFocusTarget(
-                            isTelevision && restoreFocusId == "ext:${app.key}",
-                            restoreRequester,
-                        ),
-                    )
-                }
             }
         }
-        }
+        HomeTopSheet(
+            open = overflowExpanded && !sectionView,
+            anchor = sheetAnchor,
+            onClose = { overflowExpanded = false },
+        ) {
+            HomeMenuSheet(
+                showFavouritesCarousel = showFavouritesCarousel,
+                onToggleFavouritesCarousel = viewModel::toggleFavouritesCarousel,
+                onNavigateToRepos = onNavigateToRepos,
+                onNavigateToSettings = onNavigateToSettings,
+                onClose = { overflowExpanded = false },
+            )
         }
     }
 }
@@ -1830,27 +1845,20 @@ private fun AppListTopBar(
     searchExpanded: Boolean,
     onToggleSearch: () -> Unit,
     searchState: TextFieldState,
-    onNavigateToRepos: () -> Unit,
-    onNavigateToSettings: () -> Unit,
-    showFavouritesCarousel: Boolean,
-    onToggleFavouritesCarousel: () -> Unit,
     tvOnly: Boolean,
     onToggleTvOnly: () -> Unit,
     showDiagnosticsButton: Boolean,
     title: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     // QKSMS-style reveal: the main bar stays put and, on tapping the magnifier, the search field
     // unrolls over it from the right edge (width growing leftward), and rolls back the same way. The
     // main bar underneath stays fully opaque, so the header never flashes the white background the way
     // a cross-fade did.
-    Box {
+    Box(modifier) {
         AppListMainTopBar(
             onSync = onSync,
             onToggleSearch = onToggleSearch,
-            onNavigateToRepos = onNavigateToRepos,
-            onNavigateToSettings = onNavigateToSettings,
-            showFavouritesCarousel = showFavouritesCarousel,
-            onToggleFavouritesCarousel = onToggleFavouritesCarousel,
             tvOnly = tvOnly,
             onToggleTvOnly = onToggleTvOnly,
             showDiagnosticsButton = showDiagnosticsButton,
@@ -1878,10 +1886,6 @@ private fun AppListTopBar(
 private fun AppListMainTopBar(
     onSync: () -> Unit,
     onToggleSearch: () -> Unit,
-    onNavigateToRepos: () -> Unit,
-    onNavigateToSettings: () -> Unit,
-    showFavouritesCarousel: Boolean,
-    onToggleFavouritesCarousel: () -> Unit,
     tvOnly: Boolean,
     onToggleTvOnly: () -> Unit,
     showDiagnosticsButton: Boolean,
@@ -1982,38 +1986,27 @@ private fun AppListMainTopBar(
                 }
             }
             Spacer(Modifier.width(buttonSpacing))
-            // Overflow: the less-used destinations (favourites filter, repositories, settings) live
-            // here so the header stays uncluttered.
-            HomeOverflowMenu(
+            // Overflow: the less-used destinations (favourites, repositories, settings) live in the
+            // top sheet it opens, so the header stays uncluttered.
+            HomeMenuButton(
                 expanded = overflowExpanded,
                 onExpandedChange = onOverflowExpandedChange,
-                isTablet = isTablet,
-                showFavouritesCarousel = showFavouritesCarousel,
-                onToggleFavouritesCarousel = onToggleFavouritesCarousel,
-                    onNavigateToRepos = onNavigateToRepos,
-                onNavigateToSettings = onNavigateToSettings,
             )
             Spacer(Modifier.width(buttonSpacing))
         },
     )
 }
 
-/** The home screen's overflow button and menu, in a scope of their own: [expanded] is read here only. */
+/** The home screen's overflow button, opening and closing [HomeMenuSheet]: [expanded] is read on a tap only. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun HomeOverflowMenu(
+private fun HomeMenuButton(
     expanded: () -> Boolean,
     onExpandedChange: (Boolean) -> Unit,
-    isTablet: Boolean,
-    showFavouritesCarousel: Boolean,
-    onToggleFavouritesCarousel: () -> Unit,
-    onNavigateToRepos: () -> Unit,
-    onNavigateToSettings: () -> Unit,
 ) {
-    Box {
-        IconButton(
-            onClick = { onExpandedChange(true) },
-            modifier = Modifier
+    IconButton(
+        onClick = { onExpandedChange(!expanded()) },
+        modifier = Modifier
             // TV: a square button so the focus halo is a clean circle (the narrow expressive
             // size makes it an oval); the focused icon also scales up. Unchanged on touch.
             .then(
@@ -2024,56 +2017,47 @@ private fun HomeOverflowMenu(
                 },
             )
             .tvFocusScale(),
-        ) {
-            Icon(
-                Icons.Filled.MoreVert,
-                contentDescription = stringResource(R.string.more_options),
-            )
-        }
-        DropdownMenu(
-            expanded = expanded(),
-            onDismissRequest = { onExpandedChange(false) },
-            modifier = if (isTablet) Modifier.widthIn(min = 280.dp) else Modifier,
-        ) {
-            val item: @Composable (String, @Composable () -> Unit, () -> Unit) -> Unit = { text, icon, onClick ->
-                HomeMenuItem(text = text, icon = icon, isTablet = isTablet) {
-                    onClick()
-                    onExpandedChange(false)
-                }
-            }
-            item(
-                stringResource(if (showFavouritesCarousel) R.string.hide_favourites else R.string.show_favourites),
-                { Icon(Icons.Filled.Favorite, contentDescription = null) },
-                onToggleFavouritesCarousel,
-            )
-            item(
-                stringResource(R.string.repositories),
-                { Icon(painterResource(R.drawable.ic_tabler_box), contentDescription = null) },
-                onNavigateToRepos,
-            )
-            item(
-                stringResource(R.string.settings),
-                { Icon(painterResource(R.drawable.ic_tabler_settings), contentDescription = null) },
-                onNavigateToSettings,
-            )
-        }
+    ) {
+        Icon(
+            Icons.Filled.MoreVert,
+            contentDescription = stringResource(R.string.more_options),
+        )
     }
 }
 
-/** One entry of [HomeOverflowMenu], roomier on a tablet. */
+/** What the overflow button opens: the less-used destinations, each closing the sheet on its way. */
 @Composable
-private fun HomeMenuItem(text: String, icon: @Composable () -> Unit, isTablet: Boolean, onClick: () -> Unit) {
-    DropdownMenuItem(
-        text = {
-            Text(text, style = if (isTablet) MaterialTheme.typography.titleMedium else LocalTextStyle.current)
+private fun ColumnScope.HomeMenuSheet(
+    showFavouritesCarousel: Boolean,
+    onToggleFavouritesCarousel: () -> Unit,
+    onNavigateToRepos: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onClose: () -> Unit,
+) {
+    SwitchSettingItem(
+        title = stringResource(R.string.favourites),
+        description = stringResource(R.string.home_menu_favourites_summary),
+        checked = showFavouritesCarousel,
+        onCheckedChange = { onToggleFavouritesCarousel() },
+        icon = rememberVectorPainter(Icons.Filled.Favorite),
+    )
+    ActionSettingItem(
+        title = stringResource(R.string.repositories),
+        description = stringResource(R.string.home_menu_repositories_summary),
+        onClick = {
+            onClose()
+            onNavigateToRepos()
         },
-        onClick = onClick,
-        leadingIcon = icon,
-        contentPadding = if (isTablet) {
-            PaddingValues(horizontal = 20.dp, vertical = 4.dp)
-        } else {
-            MenuDefaults.DropdownMenuItemContentPadding
+        icon = painterResource(R.drawable.ic_tabler_box),
+    )
+    ActionSettingItem(
+        title = stringResource(R.string.settings),
+        description = stringResource(R.string.home_menu_settings_summary),
+        onClick = {
+            onClose()
+            onNavigateToSettings()
         },
+        icon = painterResource(R.drawable.ic_tabler_settings),
     )
 }
 

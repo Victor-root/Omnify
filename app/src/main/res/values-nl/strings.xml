@@ -183,8 +183,6 @@
     <string name="updating">Bijwerken</string>
     <string name="updated">Bijgewerkt</string>
     <string name="favourites">Favorieten</string>
-    <string name="show_favourites">Favorieten tonen</string>
-    <string name="hide_favourites">Favorieten verbergen</string>
     <string name="date_favourited">Datum favoriet</string>
     <string name="date_installed">Installatiedatum</string>
     <string name="material_you">Material You</string>

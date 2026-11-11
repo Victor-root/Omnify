@@ -181,8 +181,6 @@
     <string name="material_you_desc">Material You renklerini kullan</string>
     <string name="material_you">Material You</string>
     <string name="favourites">Favoriler</string>
-    <string name="show_favourites">Favorileri göster</string>
-    <string name="hide_favourites">Favorileri gizle</string>
     <string name="date_favourited">Favorilere eklenme tarihi</string>
     <string name="date_installed">Yükleme tarihi</string>
     <string name="repository_unreachable">Depoya ulaşılamıyor</string>
