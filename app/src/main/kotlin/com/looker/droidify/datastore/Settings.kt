@@ -69,10 +69,9 @@ data class Settings(
      *  as [favouriteApps]. */
     val hiddenApps: Set<String> = emptySet(),
     val homeScreenSwiping: Boolean = false,
-    /** Whether the Discover home's favourites carousel is allowed to show at all. On by default: the
-     *  carousel only actually appears once a favourite exists, so this only matters once the user has
-     *  explicitly hidden it via the overflow menu ("Hide favourites"). */
-    val showFavouritesCarousel: Boolean = true,
+    /** The Explore tab's carousels in the order the user arranged them, or null for Omnify's own
+     *  arrangement. Each key is a curated carousel's or a category's (see ExploreCarousels). */
+    val exploreCarousels: List<String>? = null,
     /** Android TV: the home lists only apps made for TV. On by default on a television. */
     val tvOnly: Boolean = false,
     val enabledRepoIds: Set<Int> = emptySet(),

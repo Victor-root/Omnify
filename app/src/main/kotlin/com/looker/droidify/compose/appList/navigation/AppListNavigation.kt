@@ -29,6 +29,7 @@ fun NavGraphBuilder.appList(
     onExternalAppClick: (String) -> Unit = { _ -> },
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToExploreCarousels: () -> Unit,
     onFixGithubToken: () -> Unit,
 ) {
     composable<AppList> {
@@ -51,6 +52,7 @@ fun NavGraphBuilder.appList(
                 viewModel = viewModel,
                 onNavigateToRepos = onNavigateToRepos,
                 onNavigateToSettings = onNavigateToSettings,
+                onNavigateToExploreCarousels = onNavigateToExploreCarousels,
                 onFixGithubToken = onFixGithubToken,
             )
         }

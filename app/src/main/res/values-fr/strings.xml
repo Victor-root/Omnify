@@ -368,7 +368,16 @@
     <string name="material_you_desc">Utiliser les couleurs Material You</string>
     <string name="material_you">Material You</string>
     <string name="favourites">Favoris</string>
-    <string name="home_menu_favourites_summary">En haut d\'Explorer</string>
+    <string name="explore_carousels_title">Carrousels d\'Explorer</string>
+    <string name="explore_carousels_DESC">Choisissez ceux qui s\'affichent, et dans quel ordre</string>
+    <string name="explore_carousels_shown">Sur Explorer</string>
+    <string name="explore_carousels_none">Aucun carrousel : Explorer commence par les catégories.</string>
+    <string name="explore_carousels_omnify">Carrousels d\'Omnify</string>
+    <string name="explore_carousels_reset">Réinitialiser</string>
+    <string name="explore_carousels_move_up">Monter</string>
+    <string name="explore_carousels_move_down">Descendre</string>
+    <string name="explore_carousels_remove">Retirer</string>
+    <string name="explore_carousels_add">Ajouter</string>
     <string name="home_menu_repositories_summary">Vos dépôts et sources externes</string>
     <string name="home_menu_settings_summary">Apparence, mises à jour et installation</string>
     <string name="date_favourited">Date d\'ajout en favoris</string>

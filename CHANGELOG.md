@@ -3,6 +3,7 @@
 ## 🚀 v1.0.8-beta.9 (Unreleased)
 
 ### ✨ Added
+- **Arrange Explore's carousels**: take away the ones you don't want, move the others up or down, add Omnify's back or make a carousel of any category, from the ⋮ menu or Settings > Explore carousels. Android TV follows the same arrangement.
 - **The welcome page asks to allow background activity**, needed for updates to be checked while Omnify is closed, and on phones whose maker adds its own setting for it, says where to find it.
 - **Choose how often updates are checked**: from every hour to once a day, in Settings. The two shortest say they may use more battery.
 - **Opening Omnify checks for updates**, repositories and external sources alike, unless the last check is under a minute old, on any connection, like the sync button. This also makes up for a background check the phone held back.
@@ -12,7 +13,7 @@
 - **A "Shizuku compatible" badge** on the page of apps that can use Shizuku or Sui, next to the Root one, on phone and TV. Both badges now show on external sources too, from the permissions their APK declares.
 
 ### 🔄 Changed
-- **The ⋮ menu unrolls from under the header** as a sheet over the page, with a word on each entry and a switch for favourites. A tap outside, Back or a push upwards rolls it back.
+- **The ⋮ menu unrolls from under the header** as a sheet over the page, with a word on each entry. A tap outside, Back or a push upwards rolls it back.
 - **Page swiping follows your finger**: with page swiping on, the home's tabs slide along with the drag, the next one coming in beside it, instead of switching once the gesture ends. Each tab also keeps its own scroll position.
 - **The Updates tab is friendlier once everything is up to date**: how many apps that covers, when updates were last checked for and how often, your latest updates, and a button to check right away.
 - **Omnify starts and runs far faster, on phone and TV**: one carousel kept the database busy for several seconds at every launch while everything else waited behind it, and the animated background redrew the whole screen on every frame. A screen at rest now leaves the processor and the graphics chip alone, for a smoother app and a longer battery life, with the same look.

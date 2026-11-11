@@ -171,8 +171,15 @@ class PreferenceSettingsRepository(
     override suspend fun setHomeScreenSwiping(value: Boolean) =
         HOME_SCREEN_SWIPING.update(value)
 
-    override suspend fun setShowFavouritesCarousel(value: Boolean) =
-        SHOW_FAVOURITES_CAROUSEL.update(value)
+    override suspend fun setExploreCarousels(keys: List<String>?) {
+        dataStore.edit { preferences ->
+            if (keys == null) {
+                preferences.remove(EXPLORE_CAROUSELS)
+            } else {
+                preferences[EXPLORE_CAROUSELS] = Json.encodeToString(keys)
+            }
+        }
+    }
 
     override suspend fun setTvOnly(value: Boolean) =
         TV_ONLY.update(value)
@@ -345,7 +352,9 @@ class PreferenceSettingsRepository(
         }.orEmpty()
         val hiddenApps = preferences[HIDDEN_APPS] ?: emptySet()
         val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: false
-        val showFavouritesCarousel = preferences[SHOW_FAVOURITES_CAROUSEL] ?: true
+        val exploreCarousels = preferences[EXPLORE_CAROUSELS]?.let {
+            runCatching { Json.decodeFromString<List<String>>(it) }.getOrNull()
+        }
         val tvOnly = preferences[TV_ONLY] ?: defaultTvOnly
         val enabledRepoIds =
             preferences[ENABLED_REPO_IDS]?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
@@ -392,7 +401,7 @@ class PreferenceSettingsRepository(
             favouritedAt = favouritedAt,
             hiddenApps = hiddenApps,
             homeScreenSwiping = homeScreenSwiping,
-            showFavouritesCarousel = showFavouritesCarousel,
+            exploreCarousels = exploreCarousels,
             tvOnly = tvOnly,
             enabledRepoIds = enabledRepoIds,
             deleteApkOnInstall = deleteApkOnInstall,
@@ -438,7 +447,7 @@ class PreferenceSettingsRepository(
         val FAVOURITED_AT = stringPreferencesKey("key_favourited_at")
         val HIDDEN_APPS = stringSetPreferencesKey("key_hidden_apps")
         val HOME_SCREEN_SWIPING = booleanPreferencesKey("key_home_swiping")
-        val SHOW_FAVOURITES_CAROUSEL = booleanPreferencesKey("key_show_favourites_carousel")
+        val EXPLORE_CAROUSELS = stringPreferencesKey("key_explore_carousels")
         val TV_ONLY = booleanPreferencesKey("key_tv_only")
         val DELETE_APK_ON_INSTALL = booleanPreferencesKey("key_delete_apk_on_install")
         val SHOW_DIAGNOSTICS_BUTTON = booleanPreferencesKey("key_show_diagnostics_button")
@@ -522,7 +531,11 @@ class PreferenceSettingsRepository(
             set(FAVOURITED_AT, Json.encodeToString(settings.favouritedAt))
             set(HIDDEN_APPS, settings.hiddenApps)
             set(HOME_SCREEN_SWIPING, settings.homeScreenSwiping)
-            set(SHOW_FAVOURITES_CAROUSEL, settings.showFavouritesCarousel)
+            if (settings.exploreCarousels == null) {
+                remove(EXPLORE_CAROUSELS)
+            } else {
+                set(EXPLORE_CAROUSELS, Json.encodeToString(settings.exploreCarousels))
+            }
             set(TV_ONLY, settings.tvOnly)
             set(ENABLED_REPO_IDS, settings.enabledRepoIds.map { it.toString() }.toSet())
             set(DELETE_APK_ON_INSTALL, settings.deleteApkOnInstall)

@@ -80,6 +80,12 @@ import com.looker.droidify.compose.appList.AppRow
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appList.AppTab
 import com.looker.droidify.compose.appList.PendingAppListTab
+import com.looker.droidify.compose.appList.SECTION_FAVOURITES
+import com.looker.droidify.compose.appList.SECTION_MOST_DOWNLOADED
+import com.looker.droidify.compose.appList.SECTION_RECENTLY_UPDATED
+import com.looker.droidify.compose.appList.SECTION_ROOT
+import com.looker.droidify.compose.appList.SECTION_SHIZUKU
+import com.looker.droidify.compose.appList.SECTION_WHATS_NEW
 import com.looker.droidify.compose.appList.UpdatingApps
 import com.looker.droidify.compose.appList.rememberCarouselState
 import com.looker.droidify.compose.appList.restoreFocusTarget
@@ -102,6 +108,7 @@ import com.looker.droidify.compose.externalApps.WebViewWarmUp
 import com.looker.droidify.compose.settings.components.InfoBanner
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.AppMinimal
+import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.shownOnExternalTab
 import com.looker.droidify.utility.diagnostics.DiagnosticLog
@@ -148,6 +155,9 @@ fun TvHomeScreen(
     val tvAppRows by viewModel.tvAppRows.collectAsStateWithLifecycle()
     val shizukuApps by viewModel.shizukuApps.collectAsStateWithLifecycle()
     val rootApps by viewModel.rootApps.collectAsStateWithLifecycle()
+    val exploreCarousels by viewModel.exploreCarousels.collectAsStateWithLifecycle()
+    val categoryCarousels by viewModel.categoryCarousels.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
     val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
     val updatableApps by viewModel.updatableApps.collectAsStateWithLifecycle()
     val updatesCount by viewModel.updatesCount.collectAsStateWithLifecycle()
@@ -429,6 +439,9 @@ fun TvHomeScreen(
 
                 else -> when (section) {
                 TvSection.EXPLORE -> TvExplore(
+                    carousels = exploreCarousels,
+                    categoryCarousels = categoryCarousels,
+                    categories = categories,
                     favouriteApps = favouriteApps,
                     favouriteExternalApps = favouriteExternalApps,
                     ownRepositoryApps = ownRepositoryApps,
@@ -753,6 +766,9 @@ private fun TvRailButton(
 
 @Composable
 private fun TvExplore(
+    carousels: List<String>,
+    categoryCarousels: Map<String, List<AppMinimal>>,
+    categories: List<CatalogCategory>,
     favouriteApps: List<AppMinimal>,
     favouriteExternalApps: List<ExternalApp>,
     ownRepositoryApps: List<AppRow>,
@@ -777,53 +793,67 @@ private fun TvExplore(
             .padding(top = TvOverscan + 12.dp, bottom = TvOverscan),
         verticalArrangement = spacedBy(28.dp),
     ) {
-        // Favourites lead Explore here too (mirrors the phone's Discover home), but always on when
-        // there are any: TV has no show/hide toggle for it yet, unlike the phone's overflow-menu one.
-        if (favouriteApps.isNotEmpty() || favouriteExternalApps.isNotEmpty()) {
-            TvCarousel(
-                title = stringResource(R.string.favourites),
-                apps = favouriteApps,
-                installedPackages = installedPackages,
-                onAppClick = onAppClick,
-                externalApps = favouriteExternalApps,
-                externalInstalledKeys = externalInstalledKeys,
-                onExternalAppClick = onExternalAppClick,
-                restoreFocusId = restoreFocusId,
-                restoreRequester = restoreRequester,
-            )
+        // A row per repository the user added, the only way to come across their apps here, TV's
+        // Explore having no categories to browse them through, then the apps made for TV. Right after
+        // the favourites, or first without them.
+        val tvRows: @Composable () -> Unit = {
+            ownRepositoryApps.forEach { repository ->
+                TvCarousel(repository.name, repository.apps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
+            }
+            if (tvApps.isNotEmpty()) {
+                TvCarousel(stringResource(R.string.discover_tv_apps), tvApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
+            }
         }
-        // Next, a row per repository the user added: the only way to come across their apps here, TV's
-        // Explore having no categories to browse them through.
-        ownRepositoryApps.forEach { repository ->
-            TvCarousel(repository.name, repository.apps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
-        }
-        if (tvApps.isNotEmpty()) {
-            TvCarousel(stringResource(R.string.discover_tv_apps), tvApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
-        }
-        if (newApps.isNotEmpty()) {
-            TvCarousel(stringResource(R.string.discover_new_apps), newApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
-        }
-        if (recentlyUpdatedApps.isNotEmpty() || recentlyUpdatedExternalApps.isNotEmpty()) {
-            TvCarousel(
-                title = stringResource(R.string.discover_recently_updated),
-                apps = recentlyUpdatedApps,
-                installedPackages = installedPackages,
-                onAppClick = onAppClick,
-                externalApps = recentlyUpdatedExternalApps,
-                externalInstalledKeys = externalInstalledKeys,
-                onExternalAppClick = onExternalAppClick,
-                restoreFocusId = restoreFocusId,
-                restoreRequester = restoreRequester,
-            )
-        }
-        if (mostDownloadedApps.isNotEmpty()) {
-            TvCarousel(stringResource(R.string.discover_most_downloaded), mostDownloadedApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
-        }
-        if (shizukuApps.isNotEmpty()) {
-            TvCarousel(stringResource(R.string.discover_shizuku), shizukuApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
-        }
-        if (rootApps.isNotEmpty()) {
-            TvCarousel(stringResource(R.string.discover_root), rootApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
+        if (SECTION_FAVOURITES !in carousels) tvRows()
+        // The carousels the user arranged, the phone's own (see AppListViewModel.exploreCarousels).
+        carousels.forEach { key ->
+            when (key) {
+                SECTION_FAVOURITES -> {
+                    if (favouriteApps.isNotEmpty() || favouriteExternalApps.isNotEmpty()) {
+                        TvCarousel(
+                            title = stringResource(R.string.favourites),
+                            apps = favouriteApps,
+                            installedPackages = installedPackages,
+                            onAppClick = onAppClick,
+                            externalApps = favouriteExternalApps,
+                            externalInstalledKeys = externalInstalledKeys,
+                            onExternalAppClick = onExternalAppClick,
+                            restoreFocusId = restoreFocusId,
+                            restoreRequester = restoreRequester,
+                        )
+                    }
+                    tvRows()
+                }
+                SECTION_WHATS_NEW -> if (newApps.isNotEmpty()) {
+                    TvCarousel(stringResource(R.string.discover_new_apps), newApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
+                }
+                SECTION_RECENTLY_UPDATED -> if (recentlyUpdatedApps.isNotEmpty() || recentlyUpdatedExternalApps.isNotEmpty()) {
+                    TvCarousel(
+                        title = stringResource(R.string.discover_recently_updated),
+                        apps = recentlyUpdatedApps,
+                        installedPackages = installedPackages,
+                        onAppClick = onAppClick,
+                        externalApps = recentlyUpdatedExternalApps,
+                        externalInstalledKeys = externalInstalledKeys,
+                        onExternalAppClick = onExternalAppClick,
+                        restoreFocusId = restoreFocusId,
+                        restoreRequester = restoreRequester,
+                    )
+                }
+                SECTION_MOST_DOWNLOADED -> if (mostDownloadedApps.isNotEmpty()) {
+                    TvCarousel(stringResource(R.string.discover_most_downloaded), mostDownloadedApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
+                }
+                SECTION_SHIZUKU -> if (shizukuApps.isNotEmpty()) {
+                    TvCarousel(stringResource(R.string.discover_shizuku), shizukuApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
+                }
+                SECTION_ROOT -> if (rootApps.isNotEmpty()) {
+                    TvCarousel(stringResource(R.string.discover_root), rootApps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
+                }
+                else -> categoryCarousels[key]?.takeIf { it.isNotEmpty() }?.let { apps ->
+                    val title = categories.firstOrNull { it.defaultName == key }?.name ?: key
+                    TvCarousel(title, apps, installedPackages, onAppClick, restoreFocusId = restoreFocusId, restoreRequester = restoreRequester)
+                }
+            }
         }
     }
 }

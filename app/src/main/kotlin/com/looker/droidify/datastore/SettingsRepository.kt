@@ -72,7 +72,8 @@ interface SettingsRepository {
 
     suspend fun setHomeScreenSwiping(value: Boolean)
 
-    suspend fun setShowFavouritesCarousel(value: Boolean)
+    /** Null goes back to Omnify's own arrangement. */
+    suspend fun setExploreCarousels(keys: List<String>?)
 
     suspend fun setTvOnly(value: Boolean)
 

@@ -48,6 +48,8 @@ import com.looker.droidify.compose.externalApps.navigation.navigateToExternalAcc
 import com.looker.droidify.compose.externalApps.navigation.navigateToExternalAppDetail
 import com.looker.droidify.compose.repoList.navigation.navigateToRepoList
 import com.looker.droidify.compose.repoList.navigation.repoList
+import com.looker.droidify.compose.settings.exploreCarousels.navigation.exploreCarousels
+import com.looker.droidify.compose.settings.exploreCarousels.navigation.navigateToExploreCarousels
 import com.looker.droidify.compose.settings.hiddenApps.navigation.hiddenApps
 import com.looker.droidify.compose.settings.hiddenApps.navigation.navigateToHiddenApps
 import com.looker.droidify.compose.settings.navigation.navigateToSettings
@@ -914,6 +916,7 @@ class MainComposeActivity : ComponentActivity() {
                             },
                             onNavigateToRepos = { navController.navigateToRepoList() },
                             onNavigateToSettings = { navController.navigateToSettings() },
+                            onNavigateToExploreCarousels = { navController.navigateToExploreCarousels() },
                             onFixGithubToken = {
                                 navController.navigateToSettings(highlightGithubToken = true)
                             },
@@ -971,9 +974,12 @@ class MainComposeActivity : ComponentActivity() {
                             onBackClick = { navController.popBackStack() },
                             onOpenEasterEgg = { navController.navigateToEasterEgg() },
                             onNavigateToHiddenApps = { navController.navigateToHiddenApps() },
+                            onNavigateToExploreCarousels = { navController.navigateToExploreCarousels() },
                         )
 
                         hiddenApps(onBackClick = { navController.popBackStack() })
+
+                        exploreCarousels(onBackClick = { navController.popBackStack() })
 
                         easterEgg(onBackClick = { navController.popBackStack() })
                     }

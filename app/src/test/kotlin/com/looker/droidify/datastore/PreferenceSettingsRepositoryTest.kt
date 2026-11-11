@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -147,12 +148,14 @@ class PreferenceSettingsRepositoryTest {
     }
 
     @Test
-    fun `setShowFavouritesCarousel updates setting`() = runTest {
-        val settings = repository.getInitial()
-        assertTrue(settings.showFavouritesCarousel)
+    fun `explore carousels keep their order and go back to the default`() = runTest {
+        assertNull(repository.getInitial().exploreCarousels)
 
-        repository.setShowFavouritesCarousel(false)
-        assertFalse(repository.getInitial().showFavouritesCarousel)
+        repository.setExploreCarousels(listOf("::root", "Games", "::favourites"))
+        assertEquals(listOf("::root", "Games", "::favourites"), repository.getInitial().exploreCarousels)
+
+        repository.setExploreCarousels(null)
+        assertNull(repository.getInitial().exploreCarousels)
     }
 
     @Test

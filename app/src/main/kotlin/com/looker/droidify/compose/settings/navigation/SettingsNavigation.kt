@@ -29,6 +29,7 @@ fun NavGraphBuilder.settings(
     onBackClick: () -> Unit,
     onOpenEasterEgg: () -> Unit,
     onNavigateToHiddenApps: () -> Unit,
+    onNavigateToExploreCarousels: () -> Unit,
 ) {
     composable<Settings> { backStackEntry ->
         val route = backStackEntry.toRoute<Settings>()
@@ -37,6 +38,7 @@ fun NavGraphBuilder.settings(
             onBackClick = onBackClick,
             onOpenEasterEgg = onOpenEasterEgg,
             onNavigateToHiddenApps = onNavigateToHiddenApps,
+            onNavigateToExploreCarousels = onNavigateToExploreCarousels,
             highlightGithubToken = route.highlightGithubToken,
         )
     }

@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ViewCarousel
 import androidx.compose.material.icons.filled.ViewColumn
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -181,6 +182,7 @@ fun SettingsScreen(
     onBackClick: () -> Unit,
     onOpenEasterEgg: () -> Unit,
     onNavigateToHiddenApps: () -> Unit,
+    onNavigateToExploreCarousels: () -> Unit,
     highlightGithubToken: Boolean = false,
 ) {
     val context = LocalContext.current
@@ -399,6 +401,15 @@ fun SettingsScreen(
                     description = stringResource(R.string.hidden_apps_DESC),
                     icon = rememberVectorPainter(Icons.Filled.VisibilityOff),
                     onClick = onNavigateToHiddenApps,
+                )
+            }
+
+            item {
+                ActionSettingItem(
+                    title = stringResource(R.string.explore_carousels_title),
+                    description = stringResource(R.string.explore_carousels_DESC),
+                    icon = rememberVectorPainter(Icons.Filled.ViewCarousel),
+                    onClick = onNavigateToExploreCarousels,
                 )
             }
 

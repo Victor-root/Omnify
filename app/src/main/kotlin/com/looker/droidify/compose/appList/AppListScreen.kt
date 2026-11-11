@@ -63,12 +63,12 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.filled.ViewCarousel
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -147,7 +147,6 @@ import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.WebViewWarmUp
 import com.looker.droidify.compose.settings.components.ActionSettingItem
 import com.looker.droidify.compose.settings.components.InfoBanner
-import com.looker.droidify.compose.settings.components.SwitchSettingItem
 import com.looker.droidify.compose.settings.components.WarningBanner
 import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.data.model.AppMinimal
@@ -184,6 +183,7 @@ fun AppListScreen(
     onExternalAppClick: (String) -> Unit,
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToExploreCarousels: () -> Unit,
     onFixGithubToken: () -> Unit,
 ) {
     // Each tab's own catalogue list: the pages sit side by side, so the neighbour a swipe reveals
@@ -217,7 +217,8 @@ fun AppListScreen(
     val favouritedAt by viewModel.favouritedAt.collectAsStateWithLifecycle()
     val favouriteInstallDates by viewModel.favouriteInstallDates.collectAsStateWithLifecycle()
     val favouritesSortOrder by viewModel.favouritesSortOrder.collectAsStateWithLifecycle()
-    val showFavouritesCarousel by viewModel.showFavouritesCarousel.collectAsStateWithLifecycle()
+    val exploreCarousels by viewModel.exploreCarousels.collectAsStateWithLifecycle()
+    val categoryCarousels by viewModel.categoryCarousels.collectAsStateWithLifecycle()
     val showDiagnosticsButton by viewModel.showDiagnosticsButton.collectAsStateWithLifecycle()
     val tvOnly by viewModel.tvOnly.collectAsStateWithLifecycle()
     val expandedSections by viewModel.expandedSections.collectAsStateWithLifecycle()
@@ -899,32 +900,6 @@ fun AppListScreen(
                     item(span = { GridItemSpan(maxLineSpan) }, key = "discover-top-gap") {
                         Spacer(Modifier.height(12.dp))
                     }
-                    // Favourites lead the Discover home when there are any: a carousel the user built on
-                    // purpose (the heart on any app's own page), not one Omnify curates, so it comes before
-                    // every curated row. Hidden with nothing favourited yet; appears the moment a first
-                    // favourite exists, and from then on follows the user's own show/hide choice in the
-                    // overflow menu (see AppListViewModel.showFavouritesCarousel).
-                    if (showFavouritesCarousel && (favouriteApps.isNotEmpty() || favouriteExternalApps.isNotEmpty())) {
-                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-favourites", contentType = "carousel") {
-                            DiscoverCarousel(
-                                title = stringResource(R.string.favourites),
-                                installedPackages = installedPackages,
-                                onAppClick = openApp,
-                                onSeeAll = { viewModel.openSection(SECTION_FAVOURITES) },
-                                modifier = Modifier.padding(bottom = 8.dp),
-                                externalInstalledKeys = externalInstalledKeys,
-                                onExternalAppClick = openExternalApp,
-                                restoreFocusId = restoreFocusId,
-                                restoreRequester = restoreRequester,
-                                // Catalogue and external favourites interleaved in the user's own sort
-                                // order (see DiscoverCarousel's unifiedOrder), not the default two-block
-                                // layout every other carousel uses: favourites make no distinction between
-                                // the two app kinds anywhere else in the app, so the carousel shouldn't
-                                // either.
-                                unifiedOrder = sortedFavourites,
-                            )
-                        }
-                    }
                     // TV only: lead with apps actually built for the television (leanback launcher), both
                     // from the F-Droid catalogue and from tracked external sources. Hidden on touch and when
                     // none are present.
@@ -945,85 +920,117 @@ fun AppListScreen(
                             )
                         }
                     }
-                    if (newApps.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-new", contentType = "carousel") {
-                            DiscoverCarousel(
-                                title = stringResource(R.string.discover_new_apps),
-                                apps = newApps,
-                                installedPackages = installedPackages,
-                                onAppClick = openApp,
-                                onSeeAll = { viewModel.openSection(SECTION_WHATS_NEW) },
-                                modifier = Modifier.padding(bottom = 8.dp),
-                                restoreFocusId = restoreFocusId,
-                                restoreRequester = restoreRequester,
-                            )
-                        }
-                    }
-                    if (recentlyUpdatedApps.isNotEmpty() || recentlyUpdatedExternalApps.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-updated", contentType = "carousel") {
-                            DiscoverCarousel(
-                                title = stringResource(R.string.discover_recently_updated),
-                                apps = recentlyUpdatedApps,
-                                installedPackages = installedPackages,
-                                onAppClick = openApp,
-                                onSeeAll = { viewModel.openSection(SECTION_RECENTLY_UPDATED) },
-                                modifier = Modifier.padding(bottom = 8.dp),
-                                // External sources' recently-released apps join the row after the catalogue
-                                // ones — Omnify makes no distinction between catalogue and external apps.
-                                externalApps = recentlyUpdatedExternalApps,
-                                externalInstalledKeys = externalInstalledKeys,
-                                onExternalAppClick = openExternalApp,
-                                restoreFocusId = restoreFocusId,
-                                restoreRequester = restoreRequester,
-                            )
-                        }
-                    }
-                    // "Most downloaded" — F-Droid v2's third curated carousel. Hidden until the download-
-                    // stats worker has fetched data, so it simply appears once stats land.
-                    if (mostDownloadedApps.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-downloaded", contentType = "carousel") {
-                            DiscoverCarousel(
-                                title = stringResource(R.string.discover_most_downloaded),
-                                apps = mostDownloadedApps,
-                                installedPackages = installedPackages,
-                                onAppClick = openApp,
-                                onSeeAll = { viewModel.openSection(SECTION_MOST_DOWNLOADED) },
-                                modifier = Modifier.padding(bottom = 8.dp),
-                                restoreFocusId = restoreFocusId,
-                                restoreRequester = restoreRequester,
-                            )
-                        }
-                    }
-                    // "Shizuku" carousel — apps that integrate with Shizuku (detected from the Shizuku
-                    // permission in their manifest). Hidden when the catalogue has none.
-                    if (shizukuApps.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-shizuku", contentType = "carousel") {
-                            DiscoverCarousel(
-                                title = stringResource(R.string.discover_shizuku),
-                                apps = shizukuApps,
-                                installedPackages = installedPackages,
-                                onAppClick = openApp,
-                                onSeeAll = { viewModel.openSection(SECTION_SHIZUKU) },
-                                modifier = Modifier.padding(bottom = 8.dp),
-                                restoreFocusId = restoreFocusId,
-                                restoreRequester = restoreRequester,
-                            )
-                        }
-                    }
-                    // "For rooted devices" carousel — apps that declare the superuser permission, i.e. apps
-                    // that need root. Hidden when the catalogue has none.
-                    if (rootApps.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-root", contentType = "carousel") {
-                            DiscoverCarousel(
-                                title = stringResource(R.string.discover_root),
-                                apps = rootApps,
-                                installedPackages = installedPackages,
-                                onAppClick = openApp,
-                                onSeeAll = { viewModel.openSection(SECTION_ROOT) },
-                                modifier = Modifier.padding(bottom = 8.dp),
-                                restoreFocusId = restoreFocusId,
-                                restoreRequester = restoreRequester,
-                            )
+                    // The carousels the user arranged (see AppListViewModel.exploreCarousels), each one
+                    // showing once it has apps. Favourites are the user's own, catalogue and external
+                    // interleaved in their sort order; a category's are its first apps.
+                    exploreCarousels.forEach { key ->
+                        when (key) {
+                            SECTION_FAVOURITES -> if (favouriteApps.isNotEmpty() || favouriteExternalApps.isNotEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-favourites", contentType = "carousel") {
+                                    DiscoverCarousel(
+                                        title = stringResource(R.string.favourites),
+                                        installedPackages = installedPackages,
+                                        onAppClick = openApp,
+                                        onSeeAll = { viewModel.openSection(SECTION_FAVOURITES) },
+                                        modifier = Modifier.padding(bottom = 8.dp),
+                                        externalInstalledKeys = externalInstalledKeys,
+                                        onExternalAppClick = openExternalApp,
+                                        restoreFocusId = restoreFocusId,
+                                        restoreRequester = restoreRequester,
+                                        unifiedOrder = sortedFavourites,
+                                    )
+                                }
+                            }
+                            SECTION_WHATS_NEW -> if (newApps.isNotEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-new", contentType = "carousel") {
+                                    DiscoverCarousel(
+                                        title = stringResource(R.string.discover_new_apps),
+                                        apps = newApps,
+                                        installedPackages = installedPackages,
+                                        onAppClick = openApp,
+                                        onSeeAll = { viewModel.openSection(SECTION_WHATS_NEW) },
+                                        modifier = Modifier.padding(bottom = 8.dp),
+                                        restoreFocusId = restoreFocusId,
+                                        restoreRequester = restoreRequester,
+                                    )
+                                }
+                            }
+                            // External sources' recently released apps join the row after the
+                            // catalogue's: Omnify makes no distinction between the two.
+                            SECTION_RECENTLY_UPDATED -> if (recentlyUpdatedApps.isNotEmpty() || recentlyUpdatedExternalApps.isNotEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-updated", contentType = "carousel") {
+                                    DiscoverCarousel(
+                                        title = stringResource(R.string.discover_recently_updated),
+                                        apps = recentlyUpdatedApps,
+                                        installedPackages = installedPackages,
+                                        onAppClick = openApp,
+                                        onSeeAll = { viewModel.openSection(SECTION_RECENTLY_UPDATED) },
+                                        modifier = Modifier.padding(bottom = 8.dp),
+                                        externalApps = recentlyUpdatedExternalApps,
+                                        externalInstalledKeys = externalInstalledKeys,
+                                        onExternalAppClick = openExternalApp,
+                                        restoreFocusId = restoreFocusId,
+                                        restoreRequester = restoreRequester,
+                                    )
+                                }
+                            }
+                            // Empty until the download-stats worker has fetched its data.
+                            SECTION_MOST_DOWNLOADED -> if (mostDownloadedApps.isNotEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-downloaded", contentType = "carousel") {
+                                    DiscoverCarousel(
+                                        title = stringResource(R.string.discover_most_downloaded),
+                                        apps = mostDownloadedApps,
+                                        installedPackages = installedPackages,
+                                        onAppClick = openApp,
+                                        onSeeAll = { viewModel.openSection(SECTION_MOST_DOWNLOADED) },
+                                        modifier = Modifier.padding(bottom = 8.dp),
+                                        restoreFocusId = restoreFocusId,
+                                        restoreRequester = restoreRequester,
+                                    )
+                                }
+                            }
+                            SECTION_SHIZUKU -> if (shizukuApps.isNotEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-shizuku", contentType = "carousel") {
+                                    DiscoverCarousel(
+                                        title = stringResource(R.string.discover_shizuku),
+                                        apps = shizukuApps,
+                                        installedPackages = installedPackages,
+                                        onAppClick = openApp,
+                                        onSeeAll = { viewModel.openSection(SECTION_SHIZUKU) },
+                                        modifier = Modifier.padding(bottom = 8.dp),
+                                        restoreFocusId = restoreFocusId,
+                                        restoreRequester = restoreRequester,
+                                    )
+                                }
+                            }
+                            SECTION_ROOT -> if (rootApps.isNotEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-root", contentType = "carousel") {
+                                    DiscoverCarousel(
+                                        title = stringResource(R.string.discover_root),
+                                        apps = rootApps,
+                                        installedPackages = installedPackages,
+                                        onAppClick = openApp,
+                                        onSeeAll = { viewModel.openSection(SECTION_ROOT) },
+                                        modifier = Modifier.padding(bottom = 8.dp),
+                                        restoreFocusId = restoreFocusId,
+                                        restoreRequester = restoreRequester,
+                                    )
+                                }
+                            }
+                            else -> categoryCarousels[key]?.takeIf { it.isNotEmpty() }?.let { apps ->
+                                item(span = { GridItemSpan(maxLineSpan) }, key = "carousel-category-$key", contentType = "carousel") {
+                                    DiscoverCarousel(
+                                        title = sectionTitle(key, categories),
+                                        apps = apps,
+                                        installedPackages = installedPackages,
+                                        onAppClick = openApp,
+                                        onSeeAll = { viewModel.openSection(key) },
+                                        modifier = Modifier.padding(bottom = 8.dp),
+                                        restoreFocusId = restoreFocusId,
+                                        restoreRequester = restoreRequester,
+                                    )
+                                }
+                            }
                         }
                     }
                     // The categories accordion. The chevron expands a category's apps inline; tapping
@@ -1352,8 +1359,7 @@ fun AppListScreen(
             onClose = { overflowExpanded = false },
         ) {
             HomeMenuSheet(
-                showFavouritesCarousel = showFavouritesCarousel,
-                onToggleFavouritesCarousel = viewModel::toggleFavouritesCarousel,
+                onCustomiseExplore = onNavigateToExploreCarousels,
                 onNavigateToRepos = onNavigateToRepos,
                 onNavigateToSettings = onNavigateToSettings,
                 onClose = { overflowExpanded = false },
@@ -2028,18 +2034,19 @@ private fun HomeMenuButton(
 /** What the overflow button opens: the less-used destinations, each closing the sheet on its way. */
 @Composable
 private fun ColumnScope.HomeMenuSheet(
-    showFavouritesCarousel: Boolean,
-    onToggleFavouritesCarousel: () -> Unit,
+    onCustomiseExplore: () -> Unit,
     onNavigateToRepos: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onClose: () -> Unit,
 ) {
-    SwitchSettingItem(
-        title = stringResource(R.string.favourites),
-        description = stringResource(R.string.home_menu_favourites_summary),
-        checked = showFavouritesCarousel,
-        onCheckedChange = { onToggleFavouritesCarousel() },
-        icon = rememberVectorPainter(Icons.Filled.Favorite),
+    ActionSettingItem(
+        title = stringResource(R.string.explore_carousels_title),
+        description = stringResource(R.string.explore_carousels_DESC),
+        onClick = {
+            onClose()
+            onCustomiseExplore()
+        },
+        icon = rememberVectorPainter(Icons.Filled.ViewCarousel),
     )
     ActionSettingItem(
         title = stringResource(R.string.repositories),
@@ -2179,16 +2186,8 @@ private fun CategoriesTitle() {
 
 /** The localized title for a "see all" page: a curated carousel's, or a category's own name. */
 @Composable
-private fun sectionTitle(key: String?, categories: List<CatalogCategory>): String = when (key) {
-    SECTION_FAVOURITES -> stringResource(R.string.favourites)
-    SECTION_WHATS_NEW -> stringResource(R.string.discover_new_apps)
-    SECTION_RECENTLY_UPDATED -> stringResource(R.string.discover_recently_updated)
-    SECTION_MOST_DOWNLOADED -> stringResource(R.string.discover_most_downloaded)
-    SECTION_TV -> stringResource(R.string.discover_tv_apps)
-    SECTION_SHIZUKU -> stringResource(R.string.discover_shizuku)
-    SECTION_ROOT -> stringResource(R.string.discover_root)
-    else -> categories.firstOrNull { it.defaultName == key }?.name.orEmpty()
-}
+private fun sectionTitle(key: String?, categories: List<CatalogCategory>): String =
+    key?.let { curatedCarouselTitle(it) } ?: categories.firstOrNull { it.defaultName == key }?.name.orEmpty()
 
 /** Header for a carousel "see all" page: a back arrow that returns to the Discover home + the title. */
 @OptIn(ExperimentalMaterial3Api::class)

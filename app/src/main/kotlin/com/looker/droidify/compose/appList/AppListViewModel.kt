@@ -230,24 +230,17 @@ class AppListViewModel @Inject constructor(
     /** Whether a left/right swipe on the home grid switches tab (user setting, off by default). */
     val homeScreenSwiping = settingsRepository.get { homeScreenSwiping }.asHomeState(false)
 
-    /** Whether the Discover home's favourites carousel is allowed to show at all (persisted, on by
-     *  default). The carousel itself also needs a favourite to exist (see [favouriteApps] and
-     *  AppListScreen's gate); this is only the user's own show/hide choice from the overflow menu, so
-     *  hiding it once keeps it hidden until they show it again, even across a favourite being removed
-     *  and a new one added later. */
-    val showFavouritesCarousel: StateFlow<Boolean> =
-        settingsRepository.get { showFavouritesCarousel }.asHomeState(true)
+    /** The Explore tab's carousels in the order they show: the user's own arrangement, else Omnify's
+     *  ([CURATED_CAROUSELS]). Empty until the settings have answered, rather than Omnify's arrangement
+     *  flashing by before the user's. A carousel still shows only once it has apps. */
+    val exploreCarousels: StateFlow<List<String>> =
+        settingsRepository.get { exploreCarousels ?: CURATED_CAROUSELS }.asHomeState(emptyList())
 
     /** Whether the header shows the diagnostic log button: always in the test build, as chosen in
      *  the debug build, never in the others. */
     val showDiagnosticsButton: StateFlow<Boolean> = settingsRepository
         .get { BuildConfig.DIAGNOSTICS && (!BuildConfig.TRACES || showDiagnosticsButton) }
         .asHomeState(BuildConfig.DIAGNOSTICS)
-
-    /** Flips [showFavouritesCarousel]. */
-    fun toggleFavouritesCarousel() {
-        viewModelScope.launch { settingsRepository.setShowFavouritesCarousel(!showFavouritesCarousel.value) }
-    }
 
     // Emits whenever the catalogue (apps/versions) changes — e.g. after a sync — so every list
     // below re-queries automatically instead of waiting for the user to change a filter. Throttled
@@ -774,6 +767,25 @@ class AppListViewModel @Inject constructor(
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
         .asHomeState(emptyList())
+
+    /** The first apps of each category the user made a carousel of on the Explore tab, by its default
+     *  name, the user's own repositories' first like a category expanded in place. */
+    val categoryCarousels: StateFlow<Map<String, List<AppMinimal>>> =
+        combine(catalogChanges, exploreCarousels, hiddenApps) { _, keys, hidden ->
+            keys.filterNot { it in CURATED_CAROUSELS } to hidden
+        }
+            .mapLatest { (keys, hidden) ->
+                keys.associateWith { category ->
+                    appRepository.apps(
+                        sortOrder = SortOrder.UPDATED,
+                        categoriesToInclude = listOf(category),
+                        ownReposFirst = true,
+                    ).excludingHidden(hidden).take(DISCOVER_ROW_COUNT)
+                }
+            }
+            .distinctUntilChanged()
+            .flowOn(Dispatchers.Default)
+            .asHomeState(emptyMap())
 
     /** "Recently updated" carousel on the Discover home. Restricted to apps that have actually been
      *  updated since they were added, so it isn't a duplicate of the "New apps" carousel (a brand-new

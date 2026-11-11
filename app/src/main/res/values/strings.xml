@@ -273,7 +273,16 @@
     <string name="auto_translate_DESC">Translate a description on open when it isn\'t already in your language</string>
     <string name="enable_repo">Enable repository</string>
     <string name="favourites">Favourites</string>
-    <string name="home_menu_favourites_summary">At the top of Explore</string>
+    <string name="explore_carousels_title">Explore carousels</string>
+    <string name="explore_carousels_DESC">Choose which ones show, and in what order</string>
+    <string name="explore_carousels_shown">On Explore</string>
+    <string name="explore_carousels_none">No carousel: Explore starts with the categories.</string>
+    <string name="explore_carousels_omnify">Omnify\'s carousels</string>
+    <string name="explore_carousels_reset">Reset</string>
+    <string name="explore_carousels_move_up">Move up</string>
+    <string name="explore_carousels_move_down">Move down</string>
+    <string name="explore_carousels_remove">Remove</string>
+    <string name="explore_carousels_add">Add</string>
     <string name="home_menu_repositories_summary">Your repositories and external sources</string>
     <string name="home_menu_settings_summary">Appearance, updates and installation</string>
     <string name="date_favourited">Date favourited</string>
