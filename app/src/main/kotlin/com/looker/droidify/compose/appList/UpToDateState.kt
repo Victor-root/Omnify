@@ -30,10 +30,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -52,16 +56,18 @@ import com.looker.droidify.compose.components.HeroStatItem
 import com.looker.droidify.compose.components.PremiumCard
 import com.looker.droidify.compose.components.SectionHeading
 import com.looker.droidify.compose.components.premiumCardBorder
+import com.looker.droidify.compose.components.tvFocusFill
+import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /** An installed app Omnify keeps up to date: from the catalogue, or from a source the user follows. */
 @Immutable
@@ -80,6 +86,33 @@ sealed interface FollowedApp {
 private data class RecentUpdate(val app: FollowedApp, val version: String?, val updatedAt: Long)
 
 /**
+ * Whether the up-to-date state is to make its entrance: updates were listed since it last showed, so
+ * the last of them has just left. Opened with nothing to update, it simply stands there.
+ */
+@Stable
+internal class UpToDateEntrance {
+    var due by mutableStateOf(false)
+}
+
+/** The [UpToDateEntrance] of a list of updates, due once [hasUpdates] has been true. */
+@Composable
+internal fun rememberUpToDateEntrance(hasUpdates: Boolean): UpToDateEntrance {
+    val entrance = remember { UpToDateEntrance() }
+    LaunchedEffect(hasUpdates) { if (hasUpdates) entrance.due = true }
+    return entrance
+}
+
+/** Every installed app Omnify updates, each once: a package in the catalogue and followed from a source
+ *  too counts as the catalogue's. */
+internal fun followedApps(catalogue: List<AppMinimal>, external: List<ExternalApp>): List<FollowedApp> {
+    val catalogueApps = catalogue.map { FollowedApp.Catalogue(it) }
+    val cataloguePackages = catalogueApps.mapTo(HashSet()) { it.packageName }
+    return catalogueApps + external.mapNotNull { app ->
+        app.packageName?.takeIf { it !in cataloguePackages }?.let { FollowedApp.External(app, it) }
+    }
+}
+
+/**
  * The Updates tab once there is nothing to update: says so, how many apps that covers, when updates
  * were last checked for and how often they are, and which apps were updated lately, so an empty tab
  * reads as everything being looked after rather than as nothing happening.
@@ -87,13 +120,13 @@ private data class RecentUpdate(val app: FollowedApp, val version: String?, val 
  * Fits in [maxHeight], the room the tab has, when it is known: the latest updates then show only as
  * many as fit whole, so that nothing below them needs a scroll to be reached.
  *
- * With [animateIn], read when it first shows, it makes an entrance: the card rises into place, the check
- * pops in just after and the latest updates follow, for the moment the last update has just been
- * installed. Read in layer blocks, so the entrance redraws the card without recomposing it.
+ * When [entrance] is due, it makes one: the card rises into place, the check pops in just after and the
+ * latest updates follow, for the moment the last update has just been installed. Read in layer blocks,
+ * so the entrance redraws the card without recomposing it.
  */
 @Composable
 internal fun UpToDateState(
-    animateIn: Boolean,
+    entrance: UpToDateEntrance,
     maxHeight: Dp?,
     followedApps: List<FollowedApp>,
     lastCheck: Long?,
@@ -113,8 +146,9 @@ internal fun UpToDateState(
     val recentUpdates by produceState(emptyList(), followedApps) {
         value = withContext(Dispatchers.IO) { context.recentUpdates(followedApps) }
     }
-    val entrance = remember { MutableTransitionState(!animateIn).apply { targetState = true } }
-    val shown = rememberTransition(entrance, label = "upToDateEntrance")
+    val entering = remember { MutableTransitionState(!entrance.due).apply { targetState = true } }
+    LaunchedEffect(Unit) { entrance.due = false }
+    val shown = rememberTransition(entering, label = "upToDateEntrance")
     val card = shown.animateFloat(
         transitionSpec = { tween(ENTRANCE_MS, easing = FastOutSlowInEasing) },
         label = "card",
@@ -190,7 +224,7 @@ internal fun UpToDateState(
                         )
                     }
                     Spacer(Modifier.height(16.dp))
-                    FilledTonalButton(onClick = onCheckNow, enabled = !isChecking) {
+                    FilledTonalButton(onClick = onCheckNow, enabled = !isChecking, modifier = Modifier.tvFocusScale()) {
                         Icon(
                             painter = painterResource(R.drawable.ic_sync),
                             contentDescription = null,
@@ -279,6 +313,8 @@ private fun RecentUpdateRow(update: RecentUpdate, now: Long, onClick: () -> Unit
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         modifier = Modifier
             .fillMaxWidth()
+            // TV only: a soft accent fill behind the focused row (no-op on touch).
+            .tvFocusFill(MaterialTheme.shapes.large)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {

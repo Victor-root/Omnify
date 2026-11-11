@@ -3,8 +3,12 @@ package com.looker.droidify.compose.tv
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -79,6 +83,7 @@ import com.looker.droidify.compose.appList.AppListViewModel
 import com.looker.droidify.compose.appList.AppRow
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appList.AppTab
+import com.looker.droidify.compose.appList.FollowedApp
 import com.looker.droidify.compose.appList.PendingAppListTab
 import com.looker.droidify.compose.appList.SECTION_FAVOURITES
 import com.looker.droidify.compose.appList.SECTION_MOST_DOWNLOADED
@@ -86,8 +91,11 @@ import com.looker.droidify.compose.appList.SECTION_RECENTLY_UPDATED
 import com.looker.droidify.compose.appList.SECTION_ROOT
 import com.looker.droidify.compose.appList.SECTION_SHIZUKU
 import com.looker.droidify.compose.appList.SECTION_WHATS_NEW
+import com.looker.droidify.compose.appList.UpToDateState
 import com.looker.droidify.compose.appList.UpdatingApps
+import com.looker.droidify.compose.appList.followedApps
 import com.looker.droidify.compose.appList.rememberCarouselState
+import com.looker.droidify.compose.appList.rememberUpToDateEntrance
 import com.looker.droidify.compose.appList.restoreFocusTarget
 import com.looker.droidify.compose.components.CatalogOfflineState
 import com.looker.droidify.compose.components.InstalledCheck
@@ -112,6 +120,7 @@ import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.shownOnExternalTab
 import com.looker.droidify.utility.diagnostics.DiagnosticLog
+import kotlin.time.Duration
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
@@ -277,6 +286,20 @@ fun TvHomeScreen(
         if (externalKey != null) onExternalAppClick(externalKey) else onAppClick(pkg)
     }
 
+    // Same "sync everything" as the phone's sync button and "Check now": the catalogue's own worker
+    // plus a forced external-sources refresh.
+    val syncEverything = remember(viewModel, externalViewModel) {
+        {
+            viewModel.sync()
+            externalViewModel.refresh(force = true)
+        }
+    }
+    val lastUpdateCheck by viewModel.lastUpdateCheck.collectAsStateWithLifecycle()
+    val updateCheckInterval by viewModel.updateCheckInterval.collectAsStateWithLifecycle()
+    val followedApps = remember(installedApps, installedExternalApps) {
+        followedApps(installedApps, installedExternalApps)
+    }
+
     val railFocus = remember { FocusRequester() }
     // Whether Explore currently leads with the favourites carousel (see TvExplore) instead of "Made for
     // TV"/whatever else is first. Comes from a different source (settingsRepository's favourites store)
@@ -380,12 +403,7 @@ fun TvHomeScreen(
                 viewModel.selectTab(AppTab.AVAILABLE)
                 section = TvSection.SEARCH
             },
-            // Same "sync everything" as the phone header's own sync button (AppListMainTopBar):
-            // the catalogue's own worker plus a forced external-sources refresh.
-            onSync = {
-                viewModel.sync()
-                externalViewModel.refresh(force = true)
-            },
+            onSync = syncEverything,
             // Repositories and Settings are separate NavHost destinations, not a TvSection, so their
             // own screen leaving the composition on the way there and this one re-entering it on Back
             // is what needs restoreFocusId (see its own doc comment) to land focus back on the button
@@ -483,6 +501,17 @@ fun TvHomeScreen(
                     onUpdateAll = { viewModel.updateAll(externalUpdates.map { it.key }) },
                     onCancelUpdateAll = viewModel::cancelUpdateAll,
                     onAppClick = openApp,
+                    followedApps = followedApps,
+                    lastCheck = lastUpdateCheck,
+                    checkInterval = updateCheckInterval,
+                    isChecking = isSyncing || isRefreshingExternal,
+                    onCheckNow = syncEverything,
+                    onOpenFollowedApp = { app ->
+                        when (app) {
+                            is FollowedApp.Catalogue -> openInstalled(app.packageName)
+                            is FollowedApp.External -> openExternal(app.app.key)
+                        }
+                    },
                     restoreFocusId = restoreFocusId,
                     restoreRequester = restoreRequester,
                 )
@@ -987,6 +1016,8 @@ private fun TvAppGrid(
     updating: UpdatingApps = UpdatingApps.None,
     // The Updates grid only: each updated app's tile shrinks away and the others close the gap.
     animateDepartures: Boolean = false,
+    // What shows once there is nothing to list, after the last tile has left; a plain message without.
+    empty: (@Composable () -> Unit)? = null,
     restoreFocusId: String? = null,
     restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
@@ -1004,7 +1035,7 @@ private fun TvAppGrid(
             header?.invoke()
         }
         if (appTiles.isEmpty() && externalTiles.isEmpty()) {
-            TvEmpty(stringResource(R.string.no_applications_available))
+            if (empty != null) empty() else TvEmpty(stringResource(R.string.no_applications_available))
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(CardWidth + 18.dp),
@@ -1072,9 +1103,17 @@ private fun TvUpdates(
     onUpdateAll: () -> Unit,
     onCancelUpdateAll: () -> Unit,
     onAppClick: (String) -> Unit,
+    // For the up-to-date state, as on the phone's Updates tab (see UpToDateState).
+    followedApps: List<FollowedApp>,
+    lastCheck: Long?,
+    checkInterval: Duration?,
+    isChecking: Boolean,
+    onCheckNow: () -> Unit,
+    onOpenFollowedApp: (FollowedApp) -> Unit,
     restoreFocusId: String? = null,
     restoreRequester: FocusRequester = remember { FocusRequester() },
 ) {
+    val upToDateEntrance = rememberUpToDateEntrance(apps.isNotEmpty() || externalApps.isNotEmpty())
     TvAppGrid(
         title = stringResource(R.string.updates),
         apps = apps,
@@ -1085,10 +1124,29 @@ private fun TvUpdates(
         onExternalAppClick = onExternalAppClick,
         updating = updating,
         animateDepartures = true,
+        empty = {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(bottom = TvOverscan)) {
+                UpToDateState(
+                    entrance = upToDateEntrance,
+                    maxHeight = maxHeight,
+                    followedApps = followedApps,
+                    lastCheck = lastCheck,
+                    checkInterval = checkInterval,
+                    isChecking = isChecking,
+                    onCheckNow = onCheckNow,
+                    onOpenApp = onOpenFollowedApp,
+                )
+            }
+        },
         restoreFocusId = restoreFocusId,
         restoreRequester = restoreRequester,
         header = {
-            if (apps.isNotEmpty() || externalApps.isNotEmpty()) {
+            // Fades out with the last update rather than vanishing ahead of its tile, as on the phone.
+            AnimatedVisibility(
+                visible = apps.isNotEmpty() || externalApps.isNotEmpty(),
+                enter = fadeIn(),
+                exit = fadeOut(tween(250)),
+            ) {
                 // Becomes the way to stop a running batch rather than sitting disabled, same as the
                 // phone screen's own button and for the same reason (see UpdateAllButton): a run can
                 // wedge on a system confirmation nobody answered, and a disabled button leaves a TV

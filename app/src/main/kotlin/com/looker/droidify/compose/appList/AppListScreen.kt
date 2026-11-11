@@ -433,22 +433,15 @@ fun AppListScreen(
     // makes an entrance when the last update has just left (see UpToDateState's animateIn), and simply
     // stands there when the tab is merely opened with nothing to update.
     val hasUpdateTiles = appTiles.isNotEmpty() || externalUpdateTiles.isNotEmpty()
-    var updatesListed by remember { mutableStateOf(false) }
-    LaunchedEffect(hasUpdateTiles) { if (hasUpdateTiles) updatesListed = true }
+    val upToDateEntrance = rememberUpToDateEntrance(hasUpdateTiles)
     // The Installed tab's catalogue half, as tiles that never leave.
     val installedTiles = remember(installedCatalogueApps) {
         installedCatalogueApps.map { Departing(it, leaving = false) }
     }
     // The Installed tab's external half. A package the catalogue half already lists stays its tile
     // alone, which opens the source's page when the source is what installed it (openInstalledApp).
-    // Every installed app Omnify updates, each once: a package in the catalogue and followed from a
-    // source too counts as the catalogue's.
     val followedApps = remember(installedCatalogueApps, installedExternalApps) {
-        val catalogue = installedCatalogueApps.map { FollowedApp.Catalogue(it) }
-        val cataloguePackages = catalogue.mapTo(HashSet()) { it.packageName }
-        catalogue + installedExternalApps.mapNotNull { app ->
-            app.packageName?.takeIf { it !in cataloguePackages }?.let { FollowedApp.External(app, it) }
-        }
+        followedApps(installedCatalogueApps, installedExternalApps)
     }
     // The room the grid leaves for its content, which the up-to-date state fits itself in.
     val gridContentHeight by remember(updatesGridState) {
@@ -1137,9 +1130,8 @@ fun AppListScreen(
                         if (activeSearch.isNotEmpty()) {
                             NoSearchResults(query = activeSearch)
                         } else if (tab == AppTab.UPDATES) {
-                            LaunchedEffect(Unit) { updatesListed = false }
                             UpToDateState(
-                                animateIn = updatesListed,
+                                entrance = upToDateEntrance,
                                 maxHeight = with(LocalDensity.current) {
                                     gridContentHeight.takeIf { it > 0 }?.toDp()
                                 },

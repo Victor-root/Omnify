@@ -15,14 +15,14 @@
 ### 🔄 Changed
 - **The ⋮ menu unrolls from under the header** as a sheet over the page, with a word on each entry. A tap outside, Back or a push upwards rolls it back.
 - **Page swiping follows your finger**: with page swiping on, the home's tabs slide along with the drag, the next one coming in beside it, instead of switching once the gesture ends. Each tab also keeps its own scroll position.
-- **The Updates tab is friendlier once everything is up to date**: how many apps that covers, when updates were last checked for and how often, your latest updates, and a button to check right away.
+- **The Updates tab is friendlier once everything is up to date**: how many apps that covers, when updates were last checked for and how often, your latest updates, and a button to check right away. On Android TV too.
 - **Omnify starts and runs far faster, on phone and TV**: one carousel kept the database busy for several seconds at every launch while everything else waited behind it, and the animated background redrew the whole screen on every frame. A screen at rest now leaves the processor and the graphics chip alone, for a smoother app and a longer battery life, with the same look.
 - **App pages open without freezing and download far less**: a README no longer holds up the screen while it loads, images far larger than any screen are scaled down, and a page opened again costs almost no data instead of fetching the same things again (Ente Auth: 4.5 MB down to a few KB).
 - **"Update all" works on three apps at once**: a slow server no longer holds up the rest, the next app starts as soon as one is through, and whichever finishes downloading first is installed first.
 - **Repositories sync all at once**: a slow server, F-Droid's on a bad night, no longer holds up your other repositories, and external sources are checked at the same time instead of afterwards.
 - **The header shows how far a sync has come**, a percentage covering repositories and external sources together: beside the progress bar on phone, in place of the sync icon on TV.
 - **Updated apps leave the Updates list smoothly**: each one shrinks and fades out in its place as it finishes, then the others slide into the gap, instead of vanishing at once.
-- **Updating the last app ends on a proper finish**: "Update all" fades out with it, then the up-to-date card rises into place, its check popping in and your latest updates following, instead of the page switching at once. Opening the tab when nothing needs updating shows it straight away.
+- **Updating the last app ends on a proper finish**: "Update all" fades out with it, then the up-to-date card rises into place, its check popping in and your latest updates following, instead of the page switching at once. Opening the tab when nothing needs updating shows it straight away. On Android TV too.
 - **An app's short description moves into its card**, under the author and set off by a bar in the app's colour, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
 
 ### 🐛 Fixed
