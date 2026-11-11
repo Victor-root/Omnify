@@ -27,6 +27,7 @@
 - **An app's short description moves into its card**, under the author and set off by a bar in the app's colour, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
 
 ### 🐛 Fixed
+- **A repository added with "Add without verifying" syncs again**: it was kept with an empty fingerprint, which no index matched, so it was refused at every sync and never showed any app. It now trusts the first index and keeps its fingerprint from then on, which also mends repositories already added that way.
 - **Round app icons on Android TV no longer sit in a grey frame**: the card every TV icon is laid on showed around a round icon's corners. A round icon now goes without it; square and padded ones keep it.
 - **Omnify's own page shows the Root badge** next to the Shizuku one: it declares the permission catalogues read as "can use root", which grants nothing by itself.
 - **A tapped tab fades through instead of sliding**, as the system apps do: a whole screen slid in a fraction of a second jumped visibly, where a finger's swipe does not, which is unchanged. The tab pill glides over meanwhile, and a tab once opened stays ready rather than being built again on each visit. The banners of the Updates and External tabs also sit at the top of their own page now, rather than resizing the header in the middle of a change of tab.

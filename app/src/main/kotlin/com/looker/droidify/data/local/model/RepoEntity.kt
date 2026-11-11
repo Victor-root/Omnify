@@ -46,7 +46,9 @@ fun RepoEntity.toRepo(
     icon = FilePath(address, icon),
     name = name,
     description = Html(description),
-    fingerprint = fingerprint,
+    // A repository added without one is stored with an empty fingerprint, which no index matches: it
+    // stands for none, so the first sync trusts the index and keeps its fingerprint from then on.
+    fingerprint = fingerprint.takeIf { it.isValid },
     authentication = authentication,
     enabled = enabled,
     address = address,
