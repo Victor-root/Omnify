@@ -419,6 +419,12 @@ fun AppListScreen(
     // in its place before the others close the gap (see rememberDepartures).
     val appTiles = rememberDepartures(updatableCatalogueApps, key = { it.appId }, enabled = true)
     val externalUpdateTiles = rememberDepartures(searchedExternalUpdates, key = { it.key }, enabled = true)
+    // Whether the Updates tab has listed something since its up-to-date state last showed, so that state
+    // makes an entrance when the last update has just left (see UpToDateState's animateIn), and simply
+    // stands there when the tab is merely opened with nothing to update.
+    val hasUpdateTiles = appTiles.isNotEmpty() || externalUpdateTiles.isNotEmpty()
+    var updatesListed by remember { mutableStateOf(false) }
+    LaunchedEffect(hasUpdateTiles) { if (hasUpdateTiles) updatesListed = true }
     // The Installed tab's catalogue half, as tiles that never leave.
     val installedTiles = remember(installedCatalogueApps) {
         installedCatalogueApps.map { Departing(it, leaving = false) }
@@ -1111,7 +1117,9 @@ fun AppListScreen(
                     isSearching && !sectionView && activeSearch.isNotEmpty() &&
                         tabApps.isEmpty() && searchedExternalApps.isEmpty()
                 AppTab.INSTALLED -> tabApps.isEmpty() && searchedInstalledExternal.isEmpty()
-                AppTab.UPDATES -> !updatesStillLoading && tabApps.isEmpty() && searchedExternalUpdates.isEmpty()
+                // The tiles rather than the lists: the last updated app shrinks away before anything
+                // takes its place.
+                AppTab.UPDATES -> !updatesStillLoading && !hasUpdateTiles
                 AppTab.EXTERNAL -> false
             }
             if (showEmpty) {
@@ -1121,7 +1129,9 @@ fun AppListScreen(
                     if (activeSearch.isNotEmpty()) {
                         NoSearchResults(query = activeSearch)
                     } else if (tab == AppTab.UPDATES) {
+                        LaunchedEffect(Unit) { updatesListed = false }
                         UpToDateState(
+                            animateIn = updatesListed,
                             maxHeight = with(LocalDensity.current) {
                                 gridContentHeight.takeIf { it > 0 }?.toDp()
                             },
@@ -1149,13 +1159,16 @@ fun AppListScreen(
             // "(3)" sitting above four apps.
             if (tab == AppTab.UPDATES && (tabApps.isNotEmpty() || searchedExternalUpdates.isNotEmpty())) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "update-all") {
-                    UpdateAllButton(
-                        count = tabApps.size + searchedExternalUpdates.size,
-                        isUpdating = isUpdatingAll,
-                        batch = batchUpdate,
-                        onClick = { viewModel.updateAll(searchedExternalUpdates.map { it.key }) },
-                        onCancel = viewModel::cancelUpdateAll,
-                    )
+                    // Fades out with the last update rather than vanishing ahead of its tile.
+                    Box(Modifier.animateItem(fadeInSpec = null, placementSpec = null, fadeOutSpec = tween(250))) {
+                        UpdateAllButton(
+                            count = tabApps.size + searchedExternalUpdates.size,
+                            isUpdating = isUpdatingAll,
+                            batch = batchUpdate,
+                            onClick = { viewModel.updateAll(searchedExternalUpdates.map { it.key }) },
+                            onCancel = viewModel::cancelUpdateAll,
+                        )
+                    }
                 }
             }
             // The Explore tab ends at the categories accordion — no flat grid under the Discover home.

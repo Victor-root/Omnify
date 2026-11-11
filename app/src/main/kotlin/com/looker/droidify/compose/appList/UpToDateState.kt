@@ -2,6 +2,12 @@ package com.looker.droidify.compose.appList
 
 import android.content.Context
 import android.text.format.DateUtils
+import androidx.compose.animation.core.EaseOutBack
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.rememberTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,10 +30,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -77,9 +86,14 @@ private data class RecentUpdate(val app: FollowedApp, val version: String?, val 
  *
  * Fits in [maxHeight], the room the tab has, when it is known: the latest updates then show only as
  * many as fit whole, so that nothing below them needs a scroll to be reached.
+ *
+ * With [animateIn], read when it first shows, it makes an entrance: the card rises into place, the check
+ * pops in just after and the latest updates follow, for the moment the last update has just been
+ * installed. Read in layer blocks, so the entrance redraws the card without recomposing it.
  */
 @Composable
 internal fun UpToDateState(
+    animateIn: Boolean,
     maxHeight: Dp?,
     followedApps: List<FollowedApp>,
     lastCheck: Long?,
@@ -99,6 +113,20 @@ internal fun UpToDateState(
     val recentUpdates by produceState(emptyList(), followedApps) {
         value = withContext(Dispatchers.IO) { context.recentUpdates(followedApps) }
     }
+    val entrance = remember { MutableTransitionState(!animateIn).apply { targetState = true } }
+    val shown = rememberTransition(entrance, label = "upToDateEntrance")
+    val card = shown.animateFloat(
+        transitionSpec = { tween(ENTRANCE_MS, easing = FastOutSlowInEasing) },
+        label = "card",
+    ) { if (it) 1f else 0f }
+    val badge = shown.animateFloat(
+        transitionSpec = { tween(ENTRANCE_MS, delayMillis = BADGE_DELAY_MS, easing = EaseOutBack) },
+        label = "badge",
+    ) { if (it) 1f else 0f }
+    val recent = shown.animateFloat(
+        transitionSpec = { tween(ENTRANCE_MS, delayMillis = RECENT_DELAY_MS, easing = FastOutSlowInEasing) },
+        label = "recent",
+    ) { if (it) 1f else 0f }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -111,12 +139,18 @@ internal fun UpToDateState(
             modifier = Modifier.widthIn(max = 560.dp),
         ) {
             // Shaped like an app page's hero card: the state, then its figures, then the action.
-            PremiumCard {
+            PremiumCard(modifier = Modifier.rise(card)) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(20.dp),
                 ) {
-                    CheckBadge()
+                    CheckBadge(
+                        modifier = Modifier.graphicsLayer {
+                            alpha = badge.value.coerceIn(0f, 1f)
+                            scaleX = BADGE_START_SCALE + (1f - BADGE_START_SCALE) * badge.value
+                            scaleY = scaleX
+                        },
+                    )
                     Spacer(Modifier.height(12.dp))
                     Text(
                         text = stringResource(R.string.everything_up_to_date),
@@ -173,18 +207,24 @@ internal fun UpToDateState(
                     now = now,
                     onOpenApp = onOpenApp,
                     // Without a known height a weight would leave it no room at all.
-                    modifier = if (maxHeight != null) Modifier.weight(1f, fill = false) else Modifier,
+                    modifier = (if (maxHeight != null) Modifier.weight(1f, fill = false) else Modifier).rise(recent),
                 )
             }
         }
     }
 }
 
+/** Fades [progress] in while rising the last few dp into place. */
+private fun Modifier.rise(progress: State<Float>): Modifier = graphicsLayer {
+    alpha = progress.value
+    translationY = (1f - progress.value) * RISE.toPx()
+}
+
 @Composable
-private fun CheckBadge() {
+private fun CheckBadge(modifier: Modifier = Modifier) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
+        modifier = modifier
             .size(64.dp)
             .background(MaterialTheme.colorScheme.primary, CircleShape),
     ) {
@@ -340,6 +380,12 @@ private fun Context.recentUpdates(apps: List<FollowedApp>): List<RecentUpdate> {
         RecentUpdate(app = app, version = info.versionName, updatedAt = info.lastUpdateTime)
     }.sortedByDescending { it.updatedAt }.take(RECENT_COUNT)
 }
+
+private const val ENTRANCE_MS = 420
+private const val BADGE_DELAY_MS = 140
+private const val RECENT_DELAY_MS = 240
+private const val BADGE_START_SCALE = 0.4f
+private val RISE = 24.dp
 
 private val RECENT_WINDOW = 30.days
 private const val RECENT_COUNT = 3

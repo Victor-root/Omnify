@@ -21,6 +21,7 @@
 - **Repositories sync all at once**: a slow server, F-Droid's on a bad night, no longer holds up your other repositories, and external sources are checked at the same time instead of afterwards.
 - **The header shows how far a sync has come**, a percentage covering repositories and external sources together: beside the progress bar on phone, in place of the sync icon on TV.
 - **Updated apps leave the Updates list smoothly**: each one shrinks and fades out in its place as it finishes, then the others slide into the gap, instead of vanishing at once.
+- **Updating the last app ends on a proper finish**: "Update all" fades out with it, then the up-to-date card rises into place, its check popping in and your latest updates following, instead of the page switching at once. Opening the tab when nothing needs updating shows it straight away.
 - **An app's short description moves into its card**, under the author and set off by a bar in the app's colour, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
 
 ### 🐛 Fixed
