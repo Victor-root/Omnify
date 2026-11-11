@@ -14,6 +14,9 @@
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
     <uses-permission android:name="android.permission.ENFORCE_UPDATE_OWNERSHIP" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Grants nothing: root comes from Magisk or KernelSU at run time. Declared because catalogues
+         and stores, Omnify's own Root badge included, read it as "this app can use root". -->
+    <uses-permission android:name="android.permission.ACCESS_SUPERUSER" />
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />

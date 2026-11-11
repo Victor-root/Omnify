@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import coil3.BitmapImage
 import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
@@ -41,6 +42,7 @@ import com.looker.droidify.compose.components.TvTileIconSize
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.utility.common.extension.getPackageInfoCompat
+import com.looker.droidify.utility.common.extension.isRoundFullSize
 import com.looker.droidify.utility.common.extension.toSafeBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -136,20 +138,24 @@ fun AppMinimalIcon(
     // throwing "Software rendering doesn't support hardware bitmaps" instead of just being slow.
     // Requesting a non-hardware decode up front avoids that outright, only paid when a caller actually
     // wants the bitmap back, so ordinary tiles (no onIconBitmap) keep the faster hardware path.
+    // TV reads the picture back too, to tell a round icon (see roundIcon below).
     val context = LocalContext.current
-    val repoIconModel = remember(repoIcon, onIconBitmap != null) {
+    val readable = onIconBitmap != null || isTelevision
+    val repoIconModel = remember(repoIcon, readable) {
         repoIcon?.let { path ->
-            ImageRequest.Builder(context).data(path).allowHardware(onIconBitmap == null).build()
+            ImageRequest.Builder(context).data(path).allowHardware(!readable).build()
         }
     }
-    // On TV every icon sits on the same rounded card: a full-bleed icon covers it, while a padded or
-    // round icon sits centred on it instead of floating at an odd size — so the whole grid reads as
-    // uniform. Mobile keeps the icon clipped on its own (no card), which already looks right there.
+    // On TV every icon sits on the same rounded card: a full-bleed icon covers it, while a padded icon
+    // sits centred on it instead of floating at an odd size, so the whole grid reads as uniform. A round
+    // icon filling its square goes without: the card only showed as a grey frame around the circle.
+    // Mobile keeps the icon clipped on its own (no card), which already looks right there.
+    var roundIcon by remember(app.appId) { mutableStateOf(false) }
     Box(
-        modifier = if (isTelevision) {
-            modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
-        } else {
-            modifier
+        modifier = when {
+            !isTelevision -> modifier
+            roundIcon -> modifier.clip(shape)
+            else -> modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
         },
         contentAlignment = Alignment.Center,
     ) {
@@ -165,10 +171,15 @@ fun AppMinimalIcon(
                     val fallback = app.fallbackIcon?.path
                     if (fallback != null && fallback != repoIcon) repoIcon = fallback else repoFailed = true
                 },
-                onSuccess = onIconBitmap?.let { callback ->
+                onSuccess = if (readable) {
                     { state: AsyncImagePainter.State.Success ->
-                        callback("repo:$repoIcon") { state.toSafeBitmap(LauncherIconPx) }
+                        if (isTelevision) {
+                            roundIcon = (state.result.image as? BitmapImage)?.bitmap?.isRoundFullSize() == true
+                        }
+                        onIconBitmap?.invoke("repo:$repoIcon") { state.toSafeBitmap(LauncherIconPx) }
                     }
+                } else {
+                    null
                 },
                 // Fit, not Crop: app icons aren't all square, and cropping sliced the top/bottom off the
                 // round ones. Fit shows the whole icon; for a square icon it fills the box just the same.
@@ -185,6 +196,8 @@ fun AppMinimalIcon(
                 shape = shape,
                 isTelevision = isTelevision,
                 onIconBitmap = onIconBitmap,
+                // The system's own mask can make it round too (a circle on many TVs).
+                onRound = { roundIcon = it },
             )
 
             else -> DefaultAppIcon(shape = shape, isTelevision = isTelevision)
@@ -201,6 +214,7 @@ private fun InstalledLauncherIcon(
     shape: androidx.compose.ui.graphics.Shape,
     isTelevision: Boolean,
     onIconBitmap: ((source: String, bitmap: () -> Bitmap?) -> Unit)? = null,
+    onRound: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val launcher by produceState<ImageBitmap?>(null, packageName) {
@@ -210,7 +224,10 @@ private fun InstalledLauncherIcon(
     }
     val bitmap = launcher
     if (bitmap != null) {
-        LaunchedEffect(bitmap) { onIconBitmap?.invoke("launcher:$packageName") { bitmap.asAndroidBitmap() } }
+        LaunchedEffect(bitmap) {
+            if (isTelevision) onRound(bitmap.asAndroidBitmap().isRoundFullSize())
+            onIconBitmap?.invoke("launcher:$packageName") { bitmap.asAndroidBitmap() }
+        }
         Image(
             bitmap = bitmap,
             contentDescription = null,
