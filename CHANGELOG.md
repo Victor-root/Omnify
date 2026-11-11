@@ -13,6 +13,7 @@
 - **A "Shizuku compatible" badge** on the page of apps that can use Shizuku or Sui, next to the Root one, on phone and TV. Both badges now show on external sources too, from the permissions their APK declares.
 
 ### 🔄 Changed
+- **Page swiping follows your finger**: with page swiping on, the home's tabs slide along with the drag, the next one coming in beside it, instead of switching once the gesture ends. Each tab also keeps its own scroll position.
 - **The Updates tab is friendlier once everything is up to date**: how many apps that covers, when updates were last checked for and how often, your latest updates, and a button to check right away.
 - **Omnify starts and runs far faster, on phone and TV**: one carousel kept the database busy for several seconds at every launch while everything else waited behind it, and the animated background redrew the whole screen on every frame. A screen at rest now leaves the processor and the graphics chip alone, for a smoother app and a longer battery life, with the same look.
 - **App pages open without freezing and download far less**: a README no longer holds up the screen while it loads, images far larger than any screen are scaled down, and a page opened again costs almost no data instead of fetching the same things again (Ente Auth: 4.5 MB down to a few KB).

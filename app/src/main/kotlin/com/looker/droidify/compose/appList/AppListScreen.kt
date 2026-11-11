@@ -7,7 +7,6 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
@@ -38,7 +37,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -49,7 +47,10 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -110,12 +111,10 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
@@ -141,6 +140,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.components.SyncPercent
 import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvTypeOnOk
+import com.looker.droidify.compose.components.Departing
 import com.looker.droidify.compose.components.rememberDepartures
 import com.looker.droidify.compose.components.updateDeparture
 import com.looker.droidify.compose.trailUpdatesNav
@@ -186,8 +186,10 @@ fun AppListScreen(
     onNavigateToSettings: () -> Unit,
     onFixGithubToken: () -> Unit,
 ) {
-    val displayed by viewModel.displayedApps.collectAsStateWithLifecycle()
-    val apps = displayed.apps
+    // Each tab's own catalogue list: the pages sit side by side, so the neighbour a swipe reveals
+    // already has its apps rather than the selected tab's.
+    val availableApps by viewModel.appsState.collectAsStateWithLifecycle()
+    val updatableCatalogueApps by viewModel.updatableApps.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     val syncFraction by viewModel.syncFraction.collectAsStateWithLifecycle()
     val isSyncScheduled by viewModel.isSyncScheduled.collectAsStateWithLifecycle()
@@ -233,7 +235,19 @@ fun AppListScreen(
     val externallyInstalled by viewModel.externallyInstalledPackages.collectAsStateWithLifecycle()
     val homeScreenSwiping by viewModel.homeScreenSwiping.collectAsStateWithLifecycle()
     val activeSearch by viewModel.activeSearch.collectAsStateWithLifecycle()
-    val gridState = rememberLazyGridState()
+    // One grid per tab, each keeping its own scroll position across swipes.
+    val exploreGridState = rememberLazyGridState()
+    val installedGridState = rememberLazyGridState()
+    val updatesGridState = rememberLazyGridState()
+    val externalGridState = rememberLazyGridState()
+    val gridStateOf: (AppTab) -> LazyGridState = { tab ->
+        when (tab) {
+            AppTab.AVAILABLE -> exploreGridState
+            AppTab.INSTALLED -> installedGridState
+            AppTab.UPDATES -> updatesGridState
+            AppTab.EXTERNAL -> externalGridState
+        }
+    }
     // The whole header (toolbar + tabs + banner) collapses on scroll under edge-to-edge.
     val header = rememberCollapsibleHeader()
     var searchExpanded by rememberSaveable { mutableStateOf(false) }
@@ -268,7 +282,7 @@ fun AppListScreen(
     LaunchedEffect(openedSection) {
         if (openedSection != lastHandledSection) {
             lastHandledSection = openedSection
-            gridState.scrollToItem(0)
+            exploreGridState.scrollToItem(0)
             header.reveal()
         }
     }
@@ -287,20 +301,22 @@ fun AppListScreen(
         PendingAppListTab.clear()
     }
 
-    // Slide the grid in when the tab changes (by swipe or by tapping a tab), so switching pages feels
-    // animated like the rest of the app instead of an instant swap. The new page starts off-screen on
-    // the side it comes from (right when moving to a later tab, left for an earlier one) and slides to
-    // place with a short fade. Only one grid is ever composed, so this can't clash with the shared
-    // scroll state the way AnimatedContent (two grids at once) would.
-    val tabSlide = remember { Animatable(0f) }
-    var gridWidthPx by remember { mutableStateOf(0) }
-    var slideFromTab by remember { mutableStateOf(selectedTab) }
+    // The tabs are pages side by side. A swipe moves them with the finger (when page swiping is on), and
+    // the page it settles on becomes the selected tab; picking a tab any other way (its title, the menu,
+    // a notification) slides to its page. Two tabs apart or more, it jumps next to it first, so the
+    // pages in between, the Explore one with all its carousels above all, are never built on the way.
+    val pagerState = rememberPagerState(initialPage = selectedTab.ordinal) { AppTab.entries.size }
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { viewModel.selectTab(AppTab.entries[it]) }
+    }
     LaunchedEffect(selectedTab) {
-        if (selectedTab != slideFromTab) {
-            val forward = selectedTab.ordinal > slideFromTab.ordinal
-            slideFromTab = selectedTab
-            tabSlide.snapTo(if (forward) 1f else -1f)
-            tabSlide.animateTo(0f, animationSpec = tween(durationMillis = 260))
+        val target = selectedTab.ordinal
+        if (pagerState.currentPage != target) {
+            val from = pagerState.currentPage
+            if (kotlin.math.abs(target - from) > 1) {
+                pagerState.scrollToPage(if (target > from) target - 1 else target + 1)
+            }
+            pagerState.animateScrollToPage(target)
         }
     }
 
@@ -313,8 +329,8 @@ fun AppListScreen(
     // Saveable so it survives navigating to an app and back: otherwise it reset to false on return and
     // this effect re-fired, snapping the restored scroll position back to the top.
     var userScrolled by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(gridState) {
-        snapshotFlow { gridState.isScrollInProgress }
+    LaunchedEffect(exploreGridState) {
+        snapshotFlow { exploreGridState.isScrollInProgress }
             .collect { scrolling -> if (scrolling) userScrolled = true }
     }
     LaunchedEffect(
@@ -325,7 +341,7 @@ fun AppListScreen(
         categories.size,
     ) {
         if (selectedTab == AppTab.AVAILABLE && !isSearching && !sectionView && !userScrolled) {
-            gridState.scrollToItem(0)
+            exploreGridState.scrollToItem(0)
         }
     }
 
@@ -390,12 +406,12 @@ fun AppListScreen(
     }
     // The Updates tab's two halves as its grid shows them: an app whose update is done shrinks away
     // in its place before the others close the gap (see rememberDepartures).
-    val appTiles = rememberDepartures(apps, key = { it.appId }, enabled = displayed.tab == AppTab.UPDATES)
-    val externalUpdateTiles = rememberDepartures(
-        searchedExternalUpdates,
-        key = { it.key },
-        enabled = selectedTab == AppTab.UPDATES,
-    )
+    val appTiles = rememberDepartures(updatableCatalogueApps, key = { it.appId }, enabled = true)
+    val externalUpdateTiles = rememberDepartures(searchedExternalUpdates, key = { it.key }, enabled = true)
+    // The Installed tab's catalogue half, as tiles that never leave.
+    val installedTiles = remember(installedCatalogueApps) {
+        installedCatalogueApps.map { Departing(it, leaving = false) }
+    }
     // The Installed tab's external half. A package the catalogue half already lists stays its tile
     // alone, which opens the source's page when the source is what installed it (openInstalledApp).
     // Every installed app Omnify updates, each once: a package in the catalogue and followed from a
@@ -408,13 +424,13 @@ fun AppListScreen(
         }
     }
     // The room the grid leaves for its content, which the up-to-date state fits itself in.
-    val gridContentHeight by remember(gridState) {
+    val gridContentHeight by remember(updatesGridState) {
         derivedStateOf {
-            gridState.layoutInfo.run { viewportSize.height - beforeContentPadding - afterContentPadding }
+            updatesGridState.layoutInfo.run { viewportSize.height - beforeContentPadding - afterContentPadding }
         }
     }
-    val searchedInstalledExternal = remember(installedExternalApps, apps, activeSearch) {
-        val listed = apps.mapTo(HashSet()) { it.packageName.name }
+    val searchedInstalledExternal = remember(installedExternalApps, installedCatalogueApps, activeSearch) {
+        val listed = installedCatalogueApps.mapTo(HashSet()) { it.packageName.name }
         installedExternalApps.filter { it.packageName !in listed && it.matchesSearch(activeSearch) }
     }
     // The favourites full page's own order, independent of the carousel above it: catalogue and
@@ -604,7 +620,7 @@ fun AppListScreen(
                 Modifier
             },
         ),
-        floatingActionButton = { ScrollToTopFab(gridState) },
+        floatingActionButton = { ScrollToTopFab(gridStateOf(selectedTab)) },
         topBar = {
             Column(
                 modifier = header.headerModifier,
@@ -770,18 +786,6 @@ fun AppListScreen(
         },
     ) { contentPadding ->
         FloatingAppCardsBackground(Modifier.padding(contentPadding.forFloatingBackground()))
-        if (catalogTabEmpty && noRepositoryEnabled) {
-            NoSourcesState(onOpenRepositories = onNavigateToRepos, modifier = Modifier.padding(contentPadding))
-            return@Scaffold
-        }
-        if (catalogOffline) {
-            CatalogOfflineState(modifier = Modifier.padding(contentPadding))
-            return@Scaffold
-        }
-        if (catalogLoading) {
-            RepoFetchingState(modifier = Modifier.padding(contentPadding))
-            return@Scaffold
-        }
         // On TV, inset the grid content from the screen edges (overscan safe area) and so the focused
         // tile's scaled-up highlight near an edge isn't clipped. Touch keeps the Scaffold padding as is.
         val gridContentPadding = if (isTelevision) {
@@ -804,39 +808,41 @@ fun AppListScreen(
                 bottom = contentPadding.calculateBottomPadding(),
             )
         }
-        // "Page swiping" (user setting): a horizontal drag over the grid switches to the neighbouring
-        // tab. Only on touch, and only on the plain tab lists (not while searching or on a carousel
-        // "see all" page, where a horizontal drag means something else). Horizontal scrolls inside a
-        // Discover carousel are consumed by that row first, so this never fights them.
+        // "Page swiping" (user setting): the pages follow a horizontal drag. Only on touch, and only on
+        // the plain tab lists (not while searching or on a carousel "see all" page, where a horizontal
+        // drag means something else). A Discover carousel scrolls itself first and hands the drag over
+        // at its end, so the two never fight.
         val canSwipeTabs = homeScreenSwiping && !isTelevision &&
             !isSearching && !sectionView && !searchExpanded
-        val swipeModifier = if (canSwipeTabs) {
-            Modifier.pointerInput(selectedTab, canSwipeTabs) {
-                val threshold = 72.dp.toPx()
-                var totalDrag = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { totalDrag = 0f },
-                    onDragEnd = {
-                        val target = when {
-                            totalDrag <= -threshold ->
-                                AppTab.entries.getOrNull(selectedTab.ordinal + 1)
-                            totalDrag >= threshold ->
-                                AppTab.entries.getOrNull(selectedTab.ordinal - 1)
-                            else -> null
-                        }
-                        if (target != null) viewModel.selectTab(target)
-                    },
-                ) { _, dragAmount -> totalDrag += dragAmount }
-            }
-        } else {
-            Modifier
+        HorizontalPager(
+            state = pagerState,
+            userScrollEnabled = canSwipeTabs,
+            key = { AppTab.entries[it] },
+            modifier = Modifier.fillMaxSize(),
+        ) { page ->
+        val tab = AppTab.entries[page]
+        val tabApps = when (tab) {
+            AppTab.AVAILABLE -> availableApps
+            AppTab.INSTALLED -> installedCatalogueApps
+            AppTab.UPDATES -> updatableCatalogueApps
+            AppTab.EXTERNAL -> emptyList()
         }
+        // The catalogue is known to have nothing to show on a tab that comes from it. The External tab
+        // has content of its own and is never part of this.
+        val pageCatalogEmpty = catalogEmpty == true && tab != AppTab.EXTERNAL
+        when {
+            pageCatalogEmpty && noRepositoryEnabled ->
+                NoSourcesState(onOpenRepositories = onNavigateToRepos, modifier = Modifier.padding(contentPadding))
+            isOffline && pageCatalogEmpty -> CatalogOfflineState(modifier = Modifier.padding(contentPadding))
+            if (isTelevision) !catalogReady && tab != AppTab.EXTERNAL else (isSyncing || isSyncScheduled) && pageCatalogEmpty ->
+                RepoFetchingState(modifier = Modifier.padding(contentPadding))
+            else ->
         LazyVerticalGrid(
             // A tile grid (icon + name), the same density as the Discover carousels, shared by every
             // tab so the apps look identical everywhere. Bigger cells on TV (larger icons, fewer columns)
             // to use the screen and stay legible from the couch.
             columns = GridCells.Adaptive(minSize = if (isTelevision) 150.dp else 100.dp),
-            state = gridState,
+            state = gridStateOf(tab),
             contentPadding = gridContentPadding,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             // Focus target for the header's D-pad "down": as a focus group, requesting focus here
@@ -847,20 +853,12 @@ fun AppListScreen(
                 // tab (e.g. "Updates" with nothing to update) the swipeable area shrank to the little
                 // centred message and the rest of the screen no longer responded to the page swipe.
                 .fillMaxSize()
-                .focusRequester(contentFocusRequester)
-                .focusGroup()
-                .then(swipeModifier)
-                .onSizeChanged { gridWidthPx = it.width }
-                .graphicsLayer {
-                    // Slide only — a plain translation is a cheap GPU transform. Deliberately no alpha:
-                    // animating it here would force the whole grid into an offscreen compositing buffer
-                    // every frame, which is needlessly expensive on long lists.
-                    translationX = tabSlide.value * gridWidthPx
-                },
+                .then(if (page == pagerState.currentPage) Modifier.focusRequester(contentFocusRequester) else Modifier)
+                .focusGroup(),
         ) {
             // Installed package names, used to badge every tile that's already installed.
             val installedPackages = installedVersionNames.keys
-            if (selectedTab == AppTab.EXTERNAL) {
+            if (tab == AppTab.EXTERNAL) {
                 if (gridExternalApps.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "external-empty") {
                         ExternalTabEmpty()
@@ -888,7 +886,7 @@ fun AppListScreen(
             // carousels then the categories accordion. A carousel arrow opens that section as its own
             // page; a category chevron expands its apps inline. When searching or on a section page,
             // this is skipped and the apps render as a flat list below.
-            if (selectedTab == AppTab.AVAILABLE && !isSearching && !sectionView) {
+            if (tab == AppTab.AVAILABLE && !isSearching && !sectionView) {
                 // Breathing room below the header: the first carousel's round "see all" button
                 // otherwise sits glued to the tabs.
                 item(span = { GridItemSpan(maxLineSpan) }, key = "discover-top-gap") {
@@ -1083,7 +1081,7 @@ fun AppListScreen(
             // answer behind them has been worked out, see AppListViewModel.updates. While it has not, a
             // spinner shows instead of "Everything is up to date", which would claim there is nothing
             // when updates are only still being found.
-            val updatesStillLoading = selectedTab == AppTab.UPDATES && !updatesLoaded
+            val updatesStillLoading = tab == AppTab.UPDATES && !updatesLoaded
             if (updatesStillLoading) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "updates-loading") {
                     Box(
@@ -1096,12 +1094,12 @@ fun AppListScreen(
                     }
                 }
             }
-            val showEmpty = when (selectedTab) {
+            val showEmpty = when (tab) {
                 AppTab.AVAILABLE ->
                     isSearching && !sectionView && activeSearch.isNotEmpty() &&
-                        apps.isEmpty() && searchedExternalApps.isEmpty()
-                AppTab.INSTALLED -> apps.isEmpty() && searchedInstalledExternal.isEmpty()
-                AppTab.UPDATES -> !updatesStillLoading && apps.isEmpty() && searchedExternalUpdates.isEmpty()
+                        tabApps.isEmpty() && searchedExternalApps.isEmpty()
+                AppTab.INSTALLED -> tabApps.isEmpty() && searchedInstalledExternal.isEmpty()
+                AppTab.UPDATES -> !updatesStillLoading && tabApps.isEmpty() && searchedExternalUpdates.isEmpty()
                 AppTab.EXTERNAL -> false
             }
             if (showEmpty) {
@@ -1110,7 +1108,7 @@ fun AppListScreen(
                     // ("Everything is up to date") claiming something the search only hid.
                     if (activeSearch.isNotEmpty()) {
                         NoSearchResults(query = activeSearch)
-                    } else if (selectedTab == AppTab.UPDATES) {
+                    } else if (tab == AppTab.UPDATES) {
                         UpToDateState(
                             maxHeight = with(LocalDensity.current) {
                                 gridContentHeight.takeIf { it > 0 }?.toDp()
@@ -1128,7 +1126,7 @@ fun AppListScreen(
                             },
                         )
                     } else {
-                        EmptyTabMessage(tab = selectedTab)
+                        EmptyTabMessage(tab = tab)
                     }
                 }
             }
@@ -1137,10 +1135,10 @@ fun AppListScreen(
             // sources, so the count on the button is the count on the tab and the button does what it
             // says. It counted and updated only the catalogue half before, which showed up as a
             // "(3)" sitting above four apps.
-            if (selectedTab == AppTab.UPDATES && (apps.isNotEmpty() || searchedExternalUpdates.isNotEmpty())) {
+            if (tab == AppTab.UPDATES && (tabApps.isNotEmpty() || searchedExternalUpdates.isNotEmpty())) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "update-all") {
                     UpdateAllButton(
-                        count = apps.size + searchedExternalUpdates.size,
+                        count = tabApps.size + searchedExternalUpdates.size,
                         isUpdating = isUpdatingAll,
                         batch = batchUpdate,
                         onClick = { viewModel.updateAll(searchedExternalUpdates.map { it.key }) },
@@ -1151,13 +1149,13 @@ fun AppListScreen(
             // The Explore tab ends at the categories accordion — no flat grid under the Discover home.
             // A flat list of app tiles appears when searching (search results) or on a carousel "see
             // all" page (the whole section). The Installed/Updates tabs use the same tiles.
-            if (selectedTab == AppTab.AVAILABLE) {
+            if (tab == AppTab.AVAILABLE) {
                 // The favourites carousel's own "see all" reuses the exact list already backing it
                 // ([favouriteApps]/[favouriteExternalApps]) rather than a fresh query, so the row and
                 // this page can never disagree.
                 val flatList = when {
                     sectionView -> openedSectionApps
-                    isSearching -> apps
+                    isSearching -> tabApps
                     else -> emptyList()
                 }
                 // A "see all" page runs its query after opening, so on a slow device it's briefly empty.
@@ -1259,7 +1257,7 @@ fun AppListScreen(
                 }
             } else {
                 items(
-                    items = appTiles,
+                    items = if (tab == AppTab.UPDATES) appTiles else installedTiles,
                     key = { it.item.appId },
                     contentType = { "app-tile" },
                 ) { tile ->
@@ -1270,17 +1268,17 @@ fun AppListScreen(
                         // On the Updates tab, ring the tile of the app the "update all" batch is
                         // downloading right now, so progress is visible in real time, and of every app
                         // still waiting to be installed or being installed.
-                        isUpdating = selectedTab == AppTab.UPDATES && updating.isUpdating(app.packageName.name),
+                        isUpdating = tab == AppTab.UPDATES && updating.isUpdating(app.packageName.name),
                         updateFraction = updating.fraction(app.packageName.name),
                         onClick = {
-                            if (selectedTab == AppTab.INSTALLED) {
+                            if (tab == AppTab.INSTALLED) {
                                 openInstalledApp(app.packageName.name)
                             } else {
                                 openApp(app.packageName.name)
                             }
                         },
                         // On the Updates tab, an updated app's tile fades out and the others close the gap.
-                        modifier = (if (selectedTab == AppTab.UPDATES) updateDeparture(tile.leaving) else Modifier)
+                        modifier = (if (tab == AppTab.UPDATES) updateDeparture(tile.leaving) else Modifier)
                             .restoreFocusTarget(
                                 isTelevision && restoreFocusId == "app:${app.packageName.name}",
                                 restoreRequester,
@@ -1289,7 +1287,7 @@ fun AppListScreen(
                 }
             }
             // Tracked sources installed on the device, after the catalogue's own on the Installed tab.
-            if (selectedTab == AppTab.INSTALLED) {
+            if (tab == AppTab.INSTALLED) {
                 items(
                     items = searchedInstalledExternal,
                     key = { "ext-${it.key}" },
@@ -1307,7 +1305,7 @@ fun AppListScreen(
                 }
             }
             // External-repo updates, shown alongside the F-Droid ones on the Updates tab.
-            if (selectedTab == AppTab.UPDATES) {
+            if (tab == AppTab.UPDATES) {
                 items(
                     items = externalUpdateTiles,
                     key = { "ext-${it.item.key}" },
@@ -1330,6 +1328,8 @@ fun AppListScreen(
                     )
                 }
             }
+        }
+        }
         }
     }
 }
