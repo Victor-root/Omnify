@@ -507,7 +507,6 @@ fun AppListScreen(
     // tile currently has focus. Hoisted up from AppListMainTopBar so the key handler (attached to the
     // whole screen, not just the top bar) can reach it.
     var overflowExpanded by remember { mutableStateOf(false) }
-    val sheetAnchor = remember { TopSheetAnchor() }
 
     // First launch: show a full-screen "fetching" state (like F-Droid) instead of an empty grid.
     // [catalogEmpty] answers whether the catalogue holds anything, and is null until the database has
@@ -678,8 +677,8 @@ fun AppListScreen(
         }
     }
 
-    // The overflow menu's sheet unrolls from under the header bar, over the tabs and the page.
-    Box(sheetAnchor.root) {
+    // The overflow menu's sheet unrolls from the top of the screen, over the header and the page.
+    Box {
         Scaffold(
             modifier = header.scaffoldModifier.then(
                 if (isTelevision) {
@@ -736,8 +735,7 @@ fun AppListScreen(
                                 if (!searchExpanded) viewModel.searchQuery.clearText()
                             },
                             searchState = viewModel.searchQuery,
-                            modifier = sheetAnchor.bar,
-                            title = {
+                                title = {
                                 // Pull the whole logo+wordmark left, past the top bar's default title inset.
                                 // fillMaxWidth so the second child's weight(1f) below has the bar's true
                                 // available width (up to the action buttons) to divide, on any screen size.
@@ -1396,7 +1394,6 @@ fun AppListScreen(
         }
         HomeTopSheet(
             open = overflowExpanded && !sectionView,
-            anchor = sheetAnchor,
             onClose = { overflowExpanded = false },
         ) {
             HomeMenuSheet(
@@ -1896,13 +1893,12 @@ private fun AppListTopBar(
     onToggleTvOnly: () -> Unit,
     showDiagnosticsButton: Boolean,
     title: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     // QKSMS-style reveal: the main bar stays put and, on tapping the magnifier, the search field
     // unrolls over it from the right edge (width growing leftward), and rolls back the same way. The
     // main bar underneath stays fully opaque, so the header never flashes the white background the way
     // a cross-fade did.
-    Box(modifier) {
+    Box {
         AppListMainTopBar(
             onSync = onSync,
             onToggleSearch = onToggleSearch,

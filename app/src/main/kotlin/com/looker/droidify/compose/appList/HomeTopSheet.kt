@@ -9,18 +9,21 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -30,46 +33,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.compose.theme.EmphasizedAccelerate
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
+import com.looker.droidify.compose.theme.LocalStatusBarContent
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 /**
- * Where the home's top sheet comes out from: the bottom edge of the header bar, which can slide away
- * as the page scrolls. Hand [root] to the box holding both the screen and the sheet, and [bar] to the
- * header bar.
- */
-@Stable
-internal class TopSheetAnchor {
-    private var rootCoordinates: LayoutCoordinates? = null
-
-    /** The bar's bottom edge in the root box, read only while the sheet lays itself out. */
-    var bottom by mutableIntStateOf(0)
-        private set
-
-    val root: Modifier = Modifier.onPlaced { rootCoordinates = it }
-
-    val bar: Modifier = Modifier.onGloballyPositioned { bar ->
-        val root = rootCoordinates ?: return@onGloballyPositioned
-        if (root.isAttached && bar.isAttached) {
-            bottom = root.localBoundingBoxOf(bar, clipBounds = false).bottom.roundToInt()
-        }
-    }
-}
-
-/**
- * A sheet that unrolls from under the header bar, over a dimmed page, and rolls back up on a tap
- * outside it, on Back or when pushed back up.
+ * A sheet that unrolls from the top edge of the screen, over the status bar, the header and a dimmed
+ * page, and rolls back up on a tap outside it, on Back or when pushed back up.
  *
  * Composed only while it shows. The motion is one value read in layer and draw blocks, so it moves
  * and dims the page without recomposing or measuring anything along the way.
@@ -77,7 +53,6 @@ internal class TopSheetAnchor {
 @Composable
 internal fun HomeTopSheet(
     open: Boolean,
-    anchor: TopSheetAnchor,
     onClose: () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -90,6 +65,13 @@ internal fun HomeTopSheet(
     }
     val shown by remember { derivedStateOf { open || progress.value > 0f } }
     BackHandler(enabled = open, onBack = onClose)
+    // The sheet's surface fills the status bar, where the header's light icons would vanish.
+    val statusBarContent = LocalStatusBarContent.current
+    DisposableEffect(open, statusBarContent) {
+        val owner = Any()
+        if (open) statusBarContent.publish(owner, showsContent = true)
+        onDispose { statusBarContent.release(owner) }
+    }
     if (!shown) return
 
     val scope = rememberCoroutineScope()
@@ -97,18 +79,7 @@ internal fun HomeTopSheet(
     var pushed by remember { mutableFloatStateOf(0f) }
     var sheetHeight by remember { mutableIntStateOf(1) }
     val scrimColor = MaterialTheme.colorScheme.scrim
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .layout { measurable, constraints ->
-                val top = anchor.bottom.coerceIn(0, constraints.maxHeight)
-                val placeable = measurable.measure(
-                    constraints.copy(minHeight = 0, maxHeight = constraints.maxHeight - top),
-                )
-                layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, top) }
-            }
-            .clipToBounds(),
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -129,6 +100,7 @@ internal fun HomeTopSheet(
                     shadowElevation = SHEET_ELEVATION.toPx()
                 }
                 .background(MaterialTheme.colorScheme.surface)
+                .windowInsetsPadding(WindowInsets.statusBars)
                 .draggable(
                     orientation = Orientation.Vertical,
                     state = rememberDraggableState { delta ->

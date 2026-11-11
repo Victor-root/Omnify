@@ -13,7 +13,7 @@
 - **A "Shizuku compatible" badge** on the page of apps that can use Shizuku or Sui, next to the Root one, on phone and TV. Both badges now show on external sources too, from the permissions their APK declares.
 
 ### 🔄 Changed
-- **The ⋮ menu unrolls from under the header** as a sheet over the page, with a word on each entry. A tap outside, Back or a push upwards rolls it back.
+- **The ⋮ menu unrolls from the top of the screen** as a sheet over the header and the page, with a word on each entry. A tap outside, Back or a push upwards rolls it back.
 - **Page swiping follows your finger**: with page swiping on, the home's tabs slide along with the drag, the next one coming in beside it, instead of switching once the gesture ends. Each tab also keeps its own scroll position.
 - **The Updates tab is friendlier once everything is up to date**: how many apps that covers, when updates were last checked for and how often, your latest updates, and a button to check right away. On Android TV too.
 - **Omnify starts and runs far faster, on phone and TV**: one carousel kept the database busy for several seconds at every launch while everything else waited behind it, and the animated background redrew the whole screen on every frame. A screen at rest now leaves the processor and the graphics chip alone, for a smoother app and a longer battery life, with the same look.
