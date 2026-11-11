@@ -627,6 +627,48 @@ fun AppListScreen(
         }
     }
 
+    // The banners of a tab of its own, at the top of its page under the header. Part of the page rather
+    // than of the header, so they slide in and out with it: a banner coming or going with the selected
+    // tab resized the header, and every page under it, in the middle of a tapped tab's slide.
+    val tabBanner: @Composable (AppTab) -> Unit = { tab ->
+        when (tab) {
+            // One at a time: not being allowed in the background already explains the checks having
+            // stopped, and says what to do about it.
+            AppTab.UPDATES -> when {
+                backgroundActivityMissing -> BackgroundActivityBanner(
+                    onDismiss = viewModel::dismissBackgroundActivityWarning,
+                )
+                backgroundChecksStalled -> BackgroundChecksBanner(
+                    onOpenSettings = onNavigateToSettings,
+                    onDismiss = viewModel::dismissBackgroundChecksWarning,
+                )
+            }
+            // A token GitHub is actively rejecting silently stops every GitHub-backed source from
+            // refreshing (see ExternalAppsViewModel.refresh), with nothing else on this tab otherwise
+            // showing anything is wrong. Priority over the no-token hint below: a rejected token is the
+            // more actionable problem, and the two states can't both be true anyway (rejection requires
+            // a token to be set).
+            AppTab.EXTERNAL -> when {
+                githubTokenInvalid -> WarningBanner(
+                    title = stringResource(R.string.external_token_invalid_title),
+                    description = stringResource(R.string.external_token_invalid_DESC),
+                    onClick = onFixGithubToken,
+                )
+                // No token configured: a routine heads-up, not a problem. Explains why a source might
+                // silently be missing its latest release (the anonymous 60-requests/hour limit), which
+                // otherwise looks identical to the source genuinely having nothing new.
+                !hasGithubToken -> InfoBanner(
+                    title = stringResource(R.string.external_no_token_title),
+                    description = githubRateLimitRemaining?.let { remaining ->
+                        stringResource(R.string.external_no_token_description_remaining, remaining)
+                    } ?: stringResource(R.string.external_no_token_description),
+                    onClick = onFixGithubToken,
+                )
+            }
+            AppTab.AVAILABLE, AppTab.INSTALLED -> Unit
+        }
+    }
+
     // The overflow menu's sheet unrolls from under the header bar, over the tabs and the page.
     Box(sheetAnchor.root) {
         Scaffold(
@@ -751,69 +793,36 @@ fun AppListScreen(
                                 description = stringResource(R.string.no_connection_DESC),
                             )
                         }
-                        // One at a time: not being allowed in the background already explains the checks
-                        // having stopped, and says what to do about it.
-                        if (selectedTab == AppTab.UPDATES) {
-                            when {
-                                backgroundActivityMissing -> BackgroundActivityBanner(
-                                    onDismiss = viewModel::dismissBackgroundActivityWarning,
-                                )
-                                backgroundChecksStalled -> BackgroundChecksBanner(
-                                    onOpenSettings = onNavigateToSettings,
-                                    onDismiss = viewModel::dismissBackgroundChecksWarning,
-                                )
-                            }
-                        }
-                        // A token GitHub is actively rejecting silently stops every GitHub-backed source
-                        // from refreshing (see ExternalAppsViewModel.refresh), with nothing else on this tab
-                        // otherwise showing anything is wrong. Priority over the no-token hint below: a
-                        // rejected token is the more actionable problem, and the two states can't both be
-                        // true anyway (rejection requires a token to be set).
-                        if (selectedTab == AppTab.EXTERNAL) {
-                            when {
-                                githubTokenInvalid -> WarningBanner(
-                                    title = stringResource(R.string.external_token_invalid_title),
-                                    description = stringResource(R.string.external_token_invalid_DESC),
-                                    onClick = onFixGithubToken,
-                                )
-                                // No token configured: a routine heads-up, not a problem. Explains why a
-                                // source might silently be missing its latest release (the anonymous
-                                // 60-requests/hour limit), which otherwise looks identical to the source
-                                // genuinely having nothing new.
-                                !hasGithubToken -> InfoBanner(
-                                    title = stringResource(R.string.external_no_token_title),
-                                    description = githubRateLimitRemaining?.let { remaining ->
-                                        stringResource(R.string.external_no_token_description_remaining, remaining)
-                                    } ?: stringResource(R.string.external_no_token_description),
-                                    onClick = onFixGithubToken,
-                                )
-                            }
-                        }
                     }
                 }
             },
         ) { contentPadding ->
             FloatingAppCardsBackground(Modifier.padding(contentPadding.forFloatingBackground()))
+            // Each page starts under the header, its tab's own banner first (see tabBanner), so its sides
+            // and bottom are all it has left to keep clear of.
+            val direction = LocalLayoutDirection.current
+            val pagePadding = PaddingValues(
+                start = contentPadding.calculateStartPadding(direction),
+                end = contentPadding.calculateEndPadding(direction),
+                bottom = contentPadding.calculateBottomPadding(),
+            )
             // On TV, inset the grid content from the screen edges (overscan safe area) and so the focused
-            // tile's scaled-up highlight near an edge isn't clipped. Touch keeps the Scaffold padding as is.
+            // tile's scaled-up highlight near an edge isn't clipped, with an extra top gap so a focused
+            // first row's highlight doesn't tuck under the pinned header. Touch: a small top gap, the
+            // tiles otherwise look cramped against the header.
             val gridContentPadding = if (isTelevision) {
-                val direction = LocalLayoutDirection.current
                 PaddingValues(
-                    start = contentPadding.calculateStartPadding(direction) + TvOverscan,
-                    // Extra top gap so a focused first row's highlight doesn't tuck under the pinned header.
-                    top = contentPadding.calculateTopPadding() + TvOverscan,
-                    end = contentPadding.calculateEndPadding(direction) + TvOverscan,
-                    bottom = contentPadding.calculateBottomPadding() + TvOverscan,
+                    start = pagePadding.calculateStartPadding(direction) + TvOverscan,
+                    top = TvOverscan,
+                    end = pagePadding.calculateEndPadding(direction) + TvOverscan,
+                    bottom = pagePadding.calculateBottomPadding() + TvOverscan,
                 )
             } else {
-                // Touch: the grid otherwise starts flush against the pinned header, tiles look cramped
-                // against it. A small extra top gap gives the first row some breathing room.
-                val direction = LocalLayoutDirection.current
                 PaddingValues(
-                    start = contentPadding.calculateStartPadding(direction),
-                    top = contentPadding.calculateTopPadding() + 8.dp,
-                    end = contentPadding.calculateEndPadding(direction),
-                    bottom = contentPadding.calculateBottomPadding(),
+                    start = pagePadding.calculateStartPadding(direction),
+                    top = 8.dp,
+                    end = pagePadding.calculateEndPadding(direction),
+                    bottom = pagePadding.calculateBottomPadding(),
                 )
             }
             // "Page swiping" (user setting): the pages follow a horizontal drag. Only on touch, and only on
@@ -838,12 +847,15 @@ fun AppListScreen(
             // The catalogue is known to have nothing to show on a tab that comes from it. The External tab
             // has content of its own and is never part of this.
             val pageCatalogEmpty = catalogEmpty == true && tab != AppTab.EXTERNAL
+            Column(Modifier.fillMaxSize()) {
+                Column(Modifier.padding(top = contentPadding.calculateTopPadding())) { tabBanner(tab) }
+                Box(Modifier.weight(1f)) {
             when {
                 pageCatalogEmpty && noRepositoryEnabled ->
-                    NoSourcesState(onOpenRepositories = onNavigateToRepos, modifier = Modifier.padding(contentPadding))
-                isOffline && pageCatalogEmpty -> CatalogOfflineState(modifier = Modifier.padding(contentPadding))
+                    NoSourcesState(onOpenRepositories = onNavigateToRepos, modifier = Modifier.padding(pagePadding))
+                isOffline && pageCatalogEmpty -> CatalogOfflineState(modifier = Modifier.padding(pagePadding))
                 if (isTelevision) !catalogReady && tab != AppTab.EXTERNAL else (isSyncing || isSyncScheduled) && pageCatalogEmpty ->
-                    RepoFetchingState(modifier = Modifier.padding(contentPadding))
+                    RepoFetchingState(modifier = Modifier.padding(pagePadding))
                 else ->
             LazyVerticalGrid(
                 // A tile grid (icon + name), the same density as the Discover carousels, shared by every
@@ -1350,6 +1362,8 @@ fun AppListScreen(
                     }
                 }
             }
+            }
+                }
             }
             }
         }
