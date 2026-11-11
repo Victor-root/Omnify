@@ -10,6 +10,7 @@ import com.looker.droidify.R
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_CHANNEL_INSTALL
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_CHANNEL_INSTALL_CONFIRM
+import com.looker.droidify.utility.common.Constants.NOTIFICATION_CHANNEL_SELF_UPDATED
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_ID_INSTALL
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_ID_INSTALL_CONFIRM
 
@@ -159,7 +160,7 @@ fun Context.createInstallConfirmationNotification(
  */
 fun Context.createSelfUpdatedNotification(contentIntent: PendingIntent): Notification =
     NotificationCompat
-        .Builder(this, NOTIFICATION_CHANNEL_INSTALL)
+        .Builder(this, NOTIFICATION_CHANNEL_SELF_UPDATED)
         .setSmallIcon(R.drawable.ic_check)
         .setColor(Color.GREEN)
         .setContentTitle(getString(R.string.self_updated, applicationInfo.loadLabel(packageManager)))

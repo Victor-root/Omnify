@@ -397,6 +397,7 @@
     <string name="updated">Mis à jour</string>
     <string name="self_updated">%1$s a été mis à jour</string>
     <string name="self_updated_DESC">Touchez pour le rouvrir</string>
+    <string name="self_updated_channel">Mise à jour d\'Omnify</string>
     <string name="last_updated">Dernière mise à jour :</string>
     <string name="waiting_to_start_installation">En attente du démarrage de l\'installation…</string>
     <string name="auto_update">Mise à jour automatique des applis</string>

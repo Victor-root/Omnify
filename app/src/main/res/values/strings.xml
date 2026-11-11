@@ -364,6 +364,7 @@
     <string name="updated">Updated</string>
     <string name="self_updated">%1$s has been updated</string>
     <string name="self_updated_DESC">Tap to open it again</string>
+    <string name="self_updated_channel">Omnify updated</string>
     <!-- Followed by the date itself, which is set apart in a monospace font. -->
     <string name="last_updated">Last updated:</string>
     <string name="installation_failed">Installation failed</string>

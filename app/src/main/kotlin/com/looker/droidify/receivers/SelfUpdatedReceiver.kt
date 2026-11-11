@@ -1,12 +1,13 @@
 package com.looker.droidify.receivers
 
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.looker.droidify.R
 import com.looker.droidify.installer.SelfUpdate
-import com.looker.droidify.utility.common.Constants.NOTIFICATION_CHANNEL_INSTALL
+import com.looker.droidify.utility.common.Constants.NOTIFICATION_CHANNEL_SELF_UPDATED
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_ID_SELF_UPDATED
 import com.looker.droidify.utility.common.createNotificationChannel
 import com.looker.droidify.utility.common.extension.notificationManager
@@ -24,9 +25,12 @@ class SelfUpdatedReceiver : BroadcastReceiver() {
             ?: context.packageManager.getLeanbackLaunchIntentForPackage(context.packageName)
             ?: return
         val notificationManager = context.notificationManager ?: return
+        // Its own channel, shown at once: the install one is quiet, and this lands in the silent ones
+        // there while the user is waiting on Omnify to come back.
         context.createNotificationChannel(
-            id = NOTIFICATION_CHANNEL_INSTALL,
-            name = context.getString(R.string.install),
+            id = NOTIFICATION_CHANNEL_SELF_UPDATED,
+            name = context.getString(R.string.self_updated_channel),
+            importance = NotificationManager.IMPORTANCE_HIGH,
         )
         val contentIntent = PendingIntent.getActivity(
             context,

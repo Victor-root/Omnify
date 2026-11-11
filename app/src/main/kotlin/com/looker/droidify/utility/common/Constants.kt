@@ -10,6 +10,10 @@ object Constants {
      *  the install confirmations that go nowhere until the user answers them, so it has to be seen. */
     const val NOTIFICATION_CHANNEL_INSTALL_CONFIRM = "install_confirm"
 
+    /** Omnify updated through Android's installer, which stopped it: shown at once, as the user is
+     *  waiting on it to come back (see SelfUpdatedReceiver). */
+    const val NOTIFICATION_CHANNEL_SELF_UPDATED = "self_updated"
+
     const val NOTIFICATION_ID_SYNCING = 1
     const val NOTIFICATION_ID_UPDATES = 2
     const val NOTIFICATION_ID_DOWNLOADING = 3
