@@ -42,13 +42,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
-import com.google.android.material.color.DynamicColors
-import com.google.android.material.color.MaterialColors
 import com.looker.droidify.datastore.DEFAULT_THEME_COLOR
 import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.utility.common.IconAccent
 import com.looker.droidify.utility.common.device.isTelevision
 import com.looker.droidify.utility.common.wallpaperAccentColor
+import com.materialkolor.hct.Hct
+import com.materialkolor.scheme.SchemeFidelity
 
 /** Android TV's default density (matched to the same dp-based layouts phones use, plus this app's own
  *  10-foot-UI size bumps — bigger tiles, bigger buttons, bigger focus scale) rendered noticeably larger
@@ -134,76 +134,68 @@ private val darkScheme = darkColorScheme(
 )
 
 /**
- * Forces neutral surfaces (pure white in light, dark grey or pure black in dark) and disables the
+ * Forces neutral surfaces (white in light, dark grey or pure black in dark) and disables the
  * tonal-elevation tint, keeping the accent only on primary/secondary/tertiary roles (buttons, section
  * titles, indicators). Material 3 otherwise derives every surface — and the elevation overlay — from
- * the seed colour, which tinted the whole background with the accent. Mirrors the maintainer's
- * MaterialFiles fork: white/black background, accent only as an accent.
+ * the seed colour, which tinted the whole background with the accent. The greys are VFiles' own, so
+ * both apps look alike: white/black background, accent only as an accent.
  *
- * [amoled] picks which dark ladder applies: true-black surfaces (the actual point of an AMOLED theme,
- * OLED pixels off) for the Black theme, or a standard Material dark grey for the plain Dark theme —
- * the Dark and Black options rendered identically until this distinction existed.
+ * [amoled] turns the background and the surfaces drawn directly on it true black (OLED pixels off),
+ * while the containers keep their dark grey to stay distinguishable: unlike VFiles, which also turns
+ * the lower ones black, this app draws its search field and some cards on them.
  */
 private fun ColorScheme.withNeutralSurfaces(dark: Boolean, amoled: Boolean): ColorScheme = if (dark) {
-    if (amoled) {
-        copy(
-            background = Color(0xFF000000),
-            onBackground = Color(0xFFE6E6E6),
-            surface = Color(0xFF000000),
-            onSurface = Color(0xFFE6E6E6),
-            surfaceVariant = Color(0xFF333333),
-            onSurfaceVariant = Color(0xFFC2C2C2),
-            surfaceDim = Color(0xFF000000),
-            surfaceBright = Color(0xFF3A3A3A),
-            surfaceContainerLowest = Color(0xFF000000),
-            surfaceContainerLow = Color(0xFF141414),
-            surfaceContainer = Color(0xFF1A1A1A),
-            surfaceContainerHigh = Color(0xFF242424),
-            surfaceContainerHighest = Color(0xFF2E2E2E),
-            outline = Color(0xFF8A8A8A),
-            outlineVariant = Color(0xFF3A3A3A),
-            surfaceTint = Color.Transparent,
-        )
-    } else {
-        copy(
-            background = Color(0xFF121212),
-            onBackground = Color(0xFFE6E6E6),
-            surface = Color(0xFF121212),
-            onSurface = Color(0xFFE6E6E6),
-            surfaceVariant = Color(0xFF3A3A3A),
-            onSurfaceVariant = Color(0xFFC2C2C2),
-            surfaceDim = Color(0xFF121212),
-            surfaceBright = Color(0xFF3A3A3A),
-            surfaceContainerLowest = Color(0xFF0A0A0A),
-            surfaceContainerLow = Color(0xFF1C1C1C),
-            surfaceContainer = Color(0xFF222222),
-            surfaceContainerHigh = Color(0xFF2C2C2C),
-            surfaceContainerHighest = Color(0xFF363636),
-            outline = Color(0xFF8A8A8A),
-            outlineVariant = Color(0xFF3A3A3A),
-            surfaceTint = Color.Transparent,
-        )
-    }
+    copy(
+        background = NEUTRAL_DARK_SURFACE,
+        onBackground = Color.White,
+        surface = NEUTRAL_DARK_SURFACE,
+        onSurface = Color.White,
+        surfaceVariant = Color(0xFF3C4043),
+        onSurfaceVariant = Color(0xFFBDC1C6),
+        surfaceTint = Color.Transparent,
+        inverseSurface = Color(0xFFE8EAED),
+        inverseOnSurface = Color(0xFF202124),
+        outline = Color(0xFF9AA0A6),
+        outlineVariant = Color(0xFF3C4043),
+        surfaceBright = Color(0xFF3C4043),
+        surfaceDim = NEUTRAL_DARK_SURFACE,
+        surfaceContainerLowest = Color(0xFF0E0E0F),
+        surfaceContainerLow = Color(0xFF1B1B1C),
+        surfaceContainer = Color(0xFF202124),
+        surfaceContainerHigh = Color(0xFF2A2B2D),
+        surfaceContainerHighest = Color(0xFF35363A),
+    ).let { if (amoled) it.toBlack() else it }
 } else {
     copy(
-        background = Color(0xFFFFFFFF),
-        onBackground = Color(0xFF1A1A1A),
-        surface = Color(0xFFFFFFFF),
-        onSurface = Color(0xFF1A1A1A),
-        surfaceVariant = Color(0xFFE4E4E4),
-        onSurfaceVariant = Color(0xFF474747),
-        surfaceDim = Color(0xFFDDDDDD),
-        surfaceBright = Color(0xFFFFFFFF),
-        surfaceContainerLowest = Color(0xFFFFFFFF),
-        surfaceContainerLow = Color(0xFFF6F6F6),
-        surfaceContainer = Color(0xFFF1F1F1),
-        surfaceContainerHigh = Color(0xFFEBEBEB),
-        surfaceContainerHighest = Color(0xFFE5E5E5),
-        outline = Color(0xFF787878),
-        outlineVariant = Color(0xFFCACACA),
+        background = Color.White,
+        onBackground = Color.Black,
+        surface = Color.White,
+        onSurface = Color.Black,
+        surfaceVariant = Color(0xFFE8EAED),
+        onSurfaceVariant = Color(0xFF5F6368),
         surfaceTint = Color.Transparent,
+        inverseSurface = Color(0xFF303134),
+        inverseOnSurface = Color(0xFFF1F3F4),
+        outline = Color(0xFF80868B),
+        outlineVariant = Color(0xFFDADCE0),
+        surfaceBright = Color.White,
+        surfaceDim = Color(0xFFDADCE0),
+        surfaceContainerLowest = Color.White,
+        surfaceContainerLow = Color(0xFFF8F9FA),
+        surfaceContainer = Color(0xFFF1F3F4),
+        surfaceContainerHigh = Color(0xFFECEDEF),
+        surfaceContainerHighest = Color(0xFFE8EAED),
     )
 }
+
+private val NEUTRAL_DARK_SURFACE = Color(0xFF121212)
+
+private fun ColorScheme.toBlack(): ColorScheme = copy(
+    background = Color.Black,
+    surface = Color.Black,
+    surfaceDim = Color.Black,
+    surfaceContainerLowest = Color.Black,
+)
 
 /**
  * Uses the chosen accent colour RAW (vivid) for the primary roles, like the MaterialFiles fork,
@@ -263,40 +255,32 @@ private fun ColorScheme.withReadableAccent(): ColorScheme {
 }
 
 /**
- * Derives the container/secondary/tertiary roles from [argb] for a device whose activity theme was
- * never recoloured in the first place.
- *
- * The accent reaches the classic View screens (and, through [toComposeColorScheme], every role Compose
- * reads back) by recolouring the activity's theme at runtime, which
- * [com.google.android.material.color.DynamicColors] refuses to do below Android 12: it returns without
- * touching the activity, leaving the theme exactly as styles.xml declares it. `primary` never showed
- * that, because [withVividAccent] overwrites it with the accent regardless. Every other accent role
- * did: on Android 11 a page's buttons, badges and progress tracks stayed the green of the theme this
- * app inherited from Droid-ify, whatever accent the user had chosen, while the same page on Android 12
- * followed it. Confirmed on an Android 11 Shield against an Android TV 16 emulator.
- *
- * So on those devices the roles are derived here instead, from the same accent, using Material's own
- * tone mapping. Nothing changes where the theme was genuinely recoloured: [DynamicColors]' own
- * availability check decides which case applies, so this is exactly the set of devices its recolouring
- * skipped.
+ * The scheme derived from a chosen accent, the way VFiles derives it: Material's fidelity scheme, which
+ * keeps the containers close to the accent itself. Computed here rather than read back from the
+ * activity's theme, so it is the same on every Android version: the theme is only recoloured from
+ * Android 12 on, and with Material's content scheme, whose tertiary roles differ.
  */
-private fun ColorScheme.withDerivedAccentRoles(argb: Int, dark: Boolean): ColorScheme {
-    val roles = MaterialColors.getColorRoles(argb, !dark)
-    val accent = Color(roles.accent)
-    val onAccent = Color(roles.onAccent)
-    val container = Color(roles.accentContainer)
-    val onContainer = Color(roles.onAccentContainer)
-    return copy(
-        primaryContainer = container,
-        onPrimaryContainer = onContainer,
-        secondary = accent,
-        onSecondary = onAccent,
-        secondaryContainer = container,
-        onSecondaryContainer = onContainer,
-        tertiary = accent,
-        onTertiary = onAccent,
-        tertiaryContainer = container,
-        onTertiaryContainer = onContainer,
+private fun accentColorScheme(argb: Int, dark: Boolean): ColorScheme {
+    val scheme = SchemeFidelity(Hct.fromInt(argb), dark, 0.0)
+    return (if (dark) darkScheme else lightScheme).copy(
+        primary = Color(scheme.primary),
+        onPrimary = Color(scheme.onPrimary),
+        primaryContainer = Color(scheme.primaryContainer),
+        onPrimaryContainer = Color(scheme.onPrimaryContainer),
+        inversePrimary = Color(scheme.inversePrimary),
+        secondary = Color(scheme.secondary),
+        onSecondary = Color(scheme.onSecondary),
+        secondaryContainer = Color(scheme.secondaryContainer),
+        onSecondaryContainer = Color(scheme.onSecondaryContainer),
+        tertiary = Color(scheme.tertiary),
+        onTertiary = Color(scheme.onTertiary),
+        tertiaryContainer = Color(scheme.tertiaryContainer),
+        onTertiaryContainer = Color(scheme.onTertiaryContainer),
+        error = Color(scheme.error),
+        onError = Color(scheme.onError),
+        errorContainer = Color(scheme.errorContainer),
+        onErrorContainer = Color(scheme.onErrorContainer),
+        scrim = Color(scheme.scrim),
     )
 }
 
@@ -414,18 +398,10 @@ fun DroidifyTheme(
             useDynamic ->
                 if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
 
-            // The activity theme is recolored from the chosen accent at runtime (see
-            // MainComposeActivity.applyAccentColor); read it back for the surface/container roles, but use
-            // the accent RAW (vivid) for primary instead of the muted tone-40 Material You derives from it;
-            // that washed-out tone is what made the colours look dull. Mirrors the MaterialFiles fork.
-            // Below Android 12 that recolouring never happens and the roles read back are styles.xml's
-            // own, so they are derived from the accent here instead (see withDerivedAccentRoles).
-            else -> context.toComposeColorScheme(if (darkTheme) darkScheme else lightScheme)
-                .withVividAccent(accentColor)
-                .let {
-                    if (DynamicColors.isDynamicColorAvailable()) it
-                    else it.withDerivedAccentRoles(accentColor, darkTheme)
-                }
+            // The roles are derived from the chosen accent (see accentColorScheme), but the accent itself is
+            // used RAW (vivid) for primary instead of the muted tone-40 Material derives from it; that
+            // washed-out tone is what made the colours look dull. Mirrors VFiles.
+            else -> accentColorScheme(accentColor, darkTheme).withVividAccent(accentColor)
         }.withNeutralSurfaces(darkTheme, amoled)
     }
 

@@ -431,6 +431,7 @@ dependencies {
     coreLibraryDesugaring(libs.desugaring)
 
     implementation(libs.material)
+    implementation(libs.material.color.utilities)
     implementation(libs.core.ktx)
     implementation(libs.activity)
     implementation(libs.appcompat)

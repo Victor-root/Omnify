@@ -34,6 +34,12 @@ val DEFAULT_THEME_COLOR: Int =
         0xFF4CAF50.toInt()
     }
 
+/** The red accent, VFiles' own deeper red. */
+const val ACCENT_RED: Int = 0xFFBC111F.toInt()
+
+/** The red accent until it became [ACCENT_RED], still stored for whoever picked it then. */
+const val FORMER_ACCENT_RED: Int = 0xFFD32F2F.toInt()
+
 @Serializable
 data class Settings(
     val language: String = "system",

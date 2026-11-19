@@ -330,7 +330,9 @@ class PreferenceSettingsRepository(
         val unstableUpdate = preferences[UNSTABLE_UPDATES] ?: false
         val theme = Theme.valueOf(preferences[THEME] ?: Theme.SYSTEM.name)
         val dynamicTheme = preferences[DYNAMIC_THEME] ?: false
-        val themeColor = preferences[THEME_COLOR] ?: DEFAULT_THEME_COLOR
+        val themeColor = preferences[THEME_COLOR]
+            ?.let { if (it == FORMER_ACCENT_RED) ACCENT_RED else it }
+            ?: DEFAULT_THEME_COLOR
         val edgeToEdge = preferences[EDGE_TO_EDGE] ?: false
         val backgroundStyle = runCatching {
             BackgroundStyle.valueOf(preferences[BACKGROUND_STYLE] ?: defaultBackgroundStyle.name)
