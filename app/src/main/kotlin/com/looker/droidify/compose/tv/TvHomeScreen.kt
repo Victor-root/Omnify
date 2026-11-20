@@ -547,12 +547,12 @@ fun TvHomeScreen(
 
 private val RailWidth = 180.dp
 
-// The rail always uses the dark theme's own NEUTRAL colours (its exact md_theme_d_* values) so light
-// mode shows the same dark sidebar as dark mode. Only the neutrals are fixed — the accent (selection /
-// focus / badge) still comes from MaterialTheme so a custom accent colour keeps working.
-private val RailNeutralBg = androidx.compose.ui.graphics.Color(0xFF191D17)      // md_theme_d_surfaceContainerLow
-private val RailNeutralContent = androidx.compose.ui.graphics.Color(0xFFC3C8BC) // md_theme_d_onSurfaceVariant
-private val RailNeutralStrong = androidx.compose.ui.graphics.Color(0xFFE1E4DA)  // md_theme_d_onSurface
+// The rail always uses the dark theme's own NEUTRAL colours (its exact values, see withNeutralSurfaces) so
+// light mode shows the same dark sidebar as dark mode. Only the neutrals are fixed: the accent (selection,
+// focus, badge) still comes from MaterialTheme so a custom accent colour keeps working.
+private val RailNeutralBg = androidx.compose.ui.graphics.Color(0xFF1B1B1C)      // dark surfaceContainerLow
+private val RailNeutralContent = androidx.compose.ui.graphics.Color(0xFFBDC1C6) // dark onSurfaceVariant
+private val RailNeutralStrong = androidx.compose.ui.graphics.Color.White        // dark onSurface
 
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

@@ -25,7 +25,7 @@
 - **The header shows how far a sync has come**, a percentage covering repositories and external sources together: beside the progress bar on phone, in place of the sync icon on TV.
 - **Updated apps leave the Updates list smoothly**: each one shrinks and fades out in its place as it finishes, then the others slide into the gap, instead of vanishing at once.
 - **Updating the last app ends on a proper finish**: "Update all" fades out with it, then the up-to-date card rises into place, its check popping in and your latest updates following, instead of the page switching at once. Opening the tab when nothing needs updating shows it straight away. On Android TV too.
-- **An app's short description moves into its card**, under the author and set off by a bar in the app's colour, instead of reading as the start of the description. Android TV now shows it too, and translates it with the description.
+- **An app's short description moves into its card**, under the author and set off by a bar in the app's colour, instead of reading as the start of the description, which is now headed by its title in the accent colour. Android TV now shows it too, and translates it with the description.
 
 ### 🐛 Fixed
 - **A repository added with "Add without verifying" syncs again**: it was kept with an empty fingerprint, which no index matched, so it was refused at every sync and never showed any app. It now trusts the first index and keeps its fingerprint from then on, which also mends repositories already added that way.
