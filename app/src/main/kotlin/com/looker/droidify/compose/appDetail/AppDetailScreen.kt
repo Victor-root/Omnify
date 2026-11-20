@@ -61,6 +61,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -177,8 +178,10 @@ import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.compose.theme.ScopedAccentColor
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -1960,16 +1963,39 @@ internal fun PermissionsSection(permissions: List<Permission>) {
             )
         }
         if (expanded) {
+            val labels = rememberPermissionLabels(permissions)
             permissions.forEach { permission ->
-                Text(
-                    text = permission.name,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    labels[permission.name]?.let { label ->
+                        Text(text = label, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Text(
+                        text = permission.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
+}
+
+/** What the system calls each of [permissions] in the user's language ("full network access"), read off
+ *  the main thread: one package manager call each. One the system doesn't know, an app's own, has none,
+ *  and so does one whose label is only its name again. */
+@Composable
+private fun rememberPermissionLabels(permissions: List<Permission>): Map<String, String> {
+    val packageManager = LocalContext.current.packageManager
+    return produceState(emptyMap(), permissions) {
+        value = withContext(Dispatchers.Default) {
+            permissions.mapNotNull { permission ->
+                val label = runCatching {
+                    packageManager.getPermissionInfo(permission.name, 0).loadLabel(packageManager).toString()
+                }.getOrNull()?.takeIf { it.isNotBlank() && it != permission.name } ?: return@mapNotNull null
+                permission.name to label.replaceFirstChar { it.titlecase() }
+            }.toMap()
+        }
+    }.value
 }
 
 private fun String.nonBlank(): String? = takeIf { it.isNotBlank() }

@@ -15,6 +15,7 @@
 
 ### 🔄 Changed
 - **Colours in the style of VFiles**: a deeper red among the accent colours (one already chosen follows it), cooler greys for cards, menus and dialogs, black or white text, and the shades of badges and buttons drawn the same way on every Android version.
+- **An app's permissions read in your language**: each one is now named as Android names it ("Full network access"), with its technical name under it, instead of the technical name alone.
 - **The ⋮ menu unrolls from the top of the screen** as a sheet over the header and the page, with a word on each entry. A tap outside, Back or a push upwards rolls it back.
 - **Page swiping follows your finger**: with page swiping on, the home's tabs slide along with the drag, the next one coming in beside it, instead of switching once the gesture ends. Each tab also keeps its own scroll position.
 - **The Updates tab is friendlier once everything is up to date**: how many apps that covers, when updates were last checked for and how often, your latest updates, and a button to check right away. On Android TV too.
