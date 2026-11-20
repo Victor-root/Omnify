@@ -595,7 +595,9 @@ internal fun PrimaryActions(
     installConfirmed: Boolean,
     onInstallOrUpdate: () -> Unit,
     onLaunch: () -> Unit,
-    onUninstall: () -> Unit,
+    // Null when what is installed under this package id can't be uninstalled from here (see
+    // InstalledInfo.canBeUninstalled): the button is left out.
+    onUninstall: (() -> Unit)?,
     onCancel: () -> Unit,
     primaryActionFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
@@ -690,7 +692,7 @@ internal fun PrimaryActions(
                     modifier = tvPrimaryButton.tvActionFocusScale(fillWidth, "primary-launch-button"),
                 ) { Text(stringResource(R.string.launch)) }
             }
-            if (isInstalled) {
+            if (isInstalled && onUninstall != null) {
                 MutedButton(
                     onClick = onUninstall,
                     modifier = tvSecondaryButton.tvActionFocusScale(fillWidth, "secondary-uninstall-button"),
@@ -1629,7 +1631,7 @@ private fun AppHeaderCard(
                     installedPackage?.manifest?.versionCode == downloadTargetVersionCode,
                 onInstallOrUpdate = onInstallOrUpdate,
                 onLaunch = onLaunch,
-                onUninstall = onUninstall,
+                onUninstall = onUninstall.takeIf { installedInfo?.canBeUninstalled != false },
                 onCancel = onCancel,
                 primaryActionFocusRequester = primaryActionFocusRequester,
             )

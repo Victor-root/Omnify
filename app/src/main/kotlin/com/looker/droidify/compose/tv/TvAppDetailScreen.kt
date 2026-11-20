@@ -347,6 +347,7 @@ fun TvAppDetailScreen(
                                         installState = installState,
                                         downloadStatus = { downloadStatus },
                                         installConfirmed = installConfirmed,
+                                        canUninstall = installedInfo?.canBeUninstalled != false,
                                         primaryActionFocusRequester = primaryFocus,
                                     )
                                 }
@@ -432,6 +433,7 @@ private fun TvPrimaryActions(
     installState: InstallState?,
     downloadStatus: () -> DownloadStatus?,
     installConfirmed: Boolean,
+    canUninstall: Boolean,
     primaryActionFocusRequester: FocusRequester,
 ) {
     PrimaryActions(
@@ -443,7 +445,7 @@ private fun TvPrimaryActions(
         installConfirmed = installConfirmed,
         onInstallOrUpdate = viewModel::installOrUpdate,
         onLaunch = viewModel::launch,
-        onUninstall = viewModel::uninstall,
+        onUninstall = if (canUninstall) viewModel::uninstall else null,
         onCancel = viewModel::cancel,
         primaryActionFocusRequester = primaryActionFocusRequester,
         fillWidth = true,

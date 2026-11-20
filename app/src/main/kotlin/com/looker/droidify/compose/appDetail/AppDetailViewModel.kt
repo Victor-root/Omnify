@@ -1193,7 +1193,11 @@ data class InstalledInfo(
     val signatureMismatch: Boolean = false,
     val isSystemApp: Boolean = false,
     val looksLikeGenuineGoogleServices: Boolean = false,
-)
+) {
+    /** False for another app sharing this one's package id that is part of the system: it can't be
+     *  uninstalled, and Android would only take its updates away, from an app that isn't this one. */
+    val canBeUninstalled: Boolean get() = !(signatureMismatch && isSystemApp)
+}
 
 /** Why an in-place update was blocked and the dialog is offering to uninstall first instead of it. */
 enum class InstallConflictReason { SIGNATURE, VERSION_DOWNGRADE }
