@@ -336,10 +336,13 @@ private fun RecentUpdateRow(update: RecentUpdate, now: Long, onClick: () -> Unit
                 maxLines = 1,
             )
             Text(
-                // Lower case, as it follows the version mid-sentence ("1.2, 3 days ago").
+                // Lower case, as it follows the version mid-sentence ("1.2, 3 days ago"), unless Android
+                // gave a date, past a week, whose month keeps its capital in English ("Nov 11").
                 text = listOfNotNull(
                     update.version,
-                    relativeTime(update.updatedAt, now).replaceFirstChar { it.lowercase() },
+                    relativeTime(update.updatedAt, now).let { time ->
+                        if (now - update.updatedAt < DateUtils.WEEK_IN_MILLIS) time.replaceFirstChar { it.lowercase() } else time
+                    },
                 ).joinToString(", "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
