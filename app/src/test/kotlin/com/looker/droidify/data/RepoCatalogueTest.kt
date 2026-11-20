@@ -106,6 +106,15 @@ class RepoCatalogueTest : BaseDatabaseTest() {
     }
 
     @Test
+    fun aSearchFindsAnAppByItsName() = runDbTest {
+        val repoId = addRepo("https://one.example/repo")
+        settings.setRepoEnabled(repoId, true)
+        catalogue.save(repoId, fingerprint, index)
+
+        assertEquals(packages.toSet(), catalogueApps(searchQuery = "Collabora").toSet())
+    }
+
+    @Test
     fun anIndexDownloadedWhileTheRepositoryWasDisabledIsDropped() = runDbTest {
         val repoId = addRepo("https://one.example/repo")
         settings.setRepoEnabled(repoId, true)
