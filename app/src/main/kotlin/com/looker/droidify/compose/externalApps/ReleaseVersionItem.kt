@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -148,9 +149,12 @@ fun ReleaseVersionItem(
         ) {
             Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)) {
             Column(Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                // The chips follow the version on its line while they fit, and go under it once they
+                // don't: three of them in French left the version one letter per line.
+                FlowRow(
+                    itemVerticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
                         // releaseVersionLabel reads identically to the hero card's own "Version" stat
@@ -160,9 +164,6 @@ fun ReleaseVersionItem(
                         // every release (confirmed real: RivoPhoneApp's "app-release.apk").
                         text = releaseVersionLabel(apkName, release.tag),
                         style = MaterialTheme.typography.titleSmall,
-                        // Take only the space left after the chips (fill = false) so a very long tag
-                        // wraps instead of crushing the chips to one letter per line.
-                        modifier = Modifier.weight(1f, fill = false),
                     )
                     if (isSuggested) {
                         VersionChip(
