@@ -660,7 +660,7 @@ class ExternalApi @Inject constructor(
         for (file in valueFiles) {
             val xml = fetchRaw(app, file) ?: continue
             val value = regex.find(xml)?.groupValues?.get(1) ?: continue
-            val clean = unescapeAndroidString(value)
+            val clean = resolveDeclaredEntities(value, xml)?.let(::unescapeAndroidString) ?: continue
             // Ignore a value that's itself a resource reference (rare) rather than show "@string/…".
             if (clean.isBlank() || clean.startsWith("@")) continue
             return clean
@@ -1995,6 +1995,23 @@ private fun valueFileOrder(path: String): Int {
         else -> 4
     }
 }
+
+/**
+ * Replaces in [value] the `&name;` references its strings file [xml] declares in its own DOCTYPE
+ * (`<!ENTITY name "value">`), as the resource compiler does: Termux names itself `&TERMUX_APP_NAME;`.
+ * XML's own entities are left to [unescapeAndroidString]. Null when another reference stays unknown,
+ * since a name showing one is worse than none.
+ */
+internal fun resolveDeclaredEntities(value: String, xml: String): String? {
+    val declared = ENTITY_DECLARATION_REGEX.findAll(xml).associate { it.groupValues[1] to it.groupValues[2] }
+    val resolved = ENTITY_REFERENCE_REGEX.replace(value) { declared[it.groupValues[1]] ?: it.value }
+    val unknown = ENTITY_REFERENCE_REGEX.findAll(resolved).any { it.groupValues[1] !in XML_ENTITIES }
+    return resolved.takeUnless { unknown }
+}
+
+private val ENTITY_DECLARATION_REGEX = Regex("""<!ENTITY\s+([A-Za-z_][\w.-]*)\s+"([^"]*)"\s*>""")
+private val ENTITY_REFERENCE_REGEX = Regex("""&([A-Za-z_][\w.-]*);""")
+private val XML_ENTITIES = setOf("amp", "lt", "gt", "quot", "apos")
 
 /** Turns an Android string-resource value into plain display text (unescapes quotes/entities). */
 private fun unescapeAndroidString(raw: String): String {
