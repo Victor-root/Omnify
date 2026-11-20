@@ -14,6 +14,7 @@
 - **A "Shizuku compatible" badge** on the page of apps that can use Shizuku or Sui, next to the Root one, on phone and TV. Both badges now show on external sources too, from the permissions their APK declares.
 
 ### 🔄 Changed
+- **Colours in the style of VFiles**: a deeper red among the accent colours (one already chosen follows it), cooler greys for cards, menus and dialogs, black or white text, and the shades of badges and buttons drawn the same way on every Android version.
 - **The ⋮ menu unrolls from the top of the screen** as a sheet over the header and the page, with a word on each entry. A tap outside, Back or a push upwards rolls it back.
 - **Page swiping follows your finger**: with page swiping on, the home's tabs slide along with the drag, the next one coming in beside it, instead of switching once the gesture ends. Each tab also keeps its own scroll position.
 - **The Updates tab is friendlier once everything is up to date**: how many apps that covers, when updates were last checked for and how often, your latest updates, and a button to check right away. On Android TV too.
@@ -34,6 +35,7 @@
 - **An update no longer needs "Check now" to show up after opening Omnify**: the header showed a sync at every opening, but it only covered external sources; the repositories were left alone for 10 minutes after a check, and on mobile data until Wi-Fi came back with "Wi-Fi only" chosen. "Check now" now also checks external sources at once, like the header's sync button.
 - **"Match accent to app icon" takes the colour you see**: a dull, near-black plate a little bigger than a bright logo (Sable's navy behind its violet animal) no longer wins; colours now count by how vivid they are as well as by how much of the icon they cover.
 - **An app renamed in its repository is renamed everywhere after a sync**: the home's lists (Installed, New apps, Shizuku…) only refreshed when the number of apps or versions changed, so they kept the old name until Omnify was restarted.
+- **A connection through a VPN counts as online**: with a VPN as the only way out, as with USB tethering through one, Omnify showed "No connection" once the VPN came up after it had started.
 - **Background checks no longer vanish until the next launch**: a check starting while Omnify was closed could cancel itself as the app woke up for it.
 - **Apps not written in English show their real language**: an app's base text was taken for English by convention, so a French or German app could say English, or lose its own language from the list. Omnify now reads what that text says, in the app's resources, its code, or its source for Flutter and web apps, which no longer pass as "confirmed English".
 - **No more false Shizuku or Root badge on external sources**: the check read a README's links as well as its text, so any project with a "Get it on Obtainium" button showed as Shizuku compatible.
