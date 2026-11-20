@@ -2,6 +2,7 @@ package com.looker.droidify.installer
 
 import android.content.Context
 import androidx.core.content.edit
+import com.looker.droidify.BuildConfig
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import kotlin.time.Duration.Companion.minutes
@@ -55,12 +56,20 @@ object SelfUpdate {
         val packageName = context.packageName
         // Only plain names go into the script, which is single-quoted as a whole.
         if (!SHELL_SAFE.matches(packageName) || !SHELL_SAFE.matches(component)) return null
-        val script = "before=\$(pm path $packageName); i=0; " +
+        val script = "before=\$(pm path $packageName); ${trace("waiting, \$before")}i=0; " +
             "while [ \$i -lt $WAIT_STEPS ]; do sleep 0.5; now=\$(pm path $packageName); " +
-            "if [ -n \"\$now\" ] && [ \"\$now\" != \"\$before\" ]; then exec am start -n $component; fi; " +
-            "i=\$((i + 1)); done"
+            "if [ -n \"\$now\" ] && [ \"\$now\" != \"\$before\" ]; then " +
+            "started=\$(am start -n $component 2>&1); ${trace("installed after \$i steps: \$started")}exit; fi; " +
+            "i=\$((i + 1)); done; ${trace("gave up, still \$now")}"
         return "\$(command -v setsid || echo nohup) sh -c '$script' >/dev/null 2>&1 </dev/null &"
     }
+
+    /** A line of the script's own progress, to logcat, where adb reads it: the script runs outside Omnify,
+     *  so the diagnostic log can't hold it. Only in the builds that keep that log. */
+    private fun trace(message: String): String =
+        if (BuildConfig.DIAGNOSTICS) "log -t $TRACE_TAG \"$message\"; " else ""
+
+    private const val TRACE_TAG = "OmnifySelfUpdate"
 
     private fun Context.prefs() = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
