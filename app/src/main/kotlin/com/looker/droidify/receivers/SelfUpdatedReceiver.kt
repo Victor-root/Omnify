@@ -5,12 +5,14 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.core.app.NotificationManagerCompat
 import com.looker.droidify.R
 import com.looker.droidify.installer.SelfUpdate
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_CHANNEL_SELF_UPDATED
 import com.looker.droidify.utility.common.Constants.NOTIFICATION_ID_SELF_UPDATED
 import com.looker.droidify.utility.common.createNotificationChannel
 import com.looker.droidify.utility.common.extension.notificationManager
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.notifications.createSelfUpdatedNotification
 
 /**
@@ -20,7 +22,9 @@ import com.looker.droidify.utility.notifications.createSelfUpdatedNotification
 class SelfUpdatedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
-        if (!SelfUpdate.takeExpectedNotification(context)) return
+        val expected = SelfUpdate.takeExpectedNotification(context)
+        DiagnosticLog.log("self-update: updated, opening offered: $expected")
+        if (!expected) return
         val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
             ?: context.packageManager.getLeanbackLaunchIntentForPackage(context.packageName)
             ?: return
@@ -41,6 +45,11 @@ class SelfUpdatedReceiver : BroadcastReceiver() {
         notificationManager.notify(
             NOTIFICATION_ID_SELF_UPDATED,
             context.createSelfUpdatedNotification(contentIntent),
+        )
+        val notifications = NotificationManagerCompat.from(context)
+        DiagnosticLog.log(
+            "self-update: notification posted, notifications allowed: ${notifications.areNotificationsEnabled()}, " +
+                "channel importance: ${notifications.getNotificationChannel(NOTIFICATION_CHANNEL_SELF_UPDATED)?.importance}",
         )
     }
 }

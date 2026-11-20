@@ -39,7 +39,7 @@ class RootInstaller(
         )
         log("Root install command: $installCommand", "RootInstaller", Log.INFO)
         // Updating itself, Omnify is stopped by the install: started again once it is through.
-        val relaunch = SelfUpdate.relaunchCommand(context).takeIf { SelfUpdate.isSelf(context, installItem) }
+        val relaunch = if (SelfUpdate.isSelf(context, installItem)) SelfUpdate.relaunchCommand(context) else null
         Shell.cmd(*listOfNotNull(relaunch, installCommand).toTypedArray()).submit { shellResult ->
             log(
                 "Root install result: success=${shellResult.isSuccess} code=${shellResult.code} " +

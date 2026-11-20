@@ -3,6 +3,7 @@ package com.looker.droidify.installer
 import android.content.Context
 import androidx.core.content.edit
 import com.looker.droidify.installer.model.InstallItem
+import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import kotlin.time.Duration.Companion.minutes
 
 /**
@@ -20,6 +21,7 @@ object SelfUpdate {
     /** Notes that an update of Omnify is starting through an installer that cannot start it again. */
     fun expectNotification(context: Context) {
         context.prefs().edit { putLong(KEY_EXPECTED_AT, System.currentTimeMillis()) }
+        DiagnosticLog.log("self-update: through Android's installer, the new version is to offer opening it")
     }
 
     /**
@@ -40,7 +42,11 @@ object SelfUpdate {
      * path to change, as each install puts it in a new folder, then opens the app. Null when Omnify has
      * no screen to open.
      */
-    fun relaunchCommand(context: Context): String? {
+    fun relaunchCommand(context: Context): String? = buildRelaunchCommand(context).also {
+        DiagnosticLog.log("self-update: through a shell, started again once installed: ${it != null}")
+    }
+
+    private fun buildRelaunchCommand(context: Context): String? {
         val packageManager = context.packageManager
         val component = (
             packageManager.getLaunchIntentForPackage(context.packageName)
