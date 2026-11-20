@@ -107,6 +107,12 @@
     <string name="downloaded_FORMAT">Téléchargé %s</string>
     <string name="downloading">Téléchargement en cours</string>
     <string name="downloading_FORMAT">Téléchargement %s…</string>
+    <string name="install_all_confirm_title">Tout installer ?</string>
+    <plurals name="install_all_confirm_DESC">
+        <item quantity="one">%d appli de ce dépôt sera téléchargée et installée.</item>
+        <item quantity="many">%d applis de ce dépôt seront téléchargées et installées.</item>
+        <item quantity="other">%d applis de ce dépôt seront téléchargées et installées.</item>
+    </plurals>
     <plurals name="downloading_apps_FORMAT">
         <item quantity="one">Téléchargement de %d appli…</item>
         <item quantity="many">Téléchargement de %d applis…</item>

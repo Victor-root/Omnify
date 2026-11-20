@@ -51,6 +51,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +59,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
@@ -591,6 +593,30 @@ internal fun InstallAllButton(
     isInstalling: Boolean,
     onClick: () -> Unit,
 ) {
+    // Asked first: a repository can hold thousands of apps (F-Droid's), one stray tap or OK away.
+    var confirming by rememberSaveable { mutableStateOf(false) }
+    if (confirming) {
+        AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text(stringResource(R.string.install_all_confirm_title)) },
+            text = { Text(pluralStringResource(R.plurals.install_all_confirm_DESC, count, count)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirming = false
+                        onClick()
+                    },
+                ) {
+                    Text(stringResource(R.string.install))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
     val content: @Composable RowScope.() -> Unit = {
         if (isInstalling) {
             CircularWavyProgressIndicator(modifier = Modifier.size(20.dp))
@@ -611,7 +637,7 @@ internal fun InstallAllButton(
         // treatment as the app-detail action buttons.
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             FilledTonalButton(
-                onClick = onClick,
+                onClick = { confirming = true },
                 enabled = !isInstalling,
                 modifier = Modifier.height(60.dp).widthIn(min = 340.dp).tvFocusScale(1.10f),
                 content = content,
@@ -619,7 +645,7 @@ internal fun InstallAllButton(
         }
     } else {
         FilledTonalButton(
-            onClick = onClick,
+            onClick = { confirming = true },
             enabled = !isInstalling,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
             content = content,

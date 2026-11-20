@@ -138,6 +138,11 @@
     <string name="downloaded_FORMAT">Downloaded %s</string>
     <string name="downloading">Downloading</string>
     <string name="downloading_FORMAT">Downloading %s…</string>
+    <string name="install_all_confirm_title">Install every app?</string>
+    <plurals name="install_all_confirm_DESC">
+        <item quantity="one">%d app of this repository will be downloaded and installed.</item>
+        <item quantity="other">%d apps of this repository will be downloaded and installed.</item>
+    </plurals>
     <plurals name="downloading_apps_FORMAT">
         <item quantity="one">Downloading %d app…</item>
         <item quantity="other">Downloading %d apps…</item>
