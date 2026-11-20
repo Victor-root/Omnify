@@ -92,7 +92,7 @@ class RepoCatalogueTest : BaseDatabaseTest() {
         searchQuery = searchQuery,
         repoId = repoId,
         packageNames = packageNames,
-        locale = "en-US",
+        locales = ",en-US,",
     ).map { it.packageName.name }
 
     @Test

@@ -89,7 +89,7 @@ class TvCatalogueTest : BaseDatabaseTest() {
     private suspend fun madeForTv(launchable: Set<String> = emptySet()): Set<String> = appDao.query(
         sortOrder = SortOrder.UPDATED,
         madeForTv = MadeForTv(launchable),
-        locale = "en-US",
+        locales = ",en-US,",
     ).mapTo(HashSet()) { it.packageName.name }
 
     /** An app made for phones and TV alike says nothing of TV in its features, yet is still one for TV. */
@@ -155,7 +155,7 @@ class TvCatalogueTest : BaseDatabaseTest() {
             sortOrder = SortOrder.UPDATED,
             categoriesToInclude = listOf("Multimedia"),
             shippedAddressesLast = shippedAddressesLast,
-            locale = "en-US",
+            locales = ",en-US,",
         ).map { it.packageName.name }
 
         assertEquals(

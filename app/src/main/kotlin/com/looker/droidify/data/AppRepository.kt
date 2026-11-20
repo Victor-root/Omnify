@@ -20,6 +20,7 @@ import com.looker.droidify.external.dottedVersionOrNull
 import com.looker.droidify.model.Repository
 import com.looker.droidify.sync.v2.model.DefaultName
 import com.looker.droidify.sync.v2.model.Tag
+import com.looker.droidify.utility.common.CatalogueLanguage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
@@ -48,6 +49,11 @@ class AppRepository @Inject constructor(
 
     private val localeStream = settingsRepository.get { language }
 
+    /** The catalogue's spellings of the user's language, ranked, as the lists' queries take them (see
+     *  [CatalogueLanguage.ranked]). */
+    private suspend fun rankedLocales(): String =
+        CatalogueLanguage(localeStream.first()).ranked(appDao.localeSpellings())
+
     suspend fun apps(
         sortOrder: SortOrder,
         searchQuery: String? = null,
@@ -67,7 +73,7 @@ class AppRepository @Inject constructor(
         // The apps of the user's own repositories first (see AppDao.query).
         ownReposFirst: Boolean = false,
     ): List<AppMinimal> = withContext(Dispatchers.Default) {
-        val currentLocale = localeStream.first()
+        val locales = rankedLocales()
         appDao.query(
             sortOrder = sortOrder,
             searchQuery = searchQuery?.ifEmpty { null },
@@ -82,7 +88,7 @@ class AppRepository @Inject constructor(
             updatedOnly = updatedOnly,
             packageNames = packageNames,
             shippedAddressesLast = if (ownReposFirst) Repository.defaultAddresses.toList() else null,
-            locale = currentLocale,
+            locales = locales,
         )
     }
 
@@ -92,7 +98,7 @@ class AppRepository @Inject constructor(
         limit: Int,
         updatedOnly: Boolean = false,
     ): List<AppMinimal> = withContext(Dispatchers.Default) {
-        appDao.latest(sortOrder, updatedOnly, limit, localeStream.first())
+        appDao.latest(sortOrder, updatedOnly, limit, rankedLocales())
     }
 
     /**
@@ -139,8 +145,8 @@ class AppRepository @Inject constructor(
      * failure simply yields no carousel rather than crashing the home screen.
      */
     suspend fun mostDownloadedApps(limit: Int): List<AppMinimal> = withContext(Dispatchers.Default) {
-        val currentLocale = localeStream.first()
-        runCatching { appDao.mostDownloaded(locale = currentLocale, limit = limit) }
+        val locales = rankedLocales()
+        runCatching { appDao.mostDownloaded(locales = locales, limit = limit) }
             .getOrDefault(emptyList())
     }
 
@@ -150,8 +156,8 @@ class AppRepository @Inject constructor(
      * yields no carousel rather than crashing the home screen.
      */
     suspend fun rootApps(limit: Int): List<AppMinimal> = withContext(Dispatchers.Default) {
-        val currentLocale = localeStream.first()
-        runCatching { appDao.rootApps(locale = currentLocale, limit = limit) }
+        val locales = rankedLocales()
+        runCatching { appDao.rootApps(locales = locales, limit = limit) }
             .getOrDefault(emptyList())
     }
 
@@ -161,8 +167,8 @@ class AppRepository @Inject constructor(
      * simply yields no apps rather than crashing the home screen.
      */
     suspend fun appsByPackageNames(packageNames: List<String>): List<AppMinimal> = withContext(Dispatchers.Default) {
-        val currentLocale = localeStream.first()
-        runCatching { appDao.byPackageNames(packageNames, currentLocale) }.getOrDefault(emptyList())
+        val locales = rankedLocales()
+        runCatching { appDao.byPackageNames(packageNames, locales) }.getOrDefault(emptyList())
     }
 
     /**
@@ -172,8 +178,8 @@ class AppRepository @Inject constructor(
      * A repository that does declare a logo keeps it: see the repositories list for that rule.
      */
     suspend fun singleAppRepoIcons(): Map<Int, FilePath> = withContext(Dispatchers.Default) {
-        val currentLocale = localeStream.first()
-        runCatching { appDao.singleAppRepoIcons(locale = currentLocale) }
+        val locales = rankedLocales()
+        runCatching { appDao.singleAppRepoIcons(locales = locales) }
             .getOrDefault(emptyList())
             .mapNotNull { row ->
                 val icon = FilePath(row.baseAddress, row.iconName) ?: return@mapNotNull null

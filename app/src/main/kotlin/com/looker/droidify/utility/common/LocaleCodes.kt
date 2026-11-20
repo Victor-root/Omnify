@@ -138,3 +138,39 @@ internal fun localeCodeForTag(tag: String?, available: List<String>): String {
         ?.first
         ?: SYSTEM_LANGUAGE
 }
+
+/**
+ * Which of a catalogue's translations to show for the app language [setting] ([SYSTEM_LANGUAGE] or a code
+ * like "pt-rBR"). An index spells the same language many ways ("fr", "fr-FR", "fr_FR", "fr-CA"), so any
+ * region of it counts, best first: the user's own region, then the language alone, then the others.
+ * Shared by an app's page and the lists, which so always show an app under the same name.
+ */
+internal class CatalogueLanguage(setting: String) {
+
+    private val language: String
+    private val tag: String
+
+    init {
+        val locale = if (setting == SYSTEM_LANGUAGE) Locale.getDefault() else localeOfCode(setting)
+        language = locale.language.lowercase()
+        tag = if (locale.country.isEmpty()) language else "$language-${locale.country.lowercase()}"
+    }
+
+    /** How good a match [spelling] is, lower being better, null for another language. */
+    fun rank(spelling: String): Int? {
+        val normalized = spelling.lowercase().replace('_', '-')
+        return when {
+            normalized == tag -> 0
+            normalized == language -> 1
+            normalized.startsWith("$language-") -> 2
+            else -> null
+        }
+    }
+
+    /** The [spellings] of this language, best first, comma separated and between commas, for a query to
+     *  find a locale in and rank it by its position (see AppDao). */
+    fun ranked(spellings: Collection<String>): String = spellings
+        .mapNotNull { spelling -> rank(spelling)?.let { spelling to it } }
+        .sortedWith(compareBy({ it.second }, { it.first }))
+        .joinToString(separator = ",", prefix = ",", postfix = ",") { it.first }
+}

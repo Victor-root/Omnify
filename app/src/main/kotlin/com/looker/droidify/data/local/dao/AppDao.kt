@@ -68,7 +68,8 @@ interface AppDao {
         // first, in [sortOrder] among themselves: the ones the user's own repositories bring, which
         // would otherwise sink among the thousands Omnify ships with.
         shippedAddressesLast: List<String>? = null,
-        locale: String,
+        // The user's language, ranked (see CatalogueLanguage.ranked).
+        locales: String,
     ): List<AppMinimal> = _rawQueryAppMinimal(
         searchQueryMinimal(
             sortOrder = sortOrder,
@@ -84,7 +85,7 @@ interface AppDao {
             madeForTvOrCategories = madeForTvOrCategories,
             updatedOnly = updatedOnly,
             shippedAddressesLast = shippedAddressesLast,
-            locale = locale,
+            locales = locales,
         ),
     ).map { it.toAppMinimal() }
 
@@ -117,7 +118,7 @@ interface AppDao {
      * empty until the stats worker has fetched data. Built as a raw query (reusing the proven
      * [_rawQueryAppMinimal] SELECT) so a typo can't break the build — at worst it yields no rows.
      */
-    suspend fun mostDownloaded(locale: String, limit: Int): List<AppMinimal> {
+    suspend fun mostDownloaded(locales: String, limit: Int): List<AppMinimal> {
         val query = SimpleSQLiteQuery(
             """
             ${appMinimalSelect()}
@@ -132,7 +133,7 @@ interface AppDao {
             """.trimIndent(),
             // Explicit Any[] so the mixed String/Int args don't infer a reified intersection type
             // (matches deviceCompatibleVersions' `listOf<Any>(...)`).
-            arrayOf<Any>(locale, locale, locale, limit),
+            arrayOf<Any>(*localeArgs(locales, 3), limit),
         )
         return _rawQueryAppMinimal(query).map { it.toAppMinimal() }
     }
@@ -142,7 +143,7 @@ interface AppDao {
      * that shows a handful of them: picked in a subquery first, so the columns and joins are only
      * worked out for those rather than for the whole catalogue. [updatedOnly] as in [query].
      */
-    suspend fun latest(sortOrder: SortOrder, updatedOnly: Boolean, limit: Int, locale: String): List<AppMinimal> {
+    suspend fun latest(sortOrder: SortOrder, updatedOnly: Boolean, limit: Int, locales: String): List<AppMinimal> {
         val column = if (sortOrder == SortOrder.ADDED) "added" else "lastUpdated"
         val filter = if (updatedOnly) "WHERE lastUpdated > added" else ""
         val query = SimpleSQLiteQuery(
@@ -150,7 +151,7 @@ interface AppDao {
             ${appMinimalSelect("(SELECT * FROM app $filter GROUP BY packageName ORDER BY $column DESC LIMIT $limit) AS app")}
             ORDER BY app.$column DESC
             """.trimIndent(),
-            arrayOf(locale, locale, locale),
+            localeArgs(locales, 3),
         )
         return _rawQueryAppMinimal(query).map { it.toAppMinimal() }
     }
@@ -167,18 +168,18 @@ interface AppDao {
      * the whole catalogue whatever the LIMIT because of its sort, and held one of Room's few threads
      * while every other screen queued behind it.
      */
-    suspend fun rootApps(locale: String, limit: Int): List<AppMinimal> {
+    suspend fun rootApps(locales: String, limit: Int): List<AppMinimal> {
         val found = LinkedHashSet<String>()
         var offset = 0
         while (found.size < limit) {
-            val page = _rootCandidates(locale, RootDetection.PERMISSION, ROOT_CANDIDATES_PAGE, offset)
+            val page = _rootCandidates(locales, RootDetection.PERMISSION, ROOT_CANDIDATES_PAGE, offset)
             page.filter(RootCandidateRow::indicatesRoot).mapTo(found) { it.packageName }
             if (page.size < ROOT_CANDIDATES_PAGE) break
             offset += page.size
         }
         val names = found.take(limit)
         val rank = names.withIndex().associate { (index, name) -> name to index }
-        return byPackageNames(names, locale).sortedBy { rank[it.packageName.name] }
+        return byPackageNames(names, locales).sortedBy { rank[it.packageName.name] }
     }
 
     /** One page of the catalogue by last update, with what [rootApps] judges each app on. The page is
@@ -203,17 +204,26 @@ interface AppDao {
             ORDER BY lastUpdated DESC, id
             LIMIT :pageSize OFFSET :offset
         ) AS page
-        LEFT JOIN localized_app_name AS n_loc ON n_loc.appId = page.id AND n_loc.locale = :locale
+        LEFT JOIN localized_app_name AS n_loc ON n_loc.appId = page.id AND n_loc.locale = (
+            SELECT l.locale FROM localized_app_name AS l WHERE l.appId = page.id
+            AND instr(:locales, ',' || l.locale || ',') > 0 ORDER BY instr(:locales, ',' || l.locale || ',') LIMIT 1
+        )
         LEFT JOIN localized_app_name AS n_en ON n_en.appId = page.id AND n_en.locale = 'en-US'
-        LEFT JOIN localized_app_summary AS s_loc ON s_loc.appId = page.id AND s_loc.locale = :locale
+        LEFT JOIN localized_app_summary AS s_loc ON s_loc.appId = page.id AND s_loc.locale = (
+            SELECT l.locale FROM localized_app_summary AS l WHERE l.appId = page.id
+            AND instr(:locales, ',' || l.locale || ',') > 0 ORDER BY instr(:locales, ',' || l.locale || ',') LIMIT 1
+        )
         LEFT JOIN localized_app_summary AS s_en ON s_en.appId = page.id AND s_en.locale = 'en-US'
-        LEFT JOIN localized_app_description AS d_loc ON d_loc.appId = page.id AND d_loc.locale = :locale
+        LEFT JOIN localized_app_description AS d_loc ON d_loc.appId = page.id AND d_loc.locale = (
+            SELECT l.locale FROM localized_app_description AS l WHERE l.appId = page.id
+            AND instr(:locales, ',' || l.locale || ',') > 0 ORDER BY instr(:locales, ',' || l.locale || ',') LIMIT 1
+        )
         LEFT JOIN localized_app_description AS d_en ON d_en.appId = page.id AND d_en.locale = 'en-US'
         ORDER BY page.lastUpdated DESC, page.id
         """,
     )
     suspend fun _rootCandidates(
-        locale: String,
+        locales: String,
         permission: String,
         pageSize: Int,
         offset: Int,
@@ -245,7 +255,7 @@ interface AppDao {
      * [mostDownloaded]/[rootApps], so an app carried by more than one of the user's repos (e.g. both
      * F-Droid and IzzyOnDroid) still yields a single row rather than one per repo.
      */
-    suspend fun byPackageNames(packageNames: List<String>, locale: String): List<AppMinimal> {
+    suspend fun byPackageNames(packageNames: List<String>, locales: String): List<AppMinimal> {
         if (packageNames.isEmpty()) return emptyList()
         val placeholders = packageNames.joinToString(",") { "?" }
         val query = SimpleSQLiteQuery(
@@ -254,7 +264,7 @@ interface AppDao {
             WHERE app.packageName IN ($placeholders)
             GROUP BY app.packageName
             """.trimIndent(),
-            arrayOf(locale, locale, locale, *packageNames.toTypedArray()),
+            arrayOf(*localeArgs(locales, 3), *packageNames.toTypedArray()),
         )
         return _rawQueryAppMinimal(query).map { it.toAppMinimal() }
     }
@@ -275,12 +285,15 @@ interface AppDao {
             COALESCE(i_loc.icon_name, i_en.icon_name) AS iconName
         FROM app
         JOIN repository AS repo ON repo.id = app.repoId
-        LEFT JOIN localized_app_icon AS i_loc ON i_loc.appId = app.id AND i_loc.locale = :locale
+        LEFT JOIN localized_app_icon AS i_loc ON i_loc.appId = app.id AND i_loc.locale = (
+            SELECT l.locale FROM localized_app_icon AS l WHERE l.appId = app.id
+            AND instr(:locales, ',' || l.locale || ',') > 0 ORDER BY instr(:locales, ',' || l.locale || ',') LIMIT 1
+        )
         LEFT JOIN localized_app_icon AS i_en ON i_en.appId = app.id AND i_en.locale = 'en-US'
         WHERE app.repoId IN (SELECT repoId FROM app GROUP BY repoId HAVING COUNT(*) = 1)
         """,
     )
-    suspend fun singleAppRepoIcons(locale: String): List<SingleAppRepoIconRow>
+    suspend fun singleAppRepoIcons(locales: String): List<SingleAppRepoIconRow>
 
     data class SingleAppRepoIconRow(
         val repoId: Int,
@@ -307,7 +320,7 @@ interface AppDao {
         updatedOnly: Boolean,
         packageNames: List<String>?,
         shippedAddressesLast: List<String>?,
-        locale: String,
+        locales: String,
     ): SimpleSQLiteQuery {
         logQuery(
             "sortOrder" to sortOrder,
@@ -319,7 +332,7 @@ interface AppDao {
             "antiFeaturesToExclude" to antiFeaturesToExclude,
             "madeForTv" to madeForTv?.launchable,
             "permissionsToInclude" to permissionsToInclude,
-            "locale" to locale,
+            "locales" to locales,
         )
         val args = arrayListOf<Any?>()
 
@@ -328,15 +341,12 @@ interface AppDao {
             append(
                 """
 
-                LEFT JOIN localized_app_description AS d_loc ON d_loc.appId = app.id AND d_loc.locale = ?
+                LEFT JOIN localized_app_description AS d_loc ON ${bestLocale("localized_app_description", "d_loc", "app.id")}
                 LEFT JOIN localized_app_description AS d_en ON d_en.appId = app.id AND d_en.locale = 'en-US'
                 """.trimIndent(),
             )
-            // locale args repeated for each localized table
-            args.add(locale)
-            args.add(locale)
-            args.add(locale)
-            args.add(locale)
+            // For the name, summary and icon of appMinimalSelect, then the description.
+            args.addAll(localeArgs(locales, 4))
 
             if (sortOrder == SortOrder.SIZE) {
                 append(" LEFT JOIN version ON app.id = version.appId")
@@ -636,6 +646,16 @@ interface AppDao {
     @Query("SELECT DISTINCT repoId FROM app")
     suspend fun repoIds(): List<Int>
 
+    /** Every way the catalogue spells a locale, for [com.looker.droidify.utility.common.CatalogueLanguage]
+     *  to pick the user's language out of. Each table read on its own index. */
+    @Query(
+        "SELECT locale FROM (SELECT DISTINCT locale FROM localized_app_name) " +
+            "UNION SELECT locale FROM (SELECT DISTINCT locale FROM localized_app_summary) " +
+            "UNION SELECT locale FROM (SELECT DISTINCT locale FROM localized_app_description) " +
+            "UNION SELECT locale FROM (SELECT DISTINCT locale FROM localized_app_icon)",
+    )
+    suspend fun localeSpellings(): List<String>
+
     @Query("SELECT name FROM localized_app_name WHERE appId = :id AND (locale = :locale OR locale = \'en-US\')")
     suspend fun name(id: Int, locale: String): String?
 
@@ -653,8 +673,8 @@ interface AppDao {
 
 /**
  * What every list of [AppMinimal] selects, up to the point where each query adds its own conditions.
- * Takes the locale three times, for the localized name, summary and icon. [from] is the source of the
- * `app` rows, a subquery for a query that picks them before joining anything.
+ * Takes the ranked locales ([localeArgs]) for the localized name, summary and icon. [from] is the source
+ * of the `app` rows, a subquery for a query that picks them before joining anything.
  */
 private fun appMinimalSelect(from: String = "app") =
     """
@@ -673,13 +693,26 @@ private fun appMinimalSelect(from: String = "app") =
         ) AS suggestedVersion
     FROM $from
     JOIN repository AS repo ON app.repoId = repo.id
-    LEFT JOIN localized_app_name AS n_loc ON n_loc.appId = app.id AND n_loc.locale = ?
+    LEFT JOIN localized_app_name AS n_loc ON ${bestLocale("localized_app_name", "n_loc", "app.id")}
     LEFT JOIN localized_app_name AS n_en ON n_en.appId = app.id AND n_en.locale = 'en-US'
-    LEFT JOIN localized_app_summary AS s_loc ON s_loc.appId = app.id AND s_loc.locale = ?
+    LEFT JOIN localized_app_summary AS s_loc ON ${bestLocale("localized_app_summary", "s_loc", "app.id")}
     LEFT JOIN localized_app_summary AS s_en ON s_en.appId = app.id AND s_en.locale = 'en-US'
-    LEFT JOIN localized_app_icon AS i_loc ON i_loc.appId = app.id AND i_loc.locale = ?
+    LEFT JOIN localized_app_icon AS i_loc ON ${bestLocale("localized_app_icon", "i_loc", "app.id")}
     LEFT JOIN localized_app_icon AS i_en ON i_en.appId = app.id AND i_en.locale = 'en-US'
     """.trimIndent()
+
+/**
+ * The ON clause joining [alias], a row of [table], to the app [appRef] in the best of its locales: the one
+ * coming first in the ranked list of the user's language (see CatalogueLanguage.ranked), which it takes
+ * twice ([localeArgs]). An index spells a language many ways, so a plain equality missed most of them.
+ * Looked up by the string's own position, not with LIKE or LOWER, which go through ICU on Android.
+ */
+private fun bestLocale(table: String, alias: String, appRef: String) =
+    "$alias.appId = $appRef AND $alias.locale = (SELECT l.locale FROM $table AS l WHERE l.appId = $appRef " +
+        "AND instr(?, ',' || l.locale || ',') > 0 ORDER BY instr(?, ',' || l.locale || ',') LIMIT 1)"
+
+/** The arguments of [joins] [bestLocale] clauses, in order. */
+private fun localeArgs(locales: String, joins: Int): Array<String> = Array(joins * 2) { locales }
 
 /** How many apps [AppDao.rootApps] reads at a time. */
 private const val ROOT_CANDIDATES_PAGE = 200
