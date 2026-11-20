@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.tv
 
 import com.looker.droidify.compose.components.HeroStatsRow
+import com.looker.droidify.compose.components.rememberInstalledCodeCapabilities
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.SupportedLanguagesSection
@@ -170,7 +171,8 @@ fun TvExternalAppDetailScreen(
         app.latestApkUrl?.let { viewModel.loadManifestInfo(app, it) }
     }
     val declaredCapabilities = app.latestApkUrl?.let { declaredCapabilitiesByApkUrl[it] }
-    val capabilities = app.rememberCapabilities(readme?.html, declaredCapabilities)
+    val capabilities = app.rememberCapabilities(readme?.html, declaredCapabilities) or
+        rememberInstalledCodeCapabilities(app.packageName.takeIf { isInstalled }, installedVersion)
 
     // Same content the phone screen loads, so an external app's page is as rich as a catalogue one
     // (Omnify deliberately blurs the line between the two). Unlike the phone screen, TV's version

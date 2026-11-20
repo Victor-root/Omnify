@@ -98,6 +98,7 @@ import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.HideAppAction
 import com.looker.droidify.compose.components.InstallConflictDialog
+import com.looker.droidify.compose.components.rememberInstalledCodeCapabilities
 import com.looker.droidify.migration.ChannelSwitchBanner
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.LinkRow
@@ -579,7 +580,8 @@ fun ExternalAppDetailScreen(
         // The version shown is a pre-release: said on the card, next to it, as in the version list.
         val offersPrerelease = cardVersion.isPrerelease
         val declaredCapabilities = app.latestApkUrl?.let { declaredCapabilitiesByApkUrl[it] }
-        val capabilities = app.rememberCapabilities(readmeHtml, declaredCapabilities)
+        val capabilities = app.rememberCapabilities(readmeHtml, declaredCapabilities) or
+            rememberInstalledCodeCapabilities(app.packageName.takeIf { isInstalled }, installedVersion)
 
         // The installed version, if any — folded into the card's footer, mirroring how the F-Droid
         // catalogue card shows its installed version there. Also names where it actually came from when

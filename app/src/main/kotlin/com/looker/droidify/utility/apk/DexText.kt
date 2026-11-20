@@ -24,20 +24,25 @@ internal object DexText {
      *  throws, since [dex] comes from an untrusted remote server. */
     fun language(dex: ByteArray): String? = runCatching { LanguageDetector.detectDominant(sentences(dex)) }.getOrNull()
 
+    /** Whether one of the strings of [dex] is exactly one of [values]. Never throws, [dex] being any app's
+     *  code. */
+    fun holdsAny(dex: ByteArray, values: Set<String>): Boolean =
+        runCatching { strings(dex).any { it in values } }.getOrDefault(false)
+
     /** Every string of [dex] holding a space and a letter, separated by spaces. */
-    private fun sentences(dex: ByteArray): String {
-        if (dex.size < HEADER_SIZE || DEX_MAGIC.indices.any { dex[it] != DEX_MAGIC[it] }) return ""
+    private fun sentences(dex: ByteArray): String =
+        strings(dex).filter { string -> ' ' in string && string.any { it.isLetter() } }.joinToString(" ")
+
+    /** The strings of [dex]'s table, none when it isn't a dex file. */
+    private fun strings(dex: ByteArray): Sequence<String> {
+        if (dex.size < HEADER_SIZE || DEX_MAGIC.indices.any { dex[it] != DEX_MAGIC[it] }) return emptySequence()
         val count = u32(dex, STRING_IDS_SIZE_OFFSET)
         val table = u32(dex, STRING_IDS_OFFSET_OFFSET)
-        if (count < 0 || table < 0 || table.toLong() + count.toLong() * Int.SIZE_BYTES > dex.size) return ""
-        return buildString {
-            for (index in 0 until count) {
-                val string = stringAt(dex, u32(dex, table + index * Int.SIZE_BYTES)) ?: continue
-                if (string.any { it == ' ' } && string.any { it.isLetter() }) {
-                    append(string)
-                    append(' ')
-                }
-            }
+        if (count < 0 || table < 0 || table.toLong() + count.toLong() * Int.SIZE_BYTES > dex.size) {
+            return emptySequence()
+        }
+        return (0 until count).asSequence().mapNotNull { index ->
+            stringAt(dex, u32(dex, table + index * Int.SIZE_BYTES))
         }
     }
 

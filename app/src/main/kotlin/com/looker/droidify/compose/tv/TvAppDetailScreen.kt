@@ -7,6 +7,7 @@ import com.looker.droidify.compose.appDetail.PermissionsSection
 import com.looker.droidify.compose.appDetail.capabilities
 import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.SupportedLanguagesSection
+import com.looker.droidify.compose.components.rememberInstalledCodeCapabilities
 import com.looker.droidify.utility.common.extension.openAppInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -164,8 +165,12 @@ fun TvAppDetailScreen(
                 // The same lookups the phone page makes, so both show the same things.
                 val suggestedPackage = installablePackage ?: packages.firstOrNull()?.first
                 val permissions = remember(suggestedPackage) { suggestedPackage?.manifest?.permissions.orEmpty() }
-                val capabilities = remember(app, installablePackage, installedPackage) {
-                    app.capabilities(installablePackage ?: installedPackage)
+                val codeCapabilities = rememberInstalledCodeCapabilities(
+                    app.metadata.packageName.name.takeIf { installedInfo?.signatureMismatch == false },
+                    installedVersionCode,
+                )
+                val capabilities = remember(app, installablePackage, installedPackage, codeCapabilities) {
+                    app.capabilities(installablePackage ?: installedPackage) or codeCapabilities
                 }
                 // externallySourced: mirrors the phone screen, see AppDetailViewModel's own property. A copy
                 // a tracked external source is responsible for is not this catalogue entry's to update, and

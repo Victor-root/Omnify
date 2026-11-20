@@ -11,7 +11,7 @@
 - **The Updates tab says when automatic checks seem to have stopped**, with what to do about it, and can be dismissed.
 - **The Updates tab says when background activity isn't allowed**, on phones where it can be read, and the welcome page ticks it once it is.
 - **Send an external source to your TV in one tap**: pair your devices once in Settings > Paired devices, then Send to a device in a source's ⋮ menu in the repository list. The TV asks before adding it. Local network only, end-to-end encrypted, no code after the first time.
-- **A "Shizuku compatible" badge** on the page of apps that can use Shizuku or Sui, next to the Root one, on phone and TV. Both badges now show on external sources too, from the permissions their APK declares.
+- **A "Shizuku compatible" badge** on the page of apps that can use Shizuku or Sui, next to the Root one, on phone and TV. Both badges now show on external sources too, from the permissions their APK declares. An installed app also gets the Root badge when its own code carries libsu, the usual way to reach root, as Aurora Store does while saying nothing of it.
 
 ### 🔄 Changed
 - **Colours in the style of VFiles**: a deeper red among the accent colours (one already chosen follows it), cooler greys for cards, menus and dialogs, black or white text, and the shades of badges and buttons drawn the same way on every Android version.

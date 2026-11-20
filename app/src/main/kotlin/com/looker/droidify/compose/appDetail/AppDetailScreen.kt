@@ -138,6 +138,7 @@ import com.looker.droidify.compose.components.SplitViewToggleAction
 import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
+import com.looker.droidify.compose.components.rememberInstalledCodeCapabilities
 import com.looker.droidify.compose.components.summaryOr
 import com.looker.droidify.compose.components.heroFooter
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
@@ -1545,8 +1546,12 @@ private fun AppHeaderCard(
     val onSourceCodeClick: (() -> Unit)? = sourceCodeUrl?.let { url ->
         { runCatching { uriHandler.openUri(url) } }
     }
-    val capabilities = remember(app, installablePackage, installedPackage) {
-        app?.capabilities(installablePackage ?: installedPackage) ?: AppCapabilities.NONE
+    val codeCapabilities = rememberInstalledCodeCapabilities(
+        packageName.takeIf { installedInfo != null && !installedInfo.signatureMismatch },
+        installedInfo?.versionCode,
+    )
+    val capabilities = remember(app, installablePackage, installedPackage, codeCapabilities) {
+        (app?.capabilities(installablePackage ?: installedPackage) ?: AppCapabilities.NONE) or codeCapabilities
     }
 
     HeroCard(

@@ -14,6 +14,12 @@ object RootDetection {
     /** The legacy superuser `<uses-permission>` some root apps still declare. */
     const val PERMISSION = "android.permission.ACCESS_SUPERUSER"
 
+    /** Strings only a root library leaves in an app's code, kept as they are where the compiler renames
+     *  its classes: libsu's log tag. Aurora Store has it, offering root as an install option without a
+     *  word about it in its text or its permissions. Looked for in the code of an installed app only
+     *  (see [com.looker.droidify.utility.apk.InstalledApkCode]). */
+    val LIBRARY_MARKERS = setOf("LIBSU")
+
     /** Strong "this app uses root" phrasings, matched case-insensitively, in English and in French
      *  (for the apps whose only text is French). Kept specific enough that a bare "root" (square root,
      *  root directory, root CA…) doesn't leak in. */

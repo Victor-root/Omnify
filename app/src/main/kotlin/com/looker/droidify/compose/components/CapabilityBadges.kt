@@ -16,14 +16,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.utility.apk.InstalledApkCode
 import com.looker.droidify.utility.common.AppCapabilities
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * The pills for [capabilities] shown on an app's card, side by side and wrapping when they do not fit,
@@ -102,4 +107,21 @@ private fun CapabilityBadge(
             color = content,
         )
     }
+}
+
+/**
+ * What the copy of [packageName] on this device shows it can use in its own code (see [InstalledApkCode]),
+ * to add to what an app's page reads from its text and permissions. [AppCapabilities.NONE] while it is
+ * read, and when [packageName] is null: pass it only for this app's own copy, never for another app that
+ * shares its name. Read again when [installedVersion] changes, as an update can bring a library in or
+ * take it out.
+ */
+@Composable
+internal fun rememberInstalledCodeCapabilities(packageName: String?, installedVersion: Any?): AppCapabilities {
+    val context = LocalContext.current
+    return produceState(AppCapabilities.NONE, packageName, installedVersion) {
+        value = packageName?.let {
+            withContext(Dispatchers.IO) { InstalledApkCode.capabilities(context.packageManager, it) }
+        } ?: AppCapabilities.NONE
+    }.value
 }
