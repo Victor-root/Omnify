@@ -382,7 +382,7 @@
     <string name="no_hidden_apps">Tidak ada aplikasi tersembunyi. Sembunyikan salah satu dari halamannya sendiri untuk melihatnya di sini.</string>
     <string name="more_options">Lainnya</string>
     <string name="install_version_FORMAT">Pasang versi %s?</string>
-    <string name="install_version_downgrade_DESC">Versi yang lebih baru telah terpasang. Android tidak dapat menurunkan versi aplikasi secara langsung, sehingga versi yang terpasang harus dicopot terlebih dahulu (data aplikasi akan hilang). Copot aplikasi tersebut, lalu ketuk versi ini lagi untuk memasangnya.</string>
+    <string name="install_version_downgrade_DESC">Versi yang lebih baru telah terpasang. Android tidak dapat menurunkan versi aplikasi secara langsung, sehingga versi yang terpasang harus dicopot terlebih dahulu (data aplikasi akan hilang). Copot aplikasi tersebut, lalu versi ini akan langsung dipasang.</string>
     <string name="root_compatible">Kompatibel dengan root</string>
     <string name="root_compatible_DESC">Aplikasi ini dapat menggunakan akses root pada perangkat yang di-root, tetapi akses tersebut tidak wajib untuk memasang atau menggunakan aplikasi ini.</string>
     <string name="root_not_granted">Akses root ditolak atau waktu habis</string>

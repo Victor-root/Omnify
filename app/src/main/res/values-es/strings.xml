@@ -389,7 +389,7 @@
     <string name="no_hidden_apps">No hay apps ocultas. Oculta una desde su propia página para verla aquí.</string>
     <string name="more_options">Más</string>
     <string name="install_version_FORMAT">¿Instalar la versión %s?</string>
-    <string name="install_version_downgrade_DESC">Hay instalada una versión más reciente. Android no puede degradar una app instalada directamente: primero debes desinstalar la versión instalada (perderás sus datos). Desinstálala y vuelve a tocar esta versión para instalarla.</string>
+    <string name="install_version_downgrade_DESC">Hay instalada una versión más reciente. Android no puede degradar una app instalada directamente: primero debes desinstalar la versión instalada (perderás sus datos). Desinstálala y esta versión se instalará justo después.</string>
     <string name="root_compatible">Compatible con root</string>
     <string name="root_compatible_DESC">Esta app puede usar acceso root en dispositivos rooteados: no es necesario para instalarla ni para usarla.</string>
     <string name="root_not_granted">El acceso root fue denegado o se agotó el tiempo de espera</string>

@@ -392,7 +392,7 @@
     <string name="no_hidden_apps">Brak ukrytych aplikacji. Ukryj jedną na jej własnej stronie, aby zobaczyć ją tutaj.</string>
     <string name="more_options">Więcej</string>
     <string name="install_version_FORMAT">Zainstalować wersję %s?</string>
-    <string name="install_version_downgrade_DESC">Zainstalowana jest nowsza wersja. Android nie pozwala zastąpić jej starszą wersją w miejscu, więc najpierw trzeba odinstalować obecną wersję (utracisz jej dane). Odinstaluj ją, a następnie stuknij ponownie tę wersję, aby ją zainstalować.</string>
+    <string name="install_version_downgrade_DESC">Zainstalowana jest nowsza wersja. Android nie pozwala zastąpić jej starszą wersją w miejscu, więc najpierw trzeba odinstalować obecną wersję (utracisz jej dane). Odinstaluj ją, a ta wersja zainstaluje się zaraz potem.</string>
     <string name="root_compatible">Zgodne z root</string>
     <string name="root_compatible_DESC">Ta aplikacja może korzystać z dostępu root na zrootowanych urządzeniach: nie jest on wymagany do jej instalacji ani używania.</string>
     <string name="root_not_granted">Odmówiono dostępu root lub upłynął limit czasu</string>

@@ -361,7 +361,7 @@
     <string name="no_hidden_apps">没有隐藏的应用。在应用的详情页面将其隐藏后，即可在此处查看。</string>
     <string name="more_options">更多</string>
     <string name="install_version_FORMAT">安装版本 %s？</string>
-    <string name="install_version_downgrade_DESC">已安装更新的版本。Android 无法直接降级应用，因此必须先卸载已安装的版本（这将丢失其数据）。卸载后，再次点击此版本即可安装。</string>
+    <string name="install_version_downgrade_DESC">已安装更新的版本。Android 无法直接降级应用，因此必须先卸载已安装的版本（这将丢失其数据）。卸载后，将自动安装此版本。</string>
     <string name="delete_apk_on_install">安装后删除 APK</string>
     <string name="delete_apk_on_install_summary">安装成功后自动删除 APK 文件</string>
     <string name="play_store_install_source">将 Google Play 显示为安装来源</string>

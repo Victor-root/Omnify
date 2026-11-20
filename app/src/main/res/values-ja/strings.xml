@@ -333,7 +333,7 @@
     <string name="no_hidden_apps">非表示のアプリはありません。アプリのページから非表示にすると、ここに表示されます。</string>
     <string name="more_options">その他</string>
     <string name="install_version_FORMAT">バージョン %s をインストールしますか？</string>
-    <string name="install_version_downgrade_DESC">より新しいバージョンがインストールされています。Androidはアプリをその場でダウングレードできないため、先にインストール済みのバージョンをアンインストールする必要があります (データは失われます)。アンインストール後、もう一度このバージョンをタップしてインストールしてください。</string>
+    <string name="install_version_downgrade_DESC">より新しいバージョンがインストールされています。Androidはアプリをその場でダウングレードできないため、先にインストール済みのバージョンをアンインストールする必要があります (データは失われます)。アンインストールすると、このバージョンがそのままインストールされます。</string>
     <string name="legacyInstallerComponent">レガシーインストーラーコンポーネント</string>
     <string name="delete_apk_on_install">インストール後にAPKを削除</string>
     <string name="delete_apk_on_install_summary">インストールが完了したらAPKファイルを自動的に削除します</string>

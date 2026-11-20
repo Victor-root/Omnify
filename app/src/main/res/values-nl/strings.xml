@@ -348,7 +348,7 @@
     <string name="no_hidden_apps">Geen verborgen apps. Verberg er een vanaf de eigen pagina om die hier te zien.</string>
     <string name="more_options">Meer</string>
     <string name="install_version_FORMAT">Versie %s installeren?</string>
-    <string name="install_version_downgrade_DESC">Er is een nieuwere versie geïnstalleerd. Android kan een app niet rechtstreeks downgraden, dus de geïnstalleerde versie moet eerst worden verwijderd (je verliest de gegevens ervan). Verwijder de app en tik daarna opnieuw op deze versie om ze te installeren.</string>
+    <string name="install_version_downgrade_DESC">Er is een nieuwere versie geïnstalleerd. Android kan een app niet rechtstreeks downgraden, dus de geïnstalleerde versie moet eerst worden verwijderd (je verliest de gegevens ervan). Verwijder de app, daarna wordt deze versie meteen geïnstalleerd.</string>
     <string name="delete_apk_on_install">APK verwijderen na installatie</string>
     <string name="delete_apk_on_install_summary">Verwijdert APK-bestanden automatisch na een geslaagde installatie</string>
     <string name="play_store_install_source">Google Play tonen als installatiebron</string>

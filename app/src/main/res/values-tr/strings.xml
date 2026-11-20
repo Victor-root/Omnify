@@ -386,7 +386,7 @@
     <string name="no_hidden_apps">Gizli uygulama yok. Burada listelenmesi için bir uygulamayı kendi sayfasından gizle.</string>
     <string name="more_options">Daha fazla</string>
     <string name="install_version_FORMAT">%s sürümü kurulsun mu?</string>
-    <string name="install_version_downgrade_DESC">Daha yeni bir sürüm kurulu. Android bir uygulamayı yerinde eski sürüme düşüremez, bu yüzden önce kurulu sürümün kaldırılması gerekir (verilerini kaybedersiniz). Kaldırın, ardından kurmak için bu sürüme tekrar dokunun.</string>
+    <string name="install_version_downgrade_DESC">Daha yeni bir sürüm kurulu. Android bir uygulamayı yerinde eski sürüme düşüremez, bu yüzden önce kurulu sürümün kaldırılması gerekir (verilerini kaybedersiniz). Kaldırın, ardından bu sürüm hemen kurulur.</string>
     <string name="root_compatible">Root uyumlu</string>
     <string name="root_compatible_DESC">Bu uygulama, root\'lu aygıtlarda root erişimi kullanabilir, ancak kurmak veya kullanmak için gerekli değildir.</string>
     <string name="root_not_granted">Root erişimi reddedildi veya zaman aşımına uğradı</string>
