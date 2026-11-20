@@ -117,7 +117,7 @@
     <string name="batch_installing_FORMAT">Installation des applis : %1$d sur %2$d</string>
     <string name="edit_repository">Modifier</string>
     <string name="file_format_error_DESC">Format de fichier non valide</string>
-    <string name="fingerprint">Empreinte digitale</string>
+    <string name="fingerprint">Empreinte</string>
     <string name="license_FORMAT">Licence %s</string>
     <string name="launch">Lancer</string>
     <string name="invalid_address">Adresse invalide</string>
@@ -328,7 +328,7 @@
     <string name="validation_index_error_DESC">L’index n’a pas pu être validé</string>
     <string name="incompatible_api_DESC_FORMAT">Votre %1$s (API version %2$d) n’est pas pris en charge. %3$s</string>
     <string name="integrity_check_error_DESC">Impossible de vérifier l’intégrité</string>
-    <string name="invalid_fingerprint_format">Format d’empreinte digitale non valide</string>
+    <string name="invalid_fingerprint_format">Format d’empreinte non valide</string>
     <string name="processing_FORMAT">Traitement de %1$s…</string>
     <string name="parsing_index_error_DESC">Impossible d’analyser le fichier d’index</string>
     <string name="merging_FORMAT">Fusionner %s</string>
