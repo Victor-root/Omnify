@@ -132,7 +132,7 @@
     <string name="language_supported_FORMAT">%s : traduit</string>
     <string name="language_not_supported_FORMAT">%s : non traduit</string>
     <string name="language_from_store_listing">D\'après la fiche store (installez l\'app pour les vraies langues)</string>
-    <string name="language_only_default_experimental">Seul l\'anglais par défaut a été détecté — cette détection est expérimentale et peut être incomplète</string>
+    <string name="language_only_default_experimental">Seul l\'anglais par défaut a été détecté. Cette détection est expérimentale et peut être incomplète</string>
     <string name="language_only_default_confirmed">Seul l\'anglais a été trouvé, confirmé par une vérification indépendante du code source du projet</string>
     <string name="plus_more_FORMAT">+%d plus</string>
     <string name="settings">Paramètres</string>
@@ -154,7 +154,7 @@
     <string name="suggested">Suggérée</string>
     <string name="sync_repositories">Synchroniser les dépôts</string>
     <string name="source_code">Code source</string>
-    <string name="readme_render_failed">L\'aperçu du README n\'a pas pu s\'afficher — vous pouvez tout de même le consulter sur la page du projet</string>
+    <string name="readme_render_failed">L\'aperçu du README n\'a pas pu s\'afficher. Vous pouvez tout de même le consulter sur la page du projet</string>
     <string name="size">Taille</string>
     <string name="search">Chercher</string>
     <string name="select_mirror">Sélectionnez un miroir</string>
@@ -346,7 +346,7 @@
     <string name="installer">Installateur</string>
     <string name="root_installer">Installateur racine</string>
     <string name="root_compatible">Compatible root</string>
-    <string name="root_compatible_DESC">Cette appli peut utiliser l\'accès root sur un appareil rooté — ce n\'est pas obligatoire pour l\'installer ou l\'utiliser.</string>
+    <string name="root_compatible_DESC">Cette appli peut utiliser l\'accès root sur un appareil rooté. Ce n\'est pas obligatoire pour l\'installer ou l\'utiliser.</string>
     <string name="shizuku_compatible">Compatible Shizuku</string>
     <string name="shizuku_compatible_DESC">Cette appli peut utiliser Shizuku ou Sui pour des actions avancées sans root. Aucun des deux n\'est obligatoire pour l\'installer ou l\'utiliser.</string>
     <string name="root_compatible_short">Root</string>

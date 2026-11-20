@@ -2,7 +2,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="application_name" translatable="false">Omnify</string>
     <!-- Fixed brand name for the "installed via …" attribution, unlike application_name (overridden per
-         build flavour, e.g. "Omnify (D)" in debug) — an app installed through Omnify should read the
+         build flavour, e.g. "Omnify (D)" in debug): an app installed through Omnify should read the
          same regardless of which build variant did the installing. -->
     <string name="installer_self_name" translatable="false">Omnify</string>
     <string name="cleartext_allowed" translatable="false">false</string>
@@ -346,7 +346,7 @@
     <string name="session_installer">Session installer</string>
     <string name="root_installer">Root installer</string>
     <string name="root_compatible">Root compatible</string>
-    <string name="root_compatible_DESC">This app can use root access on rooted devices — it isn\'t required to install or use it.</string>
+    <string name="root_compatible_DESC">This app can use root access on rooted devices. It isn\'t required to install or use it.</string>
     <string name="shizuku_compatible">Shizuku compatible</string>
     <string name="shizuku_compatible_DESC">This app can use Shizuku or Sui for advanced actions without root. Neither is required to install or use it.</string>
     <string name="root_compatible_short">Root</string>
@@ -423,7 +423,7 @@
     <string name="language_supported_FORMAT">%s: translated</string>
     <string name="language_not_supported_FORMAT">%s: not translated</string>
     <string name="language_from_store_listing">From the store listing (install to see the app\'s real languages)</string>
-    <string name="language_only_default_experimental">Only the default English was detected — this detection is experimental and may be incomplete</string>
+    <string name="language_only_default_experimental">Only the default English was detected. This detection is experimental and may be incomplete</string>
     <string name="language_only_default_confirmed">Only English was found, confirmed by independently checking the project\'s own source code</string>
     <string name="plus_more_FORMAT">+%d more</string>
     <string name="processing_FORMAT">Processing %1$s…</string>
@@ -475,7 +475,7 @@
     <string name="socks_proxy">SOCKS proxy</string>
     <string name="sorting_order">Sorting order</string>
     <string name="source_code">Source code</string>
-    <string name="readme_render_failed">The README preview couldn\'t be displayed — you can still read it on the project\'s own page</string>
+    <string name="readme_render_failed">The README preview couldn\'t be displayed. You can still read it on the project\'s own page</string>
     <string name="source_code_no_longer_available">Source code no longer available</string>
     <string name="special_credits">Special credits</string>
     <string name="author">Author</string>
