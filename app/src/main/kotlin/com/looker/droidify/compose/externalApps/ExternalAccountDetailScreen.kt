@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,7 +99,8 @@ fun ExternalAccountDetailScreen(
         apps.filter { it.accountKey == accountKey && it.key !in hiddenApps }
             .sortedBy { it.label.trim().lowercase() }
     }
-    var selectedTab by remember { mutableStateOf(AccountDetailTab.INFO) }
+    // Saved, so that coming back from an app opened from the Apps tab lands on that tab again.
+    var selectedTab by rememberSaveable { mutableStateOf(AccountDetailTab.INFO) }
 
     // TV / D-pad: drop focus from the header (top bar or tab row) into the content below.
     val contentFocusRequester = remember { FocusRequester() }

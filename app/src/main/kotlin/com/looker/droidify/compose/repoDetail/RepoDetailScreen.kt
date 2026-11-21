@@ -125,7 +125,8 @@ fun RepoDetailScreen(
     val isSyncing by viewModel.isSyncing.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var selectedTab by remember { mutableStateOf(RepoDetailTab.INFO) }
+    // Saved, so that coming back from an app opened from the Apps tab lands on that tab again.
+    var selectedTab by rememberSaveable { mutableStateOf(RepoDetailTab.INFO) }
 
     if (showDeleteDialog) {
         DeleteRepositoryDialog(

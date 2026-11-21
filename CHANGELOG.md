@@ -45,6 +45,7 @@
 - **An external source shows its real name when the project spells it through a variable**: Termux was added as "&TERMUX_APP_NAME;", read as is from its strings file, where the file itself says what it stands for. Such a name is now worked out the way Android builds it, and one that can't be is left aside.
 - **GitLab is spelt GitLab on Android TV**: an external source's page read "Gitlab" (and "Github").
 - **"No app found" speaks your language**: a link to an app no repository carries said so in English whatever the language.
+- **Back from an app, a repository's or an account's page stays on its Apps tab**: it went back to Info, the list just browsed lost.
 - **A connection through a VPN counts as online**: with a VPN as the only way out, as with USB tethering through one, Omnify showed "No connection" once the VPN came up after it had started.
 - **Background checks no longer vanish until the next launch**: a check starting while Omnify was closed could cancel itself as the app woke up for it.
 - **Apps not written in English show their real language**: an app's base text was taken for English by convention, so a French or German app could say English, or lose its own language from the list. Omnify now reads what that text says, in the app's resources, its code, or its source for Flutter and web apps, which no longer pass as "confirmed English".
