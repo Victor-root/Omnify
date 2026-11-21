@@ -24,6 +24,7 @@ import com.looker.droidify.migration.ImportStep
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.areNotificationsEnabled
 import com.looker.droidify.utility.common.canRequestPackageInstalls
+import com.looker.droidify.utility.common.extension.hasFilePicker
 import com.looker.droidify.utility.common.hasOwnBackgroundControls
 import com.looker.droidify.utility.common.isIgnoreBatteryEnabled
 import com.looker.droidify.utility.common.openBackgroundActivitySettings
@@ -129,6 +130,9 @@ internal fun rememberRestoreSteps(viewModel: WelcomeViewModel): List<WelcomeStep
     // recreates the activity, and a saved flag reopened the dialog on a fresh code straight after.
     var receiving by remember { mutableStateOf(false) }
     val pickFile = rememberRestoreFilePicker(viewModel.restore)
+    // Left out where no file picker can reach a file (an Android TV): receiving from a device remains.
+    val context = LocalContext.current
+    val canPickFiles = remember(context) { context.hasFilePicker() }
     RestoreCategoriesDialog(viewModel.restore, onRestored = viewModel::onFileRestored)
     if (receiving) {
         DeviceTransferReceiveDialog(
@@ -145,7 +149,7 @@ internal fun rememberRestoreSteps(viewModel: WelcomeViewModel): List<WelcomeStep
             onClick = pickFile,
             actionLabel = R.string.welcome_restore_file_action,
             doneLabel = R.string.welcome_restored,
-        ),
+        ).takeIf { canPickFiles },
         WelcomeStep(
             icon = R.drawable.ic_tabler_home_down,
             title = R.string.transfer_receive_title,

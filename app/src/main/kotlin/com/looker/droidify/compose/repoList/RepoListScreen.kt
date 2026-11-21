@@ -1074,7 +1074,8 @@ internal fun AddSourceChooserDialog(
     onChooseFdroid: () -> Unit,
     onChooseExternal: () -> Unit,
     onChooseAccount: () -> Unit,
-    onChooseObtainium: () -> Unit,
+    // Null where no file picker can reach the export (see hasFilePicker): the option is left out.
+    onChooseObtainium: (() -> Unit)?,
 ) {
     // Laid out here rather than by AlertDialog, whose fixed margins around its buttons left a wide band
     // between the scrolling options and Cancel, cutting the list off well above the dialog's bottom.
@@ -1119,13 +1120,15 @@ internal fun AddSourceChooserDialog(
                         description = stringResource(R.string.add_source_account_desc),
                         onClick = onChooseAccount,
                     )
-                    Spacer(Modifier.height(8.dp))
-                    AddSourceOption(
-                        iconRes = R.drawable.ic_download,
-                        title = stringResource(R.string.add_source_obtainium),
-                        description = stringResource(R.string.add_source_obtainium_desc),
-                        onClick = onChooseObtainium,
-                    )
+                    if (onChooseObtainium != null) {
+                        Spacer(Modifier.height(8.dp))
+                        AddSourceOption(
+                            iconRes = R.drawable.ic_download,
+                            title = stringResource(R.string.add_source_obtainium),
+                            description = stringResource(R.string.add_source_obtainium_desc),
+                            onClick = onChooseObtainium,
+                        )
+                    }
                 }
                 TextButton(
                     onClick = onDismiss,

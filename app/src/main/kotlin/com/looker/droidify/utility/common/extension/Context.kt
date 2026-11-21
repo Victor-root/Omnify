@@ -7,6 +7,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
 import android.net.ConnectivityManager
@@ -122,3 +123,19 @@ fun Context.getColorFromAttr(@AttrRes attrResId: Int): ColorStateList {
         typedArray.recycle()
     }
 }
+
+/**
+ * Whether a file picker answers on this device. Android TV has none: only a stub standing in for the
+ * system's own, which says that no app can do it. A backup, a restore or an import from a file has no
+ * way to reach a file there.
+ */
+fun Context.hasFilePicker(): Boolean {
+    val picker = packageManager.resolveActivity(
+        Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"),
+        PackageManager.MATCH_DEFAULT_ONLY,
+    ) ?: return false
+    return picker.activityInfo.packageName != TV_DOCUMENTS_STUB_PACKAGE
+}
+
+/** Where Android TV sends a file picker request: the stub that only says no app can handle it. */
+private const val TV_DOCUMENTS_STUB_PACKAGE = "com.android.tv.frameworkpackagestubs"

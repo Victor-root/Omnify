@@ -138,6 +138,8 @@
     <string name="downloaded_FORMAT">Downloaded %s</string>
     <string name="downloading">Downloading</string>
     <string name="downloading_FORMAT">Downloading %s…</string>
+    <string name="backup_no_file_picker_DESC">This device has no file picker. Use Send my data to copy everything to another device.</string>
+    <string name="restore_no_file_picker_DESC">This device has no file picker. Use Receive data to copy another device\'s data here.</string>
     <string name="app_not_found_FORMAT">No app found for %s</string>
     <string name="install_all_confirm_title">Install every app?</string>
     <plurals name="install_all_confirm_DESC">

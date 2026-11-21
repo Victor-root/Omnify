@@ -47,6 +47,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -80,6 +81,7 @@ import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.SourceDraft
 import com.looker.droidify.model.TestRepository
+import com.looker.droidify.utility.common.extension.hasFilePicker
 import com.looker.droidify.utility.text.toAnnotatedString
 import kotlinx.coroutines.delay
 
@@ -109,6 +111,8 @@ fun TvRepoListScreen(
     // back both, so the lists stay in sync everywhere — exactly as on the phone screen.
     val externalViewModel: ExternalAppsViewModel = hiltViewModel()
     val importObtainium = rememberObtainiumImportPicker(externalViewModel)
+    val context = LocalContext.current
+    val canPickFiles = remember(context) { context.hasFilePicker() }
     val externalApps by externalViewModel.apps.collectAsStateWithLifecycle()
     val externalAccounts by externalViewModel.accounts.collectAsStateWithLifecycle()
     val scanningAccounts by externalViewModel.scanningAccounts.collectAsStateWithLifecycle()
@@ -370,9 +374,13 @@ fun TvRepoListScreen(
                 showAddChooser = false
                 showAddAccount = true
             },
-            onChooseObtainium = {
-                showAddChooser = false
-                importObtainium()
+            onChooseObtainium = if (canPickFiles) {
+                {
+                    showAddChooser = false
+                    importObtainium()
+                }
+            } else {
+                null
             },
         )
     }

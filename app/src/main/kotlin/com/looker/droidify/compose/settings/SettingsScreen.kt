@@ -102,6 +102,7 @@ import com.looker.droidify.translation.bergamot.bergamotSupported
 import com.looker.droidify.utility.common.SYSTEM_LANGUAGE
 import com.looker.droidify.utility.common.SdkCheck
 import com.looker.droidify.utility.common.applicationLocale
+import com.looker.droidify.utility.common.extension.hasFilePicker
 import com.looker.droidify.utility.common.extension.openLink
 import com.looker.droidify.utility.common.hasOwnBackgroundControls
 import com.looker.droidify.utility.common.isIgnoreBatteryEnabled
@@ -244,6 +245,9 @@ fun SettingsScreen(
     }
 
     val pickRestoreFile = rememberRestoreFilePicker(viewModel.restore)
+    // A backup is written to a file and a restore read from one: with no picker to reach a file (an
+    // Android TV), both point to sending the data over the network instead.
+    val canPickFiles = remember(context) { context.hasFilePicker() }
 
     var showBackupDialog by remember { mutableStateOf(false) }
     var showColorPicker by remember { mutableStateOf(false) }
@@ -742,18 +746,24 @@ fun SettingsScreen(
             item {
                 ActionSettingItem(
                     title = stringResource(R.string.backup_title),
-                    description = stringResource(R.string.backup_row_DESC),
+                    description = stringResource(
+                        if (canPickFiles) R.string.backup_row_DESC else R.string.backup_no_file_picker_DESC,
+                    ),
                     icon = painterResource(R.drawable.ic_save),
                     onClick = { showBackupDialog = true },
+                    enabled = canPickFiles,
                 )
             }
 
             item {
                 ActionSettingItem(
                     title = stringResource(R.string.restore_title),
-                    description = stringResource(R.string.restore_row_DESC),
+                    description = stringResource(
+                        if (canPickFiles) R.string.restore_row_DESC else R.string.restore_no_file_picker_DESC,
+                    ),
                     icon = painterResource(R.drawable.ic_download),
                     onClick = pickRestoreFile,
+                    enabled = canPickFiles,
                 )
             }
 
