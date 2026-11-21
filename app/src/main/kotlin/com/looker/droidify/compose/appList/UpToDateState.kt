@@ -341,7 +341,8 @@ private fun RecentUpdateRow(update: RecentUpdate, now: Long, onClick: () -> Unit
                 text = listOfNotNull(
                     update.version,
                     relativeTime(update.updatedAt, now).let { time ->
-                        if (now - update.updatedAt < DateUtils.WEEK_IN_MILLIS) time.replaceFirstChar { it.lowercase() } else time
+                        val relative = now - update.updatedAt < DateUtils.WEEK_IN_MILLIS
+                        if (relative) time.replaceFirstChar { it.lowercase() } else time
                     },
                 ).joinToString(", "),
                 style = MaterialTheme.typography.bodySmall,

@@ -336,12 +336,13 @@ interface AppDao {
         )
         val args = arrayListOf<Any?>()
 
+        val descriptionLocale = bestLocale("localized_app_description", "d_loc", "app.id")
         val query = buildString(2048) {
             append(appMinimalSelect())
             append(
                 """
 
-                LEFT JOIN localized_app_description AS d_loc ON ${bestLocale("localized_app_description", "d_loc", "app.id")}
+                LEFT JOIN localized_app_description AS d_loc ON $descriptionLocale
                 LEFT JOIN localized_app_description AS d_en ON d_en.appId = app.id AND d_en.locale = 'en-US'
                 """.trimIndent(),
             )

@@ -511,7 +511,8 @@ fun AppDetailScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = stringResource(R.string.app_not_found_FORMAT, (state as AppDetailState.NotFound).packageName))
+                    val packageName = (state as AppDetailState.NotFound).packageName
+                    Text(text = stringResource(R.string.app_not_found_FORMAT, packageName))
                 }
             }
 

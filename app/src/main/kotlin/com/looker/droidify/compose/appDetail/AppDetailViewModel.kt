@@ -1271,6 +1271,7 @@ data class DownloadStatus(
 
 sealed interface AppDetailState {
     object Loading : AppDetailState
+
     /** No repository in the catalogue carries [packageName]. */
     data class NotFound(val packageName: String) : AppDetailState
     data class Success(
