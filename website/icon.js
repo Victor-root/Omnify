@@ -278,6 +278,23 @@
     });
   }
 
+  /* A <shape> layer is a plain colour as long as it is nothing more than a rectangle filled by <solid>:
+     a gradient or a stroke would be left out, so those bail like a vector's would. Seen on
+     Victor-root/AukDialer, whose launcher backgrounds are each one such shape. */
+  async function solidShapeColor(owner, repo, paths, moduleRoot, shapeDoc) {
+    var kind = shapeDoc.documentElement.getAttribute("android:shape");
+    if (kind && kind !== "rectangle") return null;
+    if (shapeDoc.getElementsByTagName("gradient").length || shapeDoc.getElementsByTagName("stroke").length) {
+      return null;
+    }
+    var solid = shapeDoc.getElementsByTagName("solid")[0];
+    var color = solid && solid.getAttribute("android:color");
+    if (!color) return null;
+    if (/^#[0-9a-fA-F]{3,8}$/.test(color)) return androidColorToCss(color);
+    var ref = parseResourceRef(color);
+    return ref && ref.kind === "color" ? resolveColor(owner, repo, paths, moduleRoot, ref.name) : null;
+  }
+
   /* One layer's resource (background or foreground), fetched and decoded but not yet on the canvas:
      a colour, a parsed vector document, or a loaded image, whichever the reference turned out to be.
      Kept apart from painting so background and foreground can be resolved at the same time (see
@@ -297,6 +314,11 @@
           if (!text) continue;
           var doc = parseXml(text);
           if (!doc) continue;
+          if (doc.documentElement.tagName === "shape") {
+            var shapeFill = await solidShapeColor(owner, repo, paths, moduleRoot, doc);
+            if (shapeFill) return { fill: shapeFill };
+            continue;
+          }
           // A plain (non-adaptive-icon) vector drawable's root is <vector> directly.
           if (doc.documentElement.tagName !== "vector") continue;
           if (hasUnsupportedFeatures(doc)) continue;
