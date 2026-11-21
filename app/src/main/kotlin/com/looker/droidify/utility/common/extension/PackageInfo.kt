@@ -172,8 +172,8 @@ private fun Context.rawInstallerPackageName(packageName: String): String? = runC
     }
 }.getOrNull()
 
-/** Friendly name of the app that installed [packageName] (Play, F-Droid, this app…), the raw
- *  installer id, or a generic label for a sideloaded app with no recorded installer. Shared between
+/** Friendly name of the app that installed [packageName] (Play, F-Droid, this app…, else that app's own
+ *  name, its id when it has none), or a generic label for a sideloaded app with no recorded installer. Shared between
  *  the F-Droid catalogue and external-source detail pages, so both surface where an update would
  *  actually come from (useful to spot e.g. an app installed by a different client that can't be
  *  updated in place across a signing-key mismatch).
@@ -194,7 +194,9 @@ fun Context.installerSourceLabel(packageName: String, knownInstalledByOmnify: Bo
         PLAY_STORE_PACKAGE_NAME -> getString(R.string.google_play_name)
         "org.fdroid.fdroid", "org.fdroid.basic" -> "F-Droid"
         this.packageName -> getString(R.string.installer_self_name)
-        else -> installer
+        else -> runCatching {
+            packageManager.getApplicationLabel(packageManager.getApplicationInfo(installer, 0)).toString()
+        }.getOrNull()?.takeIf { it.isNotBlank() } ?: installer
     }
 }
 
