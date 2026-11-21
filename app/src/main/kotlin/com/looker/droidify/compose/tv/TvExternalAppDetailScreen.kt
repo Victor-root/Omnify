@@ -288,7 +288,7 @@ fun TvExternalAppDetailScreen(
                         // Under the icon, across the card: beside it, the column was too narrow for two of
                         // them and each landed on a line of its own.
                         FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
-                            TvChip(app.provider.name.lowercase().replaceFirstChar { it.uppercase() })
+                            TvChip(app.provider.label)
                             if (app.supportsTelevision) TvChip(stringResource(R.string.discover_tv_apps))
                             // Sized like the tags beside it, in the pre-release badge's own colours.
                             if (cardVersion.isPrerelease) {
