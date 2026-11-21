@@ -1,5 +1,10 @@
 # 📋 Changelog
 
+## 🚀 v1.0.9-beta.10 (Unreleased)
+
+### 🐛 Fixed
+- **An external source's icon keeps its background when the project draws it as a plain shape**: AukDialer's white handset showed on nothing instead of on its violet square, before it was installed.
+
 ## 🚀 v1.0.8-beta.9 (2026-11-21)
 
 A far faster Omnify that reopens after updating itself, update checks that keep going in the background, lists in your language, and VFiles' colours.

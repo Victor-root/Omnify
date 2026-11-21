@@ -120,8 +120,9 @@ internal class AdaptiveIconComposer(
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let { return BitmapDrawable(null, it) }
         }
         vectorPathFor(name, treePaths)?.let { path ->
-            val xml = download(path, readFile)
-            renderVector(xml.withoutXmlComments(), sizePx)?.let { return BitmapDrawable(null, it) }
+            val xml = download(path, readFile).withoutXmlComments()
+            solidShapeColour(xml, treePaths)?.let { return ColorDrawable(it) }
+            renderVector(xml, sizePx)?.let { return BitmapDrawable(null, it) }
         }
         if (BuildConfig.TRACES) Log.d(TAG, "could not resolve icon layer $reference")
         return null
@@ -152,6 +153,24 @@ internal class AdaptiveIconComposer(
             return parseColourLiteral(match.groupValues[1])
         }
         return null
+    }
+
+    /**
+     * A `<shape>` layer that is only a rectangle filled by `<solid>`, a flat colour as far as an icon is
+     * concerned. Seen on Victor-root/AukDialer, whose launcher backgrounds are each one such shape: left
+     * unread, its white handset was drawn on nothing. Null for any other shape, a gradient or a stroke
+     * included, which this would draw wrong.
+     */
+    private suspend fun solidShapeColour(xml: String, treePaths: List<String>): Int? {
+        if ("<shape" !in xml || "<gradient" in xml || "<stroke" in xml) return null
+        val kind = xml.attr("android:shape")
+        if (kind != null && kind != "rectangle") return null
+        val colour = SOLID_COLOUR_REGEX.find(xml)?.groupValues?.get(1) ?: return null
+        return if (colour.startsWith("@color/")) {
+            resolveColour(colour.removePrefix("@color/"), treePaths)
+        } else {
+            parseColourLiteral(colour)
+        }
     }
 
     private fun rasterPathFor(name: String, treePaths: List<String>): String? = treePaths
@@ -361,6 +380,8 @@ private fun parseColourLiteral(value: String): Int? {
 private fun String.withoutXmlComments(): String = XML_COMMENT_REGEX.replace(this, "")
 
 private val XML_COMMENT_REGEX = Regex("""<!--.*?-->""", RegexOption.DOT_MATCHES_ALL)
+
+private val SOLID_COLOUR_REGEX = Regex("""<solid\b[^>]*android:color\s*=\s*"([^"]+)"""")
 
 /** The value of an `android:*` attribute in a tag (or in a whole document, for the root's own). */
 private fun String.attr(name: String): String? =
