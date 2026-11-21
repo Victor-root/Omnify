@@ -2150,7 +2150,7 @@ private fun ScreenshotViewer(
             ) { page ->
                 AsyncImage(
                     model = screenshots[page].path,
-                    contentDescription = "screenshot",
+                    contentDescription = stringResource(R.string.screenshot),
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .fillMaxSize()

@@ -293,7 +293,7 @@ private fun TvRestorePage(viewModel: WelcomeViewModel, onNext: () -> Unit, onBac
             MutedButton(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth().height(60.dp).tvFocusScale(1.05f),
-            ) { Text(stringResource(R.string.tv_back)) }
+            ) { Text(stringResource(R.string.back)) }
         }
         Column(
             modifier = Modifier
@@ -343,7 +343,7 @@ private fun TvAppearancePage(viewModel: WelcomeViewModel, onNext: () -> Unit, on
             MutedButton(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth().height(60.dp).tvFocusScale(1.05f),
-            ) { Text(stringResource(R.string.tv_back)) }
+            ) { Text(stringResource(R.string.back)) }
         }
         Column(
             modifier = Modifier
@@ -435,7 +435,7 @@ private fun TvSourcesPage(viewModel: WelcomeViewModel, onBack: () -> Unit, onDon
                 onClick = onBack,
                 enabled = !finishing,
                 modifier = Modifier.fillMaxWidth().height(60.dp).tvFocusScale(1.05f),
-            ) { Text(stringResource(R.string.tv_back)) }
+            ) { Text(stringResource(R.string.back)) }
         }
         val listState = rememberLazyListState()
         // The apps made for television follow the repositories under a heading of their own.

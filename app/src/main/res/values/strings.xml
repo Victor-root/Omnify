@@ -12,7 +12,7 @@
          build-identification marker, not user-facing app content. -->
     <string name="test_badge" translatable="false">TEST</string>
     <!-- Android TV: label of the previous button on the welcome pages. -->
-    <string name="tv_back">Back</string>
+    <string name="back">Back</string>
     <!-- Android TV: shown after the first Back press at the home screen; a second press exits. -->
     <string name="tv_press_back_again">Press Back again to exit</string>
     <!-- Android TV home rail: the app-filter toggle labels (current state), TV-made apps vs everything. -->
