@@ -116,7 +116,9 @@ object LanguageDetector {
      * or the top two are too close (see [MIN_LEAD_RATIO]).
      */
     private fun stopwordLanguage(text: String): String? {
-        val tokens = text.lowercase().split(NON_LETTER).filter { it.isNotEmpty() }
+        val tokens = text.lowercase().split(WORD_SEPARATOR).filter { token ->
+            token.isNotEmpty() && token.all { it.isLetter() }
+        }
         if (tokens.size < MIN_TOKENS) return null
         val ranked = STOPWORDS
             .map { (lang, set) -> lang to tokens.count { it in set } }
@@ -128,8 +130,10 @@ object LanguageDetector {
         return top.first
     }
 
-    /** Splits on any run of non-letter characters (Unicode-aware, so Cyrillic/Arabic/… letters are kept). */
-    private val NON_LETTER = Regex("""[^\p{L}]+""")
+    /** Splits words on spaces, punctuation and symbols, and only on those: an identifier such as a Firebase
+     *  key ("cc0764f6a482…") stays one token, left out for its digits, instead of scattering into single
+     *  letters that read as "a", "e" and "o" (FLauncher's came out Portuguese). */
+    private val WORD_SEPARATOR = Regex("""[\s\p{P}\p{S}]+""")
 
     private fun words(vararg s: String): Set<String> = s.flatMap { it.split(' ') }.toSet()
 
