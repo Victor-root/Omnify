@@ -178,6 +178,7 @@ import com.looker.droidify.utility.common.openBackgroundActivitySettings
 import com.looker.droidify.work.BatchUpdateProgress
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.drop
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -319,7 +320,9 @@ fun AppListScreen(
     // taken for a choice of the user's.
     val steering = remember { mutableStateOf(false) }
     LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.collect { page ->
+        // The first page read is the one the pager started on, nobody's choice: taken for one, it put
+        // the home back on Explore over the Updates tab the notification had just asked for.
+        snapshotFlow { pagerState.settledPage }.drop(1).collect { page ->
             if (!steering.value) viewModel.selectTab(AppTab.entries[page])
         }
     }
