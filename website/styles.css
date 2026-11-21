@@ -1631,6 +1631,10 @@ a { color: inherit; }
 .add-target-icon.icon-ready img {
   opacity: 1;
 }
+/* A real icon brings its own background, or none at all as on a home screen. */
+.add-target-icon.icon-ready {
+  background: none;
+}
 #add-target-initial {
   font-size: 22px;
   font-weight: 800;

@@ -87,7 +87,7 @@
       initialEl.textContent = parsed.repo.charAt(0).toUpperCase();
       if (window.OmnifyComposeIcon) {
         iconEl.classList.add("is-loading");
-        window.OmnifyComposeIcon(parsed.owner, parsed.repo).then(function (dataUrl) {
+        window.OmnifyComposeIcon(parsed.host, parsed.owner, parsed.repo).then(function (dataUrl) {
           if (!dataUrl) {
             iconEl.classList.remove("is-loading");
             return;
