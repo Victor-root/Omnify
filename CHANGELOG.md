@@ -1,6 +1,8 @@
 # 📋 Changelog
 
-## 🚀 v1.0.8-beta.9 (Unreleased)
+## 🚀 v1.0.8-beta.9 (2026-11-21)
+
+A far faster Omnify that reopens after updating itself, update checks that keep going in the background, lists in your language, and VFiles' colours.
 
 ### ✨ Added
 - **Omnify comes back after updating itself**: with Shizuku or root it opens again on its own once the update is in place. With Android's own installer, which doesn't allow that, a notification offers to open it in one tap.
