@@ -239,7 +239,6 @@
     <string name="download_stats">Letöltési statisztikák</string>
     <string name="download_stats_from_izzy">Forrás: IzzyOnDroid</string>
     <string name="total">Összesen</string>
-    <string name="by_client">Kliens szerint</string>
     <string name="monthly">Havi</string>
     <string name="downloading_rb_logs">Reprodukálhatósági naplók letöltése</string>
     <string name="downloading_download_stats">Letöltési statisztikák letöltése</string>

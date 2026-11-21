@@ -256,7 +256,6 @@
     <string name="total_downloads">Download totali</string>
     <string name="download_stats">Statistiche di download</string>
     <string name="total">Totale</string>
-    <string name="by_client">Per client</string>
     <string name="downloading_rb_logs">Scaricando i log di reproducibilità</string>
     <string name="downloading_download_stats">Scaricando le statistiche di download</string>
     <string name="custom_buttons">Bottoni personalizzati</string>

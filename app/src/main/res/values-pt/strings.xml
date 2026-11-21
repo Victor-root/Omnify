@@ -239,7 +239,6 @@
     <string name="download_stats">Estatísticas de descargas</string>
     <string name="download_stats_from_izzy">Origem: IzzyOnDroid</string>
     <string name="total">Total</string>
-    <string name="by_client">Do cliente</string>
     <string name="monthly">Mensalmente</string>
     <string name="downloading_download_stats">A descarregar estatísticas</string>
     <string name="delete_apk_on_install">Eliminar APK após a instalação</string>

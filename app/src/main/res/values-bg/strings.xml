@@ -239,7 +239,6 @@
     <string name="download_stats">Статистика за изтегляне</string>
     <string name="download_stats_from_izzy">Източник: IzzyOnDroid</string>
     <string name="total">Общо</string>
-    <string name="by_client">От клиента</string>
     <string name="monthly">Месечно</string>
     <string name="downloading_rb_logs">Изтегляне на регистрационни файлове за възпроизводимост</string>
     <string name="downloading_download_stats">Изтегляне на статистика за изтегляния</string>

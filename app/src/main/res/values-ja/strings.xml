@@ -431,7 +431,6 @@
     <string name="download_stats">ダウンロード統計</string>
     <string name="download_stats_from_izzy">提供元: IzzyOnDroid</string>
     <string name="total">合計</string>
-    <string name="by_client">クライアント別</string>
     <string name="monthly">月間</string>
     <string name="downloading_rb_logs">再現性ログをダウンロード中</string>
     <string name="downloading_download_stats">ダウンロード統計をダウンロード中</string>

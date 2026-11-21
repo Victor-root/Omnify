@@ -250,7 +250,6 @@
     <string name="download_stats_from_izzy">Источник: IzzyOnDroid</string>
     <string name="total">Всего</string>
     <string name="monthly">За месяц</string>
-    <string name="by_client">Клиентом</string>
     <string name="downloading_rb_logs">Получение журналов воспроизводимости</string>
     <string name="downloading_download_stats">Получение статистики скачиваний</string>
     <string name="requires_authentication">Требуется аутентификация?</string>

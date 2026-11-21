@@ -251,7 +251,6 @@
     <string name="download_stats">إحصائيات التنزيل</string>
     <string name="download_stats_from_izzy">المصدر: IzzyOnDroid</string>
     <string name="total">الإجمالي</string>
-    <string name="by_client">حسب العميل</string>
     <string name="monthly">شهريًا</string>
     <string name="downloading_rb_logs">ينزِّل سجلّات البناء المضمون تطابقه</string>
     <string name="downloading_download_stats">ينزِّل إحصائيات التنزيل</string>

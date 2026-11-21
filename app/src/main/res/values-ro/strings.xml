@@ -242,7 +242,6 @@
     <string name="download_stats">Statistici pentru descărcări</string>
     <string name="download_stats_from_izzy">Sursă: IzzyOnDroid</string>
     <string name="total">Total</string>
-    <string name="by_client">După client</string>
     <string name="monthly">Lunare</string>
     <string name="downloading_rb_logs">Descărcați jurnalele pentru reproductibilitate</string>
     <string name="downloading_download_stats">Descărcați statisticile pentru descărcări</string>

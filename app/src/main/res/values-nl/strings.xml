@@ -435,7 +435,6 @@
     <string name="download_stats">Downloadstatistieken</string>
     <string name="download_stats_from_izzy">Bron: IzzyOnDroid</string>
     <string name="total">Totaal</string>
-    <string name="by_client">Per client</string>
     <string name="monthly">Maandelijks</string>
     <string name="downloading_rb_logs">Reproduceerbaarheidslogs downloaden</string>
     <string name="downloading_download_stats">Downloadstatistieken downloaden</string>

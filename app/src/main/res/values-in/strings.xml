@@ -239,7 +239,6 @@
     <string name="download_stats">Statistik Unduhan</string>
     <string name="download_stats_from_izzy">Sumber: IzzyOnDroid</string>
     <string name="total">Total</string>
-    <string name="by_client">Oleh Klien</string>
     <string name="monthly">Bulanan</string>
     <string name="title_activity_main_compose">MainComposeActivity</string>
     <string name="delete_apk_on_install">Hapus APK saat instalasi</string>

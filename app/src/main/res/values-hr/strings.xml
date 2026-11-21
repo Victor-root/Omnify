@@ -238,7 +238,6 @@
     <string name="download_stats">Statistika preuzimanja</string>
     <string name="download_stats_from_izzy">Izvor: IzzyOnDroid</string>
     <string name="total">Ukupno</string>
-    <string name="by_client">Po klijentu</string>
     <string name="monthly">Mjesečno</string>
     <string name="downloading_rb_logs">Zapisi o reproducibilnosti preuzimanja</string>
     <string name="downloading_download_stats">Preuzimanje statistike preuzimanja</string>

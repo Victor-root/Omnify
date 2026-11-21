@@ -248,7 +248,6 @@
     <string name="download_stats_from_izzy">Allikas: IzzyOnDroid</string>
     <string name="downloading_download_stats">Allalaadimise statistika allalaadimine</string>
     <string name="total">Kokku</string>
-    <string name="by_client">Kliendi järgi</string>
     <string name="monthly">Kuupõhine</string>
     <string name="downloading_rb_logs">Taasloodavuse logide allalaadimine</string>
     <string name="custom_buttons">Kohandatud nupud</string>

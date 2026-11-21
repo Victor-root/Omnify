@@ -606,7 +606,6 @@
     <string name="download_stats">Download statistics</string>
     <string name="download_stats_from_izzy">Source: IzzyOnDroid</string>
     <string name="total">Total</string>
-    <string name="by_client">By Client</string>
     <string name="monthly">Monthly</string>
     <string name="downloading_rb_logs">Downloading reproducibility logs</string>
     <string name="downloading_download_stats">Downloading download stats</string>

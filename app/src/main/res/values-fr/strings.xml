@@ -582,7 +582,6 @@
     <string name="download_stats">Statistiques de téléchargements</string>
     <string name="download_stats_from_izzy">Source : IzzyOnDroid</string>
     <string name="total">Total</string>
-    <string name="by_client">Par le client</string>
     <string name="monthly">Mensuel</string>
     <string name="downloading_rb_logs">Téléchargement des logs de reproducibilité</string>
     <string name="downloading_download_stats">Téléchargement des statistiques de téléchargements</string>

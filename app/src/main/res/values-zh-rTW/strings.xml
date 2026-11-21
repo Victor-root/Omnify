@@ -236,7 +236,6 @@
     <string name="download_stats">下載統計</string>
     <string name="download_stats_from_izzy">來源：IzzyOnDroid</string>
     <string name="total">總計</string>
-    <string name="by_client">按客戶端</string>
     <string name="monthly">每月</string>
     <string name="downloading_rb_logs">下載可復現性日誌</string>
     <string name="downloading_download_stats">正在下載下載量統計</string>

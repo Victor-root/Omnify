@@ -243,7 +243,6 @@
     <string name="download_stats">İstatistikleri İndir</string>
     <string name="download_stats_from_izzy">Kaynak: IzzyOnDroid</string>
     <string name="total">Toplam</string>
-    <string name="by_client">İstemciye Göre</string>
     <string name="monthly">Aylık</string>
     <string name="downloading_rb_logs">Tekrarlanabilirlik günlükleri indiriliyor</string>
     <string name="downloading_download_stats">İndirme istatistikleri indiriliyor</string>
