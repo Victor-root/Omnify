@@ -127,8 +127,11 @@ fun TvAppDetailScreen(
         ScopedAccentColor(if (accentMatchesAppIcon) iconAccent.accent else null) { TvAccentBackground() }
         when (val current = state) {
             is AppDetailState.Loading -> TvCentered { CircularProgressIndicator() }
-            is AppDetailState.Error -> TvCentered {
-                Text(current.message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            is AppDetailState.NotFound -> TvCentered {
+                Text(
+                    stringResource(R.string.app_not_found_FORMAT, current.packageName),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             is AppDetailState.Success -> {

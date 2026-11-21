@@ -107,6 +107,7 @@
     <string name="downloaded_FORMAT">Téléchargé %s</string>
     <string name="downloading">Téléchargement en cours</string>
     <string name="downloading_FORMAT">Téléchargement %s…</string>
+    <string name="app_not_found_FORMAT">Aucune appli trouvée pour %s</string>
     <string name="install_all_confirm_title">Tout installer ?</string>
     <plurals name="install_all_confirm_DESC">
         <item quantity="one">%d appli de ce dépôt sera téléchargée et installée.</item>

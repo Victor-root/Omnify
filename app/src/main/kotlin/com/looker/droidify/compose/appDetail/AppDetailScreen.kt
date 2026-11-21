@@ -430,7 +430,7 @@ fun AppDetailScreen(
                 title = {
                     when (state) {
                         AppDetailState.Loading -> Text(stringResource(R.string.application))
-                        is AppDetailState.Error -> {}
+                        is AppDetailState.NotFound -> {}
                         is AppDetailState.Success -> {
                             val app = (state as AppDetailState.Success).app
                             // Ellipsise so a long app name can't run under the translate action.
@@ -506,12 +506,12 @@ fun AppDetailScreen(
                 }
             }
 
-            is AppDetailState.Error -> {
+            is AppDetailState.NotFound -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = (state as AppDetailState.Error).message)
+                    Text(text = stringResource(R.string.app_not_found_FORMAT, (state as AppDetailState.NotFound).packageName))
                 }
             }
 

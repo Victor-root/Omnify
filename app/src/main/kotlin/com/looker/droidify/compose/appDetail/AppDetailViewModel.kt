@@ -248,7 +248,7 @@ class AppDetailViewModel @Inject constructor(
                 )
             }
             when {
-                apps.isEmpty() -> AppDetailState.Error("No app found for $packageName")
+                apps.isEmpty() -> AppDetailState.NotFound(packageName)
                 else -> {
                     val packages = apps.flatMap {
                         val repo = repoRepository.getRepo(it.repoId.toInt())
@@ -1271,7 +1271,8 @@ data class DownloadStatus(
 
 sealed interface AppDetailState {
     object Loading : AppDetailState
-    data class Error(val message: String) : AppDetailState
+    /** No repository in the catalogue carries [packageName]. */
+    data class NotFound(val packageName: String) : AppDetailState
     data class Success(
         val app: App,
         val packages: List<Pair<Package, Repo>>,

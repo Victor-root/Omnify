@@ -138,6 +138,7 @@
     <string name="downloaded_FORMAT">Downloaded %s</string>
     <string name="downloading">Downloading</string>
     <string name="downloading_FORMAT">Downloading %s…</string>
+    <string name="app_not_found_FORMAT">No app found for %s</string>
     <string name="install_all_confirm_title">Install every app?</string>
     <plurals name="install_all_confirm_DESC">
         <item quantity="one">%d app of this repository will be downloaded and installed.</item>
