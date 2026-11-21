@@ -138,6 +138,7 @@ import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.SyncPercent
 import com.looker.droidify.compose.components.rememberTvTyping
+import com.looker.droidify.compose.components.shrinkToFit
 import com.looker.droidify.compose.components.tvTypeOnOk
 import com.looker.droidify.compose.components.Departing
 import com.looker.droidify.compose.components.rememberDepartures
@@ -1441,8 +1442,14 @@ private fun AppTabRow(
                         }
                         AppTab.EXTERNAL -> stringResource(R.string.tab_external)
                     }
-                    // Never wrap: one line keeps every tab — and the bar — the same height.
-                    Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // Never wrap: one line keeps every tab — and the bar — the same height. Shrunk to fit
+                    // rather than cut where large text left "Expl…".
+                    Text(
+                        label,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        autoSize = shrinkToFit(LocalTextStyle.current.fontSize),
+                    )
                 },
             )
         }

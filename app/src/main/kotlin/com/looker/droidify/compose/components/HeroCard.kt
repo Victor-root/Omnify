@@ -292,6 +292,7 @@ fun HeroSourceCodeStatItem(onClick: () -> Unit, modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.primary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            autoSize = shrinkToFit(MaterialTheme.typography.titleSmall.fontSize),
         )
     }
 }
