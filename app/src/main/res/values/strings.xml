@@ -349,6 +349,7 @@
     <string name="release_files_hide">Hide the files</string>
     <string name="release_file_auto">Auto pick</string>
     <string name="release_file_universal">Universal</string>
+    <string name="release_file_plain">Standard</string>
     <string name="release_file_for_device">Made for your processor</string>
     <string name="release_file_any_processor">Runs on any processor</string>
     <string name="release_file_compatible">Also runs on this phone</string>

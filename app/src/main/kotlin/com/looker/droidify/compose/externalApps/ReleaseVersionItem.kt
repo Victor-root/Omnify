@@ -451,11 +451,13 @@ private fun ReleaseFileRow(
 }
 
 /** What [variant] is, in words: its processor ("arm64-v8a", or "Universal" among files built for
- *  given processors) and its own words ("freenet"), the file name when neither says anything. */
+ *  given processors) and its own words ("freenet"); "Standard" for the plain build beside others
+ *  that carry a word (Saber's own APK beside its "foss" one). */
 @Composable
 internal fun apkVariantLabel(variant: ApkVariant, anyAbi: Boolean): String {
     val processor = variant.abi ?: if (anyAbi) stringResource(R.string.release_file_universal) else null
-    return (listOfNotNull(processor) + variant.words).joinToString(" · ").ifEmpty { variant.asset.name }
+    return (listOfNotNull(processor) + variant.words).joinToString(" · ")
+        .ifEmpty { stringResource(R.string.release_file_plain) }
 }
 
 @Composable

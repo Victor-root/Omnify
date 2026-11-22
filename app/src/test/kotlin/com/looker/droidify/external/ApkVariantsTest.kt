@@ -98,6 +98,49 @@ class ApkVariantsTest {
     }
 
     @Test
+    fun `a build id stamped on each file is not taken for a variant`() {
+        // AutoJs6's real files: a commit id on each, different in every release.
+        val release = assets(
+            "autojs6-v6.8.0-arm64-v8a-818d75bb.apk", "autojs6-v6.8.0-armeabi-v7a-2609422d.apk",
+            "autojs6-v6.8.0-universal-98abef1b.apk",
+        )
+        val next = assets(
+            "autojs6-v6.9.0-arm64-v8a-62db1ff8.apk", "autojs6-v6.9.0-armeabi-v7a-df0b70ee.apk",
+            "autojs6-v6.9.0-universal-110e6b64.apk",
+        )
+
+        assertEquals(listOf(emptyList<String>()), apkVariants(release, phone).map { it.words }.distinct())
+        val filter = variantFilter(release, release[1], deviceAbis = phone)
+        assertEquals("autojs6-v6.9.0-armeabi-v7a-df0b70ee.apk", selectApkAsset(next, phone, filter)?.name)
+    }
+
+    @Test
+    fun `files alike but for a number are told apart by it`() {
+        // Termux's real files: each processor's build twice, for Android 5 and for Android 7.
+        val release = assets(
+            "termux-app_v0.119.0-beta.3+apt-android-5-github-debug_arm64-v8a.apk",
+            "termux-app_v0.119.0-beta.3+apt-android-7-github-debug_arm64-v8a.apk",
+            "termux-app_v0.119.0-beta.3+apt-android-5-github-debug_x86_64.apk",
+            "termux-app_v0.119.0-beta.3+apt-android-7-github-debug_x86_64.apk",
+        )
+
+        assertEquals(
+            listOf(listOf("android-5"), listOf("android-7"), listOf("android-5"), listOf("android-7")),
+            apkVariants(release, phone).map { it.words },
+        )
+        val next = release.map { ReleaseAsset(it.name.replace("0.119.0-beta.3", "0.119.0-beta.4"), it.downloadUrl) }
+        val filter = variantFilter(release, release[1], deviceAbis = phone)
+        assertEquals(next[1], selectApkAsset(next, phone, filter))
+    }
+
+    @Test
+    fun `a processor written the short way is still read as one`() {
+        val release = assets("koreader-android-arm-v2026.07.apk", "koreader-android-arm64-v2026.07.apk")
+
+        assertEquals(listOf("armeabi-v7a", "arm64-v8a"), apkVariants(release, phone).map { it.abi })
+    }
+
+    @Test
     fun `builds of one app for two stores are told apart by their store`() {
         // The issue that asked for this: a GitHub build wanted, the F-Droid one picked.
         val release = assets("MyApp-2.1.0-fdroid.apk", "MyApp-2.1.0-github.apk")

@@ -27,10 +27,8 @@ fun apkVariants(
 ): List<ApkVariant> {
     val apks = assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
     val parsed = apks.map { it to parseApkName(it.name) }
-    val shared = parsed.map { (_, name) -> name.words.toSet() }
-        .reduceOrNull { common, words -> common intersect words }
-        .orEmpty()
-    return parsed.map { (asset, name) ->
+    val shared = parsed.map { (_, name) -> name.words.toSet() }.sharedByAll()
+    val variants = parsed.map { (asset, name) ->
         ApkVariant(
             asset = asset,
             abi = name.abi,
@@ -38,7 +36,21 @@ fun apkVariants(
             compatible = name.abi == null || name.abi in deviceAbis,
         )
     }
+    // Files left looking alike are told apart by what was set aside as a number: Termux ships each
+    // processor's build twice, "android-5" and "android-7", one digit apart.
+    val details = parsed.associate { (asset, name) -> asset to name.details }
+    return variants.groupBy { it.abi to it.words }.values.flatMap { alike ->
+        if (alike.size < 2) return@flatMap alike
+        val sharedDetails = alike.map { details.getValue(it.asset).toSet() }.sharedByAll()
+        alike.map { variant ->
+            val extra = details.getValue(variant.asset).filter { it !in sharedDetails && it !in variant.words }
+            variant.copy(words = variant.words + extra.distinct())
+        }
+    }.sortedBy { variant -> apks.indexOf(variant.asset) }
 }
+
+private fun List<Set<String>>.sharedByAll(): Set<String> =
+    reduceOrNull { common, words -> common intersect words }.orEmpty()
 
 /**
  * The APK filter that keeps a source on [chosen] in this release and the ones after it, or null when
@@ -84,7 +96,10 @@ fun variantFilter(
     return "^" + chosen.name.escapedForRegex() + "$"
 }
 
-private class VariantName(val abi: String?, val words: List<String>)
+/** A file name read as its processor and its words. [details] keeps what [words] sets aside (numbers,
+ *  build ids), a number joined to the word before it as written ("android-5"), for files that only
+ *  those tell apart. */
+private class VariantName(val abi: String?, val words: List<String>, val details: List<String>)
 
 /** Processor names as releases spell them, longest first so "arm64-v8a" is read before "arm64",
  *  each with the name Android gives it. */
@@ -92,13 +107,20 @@ private val ABI_SPELLINGS = listOf(
     "arm64-v8a" to "arm64-v8a", "armeabi-v7a" to "armeabi-v7a", "x86_64" to "x86_64",
     "aarch64" to "arm64-v8a", "arm64" to "arm64-v8a",
     "armv7" to "armeabi-v7a", "arm32" to "armeabi-v7a", "armhf" to "armeabi-v7a", "armeabi" to "armeabi-v7a",
-    "x64" to "x86_64", "x86" to "x86",
+    "arm" to "armeabi-v7a", "x86-64" to "x86_64", "amd64" to "x86_64", "x64" to "x86_64",
+    "i686" to "x86", "i386" to "x86", "x86" to "x86",
 )
 
 /** Words that say a file runs on any processor, which the label already says on its own. */
 private val UNIVERSAL_WORDS = setOf("universal", "noarch")
 
 private val VERSION_WORD = Regex("""v?\d+""")
+
+/** A commit or build id stamped on each file of a release (AutoJs6's "818d75bb", KOReader's
+ *  "g21cc368"): different in every release, so nothing to follow a file by. */
+private val BUILD_ID = Regex("""g?(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{6,}""")
+
+private val NAME_TOKEN = Regex("""[^-_. +]+""")
 
 private fun parseApkName(fileName: String): VariantName {
     var rest = fileName.lowercase().removeSuffix(".apk")
@@ -110,9 +132,21 @@ private fun parseApkName(fileName: String): VariantName {
         rest = rest.removeRange(at, at + spelling.length)
         break
     }
-    val words = rest.split('-', '_', '.', ' ', '+')
-        .filter { it.isNotEmpty() && !VERSION_WORD.matches(it) && it !in UNIVERSAL_WORDS }
-    return VariantName(abi, words)
+    val tokens = NAME_TOKEN.findAll(rest).toList()
+    val words = tokens.map { it.value }
+        .filter { !VERSION_WORD.matches(it) && !BUILD_ID.matches(it) && it !in UNIVERSAL_WORDS }
+    val details = mutableListOf<String>()
+    tokens.forEachIndexed { index, token ->
+        val previous = tokens.getOrNull(index - 1)
+        val joined = previous != null && previous.value !in UNIVERSAL_WORDS && token.value.all(Char::isDigit) &&
+            token.range.first == previous.range.last + 2 && rest[previous.range.last + 1] in "-_"
+        if (joined) {
+            details[details.lastIndex] = rest.substring(previous!!.range.first, token.range.last + 1)
+        } else if (token.value !in UNIVERSAL_WORDS) {
+            details += token.value
+        }
+    }
+    return VariantName(abi, words, details)
 }
 
 /** The processor name as [fileName] spells it, for a filter that matches the same spelling later. */

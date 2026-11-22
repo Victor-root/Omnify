@@ -145,6 +145,7 @@
     <string name="release_files_hide">Masquer les fichiers</string>
     <string name="release_file_auto">Choix auto</string>
     <string name="release_file_universal">Universelle</string>
+    <string name="release_file_plain">Standard</string>
     <string name="release_file_for_device">Pour votre processeur</string>
     <string name="release_file_any_processor">Tous les processeurs</string>
     <string name="release_file_compatible">Fonctionne aussi sur ce téléphone</string>
