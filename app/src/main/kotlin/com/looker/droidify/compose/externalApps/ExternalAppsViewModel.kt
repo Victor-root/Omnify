@@ -33,6 +33,7 @@ import com.looker.droidify.external.ExternalReadme
 import com.looker.droidify.external.ExternalRefresher
 import com.looker.droidify.external.ExternalAccountRef
 import com.looker.droidify.external.Release
+import com.looker.droidify.external.ReleaseAsset
 import com.looker.droidify.external.ReleaseFamily
 import com.looker.droidify.external.ReleaseHistory
 import com.looker.droidify.external.filtersFor
@@ -55,6 +56,7 @@ import com.looker.droidify.external.prettifyRepoName
 import com.looker.droidify.external.publicHost
 import com.looker.droidify.external.releaseCacheFileName
 import com.looker.droidify.external.selectApkAsset
+import com.looker.droidify.external.variantFilter
 import com.looker.droidify.external.withVariantNamed
 import com.looker.droidify.installer.ApkDownloads
 import com.looker.droidify.installer.InstallManager
@@ -1408,6 +1410,24 @@ class ExternalAppsViewModel @Inject constructor(
         if (apkDownloads.isRunning(app.key)) return
         _downloadTargetTag.value = _downloadTargetTag.value + (app.key to release.tag)
         startDownload(app, release)
+    }
+
+    /**
+     * Installs [asset], one of [release]'s APKs picked in the version list, and keeps the source on it:
+     * its APK filter becomes the one picking that file ([variantFilter]), so its updates take the same
+     * file, and the release it offers is worked out again under it. Omnify's own pick clears the filter.
+     */
+    fun installVariant(app: ExternalApp, release: Release, asset: ReleaseAsset) {
+        if (apkDownloads.isRunning(app.key)) return
+        viewModelScope.launch {
+            val filter = variantFilter(release.assets, asset, releaseTag = release.tag)
+            val following = if (filter != app.apkFilter) {
+                withOfferedRelease(app.copy(apkFilter = filter)).also { repository.upsertApp(it) }
+            } else {
+                app
+            }
+            installVersion(following, release)
+        }
     }
 
     /** Hands [downloadAndInstall] to [ApkDownloads], so leaving this page doesn't stop it. */

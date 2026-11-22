@@ -317,8 +317,10 @@ fun heroFooter(
     // indistinguishable from a source that has no versions at all, so a slow repository read as a
     // broken one.
     isLoadingVersions: Boolean = false,
+    // A second line of routine detail under [infoText] (an external source's followed file, say).
+    note: String? = null,
 ): (@Composable () -> Unit)? {
-    if (infoText == null && onViewVersionsClick == null && !isLoadingVersions) return null
+    if (infoText == null && note == null && onViewVersionsClick == null && !isLoadingVersions) return null
     return {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             infoText?.let { text ->
@@ -333,15 +335,23 @@ fun heroFooter(
                     textAlign = TextAlign.Center,
                 )
             }
+            note?.let { text ->
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
             // The bar stands exactly where the link will appear, so the footer says "still working"
             // in the same spot rather than staying empty until the list lands. Drawn across the full
             // width rather than as a small circle: this is the card's own closing line, and a bar
             // spanning it reads as the card still filling in, which is what is actually happening.
             if (isLoadingVersions) {
-                if (infoText != null) Spacer(modifier = Modifier.height(6.dp))
+                if (infoText != null || note != null) Spacer(modifier = Modifier.height(6.dp))
                 LoadingBar(modifier = Modifier.fillMaxWidth().padding(4.dp))
             } else if (onViewVersionsClick != null) {
-                if (infoText != null) Spacer(modifier = Modifier.height(6.dp))
+                if (infoText != null || note != null) Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier

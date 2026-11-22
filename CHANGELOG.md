@@ -2,6 +2,9 @@
 
 ## 🚀 v1.0.9-beta.10 (Unreleased)
 
+### ✨ Added
+- **Choose which file of a release to install**: an external source's version list unfolds the APKs each release ships, each with what it is built for (a processor, or a variant such as "freenet" or "fdroid"), the one Omnify picks marked. Picking another installs it and keeps the source on it for its updates, said under the installed version; picking Omnify's own choice again brings that back. A file this phone can't run is shown but can't be picked.
+
 ### 🔄 Changed
 - **"Match accent to app icon" takes the colour a logo reads as**: a logo drawn in relief or as a gradient gave its brightest highlight, which looked lighter on the page than the logo itself (Melyxar's red). Its shades are now taken together; a logo of one flat colour keeps exactly that colour.
 

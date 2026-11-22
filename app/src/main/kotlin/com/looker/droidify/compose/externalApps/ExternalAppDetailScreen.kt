@@ -127,6 +127,10 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
+import com.looker.droidify.external.ReleaseAsset
+import com.looker.droidify.external.apkVariants
+import com.looker.droidify.external.releaseVersionLabel
+import com.looker.droidify.external.selectApkAsset
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.utility.apk.ApkBinaryManifest
@@ -520,6 +524,26 @@ fun ExternalAppDetailScreen(
         // the installed one before the user confirms. A genuine downgrade is instead caught right after
         // downloading (see ExternalAppsViewModel.downloadAndInstall's installConflict check).
         var versionToInstall by remember { mutableStateOf<Release?>(null) }
+        var fileToInstall by remember { mutableStateOf<Pair<Release, ReleaseAsset>?>(null) }
+        fileToInstall?.let { (release, asset) ->
+            val variants = remember(release) { apkVariants(release.assets) }
+            val variant = variants.firstOrNull { it.asset == asset }
+            if (variant != null) {
+                InstallVariantDialog(
+                    label = apkVariantLabel(variant, anyAbi = variants.any { it.abi != null }),
+                    asset = asset,
+                    version = releaseVersionLabel(asset.name, release.tag),
+                    backToAuto = remember(release, asset) {
+                        selectApkAsset(release.assets, filter = null, releaseTag = release.tag) == asset
+                    },
+                    onInstall = {
+                        viewModel.installVariant(app, release, asset)
+                        fileToInstall = null
+                    },
+                    onDismiss = { fileToInstall = null },
+                )
+            }
+        }
         versionToInstall?.let { release ->
             InstallVersionDialog(
                 versionName = release.tag,
@@ -603,6 +627,19 @@ fun ExternalAppDetailScreen(
             }
         }
 
+        // The file this source is kept on, when one was picked among its release's APKs (or its APK
+        // filter picks one): said under the installed version, by what it is ("Universal · freenet").
+        val followedVariant = remember(releaseHistory, app.apkFilter, app.latestTag) {
+            if (app.apkFilter.isNullOrBlank()) return@remember null
+            val release = releaseHistory?.firstOrNull { it.tag == app.latestTag } ?: return@remember null
+            val variants = apkVariants(release.assets).takeIf { it.size > 1 } ?: return@remember null
+            val picked = selectApkAsset(release.assets, filter = app.apkFilter, releaseTag = release.tag)
+            variants.firstOrNull { it.asset == picked }?.let { it to variants.any { variant -> variant.abi != null } }
+        }
+        val followedNote = followedVariant?.let { (variant, anyAbi) ->
+            stringResource(R.string.followed_variant_FORMAT, apkVariantLabel(variant, anyAbi))
+        }
+
         // Split view only: the left pane (hero card + links + versions) scrolls on its own, separately
         // from the right pane, so a long version list there doesn't overflow the pane uncontrolled. Its
         // own "see all versions" anchor, parallel to versionsAnchorY above.
@@ -682,6 +719,7 @@ fun ExternalAppDetailScreen(
                 },
                 footer = heroFooter(
                     infoText = footerText,
+                    note = followedNote,
                     onViewVersionsClick = if (!releaseHistory.isNullOrEmpty()) {
                         {
                             coroutineScope.launch {
@@ -767,6 +805,7 @@ fun ExternalAppDetailScreen(
                         releaseHistory = releaseHistory,
                         installedVersion = installedVersion,
                         onVersionClick = { versionToInstall = it },
+                        onPickFile = { release, asset -> fileToInstall = release to asset },
                         onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
                         onPrereleaseModeChange = onPrereleaseModeChange,
                         onAnchorPositioned = { leftPaneVersionsAnchorY = it },
@@ -810,6 +849,7 @@ fun ExternalAppDetailScreen(
                         supportedLanguages = supportedLanguages,
                         releaseHistory = releaseHistory,
                         onVersionClick = { versionToInstall = it },
+                        onPickFile = { release, asset -> fileToInstall = release to asset },
                         onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
                         onPrereleaseModeChange = onPrereleaseModeChange,
                         onAnchorPositioned = { versionsAnchorY = it },
@@ -940,6 +980,7 @@ fun ExternalAppDetailScreen(
                         supportedLanguages = supportedLanguages,
                         releaseHistory = releaseHistory,
                         onVersionClick = { versionToInstall = it },
+                        onPickFile = { release, asset -> fileToInstall = release to asset },
                         onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
                         onPrereleaseModeChange = onPrereleaseModeChange,
                         onAnchorPositioned = { versionsAnchorY = it },
@@ -1030,6 +1071,7 @@ private fun ExternalAppDetailBody(
     supportedLanguages: SupportedLanguages?,
     releaseHistory: List<Release>?,
     onVersionClick: (Release) -> Unit,
+    onPickFile: (Release, ReleaseAsset) -> Unit,
     onExpandVersions: () -> Unit,
     // Null when the version list has no pre-release choice to offer (offersPrereleaseChoice).
     onPrereleaseModeChange: ((PrereleaseMode) -> Unit)?,
@@ -1250,6 +1292,7 @@ private fun ExternalAppDetailBody(
             releaseHistory = releaseHistory,
             installedVersion = installedVersion,
             onVersionClick = onVersionClick,
+            onPickFile = onPickFile,
             onExpandVersions = onExpandVersions,
             onPrereleaseModeChange = onPrereleaseModeChange,
             onAnchorPositioned = onAnchorPositioned,
@@ -1354,6 +1397,9 @@ private fun ExternalVersionsSection(
     // via that same live check) says otherwise.
     installedVersion: String?,
     onVersionClick: (Release) -> Unit,
+    // A file picked among a release's APKs, other than the one Omnify installs for it (see
+    // ReleaseVersionItem's file list).
+    onPickFile: (Release, ReleaseAsset) -> Unit,
     // Fetches the full version list (see ExternalApi.RELEASE_HISTORY_TARGET), called once when the
     // user actually taps "show more" rather than eagerly on every screen open. See this section's own
     // "show more" branch below for why one more than the collapsed count is fetched upfront regardless.
@@ -1426,6 +1472,8 @@ private fun ExternalVersionsSection(
             // Collapsed to the newest few by default — same as the F-Droid catalogue's version
             // list, so a long history doesn't turn the whole page into an endless scroll.
             var versionsExpanded by remember(app.key) { mutableStateOf(false) }
+            // The releases whose files are unfolded, by tag.
+            var filesExpanded by remember(app.key) { mutableStateOf(emptySet<String>()) }
             val visibleCount = if (versionsExpanded) releaseHistory.size else VERSIONS_COLLAPSED_COUNT
             // Remembered so a progress tick only redoes the cheap per-row lookups below. Rows match
             // the real live on-device version, see installedVersion's own doc comment.
@@ -1433,7 +1481,9 @@ private fun ExternalVersionsSection(
             val rows = remember(releaseHistory, visibleCount, app.apkFilter, installedVersion, installedTag) {
                 releaseVersionRows(releaseHistory.take(visibleCount), app.apkFilter, installedVersion, installedTag)
             }
-            rows.forEach { row -> key(row.release.tag) {
+            // Keyed on the file too: a release whose file changes (another one picked) reads the new
+            // one's manifest, see onFirstVisible below.
+            rows.forEach { row -> key(row.release.tag, row.apkUrl) {
                 val release = row.release
                 val isThisRowDownloading = activeDownloadTag == release.tag &&
                     (downloadStatus != null || installing)
@@ -1447,6 +1497,20 @@ private fun ExternalVersionsSection(
                     isSuggested = release.tag == app.latestTag,
                     isInstalled = row.isInstalled,
                     onClick = { onVersionClick(release) },
+                    variants = row.variants,
+                    autoApkName = row.autoApkName,
+                    filesExpanded = release.tag in filesExpanded,
+                    onToggleFiles = {
+                        filesExpanded = if (release.tag in filesExpanded) {
+                            filesExpanded - release.tag
+                        } else {
+                            filesExpanded + release.tag
+                        }
+                    },
+                    // The file already installed for this release is the version itself.
+                    onPickFile = { asset ->
+                        if (asset.name == row.apkName) onVersionClick(release) else onPickFile(release, asset)
+                    },
                     downloadStatus = if (isThisRowDownloading) downloadStatus else null,
                     installing = isThisRowDownloading && downloadStatus == null,
                     onCancel = if (isThisRowDownloading) onCancel else null,

@@ -1,7 +1,14 @@
 package com.looker.droidify.compose.externalApps
 
 import android.content.Context
+import android.os.Build
 import android.text.format.DateFormat
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,19 +16,33 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,8 +51,12 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.CompactInstallProgressRow
 import com.looker.droidify.compose.components.premiumCardBorder
+import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusOutline
+import com.looker.droidify.external.ApkVariant
 import com.looker.droidify.external.Release
+import com.looker.droidify.external.ReleaseAsset
+import com.looker.droidify.external.apkVariants
 import com.looker.droidify.external.compareVersionStrings
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.external.selectApkAsset
@@ -47,7 +72,7 @@ import java.util.Date
 
 /** What a [ReleaseVersionItem] shows about [release], worked out once per release rather than on every
  *  recomposition of the list: the APK this device would get from it (one [selectApkAsset] pick shared by
- *  every field) and whether that is the version installed. */
+ *  every field), whether that is the version installed, and the release's other APKs to choose from. */
 class ReleaseVersionRow(
     val release: Release,
     val apkName: String?,
@@ -55,6 +80,10 @@ class ReleaseVersionRow(
     val apkSize: Long?,
     val apkDate: String?,
     val isInstalled: Boolean,
+    /** Every APK of the release when it has more than one, empty otherwise. */
+    val variants: List<ApkVariant>,
+    /** The APK Omnify picks with no filter, marked as its own choice among [variants]. */
+    val autoApkName: String?,
 )
 
 /**
@@ -71,6 +100,7 @@ fun releaseVersionRows(
     installedTag: String?,
 ): List<ReleaseVersionRow> = releases.map { release ->
     val apk = selectApkAsset(release.assets, filter = apkFilter, releaseTag = release.tag)
+    val variants = apkVariants(release.assets).takeIf { it.size > 1 }.orEmpty()
     ReleaseVersionRow(
         release = release,
         apkName = apk?.name,
@@ -82,6 +112,12 @@ fun releaseVersionRows(
         } else {
             installedVersion != null &&
                 compareVersionStrings(releaseVersionLabel(apk?.name, release.tag), installedVersion) == 0
+        },
+        variants = variants,
+        autoApkName = if (variants.isEmpty()) {
+            null
+        } else {
+            selectApkAsset(release.assets, filter = null, releaseTag = release.tag)?.name
         },
     )
 }
@@ -116,6 +152,13 @@ fun ReleaseVersionItem(
     downloadStatus: DownloadStatus? = null,
     installing: Boolean = false,
     onCancel: (() -> Unit)? = null,
+    // The release's APKs to choose from (see ReleaseVersionRow.variants): when there are any, the card
+    // ends on a line unfolding them, and picking one calls [onPickFile].
+    variants: List<ApkVariant> = emptyList(),
+    autoApkName: String? = null,
+    filesExpanded: Boolean = false,
+    onToggleFiles: () -> Unit = {},
+    onPickFile: (ReleaseAsset) -> Unit = {},
 ) {
     val cardShape = MaterialTheme.shapes.large
     // The border lives on this outer Box, not inside Surface's own modifier: Surface paints its
@@ -144,96 +187,283 @@ fun ReleaseVersionItem(
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(cardShape)
-                .clickable(onClick = onClick, role = Role.Button),
+                .clip(cardShape),
         ) {
-            Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)) {
-            Column(Modifier.weight(1f)) {
-                // The chips follow the version on its line while they fit, and go under it once they
-                // don't: three of them in French left the version one letter per line.
-                FlowRow(
-                    itemVerticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+            Column {
+                // The version itself is what a tap installs; the files below it are chosen on their own.
+                Row(
+                    modifier = Modifier
+                        .clickable(onClick = onClick, role = Role.Button)
+                        .padding(horizontal = 16.dp, vertical = 18.dp),
                 ) {
-                    Text(
-                        // releaseVersionLabel reads identically to the hero card's own "Version" stat
-                        // (see ExternalAppDetailScreen's heroVersion) instead of the raw server-side
-                        // tag: usually a dotted number pulled from the APK's file name, falling back to
-                        // one pulled from the tag itself for a project whose file name is fixed across
-                        // every release (confirmed real: RivoPhoneApp's "app-release.apk").
-                        text = releaseVersionLabel(apkName, release.tag),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    if (isSuggested) {
-                        VersionChip(
-                            text = stringResource(R.string.suggested),
-                            container = MaterialTheme.colorScheme.tertiaryContainer,
-                            content = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
-                    }
-                    if (isInstalled) {
-                        VersionChip(
-                            text = stringResource(R.string.installed),
-                            container = MaterialTheme.colorScheme.secondaryContainer,
-                            content = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                    }
-                    // A proper chip, not plain text below — so it reads at a glance in a repo that
-                    // mixes stable and pre-release tags, instead of being easy to miss.
-                    if (release.isPrerelease) PrereleaseBadge()
-                }
-                if ((downloadStatus != null || installing) && onCancel != null) {
-                    CompactInstallProgressRow(
-                        status = downloadStatus,
-                        installing = installing,
-                        onCancel = onCancel,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                } else if (apkName != null) {
-                    Text(
-                        text = apkName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.outline,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    val target = sdkInfo?.targetSdkVersion
-                    val min = sdkInfo?.minSdkVersion
-                    if (target != null && min != null) {
-                        Text(
-                            text = stringResource(R.string.label_sdk_version, sdkLabel(target), sdkLabel(min)),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.outline,
-                        )
-                    }
-                }
-            }
-            if (apkDate != null || apkSize != null) {
-                Column(horizontalAlignment = Alignment.End) {
-                    if (apkDate != null) {
-                        val context = LocalContext.current
-                        val date = remember(apkDate) { formatReleaseDate(context, apkDate) }
-                        if (date != null) {
+                    Column(Modifier.weight(1f)) {
+                        // The chips follow the version on its line while they fit, and go under it once they
+                        // don't: three of them in French left the version one letter per line.
+                        FlowRow(
+                            itemVerticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
                             Text(
-                                text = date,
+                                // releaseVersionLabel reads identically to the hero card's own "Version" stat
+                                // (see ExternalAppDetailScreen's heroVersion) instead of the raw server-side
+                                // tag: usually a dotted number pulled from the APK's file name, falling back to
+                                // one pulled from the tag itself for a project whose file name is fixed across
+                                // every release (confirmed real: RivoPhoneApp's "app-release.apk").
+                                text = releaseVersionLabel(apkName, release.tag),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            if (isSuggested) {
+                                VersionChip(
+                                    text = stringResource(R.string.suggested),
+                                    container = MaterialTheme.colorScheme.tertiaryContainer,
+                                    content = MaterialTheme.colorScheme.onTertiaryContainer,
+                                )
+                            }
+                            if (isInstalled) {
+                                VersionChip(
+                                    text = stringResource(R.string.installed),
+                                    container = MaterialTheme.colorScheme.secondaryContainer,
+                                    content = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                            }
+                            // A proper chip, not plain text below — so it reads at a glance in a repo that
+                            // mixes stable and pre-release tags, instead of being easy to miss.
+                            if (release.isPrerelease) PrereleaseBadge()
+                        }
+                        if ((downloadStatus != null || installing) && onCancel != null) {
+                            CompactInstallProgressRow(
+                                status = downloadStatus,
+                                installing = installing,
+                                onCancel = onCancel,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        } else if (apkName != null) {
+                            Text(
+                                text = apkName,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.outline,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
+                            val target = sdkInfo?.targetSdkVersion
+                            val min = sdkInfo?.minSdkVersion
+                            if (target != null && min != null) {
+                                Text(
+                                    text = stringResource(R.string.label_sdk_version, sdkLabel(target), sdkLabel(min)),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.outline,
+                                )
+                            }
                         }
                     }
-                    if (apkSize != null) {
-                        Text(
-                            text = DataSize(apkSize).toString(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.outline,
-                        )
+                    if (apkDate != null || apkSize != null) {
+                        Column(horizontalAlignment = Alignment.End) {
+                            if (apkDate != null) {
+                                val context = LocalContext.current
+                                val date = remember(apkDate) { formatReleaseDate(context, apkDate) }
+                                if (date != null) {
+                                    Text(
+                                        text = date,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
+                                }
+                            }
+                            if (apkSize != null) {
+                                Text(
+                                    text = DataSize(apkSize).toString(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.outline,
+                                )
+                            }
+                        }
                     }
+                }
+                if (variants.isNotEmpty()) {
+                    ReleaseFiles(
+                        release = release,
+                        variants = variants,
+                        selectedName = apkName,
+                        autoName = autoApkName,
+                        expanded = filesExpanded,
+                        onToggle = onToggleFiles,
+                        onPick = onPickFile,
+                    )
                 }
             }
         }
+    }
+}
+
+/**
+ * The end of a release's card when it ships several APKs: a line unfolding them, then each one with what
+ * it is built for, the one Omnify installs for this release selected and its own pick marked. A file
+ * this device can't run is shown, so the list is the release's whole, but can't be picked.
+ */
+@Composable
+private fun ReleaseFiles(
+    release: Release,
+    variants: List<ApkVariant>,
+    selectedName: String?,
+    autoName: String?,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onPick: (ReleaseAsset) -> Unit,
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        color = MaterialTheme.colorScheme.outlineVariant,
+    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .tvFocusFill(MaterialTheme.shapes.small)
+            .clickable(
+                onClickLabel = stringResource(if (expanded) R.string.release_files_hide else R.string.release_files_show),
+                role = Role.Button,
+                onClick = onToggle,
+            )
+            .padding(horizontal = 16.dp),
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.List,
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = pluralStringResource(R.plurals.release_files_COUNT, variants.size, variants.size),
+            style = MaterialTheme.typography.labelLarge,
+            color = accent,
+            modifier = Modifier.weight(1f),
+        )
+        val turn by animateFloatAsState(if (expanded) 180f else 0f, label = "releaseFilesChevron")
+        Icon(
+            imageVector = Icons.Filled.KeyboardArrowDown,
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.rotate(turn),
+        )
+    }
+    AnimatedVisibility(
+        visible = expanded,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut(),
+    ) {
+        Column(modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
+            val anyAbi = variants.any { it.abi != null }
+            variants.forEach { variant ->
+                ReleaseFileRow(
+                    variant = variant,
+                    label = apkVariantLabel(variant, anyAbi),
+                    note = apkVariantNote(variant, anyAbi),
+                    selected = variant.asset.name == selectedName,
+                    isAuto = variant.asset.name == autoName,
+                    onClick = { onPick(variant.asset) },
+                )
+            }
+            val hidden = release.assets.size - variants.size
+            if (hidden > 0) {
+                Text(
+                    text = pluralStringResource(R.plurals.release_files_hidden_COUNT, hidden, hidden),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun ReleaseFileRow(
+    variant: ApkVariant,
+    label: String,
+    note: String?,
+    selected: Boolean,
+    isAuto: Boolean,
+    onClick: () -> Unit,
+) {
+    val shape = MaterialTheme.shapes.medium
+    val colors = MaterialTheme.colorScheme
+    // Material's disabled look, for a file this device can't run.
+    val primaryText = if (variant.compatible) colors.onSurface else colors.onSurface.copy(alpha = 0.38f)
+    val secondaryText = if (variant.compatible) colors.onSurfaceVariant else colors.onSurface.copy(alpha = 0.38f)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clip(shape)
+            .then(if (selected) Modifier.background(colors.primary.copy(alpha = 0.08f), shape) else Modifier)
+            .tvFocusFill(shape)
+            .selectable(
+                selected = selected,
+                enabled = variant.compatible,
+                role = Role.RadioButton,
+                onClick = onClick,
+            )
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+    ) {
+        RadioButton(selected = selected, onClick = null, enabled = variant.compatible)
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            FlowRow(
+                itemVerticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(text = label, style = MaterialTheme.typography.titleSmall, color = primaryText)
+                if (isAuto) {
+                    VersionChip(
+                        text = stringResource(R.string.release_file_auto),
+                        container = colors.primaryContainer,
+                        content = colors.onPrimaryContainer,
+                    )
+                }
+            }
+            if (note != null) {
+                Text(text = note, style = MaterialTheme.typography.bodySmall, color = secondaryText)
+            }
+            // Cut in the middle: what tells a release's files apart is mostly near the end of their names.
+            Text(
+                text = variant.asset.name,
+                style = MaterialTheme.typography.bodySmall,
+                color = secondaryText,
+                maxLines = 1,
+                overflow = TextOverflow.MiddleEllipsis,
+            )
+        }
+        variant.asset.size?.let { size ->
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = DataSize(size).toString(),
+                style = MaterialTheme.typography.bodySmall,
+                color = secondaryText,
+            )
+        }
+    }
+}
+
+/** What [variant] is, in words: its processor ("arm64-v8a", or "Universal" among files built for
+ *  given processors) and its own words ("freenet"), the file name when neither says anything. */
+@Composable
+internal fun apkVariantLabel(variant: ApkVariant, anyAbi: Boolean): String {
+    val processor = variant.abi ?: if (anyAbi) stringResource(R.string.release_file_universal) else null
+    return (listOfNotNull(processor) + variant.words).joinToString(" · ").ifEmpty { variant.asset.name }
+}
+
+@Composable
+private fun apkVariantNote(variant: ApkVariant, anyAbi: Boolean): String? = when {
+    !variant.compatible -> stringResource(R.string.release_file_incompatible)
+    variant.abi == null -> if (anyAbi) stringResource(R.string.release_file_any_processor) else null
+    variant.abi == Build.SUPPORTED_ABIS.firstOrNull() -> stringResource(R.string.release_file_for_device)
+    else -> stringResource(R.string.release_file_compatible)
 }
 
 /** Parses [iso] (an [Release.apkUpdatedAt]-shaped ISO-8601 timestamp) into the same short localised

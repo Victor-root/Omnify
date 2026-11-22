@@ -133,6 +133,28 @@
     <string name="address_single_line">Il y a plus d\'une ligne ici. Ne gardez que l\'adresse.</string>
     <string name="install">Installer</string>
     <string name="install_version_FORMAT">Installer la version %s ?</string>
+    <plurals name="release_files_COUNT">
+        <item quantity="one">%d fichier dans cette version</item>
+        <item quantity="other">%d fichiers dans cette version</item>
+    </plurals>
+    <plurals name="release_files_hidden_COUNT">
+        <item quantity="one">%d autre fichier, qui n\'est pas un APK, n\'est pas montré.</item>
+        <item quantity="other">%d autres fichiers, qui ne sont pas des APK, ne sont pas montrés.</item>
+    </plurals>
+    <string name="release_files_show">Montrer les fichiers</string>
+    <string name="release_files_hide">Masquer les fichiers</string>
+    <string name="release_file_auto">Choix auto</string>
+    <string name="release_file_universal">Universelle</string>
+    <string name="release_file_for_device">Pour votre processeur</string>
+    <string name="release_file_any_processor">Tous les processeurs</string>
+    <string name="release_file_compatible">Fonctionne aussi sur ce téléphone</string>
+    <string name="release_file_incompatible">Ne fonctionne pas sur ce téléphone</string>
+    <string name="install_variant_FORMAT">Installer « %1$s » ?</string>
+    <string name="install_variant_back_to_auto">Revenir au choix automatique ?</string>
+    <string name="install_variant_file_FORMAT">Version %1$s · %2$s</string>
+    <string name="install_variant_DESC">Les mises à jour prendront aussi ce fichier. Pour revenir au choix d\'Omnify, choisissez le fichier marqué « Choix auto ».</string>
+    <string name="install_variant_back_DESC">Omnify reprendra le fichier fait pour ce téléphone, pour cette version et les suivantes.</string>
+    <string name="followed_variant_FORMAT">Variante suivie : %1$s</string>
     <string name="install_version_downgrade_DESC">Une version plus récente est installée. Android ne peut pas revenir en arrière sur place : il faut d\'abord désinstaller la version actuelle (vous perdrez ses données). Désinstallez-la, et cette version s\'installera juste après.</string>
     <string name="ignore_all_updates">Ignorer nouvelles versions</string>
     <string name="ignore_this_update">Ignorer cette version</string>

@@ -129,7 +129,7 @@ private val ABI_WORDS = setOf("arm64", "v8a", "arm", "v7a", "armeabi", "x86", "6
 /** [this] as a regular expression matching itself: a backslash before anything that is not a letter, a
  *  digit, a hyphen or an underscore, readable in the filter field where it is shown ("^meesho-debakarr"
  *  stays as is). */
-private fun String.escapedForRegex(): String = buildString {
+internal fun String.escapedForRegex(): String = buildString {
     for (char in this@escapedForRegex) {
         if (!char.isLetterOrDigit() && char != '-' && char != '_') append('\\')
         append(char)

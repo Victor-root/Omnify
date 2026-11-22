@@ -337,6 +337,28 @@
     <string name="incompatible_with_FORMAT">Incompatible with %s</string>
     <string name="install">Install</string>
     <string name="install_version_FORMAT">Install version %s?</string>
+    <plurals name="release_files_COUNT">
+        <item quantity="one">%d file in this version</item>
+        <item quantity="other">%d files in this version</item>
+    </plurals>
+    <plurals name="release_files_hidden_COUNT">
+        <item quantity="one">%d other file, not an APK, isn\'t shown.</item>
+        <item quantity="other">%d other files, not APKs, aren\'t shown.</item>
+    </plurals>
+    <string name="release_files_show">Show the files</string>
+    <string name="release_files_hide">Hide the files</string>
+    <string name="release_file_auto">Auto pick</string>
+    <string name="release_file_universal">Universal</string>
+    <string name="release_file_for_device">Made for your processor</string>
+    <string name="release_file_any_processor">Runs on any processor</string>
+    <string name="release_file_compatible">Also runs on this phone</string>
+    <string name="release_file_incompatible">Doesn\'t run on this phone</string>
+    <string name="install_variant_FORMAT">Install %1$s?</string>
+    <string name="install_variant_back_to_auto">Back to the automatic pick?</string>
+    <string name="install_variant_file_FORMAT">Version %1$s · %2$s</string>
+    <string name="install_variant_DESC">Updates will take this file too. To go back to Omnify\'s own pick, choose the file marked Auto pick.</string>
+    <string name="install_variant_back_DESC">Omnify will take the file made for this phone again, for this version and the next ones.</string>
+    <string name="followed_variant_FORMAT">Followed file: %1$s</string>
     <string name="install_version_downgrade_DESC">A newer version is installed. Android can\'t downgrade an app in place, so the installed version must be uninstalled first (you\'ll lose its data). Uninstall it, and this version is installed right after.</string>
     <string name="install_types">Installation</string>
     <string name="installer">Installer</string>
