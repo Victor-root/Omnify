@@ -37,6 +37,7 @@ object DiagnosticLog {
     private const val FILE_NAME = "diagnostics.log"
     private const val PREFS_NAME = "diagnostics"
     private const val KEY_LAST_EXIT = "last_reported_exit"
+    private const val SCRIPT_TRACE_NAME = "self-update.log"
 
     /** Beyond this the oldest half goes, so the file never grows without bound. */
     private const val MAX_BYTES = 256 * 1024
@@ -48,6 +49,7 @@ object DiagnosticLog {
     private val lock = Any()
     private val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
     private var file: File? = null
+    private var scriptTrace: File? = null
 
     /** Opens the log for this run of the app, and records how the previous runs ended. */
     fun init(context: Context) {
@@ -60,6 +62,27 @@ object DiagnosticLog {
         )
         if (SdkCheck.isR) logPreviousExits(context)
         logCrashes()
+        scriptTrace = scriptTraceFile(context)
+        importScriptTrace()
+    }
+
+    /**
+     * Where the shell script starting Omnify again after it updated itself writes its progress (see
+     * SelfUpdate.relaunchCommand). It runs as shell or root, outside Omnify, and can't write to this log;
+     * it can write to the app's own folder in shared storage, which Omnify reads back. Null in builds
+     * without this log.
+     */
+    fun scriptTraceFile(context: Context): File? {
+        if (!BuildConfig.DIAGNOSTICS) return null
+        return context.getExternalFilesDir(null)?.let { File(it, SCRIPT_TRACE_NAME) }
+    }
+
+    /** Moves what the script wrote into this log. Done at each start and before the log is read, since
+     *  the script's last lines come after the start it brought about. */
+    private fun importScriptTrace() {
+        val trace = scriptTrace?.takeIf { it.exists() } ?: return
+        val lines = runCatching { trace.readLines().also { trace.delete() } }.getOrNull() ?: return
+        lines.filter { it.isNotBlank() }.forEach { log("self-update script: $it") }
     }
 
     /**
@@ -111,6 +134,7 @@ object DiagnosticLog {
     /** The whole log, oldest line first; empty when there is none. */
     fun read(): String {
         if (!BuildConfig.DIAGNOSTICS) return ""
+        importScriptTrace()
         return synchronized(lock) {
             runCatching { file?.takeIf { it.exists() }?.readText() }.getOrNull().orEmpty()
         }
