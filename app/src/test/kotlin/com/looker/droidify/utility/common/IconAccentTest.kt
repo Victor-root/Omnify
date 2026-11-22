@@ -120,4 +120,26 @@ class IconAccentTest {
 
         assertEquals(0xFFD47AB6.toInt(), accent)
     }
+
+    @Test
+    fun `a logo drawn in relief gives the colour of its shades together, not its highlight`() {
+        // Melyxar's red logo is shaded down to a deep crimson. Its brightest red alone looked lighter
+        // on the page than the logo it was taken from.
+        val red = 0xFFE50B0B.toInt()
+        val crimson = 0xFF6E0303.toInt()
+
+        val accent = colourOf(iconAccentOf(icon(white to 50, red to 35, crimson to 15)))
+
+        assertTrue(accent != red && (accent shr 16 and 0xFF) in 0x6E until 0xE5, "got ${Integer.toHexString(accent)}")
+        assertEquals(accent shr 8 and 0xFF, accent and 0xFF, "still a pure red")
+    }
+
+    @Test
+    fun `a dull plate of the logo's own hue is not taken for one of its shades`() {
+        // Jellyfin's blue logo sits on a navy of nearly the same hue, but far less colourful.
+        val navy = 0xFF0F1A2E.toInt()
+        val blue = 0xFF2F90D5.toInt()
+
+        assertEquals(blue, colourOf(iconAccentOf(icon(navy to 70, blue to 30))))
+    }
 }

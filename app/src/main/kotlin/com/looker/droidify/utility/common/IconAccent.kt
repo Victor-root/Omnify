@@ -2,6 +2,7 @@ package com.looker.droidify.utility.common
 
 import android.graphics.Bitmap
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * What an app's icon offers as the accent colour for its detail page.
@@ -52,6 +53,15 @@ private const val MAX_LIGHTNESS = 0.90f
  */
 private const val BUCKET_SHIFT = 5
 
+/**
+ * Which pixels count as shades of the colour picked (see [familyColour]): within this many degrees of
+ * its hue, and showing at least this share of its colour. The share is what keeps out a dull plate of
+ * the same hue, Jellyfin's navy behind its blue logo, while letting in the deep shading of a logo
+ * drawn in relief, Melyxar's crimson under its red.
+ */
+private const val FAMILY_HUE_DEGREES = 20f
+private const val FAMILY_MIN_CHROMA_SHARE = 0.4f
+
 /** What [BUCKET_SHIFT] leaves of each 8-bit channel, and the number of buckets those make. */
 private const val BUCKET_BITS = 8 - BUCKET_SHIFT
 private const val BUCKET_MASK = (1 shl BUCKET_BITS) - 1
@@ -81,6 +91,9 @@ fun Bitmap.iconAccent(): IconAccent? {
  * Transparency is skipped rather than filled in. The previous approach had to flatten it onto
  * something, and whatever it chose (black, white, an average) became a large fake colour competing
  * with the real ones; here a transparent pixel is simply not a vote.
+ *
+ * The colour picked is then widened to its shades (see [familyColour]), so a logo drawn in relief gives
+ * the colour it reads as, not its brightest highlight.
  */
 internal fun iconAccentOf(pixels: IntArray): IconAccent? {
     // Counted in arrays, one slot per bucket, rather than in maps: a map boxed every pixel's bucket and
@@ -125,7 +138,55 @@ internal fun iconAccentOf(pixels: IntArray): IconAccent? {
         .sortedByDescending { (_, weight) -> weight }
         .map { (colour, _) -> colour }
         .firstOrNull(::isUsableAccent)
-    return if (accent != null) IconAccent.Colour(accent) else IconAccent.Monochrome
+    return if (accent != null) IconAccent.Colour(familyColour(pixels, accent)) else IconAccent.Monochrome
+}
+
+/**
+ * [seed] as the eye takes it in across the icon: the average of every opaque pixel of its hue family
+ * (see [FAMILY_HUE_DEGREES]), each weighed by how much colour it shows. A logo shaded from red down to
+ * crimson reads as one deeper red, while its brightest bucket alone, which is what [seed] is, looked
+ * lighter beside it on the page. A flat logo is its own family and comes back unchanged.
+ */
+private fun familyColour(pixels: IntArray, seed: Int): Int {
+    val seedHue = hueOf(seed)
+    val floor = FAMILY_MIN_CHROMA_SHARE * chroma(seed)
+    var weight = 0.0
+    var red = 0.0
+    var green = 0.0
+    var blue = 0.0
+    for (pixel in pixels) {
+        if (pixel ushr 24 < OPAQUE_ALPHA_THRESHOLD) continue
+        val share = chroma(pixel)
+        if (share == 0f || share < floor) continue
+        val gap = abs(hueOf(pixel) - seedHue)
+        if (minOf(gap, 360f - gap) > FAMILY_HUE_DEGREES) continue
+        weight += share
+        red += (pixel shr 16 and 0xFF) * share
+        green += (pixel shr 8 and 0xFF) * share
+        blue += (pixel and 0xFF) * share
+    }
+    if (weight == 0.0) return seed
+    val family = (0xFF shl 24) or
+        ((red / weight).roundToInt() shl 16) or
+        ((green / weight).roundToInt() shl 8) or
+        (blue / weight).roundToInt()
+    return family.takeIf(::isUsableAccent) ?: seed
+}
+
+/** [argb]'s hue, in degrees from 0 to 360; 0 for a grey, which has none. */
+private fun hueOf(argb: Int): Float {
+    val red = (argb shr 16 and 0xFF) / 255f
+    val green = (argb shr 8 and 0xFF) / 255f
+    val blue = (argb and 0xFF) / 255f
+    val high = maxOf(red, green, blue)
+    val range = high - minOf(red, green, blue)
+    if (range == 0f) return 0f
+    val sector = when (high) {
+        red -> ((green - blue) / range).mod(6f)
+        green -> (blue - red) / range + 2f
+        else -> (red - green) / range + 4f
+    }
+    return sector * 60f
 }
 
 /** A bucket's real colour: the mean of every pixel counted into it, not the bucket's own coordinates. */

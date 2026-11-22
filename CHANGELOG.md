@@ -2,6 +2,9 @@
 
 ## 🚀 v1.0.9-beta.10 (Unreleased)
 
+### 🔄 Changed
+- **"Match accent to app icon" takes the colour a logo reads as**: a logo drawn in relief or as a gradient gave its brightest highlight, which looked lighter on the page than the logo itself (Melyxar's red). Its shades are now taken together; a logo of one flat colour keeps exactly that colour.
+
 ### 🐛 Fixed
 - **An external source's icon keeps its background when the project draws it as a plain shape**: AukDialer's white handset showed on nothing instead of on its violet square, before it was installed.
 
