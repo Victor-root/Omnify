@@ -305,7 +305,6 @@ internal fun SourcePicker(
                 // Swiping right to the card's edges, the track resting clear of them.
                 contentPadding = PaddingValues(horizontal = VersionsCardHeaderPadding),
                 pageSpacing = VersionsCardHeaderPadding,
-                key = { page -> pages[page].first().source.stored },
                 modifier = Modifier.fillMaxWidth(),
             ) { page ->
                 SourcePage(
