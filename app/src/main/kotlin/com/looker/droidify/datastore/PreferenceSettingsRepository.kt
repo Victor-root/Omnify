@@ -242,6 +242,12 @@ class PreferenceSettingsRepository(
         return repoId in data.first().enabledRepoIds
     }
 
+    override suspend fun setFollowedSource(packageName: String, source: String) {
+        dataStore.edit { preference ->
+            preference[FOLLOWED_SOURCES] = Json.encodeToString(preference.followedSources() + (packageName to source))
+        }
+    }
+
     override suspend fun setDeleteApkOnInstall(enable: Boolean) =
         DELETE_APK_ON_INSTALL.update(enable)
 
@@ -353,6 +359,7 @@ class PreferenceSettingsRepository(
             runCatching { Json.decodeFromString<Map<String, Long>>(it) }.getOrNull()
         }.orEmpty()
         val hiddenApps = preferences[HIDDEN_APPS] ?: emptySet()
+        val followedSources = preferences.followedSources()
         val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: false
         val exploreCarousels = preferences[EXPLORE_CAROUSELS]?.let {
             runCatching { Json.decodeFromString<List<String>>(it) }.getOrNull()
@@ -402,6 +409,7 @@ class PreferenceSettingsRepository(
             favouriteApps = favouriteApps,
             favouritedAt = favouritedAt,
             hiddenApps = hiddenApps,
+            followedSources = followedSources,
             homeScreenSwiping = homeScreenSwiping,
             exploreCarousels = exploreCarousels,
             tvOnly = tvOnly,
@@ -448,6 +456,7 @@ class PreferenceSettingsRepository(
         val FAVOURITE_APPS = stringSetPreferencesKey("key_favourite_apps")
         val FAVOURITED_AT = stringPreferencesKey("key_favourited_at")
         val HIDDEN_APPS = stringSetPreferencesKey("key_hidden_apps")
+        val FOLLOWED_SOURCES = stringPreferencesKey("key_followed_sources")
         val HOME_SCREEN_SWIPING = booleanPreferencesKey("key_home_swiping")
         val EXPLORE_CAROUSELS = stringPreferencesKey("key_explore_carousels")
         val TV_ONLY = booleanPreferencesKey("key_tv_only")
@@ -532,6 +541,7 @@ class PreferenceSettingsRepository(
             set(FAVOURITE_APPS, settings.favouriteApps)
             set(FAVOURITED_AT, Json.encodeToString(settings.favouritedAt))
             set(HIDDEN_APPS, settings.hiddenApps)
+            set(FOLLOWED_SOURCES, Json.encodeToString(settings.followedSources))
             set(HOME_SCREEN_SWIPING, settings.homeScreenSwiping)
             if (settings.exploreCarousels == null) {
                 remove(EXPLORE_CAROUSELS)
@@ -557,5 +567,9 @@ class PreferenceSettingsRepository(
             set(CONFIRM_BADGE_ADD, settings.confirmBadgeAdd)
             return this.toPreferences()
         }
+
+        private fun Preferences.followedSources(): Map<String, String> = this[FOLLOWED_SOURCES]?.let {
+            runCatching { Json.decodeFromString<Map<String, String>>(it) }.getOrNull()
+        }.orEmpty()
     }
 }

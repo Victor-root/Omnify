@@ -15,6 +15,8 @@ import com.looker.droidify.data.encryption.sha256Hex
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
+import com.looker.droidify.data.FollowedSource
+import com.looker.droidify.data.FollowedSources
 import com.looker.droidify.data.PendingUpdates
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.Package
@@ -91,6 +93,7 @@ class UpdateAllWorker @AssistedInject constructor(
     private val externalAppRepository: ExternalAppRepository,
     private val externalInstaller: ExternalInstaller,
     private val pendingUpdates: PendingUpdates,
+    private val followedSources: FollowedSources,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -204,8 +207,11 @@ class UpdateAllWorker @AssistedInject constructor(
     }
 
     private suspend fun updateOne(packageName: String) {
-        // Every release of this package across enabled repos, paired with its repo.
+        // Every release of this package across enabled repos, paired with its repo, or in the one repo
+        // the user follows for it.
+        val followed = followedSources.current()[packageName] as? FollowedSource.Repository
         val apps = appRepository.getApp(PackageName(packageName)).first()
+            .filter { followed == null || it.repoId.toInt() == followed.repoId }
         val candidates = apps.flatMap { app ->
             val repo = repoRepository.getRepo(app.repoId.toInt())
             if (repo != null) app.packages.orEmpty().map { pkg -> pkg to repo } else emptyList()

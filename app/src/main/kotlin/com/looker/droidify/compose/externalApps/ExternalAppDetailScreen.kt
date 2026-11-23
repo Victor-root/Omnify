@@ -518,43 +518,10 @@ fun ExternalAppDetailScreen(
         val installing = installStates[appKey] == InstallState.Pending ||
             installStates[appKey] == InstallState.Installing
         val activeDownloadTag = downloadTargetTag[appKey]
-        // A release the user tapped in the version list, awaiting confirmation to install (null = no
-        // dialog). Unlike the F-Droid catalogue's version dialog, this can't flag a downgrade upfront: a
-        // release carries no version code ahead of the download, so there's nothing to compare against
-        // the installed one before the user confirms. A genuine downgrade is instead caught right after
-        // downloading (see ExternalAppsViewModel.downloadAndInstall's installConflict check).
-        var versionToInstall by remember { mutableStateOf<Release?>(null) }
-        var fileToInstall by remember { mutableStateOf<Pair<Release, ReleaseAsset>?>(null) }
-        fileToInstall?.let { (release, asset) ->
-            val variants = remember(release) { apkVariants(release.assets) }
-            val variant = variants.firstOrNull { it.asset == asset }
-            if (variant != null) {
-                InstallVariantDialog(
-                    label = apkVariantLabel(variant, anyAbi = variants.any { it.abi != null }),
-                    asset = asset,
-                    version = releaseVersionLabel(asset.name, release.tag),
-                    backToAuto = remember(release, asset) {
-                        selectApkAsset(release.assets, filter = null, releaseTag = release.tag) == asset
-                    },
-                    onInstall = {
-                        viewModel.installVariant(app, release, asset)
-                        fileToInstall = null
-                    },
-                    onDismiss = { fileToInstall = null },
-                )
-            }
-        }
-        versionToInstall?.let { release ->
-            InstallVersionDialog(
-                versionName = release.tag,
-                isDowngrade = false,
-                onInstall = {
-                    viewModel.installVersion(app, release)
-                    versionToInstall = null
-                },
-                onUninstall = {},
-                onDismiss = { versionToInstall = null },
-            )
+        // A release, or one of its files, the user tapped in the version list (null = no dialog).
+        var releasePick by remember { mutableStateOf<ReleasePick?>(null) }
+        releasePick?.let { pick ->
+            PickedReleaseDialog(pick = pick, app = app, viewModel = viewModel, onDismiss = { releasePick = null })
         }
         if (showChangelog) {
             ChangelogDialog(
@@ -804,8 +771,8 @@ fun ExternalAppDetailScreen(
                         app = app,
                         releaseHistory = releaseHistory,
                         installedVersion = installedVersion,
-                        onVersionClick = { versionToInstall = it },
-                        onPickFile = { release, asset -> fileToInstall = release to asset },
+                        onVersionClick = { releasePick = ReleasePick.Version(it) },
+                        onPickFile = { release, asset -> releasePick = ReleasePick.File(release, asset) },
                         onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
                         onPrereleaseModeChange = onPrereleaseModeChange,
                         onAnchorPositioned = { leftPaneVersionsAnchorY = it },
@@ -848,8 +815,8 @@ fun ExternalAppDetailScreen(
                         },
                         supportedLanguages = supportedLanguages,
                         releaseHistory = releaseHistory,
-                        onVersionClick = { versionToInstall = it },
-                        onPickFile = { release, asset -> fileToInstall = release to asset },
+                        onVersionClick = { releasePick = ReleasePick.Version(it) },
+                        onPickFile = { release, asset -> releasePick = ReleasePick.File(release, asset) },
                         onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
                         onPrereleaseModeChange = onPrereleaseModeChange,
                         onAnchorPositioned = { versionsAnchorY = it },
@@ -979,8 +946,8 @@ fun ExternalAppDetailScreen(
                         },
                         supportedLanguages = supportedLanguages,
                         releaseHistory = releaseHistory,
-                        onVersionClick = { versionToInstall = it },
-                        onPickFile = { release, asset -> fileToInstall = release to asset },
+                        onVersionClick = { releasePick = ReleasePick.Version(it) },
+                        onPickFile = { release, asset -> releasePick = ReleasePick.File(release, asset) },
                         onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
                         onPrereleaseModeChange = onPrereleaseModeChange,
                         onAnchorPositioned = { versionsAnchorY = it },
@@ -1451,113 +1418,252 @@ private fun ExternalVersionsSection(
             }
         }
         if (releaseHistory == null) {
-            // Label over a full-width bar, the shape every other wait in the app uses (sync,
-            // supported languages) and the same bar the card at the top of this page now shows for
-            // this very fetch, so both ends of the page say the same thing about it.
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .tvReadable(debugLabel = "versions-loading-row")
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.loading),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                LoadingBar(modifier = Modifier.fillMaxWidth())
-            }
+            ReleasesLoadingRow()
         } else {
-            // Collapsed to the newest few by default — same as the F-Droid catalogue's version
-            // list, so a long history doesn't turn the whole page into an endless scroll.
-            var versionsExpanded by remember(app.key) { mutableStateOf(false) }
-            // The releases whose files are unfolded, by tag.
-            var filesExpanded by remember(app.key) { mutableStateOf(emptySet<String>()) }
-            val visibleCount = if (versionsExpanded) releaseHistory.size else VERSIONS_COLLAPSED_COUNT
-            // Remembered so a progress tick only redoes the cheap per-row lookups below. Rows match
-            // the real live on-device version, see installedVersion's own doc comment.
-            val installedTag = app.ownInstalledTag(installedVersion)
-            val rows = remember(releaseHistory, visibleCount, app.apkFilter, installedVersion, installedTag) {
-                releaseVersionRows(releaseHistory.take(visibleCount), app.apkFilter, installedVersion, installedTag)
-            }
-            // Keyed on the file too: a release whose file changes (another one picked) reads the new
-            // one's manifest, see onFirstVisible below.
-            rows.forEach { row -> key(row.release.tag, row.apkUrl) {
-                val release = row.release
-                val isThisRowDownloading = activeDownloadTag == release.tag &&
-                    (downloadStatus != null || installing)
-                val apkUrl = row.apkUrl
-                ReleaseVersionItem(
-                    release = release,
-                    apkName = row.apkName,
-                    apkSize = row.apkSize,
-                    apkDate = row.apkDate,
-                    sdkInfo = apkUrl?.let { sdkInfoByApkUrl[it] },
-                    isSuggested = release.tag == app.latestTag,
-                    isInstalled = row.isInstalled,
-                    onClick = { onVersionClick(release) },
-                    variants = row.variants,
-                    autoApkName = row.autoApkName,
-                    filesExpanded = release.tag in filesExpanded,
-                    onToggleFiles = {
-                        filesExpanded = if (release.tag in filesExpanded) {
-                            filesExpanded - release.tag
-                        } else {
-                            filesExpanded + release.tag
-                        }
-                    },
-                    // The file already installed for this release is the version itself.
-                    onPickFile = { asset ->
-                        if (asset.name == row.apkName) onVersionClick(release) else onPickFile(release, asset)
-                    },
-                    downloadStatus = if (isThisRowDownloading) downloadStatus else null,
-                    installing = isThisRowDownloading && downloadStatus == null,
-                    onCancel = if (isThisRowDownloading) onCancel else null,
-                    modifier = Modifier
-                        .onFocusChanged {
-                            if (it.isFocused) {
-                                tvFocusDebugLog {
-                                    "FOCUS -> external-version-row (${release.tag}) at " +
-                                        "${System.currentTimeMillis()}"
-                                }
-                            }
-                        }
-                        // Each row reads its APK's manifest over the network, for a line of text at the
-                        // far end of a long page, so only once the row is scrolled to.
-                        .then(
-                            if (apkUrl != null) {
-                                Modifier.onFirstVisible(minFractionVisible = 0f) { onRequestSdkInfo(apkUrl) }
-                            } else {
-                                Modifier
-                            },
-                        ),
-                )
-            } }
-            if (releaseHistory.size > VERSIONS_COLLAPSED_COUNT) {
-                ShowMoreRow(
-                    // Null rather than the true remaining count: the screen only ever asked for enough
-                    // to know there's at least one more hidden (see the LaunchedEffect that starts
-                    // this off), not the true total, so a number here would risk understating what
-                    // tapping this actually reveals.
-                    hiddenCount = null,
-                    expanded = versionsExpanded,
-                    onToggle = {
-                        val expanding = !versionsExpanded
-                        versionsExpanded = expanding
-                        if (expanding) onExpandVersions()
-                    },
-                    modifier = Modifier.onFocusChanged {
-                        if (it.isFocused) {
-                            tvFocusDebugLog {
-                                "FOCUS -> external-versions-show-more at ${System.currentTimeMillis()}"
-                            }
-                        }
-                    },
-                )
-            }
+            ExternalReleaseList(
+                app = app,
+                releaseHistory = releaseHistory,
+                installedVersion = installedVersion,
+                onVersionClick = onVersionClick,
+                onPickFile = onPickFile,
+                onExpandVersions = onExpandVersions,
+                downloadStatus = downloadStatus,
+                installing = installing,
+                activeDownloadTag = activeDownloadTag,
+                onCancel = onCancel,
+                sdkInfoByApkUrl = sdkInfoByApkUrl,
+                onRequestSdkInfo = onRequestSdkInfo,
+            )
         }
         Spacer(Modifier.height(16.dp))
+    }
+}
+
+/** A release, or one of its files, picked in a version list, awaiting confirmation to install. */
+internal sealed interface ReleasePick {
+    data class Version(val release: Release) : ReleasePick
+    data class File(val release: Release, val asset: ReleaseAsset) : ReleasePick
+}
+
+/**
+ * Confirms installing [pick] from [app]. Unlike the F-Droid catalogue's version dialog, this can't flag
+ * a downgrade upfront: a release carries no version code ahead of the download, so there's nothing to
+ * compare against the installed one before the user confirms. A genuine downgrade is instead caught
+ * right after downloading (see ExternalAppsViewModel.downloadAndInstall's installConflict check).
+ */
+@Composable
+internal fun PickedReleaseDialog(
+    pick: ReleasePick,
+    app: ExternalApp,
+    viewModel: ExternalAppsViewModel,
+    onDismiss: () -> Unit,
+) {
+    when (pick) {
+        is ReleasePick.File -> {
+            val (release, asset) = pick
+            val variants = remember(release) { apkVariants(release.assets) }
+            val variant = variants.firstOrNull { it.asset == asset } ?: return
+            InstallVariantDialog(
+                label = apkVariantLabel(variant, anyAbi = variants.any { it.abi != null }),
+                asset = asset,
+                version = releaseVersionLabel(asset.name, release.tag),
+                backToAuto = remember(release, asset) {
+                    selectApkAsset(release.assets, filter = null, releaseTag = release.tag) == asset
+                },
+                onInstall = {
+                    viewModel.installVariant(app, release, asset)
+                    onDismiss()
+                },
+                onDismiss = onDismiss,
+            )
+        }
+        is ReleasePick.Version -> InstallVersionDialog(
+            versionName = pick.release.tag,
+            isDowngrade = false,
+            onInstall = {
+                viewModel.installVersion(app, pick.release)
+                onDismiss()
+            },
+            onUninstall = {},
+            onDismiss = onDismiss,
+        )
+    }
+}
+
+/**
+ * [app]'s releases, read from [viewModel], for a page that is not [app]'s own: the tab an app's
+ * catalogue page gives each tracked source of the same package. The same list, and the same picks, as
+ * on the source's own page.
+ */
+@Composable
+internal fun ExternalSourceReleases(app: ExternalApp, viewModel: ExternalAppsViewModel) {
+    val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
+    val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
+    val downloads by viewModel.downloads.collectAsStateWithLifecycle()
+    val downloadTargetTag by viewModel.downloadTargetTag.collectAsStateWithLifecycle()
+    val installStates by viewModel.installStates.collectAsStateWithLifecycle()
+    val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
+    LaunchedEffect(app.key, app.prereleases) {
+        viewModel.loadReleaseHistory(app, limit = VERSIONS_COLLAPSED_COUNT + 1)
+    }
+    var releasePick by remember { mutableStateOf<ReleasePick?>(null) }
+    releasePick?.let { pick ->
+        PickedReleaseDialog(pick = pick, app = app, viewModel = viewModel, onDismiss = { releasePick = null })
+    }
+    val history = releaseHistory
+    if (history == null) {
+        ReleasesLoadingRow()
+    } else if (history.isEmpty()) {
+        Text(
+            text = stringResource(R.string.external_no_release, app.path),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        )
+    } else {
+        ExternalReleaseList(
+            app = app,
+            releaseHistory = history,
+            installedVersion = installedVersions[app.key],
+            onVersionClick = { releasePick = ReleasePick.Version(it) },
+            onPickFile = { release, asset -> releasePick = ReleasePick.File(release, asset) },
+            onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
+            downloadStatus = downloads[app.key],
+            installing = installStates[app.key] == InstallState.Pending ||
+                installStates[app.key] == InstallState.Installing,
+            activeDownloadTag = downloadTargetTag[app.key],
+            onCancel = { viewModel.cancel(app) },
+            sdkInfoByApkUrl = sdkInfoByApkUrl,
+            onRequestSdkInfo = viewModel::loadSdkInfo,
+        )
+    }
+}
+
+/** Shown while a version list is still being fetched. */
+@Composable
+private fun ReleasesLoadingRow() {
+    // Label over a full-width bar, the shape every other wait in the app uses (sync,
+    // supported languages) and the same bar the card at the top of this page now shows for
+    // this very fetch, so both ends of the page say the same thing about it.
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .tvReadable(debugLabel = "versions-loading-row")
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.loading),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        LoadingBar(modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/** The rows of [releaseHistory], newest first, collapsed to the newest few until "show more". */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ExternalReleaseList(
+    app: ExternalApp,
+    releaseHistory: List<Release>,
+    installedVersion: String?,
+    onVersionClick: (Release) -> Unit,
+    onPickFile: (Release, ReleaseAsset) -> Unit,
+    onExpandVersions: () -> Unit,
+    downloadStatus: DownloadStatus?,
+    installing: Boolean,
+    activeDownloadTag: String?,
+    onCancel: () -> Unit,
+    sdkInfoByApkUrl: Map<String, ApkBinaryManifest.UsesSdk?>,
+    onRequestSdkInfo: (String) -> Unit,
+) {
+    // Collapsed to the newest few by default, same as the F-Droid catalogue's version
+    // list, so a long history doesn't turn the whole page into an endless scroll.
+    var versionsExpanded by remember(app.key) { mutableStateOf(false) }
+    // The releases whose files are unfolded, by tag.
+    var filesExpanded by remember(app.key) { mutableStateOf(emptySet<String>()) }
+    val visibleCount = if (versionsExpanded) releaseHistory.size else VERSIONS_COLLAPSED_COUNT
+    // Remembered so a progress tick only redoes the cheap per-row lookups below. Rows match
+    // the real live on-device version, see installedVersion's own doc comment.
+    val installedTag = app.ownInstalledTag(installedVersion)
+    val rows = remember(releaseHistory, visibleCount, app.apkFilter, installedVersion, installedTag) {
+        releaseVersionRows(releaseHistory.take(visibleCount), app.apkFilter, installedVersion, installedTag)
+    }
+    // Keyed on the file too: a release whose file changes (another one picked) reads the new
+    // one's manifest, see onFirstVisible below.
+    rows.forEach { row -> key(row.release.tag, row.apkUrl) {
+        val release = row.release
+        val isThisRowDownloading = activeDownloadTag == release.tag &&
+            (downloadStatus != null || installing)
+        val apkUrl = row.apkUrl
+        ReleaseVersionItem(
+            release = release,
+            apkName = row.apkName,
+            apkSize = row.apkSize,
+            apkDate = row.apkDate,
+            sdkInfo = apkUrl?.let { sdkInfoByApkUrl[it] },
+            isSuggested = release.tag == app.latestTag,
+            isInstalled = row.isInstalled,
+            onClick = { onVersionClick(release) },
+            variants = row.variants,
+            autoApkName = row.autoApkName,
+            filesExpanded = release.tag in filesExpanded,
+            onToggleFiles = {
+                filesExpanded = if (release.tag in filesExpanded) {
+                    filesExpanded - release.tag
+                } else {
+                    filesExpanded + release.tag
+                }
+            },
+            // The file already installed for this release is the version itself.
+            onPickFile = { asset ->
+                if (asset.name == row.apkName) onVersionClick(release) else onPickFile(release, asset)
+            },
+            downloadStatus = if (isThisRowDownloading) downloadStatus else null,
+            installing = isThisRowDownloading && downloadStatus == null,
+            onCancel = if (isThisRowDownloading) onCancel else null,
+            modifier = Modifier
+                .onFocusChanged {
+                    if (it.isFocused) {
+                        tvFocusDebugLog {
+                            "FOCUS -> external-version-row (${release.tag}) at " +
+                                "${System.currentTimeMillis()}"
+                        }
+                    }
+                }
+                // Each row reads its APK's manifest over the network, for a line of text at the
+                // far end of a long page, so only once the row is scrolled to.
+                .then(
+                    if (apkUrl != null) {
+                        Modifier.onFirstVisible(minFractionVisible = 0f) { onRequestSdkInfo(apkUrl) }
+                    } else {
+                        Modifier
+                    },
+                ),
+        )
+    } }
+    if (releaseHistory.size > VERSIONS_COLLAPSED_COUNT) {
+        ShowMoreRow(
+            // Null rather than the true remaining count: the screen only ever asked for enough
+            // to know there's at least one more hidden (see the LaunchedEffect that starts
+            // this off), not the true total, so a number here would risk understating what
+            // tapping this actually reveals.
+            hiddenCount = null,
+            expanded = versionsExpanded,
+            onToggle = {
+                val expanding = !versionsExpanded
+                versionsExpanded = expanding
+                if (expanding) onExpandVersions()
+            },
+            modifier = Modifier.onFocusChanged {
+                if (it.isFocused) {
+                    tvFocusDebugLog {
+                        "FOCUS -> external-versions-show-more at ${System.currentTimeMillis()}"
+                    }
+                }
+            },
+        )
     }
 }
 

@@ -4,7 +4,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -24,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -52,7 +60,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
@@ -60,6 +67,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -92,9 +100,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -124,6 +134,9 @@ import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.HideAppAction
 import com.looker.droidify.compose.components.InstallConflictDialog
+import com.looker.droidify.compose.components.TAB_PILL_MS
+import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
+import com.looker.droidify.compose.externalApps.ExternalSourceReleases
 import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.LinkRow
@@ -154,7 +167,9 @@ import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.tvReadable
 import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.theme.LocalIsTelevision
-import com.looker.droidify.compose.theme.LocalOnAccentBarColor
+import com.looker.droidify.compose.theme.EmphasizedAccelerate
+import com.looker.droidify.compose.theme.EmphasizedDecelerate
+import com.looker.droidify.data.FollowedSource
 import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.model.minimal
@@ -166,6 +181,8 @@ import com.looker.droidify.data.model.Permission
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.isInstallableOnDevice
 import com.looker.droidify.data.model.selectForDevice
+import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.model.TestRepository
 import com.looker.droidify.installer.model.InstallState
@@ -217,7 +234,14 @@ fun AppDetailScreen(
     val isHidden by viewModel.isHidden.collectAsStateWithLifecycle()
     val playStoreInstallSource by viewModel.playStoreInstallSource.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
-    val externallySourced by viewModel.externallySourced.collectAsStateWithLifecycle()
+    val externalSources by viewModel.externalSources.collectAsStateWithLifecycle()
+    val updateSource by viewModel.updateSource.collectAsStateWithLifecycle()
+    val externalUpdater by viewModel.externalUpdater.collectAsStateWithLifecycle()
+    // Only for an app a tracked source also offers: that source's tab in the version list, and its
+    // updates when it is the one they come from.
+    val externalViewModel: ExternalAppsViewModel? =
+        if (externalSources.isNotEmpty() || externalUpdater != null) hiltViewModel() else null
+    val externalDownloads = externalViewModel?.downloads?.collectAsStateWithLifecycle()?.value.orEmpty()
     val remoteIcon by viewModel.remoteIcon.collectAsStateWithLifecycle()
     val pushCapabilityConfirmedAbsent by viewModel.pushCapabilityConfirmedAbsent.collectAsStateWithLifecycle()
     val descriptionTranslation by viewModel.descriptionTranslation.collectAsStateWithLifecycle()
@@ -300,6 +324,18 @@ fun AppDetailScreen(
             onUninstall = viewModel::confirmSignatureConflictUninstall,
             onDismiss = viewModel::dismissSignatureConflict,
         )
+    }
+    externalViewModel?.let { external ->
+        val externalConflict by external.installConflict.collectAsStateWithLifecycle()
+        externalConflict?.let { conflict ->
+            InstallConflictDialog(
+                conflict = conflict,
+                appName = (state as? AppDetailState.Success)?.app?.metadata?.name
+                    ?: viewModel.packageName,
+                onUninstall = external::confirmInstallConflictUninstall,
+                onDismiss = external::dismissInstallConflict,
+            )
+        }
     }
 
     // TV / D-pad: this requester points at the main action button (Install / Update / Launch). The
@@ -527,7 +563,14 @@ fun AppDetailScreen(
                     downloadStatus = downloadStatus,
                     downloadTargetVersionCode = downloadTargetVersionCode,
                     installedInfo = installedInfo,
-                    externallySourced = externallySourced,
+                    sources = VersionSources(
+                        external = externalSources,
+                        externalViewModel = externalViewModel,
+                        choice = updateSource,
+                        updater = externalUpdater,
+                        onFollow = viewModel::follow,
+                    ),
+                    externalDownloads = externalDownloads,
                     remoteIcon = remoteIcon,
                     pushCapabilityConfirmedAbsent = pushCapabilityConfirmedAbsent,
                     isFavourite = isFavourite,
@@ -725,7 +768,9 @@ private fun AppDetail(
     downloadStatus: DownloadStatus?,
     downloadTargetVersionCode: Long?,
     installedInfo: InstalledInfo?,
-    externallySourced: Boolean,
+    sources: VersionSources,
+    // The tracked sources' own downloads, by key: one of them may be the update this page runs.
+    externalDownloads: Map<String, DownloadStatus>,
     remoteIcon: File?,
     pushCapabilityConfirmedAbsent: Boolean,
     isFavourite: Boolean,
@@ -810,19 +855,104 @@ private fun AppDetail(
     }
     val installablePackage = installable?.first
     val installableRepo = installable?.second
+    val followedRepoId = (sources.choice.followed as? FollowedSource.Repository)?.repoId
+    val updateTarget = remember(packages, sources.choice.followed, app.metadata.suggestedVersionCode) {
+        packages.updateBuild(sources.choice.followed, app.metadata.suggestedVersionCode)
+    }?.first
     // Compared against installedInfo (the real installed versionCode), not installedPackage: an app
     // installed from a different channel that's ahead of this repo, Google Play shipping a build newer
     // than the repo's own top release, say, has no matching entry in [packages] at all, which used to
     // make this (and isInstalled below) wrongly report "not installed".
-    // externallySourced: a copy a tracked external source is responsible for is not this catalogue
+    // sources.updater: a copy a tracked external source takes the updates of is not this catalogue
     // entry's to update, and the two number their builds on unrelated terms, so the comparison below
-    // says nothing at all about which is newer. See the ViewModel's own property for the whole story.
+    // says nothing at all about which is newer. That source's own update is offered instead. See the
+    // ViewModel's own property for the whole story.
     // catalogueBuildIsOlder is the backstop for a copy nothing here can account for at all, installed
     // from a shop Omnify knows nothing about: it refuses a plain step backwards on the version each
     // publisher wrote, since that is the one number both sides are counting the same thing with.
-    val updateAvailable = !externallySourced && installedInfo != null && installablePackage != null &&
-        !catalogueBuildIsOlder(installedInfo.version, installablePackage.manifest.versionName) &&
-        installedInfo.versionCode < installablePackage.manifest.versionCode
+    val externalUpdate = sources.updater?.takeIf { it.isUpdatePending(installedInfo?.version) }
+    val updateAvailable = externalUpdate != null || (
+        sources.updater == null && installedInfo != null && updateTarget != null &&
+            !catalogueBuildIsOlder(installedInfo.version, updateTarget.manifest.versionName) &&
+            installedInfo.versionCode < updateTarget.manifest.versionCode
+        )
+    // A tracked source's download of this app, when its update is the one this page runs.
+    val updater = sources.updater
+    val externalViewModel = sources.externalViewModel
+    val externalDownload = updater?.let { externalDownloads[it.key] }
+    // The source the updates of the copy on the device come from, whose tab gets the star: the one
+    // followed, else the one Omnify picks, a tracked source that owns the copy or the repository with
+    // the build it would install.
+    val updatingSource: FollowedSource? = when {
+        installedInfo == null -> null
+        sources.updater != null -> FollowedSource.External(sources.updater.key)
+        followedRepoId != null -> FollowedSource.Repository(followedRepoId)
+        else -> installableRepo?.let { FollowedSource.Repository(it.id) }
+    }
+    val updatingName = when (updatingSource) {
+        is FollowedSource.External -> sources.updater?.sourceLabel
+        is FollowedSource.Repository -> packages.firstOrNull { it.second.id == updatingSource.repoId }?.second?.name
+        null -> null
+    }
+    val sourceCount = remember(packages, sources.external) {
+        packages.distinctBy { it.second.id }.size + sources.external.size
+    }
+    val sourceNote = when {
+        installedInfo == null -> null
+        sources.choice.fellBack -> stringResource(R.string.followed_source_gone)
+        sourceCount < 2 || updatingName == null -> null
+        sources.choice.followed != null -> stringResource(R.string.updates_from_FORMAT, updatingName)
+        else -> stringResource(R.string.updates_from_auto_FORMAT, updatingName)
+    }
+    // Following another source, waiting for the user to confirm; then, for one signing with another
+    // key, the source to install from once the copy on the device is gone.
+    var followRequest by remember { mutableStateOf<FollowRequest?>(null) }
+    var pendingSourceSwitch by remember { mutableStateOf<SourceTab?>(null) }
+    val installFrom: (SourceTab) -> Unit = { tab ->
+        when (val source = tab.source) {
+            is FollowedSource.Repository -> packages.filter { it.second.id == source.repoId }
+                .selectForDevice(Long.MAX_VALUE)
+                ?.let { (pkg, repo) -> onInstallVersion(pkg, repo) }
+            is FollowedSource.External -> tab.external?.let { sources.externalViewModel?.installOrUpdate(it) }
+        }
+    }
+    LaunchedEffect(installedInfo, pendingSourceSwitch) {
+        val pending = pendingSourceSwitch ?: return@LaunchedEffect
+        // installedInfo is re-read on every install/uninstall; null means the app is now gone. Only then
+        // is the source followed: an uninstall the user turned down leaves everything as it was.
+        if (installedInfo == null) {
+            sources.onFollow(pending.source)
+            installFrom(pending)
+            pendingSourceSwitch = null
+        }
+    }
+    followRequest?.let { request ->
+        FollowSourceDialog(
+            request = request,
+            appName = app.metadata.name,
+            onFollow = {
+                sources.onFollow(request.tab.source)
+                if (request.installsNow) installFrom(request.tab)
+                followRequest = null
+            },
+            onReplace = {
+                pendingSourceSwitch = request.tab
+                onUninstall()
+                followRequest = null
+            },
+            onDismiss = { followRequest = null },
+        )
+    }
+    val listSources = sources.copy(
+        updating = updatingSource,
+        onFollowTab = if (installedInfo != null) {
+            { tab ->
+                followRequest = followRequestOf(tab, installedInfo, packages, updatingName ?: installedInfo.source)
+            }
+        } else {
+            null
+        },
+    )
     val isTelevision = LocalIsTelevision.current
     val coroutineScope = rememberCoroutineScope()
     // Where the versions section actually lands once composed (in the scrolling Column's own
@@ -873,12 +1003,21 @@ private fun AppDetail(
             onToggleInstallSource = onToggleInstallSource,
             updateAvailable = updateAvailable,
             installState = installState,
-            downloadStatus = downloadStatus,
+            downloadStatus = downloadStatus ?: externalDownload,
             downloadTargetVersionCode = downloadTargetVersionCode,
-            onInstallOrUpdate = onInstallOrUpdate,
+            onInstallOrUpdate = if (externalUpdate != null && externalViewModel != null) {
+                { externalViewModel.installOrUpdate(externalUpdate) }
+            } else {
+                onInstallOrUpdate
+            },
             onLaunch = onLaunch,
             onUninstall = onUninstall,
-            onCancel = onCancel,
+            onCancel = if (downloadStatus == null && externalDownload != null && externalViewModel != null) {
+                { if (updater != null) externalViewModel.cancel(updater) }
+            } else {
+                onCancel
+            },
+            sourceNote = sourceNote,
             primaryActionFocusRequester = primaryActionFocusRequester,
             onViewVersionsClick = if (packages.isNotEmpty()) {
                 {
@@ -947,6 +1086,7 @@ private fun AppDetail(
                     Spacer(modifier = Modifier.height(16.dp))
                     VersionsSection(
                         packages = packages,
+                        sources = listSources,
                         installableRepo = installableRepo,
                         onSelectRepo = onSelectRepo,
                         app = app,
@@ -979,6 +1119,7 @@ private fun AppDetail(
                     onCustomButtonClick = onCustomButtonClick,
                     descriptionTranslation = descriptionTranslation,
                     supportedLanguages = supportedLanguages,
+                    sources = listSources,
                     installableRepo = installableRepo,
                     onSelectRepo = onSelectRepo,
                     onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
@@ -1073,6 +1214,7 @@ private fun AppDetail(
                     onCustomButtonClick = onCustomButtonClick,
                     descriptionTranslation = descriptionTranslation,
                     supportedLanguages = supportedLanguages,
+                    sources = listSources,
                     installableRepo = installableRepo,
                     onSelectRepo = onSelectRepo,
                     onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
@@ -1114,6 +1256,7 @@ private fun AppDetailBody(
     onCustomButtonClick: (url: String) -> Unit,
     descriptionTranslation: DescriptionTranslation,
     supportedLanguages: SupportedLanguages,
+    sources: VersionSources,
     installableRepo: Repo?,
     onSelectRepo: (Int) -> Unit,
     onVersionClick: (Package, Repo) -> Unit,
@@ -1294,6 +1437,7 @@ private fun AppDetailBody(
 
         VersionsSection(
             packages = packages,
+            sources = sources,
             installableRepo = installableRepo,
             onSelectRepo = onSelectRepo,
             app = app,
@@ -1310,13 +1454,37 @@ private fun AppDetailBody(
 }
 
 /**
- * The repo tabs (when more than one offers the app) and the version list — extracted only so
+ * Everything besides its repositories the version list shows an app's sources with: the tracked
+ * external sources of the same package ([external], read through [externalViewModel]), the source the
+ * user follows ([choice]) and the tracked source taking the updates ([updater]). [updating] and
+ * [onFollowTab] are the page's own reading of those against what is installed: the tab with the star,
+ * and following another tab, null while the app isn't installed.
+ */
+internal data class VersionSources(
+    val external: List<ExternalApp>,
+    val externalViewModel: ExternalAppsViewModel?,
+    val choice: UpdateSourceChoice,
+    val updater: ExternalApp?,
+    val onFollow: (FollowedSource) -> Unit,
+    val updating: FollowedSource? = null,
+    val onFollowTab: ((SourceTab) -> Unit)? = null,
+)
+
+/**
+ * The source tabs (when more than one source offers the app) and the version list, extracted so
  * [AppDetail] can wrap it in a single [onGloballyPositioned] anchor for the hero card's "see all
- * versions" link; the content is unchanged.
+ * versions" link.
+ *
+ * A tab per repository offering the app, and one per tracked external source of the same package,
+ * whose releases it lists the way that source's own page does. Switching keeps the bar in place: its
+ * pill glides to the tab picked while the list leaves toward the side it came from and the new one
+ * arrives from the other, so moving to another source reads as turning a page of the same list rather
+ * than opening another screen.
  */
 @Composable
 private fun VersionsSection(
     packages: List<Pair<Package, Repo>>,
+    sources: VersionSources,
     installableRepo: Repo?,
     onSelectRepo: (Int) -> Unit,
     app: App,
@@ -1331,164 +1499,262 @@ private fun VersionsSection(
 ) {
     Column(modifier = Modifier.onGloballyPositioned { onAnchorPositioned(it.positionInParent().y.toInt()) }) {
         SectionTitle(stringResource(R.string.versions))
-        // Repos that offer this app. When more than one offers it (e.g. F-Droid + IzzyOnDroid), show
-        // tabs so the user can pick which repo to install from; both the version list below and the
-        // Install/Update button then follow the selected repo. Default to the repo that provides the
-        // device-suggested version.
-        val repos = remember(packages) { packages.map { it.second }.distinctBy { it.id } }
-        var selectedRepoId by remember(repos, installableRepo) {
-            mutableStateOf(installableRepo?.id ?: repos.firstOrNull()?.id)
+        val tabs = remember(packages, sources.external) {
+            val repos = packages.map { it.second }.distinctBy { it.id }
+            repos.map { repo ->
+                SourceTab(
+                    source = FollowedSource.Repository(repo.id),
+                    name = repo.name,
+                    version = packages.filter { it.second.id == repo.id }
+                        .selectForDevice(Long.MAX_VALUE)
+                        ?.first?.manifest?.versionName,
+                )
+            } + sources.external.map { external ->
+                SourceTab(
+                    source = FollowedSource.External(external.key),
+                    name = external.sourceLabel,
+                    version = releaseVersionLabel(external.latestApkName, external.latestTag).ifEmpty { null },
+                    external = external,
+                )
+            }
         }
-        LaunchedEffect(selectedRepoId) { selectedRepoId?.let(onSelectRepo) }
+        // Opens on the source the updates come from, else the repo that provides the device-suggested
+        // version. A tab the user picks stays picked for as long as it is there.
+        var pickedSource by remember { mutableStateOf<FollowedSource?>(null) }
+        val selectedSource = pickedSource?.takeIf { picked -> tabs.any { it.source == picked } }
+            ?: sources.updating?.takeIf { updating -> tabs.any { it.source == updating } }
+            ?: installableRepo?.let { FollowedSource.Repository(it.id) }
+            ?: tabs.firstOrNull()?.source
+        // The Install button follows the repository tab on screen, unless one is followed for updates.
+        LaunchedEffect(selectedSource) {
+            (selectedSource as? FollowedSource.Repository)?.let { onSelectRepo(it.repoId) }
+        }
         // TV / D-pad: Material3's ScrollableTabRow doesn't release focus downward on its own, leaving a
-        // remote user stuck once they've picked a repo tab. Points at the first version row below. No
-        // effect on touch.
+        // remote user stuck once they've picked a tab. Points at the first row below. No effect on touch.
         val firstVersionFocusRequester = remember { FocusRequester() }
-        if (repos.size > 1) {
-            val selectedIndex = repos.indexOfFirst { it.id == selectedRepoId }.coerceAtLeast(0)
+        // The list keeps the height it shows when another tab is picked. A shorter list in its place
+        // pulled the end of the page up, and the page with it under the reader, tabs and all, at the very
+        // moment the bar is meant to stay put.
+        var shownHeightPx by remember { mutableIntStateOf(0) }
+        var heldHeightPx by remember { mutableIntStateOf(0) }
+        val selectedIndex = tabs.indexOfFirst { it.source == selectedSource }.coerceAtLeast(0)
+        if (tabs.size > 1) {
             AccentScrollableTabRow(
                 selectedTabIndex = selectedIndex,
                 edgePadding = 16.dp,
                 modifier = Modifier.fillMaxWidth().tvDpadDownTo(firstVersionFocusRequester, debugLabel = "repo-tabs"),
             ) {
-                repos.forEachIndexed { index, repo ->
-                    Tab(
+                tabs.forEachIndexed { index, tab ->
+                    SourceTabItem(
+                        tab = tab,
                         selected = index == selectedIndex,
-                        onClick = { selectedRepoId = repo.id },
-                        // TV only: the focused tab scales up. No-op on touch.
-                        modifier = Modifier.tvFocusScale(),
-                        selectedContentColor = LocalOnAccentBarColor.current,
-                        unselectedContentColor = LocalOnAccentBarColor.current.copy(alpha = 0.7f),
-                        text = { Text(repo.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        updating = tab.source == sources.updating,
+                        onClick = {
+                            heldHeightPx = shownHeightPx
+                            pickedSource = tab.source
+                        },
                     )
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
-
-        // Versions offered by the selected repo. Multi-ABI apps (Brave, VLC, …) ship one APK per
-        // architecture under the SAME versionName but DIFFERENT version codes, so the raw list showed
-        // the same "version" several times — including builds this device can't even install. Collapse
-        // to one row per versionName, keeping the build the device can actually install (primary ABI
-        // first); versions with no compatible build are dropped. This screen is a single (non-lazy)
-        // scroll column, so every row composes eagerly; cap to the newest releases (sorted below).
-        val shownPackages = remember(packages, selectedRepoId, showIncompatibleVersions) {
-            packages
-                .filter { it.second.id == selectedRepoId }
-                .groupBy { it.first.manifest.versionName }
-                .values
-                .mapNotNull { variants ->
-                    variants.selectForDevice(Long.MAX_VALUE)
-                    // With the setting on, a version whose every build needs a newer Android or another
-                    // architecture is still listed, marked as such, instead of silently missing. That is
-                    // all the setting ever meant, and until now it meant nothing at all: it is for
-                    // seeing what a repository really publishes, not for installing it.
-                        ?: variants.takeIf { showIncompatibleVersions }
-                            ?.maxByOrNull { it.first.manifest.versionCode }
+        val density = LocalDensity.current
+        Box(
+            modifier = Modifier
+                .heightIn(min = with(density) { heldHeightPx.toDp() })
+                .onSizeChanged { shownHeightPx = it.height },
+        ) {
+            AnimatedContent(
+                targetState = selectedSource,
+                transitionSpec = {
+                    val forward = tabs.indexOfFirst { it.source == targetState } >=
+                        tabs.indexOfFirst { it.source == initialState }
+                    // The list leaving is gone before the new one shows, so the two never sit on each other.
+                    val arriving = tween<IntOffset>(TAB_PILL_MS, easing = EmphasizedDecelerate)
+                    val leaving = tween<IntOffset>(SOURCE_LEAVE_MS, easing = EmphasizedAccelerate)
+                    val enter = slideInHorizontally(arriving) { width -> if (forward) width / 10 else -width / 10 } +
+                        fadeIn(tween(TAB_PILL_MS - SOURCE_LEAVE_MS, SOURCE_LEAVE_MS, EmphasizedDecelerate))
+                    val exit = slideOutHorizontally(leaving) { width -> if (forward) -width / 10 else width / 10 } +
+                        fadeOut(tween(SOURCE_LEAVE_MS, easing = EmphasizedAccelerate))
+                    enter togetherWith exit using SizeTransform(clip = false)
+                },
+                label = "versionSource",
+            ) { source ->
+                val tab = tabs.firstOrNull { it.source == source }
+                Column {
+                    val onFollowTab = sources.onFollowTab
+                    if (tab != null && tabs.size > 1 && onFollowTab != null) {
+                        FollowSourceRow(
+                            updating = tab.source == sources.updating,
+                            pinned = sources.choice.followed != null,
+                            onFollow = { onFollowTab(tab) },
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
+                        )
+                    }
+                    val external = tab?.external
+                    if (external != null) {
+                        sources.externalViewModel?.let { ExternalSourceReleases(app = external, viewModel = it) }
+                    } else {
+                        RepositoryVersions(
+                            packages = packages,
+                            repoId = (source as? FollowedSource.Repository)?.repoId,
+                            app = app,
+                            onVersionClick = onVersionClick,
+                            downloadStatus = downloadStatus,
+                            installing = installing,
+                            downloadTargetVersionCode = downloadTargetVersionCode,
+                            onCancel = onCancel,
+                            showIncompatibleVersions = showIncompatibleVersions,
+                            firstVersionFocusRequester = firstVersionFocusRequester,
+                            lastVersionFocusRequester = lastVersionFocusRequester,
+                        )
+                    }
                 }
-                .sortedByDescending { it.first.manifest.versionCode }
+            }
         }
-        // The release the Install button would pull from the selected repo gets the "suggested" badge,
-        // so the badge always matches what tapping Install actually does for this repo.
-        val suggestedVersion = remember(shownPackages, app.metadata.suggestedVersionCode) {
-            shownPackages.selectForDevice(app.metadata.suggestedVersionCode)?.first?.manifest?.versionCode
-        }
-        // Collapsed to the newest few by default — an app with a long version history shouldn't make the
-        // whole page an endless scroll. Collapses back on switching repo tabs, since that's a new list.
-        var versionsExpanded by remember(selectedRepoId) { mutableStateOf(false) }
-        val visibleCount = if (versionsExpanded) MAX_VERSIONS_SHOWN else VERSIONS_COLLAPSED_COUNT
-        // Where "see all versions" (see the hero card link) lands focus, so D-pad "up" from there walks
-        // back up through the list normally instead of jumping straight back to that now off-screen link.
-        val lastVisibleIndex = minOf(visibleCount, shownPackages.size) - 1
-        shownPackages.take(visibleCount).forEachIndexed { index, (pkg, repo) ->
-            val isSuggested = suggestedVersion != null && pkg.manifest.versionCode == suggestedVersion
-            val isThisRowDownloading = downloadTargetVersionCode == pkg.manifest.versionCode &&
-                (downloadStatus != null || installing)
-            PackageItem(
-                item = pkg,
-                repo = repo,
-                onClick = { onVersionClick(pkg, repo) },
-                onLongClick = {},
-                modifier = Modifier
-                    .then(if (index == 0) Modifier.focusRequester(firstVersionFocusRequester) else Modifier)
-                    .then(
-                        if (index == lastVisibleIndex && lastVersionFocusRequester != null) {
-                            Modifier.focusRequester(lastVersionFocusRequester)
-                        } else {
-                            Modifier
-                        },
-                    )
-                    .tvBringIntoViewOnFocus()
-                    .onFocusChanged {
-                        if (it.isFocused) {
-                            tvFocusDebugLog {
-                                "FOCUS -> version-row[$index] (${pkg.manifest.versionName}) at " +
-                                    "${System.currentTimeMillis()}"
-                            }
-                        }
+    }
+}
+
+/** How long a source's version list takes to leave before another one comes in. */
+private const val SOURCE_LEAVE_MS = 90
+
+/** The versions [repoId] offers, newest first, collapsed to the newest few until "show more". */
+@Composable
+private fun RepositoryVersions(
+    packages: List<Pair<Package, Repo>>,
+    repoId: Int?,
+    app: App,
+    onVersionClick: (Package, Repo) -> Unit,
+    downloadStatus: DownloadStatus?,
+    installing: Boolean,
+    downloadTargetVersionCode: Long?,
+    onCancel: () -> Unit,
+    showIncompatibleVersions: Boolean,
+    firstVersionFocusRequester: FocusRequester,
+    lastVersionFocusRequester: FocusRequester?,
+) {
+    // Versions offered by the selected repo. Multi-ABI apps (Brave, VLC, …) ship one APK per
+    // architecture under the SAME versionName but DIFFERENT version codes, so the raw list showed
+    // the same "version" several times, including builds this device can't even install. Collapse
+    // to one row per versionName, keeping the build the device can actually install (primary ABI
+    // first); versions with no compatible build are dropped. This screen is a single (non-lazy)
+    // scroll column, so every row composes eagerly; cap to the newest releases (sorted below).
+    val shownPackages = remember(packages, repoId, showIncompatibleVersions) {
+        packages
+            .filter { it.second.id == repoId }
+            .groupBy { it.first.manifest.versionName }
+            .values
+            .mapNotNull { variants ->
+                variants.selectForDevice(Long.MAX_VALUE)
+                // With the setting on, a version whose every build needs a newer Android or another
+                // architecture is still listed, marked as such, instead of silently missing. That is
+                // all the setting ever meant, and until now it meant nothing at all: it is for
+                // seeing what a repository really publishes, not for installing it.
+                    ?: variants.takeIf { showIncompatibleVersions }
+                        ?.maxByOrNull { it.first.manifest.versionCode }
+            }
+            .sortedByDescending { it.first.manifest.versionCode }
+    }
+    // The release the Install button would pull from the selected repo gets the "suggested" badge,
+    // so the badge always matches what tapping Install actually does for this repo.
+    val suggestedVersion = remember(shownPackages, app.metadata.suggestedVersionCode) {
+        shownPackages.selectForDevice(app.metadata.suggestedVersionCode)?.first?.manifest?.versionCode
+    }
+    // Collapsed to the newest few by default: an app with a long version history shouldn't make the
+    // whole page an endless scroll. Collapses back on switching repo tabs, since that's a new list.
+    var versionsExpanded by remember(repoId) { mutableStateOf(false) }
+    val visibleCount = if (versionsExpanded) MAX_VERSIONS_SHOWN else VERSIONS_COLLAPSED_COUNT
+    // Where "see all versions" (see the hero card link) lands focus, so D-pad "up" from there walks
+    // back up through the list normally instead of jumping straight back to that now off-screen link.
+    val lastVisibleIndex = minOf(visibleCount, shownPackages.size) - 1
+    shownPackages.take(visibleCount).forEachIndexed { index, (pkg, repo) ->
+        val isSuggested = suggestedVersion != null && pkg.manifest.versionCode == suggestedVersion
+        val isThisRowDownloading = downloadTargetVersionCode == pkg.manifest.versionCode &&
+            (downloadStatus != null || installing)
+        PackageItem(
+            item = pkg,
+            repo = repo,
+            onClick = { onVersionClick(pkg, repo) },
+            onLongClick = {},
+            modifier = Modifier
+                .then(if (index == 0) Modifier.focusRequester(firstVersionFocusRequester) else Modifier)
+                .then(
+                    if (index == lastVisibleIndex && lastVersionFocusRequester != null) {
+                        Modifier.focusRequester(lastVersionFocusRequester)
+                    } else {
+                        Modifier
                     },
-                highlighted = isSuggested,
-                downloadStatus = if (isThisRowDownloading) downloadStatus else null,
-                installing = isThisRowDownloading && downloadStatus == null,
-                onCancel = if (isThisRowDownloading) onCancel else null,
-                // Several chips can apply at once (the installed version is also the suggested one), so
-                // they show side by side instead of one excluding the other.
-                label = if (isSuggested || pkg.installed || !pkg.isInstallableOnDevice()) {
-                    {
-                        if (isSuggested) {
-                            Text(
-                                text = stringResource(R.string.suggested).uppercase(),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                modifier = Modifier
-                                    .background(
-                                        MaterialTheme.colorScheme.tertiaryContainer,
-                                        shape = CircleShape,
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                            )
-                        }
-                        if (pkg.installed) {
-                            Text(
-                                text = stringResource(R.string.installed).uppercase(),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier
-                                    .background(
-                                        MaterialTheme.colorScheme.secondaryContainer,
-                                        shape = CircleShape,
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                            )
-                        }
-                        // Only ever reachable with the setting on, since such a row is otherwise absent.
-                        // Saying so matters: tapping it would hand Android a build it will refuse.
-                        if (!pkg.isInstallableOnDevice()) {
-                            Text(
-                                text = stringResource(R.string.incompatible_version).uppercase(),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier
-                                    .background(
-                                        MaterialTheme.colorScheme.errorContainer,
-                                        shape = CircleShape,
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                            )
+                )
+                .tvBringIntoViewOnFocus()
+                .onFocusChanged {
+                    if (it.isFocused) {
+                        tvFocusDebugLog {
+                            "FOCUS -> version-row[$index] (${pkg.manifest.versionName}) at " +
+                                "${System.currentTimeMillis()}"
                         }
                     }
-                } else {
-                    null
                 },
-            )
-        }
-        if (shownPackages.size > VERSIONS_COLLAPSED_COUNT) {
-            ShowMoreRow(
-                hiddenCount = minOf(shownPackages.size, MAX_VERSIONS_SHOWN) - VERSIONS_COLLAPSED_COUNT,
-                expanded = versionsExpanded,
-                onToggle = { versionsExpanded = !versionsExpanded },
-            )
-        }
+            highlighted = isSuggested,
+            downloadStatus = if (isThisRowDownloading) downloadStatus else null,
+            installing = isThisRowDownloading && downloadStatus == null,
+            onCancel = if (isThisRowDownloading) onCancel else null,
+            // Several chips can apply at once (the installed version is also the suggested one), so
+            // they show side by side instead of one excluding the other.
+            label = if (isSuggested || pkg.installed || !pkg.isInstallableOnDevice()) {
+                {
+                    if (isSuggested) {
+                        Text(
+                            text = stringResource(R.string.suggested).uppercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.tertiaryContainer,
+                                    shape = CircleShape,
+                                )
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        )
+                    }
+                    if (pkg.installed) {
+                        Text(
+                            text = stringResource(R.string.installed).uppercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = CircleShape,
+                                )
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        )
+                    }
+                    // Only ever reachable with the setting on, since such a row is otherwise absent.
+                    // Saying so matters: tapping it would hand Android a build it will refuse.
+                    if (!pkg.isInstallableOnDevice()) {
+                        Text(
+                            text = stringResource(R.string.incompatible_version).uppercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.errorContainer,
+                                    shape = CircleShape,
+                                )
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        )
+                    }
+                }
+            } else {
+                null
+            },
+        )
+    }
+    if (shownPackages.size > VERSIONS_COLLAPSED_COUNT) {
+        ShowMoreRow(
+            hiddenCount = minOf(shownPackages.size, MAX_VERSIONS_SHOWN) - VERSIONS_COLLAPSED_COUNT,
+            expanded = versionsExpanded,
+            onToggle = { versionsExpanded = !versionsExpanded },
+        )
     }
 }
 
@@ -1522,6 +1788,8 @@ private fun AppHeaderCard(
     onLaunch: () -> Unit,
     onUninstall: () -> Unit,
     onCancel: () -> Unit,
+    // Where the app's updates come from, when more than one source offers it.
+    sourceNote: String?,
     primaryActionFocusRequester: FocusRequester,
     onViewVersionsClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
@@ -1665,6 +1933,7 @@ private fun AppHeaderCard(
             },
             onViewVersionsClick = onViewVersionsClick,
             isWarning = installedInfo?.signatureMismatch == true,
+            note = sourceNote,
         ),
     )
 }

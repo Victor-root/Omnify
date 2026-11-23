@@ -125,6 +125,11 @@ data class Settings(
      *  shared into the app) opens the add dialog for a last look before adding, rather than being
      *  added straight away. Off by default: tapping a badge already said what it does. */
     val confirmBadgeAdd: Boolean = false,
+    /** The source each app's updates come from, chosen on its page, by package name (see
+     *  [com.looker.droidify.data.FollowedSource]); an app missing here is on the automatic choice.
+     *  Excluded from the generic settings backup/restore, same as [enabledRepoIds]: a repository is
+     *  named by its id on this device. */
+    val followedSources: Map<String, String> = emptyMap(),
 ) {
     /** Whether [packageName] is installed with Google Play recorded as its installer. */
     fun installsAsPlayStore(packageName: String): Boolean =

@@ -55,12 +55,14 @@ class PendingUpdates @Inject constructor(
     private val externalAppRepository: ExternalAppRepository,
     private val externalRefresher: ExternalRefresher,
     private val settingsRepository: SettingsRepository,
+    private val followedSources: FollowedSources,
     @param:ApplicationContext private val context: Context,
 ) {
 
     /**
      * [cataloguePackages] and [externalApps], again whenever something either reads changes: the
-     * catalogue (a sync), the installed apps, the tracked sources, or which apps the user hid.
+     * catalogue (a sync), the installed apps, the tracked sources, which apps the user hid, or which
+     * source the user follows for one.
      *
      * Those flows only say that something changed: what to do about it is read fresh each time, so a
      * placeholder can never be mistaken for an answer. The first value is therefore a real one, and
@@ -73,7 +75,8 @@ class PendingUpdates @Inject constructor(
         installedRepository.getAllStream(),
         externalAppRepository.apps,
         settingsRepository.get { hiddenApps }.distinctUntilChanged(),
-    ) { _, _, _, _ -> }
+        followedSources.stored,
+    ) { _, _, _, _, _ -> }
         .mapLatest {
             PendingUpdateSet(cataloguePackages(), externalApps()).also { pending ->
                 if (BuildConfig.TRACES) {
@@ -102,11 +105,13 @@ class PendingUpdates @Inject constructor(
     /** The package names [catalogueApps] lists: the catalogue half of everything waiting. */
     suspend fun cataloguePackages(): Set<String> {
         val hidden = settingsRepository.get { hiddenApps }.first()
-        val suggested = appRepository.suggestedVersions()
+        val followed = followedSources.current()
+        val suggested = appRepository.suggestedVersions(followed)
         val installedApps = installedRepository.getAllStream().first()
         val externallyOwned = externallySourcedPackages(
             installedSigners = installedApps.associate { it.packageName to it.signature },
             suggested = suggested,
+            followed = followed,
         )
         return installedApps
             .filter { installed ->
@@ -124,8 +129,8 @@ class PendingUpdates @Inject constructor(
     }
 
     /**
-     * Installed packages a tracked external source, not the catalogue, is responsible for, by the same
-     * rule the Updates tab reads ([externalSourceOwns]).
+     * Installed packages a tracked external source, not the catalogue, is responsible for: the one the
+     * user follows for it, else by the same rule the Updates tab reads ([externalSourceOwns]).
      *
      * Disabled and muted sources count too, since turning a source off says nothing about where the copy
      * on the device came from. The installed version is read live from the package manager rather than
@@ -134,17 +139,20 @@ class PendingUpdates @Inject constructor(
     private suspend fun externallySourcedPackages(
         installedSigners: Map<String, String>,
         suggested: Map<String, SuggestedVersion>,
+        followed: Map<String, FollowedSource>,
     ): Set<String> = externalAppRepository.getApps()
         .mapNotNullTo(mutableSetOf()) { app ->
             val pkg = app.packageName ?: return@mapNotNullTo null
             if (pkg !in installedSigners) return@mapNotNullTo null
-            // Another build holding the package name isn't this source's to update.
-            if (app.isForeignCopy(installedSigners[pkg])) return@mapNotNullTo null
-            val owns = externalSourceOwns(
-                ownsInstalled = app.ownsInstalled(externalRefresher.installedVersionName(pkg)),
-                installedSigner = installedSigners[pkg],
-                catalogueSigners = suggested[pkg]?.signers.orEmpty(),
-            )
+            val owns = app.takesUpdates(followed[pkg]) {
+                // Another build holding the package name isn't this source's to update.
+                !app.isForeignCopy(installedSigners[pkg]) &&
+                    externalSourceOwns(
+                        ownsInstalled = app.ownsInstalled(externalRefresher.installedVersionName(pkg)),
+                        installedSigner = installedSigners[pkg],
+                        catalogueSigners = suggested[pkg]?.signers.orEmpty(),
+                    )
+            }
             pkg.takeIf { owns }
         }
 
@@ -156,11 +164,14 @@ class PendingUpdates @Inject constructor(
      * (installed before the source was tracked, or an install that never really landed), and
      * [ExternalApp.isUpdatePending] uses the live value to settle it. A source that isn't installed at
      * all therefore yields nothing here: automatic updates update, they never install something new.
+     * Nor does a source other than the one the user follows for its package, once they follow one.
      */
     suspend fun externalApps(): List<ExternalApp> {
         val hidden = settingsRepository.get { hiddenApps }.first()
+        val followed = followedSources.current()
         return externalAppRepository.getApps().filter { app ->
             if (app.key in hidden) return@filter false
+            if (!app.takesUpdates(app.packageName?.let { followed[it] }) { true }) return@filter false
             // Another build holding the package name isn't this app installed (see installedVersionOf).
             app.isUpdatePending(externalRefresher.installedVersionOf(app))
         }

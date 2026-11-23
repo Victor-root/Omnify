@@ -170,12 +170,14 @@ class BackupRepository @Inject constructor(
                 // BackupCategory's own doc comment for why they're split out at all. The GitHub
                 // token goes the same way, into GITHUB_TOKEN, so leaving that category
                 // unchecked genuinely keeps the token out of the file, rather than writing it
-                // here anyway where nothing would ever look for it.
+                // here anyway where nothing would ever look for it. Followed sources stay out too:
+                // they name repositories by their id on this device.
                 val settings = settingsRepository.getInitial().copy(
                     favouriteApps = emptySet(),
                     favouritedAt = emptyMap(),
                     hiddenApps = emptySet(),
                     enabledRepoIds = emptySet(),
+                    followedSources = emptyMap(),
                     githubToken = "",
                 )
                 zip.writeEntry(ENTRY_SETTINGS, json.encodeToString(settings))
@@ -322,6 +324,7 @@ class BackupRepository @Inject constructor(
                 favouritedAt = current.favouritedAt,
                 hiddenApps = current.hiddenApps,
                 enabledRepoIds = current.enabledRepoIds,
+                followedSources = current.followedSources,
                 // The token is BackupCategory.GITHUB_TOKEN's business, so the one in place stays put.
                 // This also covers a backup written before that category existed: its settings entry
                 // still carries a token, and restoring settings is not the user ticking the box that

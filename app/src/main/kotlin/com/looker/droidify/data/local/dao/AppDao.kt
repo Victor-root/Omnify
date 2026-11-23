@@ -555,6 +555,8 @@ interface AppDao {
 
     data class AppVersionCodeRow(
         val packageName: String,
+        // The repository the version is from: each repo offering the app gets its own row.
+        val repoId: Int,
         val versionCode: Long,
         // The version as its publisher writes it ("7.1.0"), read from the same row as the versionCode
         // above. Two publishers of one app number their builds however they like, so a version code
@@ -572,17 +574,17 @@ interface AppDao {
     ): List<AppVersionCodeRow>
 
     /**
-     * Highest *installable-on-this-device* version per app **across all repos**, with the
+     * Highest *installable-on-this-device* version per app **in each repo offering it**, with the
      * signing-certificate fingerprint(s) of that exact version — used to detect updates and to tell
      * whether an update can actually replace the installed app. Mirrors
      * [com.looker.droidify.data.model.selectForDevice] / isInstallableOnDevice: a version counts only
      * when the running [sdk] is at least its minSdk and, if it ships native code, it targets one of the
      * device's [abis] (no native code = universal).
      *
-     * Grouped by packageName, not by the per-repo app row: the same app can be in several repos (e.g.
-     * F-Droid + IzzyOnDroid) that publish different newest versions, and grouping per-repo would let an
-     * older repo's max hide a newer build elsewhere (so an available update wouldn't show). Taking the
-     * MAX across every repo mirrors the detail screen, which installs the newest version wherever it is.
+     * One row per repo, because the same app can be in several repos (e.g. F-Droid + IzzyOnDroid) that
+     * publish different newest versions, and which one counts is the caller's choice: the newest
+     * wherever it lives, like the detail screen installs, unless the user follows one repo for that app
+     * (see [com.looker.droidify.data.suggestedVersionOf]).
      *
      * Multi-ABI apps (e.g. RustDesk) publish one APK per ABI under *different* versionCodes, so the
      * device-compatibility filter runs first, otherwise a device-blind MAX would pick another
@@ -605,14 +607,20 @@ interface AppDao {
             "(version.nativeCode NOT GLOB '*\"*' OR $abiMatch)"
         }
         val query = SimpleSQLiteQuery(
-            "SELECT app.packageName AS packageName, MAX(version.versionCode) AS versionCode, " +
+            "SELECT app.packageName AS packageName, app.repoId AS repoId, " +
+                "MAX(version.versionCode) AS versionCode, " +
                 "version.versionName AS versionName, version.signer AS signer FROM version " +
                 "JOIN app ON app.id = version.appId " +
-                "WHERE version.minSdkVersion <= ? AND $compatible GROUP BY app.packageName",
+                "WHERE version.minSdkVersion <= ? AND $compatible GROUP BY app.packageName, app.repoId",
             (listOf<Any>(sdk) + abis).toTypedArray(),
         )
         return _rawDeviceCompatibleVersionCodes(query)
     }
+
+    data class PackageRepoRow(val packageName: String, val repoId: Int)
+
+    @Query("SELECT packageName, repoId FROM app WHERE packageName IN (:packageNames)")
+    suspend fun repoIdsOf(packageNames: List<String>): List<PackageRepoRow>
 
     @Transaction
     @Query("SELECT * FROM app WHERE packageName = :packageName")

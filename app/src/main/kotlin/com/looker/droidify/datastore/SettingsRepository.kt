@@ -122,6 +122,9 @@ interface SettingsRepository {
     suspend fun setAccentMatchesAppIcon(enable: Boolean)
 
     suspend fun setConfirmBadgeAdd(enable: Boolean)
+
+    /** Follows [source] for [packageName]'s updates (see [Settings.followedSources]). */
+    suspend fun setFollowedSource(packageName: String, source: String)
 }
 
 inline fun <T> SettingsRepository.get(crossinline block: suspend Settings.() -> T): Flow<T> {

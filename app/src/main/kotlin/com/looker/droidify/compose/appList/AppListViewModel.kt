@@ -11,12 +11,15 @@ import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.CATALOG_REFRESH_MS
+import com.looker.droidify.data.FollowedSource
+import com.looker.droidify.data.FollowedSources
 import com.looker.droidify.data.InstalledIdentityRepository
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.PendingUpdates
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.SuggestedVersion
 import com.looker.droidify.data.externalSourceOwns
+import com.looker.droidify.data.takesUpdates
 import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.data.model.MadeForTv
@@ -167,6 +170,7 @@ class AppListViewModel @Inject constructor(
     private val networkMonitor: NetworkMonitor,
     private val pendingUpdates: PendingUpdates,
     private val updateCheckHistory: UpdateCheckHistory,
+    followedSources: FollowedSources,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -351,13 +355,21 @@ class AppListViewModel @Inject constructor(
         _selectedTab.value = tab
     }
 
-    // packageName -> the catalogue version we'd install on this device (versionCode + signer
-    // fingerprints), taken as the newest across all repos, re-queried whenever the catalogue changes.
-    private val suggestedVersions: StateFlow<Map<String, SuggestedVersion>> = catalogChanges
-        .mapLatest { appRepository.suggestedVersions() }
+    // The source each app's updates come from where the user chose one, and packageName -> the catalogue
+    // version we'd install on this device (versionCode + signer fingerprints), from that repo or else the
+    // newest across all repos, re-queried whenever the catalogue, the tracked sources or a choice changes.
+    private val suggestedVersions: StateFlow<FollowedVersions> = combine(
+        catalogChanges,
+        externalAppRepository.apps,
+        followedSources.stored,
+    ) { _, _, _ -> }
+        .mapLatest {
+            val followed = followedSources.current()
+            FollowedVersions(followed, appRepository.suggestedVersions(followed))
+        }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .asHomeState(emptyMap())
+        .asHomeState(FollowedVersions(emptyMap(), emptyMap()))
 
     /**
      * Installed packageName -> the real on-device versionName (e.g. "6.5.5-c"), for installed catalogue
@@ -403,14 +415,17 @@ class AppListViewModel @Inject constructor(
         externalApps.mapNotNull { app ->
             val pkg = app.packageName ?: return@mapNotNull null
             if (pkg !in installed.versions) return@mapNotNull null
-            // Another build holding the package name (a modified app published under the original's)
-            // is not what this source installs.
-            if (app.isForeignCopy(installed.signatures[pkg])) return@mapNotNull null
-            val owns = externalSourceOwns(
-                ownsInstalled = app.ownsInstalled(installedNames[pkg]),
-                installedSigner = installed.signatures[pkg],
-                catalogueSigners = suggested[pkg]?.signers.orEmpty(),
-            )
+            // The source the user follows for it, when they chose one, is the page it opens on.
+            val owns = app.takesUpdates(suggested.followed[pkg]) {
+                // Another build holding the package name (a modified app published under the
+                // original's) is not what this source installs.
+                !app.isForeignCopy(installed.signatures[pkg]) &&
+                    externalSourceOwns(
+                        ownsInstalled = app.ownsInstalled(installedNames[pkg]),
+                        installedSigner = installed.signatures[pkg],
+                        catalogueSigners = suggested.versions[pkg]?.signers.orEmpty(),
+                    )
+            }
             if (!owns) return@mapNotNull null
             pkg to app.key
         }.toMap()
@@ -1246,3 +1261,9 @@ private data class InstalledInfo(
 )
 
 enum class AppTab { AVAILABLE, INSTALLED, UPDATES, EXTERNAL }
+
+/** [AppRepository.suggestedVersions] together with the [FollowedSource]s it was worked out for. */
+private data class FollowedVersions(
+    val followed: Map<String, FollowedSource>,
+    val versions: Map<String, SuggestedVersion>,
+)

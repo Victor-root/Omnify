@@ -102,20 +102,37 @@ class AppRepository @Inject constructor(
     }
 
     /**
-     * Highest version *installable on this device* for every app **across all repos**, keyed by
-     * packageName — used to detect updates so the Updates tab matches what the detail screen will
-     * actually install (newest build wherever it lives, filtered by ABI + minSdk). Each entry also
-     * carries that version's signer fingerprint(s) so callers can tell whether the update can replace
-     * the installed app in place (same signer) or not (different signer).
+     * Highest version *installable on this device* for every app, keyed by packageName, used to detect
+     * updates so the Updates tab matches what the detail screen will actually install (filtered by ABI +
+     * minSdk): from the repository the user follows for that app ([followed], see [FollowedSources]),
+     * else the newest build wherever it lives. Each entry also carries that version's signer
+     * fingerprint(s) so callers can tell whether the update can replace the installed app in place (same
+     * signer) or not (different signer).
      */
-    suspend fun suggestedVersions(): Map<String, SuggestedVersion> = withContext(Dispatchers.Default) {
+    suspend fun suggestedVersions(
+        followed: Map<String, FollowedSource>,
+    ): Map<String, SuggestedVersion> = withContext(Dispatchers.Default) {
         appDao.deviceCompatibleVersions(
             sdk = Build.VERSION.SDK_INT,
             abis = Build.SUPPORTED_ABIS.toList(),
-        ).associate { row ->
-            row.packageName to SuggestedVersion(row.versionCode, row.versionName, row.signer.toSet())
-        }
+        )
+            .groupBy { it.packageName }
+            .mapNotNull { (packageName, rows) ->
+                val byRepo = rows.associate { row ->
+                    row.repoId to SuggestedVersion(row.versionCode, row.versionName, row.signer.toSet())
+                }
+                suggestedVersionOf(byRepo, followed[packageName])?.let { packageName to it }
+            }
+            .toMap()
     }
+
+    /** The repositories offering each of [packageNames], by repository id. */
+    suspend fun repoIdsOffering(packageNames: Collection<String>): Map<String, Set<Int>> =
+        withContext(Dispatchers.Default) {
+            appDao.repoIdsOf(packageNames.toList())
+                .groupBy({ it.packageName }, { it.repoId })
+                .mapValues { it.value.toSet() }
+        }
 
     /** Number of apps currently in the catalogue. 0 means it's empty — e.g. before the first sync,
      *  or after a schema migration reset the database. */
@@ -278,6 +295,18 @@ data class SuggestedVersion(
     val versionName: String,
     val signers: Set<String>,
 )
+
+/**
+ * Which of the builds each repository offers ([byRepo], by repository id) counts as the one to install:
+ * the followed repository's own when [followed] is one, nothing when it has nothing this device can run
+ * (following a repository means taking its updates, not another's), else the newest of them all.
+ */
+fun suggestedVersionOf(byRepo: Map<Int, SuggestedVersion>, followed: FollowedSource?): SuggestedVersion? =
+    if (followed is FollowedSource.Repository) {
+        byRepo[followed.repoId]
+    } else {
+        byRepo.values.maxByOrNull { it.versionCode }
+    }
 
 /**
  * Whether the build the catalogue would install is plainly an older release than what is on the device,

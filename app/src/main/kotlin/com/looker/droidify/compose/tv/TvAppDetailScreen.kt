@@ -5,6 +5,7 @@ import androidx.compose.material.icons.filled.Translate
 import androidx.compose.ui.platform.LocalContext
 import com.looker.droidify.compose.appDetail.PermissionsSection
 import com.looker.droidify.compose.appDetail.capabilities
+import com.looker.droidify.compose.appDetail.updateBuild
 import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.rememberInstalledCodeCapabilities
@@ -104,6 +105,7 @@ fun TvAppDetailScreen(
     val isHidden by viewModel.isHidden.collectAsStateWithLifecycle()
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
     val externallySourced by viewModel.externallySourced.collectAsStateWithLifecycle()
+    val updateSource by viewModel.updateSource.collectAsStateWithLifecycle()
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
     val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
@@ -177,11 +179,15 @@ fun TvAppDetailScreen(
                 }
                 // externallySourced: mirrors the phone screen, see AppDetailViewModel's own property. A copy
                 // a tracked external source is responsible for is not this catalogue entry's to update, and
-                // the comparison below says nothing about which build is newer across two numberings.
+                // the comparison below says nothing about which build is newer across two numberings. The
+                // build compared is the followed repository's, when one is followed for updates.
+                val updatePackage = remember(packages, updateSource.followed, app.metadata.suggestedVersionCode) {
+                    packages.updateBuild(updateSource.followed, app.metadata.suggestedVersionCode)
+                }?.first
                 val updateAvailable = !externallySourced && installedVersionCode != null &&
-                    installablePackage != null &&
-                    !catalogueBuildIsOlder(installedInfo?.version, installablePackage.manifest.versionName) &&
-                    installedVersionCode < installablePackage.manifest.versionCode
+                    updatePackage != null &&
+                    !catalogueBuildIsOlder(installedInfo?.version, updatePackage.manifest.versionName) &&
+                    installedVersionCode < updatePackage.manifest.versionCode
                 // Mirrors the phone screen: the OS reports Installed before the app's own installed-packages
                 // table catches up, so hold the "installing" look until the confirmed version matches.
                 val installConfirmed = downloadTargetVersionCode == null ||

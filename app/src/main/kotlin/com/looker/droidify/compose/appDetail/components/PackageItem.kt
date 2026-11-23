@@ -146,7 +146,7 @@ fun PackageItem(
     }
 }
 
-private fun formatDate(context: Context, instant: Long): String {
+internal fun formatDate(context: Context, instant: Long): String {
     val dateTime = LocalDateTime.ofEpochSecond(instant / 1000, 0, ZoneOffset.UTC)
     return try {
         dateTime.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT))

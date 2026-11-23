@@ -14,9 +14,12 @@ import com.looker.droidify.data.encryption.sha256Hex
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
+import com.looker.droidify.data.FollowedSource
 import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.externalSourceOwns
+import com.looker.droidify.data.followedSourceOf
+import com.looker.droidify.data.takesUpdates
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.compose.components.DescriptionTranslation
@@ -315,35 +318,69 @@ class AppDetailViewModel @Inject constructor(
             .flowOn(Dispatchers.Default)
             .asStateFlow(null)
 
+    /** The tracked external sources of this same app, switched on: the version list shows each one
+     *  as a tab of its own, next to the repositories. */
+    val externalSources: StateFlow<List<ExternalApp>> = externalAppRepository.apps
+        .map { apps -> apps.filter { it.packageName == packageName && it.enabled } }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .asStateFlow(emptyList())
+
+    /** The source the user follows for this app's updates, see [UpdateSourceChoice]. */
+    val updateSource: StateFlow<UpdateSourceChoice> = combine(
+        state,
+        externalAppRepository.apps,
+        settingsRepository.get { followedSources[packageName] },
+    ) { currentState, externalApps, stored ->
+        val success = currentState as? AppDetailState.Success ?: return@combine UpdateSourceChoice()
+        val followed = followedSourceOf(stored, packageName, success.packages.map { it.second.id }, externalApps)
+        UpdateSourceChoice(followed = followed, fellBack = stored != null && followed == null)
+    }.distinctUntilChanged().flowOn(Dispatchers.Default).asStateFlow(UpdateSourceChoice())
+
+    /** Follows [source] for this app's updates. */
+    fun follow(source: FollowedSource) {
+        viewModelScope.launch { settingsRepository.setFollowedSource(packageName, source.stored) }
+    }
+
     /**
-     * Whether a tracked external source, not this catalogue entry, is responsible for the copy of this
-     * app on the device. The rule is [externalSourceOwns], shared with the Updates tab and the automatic
-     * installer, and its own doc comment explains what settles it. The signature half is
-     * [InstalledInfo.signatureMismatch], which this screen already computes against every version this
-     * entry has ever declared rather than just the one it would install.
+     * The tracked external source, rather than this catalogue entry, that takes this app's updates: the
+     * one the user follows, else whichever is responsible for the copy on the device. That second rule
+     * is [externalSourceOwns], shared with the Updates tab and the automatic installer, and its own doc
+     * comment explains what settles it. The signature half is [InstalledInfo.signatureMismatch], which
+     * this screen already computes against every version this entry has ever declared rather than just
+     * the one it would install.
      *
      * The catalogue's build is then not an update, whatever the version codes say: they belong to two
      * numberings that were never meant to be compared. F-Droid rebuilds Every Door with its own
      * per-architecture recipe, so its 6.0.0 carries a higher code than the developer's own 7.1.0, and
      * this page offered it as one.
      *
-     * Only the page's headline action changes. The version list below is untouched, so installing the
-     * catalogue's build on purpose is still there for whoever wants it, which is where a deliberate
-     * change of source belongs.
+     * Only the page's headline action changes, to that source's own update. The version list below is
+     * untouched, so installing the catalogue's build on purpose is still there for whoever wants it,
+     * next to following another source, which is where a deliberate change of source belongs.
      */
-    val externallySourced: StateFlow<Boolean> = combine(
+    val externalUpdater: StateFlow<ExternalApp?> = combine(
         externalAppRepository.apps,
         installedInfo,
-    ) { externalApps, installed ->
-        installed != null && externalApps.any { app ->
+        updateSource,
+    ) { externalApps, installed, choice ->
+        if (installed == null) return@combine null
+        externalApps.firstOrNull { app ->
             app.packageName == packageName &&
-                !app.isForeignCopy(installed.signer) &&
-                externalSourceOwns(
-                    ownsInstalled = app.ownsInstalled(installed.version),
-                    catalogueDidNotSignIt = installed.signatureMismatch,
-                )
+                app.takesUpdates(choice.followed) {
+                    !app.isForeignCopy(installed.signer) &&
+                        externalSourceOwns(
+                            ownsInstalled = app.ownsInstalled(installed.version),
+                            catalogueDidNotSignIt = installed.signatureMismatch,
+                        )
+                }
         }
-    }.flowOn(Dispatchers.Default).asStateFlow(false)
+    }.flowOn(Dispatchers.Default).asStateFlow(null)
+
+    /** Whether [externalUpdater] has one: the catalogue's build is then no update. */
+    val externallySourced: StateFlow<Boolean> = externalUpdater
+        .map { it != null }
+        .asStateFlow(false)
 
     /** Whether this app is in the user's favourites. */
     val isFavourite: StateFlow<Boolean> = settingsRepository.get { favouriteApps }
@@ -460,7 +497,8 @@ class AppDetailViewModel @Inject constructor(
     }
 
     /** Repo the user picked to install from via the version tabs, or null to auto-pick across every
-     *  repo that offers this app. */
+     *  repo that offers this app. The repository followed for its updates comes first, see
+     *  [installOrUpdate]. */
     private val _preferredRepoId = MutableStateFlow<Int?>(null)
 
     /** Choose which repo the install/update action pulls from when several offer this app. */
@@ -991,12 +1029,13 @@ class AppDetailViewModel @Inject constructor(
     fun installOrUpdate() {
         if (apkDownloads.isRunning(packageName)) return
         val current = state.value as? AppDetailState.Success ?: return
-        // When several repos offer this app and the user picked one via the version tabs, install that
-        // repo's best release; otherwise pick across all repos. Either way, [selectForDevice] picks the
-        // release that actually runs on this device's CPU/SDK (installing e.g. the arm64 VLC APK on an
-        // x86 device fails with NO_MATCHING_ABIS). Fall back to the full set if the chosen repo has
-        // nothing installable here.
-        val preferredRepoId = _preferredRepoId.value
+        // When several repos offer this app, install the best release of the one followed for its
+        // updates, or of the one the user picked via the version tabs; otherwise pick across all repos.
+        // Either way, [selectForDevice] picks the release that actually runs on this device's CPU/SDK
+        // (installing e.g. the arm64 VLC APK on an x86 device fails with NO_MATCHING_ABIS). Fall back to
+        // the full set if the chosen repo has nothing installable here.
+        val preferredRepoId = (updateSource.value.followed as? FollowedSource.Repository)?.repoId
+            ?: _preferredRepoId.value
         val pool = if (preferredRepoId == null) {
             current.packages
         } else {
@@ -1198,6 +1237,17 @@ data class InstalledInfo(
      *  uninstalled, and Android would only take its updates away, from an app that isn't this one. */
     val canBeUninstalled: Boolean get() = !(signatureMismatch && isSystemApp)
 }
+
+/**
+ * Where this app's updates come from: [followed], the source the user chose on this page, or null for
+ * the automatic choice. [fellBack] says a source was chosen that can no longer be followed (its
+ * repository switched off, its tracked source removed or switched off), so the page tells the user
+ * the automatic choice is back in charge rather than quietly pretending nothing was ever chosen.
+ */
+data class UpdateSourceChoice(
+    val followed: FollowedSource? = null,
+    val fellBack: Boolean = false,
+)
 
 /** Why an in-place update was blocked and the dialog is offering to uninstall first instead of it. */
 enum class InstallConflictReason { SIGNATURE, VERSION_DOWNGRADE }
