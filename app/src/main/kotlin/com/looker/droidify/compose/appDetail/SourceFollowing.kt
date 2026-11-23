@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -39,6 +40,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.os.bundleOf
+import androidx.hilt.lifecycle.viewmodel.HiltViewModelFactory
+import androidx.lifecycle.DEFAULT_ARGS_KEY
+import androidx.lifecycle.HasDefaultViewModelProviderFactory
+import androidx.lifecycle.viewmodel.MutableCreationExtras
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -521,6 +529,27 @@ internal fun FollowSourceDialog(
             TextButton(onClick = onDismiss, modifier = Modifier.tvFocusScale()) {
                 Text(stringResource(R.string.cancel))
             }
+        },
+    )
+}
+
+/**
+ * The catalogue page's ViewModel for [packageName], for a page that is not that app's catalogue page: a
+ * tracked source's own page shows the catalogue's side of the same app as tabs of its version list.
+ * Given the argument its own page would give it, and kept under a key of its own in the current
+ * destination, next to that page's own ViewModel.
+ */
+@Composable
+internal fun catalogueViewModel(packageName: String): AppDetailViewModel {
+    val owner = LocalViewModelStoreOwner.current
+    // A navigation destination, which is both.
+    check(owner is HasDefaultViewModelProviderFactory) { "No destination to keep it in" }
+    return viewModel(
+        viewModelStoreOwner = owner,
+        key = "catalogue:$packageName",
+        factory = HiltViewModelFactory(LocalContext.current, owner.defaultViewModelProviderFactory),
+        extras = MutableCreationExtras(owner.defaultViewModelCreationExtras).apply {
+            set(DEFAULT_ARGS_KEY, bundleOf(CATALOGUE_PACKAGE_ARG to packageName))
         },
     )
 }

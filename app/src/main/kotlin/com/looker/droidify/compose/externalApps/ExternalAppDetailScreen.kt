@@ -83,6 +83,10 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
+import com.looker.droidify.data.FollowedSource
+import com.looker.droidify.compose.appDetail.catalogueSourceNote
+import com.looker.droidify.compose.appDetail.catalogueViewModel
+import com.looker.droidify.compose.appDetail.AppSourcesVersions
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.appDetail.GoogleServiceDependency
@@ -215,10 +219,12 @@ fun ExternalAppDetailScreen(
     }
 
     val app = remember(apps, appKey) { apps.firstOrNull { it.key == appKey } }
-    // The repositories offering the same app: the page links to its catalogue page, where every source
-    // of it is listed and the one its updates come from is chosen.
+    // The repositories offering the same app: the page links to its catalogue page.
     val catalogueRepoNames by remember(app?.packageName) { viewModel.catalogueRepoNames(app?.packageName) }
         .collectAsStateWithLifecycle(emptyList())
+    // The catalogue's side of the same app, when a repository offers it: its versions are tabs of this
+    // page's version list, and where its updates come from is said under the installed version.
+    val catalogue = app?.packageName?.takeIf { catalogueRepoNames.isNotEmpty() }?.let { catalogueViewModel(it) }
 
     // Make sure the app knows the package id it installs under, so a copy already on the device (installed
     // from any channel) is recognised as installed instead of showing "Install". Keyed on the resolved app
@@ -570,6 +576,51 @@ fun ExternalAppDetailScreen(
             } else {
                 null
             }
+        // This source's own versions, and with a repository offering the same app, every source's as
+        // tabs, opened on this one. Shared by the split view's left pane and the single column.
+        val ownVersions: @Composable (onAnchorPositioned: (Int) -> Unit) -> Unit = { onAnchorPositioned ->
+            ExternalVersionsSection(
+                app = app,
+                releaseHistory = releaseHistory,
+                installedVersion = installedVersion,
+                onVersionClick = { releasePick = ReleasePick.Version(it) },
+                onPickFile = { release, asset -> releasePick = ReleasePick.File(release, asset) },
+                onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
+                onPrereleaseModeChange = onPrereleaseModeChange,
+                onAnchorPositioned = onAnchorPositioned,
+                downloadStatus = downloads[appKey],
+                installing = installing,
+                activeDownloadTag = activeDownloadTag,
+                onCancel = { viewModel.cancel(app) },
+                sdkInfoByApkUrl = sdkInfoByApkUrl,
+                onRequestSdkInfo = viewModel::loadSdkInfo,
+            )
+        }
+        val versions: @Composable (onAnchorPositioned: (Int) -> Unit) -> Unit = { onAnchorPositioned ->
+            if (catalogue == null) {
+                ownVersions(onAnchorPositioned)
+            } else {
+                Spacer(Modifier.height(20.dp))
+                SectionSeparator()
+                Spacer(Modifier.height(20.dp))
+                AppSourcesVersions(
+                    catalogue = catalogue,
+                    external = viewModel,
+                    openOn = FollowedSource.External(app.key),
+                    onAnchorPositioned = onAnchorPositioned,
+                    titleAction = onPrereleaseModeChange?.takeIf { releaseHistory != null }?.let { onModeChange ->
+                        {
+                            PrereleaseModeChooser(
+                                mode = app.prereleases,
+                                onModeChange = onModeChange,
+                                textStyle = MaterialTheme.typography.titleMedium.copy(textAlign = TextAlign.End),
+                            )
+                        }
+                    },
+                    fallback = { ownVersions(onAnchorPositioned) },
+                )
+            }
+        }
         val heroVersion = cardVersion.label
         // Mirrors the F-Droid catalogue's "Taille" stat; null (hidden) when the provider's release
         // API doesn't expose a file size (GitLab's release link assets carry none).
@@ -692,7 +743,9 @@ fun ExternalAppDetailScreen(
                 },
                 footer = heroFooter(
                     infoText = footerText,
-                    note = followedNote,
+                    note = listOfNotNull(followedNote, catalogue?.let { catalogueSourceNote(it) })
+                        .joinToString("\n")
+                        .ifEmpty { null },
                     alsoOn = catalogueRepoNames.takeIf { it.isNotEmpty() }?.joinToString(),
                     onAlsoOnClick = app.packageName?.let { packageName -> { onOpenCatalogueApp(packageName) } },
                     onViewVersionsClick = if (!releaseHistory.isNullOrEmpty()) {
@@ -773,24 +826,9 @@ fun ExternalAppDetailScreen(
                             expectedSigners = expectedSigners,
                         )
                     }
-                    // ExternalVersionsSection already opens with its own SectionSeparator (matching the
-                    // catalogue's own spacing) — no second one needed here.
-                    ExternalVersionsSection(
-                        app = app,
-                        releaseHistory = releaseHistory,
-                        installedVersion = installedVersion,
-                        onVersionClick = { releasePick = ReleasePick.Version(it) },
-                        onPickFile = { release, asset -> releasePick = ReleasePick.File(release, asset) },
-                        onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
-                        onPrereleaseModeChange = onPrereleaseModeChange,
-                        onAnchorPositioned = { leftPaneVersionsAnchorY = it },
-                        downloadStatus = downloads[appKey],
-                        installing = installing,
-                        activeDownloadTag = activeDownloadTag,
-                        onCancel = { viewModel.cancel(app) },
-                        sdkInfoByApkUrl = sdkInfoByApkUrl,
-                        onRequestSdkInfo = viewModel::loadSdkInfo,
-                    )
+                    // The version list opens with its own SectionSeparator (matching the catalogue's own
+                    // spacing): no second one needed here.
+                    versions { leftPaneVersionsAnchorY = it }
                 }
                 VerticalDivider()
                 Column(
@@ -807,7 +845,6 @@ fun ExternalAppDetailScreen(
                     ExternalAppDetailBody(
                         app = app,
                         isInstalled = isInstalled,
-                        installedVersion = installedVersion,
                         readmeHtml = readmeHtml,
                         readmeOfRepository = readme?.ofRepository == true,
                         readmeError = readmeError,
@@ -822,20 +859,9 @@ fun ExternalAppDetailScreen(
                             viewModel.loadChangelogHtml(app)
                         },
                         supportedLanguages = supportedLanguages,
-                        releaseHistory = releaseHistory,
-                        onVersionClick = { releasePick = ReleasePick.Version(it) },
-                        onPickFile = { release, asset -> releasePick = ReleasePick.File(release, asset) },
-                        onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
-                        onPrereleaseModeChange = onPrereleaseModeChange,
-                        onAnchorPositioned = { versionsAnchorY = it },
+                        versions = { versions { versionsAnchorY = it } },
                         showSidebarSections = false,
                         showLeadingSeparator = false,
-                        downloadStatus = downloads[appKey],
-                        installing = installing,
-                        activeDownloadTag = activeDownloadTag,
-                        onCancel = { viewModel.cancel(app) },
-                        sdkInfoByApkUrl = sdkInfoByApkUrl,
-                        onRequestSdkInfo = viewModel::loadSdkInfo,
                         googleServicesDependencies = googleServicesDependencies,
                         installedSignerRaw = installedSignerRaw,
                         expectedSigners = expectedSigners,
@@ -938,7 +964,6 @@ fun ExternalAppDetailScreen(
                     ExternalAppDetailBody(
                         app = app,
                         isInstalled = isInstalled,
-                        installedVersion = installedVersion,
                         readmeHtml = readmeHtml,
                         readmeOfRepository = readme?.ofRepository == true,
                         readmeError = readmeError,
@@ -953,20 +978,9 @@ fun ExternalAppDetailScreen(
                             viewModel.loadChangelogHtml(app)
                         },
                         supportedLanguages = supportedLanguages,
-                        releaseHistory = releaseHistory,
-                        onVersionClick = { releasePick = ReleasePick.Version(it) },
-                        onPickFile = { release, asset -> releasePick = ReleasePick.File(release, asset) },
-                        onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
-                        onPrereleaseModeChange = onPrereleaseModeChange,
-                        onAnchorPositioned = { versionsAnchorY = it },
+                        versions = { versions { versionsAnchorY = it } },
                         showSidebarSections = true,
                         showLeadingSeparator = true,
-                        downloadStatus = downloads[appKey],
-                        installing = installing,
-                        activeDownloadTag = activeDownloadTag,
-                        onCancel = { viewModel.cancel(app) },
-                        sdkInfoByApkUrl = sdkInfoByApkUrl,
-                        onRequestSdkInfo = viewModel::loadSdkInfo,
                         googleServicesDependencies = googleServicesDependencies,
                         installedSignerRaw = installedSignerRaw,
                         expectedSigners = expectedSigners,
@@ -1028,10 +1042,6 @@ internal fun rememberInstalledSigner(packageName: String?): String? {
 private fun ExternalAppDetailBody(
     app: ExternalApp,
     isInstalled: Boolean,
-    // The real on-device versionName (from the package manager), used to mark the version list's
-    // genuinely-installed row — see ExternalVersionsSection's own doc comment for why this, not
-    // app.installedTag, is the reliable source.
-    installedVersion: String?,
     readmeHtml: String?,
     // The README shown presents the repository this app is one of several in, not the app itself.
     readmeOfRepository: Boolean,
@@ -1044,13 +1054,8 @@ private fun ExternalAppDetailBody(
     changelogLink: LinkCheckState?,
     onChangelogClick: () -> Unit,
     supportedLanguages: SupportedLanguages?,
-    releaseHistory: List<Release>?,
-    onVersionClick: (Release) -> Unit,
-    onPickFile: (Release, ReleaseAsset) -> Unit,
-    onExpandVersions: () -> Unit,
-    // Null when the version list has no pre-release choice to offer (offersPrereleaseChoice).
-    onPrereleaseModeChange: ((PrereleaseMode) -> Unit)?,
-    onAnchorPositioned: (Int) -> Unit,
+    // The version list, shown at the end unless the split view's left pane shows it.
+    versions: @Composable () -> Unit,
     // False in split view: the tablet-landscape left pane shows links, supported languages and
     // versions itself (see ExternalAppDetailScreen), so this body must not repeat them.
     showSidebarSections: Boolean,
@@ -1058,16 +1063,6 @@ private fun ExternalAppDetailBody(
     // other, left pane there, so a separator at the very top of this one would float with nothing
     // above it.
     showLeadingSeparator: Boolean,
-    // Download/install progress, and which release it applies to — so the version list can show it on
-    // the specific row the user tapped instead of only in the hero card. See ReleaseVersionItem.
-    downloadStatus: DownloadStatus?,
-    installing: Boolean,
-    activeDownloadTag: String?,
-    onCancel: () -> Unit,
-    // Lazily-fetched min/target SDK per APK URL (see ExternalAppsViewModel.loadSdkInfo), threaded down
-    // to ExternalVersionsSection the same way as every other version-list value.
-    sdkInfoByApkUrl: Map<String, ApkBinaryManifest.UsesSdk?>,
-    onRequestSdkInfo: (String) -> Unit,
     // Lazily-fetched Google-services dependencies for the app's latest release (see
     // ExternalAppsViewModel.loadManifestInfo): empty while unresolved or when none are detected.
     googleServicesDependencies: List<GoogleServiceDependency>,
@@ -1261,24 +1256,7 @@ private fun ExternalAppDetailBody(
         )
     }
 
-    if (showSidebarSections) {
-        ExternalVersionsSection(
-            app = app,
-            releaseHistory = releaseHistory,
-            installedVersion = installedVersion,
-            onVersionClick = onVersionClick,
-            onPickFile = onPickFile,
-            onExpandVersions = onExpandVersions,
-            onPrereleaseModeChange = onPrereleaseModeChange,
-            onAnchorPositioned = onAnchorPositioned,
-            downloadStatus = downloadStatus,
-            installing = installing,
-            activeDownloadTag = activeDownloadTag,
-            onCancel = onCancel,
-            sdkInfoByApkUrl = sdkInfoByApkUrl,
-            onRequestSdkInfo = onRequestSdkInfo,
-        )
-    }
+    if (showSidebarSections) versions()
 }
 
 /** How tall the collapsed README preview is before a "Show more" tap reveals the rest, for the brief

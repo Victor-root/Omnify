@@ -378,7 +378,7 @@
     <string name="follow_source_reinstall_FORMAT">Uninstall and install from %1$s</string>
     <string name="follow_source_keep_FORMAT">Keep %1$s</string>
     <string name="follow_source_system_DESC">%1$s is part of the system: Android can\'t replace it with a build signed with another key.</string>
-    <string name="also_on_FORMAT">Also on %1$s · Choose the source</string>
+    <string name="also_on_FORMAT">Also on %1$s · Open its page</string>
     <string name="other_sources">Other sources</string>
     <string name="install_version_downgrade_DESC">A newer version is installed. Android can\'t downgrade an app in place, so the installed version must be uninstalled first (you\'ll lose its data). Uninstall it, and this version is installed right after.</string>
     <string name="install_types">Installation</string>

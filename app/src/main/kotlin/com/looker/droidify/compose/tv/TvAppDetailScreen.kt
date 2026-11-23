@@ -63,7 +63,6 @@ import com.looker.droidify.compose.appDetail.PrimaryActions
 import com.looker.droidify.compose.appList.AppMinimalIcon
 import com.looker.droidify.compose.appDetail.components.PackageItem
 import com.looker.droidify.compose.components.InstallConflictDialog
-import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
@@ -95,11 +94,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.looker.droidify.compose.appDetail.FollowSourceRow
 import com.looker.droidify.compose.appDetail.SourceFollowDialogs
+import com.looker.droidify.compose.appDetail.catalogueSourceNote
+import com.looker.droidify.compose.appDetail.rememberVersionInstallState
+import com.looker.droidify.compose.appDetail.VersionInstallDialogs
 import com.looker.droidify.compose.appDetail.SourceTab
 import com.looker.droidify.compose.appDetail.rememberSourceFollowState
 import com.looker.droidify.compose.appDetail.sourceNameOf
 import com.looker.droidify.compose.appDetail.sourceTabs
-import com.looker.droidify.compose.appDetail.updateSourceNote
 import com.looker.droidify.compose.appDetail.updatingSourceOf
 import com.looker.droidify.compose.components.TAB_PILL_MS
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -224,26 +225,7 @@ fun TvAppDetailScreen(
                         !catalogueBuildIsOlder(installedInfo?.version, updatePackage.manifest.versionName) &&
                         installedVersionCode < updatePackage.manifest.versionCode
                     )
-                val updatingSource = updatingSourceOf(
-                    installed = isInstalled,
-                    updater = updater,
-                    followed = updateSource.followed,
-                    installableRepo = installable?.second,
-                )
-                val updatingName = sourceNameOf(updatingSource, packages, externalSources + listOfNotNull(updater))
-                val tabs = remember(packages, externalSources) { sourceTabs(packages, externalSources) }
-                val sourceNote = updateSourceNote(isInstalled, updateSource, updatingName, tabs.size)
-                val followState = rememberSourceFollowState()
-                SourceFollowDialogs(
-                    state = followState,
-                    appName = app.metadata.name,
-                    installedInfo = installedInfo,
-                    packages = packages,
-                    externalViewModel = externalViewModel,
-                    onFollow = viewModel::follow,
-                    onInstallVersion = viewModel::installVersion,
-                    onUninstall = viewModel::uninstall,
-                )
+                val sourceNote = catalogueSourceNote(viewModel)
                 // Mirrors the phone screen: the OS reports Installed before the app's own installed-packages
                 // table catches up, so hold the "installing" look until the confirmed version matches.
                 val installConfirmed = downloadTargetVersionCode == null ||
@@ -269,41 +251,6 @@ fun TvAppDetailScreen(
                 }
                 // Where "up" from the description goes: back to the screenshots above it.
                 val screenshotsFocus = remember { FocusRequester() }
-
-                // Tapping a version confirms, then installs that exact release — the same engine
-                // (viewModel.installVersion) and confirm/downgrade flow the phone screen uses.
-                var versionToInstall by remember(app.metadata.packageName.name) {
-                    mutableStateOf<Pair<Package, Repo>?>(null)
-                }
-                // A downgrade the user confirmed: kept while the current app uninstalls, then installed once
-                // it's gone (Android blocks in-place downgrades) — mirrors the phone screen.
-                var pendingDowngradeInstall by remember(app.metadata.packageName.name) {
-                    mutableStateOf<Pair<Package, Repo>?>(null)
-                }
-                LaunchedEffect(installedInfo, pendingDowngradeInstall) {
-                    val pending = pendingDowngradeInstall ?: return@LaunchedEffect
-                    if (installedInfo == null) {
-                        viewModel.installVersion(pending.first, pending.second)
-                        pendingDowngradeInstall = null
-                    }
-                }
-                versionToInstall?.let { (pkg, repo) ->
-                    InstallVersionDialog(
-                        versionName = pkg.manifest.versionName,
-                        isDowngrade = installedVersionCode != null &&
-                            pkg.manifest.versionCode < installedVersionCode,
-                        onInstall = {
-                            viewModel.installVersion(pkg, repo)
-                            versionToInstall = null
-                        },
-                        onUninstall = {
-                            pendingDowngradeInstall = pkg to repo
-                            viewModel.uninstall()
-                            versionToInstall = null
-                        },
-                        onDismiss = { versionToInstall = null },
-                    )
-                }
 
                 // An update Android won't apply in place (a differently-signed copy on the device). The
                 // phone screen and the TV external-source screen both showed this; this one never did, so
@@ -476,28 +423,12 @@ fun TvAppDetailScreen(
 
                             if (packages.isNotEmpty()) {
                                 TvSectionTitle(stringResource(R.string.versions))
-                                TvSourceVersions(
-                                    tabs = tabs,
-                                    updating = updatingSource,
-                                    pinned = updateSource.followed != null,
-                                    onFollowTab = followState.followTab(installedInfo, packages, updatingName),
-                                    defaultSource = updatingSource ?: installable?.second?.let {
-                                        FollowedSource.Repository(it.id)
-                                    },
-                                    onSelectRepo = viewModel::setPreferredRepo,
-                                ) { tab ->
-                                    val external = tab.external
-                                    if (external != null) {
-                                        externalViewModel?.let { TvExternalSourceReleases(external, it) }
-                                    } else {
-                                        val repoId = (tab.source as? FollowedSource.Repository)?.repoId
-                                        TvVersionsList(
-                                            packages = packages.filter { it.second.id == repoId },
-                                            suggestedVersionCode = app.metadata.suggestedVersionCode,
-                                            onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
-                                        )
-                                    }
-                                }
+                                TvAppSourcesVersions(
+                                    catalogue = viewModel,
+                                    external = externalViewModel,
+                                    openOn = null,
+                                    fallback = {},
+                                )
                             }
                         },
                         right = {
@@ -637,8 +568,7 @@ internal fun TvSecondaryActions(
     translation: DescriptionTranslation?,
     onTranslate: () -> Unit,
     onShowOriginal: () -> Unit,
-    // An external source's page: opens the catalogue page of the same app, where every source of it is
-    // listed and the one its updates come from is chosen. Null hides it.
+    // An external source's page: opens the catalogue page of the same app. Null hides it.
     onOtherSourcesClick: (() -> Unit)? = null,
 ) {
     FlowRow(
@@ -715,6 +645,78 @@ internal fun TvSecondaryAction(icon: ImageVector, label: String, active: Boolean
         )
         Spacer(Modifier.width(8.dp))
         Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+    }
+}
+
+/**
+ * An app's version list with a pill per source offering it ([TvSourceVersions]), read from its catalogue
+ * side ([catalogue]) and its tracked sources ([external]): on the app's own TV page, and on a tracked
+ * source's, opened on that source ([openOn]). [fallback] stands in until the catalogue's side is read.
+ */
+@Composable
+internal fun TvAppSourcesVersions(
+    catalogue: AppDetailViewModel,
+    external: ExternalAppsViewModel?,
+    openOn: FollowedSource?,
+    fallback: @Composable () -> Unit,
+) {
+    val state by catalogue.state.collectAsStateWithLifecycle()
+    val success = state as? AppDetailState.Success
+    if (success == null) {
+        fallback()
+        return
+    }
+    val packages = success.packages
+    val app = success.app
+    val installedInfo by catalogue.installedInfo.collectAsStateWithLifecycle()
+    val externalSources by catalogue.externalSources.collectAsStateWithLifecycle()
+    val updateSource by catalogue.updateSource.collectAsStateWithLifecycle()
+    val updater by catalogue.externalUpdater.collectAsStateWithLifecycle()
+    val installableRepo = remember(packages, app.metadata.suggestedVersionCode) {
+        packages.selectForDevice(app.metadata.suggestedVersionCode)?.second
+    }
+    // Tapping a version confirms, then installs that exact release: the same engine
+    // (catalogue.installVersion) and confirm/downgrade flow the phone screen uses.
+    val versionInstall = rememberVersionInstallState()
+    VersionInstallDialogs(
+        state = versionInstall,
+        installedInfo = installedInfo,
+        onInstallVersion = catalogue::installVersion,
+        onUninstall = catalogue::uninstall,
+    )
+    val updatingSource = updatingSourceOf(installedInfo != null, updater, updateSource.followed, installableRepo)
+    val updatingName = sourceNameOf(updatingSource, packages, externalSources + listOfNotNull(updater))
+    val followState = rememberSourceFollowState()
+    SourceFollowDialogs(
+        state = followState,
+        appName = app.metadata.name,
+        installedInfo = installedInfo,
+        packages = packages,
+        externalViewModel = external,
+        onFollow = catalogue::follow,
+        onInstallVersion = catalogue::installVersion,
+        onUninstall = catalogue::uninstall,
+    )
+    val tabs = remember(packages, externalSources) { sourceTabs(packages, externalSources) }
+    TvSourceVersions(
+        tabs = tabs,
+        updating = updatingSource,
+        pinned = updateSource.followed != null,
+        onFollowTab = followState.followTab(installedInfo, packages, updatingName),
+        defaultSource = openOn ?: updatingSource ?: installableRepo?.let { FollowedSource.Repository(it.id) },
+        onSelectRepo = catalogue::setPreferredRepo,
+    ) { tab ->
+        val source = tab.external
+        if (source != null) {
+            external?.let { TvExternalSourceReleases(source, it) }
+        } else {
+            val repoId = (tab.source as? FollowedSource.Repository)?.repoId
+            TvVersionsList(
+                packages = packages.filter { it.second.id == repoId },
+                suggestedVersionCode = app.metadata.suggestedVersionCode,
+                onVersionClick = { pkg, repo -> versionInstall.version = pkg to repo },
+            )
+        }
     }
 }
 

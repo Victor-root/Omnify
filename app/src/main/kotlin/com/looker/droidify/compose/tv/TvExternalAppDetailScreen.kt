@@ -50,6 +50,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
+import com.looker.droidify.data.FollowedSource
+import com.looker.droidify.compose.appDetail.CatalogueInstallConflictDialog
+import com.looker.droidify.compose.appDetail.catalogueViewModel
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.DescriptionTranslation
@@ -124,10 +127,12 @@ fun TvExternalAppDetailScreen(
     }
 
     val app = remember(apps, appKey) { apps.firstOrNull { it.key == appKey } }
-    // The repositories offering the same app: the page links to its catalogue page, where every source
-    // of it is listed and the one its updates come from is chosen.
+    // The repositories offering the same app: the page links to its catalogue page.
     val catalogueRepoNames by remember(app?.packageName) { viewModel.catalogueRepoNames(app?.packageName) }
         .collectAsStateWithLifecycle(emptyList())
+    // The catalogue's side of the same app, when a repository offers it: its versions are pills of this
+    // page's version list.
+    val catalogue = app?.packageName?.takeIf { catalogueRepoNames.isNotEmpty() }?.let { catalogueViewModel(it) }
     TvDetailOpenTiming("external app detail", ready = app != null)
 
     if (app == null) {
@@ -218,6 +223,8 @@ fun TvExternalAppDetailScreen(
             onDismiss = viewModel::dismissInstallConflict,
         )
     }
+    // The same for a catalogue version picked among the pills of the version list.
+    catalogue?.let { CatalogueInstallConflictDialog(it, app.label) }
 
     val primaryFocus = remember { FocusRequester() }
     var userInteracted by remember { mutableStateOf(false) }
@@ -357,7 +364,10 @@ fun TvExternalAppDetailScreen(
                         )
                     }
 
-                    releaseHistory?.takeIf { it.isNotEmpty() }?.let { releases ->
+                    // This source's own versions, and with a repository offering the same app, every
+                    // source's as pills, opened on this one.
+                    val ownReleases = releaseHistory?.takeIf { it.isNotEmpty() }
+                    if (catalogue != null || ownReleases != null) {
                         // On one baseline: a choice wrapping onto two lines starts level with the title.
                         Row(modifier = Modifier.fillMaxWidth()) {
                             Box(modifier = Modifier.alignByBaseline()) {
@@ -380,14 +390,28 @@ fun TvExternalAppDetailScreen(
                                 }
                             }
                         }
-                        TvExternalVersionsList(
-                            app = app,
-                            releases = releases,
-                            installedVersion = installedVersion,
-                            sdkInfoByApkUrl = { sdkInfoByApkUrl },
-                            onRequestSdkInfo = viewModel::loadSdkInfo,
-                            onVersionClick = { versionToInstall = it },
-                        )
+                        val ownVersions: @Composable () -> Unit = {
+                            ownReleases?.let { releases ->
+                                TvExternalVersionsList(
+                                    app = app,
+                                    releases = releases,
+                                    installedVersion = installedVersion,
+                                    sdkInfoByApkUrl = { sdkInfoByApkUrl },
+                                    onRequestSdkInfo = viewModel::loadSdkInfo,
+                                    onVersionClick = { versionToInstall = it },
+                                )
+                            }
+                        }
+                        if (catalogue == null) {
+                            ownVersions()
+                        } else {
+                            TvAppSourcesVersions(
+                                catalogue = catalogue,
+                                external = viewModel,
+                                openOn = FollowedSource.External(app.key),
+                                fallback = ownVersions,
+                            )
+                        }
                     }
                 },
                 right = {

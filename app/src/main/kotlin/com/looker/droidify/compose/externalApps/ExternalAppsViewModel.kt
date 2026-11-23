@@ -236,9 +236,9 @@ class ExternalAppsViewModel @Inject constructor(
     }
 
     /**
-     * The catalogue's repositories offering [packageName] too, by name: a source's page links to the
-     * app's catalogue page, which lists every source of it and is where the one its updates come from is
-     * chosen. Empty when the package is unknown or in no repository.
+     * The catalogue's repositories offering [packageName] too, by name: a source's page shows their
+     * versions as tabs and links to the app's catalogue page. Empty when the package is unknown or in no
+     * repository.
      */
     fun catalogueRepoNames(packageName: String?): Flow<List<String>> =
         if (packageName == null) {

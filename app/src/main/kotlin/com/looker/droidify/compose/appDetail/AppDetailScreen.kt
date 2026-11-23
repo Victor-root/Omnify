@@ -64,6 +64,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -799,53 +800,14 @@ private fun AppDetail(
     // and the button would wrongly offer "Install" even though a version is plainly marked installed
     // further down in the (correctly cross-repo) version list below. Search across every repo instead.
     val installedPackage = remember(packages) { packages.map { it.first }.firstOrNull { it.installed } }
-    // Mirrors PrimaryActions' own installing check (including its Installed-but-not-yet-confirmed
-    // extension — see that function's own doc comment) — whether the version list should show progress
-    // on a row at all (combined with downloadTargetVersionCode to know which one).
-    val installing = installState == InstallState.Pending ||
-        installState == InstallState.Installing ||
-        (
-            installState == InstallState.Installed &&
-                downloadTargetVersionCode != null &&
-                installedPackage?.manifest?.versionCode != downloadTargetVersionCode
-            )
-    // A version the user tapped in the list, awaiting confirmation to install (null = no dialog).
-    var versionToInstall by remember { mutableStateOf<Pair<Package, Repo>?>(null) }
-    // A downgrade the user confirmed: kept while the current app uninstalls, then installed automatically
-    // once it's gone — so they don't have to tap the version again after the uninstall.
-    var pendingDowngradeInstall by remember { mutableStateOf<Pair<Package, Repo>?>(null) }
-    LaunchedEffect(installedInfo, pendingDowngradeInstall) {
-        val pending = pendingDowngradeInstall ?: return@LaunchedEffect
-        // installedInfo is re-read on every install/uninstall; null means the app is now gone.
-        if (installedInfo == null) {
-            onInstallVersion(pending.first, pending.second)
-            pendingDowngradeInstall = null
-        }
-    }
-    versionToInstall?.let { (pkg, repo) ->
-        InstallVersionDialog(
-            versionName = pkg.manifest.versionName,
-            // A downgrade (older than what's installed) can't be applied in place — Android blocks it,
-            // so the app must be uninstalled first. Compared against installedInfo (the real installed
-            // versionCode), not installedPackage, so this still warns correctly when the installed build
-            // isn't one this catalogue entry's own version history lists (installed from a different
-            // channel that's ahead of the tracked repo, say).
-            isDowngrade = installedInfo != null &&
-                pkg.manifest.versionCode < installedInfo.versionCode,
-            onInstall = {
-                onInstallVersion(pkg, repo)
-                versionToInstall = null
-            },
-            onUninstall = {
-                // Remember what to install, uninstall the current version, and the effect above installs
-                // it once the app is gone.
-                pendingDowngradeInstall = pkg to repo
-                onUninstall()
-                versionToInstall = null
-            },
-            onDismiss = { versionToInstall = null },
-        )
-    }
+    val installing = isInstalling(installState, downloadTargetVersionCode, installedPackage)
+    val versionInstall = rememberVersionInstallState()
+    VersionInstallDialogs(
+        state = versionInstall,
+        installedInfo = installedInfo,
+        onInstallVersion = onInstallVersion,
+        onUninstall = onUninstall,
+    )
     // The newest release this device can actually install (device-aware; see [selectForDevice]).
     // Comparing against the raw suggested code would keep flagging an update on, say, an x86 device,
     // because VLC's suggested code belongs to its (un-installable) arm64 build.
@@ -1036,7 +998,7 @@ private fun AppDetail(
                         installableRepo = installableRepo,
                         onSelectRepo = onSelectRepo,
                         app = app,
-                        onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+                        onVersionClick = { pkg, repo -> versionInstall.version = pkg to repo },
                         onAnchorPositioned = { leftPaneVersionsAnchorY = it },
                         downloadStatus = downloadStatus,
                         installing = installing,
@@ -1068,7 +1030,7 @@ private fun AppDetail(
                     sources = listSources,
                     installableRepo = installableRepo,
                     onSelectRepo = onSelectRepo,
-                    onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+                    onVersionClick = { pkg, repo -> versionInstall.version = pkg to repo },
                     categoryNames = categoryNames,
                     onCategoryClick = onCategoryClick,
                     onAnchorPositioned = { versionsAnchorY = it },
@@ -1163,7 +1125,7 @@ private fun AppDetail(
                     sources = listSources,
                     installableRepo = installableRepo,
                     onSelectRepo = onSelectRepo,
-                    onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+                    onVersionClick = { pkg, repo -> versionInstall.version = pkg to repo },
                     categoryNames = categoryNames,
                     onCategoryClick = onCategoryClick,
                     onAnchorPositioned = { versionsAnchorY = it },
@@ -1400,6 +1362,80 @@ private fun AppDetailBody(
 }
 
 /**
+ * Whether the version list should show progress on a row at all (combined with the download target to
+ * know which one). Mirrors PrimaryActions' own installing check, including its Installed-but-not-yet-
+ * confirmed extension: see that function's own doc comment.
+ */
+internal fun isInstalling(
+    installState: InstallState?,
+    downloadTargetVersionCode: Long?,
+    installedPackage: Package?,
+): Boolean = installState == InstallState.Pending ||
+    installState == InstallState.Installing ||
+    (
+        installState == InstallState.Installed &&
+            downloadTargetVersionCode != null &&
+            installedPackage?.manifest?.versionCode != downloadTargetVersionCode
+        )
+
+/**
+ * A catalogue version the user tapped in a list, awaiting confirmation to install ([version]), and a
+ * downgrade the user confirmed ([pendingDowngrade]): kept while the current app uninstalls, then
+ * installed automatically once it's gone, so they don't have to tap the version again after the
+ * uninstall.
+ */
+@Stable
+internal class VersionInstallState {
+    var version by mutableStateOf<Pair<Package, Repo>?>(null)
+    var pendingDowngrade by mutableStateOf<Pair<Package, Repo>?>(null)
+}
+
+@Composable
+internal fun rememberVersionInstallState(): VersionInstallState = remember { VersionInstallState() }
+
+/** [state]'s confirmation, and the install after an uninstall it asked for. */
+@Composable
+internal fun VersionInstallDialogs(
+    state: VersionInstallState,
+    installedInfo: InstalledInfo?,
+    onInstallVersion: (Package, Repo) -> Unit,
+    onUninstall: () -> Unit,
+) {
+    LaunchedEffect(installedInfo, state.pendingDowngrade) {
+        val pending = state.pendingDowngrade ?: return@LaunchedEffect
+        // installedInfo is re-read on every install/uninstall; null means the app is now gone.
+        if (installedInfo == null) {
+            onInstallVersion(pending.first, pending.second)
+            state.pendingDowngrade = null
+        }
+    }
+    state.version?.let { (pkg, repo) ->
+        InstallVersionDialog(
+            versionName = pkg.manifest.versionName,
+            // A downgrade (older than what's installed) can't be applied in place: Android blocks it,
+            // so the app must be uninstalled first. Compared against installedInfo (the real installed
+            // versionCode), not an installed catalogue package, so this still warns correctly when the
+            // installed build isn't one this catalogue entry's own version history lists (installed from
+            // a different channel that's ahead of the tracked repo, say).
+            isDowngrade = installedInfo != null &&
+                pkg.manifest.versionCode < installedInfo.versionCode,
+            onInstall = {
+                onInstallVersion(pkg, repo)
+                state.version = null
+            },
+            onUninstall = {
+                // Remember what to install, uninstall the current version, and the effect above installs
+                // it once the app is gone.
+                state.pendingDowngrade = pkg to repo
+                onUninstall()
+                state.version = null
+            },
+            onDismiss = { state.version = null },
+        )
+    }
+}
+
+/**
  * Everything besides its repositories the version list shows an app's sources with: the tracked
  * external sources of the same package ([external], read through [externalViewModel]), the source the
  * user follows ([choice]) and the tracked source taking the updates ([updater]). [updating] and
@@ -1442,14 +1478,34 @@ private fun VersionsSection(
     onCancel: () -> Unit,
     showIncompatibleVersions: Boolean,
     lastVersionFocusRequester: FocusRequester? = null,
+    // The tab it opens on, when it is not the catalogue page's: a tracked source's own page opens on
+    // that source.
+    openOn: FollowedSource? = null,
+    // Beside the title: a tracked source's own page offers its pre-release choice there.
+    titleAction: (@Composable () -> Unit)? = null,
 ) {
     Column(modifier = Modifier.onGloballyPositioned { onAnchorPositioned(it.positionInParent().y.toInt()) }) {
-        SectionTitle(stringResource(R.string.versions))
+        if (titleAction == null) {
+            SectionTitle(stringResource(R.string.versions))
+        } else {
+            // On one baseline: a choice wrapping onto two lines starts level with the title.
+            Row(modifier = Modifier.fillMaxWidth().padding(end = 8.dp)) {
+                Text(
+                    text = stringResource(R.string.versions),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.alignByBaseline().padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                Box(modifier = Modifier.weight(1f).alignByBaseline(), contentAlignment = Alignment.CenterEnd) {
+                    titleAction()
+                }
+            }
+        }
         val tabs = remember(packages, sources.external) { sourceTabs(packages, sources.external) }
-        // Opens on the source the updates come from, else the repo that provides the device-suggested
-        // version. A tab the user picks stays picked for as long as it is there.
+        // Opens on [openOn], else the source the updates come from, else the repo that provides the
+        // device-suggested version. A tab the user picks stays picked for as long as it is there.
         var pickedSource by remember { mutableStateOf<FollowedSource?>(null) }
         val selectedSource = pickedSource?.takeIf { picked -> tabs.any { it.source == picked } }
+            ?: openOn?.takeIf { open -> tabs.any { it.source == open } }
             ?: sources.updating?.takeIf { updating -> tabs.any { it.source == updating } }
             ?: installableRepo?.let { FollowedSource.Repository(it.id) }
             ?: tabs.firstOrNull()?.source
@@ -1541,6 +1597,127 @@ private fun VersionsSection(
             }
         }
     }
+}
+
+/**
+ * An app's version list with a tab per source offering it, for a page that is not the app's catalogue
+ * page: a tracked source's own page, opened on that source ([openOn]). [catalogue] reads the catalogue's
+ * side of the same app (see [catalogueViewModel]) and installs its versions, [external] runs the tracked
+ * sources'. [fallback] stands in until the catalogue's side is read.
+ */
+@Composable
+internal fun AppSourcesVersions(
+    catalogue: AppDetailViewModel,
+    external: ExternalAppsViewModel,
+    openOn: FollowedSource,
+    onAnchorPositioned: (Int) -> Unit,
+    titleAction: (@Composable () -> Unit)?,
+    fallback: @Composable () -> Unit,
+) {
+    val state by catalogue.state.collectAsStateWithLifecycle()
+    val success = state as? AppDetailState.Success
+    if (success == null) {
+        fallback()
+        return
+    }
+    val packages = success.packages
+    val app = success.app
+    val installedInfo by catalogue.installedInfo.collectAsStateWithLifecycle()
+    val installState by catalogue.installState.collectAsStateWithLifecycle()
+    val downloadStatus by catalogue.downloadStatus.collectAsStateWithLifecycle()
+    val downloadTargetVersionCode by catalogue.downloadTargetVersionCode.collectAsStateWithLifecycle()
+    val showIncompatibleVersions by catalogue.showIncompatibleVersions.collectAsStateWithLifecycle()
+    val externalSources by catalogue.externalSources.collectAsStateWithLifecycle()
+    val updateSource by catalogue.updateSource.collectAsStateWithLifecycle()
+    val updater by catalogue.externalUpdater.collectAsStateWithLifecycle()
+    CatalogueInstallConflictDialog(catalogue, app.metadata.name)
+    val installableRepo = remember(packages, app.metadata.suggestedVersionCode) {
+        packages.selectForDevice(app.metadata.suggestedVersionCode)?.second
+    }
+    val installedPackage = remember(packages) { packages.map { it.first }.firstOrNull { it.installed } }
+    val versionInstall = rememberVersionInstallState()
+    VersionInstallDialogs(
+        state = versionInstall,
+        installedInfo = installedInfo,
+        onInstallVersion = catalogue::installVersion,
+        onUninstall = catalogue::uninstall,
+    )
+    val updatingSource = updatingSourceOf(installedInfo != null, updater, updateSource.followed, installableRepo)
+    val updatingName = sourceNameOf(updatingSource, packages, externalSources + listOfNotNull(updater))
+    val followState = rememberSourceFollowState()
+    SourceFollowDialogs(
+        state = followState,
+        appName = app.metadata.name,
+        installedInfo = installedInfo,
+        packages = packages,
+        externalViewModel = external,
+        onFollow = catalogue::follow,
+        onInstallVersion = catalogue::installVersion,
+        onUninstall = catalogue::uninstall,
+    )
+    VersionsSection(
+        packages = packages,
+        sources = VersionSources(
+            external = externalSources,
+            externalViewModel = external,
+            choice = updateSource,
+            updater = updater,
+            onFollow = catalogue::follow,
+            updating = updatingSource,
+            onFollowTab = followState.followTab(installedInfo, packages, updatingName),
+        ),
+        installableRepo = installableRepo,
+        onSelectRepo = catalogue::setPreferredRepo,
+        app = app,
+        onVersionClick = { pkg, repo -> versionInstall.version = pkg to repo },
+        onAnchorPositioned = onAnchorPositioned,
+        downloadStatus = downloadStatus,
+        installing = isInstalling(installState, downloadTargetVersionCode, installedPackage),
+        downloadTargetVersionCode = downloadTargetVersionCode,
+        onCancel = catalogue::cancel,
+        showIncompatibleVersions = showIncompatibleVersions,
+        openOn = openOn,
+        titleAction = titleAction,
+    )
+}
+
+/** [catalogue]'s install conflict, for a page installing its versions that is not its own. */
+@Composable
+internal fun CatalogueInstallConflictDialog(catalogue: AppDetailViewModel, appName: String) {
+    val signatureConflict by catalogue.signatureConflict.collectAsStateWithLifecycle()
+    signatureConflict?.let { conflict ->
+        InstallConflictDialog(
+            conflict = conflict,
+            appName = appName,
+            onUninstall = catalogue::confirmSignatureConflictUninstall,
+            onDismiss = catalogue::dismissSignatureConflict,
+        )
+    }
+}
+
+/**
+ * The line saying where the app's updates come from, read from its catalogue side ([catalogue]), for a
+ * page that is not its catalogue page. Null when only one source offers it, or it isn't installed.
+ */
+@Composable
+internal fun catalogueSourceNote(catalogue: AppDetailViewModel): String? {
+    val state by catalogue.state.collectAsStateWithLifecycle()
+    val installedInfo by catalogue.installedInfo.collectAsStateWithLifecycle()
+    val externalSources by catalogue.externalSources.collectAsStateWithLifecycle()
+    val updateSource by catalogue.updateSource.collectAsStateWithLifecycle()
+    val updater by catalogue.externalUpdater.collectAsStateWithLifecycle()
+    val success = state as? AppDetailState.Success ?: return null
+    val installableRepo = remember(success) {
+        success.packages.selectForDevice(success.app.metadata.suggestedVersionCode)?.second
+    }
+    val updatingSource = updatingSourceOf(installedInfo != null, updater, updateSource.followed, installableRepo)
+    val sourceCount = success.packages.distinctBy { it.second.id }.size + externalSources.size
+    return updateSourceNote(
+        installed = installedInfo != null,
+        choice = updateSource,
+        updatingName = sourceNameOf(updatingSource, success.packages, externalSources + listOfNotNull(updater)),
+        sourceCount = sourceCount,
+    )
 }
 
 /** How long a source's version list takes to leave before another one comes in. */

@@ -321,8 +321,8 @@ fun heroFooter(
     isLoadingVersions: Boolean = false,
     // A second line of routine detail under [infoText] (an external source's followed file, say).
     note: String? = null,
-    // The catalogue's repositories offering the same app, by name, and opening its catalogue page, where
-    // the source its updates come from is chosen: an external source's page links to it.
+    // The catalogue's repositories offering the same app, by name, and opening its catalogue page: an
+    // external source's page links to it.
     alsoOn: String? = null,
     onAlsoOnClick: (() -> Unit)? = null,
 ): (@Composable () -> Unit)? {

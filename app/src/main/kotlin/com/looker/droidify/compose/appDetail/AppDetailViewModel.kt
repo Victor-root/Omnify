@@ -206,8 +206,8 @@ class AppDetailViewModel @Inject constructor(
         _descriptionTranslation.value = DescriptionTranslation.Original
     }
 
-    val packageName: String = requireNotNull(savedStateHandle["packageName"]) {
-        "Required argument 'packageName' was not found in SavedStateHandle"
+    val packageName: String = requireNotNull(savedStateHandle[CATALOGUE_PACKAGE_ARG]) {
+        "Required argument '$CATALOGUE_PACKAGE_ARG' was not found in SavedStateHandle"
     }
 
     val customButtons: StateFlow<List<CustomButton>> = customButtonRepository.buttons
@@ -1271,6 +1271,10 @@ data class InstallConflict(
 )
 
 private const val TAG = "AppDetailViewModel"
+
+/** The argument naming the app an [AppDetailViewModel] is for: the app page route's own field
+ *  ([com.looker.droidify.compose.appDetail.navigation.AppDetail.packageName]). */
+internal const val CATALOGUE_PACKAGE_ARG = "packageName"
 
 /** Outcome of [AppDetailViewModel.downloadAndInstall]'s download + verification step. */
 private sealed interface DownloadResult {
