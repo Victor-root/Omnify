@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,7 +38,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -368,25 +368,21 @@ private fun CarouselChevron(visible: Boolean, forward: Boolean, onClick: () -> U
             .graphicsLayer { alpha = shown.value }
             .background(Brush.horizontalGradient(fade)),
     ) {
-        Surface(
-            onClick = onClick,
-            enabled = visible,
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceBright,
-            contentColor = MaterialTheme.colorScheme.primary,
-            shadowElevation = 2.dp,
-            modifier = Modifier.size(32.dp),
-        ) {
-            Icon(
-                imageVector = if (forward) {
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight
-                } else {
-                    Icons.AutoMirrored.Filled.KeyboardArrowLeft
-                },
-                contentDescription = stringResource(if (forward) R.string.sources_next else R.string.sources_previous),
-                modifier = Modifier.padding(4.dp),
-            )
-        }
+        // Just the chevron, in the header's own quiet grey: the fade already says there is more.
+        Icon(
+            imageVector = if (forward) {
+                Icons.AutoMirrored.Filled.KeyboardArrowRight
+            } else {
+                Icons.AutoMirrored.Filled.KeyboardArrowLeft
+            },
+            contentDescription = stringResource(if (forward) R.string.sources_next else R.string.sources_previous),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .clickable(enabled = visible, role = Role.Button, onClick = onClick)
+                .padding(12.dp),
+        )
     }
 }
 
