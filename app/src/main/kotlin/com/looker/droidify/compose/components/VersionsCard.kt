@@ -52,7 +52,7 @@ fun VersionsCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(primary.copy(alpha = 0.06f).compositeOver(MaterialTheme.colorScheme.surface))
+                    .background(versionsCardHeaderColor())
                     .padding(top = 4.dp, bottom = if (header == null) 4.dp else 0.dp),
             ) {
                 Row(
@@ -78,6 +78,11 @@ fun VersionsCard(
         }
     }
 }
+
+/** The tint of a [VersionsCard]'s header, for what is drawn over it to blend in. */
+@Composable
+fun versionsCardHeaderColor(): Color =
+    MaterialTheme.colorScheme.primary.copy(alpha = 0.06f).compositeOver(MaterialTheme.colorScheme.surface)
 
 /** What opens each row of a [VersionsCard], the show-more row included. */
 @Composable

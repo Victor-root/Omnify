@@ -161,6 +161,8 @@
     <string name="source_followed_auto">Mises à jour depuis ici, choix automatique</string>
     <string name="source_followed_automatic">automatique</string>
     <string name="updates_come_from_FORMAT">Les mises à jour viennent de %1$s</string>
+    <string name="sources_previous">Sources précédentes</string>
+    <string name="sources_next">Sources suivantes</string>
     <string name="updates_from_FORMAT">Mises à jour depuis : %1$s</string>
     <string name="updates_from_auto_FORMAT">Mises à jour depuis : %1$s (automatique)</string>
     <string name="followed_source_gone">La source suivie n\'est plus disponible, Omnify en choisit une automatiquement</string>

@@ -1,6 +1,7 @@
 package com.looker.droidify.compose.appDetail
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -24,6 +26,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Star
@@ -33,20 +37,24 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -71,6 +79,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.VersionsCardHeaderPadding
 import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.components.versionsCardHeaderColor
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
 import com.looker.droidify.compose.theme.SOURCE_SWITCH_MS
@@ -83,6 +92,7 @@ import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.network.DataSize
+import kotlinx.coroutines.launch
 
 /**
  * One tab of an app's version list: a repository offering the app, or a tracked external source of the
@@ -252,9 +262,9 @@ internal fun SourceFollowDialogs(
  * the one on screen raised in white, and a star on the one the updates come from.
  *
  * The tiles share the width while their names fit in it. When they don't, each takes the width of its
- * whole name and the carousel scrolls sideways, settling on a tile, the next one showing at the edge;
- * picking a source brings its tile into view. A cut name read as "IzzyOnDroi…", which is no way to tell
- * sources apart.
+ * whole name and the carousel scrolls sideways, settling on a tile, the next one showing at the edge,
+ * with a chevron on each side there is more to see; picking a source brings its tile into view. A cut
+ * name read as "IzzyOnDroi…", which is no way to tell sources apart.
  */
 @Composable
 internal fun SourceCarousel(
@@ -279,6 +289,9 @@ internal fun SourceCarousel(
         }
         placed = true
     }
+    val scope = rememberCoroutineScope()
+    val canGoBack by remember { derivedStateOf { listState.canScrollBackward } }
+    val canGoOn by remember { derivedStateOf { listState.canScrollForward } }
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         // Scrolling right to the card's edges, the tiles resting clear of them.
         val room = maxWidth - VersionsCardHeaderPadding * 2 - SourceTileGap * (tabs.size - 1)
@@ -299,6 +312,80 @@ internal fun SourceCarousel(
                     modifier = Modifier.widthIn(min = tileMinWidth),
                 )
             }
+        }
+        CarouselChevron(
+            visible = canGoBack,
+            forward = false,
+            onClick = { scope.launch { listState.bringTileIntoView(forward = false) } },
+            modifier = Modifier.align(Alignment.CenterStart),
+        )
+        CarouselChevron(
+            visible = canGoOn,
+            forward = true,
+            onClick = { scope.launch { listState.bringTileIntoView(forward = true) } },
+            modifier = Modifier.align(Alignment.CenterEnd),
+        )
+    }
+}
+
+/**
+ * Centres the first tile not wholly in view on the [forward] side, the carousel stopping at its edge
+ * when it can't: a chevron moves one source at a time.
+ */
+private suspend fun LazyListState.bringTileIntoView(forward: Boolean) {
+    val info = layoutInfo
+    val start = info.viewportStartOffset + info.beforeContentPadding
+    val end = info.viewportEndOffset - info.afterContentPadding
+    val whole = info.visibleItemsInfo.filter { it.offset >= start && it.offset + it.size <= end }
+    val target = if (forward) {
+        (whole.lastOrNull()?.index ?: firstVisibleItemIndex) + 1
+    } else {
+        (whole.firstOrNull()?.index ?: firstVisibleItemIndex) - 1
+    }.coerceIn(0, (info.totalItemsCount - 1).coerceAtLeast(0))
+    val size = info.visibleItemsInfo.firstOrNull { it.index == target }?.size ?: 0
+    animateScrollToItem(target, -(info.viewportSize.width - size) / 2)
+}
+
+/**
+ * A chevron at one edge of [SourceCarousel], over a fade of the card's header so the tiles sliding under
+ * it don't fight it, shown only while there is more to see on its side ([visible]). It fades in and out
+ * as it is drawn, without recomposing: it comes and goes while the carousel scrolls to a source picked,
+ * in the middle of the list switching.
+ */
+@Composable
+private fun CarouselChevron(visible: Boolean, forward: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val header = versionsCardHeaderColor()
+    val shown = animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(SOURCE_SWITCH_MS / 2),
+        label = "carouselChevron",
+    )
+    val fade = if (forward) listOf(header.copy(alpha = 0f), header) else listOf(header, header.copy(alpha = 0f))
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(width = 52.dp, height = 56.dp)
+            .graphicsLayer { alpha = shown.value }
+            .background(Brush.horizontalGradient(fade)),
+    ) {
+        Surface(
+            onClick = onClick,
+            enabled = visible,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceBright,
+            contentColor = MaterialTheme.colorScheme.primary,
+            shadowElevation = 2.dp,
+            modifier = Modifier.size(32.dp),
+        ) {
+            Icon(
+                imageVector = if (forward) {
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight
+                } else {
+                    Icons.AutoMirrored.Filled.KeyboardArrowLeft
+                },
+                contentDescription = stringResource(if (forward) R.string.sources_next else R.string.sources_previous),
+                modifier = Modifier.padding(4.dp),
+            )
         }
     }
 }
