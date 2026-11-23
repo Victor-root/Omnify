@@ -20,6 +20,7 @@ import com.looker.droidify.compose.appDetail.pushCapabilityIsVestigial
 import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.data.AppRepository
+import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApi
@@ -90,12 +91,14 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -114,9 +117,11 @@ class ExternalAppsViewModel @Inject constructor(
     private val installManager: InstallManager,
     private val translationManager: TranslationManager,
     private val settingsRepository: SettingsRepository,
-    // The F-Droid catalogue's repository, reused here only for its generic (provider-agnostic)
-    // APK-locale cache — see loadSupportedLanguages().
+    // The F-Droid catalogue's repository, reused here for its generic (provider-agnostic) APK-locale
+    // cache (see loadSupportedLanguages()) and to name the repositories offering the same app (see
+    // catalogueRepoNames()).
     private val appRepository: AppRepository,
+    private val repoRepository: RepoRepository,
     // Where a running "update all" reports what it is downloading, so a source's own page shows
     // that download too rather than offering to start it again.
     private val batchProgress: BatchUpdateProgress,
@@ -229,6 +234,21 @@ class ExternalAppsViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * The catalogue's repositories offering [packageName] too, by name: a source's page links to the
+     * app's catalogue page, which lists every source of it and is where the one its updates come from is
+     * chosen. Empty when the package is unknown or in no repository.
+     */
+    fun catalogueRepoNames(packageName: String?): Flow<List<String>> =
+        if (packageName == null) {
+            flowOf(emptyList())
+        } else {
+            appRepository.getApp(PackageName(packageName))
+                .map { apps -> apps.mapNotNull { repoRepository.getRepo(it.repoId.toInt())?.name }.distinct() }
+                .distinctUntilChanged()
+                .flowOn(Dispatchers.Default)
+        }
 
     /** See [ExternalInstalledState.deviceVersions]. */
     val deviceVersions: StateFlow<Map<String, String>> = installedState.deviceVersions

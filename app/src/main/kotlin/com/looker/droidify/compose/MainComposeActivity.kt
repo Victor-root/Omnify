@@ -939,6 +939,7 @@ class MainComposeActivity : ComponentActivity() {
                             onFixGithubToken = {
                                 navController.navigateToSettings(highlightGithubToken = true)
                             },
+                            onOpenCatalogueApp = { packageName -> navController.navigateToAppDetail(packageName) },
                         )
 
                         externalAccountDetail(

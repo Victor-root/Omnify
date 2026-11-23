@@ -24,6 +24,12 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -35,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.tvFocusScale
+import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.data.FollowedSource
 import com.looker.droidify.data.catalogueBuildIsOlder
@@ -43,6 +50,7 @@ import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.external.ExternalApp
+import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.network.DataSize
 
 /**
@@ -63,6 +71,149 @@ internal data class SourceTab(
 internal fun List<Pair<Package, Repo>>.updateBuild(followed: FollowedSource?, suggested: Long): Pair<Package, Repo>? {
     val repoId = (followed as? FollowedSource.Repository)?.repoId
     return (if (repoId == null) this else filter { it.second.id == repoId }).selectForDevice(suggested)
+}
+
+/**
+ * The tabs of an app's version list: each repository offering it ([packages], newest build this device
+ * runs as its version), then each tracked external source of the same package ([external]).
+ */
+internal fun sourceTabs(packages: List<Pair<Package, Repo>>, external: List<ExternalApp>): List<SourceTab> =
+    packages.map { it.second }.distinctBy { it.id }.map { repo ->
+        SourceTab(
+            source = FollowedSource.Repository(repo.id),
+            name = repo.name,
+            version = packages.filter { it.second.id == repo.id }
+                .selectForDevice(Long.MAX_VALUE)
+                ?.first?.manifest?.versionName,
+        )
+    } + external.map { app ->
+        SourceTab(
+            source = FollowedSource.External(app.key),
+            name = app.sourceLabel,
+            version = releaseVersionLabel(app.latestApkName, app.latestTag).ifEmpty { null },
+            external = app,
+        )
+    }
+
+/**
+ * The source the updates of the copy on the device come from, whose tab gets the star: the one followed,
+ * else the one Omnify picks, a tracked source that takes them ([updater]) or the repository with the
+ * build it would install ([installableRepo]). Null while the app isn't installed.
+ */
+internal fun updatingSourceOf(
+    installed: Boolean,
+    updater: ExternalApp?,
+    followed: FollowedSource?,
+    installableRepo: Repo?,
+): FollowedSource? = when {
+    !installed -> null
+    updater != null -> FollowedSource.External(updater.key)
+    followed is FollowedSource.Repository -> followed
+    else -> installableRepo?.let { FollowedSource.Repository(it.id) }
+}
+
+/** [source]'s name, from the repositories offering the app ([packages]) or its tracked sources. */
+internal fun sourceNameOf(
+    source: FollowedSource?,
+    packages: List<Pair<Package, Repo>>,
+    external: List<ExternalApp>,
+): String? = when (source) {
+    is FollowedSource.External -> external.firstOrNull { it.key == source.key }?.sourceLabel
+    is FollowedSource.Repository -> packages.firstOrNull { it.second.id == source.repoId }?.second?.name
+    null -> null
+}
+
+/**
+ * The line saying where an installed app's updates come from, when more than one source offers it
+ * ([sourceCount]): [updatingName], picked by the user or by Omnify, or that the followed source is gone.
+ */
+@Composable
+internal fun updateSourceNote(
+    installed: Boolean,
+    choice: UpdateSourceChoice,
+    updatingName: String?,
+    sourceCount: Int,
+): String? = when {
+    !installed -> null
+    choice.fellBack -> stringResource(R.string.followed_source_gone)
+    sourceCount < 2 || updatingName == null -> null
+    choice.followed != null -> stringResource(R.string.updates_from_FORMAT, updatingName)
+    else -> stringResource(R.string.updates_from_auto_FORMAT, updatingName)
+}
+
+/**
+ * Following another source: [request] waiting for the user to confirm, then, for one signing with
+ * another key, [pendingSwitch], the source to install from once the copy on the device is gone.
+ */
+@Stable
+internal class SourceFollowState {
+    var request by mutableStateOf<FollowRequest?>(null)
+    var pendingSwitch by mutableStateOf<SourceTab?>(null)
+
+    /** Asks to follow a tab, for an app whose copy on the device is [installed]; null while it isn't. */
+    fun followTab(
+        installed: InstalledInfo?,
+        packages: List<Pair<Package, Repo>>,
+        currentSource: String?,
+    ): ((SourceTab) -> Unit)? = installed?.let { info ->
+        { tab -> request = followRequestOf(tab, info, packages, currentSource ?: info.source) }
+    }
+}
+
+@Composable
+internal fun rememberSourceFollowState(): SourceFollowState = remember { SourceFollowState() }
+
+/**
+ * [state]'s confirmation dialog, and what confirming it does: following the source, installing its newer
+ * build over the copy on the device, or, for a source signing with another key, uninstalling that copy
+ * and, once it is gone, following the source and installing from it. An uninstall the user turns down
+ * leaves everything as it was.
+ */
+@Composable
+internal fun SourceFollowDialogs(
+    state: SourceFollowState,
+    appName: String,
+    installedInfo: InstalledInfo?,
+    packages: List<Pair<Package, Repo>>,
+    externalViewModel: ExternalAppsViewModel?,
+    onFollow: (FollowedSource) -> Unit,
+    onInstallVersion: (Package, Repo) -> Unit,
+    onUninstall: () -> Unit,
+) {
+    val installFrom: (SourceTab) -> Unit = { tab ->
+        when (val source = tab.source) {
+            is FollowedSource.Repository -> packages.filter { it.second.id == source.repoId }
+                .selectForDevice(Long.MAX_VALUE)
+                ?.let { (pkg, repo) -> onInstallVersion(pkg, repo) }
+            is FollowedSource.External -> tab.external?.let { externalViewModel?.installOrUpdate(it) }
+        }
+    }
+    // installedInfo is re-read on every install/uninstall; null means the app is now gone.
+    LaunchedEffect(installedInfo, state.pendingSwitch) {
+        val pending = state.pendingSwitch ?: return@LaunchedEffect
+        if (installedInfo == null) {
+            onFollow(pending.source)
+            installFrom(pending)
+            state.pendingSwitch = null
+        }
+    }
+    state.request?.let { request ->
+        FollowSourceDialog(
+            request = request,
+            appName = appName,
+            onFollow = {
+                onFollow(request.tab.source)
+                if (request.installsNow) installFrom(request.tab)
+                state.request = null
+            },
+            onReplace = {
+                state.pendingSwitch = request.tab
+                onUninstall()
+                state.request = null
+            },
+            onDismiss = { state.request = null },
+        )
+    }
 }
 
 /**

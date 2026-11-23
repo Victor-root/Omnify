@@ -86,6 +86,8 @@ fun TvExternalAppDetailScreen(
     viewModel: ExternalAppsViewModel,
     onBackClick: () -> Unit,
     onFixGithubToken: () -> Unit,
+    // Opens the catalogue page of the same app, by package name.
+    onOpenCatalogueApp: (String) -> Unit,
 ) {
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
@@ -122,6 +124,10 @@ fun TvExternalAppDetailScreen(
     }
 
     val app = remember(apps, appKey) { apps.firstOrNull { it.key == appKey } }
+    // The repositories offering the same app: the page links to its catalogue page, where every source
+    // of it is listed and the one its updates come from is chosen.
+    val catalogueRepoNames by remember(app?.packageName) { viewModel.catalogueRepoNames(app?.packageName) }
+        .collectAsStateWithLifecycle(emptyList())
     TvDetailOpenTiming("external app detail", ready = app != null)
 
     if (app == null) {
@@ -337,6 +343,8 @@ fun TvExternalAppDetailScreen(
                             },
                             onTranslate = { readme?.html?.let(viewModel::translateReadme) },
                             onShowOriginal = viewModel::showOriginalReadme,
+                            onOtherSourcesClick = app.packageName?.takeIf { catalogueRepoNames.isNotEmpty() }
+                                ?.let { packageName -> { onOpenCatalogueApp(packageName) } },
                         )
                     }
 
@@ -435,6 +443,50 @@ private fun TvExternalActions(
         primaryActionFocusRequester = primaryActionFocusRequester,
         fillWidth = true,
     )
+}
+
+/**
+ * [app]'s releases, read from [viewModel], for a page that is not [app]'s own: the tab an app's
+ * catalogue page gives each tracked source of the same package. The same list, and the same
+ * confirmation, as on the source's own page.
+ */
+@Composable
+internal fun TvExternalSourceReleases(app: ExternalApp, viewModel: ExternalAppsViewModel) {
+    val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
+    val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
+    val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
+    LaunchedEffect(app.key, app.prereleases) {
+        viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET)
+    }
+    var versionToInstall by remember(app.key) { mutableStateOf<Release?>(null) }
+    versionToInstall?.let { release ->
+        InstallVersionDialog(
+            versionName = release.tag,
+            isDowngrade = false,
+            onInstall = {
+                viewModel.installVersion(app, release)
+                versionToInstall = null
+            },
+            onUninstall = {},
+            onDismiss = { versionToInstall = null },
+        )
+    }
+    val releases = releaseHistory
+    when {
+        releases == null -> CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+        releases.isEmpty() -> Text(
+            text = stringResource(R.string.external_no_release, app.path),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        else -> TvExternalVersionsList(
+            app = app,
+            releases = releases,
+            installedVersion = installedVersions[app.key],
+            sdkInfoByApkUrl = { sdkInfoByApkUrl },
+            onRequestSdkInfo = viewModel::loadSdkInfo,
+            onVersionClick = { versionToInstall = it },
+        )
+    }
 }
 
 /**

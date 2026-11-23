@@ -157,6 +157,8 @@ fun ExternalAppDetailScreen(
     viewModel: ExternalAppsViewModel,
     onBackClick: () -> Unit,
     onFixGithubToken: () -> Unit,
+    // Opens the catalogue page of the same app, by package name.
+    onOpenCatalogueApp: (String) -> Unit,
 ) {
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
@@ -213,6 +215,10 @@ fun ExternalAppDetailScreen(
     }
 
     val app = remember(apps, appKey) { apps.firstOrNull { it.key == appKey } }
+    // The repositories offering the same app: the page links to its catalogue page, where every source
+    // of it is listed and the one its updates come from is chosen.
+    val catalogueRepoNames by remember(app?.packageName) { viewModel.catalogueRepoNames(app?.packageName) }
+        .collectAsStateWithLifecycle(emptyList())
 
     // Make sure the app knows the package id it installs under, so a copy already on the device (installed
     // from any channel) is recognised as installed instead of showing "Install". Keyed on the resolved app
@@ -687,6 +693,8 @@ fun ExternalAppDetailScreen(
                 footer = heroFooter(
                     infoText = footerText,
                     note = followedNote,
+                    alsoOn = catalogueRepoNames.takeIf { it.isNotEmpty() }?.joinToString(),
+                    onAlsoOnClick = app.packageName?.let { packageName -> { onOpenCatalogueApp(packageName) } },
                     onViewVersionsClick = if (!releaseHistory.isNullOrEmpty()) {
                         {
                             coroutineScope.launch {

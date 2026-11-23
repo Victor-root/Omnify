@@ -81,6 +81,32 @@ import com.looker.droidify.compose.theme.ScopedAccentColor
 import com.looker.droidify.data.model.minimal
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.utility.common.rememberIconAccent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material3.Surface
+import androidx.compose.ui.text.style.TextAlign
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.looker.droidify.compose.appDetail.FollowSourceRow
+import com.looker.droidify.compose.appDetail.SourceFollowDialogs
+import com.looker.droidify.compose.appDetail.SourceTab
+import com.looker.droidify.compose.appDetail.rememberSourceFollowState
+import com.looker.droidify.compose.appDetail.sourceNameOf
+import com.looker.droidify.compose.appDetail.sourceTabs
+import com.looker.droidify.compose.appDetail.updateSourceNote
+import com.looker.droidify.compose.appDetail.updatingSourceOf
+import com.looker.droidify.compose.components.TAB_PILL_MS
+import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
+import com.looker.droidify.compose.theme.EmphasizedAccelerate
+import com.looker.droidify.compose.theme.EmphasizedDecelerate
+import com.looker.droidify.data.FollowedSource
+import com.looker.droidify.external.ExternalApp
 
 /**
  * The Android TV app-detail screen — a lean, couch-friendly presentation over the same
@@ -106,6 +132,11 @@ fun TvAppDetailScreen(
     val installedInfo by viewModel.installedInfo.collectAsStateWithLifecycle()
     val externallySourced by viewModel.externallySourced.collectAsStateWithLifecycle()
     val updateSource by viewModel.updateSource.collectAsStateWithLifecycle()
+    val externalSources by viewModel.externalSources.collectAsStateWithLifecycle()
+    val externalUpdater by viewModel.externalUpdater.collectAsStateWithLifecycle()
+    // Only for an app a tracked source also offers, as on the phone page.
+    val externalViewModel: ExternalAppsViewModel? =
+        if (externalSources.isNotEmpty() || externalUpdater != null) hiltViewModel() else null
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
     val signatureConflict by viewModel.signatureConflict.collectAsStateWithLifecycle()
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
@@ -184,10 +215,35 @@ fun TvAppDetailScreen(
                 val updatePackage = remember(packages, updateSource.followed, app.metadata.suggestedVersionCode) {
                     packages.updateBuild(updateSource.followed, app.metadata.suggestedVersionCode)
                 }?.first
-                val updateAvailable = !externallySourced && installedVersionCode != null &&
-                    updatePackage != null &&
-                    !catalogueBuildIsOlder(installedInfo?.version, updatePackage.manifest.versionName) &&
-                    installedVersionCode < updatePackage.manifest.versionCode
+                // A tracked source taking the updates offers its own, as on the phone page.
+                val updater = externalUpdater
+                val externalUpdate = updater?.takeIf { it.isUpdatePending(installedInfo?.version) }
+                val updateAvailable = externalUpdate != null || (
+                    !externallySourced && installedVersionCode != null &&
+                        updatePackage != null &&
+                        !catalogueBuildIsOlder(installedInfo?.version, updatePackage.manifest.versionName) &&
+                        installedVersionCode < updatePackage.manifest.versionCode
+                    )
+                val updatingSource = updatingSourceOf(
+                    installed = isInstalled,
+                    updater = updater,
+                    followed = updateSource.followed,
+                    installableRepo = installable?.second,
+                )
+                val updatingName = sourceNameOf(updatingSource, packages, externalSources + listOfNotNull(updater))
+                val tabs = remember(packages, externalSources) { sourceTabs(packages, externalSources) }
+                val sourceNote = updateSourceNote(isInstalled, updateSource, updatingName, tabs.size)
+                val followState = rememberSourceFollowState()
+                SourceFollowDialogs(
+                    state = followState,
+                    appName = app.metadata.name,
+                    installedInfo = installedInfo,
+                    packages = packages,
+                    externalViewModel = externalViewModel,
+                    onFollow = viewModel::follow,
+                    onInstallVersion = viewModel::installVersion,
+                    onUninstall = viewModel::uninstall,
+                )
                 // Mirrors the phone screen: the OS reports Installed before the app's own installed-packages
                 // table catches up, so hold the "installing" look until the confirmed version matches.
                 val installConfirmed = downloadTargetVersionCode == null ||
@@ -260,6 +316,17 @@ fun TvAppDetailScreen(
                         onUninstall = viewModel::confirmSignatureConflictUninstall,
                         onDismiss = viewModel::dismissSignatureConflict,
                     )
+                }
+                externalViewModel?.let { external ->
+                    val externalConflict by external.installConflict.collectAsStateWithLifecycle()
+                    externalConflict?.let { conflict ->
+                        InstallConflictDialog(
+                            conflict = conflict,
+                            appName = app.metadata.name,
+                            onUninstall = external::confirmInstallConflictUninstall,
+                            onDismiss = external::dismissInstallConflict,
+                        )
+                    }
                 }
 
                 // The header (back button, icon/name/chips, action buttons + favourite) is guaranteed to
@@ -344,12 +411,24 @@ fun TvAppDetailScreen(
                                     size = installablePackage?.apk?.size?.toString(),
                                     onSourceCodeClick = null,
                                 )
+                                sourceNote?.let { note ->
+                                    Text(
+                                        text = note,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
 
                                 // Action buttons (Install/Update/Launch + Uninstall) sharing the pane's width,
                                 // then the favourite and hide toggles, discreet since they are rarely used.
                                 Box(modifier = Modifier.onFocusChanged { actionsHaveFocus = it.hasFocus }) {
                                     TvPrimaryActions(
                                         viewModel = viewModel,
+                                        updater = updater,
+                                        externalViewModel = externalViewModel,
+                                        externalUpdate = externalUpdate != null,
                                         packageName = app.metadata.packageName.name,
                                         isInstalled = isInstalled,
                                         updateAvailable = updateAvailable,
@@ -397,11 +476,28 @@ fun TvAppDetailScreen(
 
                             if (packages.isNotEmpty()) {
                                 TvSectionTitle(stringResource(R.string.versions))
-                                TvVersionsList(
-                                    packages = packages,
-                                    suggestedVersionCode = app.metadata.suggestedVersionCode,
-                                    onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
-                                )
+                                TvSourceVersions(
+                                    tabs = tabs,
+                                    updating = updatingSource,
+                                    pinned = updateSource.followed != null,
+                                    onFollowTab = followState.followTab(installedInfo, packages, updatingName),
+                                    defaultSource = updatingSource ?: installable?.second?.let {
+                                        FollowedSource.Repository(it.id)
+                                    },
+                                    onSelectRepo = viewModel::setPreferredRepo,
+                                ) { tab ->
+                                    val external = tab.external
+                                    if (external != null) {
+                                        externalViewModel?.let { TvExternalSourceReleases(external, it) }
+                                    } else {
+                                        val repoId = (tab.source as? FollowedSource.Repository)?.repoId
+                                        TvVersionsList(
+                                            packages = packages.filter { it.second.id == repoId },
+                                            suggestedVersionCode = app.metadata.suggestedVersionCode,
+                                            onVersionClick = { pkg, repo -> versionToInstall = pkg to repo },
+                                        )
+                                    }
+                                }
                             }
                         },
                         right = {
@@ -432,10 +528,14 @@ fun TvAppDetailScreen(
 }
 
 /** [PrimaryActions] reading [downloadStatus] itself, so a download's progress ticks recompose only
- *  these buttons instead of the whole pane around them. */
+ *  these buttons instead of the whole pane around them. With a tracked source taking the app's
+ *  updates ([updater]), its update ([externalUpdate]) and its download are the ones shown. */
 @Composable
 private fun TvPrimaryActions(
     viewModel: AppDetailViewModel,
+    updater: ExternalApp?,
+    externalViewModel: ExternalAppsViewModel?,
+    externalUpdate: Boolean,
     packageName: String,
     isInstalled: Boolean,
     updateAvailable: Boolean,
@@ -445,17 +545,30 @@ private fun TvPrimaryActions(
     canUninstall: Boolean,
     primaryActionFocusRequester: FocusRequester,
 ) {
+    val tracked = updater?.let { app -> externalViewModel?.let { it to app } }
+    val externalDownload = tracked?.let { (external, app) ->
+        external.downloads.collectAsStateWithLifecycle().value[app.key]
+    }
+    val ownDownload = downloadStatus()
     PrimaryActions(
         packageName = packageName,
         isInstalled = isInstalled,
         updateAvailable = updateAvailable,
         installState = installState,
-        downloadStatus = downloadStatus(),
+        downloadStatus = ownDownload ?: externalDownload,
         installConfirmed = installConfirmed,
-        onInstallOrUpdate = viewModel::installOrUpdate,
+        onInstallOrUpdate = if (externalUpdate && tracked != null) {
+            { tracked.first.installOrUpdate(tracked.second) }
+        } else {
+            viewModel::installOrUpdate
+        },
         onLaunch = viewModel::launch,
         onUninstall = if (canUninstall) viewModel::uninstall else null,
-        onCancel = viewModel::cancel,
+        onCancel = if (ownDownload == null && externalDownload != null && tracked != null) {
+            { tracked.first.cancel(tracked.second) }
+        } else {
+            viewModel::cancel
+        },
         primaryActionFocusRequester = primaryActionFocusRequester,
         fillWidth = true,
     )
@@ -524,6 +637,9 @@ internal fun TvSecondaryActions(
     translation: DescriptionTranslation?,
     onTranslate: () -> Unit,
     onShowOriginal: () -> Unit,
+    // An external source's page: opens the catalogue page of the same app, where every source of it is
+    // listed and the one its updates come from is chosen. Null hides it.
+    onOtherSourcesClick: (() -> Unit)? = null,
 ) {
     FlowRow(
         horizontalArrangement = spacedBy(8.dp, Alignment.CenterHorizontally),
@@ -546,6 +662,14 @@ internal fun TvSecondaryActions(
             TvSecondaryAction(
                 icon = Icons.Filled.Settings,
                 label = stringResource(R.string.manage),
+                active = false,
+                onClick = onClick,
+            )
+        }
+        onOtherSourcesClick?.let { onClick ->
+            TvSecondaryAction(
+                icon = Icons.Filled.SwapHoriz,
+                label = stringResource(R.string.other_sources),
                 active = false,
                 onClick = onClick,
             )
@@ -591,6 +715,111 @@ internal fun TvSecondaryAction(icon: ImageVector, label: String, active: Boolean
         )
         Spacer(Modifier.width(8.dp))
         Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+    }
+}
+
+/**
+ * The TV page's version list, with one pill per source above it when more than one offers the app: the
+ * phone page's tabs in the TV's own shapes, picked with the remote's centre key, a star on the source
+ * the updates come from. Under them, the chip or the button that follows the source on screen
+ * ([onFollowTab], null while the app isn't installed), then that source's versions ([content]).
+ */
+@Composable
+private fun TvSourceVersions(
+    tabs: List<SourceTab>,
+    updating: FollowedSource?,
+    pinned: Boolean,
+    onFollowTab: ((SourceTab) -> Unit)?,
+    defaultSource: FollowedSource?,
+    onSelectRepo: (Int) -> Unit,
+    content: @Composable (SourceTab) -> Unit,
+) {
+    var pickedSource by remember { mutableStateOf<FollowedSource?>(null) }
+    val selected = tabs.firstOrNull { it.source == pickedSource }
+        ?: tabs.firstOrNull { it.source == defaultSource }
+        ?: tabs.firstOrNull()
+        ?: return
+    // The Install button follows the repository on screen, unless one is followed for updates.
+    LaunchedEffect(selected.source) {
+        (selected.source as? FollowedSource.Repository)?.let { onSelectRepo(it.repoId) }
+    }
+    if (tabs.size > 1) {
+        FlowRow(horizontalArrangement = spacedBy(8.dp), verticalArrangement = spacedBy(8.dp)) {
+            tabs.forEach { tab ->
+                TvSourcePill(
+                    tab = tab,
+                    selected = tab == selected,
+                    updating = tab.source == updating,
+                    onClick = { pickedSource = tab.source },
+                )
+            }
+        }
+    }
+    AnimatedContent(
+        targetState = selected,
+        contentKey = { it.source },
+        transitionSpec = {
+            fadeIn(tween(TAB_PILL_MS - TV_SOURCE_LEAVE_MS, TV_SOURCE_LEAVE_MS, EmphasizedDecelerate)) togetherWith
+                fadeOut(tween(TV_SOURCE_LEAVE_MS, easing = EmphasizedAccelerate)) using SizeTransform(clip = false)
+        },
+        label = "tvVersionSource",
+    ) { tab ->
+        Column(verticalArrangement = spacedBy(12.dp)) {
+            if (tabs.size > 1 && onFollowTab != null) {
+                FollowSourceRow(
+                    updating = tab.source == updating,
+                    pinned = pinned,
+                    onFollow = { onFollowTab(tab) },
+                    modifier = Modifier.tvBringIntoViewOnFocus(),
+                )
+            }
+            content(tab)
+        }
+    }
+}
+
+/** How long a source's version list takes to fade before another one comes in. */
+private const val TV_SOURCE_LEAVE_MS = 90
+
+/** One source of [TvSourceVersions]: its name over the version it offers, filled when on screen. */
+@Composable
+private fun TvSourcePill(tab: SourceTab, selected: Boolean, updating: Boolean, onClick: () -> Unit) {
+    // A ring as well as the scale: on a filled pill, the scale alone hardly shows where the remote is.
+    var focused by remember { mutableStateOf(false) }
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = if (selected) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        border = if (focused) BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface) else null,
+        modifier = Modifier
+            .onFocusChanged { focused = it.hasFocus }
+            .tvFocusScale(1.05f)
+            .tvBringIntoViewOnFocus(),
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacedBy(4.dp)) {
+                if (updating) {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = stringResource(R.string.source_followed),
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                Text(tab.name, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+            }
+            tab.version?.let { version ->
+                Text(version, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+            }
+        }
     }
 }
 

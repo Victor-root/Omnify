@@ -61,3 +61,18 @@ data class HiddenAppsBackup(val packageNames: Set<String> = emptySet())
 
 @Serializable
 data class CustomButtonsBackup(val buttons: List<CustomButton> = emptyList())
+
+/**
+ * The source an app's updates come from ([com.looker.droidify.data.FollowedSource]), in backup form: a
+ * repository by its [repositoryAddress], since its id only means something in one device's database, a
+ * tracked source by its [externalKey]. One of the two is set.
+ */
+@Serializable
+data class FollowedSourceBackupEntry(
+    val packageName: String,
+    val repositoryAddress: String? = null,
+    val externalKey: String? = null,
+)
+
+@Serializable
+data class FollowedSourcesBackup(val sources: List<FollowedSourceBackupEntry> = emptyList())

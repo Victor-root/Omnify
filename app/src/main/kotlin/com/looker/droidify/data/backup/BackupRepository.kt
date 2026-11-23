@@ -3,6 +3,7 @@ package com.looker.droidify.data.backup
 import android.content.Context
 import android.net.Uri
 import com.looker.droidify.BuildConfig
+import com.looker.droidify.data.FollowedSource
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.datastore.CustomButtonRepository
 import com.looker.droidify.datastore.Settings
@@ -42,6 +43,9 @@ private const val ENTRY_EXTERNAL_SOURCES = "external_sources.json"
 private const val ENTRY_FAVOURITES = "favourites.json"
 private const val ENTRY_HIDDEN_APPS = "hidden_apps.json"
 private const val ENTRY_CUSTOM_BUTTONS = "custom_buttons.json"
+
+/** Part of [BackupCategory.SETTINGS], in an entry of its own: see [FollowedSourcesBackup]. */
+private const val ENTRY_FOLLOWED_SOURCES = "followed_sources.json"
 
 /**
  * Ceilings on what [BackupRepository.readAllEntries] will hold in memory for one imported archive.
@@ -170,8 +174,8 @@ class BackupRepository @Inject constructor(
                 // BackupCategory's own doc comment for why they're split out at all. The GitHub
                 // token goes the same way, into GITHUB_TOKEN, so leaving that category
                 // unchecked genuinely keeps the token out of the file, rather than writing it
-                // here anyway where nothing would ever look for it. Followed sources stay out too:
-                // they name repositories by their id on this device.
+                // here anyway where nothing would ever look for it. Followed sources go in an entry
+                // of their own, naming repositories by address rather than by this device's ids.
                 val settings = settingsRepository.getInitial().copy(
                     favouriteApps = emptySet(),
                     favouritedAt = emptyMap(),
@@ -181,6 +185,7 @@ class BackupRepository @Inject constructor(
                     githubToken = "",
                 )
                 zip.writeEntry(ENTRY_SETTINGS, json.encodeToString(settings))
+                zip.writeEntry(ENTRY_FOLLOWED_SOURCES, json.encodeToString(followedSourcesBackup()))
             }
             if (BackupCategory.GITHUB_TOKEN in categories) {
                 val token = GithubTokenBackup(settingsRepository.getInitial().githubToken)
@@ -314,6 +319,12 @@ class BackupRepository @Inject constructor(
                 )
                 restoreCustomButtons(backup.buttons)
             }
+            // Last, once the repositories they name are in place. A backup written before they were
+            // saved has no such entry.
+            val followedSources = inspection.entries[ENTRY_FOLLOWED_SOURCES]
+            if (BackupCategory.SETTINGS in toRestore && followedSources != null) {
+                restoreFollowedSources(json.decodeFromString(followedSources))
+            }
         }
 
     private suspend fun restoreSettings(imported: Settings) {
@@ -345,6 +356,40 @@ class BackupRepository @Inject constructor(
     private suspend fun restoreGithubToken(token: String) {
         settingsRepository.setGithubToken(token)
         externalApi.verifyGithubToken()
+    }
+
+    private suspend fun followedSourcesBackup(): FollowedSourcesBackup {
+        val addresses = repoRepository.repos.first().associate { it.id to it.address }
+        val sources = settingsRepository.getInitial().followedSources.mapNotNull { (packageName, stored) ->
+            when (val source = FollowedSource.parse(stored)) {
+                is FollowedSource.Repository -> addresses[source.repoId]?.let { address ->
+                    FollowedSourceBackupEntry(packageName, repositoryAddress = address)
+                }
+                is FollowedSource.External -> FollowedSourceBackupEntry(packageName, externalKey = source.key)
+                null -> null
+            }
+        }
+        return FollowedSourcesBackup(sources)
+    }
+
+    /**
+     * Follows again the sources [backup] names, for the apps with no choice of their own here: a choice
+     * already made on this device is kept, like every other restore leaves what is in place. A
+     * repository is found by its address; one missing here is skipped.
+     */
+    private suspend fun restoreFollowedSources(backup: FollowedSourcesBackup) {
+        val current = settingsRepository.getInitial().followedSources
+        val idsByAddress = repoRepository.repos.first().associate { it.address.normalizeRepoAddress() to it.id }
+        backup.sources
+            .filter { it.packageName !in current }
+            .forEach { entry ->
+                val source = entry.repositoryAddress
+                    ?.let { idsByAddress[it.normalizeRepoAddress()] }
+                    ?.let(FollowedSource::Repository)
+                    ?: entry.externalKey?.let(FollowedSource::External)
+                    ?: return@forEach
+                settingsRepository.setFollowedSource(entry.packageName, source.stored)
+            }
     }
 
     private suspend fun restoreFavourites(packageNames: Set<String>) {
@@ -419,7 +464,7 @@ class BackupRepository @Inject constructor(
      * device (see [inspectBackupBytes]) as to one off the filesystem.
      */
     private fun readAllEntries(input: InputStream): Map<String, String> {
-        val known = CATEGORY_ENTRY_NAMES.values.toSet() + ENTRY_MANIFEST
+        val known = CATEGORY_ENTRY_NAMES.values.toSet() + ENTRY_MANIFEST + ENTRY_FOLLOWED_SOURCES
         val entries = mutableMapOf<String, String>()
         var total = 0L
         ZipInputStream(BufferedInputStream(input)).use { zip ->

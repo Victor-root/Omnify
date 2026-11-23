@@ -16,6 +16,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -319,8 +321,14 @@ fun heroFooter(
     isLoadingVersions: Boolean = false,
     // A second line of routine detail under [infoText] (an external source's followed file, say).
     note: String? = null,
+    // The catalogue's repositories offering the same app, by name, and opening its catalogue page, where
+    // the source its updates come from is chosen: an external source's page links to it.
+    alsoOn: String? = null,
+    onAlsoOnClick: (() -> Unit)? = null,
 ): (@Composable () -> Unit)? {
-    if (infoText == null && note == null && onViewVersionsClick == null && !isLoadingVersions) return null
+    if (infoText == null && note == null && alsoOn == null && onViewVersionsClick == null && !isLoadingVersions) {
+        return null
+    }
     return {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             infoText?.let { text ->
@@ -343,6 +351,14 @@ fun heroFooter(
                     textAlign = TextAlign.Center,
                 )
             }
+            if (alsoOn != null && onAlsoOnClick != null) {
+                FooterLink(
+                    text = stringResource(R.string.also_on_FORMAT, alsoOn),
+                    icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    onClick = onAlsoOnClick,
+                    debugLabel = "hero-also-on",
+                )
+            }
             // The bar stands exactly where the link will appear, so the footer says "still working"
             // in the same spot rather than staying empty until the list lands. Drawn across the full
             // width rather than as a small circle: this is the card's own closing line, and a bar
@@ -352,29 +368,41 @@ fun heroFooter(
                 LoadingBar(modifier = Modifier.fillMaxWidth().padding(4.dp))
             } else if (onViewVersionsClick != null) {
                 if (infoText != null || note != null) Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(MaterialTheme.shapes.small)
-                        // TV only: a soft accent fill behind the focused link (no-op on touch).
-                        .tvFocusFill(MaterialTheme.shapes.small, debugLabel = "hero-see-all-versions")
-                        .clickable(onClick = onViewVersionsClick)
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.view_all_versions),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
+                FooterLink(
+                    text = stringResource(R.string.view_all_versions),
+                    icon = Icons.Filled.KeyboardArrowDown,
+                    onClick = onViewVersionsClick,
+                    debugLabel = "hero-see-all-versions",
+                )
             }
         }
+    }
+}
+
+/** A link of [heroFooter]: accent text and its arrow. */
+@Composable
+private fun FooterLink(text: String, icon: ImageVector, onClick: () -> Unit, debugLabel: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            // TV only: a soft accent fill behind the focused link (no-op on touch).
+            .tvFocusFill(MaterialTheme.shapes.small, debugLabel = debugLabel)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
+        )
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(16.dp),
+        )
     }
 }
 

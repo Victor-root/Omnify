@@ -182,7 +182,6 @@ import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.isInstallableOnDevice
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.external.ExternalApp
-import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.datastore.model.CustomButton
 import com.looker.droidify.model.TestRepository
 import com.looker.droidify.installer.model.InstallState
@@ -855,7 +854,6 @@ private fun AppDetail(
     }
     val installablePackage = installable?.first
     val installableRepo = installable?.second
-    val followedRepoId = (sources.choice.followed as? FollowedSource.Repository)?.repoId
     val updateTarget = remember(packages, sources.choice.followed, app.metadata.suggestedVersionCode) {
         packages.updateBuild(sources.choice.followed, app.metadata.suggestedVersionCode)
     }?.first
@@ -880,78 +878,26 @@ private fun AppDetail(
     val updater = sources.updater
     val externalViewModel = sources.externalViewModel
     val externalDownload = updater?.let { externalDownloads[it.key] }
-    // The source the updates of the copy on the device come from, whose tab gets the star: the one
-    // followed, else the one Omnify picks, a tracked source that owns the copy or the repository with
-    // the build it would install.
-    val updatingSource: FollowedSource? = when {
-        installedInfo == null -> null
-        sources.updater != null -> FollowedSource.External(sources.updater.key)
-        followedRepoId != null -> FollowedSource.Repository(followedRepoId)
-        else -> installableRepo?.let { FollowedSource.Repository(it.id) }
-    }
-    val updatingName = when (updatingSource) {
-        is FollowedSource.External -> sources.updater?.sourceLabel
-        is FollowedSource.Repository -> packages.firstOrNull { it.second.id == updatingSource.repoId }?.second?.name
-        null -> null
-    }
+    val updatingSource = updatingSourceOf(installedInfo != null, updater, sources.choice.followed, installableRepo)
+    val updatingName = sourceNameOf(updatingSource, packages, sources.external + listOfNotNull(updater))
     val sourceCount = remember(packages, sources.external) {
         packages.distinctBy { it.second.id }.size + sources.external.size
     }
-    val sourceNote = when {
-        installedInfo == null -> null
-        sources.choice.fellBack -> stringResource(R.string.followed_source_gone)
-        sourceCount < 2 || updatingName == null -> null
-        sources.choice.followed != null -> stringResource(R.string.updates_from_FORMAT, updatingName)
-        else -> stringResource(R.string.updates_from_auto_FORMAT, updatingName)
-    }
-    // Following another source, waiting for the user to confirm; then, for one signing with another
-    // key, the source to install from once the copy on the device is gone.
-    var followRequest by remember { mutableStateOf<FollowRequest?>(null) }
-    var pendingSourceSwitch by remember { mutableStateOf<SourceTab?>(null) }
-    val installFrom: (SourceTab) -> Unit = { tab ->
-        when (val source = tab.source) {
-            is FollowedSource.Repository -> packages.filter { it.second.id == source.repoId }
-                .selectForDevice(Long.MAX_VALUE)
-                ?.let { (pkg, repo) -> onInstallVersion(pkg, repo) }
-            is FollowedSource.External -> tab.external?.let { sources.externalViewModel?.installOrUpdate(it) }
-        }
-    }
-    LaunchedEffect(installedInfo, pendingSourceSwitch) {
-        val pending = pendingSourceSwitch ?: return@LaunchedEffect
-        // installedInfo is re-read on every install/uninstall; null means the app is now gone. Only then
-        // is the source followed: an uninstall the user turned down leaves everything as it was.
-        if (installedInfo == null) {
-            sources.onFollow(pending.source)
-            installFrom(pending)
-            pendingSourceSwitch = null
-        }
-    }
-    followRequest?.let { request ->
-        FollowSourceDialog(
-            request = request,
-            appName = app.metadata.name,
-            onFollow = {
-                sources.onFollow(request.tab.source)
-                if (request.installsNow) installFrom(request.tab)
-                followRequest = null
-            },
-            onReplace = {
-                pendingSourceSwitch = request.tab
-                onUninstall()
-                followRequest = null
-            },
-            onDismiss = { followRequest = null },
-        )
-    }
+    val sourceNote = updateSourceNote(installedInfo != null, sources.choice, updatingName, sourceCount)
+    val followState = rememberSourceFollowState()
+    SourceFollowDialogs(
+        state = followState,
+        appName = app.metadata.name,
+        installedInfo = installedInfo,
+        packages = packages,
+        externalViewModel = externalViewModel,
+        onFollow = sources.onFollow,
+        onInstallVersion = onInstallVersion,
+        onUninstall = onUninstall,
+    )
     val listSources = sources.copy(
         updating = updatingSource,
-        onFollowTab = if (installedInfo != null) {
-            { tab ->
-                followRequest = followRequestOf(tab, installedInfo, packages, updatingName ?: installedInfo.source)
-            }
-        } else {
-            null
-        },
+        onFollowTab = followState.followTab(installedInfo, packages, updatingName),
     )
     val isTelevision = LocalIsTelevision.current
     val coroutineScope = rememberCoroutineScope()
@@ -1499,25 +1445,7 @@ private fun VersionsSection(
 ) {
     Column(modifier = Modifier.onGloballyPositioned { onAnchorPositioned(it.positionInParent().y.toInt()) }) {
         SectionTitle(stringResource(R.string.versions))
-        val tabs = remember(packages, sources.external) {
-            val repos = packages.map { it.second }.distinctBy { it.id }
-            repos.map { repo ->
-                SourceTab(
-                    source = FollowedSource.Repository(repo.id),
-                    name = repo.name,
-                    version = packages.filter { it.second.id == repo.id }
-                        .selectForDevice(Long.MAX_VALUE)
-                        ?.first?.manifest?.versionName,
-                )
-            } + sources.external.map { external ->
-                SourceTab(
-                    source = FollowedSource.External(external.key),
-                    name = external.sourceLabel,
-                    version = releaseVersionLabel(external.latestApkName, external.latestTag).ifEmpty { null },
-                    external = external,
-                )
-            }
-        }
+        val tabs = remember(packages, sources.external) { sourceTabs(packages, sources.external) }
         // Opens on the source the updates come from, else the repo that provides the device-suggested
         // version. A tab the user picks stays picked for as long as it is there.
         var pickedSource by remember { mutableStateOf<FollowedSource?>(null) }

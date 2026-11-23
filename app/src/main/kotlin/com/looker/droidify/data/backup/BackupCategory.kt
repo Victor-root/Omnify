@@ -12,7 +12,8 @@ package com.looker.droidify.data.backup
  */
 enum class BackupCategory {
     /** Everything configurable on the Settings screen except favourites, hidden apps, per-repo
-     *  enabled state, and the GitHub token: theme, installer, sync, proxy, translation, and so on. */
+     *  enabled state, and the GitHub token: theme, installer, sync, proxy, translation, and so on, with
+     *  the source each app's updates come from. */
     SETTINGS,
 
     /** The personal GitHub access token. Split out of [SETTINGS] because it's a credential, not a

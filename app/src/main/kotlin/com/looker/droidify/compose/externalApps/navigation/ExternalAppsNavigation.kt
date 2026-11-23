@@ -24,6 +24,7 @@ fun NavController.navigateToExternalAppDetail(appKey: String) {
 fun NavGraphBuilder.externalAppDetail(
     onBackClick: () -> Unit,
     onFixGithubToken: () -> Unit,
+    onOpenCatalogueApp: (String) -> Unit,
 ) {
     composable<ExternalAppDetail> { backStackEntry ->
         val route = backStackEntry.toRoute<ExternalAppDetail>()
@@ -35,6 +36,7 @@ fun NavGraphBuilder.externalAppDetail(
                     viewModel = hiltViewModel(),
                     onBackClick = onBackClick,
                     onFixGithubToken = onFixGithubToken,
+                    onOpenCatalogueApp = onOpenCatalogueApp,
                 )
             } else {
                 ExternalAppDetailScreen(
@@ -42,6 +44,7 @@ fun NavGraphBuilder.externalAppDetail(
                     viewModel = hiltViewModel(),
                     onBackClick = onBackClick,
                     onFixGithubToken = onFixGithubToken,
+                    onOpenCatalogueApp = onOpenCatalogueApp,
                 )
             }
         }

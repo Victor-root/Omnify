@@ -174,6 +174,8 @@
     <string name="follow_source_reinstall_FORMAT">Désinstaller et installer depuis %1$s</string>
     <string name="follow_source_keep_FORMAT">Garder %1$s</string>
     <string name="follow_source_system_DESC">%1$s fait partie du système : Android ne peut pas la remplacer par une version signée avec une autre clé.</string>
+    <string name="also_on_FORMAT">Aussi sur %1$s · Choisir la source</string>
+    <string name="other_sources">Autres sources</string>
     <string name="install_version_downgrade_DESC">Une version plus récente est installée. Android ne peut pas revenir en arrière sur place : il faut d\'abord désinstaller la version actuelle (vous perdrez ses données). Désinstallez-la, et cette version s\'installera juste après.</string>
     <string name="ignore_all_updates">Ignorer nouvelles versions</string>
     <string name="ignore_this_update">Ignorer cette version</string>

@@ -127,8 +127,8 @@ data class Settings(
     val confirmBadgeAdd: Boolean = false,
     /** The source each app's updates come from, chosen on its page, by package name (see
      *  [com.looker.droidify.data.FollowedSource]); an app missing here is on the automatic choice.
-     *  Excluded from the generic settings backup/restore, same as [enabledRepoIds]: a repository is
-     *  named by its id on this device. */
+     *  Excluded from the generic settings entry of a backup, since a repository is named by its id on
+     *  this device: backed up on its own, by repository address (see FollowedSourcesBackup). */
     val followedSources: Map<String, String> = emptyMap(),
 ) {
     /** Whether [packageName] is installed with Google Play recorded as its installer. */
