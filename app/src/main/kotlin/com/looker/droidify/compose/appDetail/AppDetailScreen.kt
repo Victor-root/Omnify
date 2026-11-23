@@ -84,6 +84,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -186,6 +188,7 @@ import com.looker.droidify.utility.text.toAnnotatedString
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.compose.theme.ScopedAccentColor
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1502,7 +1505,7 @@ private fun VersionsSection(
     // The card keeps the height it shows when another source is picked, the room left below it rather
     // than in it. A shorter list in its place pulled the end of the page up, and the page with it under
     // the reader, header and all, at the very moment the header is meant to stay put.
-    var shownHeightPx by remember { mutableIntStateOf(0) }
+    var cardHeightPx by remember { mutableIntStateOf(0) }
     var heldHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val onFollowTab = sources.onFollowTab
@@ -1513,7 +1516,7 @@ private fun VersionsSection(
                 selected = selectedSource,
                 updating = sources.updating,
                 onSelect = { tab ->
-                    heldHeightPx = shownHeightPx
+                    heldHeightPx = maxOf(heldHeightPx, cardHeightPx)
                     pickedSource = tab.source
                 },
             )
@@ -1534,11 +1537,23 @@ private fun VersionsSection(
     }
     Box(
         modifier = Modifier
-            .onGloballyPositioned { onAnchorPositioned(it.positionInParent().y.toInt()) }
-            .heightIn(min = with(density) { heldHeightPx.toDp() })
-            .onSizeChanged { shownHeightPx = it.height },
+            .onGloballyPositioned { coordinates ->
+                onAnchorPositioned(coordinates.positionInParent().y.toInt())
+                // The room held only ever reaches the bottom of the screen, and shrinks as the reader
+                // scrolls back up: kept whole, a long list's room left a screenful of nothing to scroll
+                // through below a short one.
+                if (heldHeightPx > cardHeightPx) {
+                    val toScreenBottom = coordinates.boundsInWindow().bottom - coordinates.positionInWindow().y
+                    heldHeightPx = minOf(heldHeightPx, toScreenBottom.roundToInt()).coerceAtLeast(0)
+                }
+            }
+            .heightIn(min = with(density) { heldHeightPx.toDp() }),
     ) {
-        VersionsCard(titleAction = titleAction, header = header) {
+        VersionsCard(
+            modifier = Modifier.onSizeChanged { cardHeightPx = it.height },
+            titleAction = titleAction,
+            header = header,
+        ) {
             SourcePanels(tabs = tabs, selected = selectedSource) { tab ->
                 val external = tab.external
                 if (external != null) {
