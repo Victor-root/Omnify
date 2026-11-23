@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -27,6 +28,7 @@ import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.CompactInstallProgressRow
 import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvFocusOutline
+import com.looker.droidify.compose.components.versionRowColor
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.utility.common.sdkName
@@ -56,8 +58,11 @@ fun PackageItem(
     // The chips ("suggested", "installed"...), on a line of their own under the version so a long
     // version name keeps the whole width; null when the version has none, so no empty line is left.
     label: (@Composable RowScope.() -> Unit)?,
+    // A row of a VersionsCard rather than a card of its own: square, flush with the card, and the
+    // highlighted one tinted instead of bordered.
+    inList: Boolean = false,
 ) {
-    val shape = MaterialTheme.shapes.large
+    val shape = if (inList) RectangleShape else MaterialTheme.shapes.large
     // The border lives on this outer Box, not inside Surface's own modifier: Surface paints its
     // background as part of its internal implementation, which chains after whatever modifier
     // it's given — a border passed straight into Surface's modifier ended up painted OVER by
@@ -71,16 +76,16 @@ fun PackageItem(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .then(if (inList) Modifier else Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
             // TV only: visible focus ring (no-op on touch), on the same bounds as the card's own border.
             // First in the chain, because a modifier earlier in the chain draws after (over) the ones
             // below it: the ring then covers the border instead of letting it show on top.
             .tvFocusOutline(shape)
-            .then(if (highlighted) premiumCardBorder(shape) else Modifier),
+            .then(if (highlighted && !inList) premiumCardBorder(shape) else Modifier),
     ) {
         Surface(
             shape = shape,
-            color = MaterialTheme.colorScheme.surface,
+            color = versionRowColor(highlighted, inList),
             modifier = modifier
                 .fillMaxWidth()
                 .clip(shape)

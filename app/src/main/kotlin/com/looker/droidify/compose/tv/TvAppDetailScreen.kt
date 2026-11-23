@@ -102,7 +102,7 @@ import com.looker.droidify.compose.appDetail.rememberSourceFollowState
 import com.looker.droidify.compose.appDetail.sourceNameOf
 import com.looker.droidify.compose.appDetail.sourceTabs
 import com.looker.droidify.compose.appDetail.updatingSourceOf
-import com.looker.droidify.compose.components.TAB_PILL_MS
+import com.looker.droidify.compose.theme.SOURCE_SWITCH_MS
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.theme.EmphasizedAccelerate
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
@@ -761,7 +761,7 @@ private fun TvSourceVersions(
         targetState = selected,
         contentKey = { it.source },
         transitionSpec = {
-            fadeIn(tween(TAB_PILL_MS - TV_SOURCE_LEAVE_MS, TV_SOURCE_LEAVE_MS, EmphasizedDecelerate)) togetherWith
+            fadeIn(tween(SOURCE_SWITCH_MS - TV_SOURCE_LEAVE_MS, TV_SOURCE_LEAVE_MS, EmphasizedDecelerate)) togetherWith
                 fadeOut(tween(TV_SOURCE_LEAVE_MS, easing = EmphasizedAccelerate)) using SizeTransform(clip = false)
         },
         label = "tvVersionSource",

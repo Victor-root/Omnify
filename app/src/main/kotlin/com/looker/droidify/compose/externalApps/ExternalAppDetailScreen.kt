@@ -117,6 +117,8 @@ import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.heroFooter
+import com.looker.droidify.compose.components.VersionsCardDivider
+import com.looker.droidify.compose.components.VersionsCard
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvDpadKeyLog
 import com.looker.droidify.compose.components.tvFocusDebugLog
@@ -609,13 +611,7 @@ fun ExternalAppDetailScreen(
                     openOn = FollowedSource.External(app.key),
                     onAnchorPositioned = onAnchorPositioned,
                     titleAction = onPrereleaseModeChange?.takeIf { releaseHistory != null }?.let { onModeChange ->
-                        {
-                            PrereleaseModeChooser(
-                                mode = app.prereleases,
-                                onModeChange = onModeChange,
-                                textStyle = MaterialTheme.typography.titleMedium.copy(textAlign = TextAlign.End),
-                            )
-                        }
+                        { PrereleaseInCard(mode = app.prereleases, onModeChange = onModeChange) }
                     },
                     fallback = { ownVersions(onAnchorPositioned) },
                 )
@@ -1385,44 +1381,45 @@ private fun ExternalVersionsSection(
         Spacer(Modifier.height(20.dp))
         SectionSeparator()
         Spacer(Modifier.height(20.dp))
-        // On one baseline: a choice wrapping onto two lines starts level with the title.
-        Row(modifier = Modifier.fillMaxWidth().padding(end = 8.dp)) {
-            Text(
-                text = stringResource(R.string.versions),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.alignByBaseline().padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-            // The title keeps its own width: a long choice wraps beside it instead.
-            Box(modifier = Modifier.weight(1f).alignByBaseline(), contentAlignment = Alignment.CenterEnd) {
-                if (releaseHistory != null && onPrereleaseModeChange != null) {
-                    PrereleaseModeChooser(
-                        mode = app.prereleases,
-                        onModeChange = onPrereleaseModeChange,
-                        textStyle = MaterialTheme.typography.titleMedium.copy(textAlign = TextAlign.End),
-                    )
-                }
+        VersionsCard(
+            titleAction = if (releaseHistory != null && onPrereleaseModeChange != null) {
+                { PrereleaseInCard(mode = app.prereleases, onModeChange = onPrereleaseModeChange) }
+            } else {
+                null
+            },
+        ) {
+            if (releaseHistory == null) {
+                VersionsCardDivider()
+                ReleasesLoadingRow()
+            } else {
+                ExternalReleaseList(
+                    app = app,
+                    releaseHistory = releaseHistory,
+                    installedVersion = installedVersion,
+                    onVersionClick = onVersionClick,
+                    onPickFile = onPickFile,
+                    onExpandVersions = onExpandVersions,
+                    downloadStatus = downloadStatus,
+                    installing = installing,
+                    activeDownloadTag = activeDownloadTag,
+                    onCancel = onCancel,
+                    sdkInfoByApkUrl = sdkInfoByApkUrl,
+                    onRequestSdkInfo = onRequestSdkInfo,
+                )
             }
-        }
-        if (releaseHistory == null) {
-            ReleasesLoadingRow()
-        } else {
-            ExternalReleaseList(
-                app = app,
-                releaseHistory = releaseHistory,
-                installedVersion = installedVersion,
-                onVersionClick = onVersionClick,
-                onPickFile = onPickFile,
-                onExpandVersions = onExpandVersions,
-                downloadStatus = downloadStatus,
-                installing = installing,
-                activeDownloadTag = activeDownloadTag,
-                onCancel = onCancel,
-                sdkInfoByApkUrl = sdkInfoByApkUrl,
-                onRequestSdkInfo = onRequestSdkInfo,
-            )
         }
         Spacer(Modifier.height(16.dp))
     }
+}
+
+/** A tracked source's pre-release choice, at the end of its [VersionsCard]'s title. */
+@Composable
+internal fun PrereleaseInCard(mode: PrereleaseMode, onModeChange: (PrereleaseMode) -> Unit) {
+    PrereleaseModeChooser(
+        mode = mode,
+        onModeChange = onModeChange,
+        textStyle = MaterialTheme.typography.labelLarge.copy(textAlign = TextAlign.End),
+    )
 }
 
 /** A release, or one of its files, picked in a version list, awaiting confirmation to install. */
@@ -1498,8 +1495,10 @@ internal fun ExternalSourceReleases(app: ExternalApp, viewModel: ExternalAppsVie
     }
     val history = releaseHistory
     if (history == null) {
+        VersionsCardDivider()
         ReleasesLoadingRow()
     } else if (history.isEmpty()) {
+        VersionsCardDivider()
         Text(
             text = stringResource(R.string.external_no_release, app.path),
             style = MaterialTheme.typography.bodyMedium,
@@ -1583,8 +1582,10 @@ private fun ExternalReleaseList(
         val isThisRowDownloading = activeDownloadTag == release.tag &&
             (downloadStatus != null || installing)
         val apkUrl = row.apkUrl
+        VersionsCardDivider()
         ReleaseVersionItem(
             release = release,
+            inList = true,
             apkName = row.apkName,
             apkSize = row.apkSize,
             apkDate = row.apkDate,
@@ -1630,6 +1631,7 @@ private fun ExternalReleaseList(
         )
     } }
     if (releaseHistory.size > VERSIONS_COLLAPSED_COUNT) {
+        VersionsCardDivider()
         ShowMoreRow(
             // Null rather than the true remaining count: the screen only ever asked for enough
             // to know there's at least one more hidden (see the LaunchedEffect that starts

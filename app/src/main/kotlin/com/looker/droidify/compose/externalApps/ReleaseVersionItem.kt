@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -53,6 +54,7 @@ import com.looker.droidify.compose.components.CompactInstallProgressRow
 import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusOutline
+import com.looker.droidify.compose.components.versionRowColor
 import com.looker.droidify.external.ApkVariant
 import com.looker.droidify.external.Release
 import com.looker.droidify.external.ReleaseAsset
@@ -159,8 +161,11 @@ fun ReleaseVersionItem(
     filesExpanded: Boolean = false,
     onToggleFiles: () -> Unit = {},
     onPickFile: (ReleaseAsset) -> Unit = {},
+    // A row of a VersionsCard rather than a card of its own: square, flush with the card, and the
+    // suggested one tinted instead of bordered.
+    inList: Boolean = false,
 ) {
-    val cardShape = MaterialTheme.shapes.large
+    val cardShape = if (inList) RectangleShape else MaterialTheme.shapes.large
     // The border lives on this outer Box, not inside Surface's own modifier: Surface paints its
     // background as part of its internal implementation, which chains after whatever modifier
     // it's given — a border passed straight into Surface's modifier ended up painted OVER by
@@ -169,7 +174,7 @@ fun ReleaseVersionItem(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .then(if (inList) Modifier else Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
             // Same treatment as the hero card, only for the one suggested release — that's the
             // pick this screen wants to draw the eye to, not every entry in a long version list,
             // which would drown the highlight out.
@@ -177,14 +182,14 @@ fun ReleaseVersionItem(
             // First in the chain, because a modifier earlier in the chain draws after (over) the ones
             // below it: the ring then covers the border instead of letting it show on top.
             .tvFocusOutline(cardShape)
-            .then(if (isSuggested) premiumCardBorder(cardShape) else Modifier),
+            .then(if (isSuggested && !inList) premiumCardBorder(cardShape) else Modifier),
     ) {
         Surface(
             shape = cardShape,
-            // White for every card, suggested included — the border above (not a grey fill) is
-            // what now marks the suggested one, matching the hero card's own white-plus-border
-            // look.
-            color = MaterialTheme.colorScheme.surface,
+            // White for every card, suggested included: the border above (not a grey fill) is
+            // what marks the suggested one, matching the hero card's own white-plus-border look.
+            // In a list card, a tint marks it instead.
+            color = versionRowColor(isSuggested, inList),
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(cardShape),

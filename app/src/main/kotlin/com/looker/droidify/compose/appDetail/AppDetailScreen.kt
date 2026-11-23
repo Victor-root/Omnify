@@ -119,7 +119,6 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.components.CustomButtonsRow
 import com.looker.droidify.compose.appDetail.components.PackageItem
 import com.looker.droidify.compose.appList.AppMinimalIcon
-import com.looker.droidify.compose.components.AccentScrollableTabRow
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.CertificateSection
 import com.looker.droidify.compose.components.MutedButton
@@ -135,7 +134,7 @@ import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.HideAppAction
 import com.looker.droidify.compose.components.InstallConflictDialog
-import com.looker.droidify.compose.components.TAB_PILL_MS
+import com.looker.droidify.compose.theme.SOURCE_SWITCH_MS
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.ExternalSourceReleases
 import com.looker.droidify.compose.components.InstallVersionDialog
@@ -200,6 +199,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.looker.droidify.compose.components.VersionsCard
+import com.looker.droidify.compose.components.VersionsCardDivider
+import androidx.compose.foundation.layout.ColumnScope
 
 /**
  * Maximum number of version rows rendered on the detail screen. The screen is a single
@@ -1453,15 +1455,15 @@ internal data class VersionSources(
 )
 
 /**
- * The source tabs (when more than one source offers the app) and the version list, extracted so
- * [AppDetail] can wrap it in a single [onGloballyPositioned] anchor for the hero card's "see all
- * versions" link.
+ * The version list, as one card ([VersionsCard]), wrapped in a single [onGloballyPositioned] anchor for
+ * the hero card's "see all versions" link.
  *
- * A tab per repository offering the app, and one per tracked external source of the same package,
- * whose releases it lists the way that source's own page does. Switching keeps the bar in place: its
- * pill glides to the tab picked while the list leaves toward the side it came from and the new one
- * arrives from the other, so moving to another source reads as turning a page of the same list rather
- * than opening another screen.
+ * When more than one source offers the app, the card's header picks among them ([SourceSegments]): each
+ * repository offering it, and each tracked external source of the same package, whose releases it lists
+ * the way that source's own page does. Under it, which one the updates come from ([SourceStatusRow]).
+ * Switching keeps the header in place: its piece glides to the source picked while the list leaves
+ * toward the side it came from and the new one arrives from the other, so moving to another source
+ * reads as turning a page of the same list rather than opening another screen.
  */
 @Composable
 private fun VersionsSection(
@@ -1478,104 +1480,83 @@ private fun VersionsSection(
     onCancel: () -> Unit,
     showIncompatibleVersions: Boolean,
     lastVersionFocusRequester: FocusRequester? = null,
-    // The tab it opens on, when it is not the catalogue page's: a tracked source's own page opens on
+    // The source it opens on, when it is not the catalogue page's: a tracked source's own page opens on
     // that source.
     openOn: FollowedSource? = null,
     // Beside the title: a tracked source's own page offers its pre-release choice there.
     titleAction: (@Composable () -> Unit)? = null,
 ) {
-    Column(modifier = Modifier.onGloballyPositioned { onAnchorPositioned(it.positionInParent().y.toInt()) }) {
-        if (titleAction == null) {
-            SectionTitle(stringResource(R.string.versions))
-        } else {
-            // On one baseline: a choice wrapping onto two lines starts level with the title.
-            Row(modifier = Modifier.fillMaxWidth().padding(end = 8.dp)) {
-                Text(
-                    text = stringResource(R.string.versions),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.alignByBaseline().padding(horizontal = 16.dp, vertical = 8.dp),
+    val tabs = remember(packages, sources.external) { sourceTabs(packages, sources.external) }
+    // Opens on [openOn], else the source the updates come from, else the repo that provides the
+    // device-suggested version. A source the user picks stays picked for as long as it is there.
+    var pickedSource by remember { mutableStateOf<FollowedSource?>(null) }
+    val selectedSource = pickedSource?.takeIf { picked -> tabs.any { it.source == picked } }
+        ?: openOn?.takeIf { open -> tabs.any { it.source == open } }
+        ?: sources.updating?.takeIf { updating -> tabs.any { it.source == updating } }
+        ?: installableRepo?.let { FollowedSource.Repository(it.id) }
+        ?: tabs.firstOrNull()?.source
+    // The Install button follows the repository on screen, unless one is followed for updates.
+    LaunchedEffect(selectedSource) {
+        (selectedSource as? FollowedSource.Repository)?.let { onSelectRepo(it.repoId) }
+    }
+    // The card keeps the height it shows when another source is picked, the room left below it rather
+    // than in it. A shorter list in its place pulled the end of the page up, and the page with it under
+    // the reader, header and all, at the very moment the header is meant to stay put.
+    var shownHeightPx by remember { mutableIntStateOf(0) }
+    var heldHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val onFollowTab = sources.onFollowTab
+    val header: (@Composable ColumnScope.() -> Unit)? = if (tabs.size > 1) {
+        {
+            SourceSegments(
+                tabs = tabs,
+                selected = selectedSource,
+                updating = sources.updating,
+                onSelect = { tab ->
+                    heldHeightPx = shownHeightPx
+                    pickedSource = tab.source
+                },
+            )
+            val tab = tabs.firstOrNull { it.source == selectedSource }
+            if (tab != null && onFollowTab != null) {
+                SourceStatusRow(
+                    updating = tab.source == sources.updating,
+                    pinned = sources.choice.followed != null,
+                    updatingName = tabs.firstOrNull { it.source == sources.updating }?.name,
+                    onFollow = { onFollowTab(tab) },
                 )
-                Box(modifier = Modifier.weight(1f).alignByBaseline(), contentAlignment = Alignment.CenterEnd) {
-                    titleAction()
-                }
+            } else {
+                Spacer(modifier = Modifier.height(10.dp))
             }
         }
-        val tabs = remember(packages, sources.external) { sourceTabs(packages, sources.external) }
-        // Opens on [openOn], else the source the updates come from, else the repo that provides the
-        // device-suggested version. A tab the user picks stays picked for as long as it is there.
-        var pickedSource by remember { mutableStateOf<FollowedSource?>(null) }
-        val selectedSource = pickedSource?.takeIf { picked -> tabs.any { it.source == picked } }
-            ?: openOn?.takeIf { open -> tabs.any { it.source == open } }
-            ?: sources.updating?.takeIf { updating -> tabs.any { it.source == updating } }
-            ?: installableRepo?.let { FollowedSource.Repository(it.id) }
-            ?: tabs.firstOrNull()?.source
-        // The Install button follows the repository tab on screen, unless one is followed for updates.
-        LaunchedEffect(selectedSource) {
-            (selectedSource as? FollowedSource.Repository)?.let { onSelectRepo(it.repoId) }
-        }
-        // TV / D-pad: Material3's ScrollableTabRow doesn't release focus downward on its own, leaving a
-        // remote user stuck once they've picked a tab. Points at the first row below. No effect on touch.
-        val firstVersionFocusRequester = remember { FocusRequester() }
-        // The list keeps the height it shows when another tab is picked. A shorter list in its place
-        // pulled the end of the page up, and the page with it under the reader, tabs and all, at the very
-        // moment the bar is meant to stay put.
-        var shownHeightPx by remember { mutableIntStateOf(0) }
-        var heldHeightPx by remember { mutableIntStateOf(0) }
-        val selectedIndex = tabs.indexOfFirst { it.source == selectedSource }.coerceAtLeast(0)
-        if (tabs.size > 1) {
-            AccentScrollableTabRow(
-                selectedTabIndex = selectedIndex,
-                edgePadding = 16.dp,
-                modifier = Modifier.fillMaxWidth().tvDpadDownTo(firstVersionFocusRequester, debugLabel = "repo-tabs"),
-            ) {
-                tabs.forEachIndexed { index, tab ->
-                    SourceTabItem(
-                        tab = tab,
-                        selected = index == selectedIndex,
-                        updating = tab.source == sources.updating,
-                        onClick = {
-                            heldHeightPx = shownHeightPx
-                            pickedSource = tab.source
-                        },
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        val density = LocalDensity.current
-        Box(
-            modifier = Modifier
-                .heightIn(min = with(density) { heldHeightPx.toDp() })
-                .onSizeChanged { shownHeightPx = it.height },
-        ) {
+    } else {
+        null
+    }
+    Box(
+        modifier = Modifier
+            .onGloballyPositioned { onAnchorPositioned(it.positionInParent().y.toInt()) }
+            .heightIn(min = with(density) { heldHeightPx.toDp() })
+            .onSizeChanged { shownHeightPx = it.height },
+    ) {
+        VersionsCard(titleAction = titleAction, header = header) {
             AnimatedContent(
                 targetState = selectedSource,
                 transitionSpec = {
                     val forward = tabs.indexOfFirst { it.source == targetState } >=
                         tabs.indexOfFirst { it.source == initialState }
                     // The list leaving is gone before the new one shows, so the two never sit on each other.
-                    val arriving = tween<IntOffset>(TAB_PILL_MS, easing = EmphasizedDecelerate)
+                    val arriving = tween<IntOffset>(SOURCE_SWITCH_MS, easing = EmphasizedDecelerate)
                     val leaving = tween<IntOffset>(SOURCE_LEAVE_MS, easing = EmphasizedAccelerate)
                     val enter = slideInHorizontally(arriving) { width -> if (forward) width / 10 else -width / 10 } +
-                        fadeIn(tween(TAB_PILL_MS - SOURCE_LEAVE_MS, SOURCE_LEAVE_MS, EmphasizedDecelerate))
+                        fadeIn(tween(SOURCE_SWITCH_MS - SOURCE_LEAVE_MS, SOURCE_LEAVE_MS, EmphasizedDecelerate))
                     val exit = slideOutHorizontally(leaving) { width -> if (forward) -width / 10 else width / 10 } +
                         fadeOut(tween(SOURCE_LEAVE_MS, easing = EmphasizedAccelerate))
-                    enter togetherWith exit using SizeTransform(clip = false)
+                    enter togetherWith exit using SizeTransform(clip = true)
                 },
                 label = "versionSource",
             ) { source ->
-                val tab = tabs.firstOrNull { it.source == source }
+                val external = tabs.firstOrNull { it.source == source }?.external
                 Column {
-                    val onFollowTab = sources.onFollowTab
-                    if (tab != null && tabs.size > 1 && onFollowTab != null) {
-                        FollowSourceRow(
-                            updating = tab.source == sources.updating,
-                            pinned = sources.choice.followed != null,
-                            onFollow = { onFollowTab(tab) },
-                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
-                        )
-                    }
-                    val external = tab?.external
                     if (external != null) {
                         sources.externalViewModel?.let { ExternalSourceReleases(app = external, viewModel = it) }
                     } else {
@@ -1589,7 +1570,6 @@ private fun VersionsSection(
                             downloadTargetVersionCode = downloadTargetVersionCode,
                             onCancel = onCancel,
                             showIncompatibleVersions = showIncompatibleVersions,
-                            firstVersionFocusRequester = firstVersionFocusRequester,
                             lastVersionFocusRequester = lastVersionFocusRequester,
                         )
                     }
@@ -1735,7 +1715,6 @@ private fun RepositoryVersions(
     downloadTargetVersionCode: Long?,
     onCancel: () -> Unit,
     showIncompatibleVersions: Boolean,
-    firstVersionFocusRequester: FocusRequester,
     lastVersionFocusRequester: FocusRequester?,
 ) {
     // Versions offered by the selected repo. Multi-ABI apps (Brave, VLC, …) ship one APK per
@@ -1776,13 +1755,14 @@ private fun RepositoryVersions(
         val isSuggested = suggestedVersion != null && pkg.manifest.versionCode == suggestedVersion
         val isThisRowDownloading = downloadTargetVersionCode == pkg.manifest.versionCode &&
             (downloadStatus != null || installing)
+        VersionsCardDivider()
         PackageItem(
             item = pkg,
             repo = repo,
             onClick = { onVersionClick(pkg, repo) },
             onLongClick = {},
+            inList = true,
             modifier = Modifier
-                .then(if (index == 0) Modifier.focusRequester(firstVersionFocusRequester) else Modifier)
                 .then(
                     if (index == lastVisibleIndex && lastVersionFocusRequester != null) {
                         Modifier.focusRequester(lastVersionFocusRequester)
@@ -1855,6 +1835,7 @@ private fun RepositoryVersions(
         )
     }
     if (shownPackages.size > VERSIONS_COLLAPSED_COUNT) {
+        VersionsCardDivider()
         ShowMoreRow(
             hiddenCount = minOf(shownPackages.size, MAX_VERSIONS_SHOWN) - VERSIONS_COLLAPSED_COUNT,
             expanded = versionsExpanded,

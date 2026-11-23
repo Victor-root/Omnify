@@ -1,15 +1,24 @@
 package com.looker.droidify.compose.appDetail
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
@@ -20,25 +29,35 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.os.bundleOf
 import androidx.hilt.lifecycle.viewmodel.HiltViewModelFactory
@@ -48,9 +67,10 @@ import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.looker.droidify.R
+import com.looker.droidify.compose.theme.SOURCE_SWITCH_MS
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
-import com.looker.droidify.compose.theme.LocalOnAccentBarColor
+import com.looker.droidify.compose.theme.EmphasizedDecelerate
 import com.looker.droidify.data.FollowedSource
 import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.Package
@@ -60,6 +80,7 @@ import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.network.DataSize
+import kotlin.math.roundToInt
 
 /**
  * One tab of an app's version list: a repository offering the app, or a tracked external source of the
@@ -225,54 +246,164 @@ internal fun SourceFollowDialogs(
 }
 
 /**
- * The tab's name over the version it offers, with a star on the source the app's updates come from.
- * Its own tab, since a tab's text slot is sized for a single line.
+ * The sources of an app's version list side by side in one rounded track, each its name over the
+ * version it offers, the one on screen raised on a white piece that glides to the source picked, and a
+ * star on the one the updates come from.
  */
 @Composable
-internal fun SourceTabItem(tab: SourceTab, selected: Boolean, updating: Boolean, onClick: () -> Unit) {
+internal fun SourceSegments(
+    tabs: List<SourceTab>,
+    selected: FollowedSource?,
+    updating: FollowedSource?,
+    onSelect: (SourceTab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    val selectedIndex = tabs.indexOfFirst { it.source == selected }.coerceAtLeast(0)
+    val position by animateFloatAsState(
+        targetValue = selectedIndex.toFloat(),
+        animationSpec = tween(SOURCE_SWITCH_MS, easing = EmphasizedDecelerate),
+        label = "sourceSegment",
+    )
+    var trackWidthPx by remember { mutableIntStateOf(0) }
+    val segmentWidthPx = if (tabs.isEmpty()) 0 else trackWidthPx / tabs.size
+    val segmentWidth = with(LocalDensity.current) { segmentWidthPx.toDp() }
     val followedLabel = stringResource(R.string.source_followed)
-    Tab(
-        selected = selected,
-        onClick = onClick,
-        // TV only: the focused tab scales up. No-op on touch.
-        modifier = Modifier
-            .tvFocusScale()
-            .heightIn(min = SOURCE_TAB_HEIGHT)
-            .then(
-                if (updating) Modifier.semantics { contentDescription = "${tab.name}, $followedLabel" } else Modifier,
-            ),
-        selectedContentColor = LocalOnAccentBarColor.current,
-        unselectedContentColor = LocalOnAccentBarColor.current.copy(alpha = 0.7f),
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(SegmentTrackShape)
+            .background(colors.primary.copy(alpha = 0.13f).compositeOver(colors.surfaceContainerHigh))
+            .padding(4.dp)
+            .onSizeChanged { trackWidthPx = it.width },
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (updating) {
-                    Icon(imageVector = Icons.Filled.Star, contentDescription = null, modifier = Modifier.size(14.dp))
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .wrapContentWidth(Alignment.Start)
+                .width(segmentWidth)
+                .offset { IntOffset((segmentWidthPx * position).roundToInt(), 0) }
+                .shadow(1.dp, SegmentShape)
+                // Brighter than the track in both themes: white in a light one, raised in a dark one.
+                .background(colors.surfaceBright, SegmentShape),
+        )
+        Row(modifier = Modifier.fillMaxWidth().selectableGroup()) {
+            tabs.forEach { tab ->
+                val isSelected = tab.source == selected
+                val isUpdating = tab.source == updating
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 52.dp)
+                        .clip(SegmentShape)
+                        .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) })
+                        .then(
+                            if (isUpdating) {
+                                Modifier.semantics { contentDescription = "${tab.name}, $followedLabel" }
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        if (isUpdating) {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                tint = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                                modifier = Modifier.size(13.dp),
+                            )
+                        }
+                        Text(
+                            text = tab.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    tab.version?.let { version ->
+                        Text(
+                            text = version,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = colors.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
-                Text(
-                    text = tab.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            tab.version?.let { version ->
-                Text(
-                    text = version,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
         }
     }
 }
 
-/** Room for a source tab's two lines and the pill under them. */
-private val SOURCE_TAB_HEIGHT = 64.dp
+private val SegmentTrackShape = RoundedCornerShape(18.dp)
+private val SegmentShape = RoundedCornerShape(14.dp)
+
+/**
+ * Under [SourceSegments], the same height on every source so nothing moves when another is picked: on
+ * the one the updates come from ([updating]), saying so, and that Omnify picked it when it did
+ * ([pinned] false); on any other, where they come from instead ([updatingName]) and the button that
+ * follows this one ([onFollow]).
+ */
+@Composable
+internal fun SourceStatusRow(
+    updating: Boolean,
+    pinned: Boolean,
+    updatingName: String?,
+    onFollow: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 6.dp),
+    ) {
+        if (updating) {
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = null,
+                tint = colors.primary,
+                modifier = Modifier.size(16.dp),
+            )
+            val followed = stringResource(R.string.source_followed)
+            val automatic = stringResource(R.string.source_followed_automatic)
+            Text(
+                text = buildAnnotatedString {
+                    append(followed)
+                    if (!pinned) withStyle(SpanStyle(color = colors.outline)) { append(" · $automatic") }
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Outlined.StarOutline,
+                contentDescription = null,
+                tint = colors.outline,
+                modifier = Modifier.size(16.dp),
+            )
+            Text(
+                text = updatingName?.let { stringResource(R.string.updates_come_from_FORMAT, it) }
+                    ?: stringResource(R.string.source_follow),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onFollow) {
+                Text(stringResource(R.string.follow_source))
+            }
+        }
+    }
+}
 
 /**
  * Under the tabs: on the source the app's updates come from, a chip saying so ([pinned] false when

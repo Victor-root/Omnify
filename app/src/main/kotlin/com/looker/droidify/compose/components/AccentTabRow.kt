@@ -1,7 +1,5 @@
 package com.looker.droidify.compose.components
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,20 +9,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.TabPosition
 import androidx.compose.material3.TabRow
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import kotlin.math.roundToInt
-import com.looker.droidify.compose.theme.EmphasizedDecelerate
 import com.looker.droidify.compose.theme.LocalAccentBarColor
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 
@@ -67,38 +61,6 @@ fun AccentTabRow(
     )
 }
 
-/**
- * [AccentTabRow]'s scrollable counterpart, for a tab count that isn't fixed ahead of time (e.g. one tab
- * per repository offering an app) and can outgrow an even, fixed-width split. Same chrome, just built on
- * [ScrollableTabRow] instead of [TabRow].
- */
-@Suppress("DEPRECATION")
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AccentScrollableTabRow(
-    selectedTabIndex: Int,
-    edgePadding: Dp,
-    modifier: Modifier = Modifier,
-    tabs: @Composable () -> Unit,
-) {
-    // The pill glides to the tab picked, rather than jumping there.
-    val position by animateFloatAsState(
-        targetValue = selectedTabIndex.toFloat(),
-        animationSpec = tween(TAB_PILL_MS, easing = EmphasizedDecelerate),
-        label = "tabPill",
-    )
-    ScrollableTabRow(
-        modifier = modifier,
-        selectedTabIndex = selectedTabIndex,
-        containerColor = LocalAccentBarColor.current,
-        contentColor = LocalOnAccentBarColor.current,
-        edgePadding = edgePadding,
-        indicator = { tabPositions -> AccentTabIndicator({ position }, tabPositions) },
-        divider = {},
-        tabs = tabs,
-    )
-}
-
 @Composable
 private fun AccentTabIndicator(position: () -> Float, tabPositions: List<TabPosition>) {
     if (tabPositions.isNotEmpty()) {
@@ -125,6 +87,3 @@ private fun AccentTabIndicator(position: () -> Float, tabPositions: List<TabPosi
         )
     }
 }
-
-/** How long [AccentScrollableTabRow]'s pill takes to glide to the tab picked. */
-internal const val TAB_PILL_MS = 300
