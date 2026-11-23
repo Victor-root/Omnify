@@ -520,6 +520,29 @@ class ExternalAppsViewModel @Inject constructor(
         // arrives: emptied, the section shrank to a loading row and the page jumped under the reader.
         if (cached != null || releaseHistoryKey != app.key) showReleaseHistory(cached?.history)
         releaseHistoryKey = app.key
+        fetchReleaseHistory(app, limit, onFetched = ::showReleaseHistory)
+    }
+
+    /** Every source's releases fetched so far, by key: see [releaseHistoryOf]. */
+    private val releaseHistories = MutableStateFlow<Map<String, List<Release>>>(emptyMap())
+
+    /**
+     * [appKey]'s releases, for a list other than the page's own: the tab an app's version list gives each
+     * tracked source of the same package, where several can be built at once. Null until fetched (see
+     * [loadReleaseHistoryOf]). [releaseHistory] holds one source at a time, the page's.
+     */
+    fun releaseHistoryOf(appKey: String): Flow<List<Release>?> =
+        releaseHistories.map { it[appKey] }.distinctUntilChanged()
+
+    /** Fetches up to [limit] of [app]'s releases into [releaseHistoryOf], the cache answering it when it can. */
+    fun loadReleaseHistoryOf(app: ExternalApp, limit: Int) {
+        fetchReleaseHistory(app, limit, onFetched = {})
+    }
+
+    /** The fetch behind [loadReleaseHistory] and [loadReleaseHistoryOf], skipped when the cache answers. */
+    private fun fetchReleaseHistory(app: ExternalApp, limit: Int, onFetched: (ReleaseHistory) -> Unit) {
+        val cached = releaseHistoryCache[app.key]
+        cached?.let { entry -> releaseHistories.update { it + (app.key to entry.history.releases) } }
         val fresh = cached != null && SystemClock.elapsedRealtime() - cached.fetchedAt < README_FRESHNESS_MS
         val cacheAnswersThis = cached != null &&
             (cached.limit >= limit || cached.history.releases.size < cached.limit)
@@ -527,7 +550,8 @@ class ExternalAppsViewModel @Inject constructor(
         viewModelScope.launch {
             val history = externalApi.releaseHistory(app, limit)
             releaseHistoryCache[app.key] = ReleaseHistoryCacheEntry(SystemClock.elapsedRealtime(), limit, history)
-            showReleaseHistory(history)
+            releaseHistories.update { it + (app.key to history.releases) }
+            onFetched(history)
         }
     }
 

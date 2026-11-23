@@ -476,11 +476,11 @@ private fun TvExternalActions(
  */
 @Composable
 internal fun TvExternalSourceReleases(app: ExternalApp, viewModel: ExternalAppsViewModel) {
-    val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
+    val releaseHistory by remember(app.key) { viewModel.releaseHistoryOf(app.key) }.collectAsStateWithLifecycle(null)
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     LaunchedEffect(app.key, app.prereleases) {
-        viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET)
+        viewModel.loadReleaseHistoryOf(app, limit = RELEASE_HISTORY_TARGET)
     }
     var versionToInstall by remember(app.key) { mutableStateOf<Release?>(null) }
     versionToInstall?.let { release ->

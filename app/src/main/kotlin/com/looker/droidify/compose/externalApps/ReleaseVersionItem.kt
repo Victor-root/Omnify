@@ -147,6 +147,9 @@ fun ReleaseVersionItem(
     // Declared min/target SDK, once fetched from the APK's own manifest (see ExternalAppsViewModel.
     // loadSdkInfo) — null while unrequested/in flight, or when the fetch found nothing.
     sdkInfo: ApkBinaryManifest.UsesSdk? = null,
+    // True while [sdkInfo] is still being read: its line is kept free, so the row doesn't grow under the
+    // reader when it arrives, nor the list around it in the middle of a switch to it.
+    sdkPending: Boolean = false,
     // Download/install progress for THIS specific release, when the user picked it from the list —
     // shown inline instead of the file name line, so progress is visible right where it was tapped
     // instead of only in the hero card (out of view once scrolled down to this list). Both null/false
@@ -259,6 +262,8 @@ fun ReleaseVersionItem(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.outline,
                                 )
+                            } else if (sdkPending) {
+                                Text(text = "", style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                     }

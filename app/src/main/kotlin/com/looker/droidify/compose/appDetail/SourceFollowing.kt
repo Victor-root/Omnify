@@ -3,21 +3,22 @@ package com.looker.droidify.compose.appDetail
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -38,21 +39,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.compositeOver
-import androidx.compose.ui.layout.onPlaced
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -62,7 +60,6 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.os.bundleOf
 import androidx.hilt.lifecycle.viewmodel.HiltViewModelFactory
@@ -72,6 +69,7 @@ import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.VersionsCardHeaderPadding
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
@@ -85,8 +83,6 @@ import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.network.DataSize
-import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 
 /**
  * One tab of an app's version list: a repository offering the app, or a tracked external source of the
@@ -252,132 +248,144 @@ internal fun SourceFollowDialogs(
 }
 
 /**
- * The sources of an app's version list side by side in one rounded track, each its name over the
- * version it offers, the one on screen raised on a white piece that glides to the source picked, and a
- * star on the one the updates come from.
+ * The sources of an app's version list as a carousel of tiles, each its name over the version it offers,
+ * the one on screen raised in white, and a star on the one the updates come from.
  *
- * They share the track's width while their names fit in it. When they don't, each takes the width of its
- * whole name and the track scrolls sideways, keeping the source on screen in view: a cut name read as
- * "IzzyOnDroi…" and "Breezy Wea…", which is no way to tell sources apart.
+ * The tiles share the width while their names fit in it. When they don't, each takes the width of its
+ * whole name and the carousel scrolls sideways, settling on a tile, the next one showing at the edge;
+ * picking a source brings its tile into view. A cut name read as "IzzyOnDroi…", which is no way to tell
+ * sources apart.
  */
 @Composable
-internal fun SourceSegments(
+internal fun SourceCarousel(
     tabs: List<SourceTab>,
     selected: FollowedSource?,
     updating: FollowedSource?,
     onSelect: (SourceTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = MaterialTheme.colorScheme
-    val density = LocalDensity.current
     val selectedIndex = tabs.indexOfFirst { it.source == selected }.coerceAtLeast(0)
-    var trackWidthPx by remember { mutableIntStateOf(0) }
-    // Where each source sits in the track, by index: its left edge and width, once laid out.
-    val bounds = remember { mutableStateMapOf<Int, Pair<Int, Int>>() }
-    val target = bounds[selectedIndex]
-    // The piece is put in place as the page opens, and glides only when another source is picked.
-    val pieceX = remember { Animatable(0f) }
-    val pieceWidth = remember { Animatable(0f) }
+    val listState = rememberLazyListState()
     var placed by remember { mutableStateOf(false) }
-    val scroll = rememberScrollState()
-    LaunchedEffect(target, trackWidthPx) {
-        val (x, width) = target ?: return@LaunchedEffect
-        val scrollTarget = x - (trackWidthPx - width) / 2
+    LaunchedEffect(selectedIndex) {
+        // Centred when it can be: at the start or the end, the carousel stops at its edge.
+        val viewport = listState.layoutInfo.viewportSize.width
+        val itemWidth = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == selectedIndex }?.size
+        val offset = itemWidth?.let { -(viewport - it) / 2 } ?: 0
         if (placed) {
-            val spec = tween<Float>(SOURCE_SWITCH_MS, easing = EmphasizedDecelerate)
-            launch { pieceX.animateTo(x.toFloat(), spec) }
-            launch { pieceWidth.animateTo(width.toFloat(), spec) }
-            scroll.animateScrollTo(scrollTarget)
+            listState.animateScrollToItem(selectedIndex, offset)
         } else {
-            pieceX.snapTo(x.toFloat())
-            pieceWidth.snapTo(width.toFloat())
-            scroll.scrollTo(scrollTarget)
-            placed = true
+            listState.scrollToItem(selectedIndex, offset)
         }
+        placed = true
     }
-    val segmentMinWidth = with(density) { (if (tabs.isEmpty()) 0 else trackWidthPx / tabs.size).toDp() }
-    val followedLabel = stringResource(R.string.source_followed)
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(SegmentTrackShape)
-            .background(colors.primary.copy(alpha = 0.13f).compositeOver(colors.surfaceContainerHigh))
-            .padding(4.dp)
-            .onSizeChanged { trackWidthPx = it.width },
-    ) {
-        Box(modifier = Modifier.clip(SegmentShape).horizontalScroll(scroll)) {
-            if (placed) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .wrapContentWidth(Alignment.Start)
-                        .width(with(density) { pieceWidth.value.toDp() })
-                        .offset { IntOffset(pieceX.value.roundToInt(), 0) }
-                        .shadow(1.dp, SegmentShape)
-                        // Brighter than the track in both themes: white in a light one, raised in a dark one.
-                        .background(colors.surfaceBright, SegmentShape),
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        // Scrolling right to the card's edges, the tiles resting clear of them.
+        val room = maxWidth - VersionsCardHeaderPadding * 2 - SourceTileGap * (tabs.size - 1)
+        val tileMinWidth = if (tabs.isEmpty()) 0.dp else room / tabs.size
+        LazyRow(
+            state = listState,
+            contentPadding = PaddingValues(horizontal = VersionsCardHeaderPadding),
+            horizontalArrangement = Arrangement.spacedBy(SourceTileGap),
+            flingBehavior = rememberSnapFlingBehavior(listState),
+            modifier = Modifier.fillMaxWidth().selectableGroup(),
+        ) {
+            items(tabs, key = { it.source.stored }) { tab ->
+                SourceTile(
+                    tab = tab,
+                    selected = tab.source == selected,
+                    updating = tab.source == updating,
+                    onClick = { onSelect(tab) },
+                    modifier = Modifier.widthIn(min = tileMinWidth),
                 )
-            }
-            Row(modifier = Modifier.selectableGroup()) {
-                tabs.forEachIndexed { index, tab ->
-                    val isSelected = tab.source == selected
-                    val isUpdating = tab.source == updating
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier
-                            .widthIn(min = segmentMinWidth)
-                            .heightIn(min = 52.dp)
-                            .onPlaced { bounds[index] = it.positionInParent().x.roundToInt() to it.size.width }
-                            .clip(SegmentShape)
-                            .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) })
-                            .then(
-                                if (isUpdating) {
-                                    Modifier.semantics { contentDescription = "${tab.name}, $followedLabel" }
-                                } else {
-                                    Modifier
-                                },
-                            )
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            if (isUpdating) {
-                                Icon(
-                                    imageVector = Icons.Filled.Star,
-                                    contentDescription = null,
-                                    tint = if (isSelected) colors.primary else colors.onSurfaceVariant,
-                                    modifier = Modifier.size(13.dp),
-                                )
-                            }
-                            Text(
-                                text = tab.name,
-                                style = MaterialTheme.typography.titleSmall,
-                                color = if (isSelected) colors.primary else colors.onSurfaceVariant,
-                                maxLines = 1,
-                                softWrap = false,
-                            )
-                        }
-                        tab.version?.let { version ->
-                            Text(
-                                text = version,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = colors.onSurfaceVariant,
-                                maxLines = 1,
-                                softWrap = false,
-                            )
-                        }
-                    }
-                }
             }
         }
     }
 }
 
-private val SegmentTrackShape = RoundedCornerShape(18.dp)
-private val SegmentShape = RoundedCornerShape(14.dp)
+/** One tile of [SourceCarousel], turning white and raised as it is picked. */
+@Composable
+private fun SourceTile(
+    tab: SourceTab,
+    selected: Boolean,
+    updating: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    val resting = colors.primary.copy(alpha = 0.13f).compositeOver(colors.surfaceContainerHigh)
+    // Brighter than a resting tile in both themes: white in a light one, raised in a dark one.
+    val raised = colors.surfaceBright
+    // Read only when drawn, so the change runs without recomposing the tile on every frame.
+    val lift = remember { Animatable(if (selected) 1f else 0f) }
+    LaunchedEffect(selected) {
+        lift.animateTo(if (selected) 1f else 0f, tween(SOURCE_SWITCH_MS, easing = EmphasizedDecelerate))
+    }
+    val nameColor = if (selected) colors.primary else colors.onSurfaceVariant
+    val followedLabel = stringResource(R.string.source_followed)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier
+            .heightIn(min = 56.dp)
+            // The shadow comes with the white rather than growing with it: drawn anew on every frame of
+            // the change, it held back the first switch to a source.
+            .graphicsLayer {
+                shadowElevation = if (selected) 2.dp.toPx() else 0f
+                shape = SourceTileShape
+                clip = false
+            }
+            .drawBehind {
+                drawRoundRect(
+                    color = lerp(resting, raised, lift.value),
+                    cornerRadius = CornerRadius(SourceTileCorner.toPx()),
+                )
+            }
+            .clip(SourceTileShape)
+            // No ripple: the tile turning white is the answer to the tap, and a grey flash before it
+            // did only muddied it.
+            .selectable(
+                selected = selected,
+                interactionSource = null,
+                indication = null,
+                role = Role.Tab,
+                onClick = onClick,
+            )
+            .then(if (updating) Modifier.semantics { contentDescription = "${tab.name}, $followedLabel" } else Modifier)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (updating) {
+                Icon(
+                    imageVector = Icons.Filled.Star,
+                    contentDescription = null,
+                    tint = nameColor,
+                    modifier = Modifier.size(13.dp),
+                )
+            }
+            Text(
+                text = tab.name,
+                style = MaterialTheme.typography.titleSmall,
+                color = nameColor,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
+        tab.version?.let { version ->
+            Text(
+                text = version,
+                style = MaterialTheme.typography.labelMedium,
+                color = colors.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
+    }
+}
+
+private val SourceTileCorner = 16.dp
+private val SourceTileShape = RoundedCornerShape(SourceTileCorner)
+private val SourceTileGap = 8.dp
 
 /**
  * Under [SourceSegments], the same height on every source so nothing moves when another is picked: on
@@ -397,7 +405,10 @@ internal fun SourceStatusRow(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 6.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .padding(horizontal = VersionsCardHeaderPadding + 6.dp),
     ) {
         if (updating) {
             Icon(

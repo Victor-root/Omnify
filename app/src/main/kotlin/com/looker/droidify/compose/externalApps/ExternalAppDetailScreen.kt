@@ -1480,14 +1480,14 @@ internal fun PickedReleaseDialog(
  */
 @Composable
 internal fun ExternalSourceReleases(app: ExternalApp, viewModel: ExternalAppsViewModel) {
-    val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
+    val releaseHistory by remember(app.key) { viewModel.releaseHistoryOf(app.key) }.collectAsStateWithLifecycle(null)
     val installedVersions by viewModel.installedVersions.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
     val downloadTargetTag by viewModel.downloadTargetTag.collectAsStateWithLifecycle()
     val installStates by viewModel.installStates.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     LaunchedEffect(app.key, app.prereleases) {
-        viewModel.loadReleaseHistory(app, limit = VERSIONS_COLLAPSED_COUNT + 1)
+        viewModel.loadReleaseHistoryOf(app, limit = VERSIONS_COLLAPSED_COUNT + 1)
     }
     var releasePick by remember { mutableStateOf<ReleasePick?>(null) }
     releasePick?.let { pick ->
@@ -1512,7 +1512,7 @@ internal fun ExternalSourceReleases(app: ExternalApp, viewModel: ExternalAppsVie
             installedVersion = installedVersions[app.key],
             onVersionClick = { releasePick = ReleasePick.Version(it) },
             onPickFile = { release, asset -> releasePick = ReleasePick.File(release, asset) },
-            onExpandVersions = { viewModel.loadReleaseHistory(app, limit = RELEASE_HISTORY_TARGET) },
+            onExpandVersions = { viewModel.loadReleaseHistoryOf(app, limit = RELEASE_HISTORY_TARGET) },
             downloadStatus = downloads[app.key],
             installing = installStates[app.key] == InstallState.Pending ||
                 installStates[app.key] == InstallState.Installing,
@@ -1590,6 +1590,7 @@ private fun ExternalReleaseList(
             apkSize = row.apkSize,
             apkDate = row.apkDate,
             sdkInfo = apkUrl?.let { sdkInfoByApkUrl[it] },
+            sdkPending = apkUrl != null && apkUrl !in sdkInfoByApkUrl,
             isSuggested = release.tag == app.latestTag,
             isInstalled = row.isInstalled,
             onClick = { onVersionClick(release) },

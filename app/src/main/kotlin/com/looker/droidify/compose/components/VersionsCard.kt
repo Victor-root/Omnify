@@ -30,6 +30,9 @@ import com.looker.droidify.R
  * picker and which one the updates come from, when more than one source offers the app), then the
  * versions themselves as rows of the card ([content]), each opened by a [VersionsCardDivider]. Shared
  * by the catalogue's and the tracked sources' pages, so both read as the same list.
+ *
+ * [header] spans the card's whole width, so a carousel in it scrolls right to the card's edges: what it
+ * holds keeps clear of them with [VersionsCardHeaderPadding].
  */
 @Composable
 fun VersionsCard(
@@ -50,12 +53,15 @@ fun VersionsCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(primary.copy(alpha = 0.06f).compositeOver(MaterialTheme.colorScheme.surface))
-                    .padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = if (header == null) 4.dp else 0.dp),
+                    .padding(top = 4.dp, bottom = if (header == null) 4.dp else 0.dp),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 6.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .padding(start = VersionsCardHeaderPadding + 6.dp, end = VersionsCardHeaderPadding),
                 ) {
                     Text(
                         text = stringResource(R.string.versions),
@@ -94,3 +100,6 @@ fun versionRowColor(highlighted: Boolean, inList: Boolean): Color {
 }
 
 private val VersionsCardShape = RoundedCornerShape(22.dp)
+
+/** How far what a [VersionsCard]'s header holds keeps from the card's edges. */
+val VersionsCardHeaderPadding = 10.dp

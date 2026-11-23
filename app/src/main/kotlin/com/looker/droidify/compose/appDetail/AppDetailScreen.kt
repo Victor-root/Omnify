@@ -4,14 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -101,7 +94,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
@@ -202,6 +194,14 @@ import java.io.File
 import com.looker.droidify.compose.components.VersionsCard
 import com.looker.droidify.compose.components.VersionsCardDivider
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layoutId
+import androidx.compose.runtime.key
 
 /**
  * Maximum number of version rows rendered on the detail screen. The screen is a single
@@ -1458,10 +1458,10 @@ internal data class VersionSources(
  * The version list, as one card ([VersionsCard]), wrapped in a single [onGloballyPositioned] anchor for
  * the hero card's "see all versions" link.
  *
- * When more than one source offers the app, the card's header picks among them ([SourceSegments]): each
+ * When more than one source offers the app, the card's header picks among them ([SourceCarousel]): each
  * repository offering it, and each tracked external source of the same package, whose releases it lists
  * the way that source's own page does. Under it, which one the updates come from ([SourceStatusRow]).
- * Switching keeps the header in place: its piece glides to the source picked while the list leaves
+ * Switching keeps the header in place: the tile picked turns white while the list leaves
  * toward the side it came from and the new one arrives from the other, so moving to another source
  * reads as turning a page of the same list rather than opening another screen.
  */
@@ -1508,7 +1508,7 @@ private fun VersionsSection(
     val onFollowTab = sources.onFollowTab
     val header: (@Composable ColumnScope.() -> Unit)? = if (tabs.size > 1) {
         {
-            SourceSegments(
+            SourceCarousel(
                 tabs = tabs,
                 selected = selectedSource,
                 updating = sources.updating,
@@ -1539,45 +1539,121 @@ private fun VersionsSection(
             .onSizeChanged { shownHeightPx = it.height },
     ) {
         VersionsCard(titleAction = titleAction, header = header) {
-            AnimatedContent(
-                targetState = selectedSource,
-                transitionSpec = {
-                    val forward = tabs.indexOfFirst { it.source == targetState } >=
-                        tabs.indexOfFirst { it.source == initialState }
-                    // The list leaving is gone before the new one shows, so the two never sit on each other.
-                    val arriving = tween<IntOffset>(SOURCE_SWITCH_MS, easing = EmphasizedDecelerate)
-                    val leaving = tween<IntOffset>(SOURCE_LEAVE_MS, easing = EmphasizedAccelerate)
-                    val enter = slideInHorizontally(arriving) { width -> if (forward) width / 10 else -width / 10 } +
-                        fadeIn(tween(SOURCE_SWITCH_MS - SOURCE_LEAVE_MS, SOURCE_LEAVE_MS, EmphasizedDecelerate))
-                    val exit = slideOutHorizontally(leaving) { width -> if (forward) -width / 10 else width / 10 } +
-                        fadeOut(tween(SOURCE_LEAVE_MS, easing = EmphasizedAccelerate))
-                    enter togetherWith exit using SizeTransform(clip = true)
-                },
-                label = "versionSource",
-            ) { source ->
-                val external = tabs.firstOrNull { it.source == source }?.external
-                Column {
-                    if (external != null) {
-                        sources.externalViewModel?.let { ExternalSourceReleases(app = external, viewModel = it) }
-                    } else {
-                        RepositoryVersions(
-                            packages = packages,
-                            repoId = (source as? FollowedSource.Repository)?.repoId,
-                            app = app,
-                            onVersionClick = onVersionClick,
-                            downloadStatus = downloadStatus,
-                            installing = installing,
-                            downloadTargetVersionCode = downloadTargetVersionCode,
-                            onCancel = onCancel,
-                            showIncompatibleVersions = showIncompatibleVersions,
-                            lastVersionFocusRequester = lastVersionFocusRequester,
-                        )
-                    }
+            SourcePanels(tabs = tabs, selected = selectedSource) { tab ->
+                val external = tab.external
+                if (external != null) {
+                    sources.externalViewModel?.let { ExternalSourceReleases(app = external, viewModel = it) }
+                } else {
+                    RepositoryVersions(
+                        packages = packages,
+                        repoId = (tab.source as? FollowedSource.Repository)?.repoId,
+                        app = app,
+                        onVersionClick = onVersionClick,
+                        downloadStatus = downloadStatus,
+                        installing = installing,
+                        downloadTargetVersionCode = downloadTargetVersionCode,
+                        onCancel = onCancel,
+                        showIncompatibleVersions = showIncompatibleVersions,
+                        lastVersionFocusRequester = lastVersionFocusRequester,
+                    )
                 }
             }
         }
     }
 }
+
+/**
+ * Each source's version list ([panel]), the one [selected] shown. A list once built stays built, and the
+ * others are built once the page has settled, so switching sources only moves and fades lists already
+ * there: building one at the moment it was picked made the first switch to each source stutter (25 ms
+ * frames on the emulator against 16 once built, 53 ms for a tracked source's releases).
+ *
+ * Switching, the list leaving fades out toward the side it came from before the new one arrives from the
+ * other, so the two never sit on each other, and the card's height follows the new list.
+ */
+@Composable
+private fun SourcePanels(
+    tabs: List<SourceTab>,
+    selected: FollowedSource?,
+    panel: @Composable (SourceTab) -> Unit,
+) {
+    var built by remember { mutableStateOf(setOfNotNull(selected)) }
+    LaunchedEffect(selected) { selected?.let { built = built + it } }
+    LaunchedEffect(tabs) {
+        delay(SOURCE_WARM_UP_DELAY_MS)
+        built = built + tabs.map { it.source }
+    }
+    // The list leaving while another arrives, and how far along that is.
+    var leaving by remember { mutableStateOf<FollowedSource?>(null) }
+    var shown by remember { mutableStateOf(selected) }
+    val progress = remember { Animatable(1f) }
+    LaunchedEffect(selected) {
+        if (selected == shown) return@LaunchedEffect
+        leaving = shown
+        shown = selected
+        progress.snapTo(0f)
+        progress.animateTo(1f, tween(SOURCE_SWITCH_MS, easing = LinearEasing))
+        leaving = null
+    }
+    val forward = tabs.indexOfFirst { it.source == shown } >= tabs.indexOfFirst { it.source == leaving }
+    Layout(
+        content = {
+            tabs.forEach { tab ->
+                if (tab.source in built) {
+                    key(tab.source) {
+                        Column(
+                            modifier = Modifier
+                                .layoutId(tab.source)
+                                .graphicsLayer {
+                                    sourcePanelMotion(
+                                        arriving = tab.source == shown,
+                                        progress = progress.value,
+                                        forward = forward,
+                                    )
+                                },
+                        ) {
+                            panel(tab)
+                        }
+                    }
+                }
+            }
+        },
+        modifier = Modifier
+            .clipToBounds()
+            .animateContentSize(tween(SOURCE_SWITCH_MS, easing = EmphasizedDecelerate)),
+    ) { measurables, constraints ->
+        val childConstraints = constraints.copy(minHeight = 0)
+        val shownPlaceable = measurables.firstOrNull { it.layoutId == shown }?.measure(childConstraints)
+        val leavingPlaceable = measurables.firstOrNull { it.layoutId == leaving }?.measure(childConstraints)
+        layout(constraints.maxWidth, shownPlaceable?.height ?: 0) {
+            // Placed last, the list arriving is the one a touch reaches. A list that is neither is left
+            // out of the layout: built, but not drawn or touchable.
+            leavingPlaceable?.placeRelative(0, 0)
+            shownPlaceable?.placeRelative(0, 0)
+        }
+    }
+}
+
+/**
+ * A source list's place in a switch: [arriving] in from the side it moves toward once the one leaving is
+ * gone, or leaving toward the other side, [progress] along the whole switch.
+ */
+private fun GraphicsLayerScope.sourcePanelMotion(arriving: Boolean, progress: Float, forward: Boolean) {
+    val shift = size.width / 10f
+    val leaveShare = SOURCE_LEAVE_MS.toFloat() / SOURCE_SWITCH_MS
+    if (arriving) {
+        val fade = ((progress - leaveShare) / (1f - leaveShare)).coerceIn(0f, 1f)
+        alpha = EmphasizedDecelerate.transform(fade)
+        translationX = (if (forward) shift else -shift) * (1f - EmphasizedDecelerate.transform(progress))
+    } else {
+        val out = EmphasizedAccelerate.transform((progress / leaveShare).coerceIn(0f, 1f))
+        alpha = 1f - out
+        translationX = (if (forward) -shift else shift) * out
+    }
+}
+
+/** How long after the page opens the other sources' lists are built, out of the way of its opening. */
+private const val SOURCE_WARM_UP_DELAY_MS = 600L
 
 /**
  * An app's version list with a tab per source offering it, for a page that is not the app's catalogue
