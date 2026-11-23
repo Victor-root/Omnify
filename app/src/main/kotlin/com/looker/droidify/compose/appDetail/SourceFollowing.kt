@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -327,8 +328,9 @@ internal fun SourcePicker(
 }
 
 /**
- * One page of [SourcePicker]: its sources sharing the track's width, a white piece under the one on
- * screen that glides to the source picked, and fades in on a page it wasn't on.
+ * One page of [SourcePicker]: its sources each taking their share of the track's width, a last one alone
+ * in its middle, and a white piece under the one on screen that glides to the source picked, and fades
+ * in on a page it wasn't on.
  */
 @Composable
 private fun SourcePage(
@@ -357,6 +359,8 @@ private fun SourcePage(
         pieceShown.animateTo(1f, spec)
     }
     val direction = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1f else 1f
+    // In shares of a source's width, the room left on each side of a page holding fewer sources.
+    val margin = (SOURCES_PER_PAGE - tabs.size) / 2f
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -368,9 +372,9 @@ private fun SourcePage(
             modifier = Modifier
                 .matchParentSize()
                 .wrapContentWidth(Alignment.Start)
-                .fillMaxWidth(1f / tabs.size)
+                .fillMaxWidth(1f / SOURCES_PER_PAGE)
                 .graphicsLayer {
-                    translationX = direction * piecePosition.value * size.width
+                    translationX = direction * (margin + piecePosition.value) * size.width
                     alpha = pieceShown.value
                     shadowElevation = 1.dp.toPx()
                     shape = SourceSegmentShape
@@ -379,6 +383,7 @@ private fun SourcePage(
                 .background(colors.surfaceBright, SourceSegmentShape),
         )
         Row(modifier = Modifier.fillMaxWidth().selectableGroup()) {
+            if (margin > 0f) Spacer(modifier = Modifier.weight(margin))
             tabs.forEach { tab ->
                 SourceSegment(
                     tab = tab,
@@ -389,6 +394,7 @@ private fun SourcePage(
                     modifier = Modifier.weight(1f),
                 )
             }
+            if (margin > 0f) Spacer(modifier = Modifier.weight(margin))
         }
     }
 }
