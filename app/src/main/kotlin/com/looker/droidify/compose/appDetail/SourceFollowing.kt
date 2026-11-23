@@ -1,8 +1,9 @@
 package com.looker.droidify.compose.appDetail
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +15,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -36,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,7 +48,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -55,7 +61,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -67,10 +72,10 @@ import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.looker.droidify.R
-import com.looker.droidify.compose.theme.SOURCE_SWITCH_MS
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
+import com.looker.droidify.compose.theme.SOURCE_SWITCH_MS
 import com.looker.droidify.data.FollowedSource
 import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.Package
@@ -81,6 +86,7 @@ import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.releaseVersionLabel
 import com.looker.droidify.network.DataSize
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /**
  * One tab of an app's version list: a repository offering the app, or a tracked external source of the
@@ -249,6 +255,10 @@ internal fun SourceFollowDialogs(
  * The sources of an app's version list side by side in one rounded track, each its name over the
  * version it offers, the one on screen raised on a white piece that glides to the source picked, and a
  * star on the one the updates come from.
+ *
+ * They share the track's width while their names fit in it. When they don't, each takes the width of its
+ * whole name and the track scrolls sideways, keeping the source on screen in view: a cut name read as
+ * "IzzyOnDroi…" and "Breezy Wea…", which is no way to tell sources apart.
  */
 @Composable
 internal fun SourceSegments(
@@ -259,15 +269,33 @@ internal fun SourceSegments(
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
+    val density = LocalDensity.current
     val selectedIndex = tabs.indexOfFirst { it.source == selected }.coerceAtLeast(0)
-    val position by animateFloatAsState(
-        targetValue = selectedIndex.toFloat(),
-        animationSpec = tween(SOURCE_SWITCH_MS, easing = EmphasizedDecelerate),
-        label = "sourceSegment",
-    )
     var trackWidthPx by remember { mutableIntStateOf(0) }
-    val segmentWidthPx = if (tabs.isEmpty()) 0 else trackWidthPx / tabs.size
-    val segmentWidth = with(LocalDensity.current) { segmentWidthPx.toDp() }
+    // Where each source sits in the track, by index: its left edge and width, once laid out.
+    val bounds = remember { mutableStateMapOf<Int, Pair<Int, Int>>() }
+    val target = bounds[selectedIndex]
+    // The piece is put in place as the page opens, and glides only when another source is picked.
+    val pieceX = remember { Animatable(0f) }
+    val pieceWidth = remember { Animatable(0f) }
+    var placed by remember { mutableStateOf(false) }
+    val scroll = rememberScrollState()
+    LaunchedEffect(target, trackWidthPx) {
+        val (x, width) = target ?: return@LaunchedEffect
+        val scrollTarget = x - (trackWidthPx - width) / 2
+        if (placed) {
+            val spec = tween<Float>(SOURCE_SWITCH_MS, easing = EmphasizedDecelerate)
+            launch { pieceX.animateTo(x.toFloat(), spec) }
+            launch { pieceWidth.animateTo(width.toFloat(), spec) }
+            scroll.animateScrollTo(scrollTarget)
+        } else {
+            pieceX.snapTo(x.toFloat())
+            pieceWidth.snapTo(width.toFloat())
+            scroll.scrollTo(scrollTarget)
+            placed = true
+        }
+    }
+    val segmentMinWidth = with(density) { (if (tabs.isEmpty()) 0 else trackWidthPx / tabs.size).toDp() }
     val followedLabel = stringResource(R.string.source_followed)
     Box(
         modifier = modifier
@@ -277,65 +305,70 @@ internal fun SourceSegments(
             .padding(4.dp)
             .onSizeChanged { trackWidthPx = it.width },
     ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .wrapContentWidth(Alignment.Start)
-                .width(segmentWidth)
-                .offset { IntOffset((segmentWidthPx * position).roundToInt(), 0) }
-                .shadow(1.dp, SegmentShape)
-                // Brighter than the track in both themes: white in a light one, raised in a dark one.
-                .background(colors.surfaceBright, SegmentShape),
-        )
-        Row(modifier = Modifier.fillMaxWidth().selectableGroup()) {
-            tabs.forEach { tab ->
-                val isSelected = tab.source == selected
-                val isUpdating = tab.source == updating
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
+        Box(modifier = Modifier.clip(SegmentShape).horizontalScroll(scroll)) {
+            if (placed) {
+                Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 52.dp)
-                        .clip(SegmentShape)
-                        .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) })
-                        .then(
-                            if (isUpdating) {
-                                Modifier.semantics { contentDescription = "${tab.name}, $followedLabel" }
-                            } else {
-                                Modifier
-                            },
-                        )
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        .matchParentSize()
+                        .wrapContentWidth(Alignment.Start)
+                        .width(with(density) { pieceWidth.value.toDp() })
+                        .offset { IntOffset(pieceX.value.roundToInt(), 0) }
+                        .shadow(1.dp, SegmentShape)
+                        // Brighter than the track in both themes: white in a light one, raised in a dark one.
+                        .background(colors.surfaceBright, SegmentShape),
+                )
+            }
+            Row(modifier = Modifier.selectableGroup()) {
+                tabs.forEachIndexed { index, tab ->
+                    val isSelected = tab.source == selected
+                    val isUpdating = tab.source == updating
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .widthIn(min = segmentMinWidth)
+                            .heightIn(min = 52.dp)
+                            .onPlaced { bounds[index] = it.positionInParent().x.roundToInt() to it.size.width }
+                            .clip(SegmentShape)
+                            .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) })
+                            .then(
+                                if (isUpdating) {
+                                    Modifier.semantics { contentDescription = "${tab.name}, $followedLabel" }
+                                } else {
+                                    Modifier
+                                },
+                            )
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
                     ) {
-                        if (isUpdating) {
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = null,
-                                tint = if (isSelected) colors.primary else colors.onSurfaceVariant,
-                                modifier = Modifier.size(13.dp),
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            if (isUpdating) {
+                                Icon(
+                                    imageVector = Icons.Filled.Star,
+                                    contentDescription = null,
+                                    tint = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                                    modifier = Modifier.size(13.dp),
+                                )
+                            }
+                            Text(
+                                text = tab.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                                maxLines = 1,
+                                softWrap = false,
                             )
                         }
-                        Text(
-                            text = tab.name,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = if (isSelected) colors.primary else colors.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    tab.version?.let { version ->
-                        Text(
-                            text = version,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = colors.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        tab.version?.let { version ->
+                            Text(
+                                text = version,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = colors.onSurfaceVariant,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
+                        }
                     }
                 }
             }
