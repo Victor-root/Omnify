@@ -365,8 +365,6 @@
     <string name="source_followed_auto">Updates come from here, picked automatically</string>
     <string name="source_followed_automatic">automatic</string>
     <string name="updates_come_from_FORMAT">Updates come from %1$s</string>
-    <string name="sources_previous">Previous sources</string>
-    <string name="sources_next">Next sources</string>
     <string name="updates_from_FORMAT">Updates from: %1$s</string>
     <string name="updates_from_auto_FORMAT">Updates from: %1$s (automatic)</string>
     <string name="followed_source_gone">The followed source is no longer available, Omnify picks one automatically</string>

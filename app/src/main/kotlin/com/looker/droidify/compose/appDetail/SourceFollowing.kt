@@ -1,11 +1,8 @@
 package com.looker.droidify.compose.appDetail
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,19 +13,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Star
@@ -43,22 +35,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -66,8 +54,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.os.bundleOf
 import androidx.hilt.lifecycle.viewmodel.HiltViewModelFactory
@@ -77,9 +70,9 @@ import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.PageIndicator
 import com.looker.droidify.compose.components.VersionsCardHeaderPadding
 import com.looker.droidify.compose.components.tvFocusScale
-import com.looker.droidify.compose.components.versionsCardHeaderColor
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
 import com.looker.droidify.compose.theme.SOURCE_SWITCH_MS
@@ -258,175 +251,169 @@ internal fun SourceFollowDialogs(
 }
 
 /**
- * The sources of an app's version list as a carousel of tiles, each its name over the version it offers,
- * the one on screen raised in white, and a star on the one the updates come from.
+ * The sources of an app's version list, two at a time in a tinted track, each its name over the version
+ * it offers, the one on screen under a white piece and a star on the one the updates come from.
  *
- * The tiles share the width while their names fit in it. When they don't, each takes the width of its
- * whole name and the carousel scrolls sideways, settling on a tile, the next one showing at the edge,
- * with a chevron on each side there is more to see; picking a source brings its tile into view. A cut
- * name read as "IzzyOnDroi…", which is no way to tell sources apart.
+ * Past two sources, the others wait on further pages of the track, swiped to, with dots under it saying
+ * how many pages there are and which one is shown; the page of the source picked comes into view by
+ * itself. Two to a page leaves each name the room to show whole, on two lines when it must: squeezing
+ * every source into one row cut them to "IzzyOnDroi…", which is no way to tell sources apart.
  */
 @Composable
-internal fun SourceCarousel(
+internal fun SourcePicker(
     tabs: List<SourceTab>,
     selected: FollowedSource?,
     updating: FollowedSource?,
     onSelect: (SourceTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val selectedIndex = tabs.indexOfFirst { it.source == selected }.coerceAtLeast(0)
-    val listState = rememberLazyListState()
-    var placed by remember { mutableStateOf(false) }
-    LaunchedEffect(selectedIndex) {
-        // Centred when it can be: at the start or the end, the carousel stops at its edge.
-        val viewport = listState.layoutInfo.viewportSize.width
-        val itemWidth = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == selectedIndex }?.size
-        val offset = itemWidth?.let { -(viewport - it) / 2 } ?: 0
-        if (placed) {
-            listState.animateScrollToItem(selectedIndex, offset)
-        } else {
-            listState.scrollToItem(selectedIndex, offset)
-        }
-        placed = true
+    val pages = remember(tabs) { tabs.chunked(SOURCES_PER_PAGE) }
+    val selectedPage = tabs.indexOfFirst { it.source == selected }.coerceAtLeast(0) / SOURCES_PER_PAGE
+    val pagerState = rememberPagerState(initialPage = selectedPage) { pages.size }
+    LaunchedEffect(selectedPage) {
+        if (pagerState.currentPage != selectedPage) pagerState.animateScrollToPage(selectedPage)
     }
-    val scope = rememberCoroutineScope()
-    val canGoBack by remember { derivedStateOf { listState.canScrollBackward } }
-    val canGoOn by remember { derivedStateOf { listState.canScrollForward } }
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        // Scrolling right to the card's edges, the tiles resting clear of them.
-        val room = maxWidth - VersionsCardHeaderPadding * 2 - SourceTileGap * (tabs.size - 1)
-        val tileMinWidth = if (tabs.isEmpty()) 0.dp else room / tabs.size
-        LazyRow(
-            state = listState,
-            contentPadding = PaddingValues(horizontal = VersionsCardHeaderPadding),
-            horizontalArrangement = Arrangement.spacedBy(SourceTileGap),
-            flingBehavior = rememberSnapFlingBehavior(listState),
-            modifier = Modifier.fillMaxWidth().selectableGroup(),
-        ) {
-            items(tabs, key = { it.source.stored }) { tab ->
-                SourceTile(
-                    tab = tab,
-                    selected = tab.source == selected,
-                    updating = tab.source == updating,
-                    onClick = { onSelect(tab) },
-                    modifier = Modifier.widthIn(min = tileMinWidth),
+        val nameStyle = MaterialTheme.typography.titleSmall
+        val versionStyle = MaterialTheme.typography.labelMedium
+        val textMeasurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val segmentWidth = (maxWidth - VersionsCardHeaderPadding * 2 - SourceTrackPadding * 2) / SOURCES_PER_PAGE
+        // Every source takes the height of the tallest, a name on two lines included: no page stands
+        // taller than another, so the card doesn't jump while swiping, and a name on one line sits centred.
+        val segmentHeight = remember(tabs, updating, segmentWidth, nameStyle, versionStyle, density) {
+            with(density) {
+                val tallest = tabs.maxOfOrNull { tab ->
+                    val star = if (tab.source == updating) SourceStarRoom else 0.dp
+                    val room = (segmentWidth - SourceSegmentPadding * 2 - star).roundToPx().coerceAtLeast(0)
+                    val name = textMeasurer.measure(
+                        text = tab.name,
+                        style = nameStyle,
+                        maxLines = 2,
+                        constraints = Constraints(maxWidth = room),
+                    ).size.height
+                    val version = tab.version?.let { textMeasurer.measure(it, versionStyle, maxLines = 1).size.height }
+                    name + (version ?: 0)
+                } ?: 0
+                maxOf(tallest.toDp() + SourceSegmentVerticalPadding * 2, SourceSegmentMinHeight)
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            HorizontalPager(
+                state = pagerState,
+                // Swiping right to the card's edges, the track resting clear of them.
+                contentPadding = PaddingValues(horizontal = VersionsCardHeaderPadding),
+                pageSpacing = VersionsCardHeaderPadding,
+                key = { page -> pages[page].first().source.stored },
+                modifier = Modifier.fillMaxWidth(),
+            ) { page ->
+                SourcePage(
+                    tabs = pages[page],
+                    selected = selected,
+                    updating = updating,
+                    segmentHeight = segmentHeight,
+                    onSelect = onSelect,
+                )
+            }
+            if (pages.size > 1) {
+                PageIndicator(
+                    pageCount = pages.size,
+                    currentPage = pagerState.currentPage,
+                    modifier = Modifier.padding(top = 10.dp),
                 )
             }
         }
-        CarouselChevron(
-            visible = canGoBack,
-            forward = false,
-            onClick = { scope.launch { listState.bringTileIntoView(forward = false) } },
-            modifier = Modifier.align(Alignment.CenterStart),
-        )
-        CarouselChevron(
-            visible = canGoOn,
-            forward = true,
-            onClick = { scope.launch { listState.bringTileIntoView(forward = true) } },
-            modifier = Modifier.align(Alignment.CenterEnd),
-        )
     }
 }
 
 /**
- * Centres the first tile not wholly in view on the [forward] side, the carousel stopping at its edge
- * when it can't: a chevron moves one source at a time.
- */
-private suspend fun LazyListState.bringTileIntoView(forward: Boolean) {
-    val info = layoutInfo
-    val start = info.viewportStartOffset + info.beforeContentPadding
-    val end = info.viewportEndOffset - info.afterContentPadding
-    val whole = info.visibleItemsInfo.filter { it.offset >= start && it.offset + it.size <= end }
-    val target = if (forward) {
-        (whole.lastOrNull()?.index ?: firstVisibleItemIndex) + 1
-    } else {
-        (whole.firstOrNull()?.index ?: firstVisibleItemIndex) - 1
-    }.coerceIn(0, (info.totalItemsCount - 1).coerceAtLeast(0))
-    val size = info.visibleItemsInfo.firstOrNull { it.index == target }?.size ?: 0
-    animateScrollToItem(target, -(info.viewportSize.width - size) / 2)
-}
-
-/**
- * A chevron at one edge of [SourceCarousel], over a fade of the card's header so the tiles sliding under
- * it don't fight it, shown only while there is more to see on its side ([visible]). It fades in and out
- * as it is drawn, without recomposing: it comes and goes while the carousel scrolls to a source picked,
- * in the middle of the list switching.
+ * One page of [SourcePicker]: its sources sharing the track's width, a white piece under the one on
+ * screen that glides to the source picked, and fades in on a page it wasn't on.
  */
 @Composable
-private fun CarouselChevron(visible: Boolean, forward: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val header = versionsCardHeaderColor()
-    val shown = animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
-        animationSpec = tween(SOURCE_SWITCH_MS / 2),
-        label = "carouselChevron",
-    )
-    val fade = if (forward) listOf(header.copy(alpha = 0f), header) else listOf(header, header.copy(alpha = 0f))
+private fun SourcePage(
+    tabs: List<SourceTab>,
+    selected: FollowedSource?,
+    updating: FollowedSource?,
+    segmentHeight: Dp,
+    onSelect: (SourceTab) -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val slot = tabs.indexOfFirst { it.source == selected }
+    // Read only when drawn, so the piece moves without recomposing the page on every frame.
+    val piecePosition = remember { Animatable(slot.coerceAtLeast(0).toFloat()) }
+    val pieceShown = remember { Animatable(if (slot >= 0) 1f else 0f) }
+    LaunchedEffect(slot) {
+        val spec = tween<Float>(SOURCE_SWITCH_MS, easing = EmphasizedDecelerate)
+        if (slot < 0) {
+            pieceShown.animateTo(0f, spec)
+            return@LaunchedEffect
+        }
+        if (pieceShown.value == 0f) {
+            piecePosition.snapTo(slot.toFloat())
+        } else {
+            launch { piecePosition.animateTo(slot.toFloat(), spec) }
+        }
+        pieceShown.animateTo(1f, spec)
+    }
+    val direction = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1f else 1f
     Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .size(width = 52.dp, height = 56.dp)
-            .graphicsLayer { alpha = shown.value }
-            .background(Brush.horizontalGradient(fade)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(SourceTrackShape)
+            .background(colors.primary.copy(alpha = 0.13f).compositeOver(colors.surfaceContainerHigh))
+            .padding(SourceTrackPadding),
     ) {
-        // Just the chevron, in the header's own quiet grey: the fade already says there is more.
-        Icon(
-            imageVector = if (forward) {
-                Icons.AutoMirrored.Filled.KeyboardArrowRight
-            } else {
-                Icons.AutoMirrored.Filled.KeyboardArrowLeft
-            },
-            contentDescription = stringResource(if (forward) R.string.sources_next else R.string.sources_previous),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+        Box(
             modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .clickable(enabled = visible, role = Role.Button, onClick = onClick)
-                .padding(12.dp),
+                .matchParentSize()
+                .wrapContentWidth(Alignment.Start)
+                .fillMaxWidth(1f / tabs.size)
+                .graphicsLayer {
+                    translationX = direction * piecePosition.value * size.width
+                    alpha = pieceShown.value
+                    shadowElevation = 1.dp.toPx()
+                    shape = SourceSegmentShape
+                }
+                // Brighter than the track in both themes: white in a light one, raised in a dark one.
+                .background(colors.surfaceBright, SourceSegmentShape),
         )
+        Row(modifier = Modifier.fillMaxWidth().selectableGroup()) {
+            tabs.forEach { tab ->
+                SourceSegment(
+                    tab = tab,
+                    selected = tab.source == selected,
+                    updating = tab.source == updating,
+                    height = segmentHeight,
+                    onClick = { onSelect(tab) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
     }
 }
 
-/** One tile of [SourceCarousel], turning white and raised as it is picked. */
+/** One source of [SourcePage], [height] tall: its name, on up to two lines, over the version it offers. */
 @Composable
-private fun SourceTile(
+private fun SourceSegment(
     tab: SourceTab,
     selected: Boolean,
     updating: Boolean,
+    height: Dp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
-    val resting = colors.primary.copy(alpha = 0.13f).compositeOver(colors.surfaceContainerHigh)
-    // Brighter than a resting tile in both themes: white in a light one, raised in a dark one.
-    val raised = colors.surfaceBright
-    // Read only when drawn, so the change runs without recomposing the tile on every frame.
-    val lift = remember { Animatable(if (selected) 1f else 0f) }
-    LaunchedEffect(selected) {
-        lift.animateTo(if (selected) 1f else 0f, tween(SOURCE_SWITCH_MS, easing = EmphasizedDecelerate))
-    }
     val nameColor = if (selected) colors.primary else colors.onSurfaceVariant
     val followedLabel = stringResource(R.string.source_followed)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = modifier
-            .heightIn(min = 56.dp)
-            // The shadow comes with the white rather than growing with it: drawn anew on every frame of
-            // the change, it held back the first switch to a source.
-            .graphicsLayer {
-                shadowElevation = if (selected) 2.dp.toPx() else 0f
-                shape = SourceTileShape
-                clip = false
-            }
-            .drawBehind {
-                drawRoundRect(
-                    color = lerp(resting, raised, lift.value),
-                    cornerRadius = CornerRadius(SourceTileCorner.toPx()),
-                )
-            }
-            .clip(SourceTileShape)
-            // No ripple: the tile turning white is the answer to the tap, and a grey flash before it
-            // did only muddied it.
+            .heightIn(min = height)
+            .clip(SourceSegmentShape)
+            // No ripple: the piece coming under the source is the answer to the tap, and a grey flash
+            // before it did only muddy it.
             .selectable(
                 selected = selected,
                 interactionSource = null,
@@ -435,7 +422,7 @@ private fun SourceTile(
                 onClick = onClick,
             )
             .then(if (updating) Modifier.semantics { contentDescription = "${tab.name}, $followedLabel" } else Modifier)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = SourceSegmentPadding, vertical = SourceSegmentVerticalPadding),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             if (updating) {
@@ -450,8 +437,10 @@ private fun SourceTile(
                 text = tab.name,
                 style = MaterialTheme.typography.titleSmall,
                 color = nameColor,
-                maxLines = 1,
-                softWrap = false,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
         }
         tab.version?.let { version ->
@@ -460,18 +449,25 @@ private fun SourceTile(
                 style = MaterialTheme.typography.labelMedium,
                 color = colors.onSurfaceVariant,
                 maxLines = 1,
-                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
 }
 
-private val SourceTileCorner = 16.dp
-private val SourceTileShape = RoundedCornerShape(SourceTileCorner)
-private val SourceTileGap = 8.dp
+private const val SOURCES_PER_PAGE = 2
+private val SourceTrackShape = RoundedCornerShape(18.dp)
+private val SourceTrackPadding = 4.dp
+private val SourceSegmentShape = RoundedCornerShape(14.dp)
+private val SourceSegmentPadding = 8.dp
+private val SourceSegmentVerticalPadding = 6.dp
+private val SourceSegmentMinHeight = 52.dp
+
+// The star and its gap, beside the name of the source the updates come from.
+private val SourceStarRoom = 17.dp
 
 /**
- * Under [SourceSegments], the same height on every source so nothing moves when another is picked: on
+ * Under [SourcePicker], the same height on every source so nothing moves when another is picked: on
  * the one the updates come from ([updating]), saying so, and that Omnify picked it when it did
  * ([pinned] false); on any other, where they come from instead ([updatingName]) and the button that
  * follows this one ([onFollow]).

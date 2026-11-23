@@ -1458,10 +1458,10 @@ internal data class VersionSources(
  * The version list, as one card ([VersionsCard]), wrapped in a single [onGloballyPositioned] anchor for
  * the hero card's "see all versions" link.
  *
- * When more than one source offers the app, the card's header picks among them ([SourceCarousel]): each
+ * When more than one source offers the app, the card's header picks among them ([SourcePicker]): each
  * repository offering it, and each tracked external source of the same package, whose releases it lists
  * the way that source's own page does. Under it, which one the updates come from ([SourceStatusRow]).
- * Switching keeps the header in place: the tile picked turns white while the list leaves
+ * Switching keeps the header in place: the white piece goes to the source picked while the list leaves
  * toward the side it came from and the new one arrives from the other, so moving to another source
  * reads as turning a page of the same list rather than opening another screen.
  */
@@ -1508,7 +1508,7 @@ private fun VersionsSection(
     val onFollowTab = sources.onFollowTab
     val header: (@Composable ColumnScope.() -> Unit)? = if (tabs.size > 1) {
         {
-            SourceCarousel(
+            SourcePicker(
                 tabs = tabs,
                 selected = selectedSource,
                 updating = sources.updating,
