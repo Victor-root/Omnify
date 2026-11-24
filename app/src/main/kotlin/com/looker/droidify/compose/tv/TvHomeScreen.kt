@@ -3,12 +3,16 @@ package com.looker.droidify.compose.tv
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -108,7 +112,9 @@ import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvBringIntoViewOnFocus
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvTypeOnOk
+import com.looker.droidify.compose.components.EMPTY_STATE_EXIT_MS
 import com.looker.droidify.compose.components.rememberDepartures
+import com.looker.droidify.compose.components.rememberEmptyStateExit
 import com.looker.droidify.compose.components.updateDeparture
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -1034,51 +1040,81 @@ private fun TvAppGrid(
             Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             header?.invoke()
         }
-        if (appTiles.isEmpty() && externalTiles.isEmpty()) {
-            if (empty != null) empty() else TvEmpty(stringResource(R.string.no_applications_available))
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(CardWidth + 18.dp),
-                contentPadding = PaddingValues(start = TvOverscan + 8.dp, end = TvOverscan, top = 24.dp, bottom = TvOverscan),
-                horizontalArrangement = spacedBy(18.dp),
-                verticalArrangement = spacedBy(18.dp),
-            ) {
-                gridItems(appTiles, key = { it.item.appId }, contentType = { "tv-app" }) { tile ->
-                    val app = tile.item
-                    TvAppCard(
-                        name = app.name,
-                        onClick = { onAppClick(app.packageName.name) },
-                        modifier = (if (animateDepartures) updateDeparture(tile.leaving, tile.arriving) else Modifier)
-                            .restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
-                        isUpdating = updating.isUpdating(app.packageName.name),
-                        updateFraction = updating.fraction(app.packageName.name),
-                        isInstalled = app.packageName.name in installedPackages,
-                    ) {
-                        AppMinimalIcon(
-                            app = app,
-                            isInstalled = app.packageName.name in installedPackages,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
+        val hasTiles = appTiles.isNotEmpty() || externalTiles.isNotEmpty()
+        val emptyStateExit = rememberEmptyStateExit(hasTiles)
+        // The state standing in for an empty list fades out before the first tiles come in; once the last
+        // one has shrunk away, that state makes its own entrance.
+        AnimatedContent(
+            targetState = hasTiles,
+            transitionSpec = {
+                if (targetState) {
+                    fadeIn(tween(EMPTY_STATE_EXIT_MS, delayMillis = EMPTY_STATE_EXIT_MS)) togetherWith
+                        fadeOut(tween(EMPTY_STATE_EXIT_MS))
+                } else {
+                    EnterTransition.None togetherWith ExitTransition.None
                 }
-                gridItems(externalTiles, key = { "ext-${it.item.key}" }, contentType = { "tv-ext" }) { tile ->
-                    val app = tile.item
-                    TvAppCard(
-                        name = app.label,
-                        onClick = { onExternalAppClick(app.key) },
-                        modifier = (if (animateDepartures) updateDeparture(tile.leaving, tile.arriving) else Modifier)
-                            .restoreFocusTarget(restoreFocusId == "ext:${app.key}", restoreRequester),
-                        // A batch names a source by its own key (see UpdateAllWorker).
-                        isUpdating = updating.isUpdating(app.key),
-                        updateFraction = updating.fraction(app.key),
-                        isInstalled = app.key in externalInstalledKeys,
-                    ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            ExternalAppIcon(
+            },
+            label = "tvGridEmptyState",
+            modifier = Modifier.fillMaxSize(),
+        ) { showsTiles ->
+            if (!showsTiles) {
+                if (empty != null) empty() else TvEmpty(stringResource(R.string.no_applications_available))
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(CardWidth + 18.dp),
+                    contentPadding = PaddingValues(start = TvOverscan + 8.dp, end = TvOverscan, top = 24.dp, bottom = TvOverscan),
+                    horizontalArrangement = spacedBy(18.dp),
+                    verticalArrangement = spacedBy(18.dp),
+                ) {
+                    gridItems(appTiles, key = { it.item.appId }, contentType = { "tv-app" }) { tile ->
+                        val app = tile.item
+                        TvAppCard(
+                            name = app.name,
+                            onClick = { onAppClick(app.packageName.name) },
+                            modifier = (
+                                if (animateDepartures) {
+                                    updateDeparture(tile.leaving, tile.arriving, emptyStateExit)
+                                } else {
+                                    Modifier
+                                }
+                                )
+                                .restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
+                            isUpdating = updating.isUpdating(app.packageName.name),
+                            updateFraction = updating.fraction(app.packageName.name),
+                            isInstalled = app.packageName.name in installedPackages,
+                        ) {
+                            AppMinimalIcon(
                                 app = app,
-                                isInstalled = app.key in externalInstalledKeys,
-                                size = TileSize - 20.dp,
+                                isInstalled = app.packageName.name in installedPackages,
+                                modifier = Modifier.fillMaxSize(),
                             )
+                        }
+                    }
+                    gridItems(externalTiles, key = { "ext-${it.item.key}" }, contentType = { "tv-ext" }) { tile ->
+                        val app = tile.item
+                        TvAppCard(
+                            name = app.label,
+                            onClick = { onExternalAppClick(app.key) },
+                            modifier = (
+                                if (animateDepartures) {
+                                    updateDeparture(tile.leaving, tile.arriving, emptyStateExit)
+                                } else {
+                                    Modifier
+                                }
+                                )
+                                .restoreFocusTarget(restoreFocusId == "ext:${app.key}", restoreRequester),
+                            // A batch names a source by its own key (see UpdateAllWorker).
+                            isUpdating = updating.isUpdating(app.key),
+                            updateFraction = updating.fraction(app.key),
+                            isInstalled = app.key in externalInstalledKeys,
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                ExternalAppIcon(
+                                    app = app,
+                                    isInstalled = app.key in externalInstalledKeys,
+                                    size = TileSize - 20.dp,
+                                )
+                            }
                         }
                     }
                 }

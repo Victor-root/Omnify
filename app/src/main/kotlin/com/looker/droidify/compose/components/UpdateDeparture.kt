@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.components
 
+import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -10,6 +11,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,6 +30,12 @@ private const val DEPARTED_SCALE = 0.6f
 
 /** How small an arriving tile starts, nearer its size than a departing one ends: it settles in. */
 private const val ARRIVING_SCALE = 0.85f
+
+/**
+ * How long the state standing in for an empty list (everything up to date, still loading) takes to fade
+ * out as the first tiles arrive, which wait for it rather than land on top of it.
+ */
+const val EMPTY_STATE_EXIT_MS = 200
 
 /**
  * One tile of a grid whose items can come and go gracefully: [arriving] while it grows in, [leaving]
@@ -90,6 +98,39 @@ fun <T> rememberDepartures(items: List<T>, key: (T) -> Any, enabled: Boolean): L
     return shown
 }
 
+/**
+ * When the state standing in for an empty list began to fade out, its list's first tiles having turned
+ * up: a tile arriving before that state is gone waits for the rest of its fade ([remainingMs]), whether
+ * it came with the first ones or a moment later.
+ */
+@Stable
+class EmptyStateExit internal constructor() {
+    internal var startedAt = Long.MIN_VALUE
+    internal var hadTiles = true
+
+    /** How long a tile arriving now waits for the state standing in for an empty list to be gone. */
+    fun remainingMs(): Int {
+        if (startedAt == Long.MIN_VALUE) return 0
+        val left = startedAt + EMPTY_STATE_EXIT_MS - SystemClock.uptimeMillis()
+        return left.coerceIn(0L, EMPTY_STATE_EXIT_MS.toLong()).toInt()
+    }
+}
+
+/**
+ * The [EmptyStateExit] of a list that shows tiles when [hasTiles], and the state standing in for an
+ * empty list otherwise. A list opened with tiles shows them as they are.
+ */
+@Composable
+fun rememberEmptyStateExit(hasTiles: Boolean): EmptyStateExit {
+    val exit = remember { EmptyStateExit() }
+    // Before the tiles of the same frame are composed, which happens as the grid is measured.
+    SideEffect {
+        if (hasTiles && !exit.hadTiles) exit.startedAt = SystemClock.uptimeMillis()
+        exit.hadTiles = hasTiles
+    }
+    return exit
+}
+
 /** What [rememberDepartures] showed last, to tell which items have just left. */
 private class LastShown<T> {
     var tiles: List<Departing<T>> = emptyList()
@@ -101,15 +142,25 @@ private class LastShown<T> {
  * after it gliding aside to make room, as apps with an update turn up one after another; while
  * [leaving] it shrinks and fades out where it stands, and once it is gone the tiles after it glide into
  * its place, one app at a time as each finishes, instead of vanishing at once and the grid jumping. A
- * list merely opened shows its tiles as they are, without an entrance.
+ * list merely opened shows its tiles as they are, without an entrance. A tile arriving while the state
+ * standing in for an empty list is fading out ([emptyStateExit]) waits for it to be gone.
  */
 @Composable
-fun LazyGridItemScope.updateDeparture(leaving: Boolean, arriving: Boolean): Modifier {
+fun LazyGridItemScope.updateDeparture(leaving: Boolean, arriving: Boolean, emptyStateExit: EmptyStateExit): Modifier {
     // Read only when drawn, so a tile coming or going doesn't recompose on every frame.
     val presence = remember { Animatable(if (arriving) 0f else 1f) }
+    val wait = remember { if (arriving) emptyStateExit.remainingMs() else 0 }
     LaunchedEffect(leaving) {
-        val easing = if (leaving) FastOutSlowInEasing else EmphasizedDecelerate
-        presence.animateTo(if (leaving) 0f else 1f, tween(durationMillis = DEPARTURE_MS, easing = easing))
+        val spec = if (leaving) {
+            tween<Float>(durationMillis = DEPARTURE_MS, easing = FastOutSlowInEasing)
+        } else {
+            tween(
+                durationMillis = DEPARTURE_MS,
+                delayMillis = wait,
+                easing = EmphasizedDecelerate,
+            )
+        }
+        presence.animateTo(if (leaving) 0f else 1f, spec)
     }
     return Modifier
         .animateItem(

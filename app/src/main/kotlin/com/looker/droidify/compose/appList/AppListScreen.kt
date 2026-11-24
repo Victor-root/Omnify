@@ -141,7 +141,9 @@ import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.shrinkToFit
 import com.looker.droidify.compose.components.tvTypeOnOk
 import com.looker.droidify.compose.components.Departing
+import com.looker.droidify.compose.components.EMPTY_STATE_EXIT_MS
 import com.looker.droidify.compose.components.rememberDepartures
+import com.looker.droidify.compose.components.rememberEmptyStateExit
 import com.looker.droidify.compose.components.updateDeparture
 import com.looker.droidify.compose.theme.EmphasizedAccelerate
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
@@ -454,6 +456,9 @@ fun AppListScreen(
     // stands there when the tab is merely opened with nothing to update.
     val hasUpdateTiles = appTiles.isNotEmpty() || externalUpdateTiles.isNotEmpty()
     val upToDateEntrance = rememberUpToDateEntrance(hasUpdateTiles)
+    // When "Everything is up to date" (or the spinner) began fading out for the first tiles, which wait
+    // for it to be gone.
+    val updatesEmptyStateExit = rememberEmptyStateExit(hasUpdateTiles)
     // The Installed tab's catalogue half, as tiles that never leave.
     val installedTiles = remember(installedCatalogueApps) {
         installedCatalogueApps.map { Departing(it, leaving = false) }
@@ -1142,6 +1147,11 @@ fun AppListScreen(
                     item(span = { GridItemSpan(maxLineSpan) }, key = "updates-loading") {
                         Box(
                             modifier = Modifier
+                                .animateItem(
+                                    fadeInSpec = null,
+                                    placementSpec = null,
+                                    fadeOutSpec = tween(EMPTY_STATE_EXIT_MS),
+                                )
                                 .fillMaxWidth()
                                 .padding(vertical = 48.dp),
                             contentAlignment = Alignment.Center,
@@ -1162,30 +1172,39 @@ fun AppListScreen(
                 }
                 if (showEmpty) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "empty-tab") {
-                        // A search that emptied the list says so, rather than the tab's own empty message
-                        // ("Everything is up to date") claiming something the search only hid.
-                        if (activeSearch.isNotEmpty()) {
-                            NoSearchResults(query = activeSearch)
-                        } else if (tab == AppTab.UPDATES) {
-                            UpToDateState(
-                                entrance = upToDateEntrance,
-                                maxHeight = with(LocalDensity.current) {
-                                    gridContentHeight.takeIf { it > 0 }?.toDp()
-                                },
-                                followedApps = followedApps,
-                                lastCheck = lastUpdateCheck,
-                                checkInterval = updateCheckInterval,
-                                isChecking = isSyncing || isRefreshingExternal,
-                                onCheckNow = syncEverything,
-                                onOpenApp = { app ->
-                                    when (app) {
-                                        is FollowedApp.Catalogue -> openInstalledApp(app.packageName)
-                                        is FollowedApp.External -> openExternalApp(app.app.key)
-                                    }
-                                },
-                            )
-                        } else {
-                            EmptyTabMessage(tab = tab)
+                        // Fades out as the first tiles turn up, before they make their entrance.
+                        Box(
+                            Modifier.animateItem(
+                                fadeInSpec = null,
+                                placementSpec = null,
+                                fadeOutSpec = tween(EMPTY_STATE_EXIT_MS),
+                            ),
+                        ) {
+                            // A search that emptied the list says so, rather than the tab's own empty message
+                            // ("Everything is up to date") claiming something the search only hid.
+                            if (activeSearch.isNotEmpty()) {
+                                NoSearchResults(query = activeSearch)
+                            } else if (tab == AppTab.UPDATES) {
+                                UpToDateState(
+                                    entrance = upToDateEntrance,
+                                    maxHeight = with(LocalDensity.current) {
+                                        gridContentHeight.takeIf { it > 0 }?.toDp()
+                                    },
+                                    followedApps = followedApps,
+                                    lastCheck = lastUpdateCheck,
+                                    checkInterval = updateCheckInterval,
+                                    isChecking = isSyncing || isRefreshingExternal,
+                                    onCheckNow = syncEverything,
+                                    onOpenApp = { app ->
+                                        when (app) {
+                                            is FollowedApp.Catalogue -> openInstalledApp(app.packageName)
+                                            is FollowedApp.External -> openExternalApp(app.app.key)
+                                        }
+                                    },
+                                )
+                            } else {
+                                EmptyTabMessage(tab = tab)
+                            }
                         }
                     }
                 }
@@ -1196,8 +1215,15 @@ fun AppListScreen(
                 // "(3)" sitting above four apps.
                 if (tab == AppTab.UPDATES && (tabApps.isNotEmpty() || searchedExternalUpdates.isNotEmpty())) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "update-all") {
-                        // Fades out with the last update rather than vanishing ahead of its tile.
-                        Box(Modifier.animateItem(fadeInSpec = null, placementSpec = null, fadeOutSpec = tween(250))) {
+                        // Fades out with the last update rather than vanishing ahead of its tile, and comes in
+                        // with the first one once the state standing in for an empty list has faded out.
+                        Box(
+                            Modifier.animateItem(
+                                fadeInSpec = tween(UPDATE_ALL_FADE_MS, delayMillis = EMPTY_STATE_EXIT_MS),
+                                placementSpec = null,
+                                fadeOutSpec = tween(UPDATE_ALL_FADE_MS),
+                            ),
+                        ) {
                             UpdateAllButton(
                                 count = tabApps.size + searchedExternalUpdates.size,
                                 isUpdating = isUpdatingAll,
@@ -1342,7 +1368,11 @@ fun AppListScreen(
                             // On the Updates tab, an app with an update grows in as it turns up, an updated
                             // one's tile fades out, and the others make room or close the gap.
                             modifier = (
-                                if (tab == AppTab.UPDATES) updateDeparture(tile.leaving, tile.arriving) else Modifier
+                                if (tab == AppTab.UPDATES) {
+                                    updateDeparture(tile.leaving, tile.arriving, updatesEmptyStateExit)
+                                } else {
+                                    Modifier
+                                }
                                 )
                                 .restoreFocusTarget(
                                     isTelevision && restoreFocusId == "app:${app.packageName.name}",
@@ -1386,7 +1416,11 @@ fun AppListScreen(
                             isUpdating = updating.isUpdating(app.key),
                             updateFraction = updating.fraction(app.key),
                             onClick = { openExternalApp(app.key) },
-                            modifier = updateDeparture(tile.leaving, tile.arriving).restoreFocusTarget(
+                            modifier = updateDeparture(
+                                tile.leaving,
+                                tile.arriving,
+                                updatesEmptyStateExit,
+                            ).restoreFocusTarget(
                                 isTelevision && restoreFocusId == "ext:${app.key}",
                                 restoreRequester,
                             ),
@@ -2360,3 +2394,6 @@ private fun BackgroundChecksBanner(onOpenSettings: () -> Unit, onDismiss: () -> 
 private const val TAB_FADE_OUT_MS = 100
 private const val TAB_FADE_IN_MS = 200
 private const val TAB_PILL_MS = 300
+
+/** How long the Updates tab's "Update all" button takes to fade out with the last update, or in with the first. */
+private const val UPDATE_ALL_FADE_MS = 250
