@@ -1339,8 +1339,11 @@ fun AppListScreen(
                                     openApp(app.packageName.name)
                                 }
                             },
-                            // On the Updates tab, an updated app's tile fades out and the others close the gap.
-                            modifier = (if (tab == AppTab.UPDATES) updateDeparture(tile.leaving) else Modifier)
+                            // On the Updates tab, an app with an update grows in as it turns up, an updated
+                            // one's tile fades out, and the others make room or close the gap.
+                            modifier = (
+                                if (tab == AppTab.UPDATES) updateDeparture(tile.leaving, tile.arriving) else Modifier
+                                )
                                 .restoreFocusTarget(
                                     isTelevision && restoreFocusId == "app:${app.packageName.name}",
                                     restoreRequester,
@@ -1383,7 +1386,7 @@ fun AppListScreen(
                             isUpdating = updating.isUpdating(app.key),
                             updateFraction = updating.fraction(app.key),
                             onClick = { openExternalApp(app.key) },
-                            modifier = updateDeparture(tile.leaving).restoreFocusTarget(
+                            modifier = updateDeparture(tile.leaving, tile.arriving).restoreFocusTarget(
                                 isTelevision && restoreFocusId == "ext:${app.key}",
                                 restoreRequester,
                             ),

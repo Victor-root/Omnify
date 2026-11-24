@@ -1048,7 +1048,7 @@ private fun TvAppGrid(
                     TvAppCard(
                         name = app.name,
                         onClick = { onAppClick(app.packageName.name) },
-                        modifier = (if (animateDepartures) updateDeparture(tile.leaving) else Modifier)
+                        modifier = (if (animateDepartures) updateDeparture(tile.leaving, tile.arriving) else Modifier)
                             .restoreFocusTarget(restoreFocusId == "app:${app.packageName.name}", restoreRequester),
                         isUpdating = updating.isUpdating(app.packageName.name),
                         updateFraction = updating.fraction(app.packageName.name),
@@ -1066,7 +1066,7 @@ private fun TvAppGrid(
                     TvAppCard(
                         name = app.label,
                         onClick = { onExternalAppClick(app.key) },
-                        modifier = (if (animateDepartures) updateDeparture(tile.leaving) else Modifier)
+                        modifier = (if (animateDepartures) updateDeparture(tile.leaving, tile.arriving) else Modifier)
                             .restoreFocusTarget(restoreFocusId == "ext:${app.key}", restoreRequester),
                         // A batch names a source by its own key (see UpdateAllWorker).
                         isUpdating = updating.isUpdating(app.key),
