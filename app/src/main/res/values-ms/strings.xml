@@ -181,9 +181,7 @@
     <string name="uninstall">Nyah-pasang</string>
     <string name="unknown">Tidak diketahui</string>
     <string name="unknown_error_DESC">Ralat tidak diketahui.</string>
-    <string name="unstable_updates">Kemas kini yang tidak stabil</string>
     <string name="unknown_FORMAT">Tidak diketahui: %s</string>
-    <string name="unstable_updates_summary">Cadangkan memasang versi yang tidak stabil</string>
     <string name="update">Kemas kini</string>
     <string name="updates">Kemas kini</string>
     <string name="upstream_source_code_is_not_free">Kod sumber huluan tidak percuma</string>

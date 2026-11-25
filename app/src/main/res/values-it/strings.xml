@@ -145,8 +145,6 @@
     <string name="unknown">Sconosciuto</string>
     <string name="unknown_error_DESC">Errore sconosciuto</string>
     <string name="unknown_FORMAT">Sconosciuto: %s</string>
-    <string name="unstable_updates">Aggiornamenti instabili</string>
-    <string name="unstable_updates_summary">Suggerisci l\'installazione di versioni instabili delle app</string>
     <string name="update">Aggiorna</string>
     <string name="updates">Aggiornamenti</string>
     <string name="upstream_source_code_is_not_free">Il codice sorgente a monte non è libero</string>

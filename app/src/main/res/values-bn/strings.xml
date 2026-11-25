@@ -180,9 +180,7 @@
     <string name="update_all">সব আপডেট</string>
     <string name="updates">আপডেট</string>
     <string name="suggested">প্রস্তাবিত</string>
-    <string name="unstable_updates">অস্থির আপডেট</string>
     <string name="username_missing">ব্যবহারকারীর নাম অনুপস্থিত</string>
-    <string name="unstable_updates_summary">অস্থির সংস্করণ ইনস্টল করার পরামর্শ দিন</string>
     <string name="waiting_to_start_installation">ইনস্টলেশন শুরু করার জন্য অপেক্ষা করা হচ্ছে…</string>
     <string name="upstream_source_code_is_not_free">আপস্ট্রিম সোর্স কোড বিনামূল্যে নয়</string>
     <string name="validation_index_error_DESC">সূচক যাচাই করা যায়নি.</string>

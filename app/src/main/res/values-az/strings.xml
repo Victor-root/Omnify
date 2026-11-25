@@ -167,8 +167,6 @@
     <string name="unknown">Naməlum</string>
     <string name="unknown_error_DESC">Naməlum xəta</string>
     <string name="unknown_FORMAT">Naməlum: %s</string>
-    <string name="unstable_updates">Qeyri-sabit yeniləmələr</string>
-    <string name="unstable_updates_summary">Qeyri-sabit versiyaların quraşdırılmasını təklif edin</string>
     <string name="update">Yeniləyin</string>
     <string name="updates">Yeniləmələr</string>
     <string name="username">İstifadəçi adı</string>

@@ -112,7 +112,6 @@
     <string name="source_code">സോഴ്സ് കോഡ്</string>
     <string name="suggested">നിർദ്ദേശിച്ചു</string>
     <string name="uninstall">അൺഇൻസ്റ്റാൾ ചെയ്യുക</string>
-    <string name="unstable_updates">അസ്ഥിരമായ അപ്ഡേറ്റുകൾ</string>
     <string name="website">വെബ്സൈറ്റ്</string>
     <string name="prefs_personalization">വ്യക്തിഗതമാക്കൽ</string>
     <string name="links">ലിങ്കുകൾ</string>
@@ -132,7 +131,6 @@
     <string name="sync_repositories_automatically">റിപ്പോസിറ്ററികൾ സ്വയമേവ സമന്വയിപ്പിക്കുക</string>
     <string name="repository_unsigned_DESC">ഒപ്പിടാത്തത്. ആപ്ലിക്കേഷൻ ലിസ്റ്റ് പരിശോധിക്കാൻ കഴിഞ്ഞില്ല. ഒപ്പിടാത്ത റിപ്പോസിറ്ററികളിൽ നിന്ന് ആപ്ലിക്കേഷനുകൾ ഡൗൺലോഡ് ചെയ്യുന്നത് ശ്രദ്ധിക്കുക.</string>
     <string name="unknown">അജ്ഞാതം</string>
-    <string name="unstable_updates_summary">അസ്ഥിരമായ പതിപ്പുകൾ ഇൻസ്റ്റാൾ ചെയ്യാൻ നിർദ്ദേശിക്കുക</string>
     <string name="show_more">കൂടുതൽ കാണിക്കുക</string>
     <string name="saving_details">വിശദാംശങ്ങൾ സംരക്ഷിക്കുന്നു…</string>
     <string name="search">തിരയുക</string>

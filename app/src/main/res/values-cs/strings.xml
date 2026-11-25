@@ -137,7 +137,6 @@
     <string name="unknown">Neznámé</string>
     <string name="unknown_error_DESC">Neznámá chyba</string>
     <string name="unknown_FORMAT">Neznámé: %s</string>
-    <string name="unstable_updates">Nestabilní aktualizace</string>
     <string name="update">Aktualizovat</string>
     <string name="updates">Aktualizace</string>
     <string name="upstream_source_code_is_not_free">Původní zdrojový kód není svobodný</string>
@@ -166,7 +165,6 @@
     <string name="session_installer">Relační instalátor</string>
     <string name="root_installer">Root instalátor</string>
     <string name="shizuku_installer">Instalátor Shizuku/Sui</string>
-    <string name="unstable_updates_summary">Navrhovat instalaci nestabilních verzí aplikací</string>
     <string name="select_mirror">Vybrat mirror</string>
     <plurals name="days">
         <item quantity="one">den</item>

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.*
 import kotlin.time.Duration
+import com.looker.droidify.external.PrereleaseMode
 
 interface SettingsRepository {
 
@@ -33,8 +34,6 @@ interface SettingsRepository {
     suspend fun enableIncompatibleVersion(enable: Boolean)
 
     suspend fun enableNotifyUpdates(enable: Boolean)
-
-    suspend fun enableUnstableUpdates(enable: Boolean)
 
     suspend fun setTheme(theme: Theme)
 
@@ -125,6 +124,15 @@ interface SettingsRepository {
 
     /** Follows [source] for [packageName]'s updates (see [Settings.followedSources]). */
     suspend fun setFollowedSource(packageName: String, source: String)
+
+    /** Sets what an app's pre-releases do when it has no choice of its own (see [Settings.defaultPrereleases]). */
+    suspend fun setDefaultPrereleases(mode: PrereleaseMode)
+
+    /** Sets [packageName]'s own pre-release choice in the catalogue (see [Settings.cataloguePrereleases]). */
+    suspend fun setCataloguePrereleases(packageName: String, mode: PrereleaseMode)
+
+    /** Drops every catalogue app's own pre-release choice, so that all of them follow the default one. */
+    suspend fun clearCataloguePrereleases()
 }
 
 inline fun <T> SettingsRepository.get(crossinline block: suspend Settings.() -> T): Flow<T> {

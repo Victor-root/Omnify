@@ -96,7 +96,6 @@
     <string name="repository">Репозиторијум</string>
     <string name="only_compatible_with_FORMAT">Компатибилно само са %s</string>
     <string name="socket_error_DESC">Сервер није успео да обезбеди нови пакет</string>
-    <string name="unstable_updates_summary">Предлаже инсталирање нестабилних верзија апликација</string>
     <string name="version">Верзија</string>
     <string name="ok">У реду</string>
     <string name="io_error_DESC">Није могуће извршити одређене радње</string>
@@ -192,7 +191,6 @@
     <string name="incompatible_versions_summary">Приказује верзије апликација које нису компатибилне са уређајем</string>
     <string name="show_older_versions">Прикажи старије верзије</string>
     <string name="shizuku_not_installed">Shizuku/Sui није инсталиран</string>
-    <string name="unstable_updates">Нестабилна ажурирања</string>
     <string name="proxy_host">Хост проксија</string>
     <string name="ignore_all_updates">Занемари нове верзије</string>
     <string name="downloading_FORMAT">Преузимање %s…</string>

@@ -110,8 +110,6 @@
     <string name="unknown">Tidak diketahui</string>
     <string name="unknown_error_DESC">Kesalahan tidak diketahui</string>
     <string name="unknown_FORMAT">Tidak diketahui: %s</string>
-    <string name="unstable_updates">Pembaruan tidak stabil</string>
-    <string name="unstable_updates_summary">Sarankan memasang versi aplikasi tidak stabil</string>
     <string name="updates">Pembaruan</string>
     <string name="upstream_source_code_is_not_free">Kode sumber hulu tidak-bebas</string>
     <string name="username">Nama pengguna</string>

@@ -375,7 +375,6 @@
     <string name="no_connection_title">Pas de connexion Internet</string>
     <string name="no_connection_hint">Le catalogue se chargera tout seul dès que la connexion sera revenue.</string>
     <string name="no_connection_DESC">Les téléchargements et la synchronisation ne fonctionneront pas tant que la connexion ne sera pas revenue.</string>
-    <string name="unstable_updates">Mises à jour instables</string>
     <string name="upstream_source_code_is_not_free">Le code source en amont n’est pas libre</string>
     <string name="username">Nom d’utilisateur</string>
     <string name="username_missing">Nom d’utilisateur manquant</string>
@@ -388,7 +387,6 @@
     <string name="merging_FORMAT">Fusionner %s</string>
     <string name="sorting_order">Ordre de tri</string>
     <string name="requires_FORMAT">Requiert %s</string>
-    <string name="unstable_updates_summary">Suggérer l’installation de versions instables d\'applis</string>
     <string name="prefs_language_title">Langue</string>
     <string name="prefs_personalization">Personnalisation</string>
     <string name="show_less">Afficher moins</string>

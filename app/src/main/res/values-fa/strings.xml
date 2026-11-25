@@ -129,7 +129,6 @@
     <string name="tracks_or_reports_your_activity">رهگیری یا گزارش فعالیت شما</string>
     <string name="unknown_error_DESC">خطای ناشناخته</string>
     <string name="unknown_FORMAT">ناشناخته: %s</string>
-    <string name="unstable_updates">به‌روزرسانی های ناپایدار</string>
     <string name="username">نام‌کاربری</string>
     <string name="validation_index_error_DESC">ایندکس قابل تایید شدن نیست</string>
     <string name="whats_new">چه خبر</string>
@@ -171,7 +170,6 @@
     <string name="recently_updated">اخیرا به‌روزرسانی شده</string>
     <string name="repository_unsigned_DESC">امضا پیدا نشد. نمی‌توان فهرست برنامه‌ها را تائید کرد</string>
     <string name="sorting_order">اولویت ترتیب</string>
-    <string name="unstable_updates_summary">پیشنهاد نصب نسخه‌های آزمایشی برنامه</string>
     <string name="source_code_no_longer_available">کد منبع دیگر موجود نیست</string>
     <string name="syncing_FORMAT">در حال به‌روزرسانی %s …</string>
     <string name="updates">به‌روزرسانی ها</string>

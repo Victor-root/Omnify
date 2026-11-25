@@ -18,7 +18,6 @@
     <string name="version">Version</string>
     <string name="prefs_personalization">Personalisering</string>
     <string name="show_less">Visa mindre</string>
-    <string name="unstable_updates">Instabila uppdateringar</string>
     <string name="update">Uppdatera</string>
     <string name="versions">Versioner</string>
     <string name="username_missing">Användarnamn saknas</string>
@@ -121,7 +120,6 @@
     <string name="signed_using_unsafe_algorithm">Signerad med en osäker algoritm</string>
     <string name="theme">Tema</string>
     <string name="tracks_or_reports_your_activity">Spårar eller rapporterar din aktivitet</string>
-    <string name="unstable_updates_summary">Föreslå att installera instabila versioner</string>
     <string name="version_FORMAT">Version %s</string>
     <string name="waiting_to_start_download">Väntar på att börja ladda ner…</string>
     <string name="website">Projektets webbplats</string>

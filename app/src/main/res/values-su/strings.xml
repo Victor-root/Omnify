@@ -78,7 +78,6 @@
     <string name="themes">Téma</string>
     <string name="uninstall">Undeur</string>
     <string name="unknown_FORMAT">Teu dipikanyaho: %s</string>
-    <string name="unstable_updates_summary">Nyarankeun masang vérsi apl teu stabil</string>
     <string name="update">Anyar</string>
     <string name="updates">Anyar</string>
     <string name="username">Username</string>
@@ -196,7 +195,6 @@
     <string name="source_code">Kodeu sumber</string>
     <string name="unknown">Teu dipikanyaho</string>
     <string name="unknown_error_DESC">Error teu dipikanyaho</string>
-    <string name="unstable_updates">Pembaruan teu stabil</string>
     <string name="versions">Vérsi</string>
     <string name="waiting_to_start_download">Nungguan ngamimitian download…</string>
     <string name="whats_new">Naon nu anyarna</string>

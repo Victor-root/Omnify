@@ -146,12 +146,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setUnstableUpdates(enabled: Boolean) {
-        viewModelScope.launch {
-            settingsRepository.enableUnstableUpdates(enabled)
-        }
-    }
-
     fun setIncompatibleUpdates(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.enableIncompatibleVersion(enabled)

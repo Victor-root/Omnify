@@ -21,6 +21,7 @@ import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.utility.common.extension.updateAsMutable
+import com.looker.droidify.external.PrereleaseMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
@@ -84,9 +85,6 @@ class PreferenceSettingsRepository(
 
     override suspend fun enableNotifyUpdates(enable: Boolean) =
         NOTIFY_UPDATES.update(enable)
-
-    override suspend fun enableUnstableUpdates(enable: Boolean) =
-        UNSTABLE_UPDATES.update(enable)
 
     override suspend fun setTheme(theme: Theme) =
         THEME.update(theme.name)
@@ -248,6 +246,20 @@ class PreferenceSettingsRepository(
         }
     }
 
+    override suspend fun setDefaultPrereleases(mode: PrereleaseMode) =
+        DEFAULT_PRERELEASES.update(mode.name)
+
+    override suspend fun setCataloguePrereleases(packageName: String, mode: PrereleaseMode) {
+        dataStore.edit { preference ->
+            preference[CATALOGUE_PRERELEASES] =
+                Json.encodeToString(preference.cataloguePrereleases() + (packageName to mode))
+        }
+    }
+
+    override suspend fun clearCataloguePrereleases() {
+        dataStore.edit { preference -> preference.remove(CATALOGUE_PRERELEASES) }
+    }
+
     override suspend fun setDeleteApkOnInstall(enable: Boolean) =
         DELETE_APK_ON_INSTALL.update(enable)
 
@@ -333,7 +345,6 @@ class PreferenceSettingsRepository(
         val language = preferences[LANGUAGE] ?: "system"
         val incompatibleVersions = preferences[INCOMPATIBLE_VERSIONS] ?: false
         val notifyUpdate = preferences[NOTIFY_UPDATES] ?: true
-        val unstableUpdate = preferences[UNSTABLE_UPDATES] ?: false
         val theme = Theme.valueOf(preferences[THEME] ?: Theme.SYSTEM.name)
         val dynamicTheme = preferences[DYNAMIC_THEME] ?: false
         val themeColor = preferences[THEME_COLOR]
@@ -360,6 +371,10 @@ class PreferenceSettingsRepository(
         }.orEmpty()
         val hiddenApps = preferences[HIDDEN_APPS] ?: emptySet()
         val followedSources = preferences.followedSources()
+        val defaultPrereleases = runCatching {
+            PrereleaseMode.valueOf(preferences[DEFAULT_PRERELEASES] ?: PrereleaseMode.HIDDEN.name)
+        }.getOrDefault(PrereleaseMode.HIDDEN)
+        val cataloguePrereleases = preferences.cataloguePrereleases()
         val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: false
         val exploreCarousels = preferences[EXPLORE_CAROUSELS]?.let {
             runCatching { Json.decodeFromString<List<String>>(it) }.getOrNull()
@@ -390,7 +405,6 @@ class PreferenceSettingsRepository(
             language = language,
             incompatibleVersions = incompatibleVersions,
             notifyUpdate = notifyUpdate,
-            unstableUpdate = unstableUpdate,
             theme = theme,
             dynamicTheme = dynamicTheme,
             themeColor = themeColor,
@@ -430,6 +444,8 @@ class PreferenceSettingsRepository(
             collapsedRepoSections = collapsedRepoSections,
             accentMatchesAppIcon = accentMatchesAppIcon,
             confirmBadgeAdd = confirmBadgeAdd,
+            defaultPrereleases = defaultPrereleases,
+            cataloguePrereleases = cataloguePrereleases,
         )
     }
 
@@ -443,7 +459,6 @@ class PreferenceSettingsRepository(
         val LANGUAGE = stringPreferencesKey("key_language")
         val INCOMPATIBLE_VERSIONS = booleanPreferencesKey("key_incompatible_versions")
         val NOTIFY_UPDATES = booleanPreferencesKey("key_notify_updates")
-        val UNSTABLE_UPDATES = booleanPreferencesKey("key_unstable_updates")
         val DYNAMIC_THEME = booleanPreferencesKey("key_dynamic_theme")
         val THEME_COLOR = intPreferencesKey("key_theme_color")
         val EDGE_TO_EDGE = booleanPreferencesKey("key_edge_to_edge")
@@ -483,6 +498,8 @@ class PreferenceSettingsRepository(
         val COLLAPSED_REPO_SECTIONS = stringSetPreferencesKey("key_collapsed_repo_sections")
         val ACCENT_MATCHES_APP_ICON = booleanPreferencesKey("key_accent_matches_app_icon")
         val CONFIRM_BADGE_ADD = booleanPreferencesKey("key_confirm_badge_add")
+        val DEFAULT_PRERELEASES = stringPreferencesKey("key_default_prereleases")
+        val CATALOGUE_PRERELEASES = stringPreferencesKey("key_catalogue_prereleases")
 
         // Enums
         val THEME = stringPreferencesKey("key_theme")
@@ -497,7 +514,6 @@ class PreferenceSettingsRepository(
             set(LANGUAGE, settings.language)
             set(INCOMPATIBLE_VERSIONS, settings.incompatibleVersions)
             set(NOTIFY_UPDATES, settings.notifyUpdate)
-            set(UNSTABLE_UPDATES, settings.unstableUpdate)
             set(THEME, settings.theme.name)
             set(DYNAMIC_THEME, settings.dynamicTheme)
             set(THEME_COLOR, settings.themeColor)
@@ -565,11 +581,18 @@ class PreferenceSettingsRepository(
             set(COLLAPSED_REPO_SECTIONS, settings.collapsedRepoSections)
             set(ACCENT_MATCHES_APP_ICON, settings.accentMatchesAppIcon)
             set(CONFIRM_BADGE_ADD, settings.confirmBadgeAdd)
+            set(DEFAULT_PRERELEASES, settings.defaultPrereleases.name)
+            set(CATALOGUE_PRERELEASES, Json.encodeToString(settings.cataloguePrereleases))
             return this.toPreferences()
         }
 
         private fun Preferences.followedSources(): Map<String, String> = this[FOLLOWED_SOURCES]?.let {
             runCatching { Json.decodeFromString<Map<String, String>>(it) }.getOrNull()
         }.orEmpty()
+
+        private fun Preferences.cataloguePrereleases(): Map<String, PrereleaseMode> =
+            this[CATALOGUE_PRERELEASES]?.let {
+                runCatching { Json.decodeFromString<Map<String, PrereleaseMode>>(it) }.getOrNull()
+            }.orEmpty()
     }
 }

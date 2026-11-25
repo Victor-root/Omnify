@@ -174,10 +174,8 @@
     <string name="syncing">Sünkroonimine</string>
     <string name="uninstall">Eemalda</string>
     <string name="unknown_error_DESC">Tundmatu viga</string>
-    <string name="unstable_updates_summary">Paku rakenduste ebastabiilsete versioonide paigaldamist</string>
     <string name="unknown">Tundmatu</string>
     <string name="unknown_FORMAT">Tundmatu: %s</string>
-    <string name="unstable_updates">Ebastabiilsed uuendused</string>
     <string name="processing_FORMAT">%1$s töötlemine…</string>
     <string name="search">Otsi</string>
     <string name="select_mirror">Vali peegel</string>

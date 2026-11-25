@@ -10,8 +10,6 @@
     <string name="waiting_to_start_download">Oczekiwanie na rozpoczęcie pobierania…</string>
     <string name="username">Nazwa użytkownika</string>
     <string name="updates">Aktualizacje</string>
-    <string name="unstable_updates_summary">Sugeruj instalację niestabilnych wersji</string>
-    <string name="unstable_updates">Niestabilne aktualizacje</string>
     <string name="unknown_error_DESC">Nieznany błąd</string>
     <string name="uninstall">Odinstaluj</string>
     <string name="tracks_or_reports_your_activity">Śledzenie lub raportowanie aktywności użytkownika</string>

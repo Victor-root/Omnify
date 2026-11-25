@@ -39,7 +39,6 @@
     <string name="sorting_order">Način sortiranja</string>
     <string name="syncing_FORMAT">Sinkronizacija %s…</string>
     <string name="themes">Teme</string>
-    <string name="unstable_updates_summary">Predloži instalaciju nestabilnih inačica aplikacija</string>
     <string name="username">Korisničko ime</string>
     <string name="version">Inačica</string>
     <string name="validation_index_error_DESC">Nije bilo moguće potvrditi indeks</string>
@@ -150,7 +149,6 @@
     <string name="uninstall">Deinstaliraj</string>
     <string name="unknown">Nepoznato</string>
     <string name="unknown_error_DESC">Nepoznata greška</string>
-    <string name="unstable_updates">Nestabilna ažuriranja</string>
     <string name="update">Ažuriraj</string>
     <string name="updates">Ažuriranja</string>
     <string name="upstream_source_code_is_not_free">Glavni izvorni kod nije besplatan</string>

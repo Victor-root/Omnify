@@ -143,8 +143,6 @@
     <string name="uninstall">アンインストール</string>
     <string name="unknown_error_DESC">不明なエラーです。</string>
     <string name="unknown_FORMAT">不明: %s</string>
-    <string name="unstable_updates">不安定なアップデート</string>
-    <string name="unstable_updates_summary">不安定なバージョンのインストールを提案する</string>
     <string name="update">アップデート</string>
     <string name="updates">アップデート</string>
     <string name="upstream_source_code_is_not_free">アップストリームのソースコードは不自由です</string>

@@ -146,8 +146,6 @@
     <string name="unknown">Неизвестно</string>
     <string name="unknown_error_DESC">Неизвестная ошибка</string>
     <string name="unknown_FORMAT">Неизвестно: %s</string>
-    <string name="unstable_updates">Нестабильные обновления</string>
-    <string name="unstable_updates_summary">Предлагать установить нестабильные версии</string>
     <string name="update">Обновить</string>
     <string name="updates">Обновления</string>
     <string name="upstream_source_code_is_not_free">Вышестоящий исходный код несвободен</string>

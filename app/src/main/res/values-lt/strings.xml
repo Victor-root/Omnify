@@ -44,8 +44,6 @@
     <string name="tracks_or_reports_your_activity">Stebi arba praneša apie jūsų veiklą</string>
     <string name="unknown">Nežinoma</string>
     <string name="unknown_FORMAT">Nežinoma: %s</string>
-    <string name="unstable_updates">Nestabilūs atnaujinimai</string>
-    <string name="unstable_updates_summary">Siūlyti įdiegti nestabilias versijas</string>
     <string name="update">Atnaujinti</string>
     <string name="username_missing">Trūksta vartotojo vardo</string>
     <string name="validation_index_error_DESC">Indekso patvirtinti nepavyko.</string>

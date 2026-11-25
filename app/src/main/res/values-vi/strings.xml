@@ -155,9 +155,7 @@
     <string name="system">Hệ thống</string>
     <string name="uninstall">Gỡ cài đặt</string>
     <string name="unknown">Không rõ</string>
-    <string name="unstable_updates">Bản cập nhật không ổn định</string>
     <string name="validation_index_error_DESC">Chỉ mục không thể được xác thực</string>
-    <string name="unstable_updates_summary">Gợi ý cài đặt các phiên bản không ổn định</string>
     <string name="waiting_to_start_download">Chờ để tải về…</string>
     <string name="show_less">Ẩn bớt</string>
     <string name="all_applications">Tất cả ứng dụng</string>

@@ -144,8 +144,6 @@
     <string name="unknown">Bilinmeyen</string>
     <string name="unknown_error_DESC">Bilinmeyen hata</string>
     <string name="unknown_FORMAT">Bilinmeyen: %s</string>
-    <string name="unstable_updates">Kararsız güncellemeler</string>
-    <string name="unstable_updates_summary">Kararsız sürümleri kurmayı öner</string>
     <string name="update">Güncelle</string>
     <string name="updates">Güncellemeler</string>
     <string name="upstream_source_code_is_not_free">Upstream kaynak kodu özgür değil</string>

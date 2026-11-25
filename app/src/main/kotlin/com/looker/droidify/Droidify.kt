@@ -178,11 +178,6 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
     private fun updatePreference() {
         appScope.launch {
             launch {
-                settingsRepository.get { unstableUpdate }.drop(1).collect {
-                    forceSyncAll()
-                }
-            }
-            launch {
                 settingsRepository.get { autoSync to syncInterval }.collectIndexed { index, (mode, interval) ->
                     // Only a changed setting updates the sync job, not the initial collect
                     updateSyncJob(index > 0, mode, interval)
@@ -201,9 +196,8 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
                 // Switching automatic updates on runs a pass right away rather than leaving the
                 // setting to look broken until the next background sync, which can be twelve hours
                 // off: someone turning it on with updates already waiting plainly means those ones.
-                // Same shape as unstableUpdate forcing a sync above. Switching it off has to stop a
-                // pass already queued or running, not merely prevent the next one, or a batch caught
-                // mid-download would go on to install anyway.
+                // Switching it off has to stop a pass already queued or running, not merely prevent
+                // the next one, or a batch caught mid-download would go on to install anyway.
                 settingsRepository.get { autoUpdate }.drop(1).collect { enabled ->
                     if (enabled) {
                         AutoUpdateWorker.enqueue(applicationContext, settingsRepository)
@@ -230,10 +224,6 @@ class Droidify : Application(), SingletonImageLoader.Factory, Configuration.Prov
             existing = if (force) ExistingPeriodicWorkPolicy.UPDATE else ExistingPeriodicWorkPolicy.KEEP,
         )
         updateCheckHistory.expectBackgroundRun(afresh = force)
-    }
-
-    private fun forceSyncAll() {
-        SyncWorker.enqueueUserSync(this)
     }
 
     /**

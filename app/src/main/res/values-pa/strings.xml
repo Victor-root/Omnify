@@ -2,8 +2,6 @@
 <resources>
     <string name="tracks_or_reports_your_activity">ਤੁਹਾਡੀ ਗਤੀਵਿਧੀ ਨੂੰ ਟ੍ਰੈਕ ਜਾਂ ਰਿਪੋਰਟ ਕਰਦਾ ਹੈ</string>
     <string name="validation_index_error_DESC">ਇੰਡੈਕਸ ਨੂੰ ਪ੍ਰਮਾਣਿਤ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ।</string>
-    <string name="unstable_updates">ਅਸਥਿਰ ਅੱਪਡੇਟ</string>
-    <string name="unstable_updates_summary">ਅਸਥਿਰ ਸੰਸਕਰਣਾਂ ਨੂੰ ਇੰਸਟਾਲ ਕਰਨ ਦਾ ਸੁਝਾਅ ਦਿਓ</string>
     <string name="waiting_to_start_download">ਡਾਊਨਲੋਡ ਸ਼ੁਰੂ ਕਰਨ ਦੀ ਉਡੀਕ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ…</string>
     <string name="cant_edit_sync_DESC">ਰਿਪੋਜ਼ਟਰੀ ਨੂੰ ਸੰਪਾਦਿਤ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ ਕਿਉਂਕਿ ਇਹ ਇਸ ਸਮੇਂ ਸਿੰਕ੍ਰਨਾਈਜ਼ ਹੋ ਰਹੀ ਹੈ।</string>
     <string name="confirmation">ਪੁਸ਼ਟੀ</string>

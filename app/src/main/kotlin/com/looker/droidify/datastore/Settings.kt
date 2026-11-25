@@ -10,6 +10,7 @@ import com.looker.droidify.datastore.model.ProxyPreference
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.datastore.model.TranslationEngine
+import com.looker.droidify.external.PrereleaseMode
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -45,7 +46,6 @@ data class Settings(
     val language: String = "system",
     val incompatibleVersions: Boolean = false,
     val notifyUpdate: Boolean = true,
-    val unstableUpdate: Boolean = false,
     val theme: Theme = Theme.SYSTEM,
     val dynamicTheme: Boolean = false,
     val themeColor: Int = DEFAULT_THEME_COLOR,
@@ -130,7 +130,17 @@ data class Settings(
      *  Excluded from the generic settings entry of a backup, since a repository is named by its id on
      *  this device: backed up on its own, by repository address (see FollowedSourcesBackup). */
     val followedSources: Map<String, String> = emptyMap(),
+    /** What an app's pre-releases do when it has no choice of its own: a catalogue app follows it as it
+     *  changes, an external source takes it when it is added (see [PrereleaseMode]). */
+    val defaultPrereleases: PrereleaseMode = PrereleaseMode.HIDDEN,
+    /** The pre-release choice made on a catalogue app's own page, by package name; an app missing here
+     *  follows [defaultPrereleases]. */
+    val cataloguePrereleases: Map<String, PrereleaseMode> = emptyMap(),
 ) {
+    /** What [packageName]'s pre-releases do in the catalogue: its own choice, else the default one. */
+    fun cataloguePrereleasesOf(packageName: String): PrereleaseMode =
+        cataloguePrereleases[packageName] ?: defaultPrereleases
+
     /** Whether [packageName] is installed with Google Play recorded as its installer. */
     fun installsAsPlayStore(packageName: String): Boolean =
         playStoreInstallSource && packageName !in omnifyInstallSourceApps
@@ -139,7 +149,11 @@ data class Settings(
 @OptIn(ExperimentalSerializationApi::class)
 object SettingsSerializer : Serializer<Settings> {
 
-    private val json = Json { encodeDefaults = true }
+    // A setting since removed is still in a file written before, and must not make the rest unreadable.
+    private val json = Json {
+        encodeDefaults = true
+        ignoreUnknownKeys = true
+    }
 
     override val defaultValue: Settings = Settings()
 

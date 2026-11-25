@@ -148,7 +148,6 @@
     <string name="unknown">अनजान</string>
     <string name="unknown_error_DESC">अज्ञात त्रुटि।</string>
     <string name="unknown_FORMAT">अज्ञात: %s</string>
-    <string name="unstable_updates_summary">अस्थिर संस्करण स्थापित करने का सुझाव दें</string>
     <string name="update">अपडेट</string>
     <string name="username">उपयोगकर्ता नाम</string>
     <string name="username_missing">उपयोगकर्ता नाम अनुपलब्ध</string>
@@ -161,7 +160,6 @@
     <string name="invalid_address">गलत पता</string>
     <string name="invalid_fingerprint_format">अमान्य फ़िंगरप्रिंट प्रारूप</string>
     <string name="no_description_available_DESC">कोई विवरण उपलब्ध नहीं</string>
-    <string name="unstable_updates">अस्थिर अद्यतन</string>
     <string name="other">अन्य</string>
     <string name="repository_unsigned_DESC">अहस्ताक्षरित। आवेदन सूची का सत्यापन नहीं किया जा सका। अहस्ताक्षरित रिपॉजिटरी से एप्लिकेशन डाउनलोड करने में सावधानी बरतें।</string>
     <string name="provided_by_FORMAT">%s . द्वारा प्रदान किया गया</string>

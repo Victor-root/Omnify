@@ -138,8 +138,6 @@
     <string name="incompatible_api_DESC_FORMAT">Deine %1$s (API-Version %2$d) wird nicht unterstützt. %3$s</string>
     <string name="incompatible_api_min_DESC_FORMAT">Die minimale API-Version ist %d</string>
     <string name="repository_unsigned_DESC">Keine Signatur gefunden. Die App-Liste konnte nicht verifiziert werden</string>
-    <string name="unstable_updates_summary">Installation von instabilen Versionen vorschlagen</string>
-    <string name="unstable_updates">Instabile Updates</string>
     <string name="proxy_host">Proxyhost</string>
     <string name="tap_to_install_DESC">Zum Installieren tippen</string>
     <string name="tracks_or_reports_your_activity">Verfolgt oder versendet deine Aktivitäten</string>

@@ -108,8 +108,6 @@
     <string name="unknown">Desconegut</string>
     <string name="unknown_error_DESC">Error desconegut.</string>
     <string name="unknown_FORMAT">Desconegut: %s</string>
-    <string name="unstable_updates">Actualitzacions inestables</string>
-    <string name="unstable_updates_summary">Suggereix instal·lant versions inestables</string>
     <string name="update">Actualització</string>
     <string name="updates">Actualitzacions</string>
     <string name="upstream_source_code_is_not_free">El codi font no és lliure</string>

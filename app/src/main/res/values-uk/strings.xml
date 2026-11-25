@@ -118,8 +118,6 @@
     <string name="unknown">Невідомо</string>
     <string name="unknown_error_DESC">Невідома помилка</string>
     <string name="unknown_FORMAT">Невідомо: %s</string>
-    <string name="unstable_updates">Нестабільні оновлення</string>
-    <string name="unstable_updates_summary">Рекомендуємо встановити нестабільні версії програм</string>
     <string name="update">Оновити</string>
     <string name="updates">Оновлення</string>
     <string name="upstream_source_code_is_not_free">Вихідний код апстріму не є вільним</string>

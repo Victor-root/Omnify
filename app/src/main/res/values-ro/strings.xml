@@ -165,8 +165,6 @@
     <string name="unknown">Necunoscut</string>
     <string name="unknown_error_DESC">Eroare necunoscută</string>
     <string name="unknown_FORMAT">Necunoscut: %s</string>
-    <string name="unstable_updates">Actualizări instabile</string>
-    <string name="unstable_updates_summary">Sugerează instalarea de versiuni instabile</string>
     <string name="update">Actualizează</string>
     <string name="updates">Actualizări</string>
     <string name="upstream_source_code_is_not_free">Codul sursă din amonte nu este gratuit</string>

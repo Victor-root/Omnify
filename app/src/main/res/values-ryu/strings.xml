@@ -146,8 +146,6 @@
     <string name="uninstall">アンインストール</string>
     <string name="unknown_error_DESC">ふめいうぅいなエラーやいびーん。</string>
     <string name="unknown_FORMAT">ふめいうぅい： %s</string>
-    <string name="unstable_updates">ふあんていなアップデート</string>
-    <string name="unstable_updates_summary">ふあんていなバージョンぬインストールていあんさびーん</string>
     <string name="update">アップデート</string>
     <string name="updates">アップデート</string>
     <string name="upstream_source_code_is_not_free">アップストリームぬソースコードーふじゆーいんやいびーん</string>

@@ -137,8 +137,6 @@
     <string name="unknown">Ismeretlen</string>
     <string name="unknown_error_DESC">Ismeretlen hiba</string>
     <string name="unknown_FORMAT">%s ismeretlen</string>
-    <string name="unstable_updates">Instabil frissítések</string>
-    <string name="unstable_updates_summary">Instabil alkalmazásverziók telepítésének javaslata</string>
     <string name="update">Frissítés</string>
     <string name="upstream_source_code_is_not_free">Upstream forráskód nem szabad</string>
     <string name="username">Felhasználónév</string>

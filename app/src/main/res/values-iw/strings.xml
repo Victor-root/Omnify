@@ -165,13 +165,11 @@
     <string name="search">חיפוש</string>
     <string name="select_mirror">בחר מראה</string>
     <string name="signature_FORMAT">חתימה %s</string>
-    <string name="unstable_updates_summary">הצע להתקין גרסאות יישום לא יציבות</string>
     <string name="updates">עידכונים</string>
     <string name="version_FORMAT">גרסה %s</string>
     <string name="uninstall">הסר התקנה</string>
     <string name="versions">גירסאות</string>
     <string name="unknown_error_DESC">שגיאה לא ידועה</string>
-    <string name="unstable_updates">עדכונים לא יציבים</string>
     <string name="validation_index_error_DESC">לא ניתן היה לאמת את האינדקס</string>
     <string name="unknown_FORMAT">לא ידוע: %s</string>
     <string name="update">‌עדכן</string>

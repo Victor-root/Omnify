@@ -34,7 +34,6 @@
     <string name="update">Actualisation</string>
     <string name="installed">Installate</string>
     <string name="repository">Repositorio</string>
-    <string name="unstable_updates_summary">Suggerer le installation de versiones instabile</string>
     <string name="prefs_personalization">Personalisation</string>
     <string name="uninstall">Disinstallar</string>
     <string name="downloaded_FORMAT">%s discargate</string>
@@ -55,7 +54,6 @@
     <string name="system">Systema</string>
     <string name="notify_about_updates">Notificar le actualisationes</string>
     <string name="shizuku_not_installed">Shizuku non es installate</string>
-    <string name="unstable_updates">Actualisationes instabile</string>
     <string name="ignore_all_updates">Ignorar tote le nove versiones</string>
     <string name="downloading_FORMAT">Discargante %s…</string>
     <string name="unknown_FORMAT">Incognite: %s</string>

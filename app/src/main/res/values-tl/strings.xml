@@ -145,7 +145,6 @@
     <string name="syncing_FORMAT">Sini-sync ang %s…</string>
     <string name="tap_to_install_DESC">I-tap para i-install.</string>
     <string name="unknown_FORMAT">Hindi alam: %s</string>
-    <string name="unstable_updates">Mga hindi matatag na update</string>
     <string name="waiting_to_start_installation">Naghihintay upang simulan ang pag-install…</string>
     <string name="website">Website</string>
     <string name="prefs_language_title">Wika</string>
@@ -167,7 +166,6 @@
     <string name="uninstall">I-uninstall</string>
     <string name="unknown">Hindi kilala</string>
     <string name="unknown_error_DESC">Hindi kilalang error.</string>
-    <string name="unstable_updates_summary">Magmungkahi ng pag-install ng mga hindi matatag na bersyon</string>
     <string name="update">Update</string>
     <string name="updates">Mga update</string>
     <string name="upstream_source_code_is_not_free">Ang upstream source code ay hindi libre</string>

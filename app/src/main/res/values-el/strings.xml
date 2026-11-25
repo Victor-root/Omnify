@@ -130,8 +130,6 @@
     <string name="unknown">Άγνωστο</string>
     <string name="unknown_error_DESC">Άγνωστο σφάλμα</string>
     <string name="unknown_FORMAT">Άγνωστο: %s</string>
-    <string name="unstable_updates">Ασταθείς ενημερώσεις</string>
-    <string name="unstable_updates_summary">Πρόταση για εγκατάσταση ασταθών εκδόσεων</string>
     <string name="update">Ενημέρωση</string>
     <string name="updates">Ενημερώσεις</string>
     <string name="delete">Διαγραφή</string>

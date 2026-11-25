@@ -148,7 +148,6 @@
     <string name="saving_details">ବିବରଣୀ ଗୁଡ଼ିକ ସଞ୍ଚିତ ହେଉଛି…</string>
     <string name="search">ସନ୍ଧାନ କରନ୍ତୁ</string>
     <string name="select_mirror">ଏକ mirror ଚୟନ କରନ୍ତୁ</string>
-    <string name="unstable_updates_summary">ଅସ୍ଥିର ସଂସ୍କରଣ ସଂସ୍ଥାପନ କରିବାକୁ ପରାମର୍ଶ ଦିଅନ୍ତୁ</string>
     <string name="show_more">ଅଧିକ ଦେଖାନ୍ତୁ</string>
     <string name="signature_FORMAT">ଦସ୍ତଖତ %s</string>
     <string name="size">ଆକାର</string>
@@ -168,7 +167,6 @@
     <string name="unknown_FORMAT">ଅଜଣା:%s</string>
     <string name="version_FORMAT">ସଂସ୍କରଣ %s</string>
     <string name="versions">ସଂସ୍କରଣ ଗୁଡ଼ିକ</string>
-    <string name="unstable_updates">ଅସ୍ଥିର ଅଦ୍ୟତନଗୁଡ଼ିକ</string>
     <string name="updates">ଅଦ୍ୟତନ ଗୁଡିକ</string>
     <string name="update">ଅଦ୍ୟତନ କରନ୍ତୁ</string>
     <string name="upstream_source_code_is_not_free">ଅପଷ୍ଟ୍ରିମ ଉତ୍ସ କୋଡ୍ ମାଗଣା ନୁହେଁ</string>

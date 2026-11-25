@@ -192,8 +192,6 @@
     <string name="unknown">தெரியவில்லை</string>
     <string name="unknown_error_DESC">தெரியாத பிழை.</string>
     <string name="unknown_FORMAT">தெரியவில்லை: %s</string>
-    <string name="unstable_updates">நிலையற்ற புதுப்பிப்புகள்</string>
-    <string name="unstable_updates_summary">நிலையற்ற பதிப்புகளை நிறுவ பரிந்துரைக்கவும்</string>
     <string name="update">புதுப்பிப்பு</string>
     <string name="updates">புதுப்பிப்புகள்</string>
     <string name="upstream_source_code_is_not_free">மேலோடை மூலக் குறியீடு இலவசம் அல்ல</string>

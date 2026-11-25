@@ -148,8 +148,6 @@
     <string name="uninstall">解除安裝</string>
     <string name="unknown_error_DESC">未知錯誤</string>
     <string name="unknown_FORMAT">未知： %s</string>
-    <string name="unstable_updates">不穩定的更新</string>
-    <string name="unstable_updates_summary">建議安裝不穩定的應用版本</string>
     <string name="update">更新</string>
     <string name="updates">更新</string>
     <string name="upstream_source_code_is_not_free">上游原始碼不自由</string>

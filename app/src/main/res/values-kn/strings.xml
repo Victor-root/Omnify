@@ -136,11 +136,9 @@
     <string name="themes">ಥೀಮ್ಗಳು</string>
     <string name="tap_to_install_DESC">ಸ್ಥಾಪಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ.</string>
     <string name="unknown">ಅಜ್ಞಾತ</string>
-    <string name="unstable_updates_summary">ಅಸ್ಥಿರ ಆವೃತ್ತಿಗಳನ್ನು ಸ್ಥಾಪಿಸಲು ಸಲಹೆ ನೀಡಿ</string>
     <string name="tracks_or_reports_your_activity">ನಿಮ್ಮ ಚಟುವಟಿಕೆಯನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡುತ್ತದೆ ಅಥವಾ ವರದಿ ಮಾಡುತ್ತದೆ</string>
     <string name="upstream_source_code_is_not_free">ಅಪ್‌ಸ್ಟ್ರೀಮ್ ಮೂಲ ಕೋಡ್ ಉಚಿತವಲ್ಲ</string>
     <string name="uninstall">ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ</string>
-    <string name="unstable_updates">ಅಸ್ಥಿರ ನವೀಕರಣಗಳು</string>
     <string name="unknown_error_DESC">ಅಜ್ಞಾತ ದೋಷ.</string>
     <string name="unknown_FORMAT">ಅಜ್ಞಾತ: %s</string>
     <string name="update">ನವೀಕರಿಸಿ</string>

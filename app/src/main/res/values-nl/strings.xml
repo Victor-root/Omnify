@@ -32,10 +32,8 @@
     <string name="version">Versie</string>
     <string name="version_FORMAT">Versie %s</string>
     <string name="username_missing">Gebruikersnaam ontbreekt</string>
-    <string name="unstable_updates_summary">Installatie van instabiele versies voorstellen</string>
     <string name="validation_index_error_DESC">Index kan niet worden gevalideerd</string>
     <string name="unknown_FORMAT">Onbekend: %s</string>
-    <string name="unstable_updates">Instabiele updates</string>
     <string name="bug_tracker">Bugtracker</string>
     <string name="connecting">Verbinden…</string>
     <string name="contains_non_free_media">Bevat niet-vrije media</string>

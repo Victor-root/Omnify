@@ -443,16 +443,6 @@ fun SettingsScreen(
 
             item {
                 SwitchSettingItem(
-                    title = stringResource(R.string.unstable_updates),
-                    description = stringResource(R.string.unstable_updates_summary),
-                    icon = painterResource(R.drawable.ic_bug_report),
-                    checked = settings.unstableUpdate,
-                    onCheckedChange = viewModel::setUnstableUpdates,
-                )
-            }
-
-            item {
-                SwitchSettingItem(
                     title = stringResource(R.string.incompatible_versions),
                     description = stringResource(R.string.incompatible_versions_summary),
                     icon = painterResource(R.drawable.ic_tabler_alert_triangle),

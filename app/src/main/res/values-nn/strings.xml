@@ -103,8 +103,6 @@
     <string name="unknown">Ukjend</string>
     <string name="unknown_error_DESC">Ukjend mistak.</string>
     <string name="unknown_FORMAT">Ukjend: %s</string>
-    <string name="unstable_updates">Ustø oppdateringar</string>
-    <string name="unstable_updates_summary">Gje framlegg om å leggja inn ustø oppdateringar</string>
     <string name="upstream_source_code_is_not_free">Oppstraumskjeldekoden er ikkje fri</string>
     <string name="suggested">Tilrådt</string>
     <string name="sync_repositories_automatically">Lat samlingar synkronisera av seg sjølv</string>

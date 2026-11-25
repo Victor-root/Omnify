@@ -177,7 +177,6 @@
     <string name="version_FORMAT">Версія %s</string>
     <string name="light">Светлая</string>
     <string name="repository">Рэпазіторый</string>
-    <string name="unstable_updates_summary">Прапанаваць усталёўваць нестабільныя версіі</string>
     <string name="version">Версія</string>
     <string name="prefs_personalization">Персаналізацыя</string>
     <string name="signature_FORMAT">Подпіс %s</string>
@@ -205,7 +204,6 @@
     <string name="share">Абагуліць</string>
     <string name="show_older_versions">Паказаць старыя версіі</string>
     <string name="shizuku_not_installed">Shizuku не ўстаноўлена</string>
-    <string name="unstable_updates">Нестабільнае абнаўленне</string>
     <string name="unknown_FORMAT">Невядома: %s</string>
     <string name="cannot_open_link">Немагчыма адкрыць спасылку</string>
     <string name="has_tethered_network">Залежыць ад вызначанай сеткавай службы</string>
