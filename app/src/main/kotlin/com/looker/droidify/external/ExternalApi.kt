@@ -155,7 +155,7 @@ class ExternalApi @Inject constructor(
                 isQualifying = { it.isOfferableFor(app, oneKindOnly = false) },
             )
         }.getOrNull()
-        val oneKindOnly = !releases.orEmpty().mixesPrereleases()
+        val oneKindOnly = releases.orEmpty().publishOneKindFor(app)
         val picked = releases?.pickInstallable(app, oneKindOnly)
         // Only the pre-release setting applied, kept separate from `picked` so a source whose keyword
         // filters (not the pre-release setting) are what's disqualifying everything gets its own
@@ -201,7 +201,7 @@ class ExternalApi @Inject constructor(
                 isQualifying = { it.isOfferableFor(app, oneKindOnly = false) },
             )
         }.getOrNull().orEmpty()
-        val oneKindOnly = !releases.mixesPrereleases()
+        val oneKindOnly = releases.publishOneKindFor(app)
         appFamilies(
             releases.filter { it.isOfferableFor(app, oneKindOnly) },
             unmarkedName = prettifyRepoName(app.repo),
@@ -233,12 +233,12 @@ class ExternalApi @Inject constructor(
                 isQualifying = { it.isListableFor(app, oneKindOnly = false) },
             )
         }.getOrNull().orEmpty()
-        val oneKindOnly = !releases.mixesPrereleases()
+        val oneKindOnly = releases.publishOneKindFor(app)
         ReleaseHistory(
             releases = releases.filter { it.isListableFor(app, oneKindOnly) }.take(limit),
             // Judged on what the source could list, whatever its pre-release choice: hidden pre-releases
             // still count, ones its other settings would never show do not.
-            hasPrereleaseChoice = releases.filter { it.isListableBySettings(app) }.mixesPrereleases(),
+            hasPrereleaseChoice = !oneKindOnly,
         )
     }
 
@@ -1091,6 +1091,14 @@ class ExternalApi @Inject constructor(
      *  pre-release is listed whenever the source's [PrereleaseMode] shows them, offered or not. */
     private fun Release.isListableFor(app: ExternalApp, oneKindOnly: Boolean): Boolean =
         app.prereleases.lists(this, oneKindOnly) && isListableBySettings(app)
+
+    /**
+     * Whether these releases, among the ones [app]'s other settings could list, are all pre-releases or
+     * all stable ones, so that its pre-release choice changes nothing. Only those count: a pre-release
+     * carrying no APK at all (gsantner/markor's one, from 2019) makes no choice to make.
+     */
+    private fun List<Release>.publishOneKindFor(app: ExternalApp): Boolean =
+        !filter { it.isListableBySettings(app) }.mixesPrereleases()
 
     private fun Release.isListableBySettings(app: ExternalApp): Boolean =
         isAllowedBy(app.versionIncludeFilter, app.versionExcludeFilter) && hasApkMatchingFilter(app.apkFilter)
