@@ -999,10 +999,11 @@ class ExternalAppsViewModel @Inject constructor(
 
     /** Adds a project from a GitHub, GitLab, Codeberg or self-hosted Gitea/Forgejo URL after
      *  confirming it has a release. A repository publishing several apps stops on the question of which
-     *  to follow ([appFamilies]), answered through [addFamilies]. */
+     *  to follow ([appFamilies]), answered through [addFamilies]. Its pre-release choice is [prereleases],
+     *  else the default one in Settings. */
     fun addSource(
         url: String,
-        prereleases: PrereleaseMode,
+        prereleases: PrereleaseMode?,
         customName: String = "",
         muteUpdates: Boolean = false,
         apkFilter: String = "",
@@ -1014,7 +1015,7 @@ class ExternalAppsViewModel @Inject constructor(
         parseObtainiumLink(url)?.let { link ->
             return addSource(
                 url = link.url,
-                prereleases = if (prereleases == PrereleaseMode.HIDDEN) link.prereleases else prereleases,
+                prereleases = prereleases ?: link.prereleases,
                 customName = customName.ifBlank { link.name },
                 muteUpdates = muteUpdates,
                 apkFilter = apkFilter.ifBlank { link.apkFilter },
@@ -1027,7 +1028,7 @@ class ExternalAppsViewModel @Inject constructor(
         val trimmedName = customName.trim()
         launchAdd(url) { base ->
             val app = base.copy(
-                prereleases = prereleases,
+                prereleases = prereleases ?: settingsRepository.getInitial().defaultPrereleases,
                 muteUpdates = muteUpdates,
                 apkFilter = apkFilter.trim().ifEmpty { null },
                 versionIncludeFilter = versionIncludeFilter.trim().ifEmpty { null },
@@ -1092,7 +1093,7 @@ class ExternalAppsViewModel @Inject constructor(
     fun addFamilies(
         url: String,
         families: List<ReleaseFamily>,
-        prereleases: PrereleaseMode,
+        prereleases: PrereleaseMode?,
         customName: String,
         muteUpdates: Boolean,
         apkFilter: String,
@@ -1104,12 +1105,13 @@ class ExternalAppsViewModel @Inject constructor(
         val trimmedName = customName.trim().takeIf { families.size == 1 }.orEmpty()
         // The form still holds an Obtainium link pasted in as the address (see addSource).
         launchAdd(parseObtainiumLink(url)?.url ?: url) { base ->
+            val chosen = prereleases ?: settingsRepository.getInitial().defaultPrereleases
             families.mapNotNull { family ->
                 val (apk, include, exclude) =
                     all.filtersFor(family, apkFilter, versionIncludeFilter, versionExcludeFilter)
                 val app = base.copy(
                     variant = family.variant,
-                    prereleases = prereleases,
+                    prereleases = chosen,
                     muteUpdates = muteUpdates,
                     apkFilter = apk.trim().ifEmpty { null },
                     versionIncludeFilter = include.trim().ifEmpty { null },
@@ -1149,14 +1151,7 @@ class ExternalAppsViewModel @Inject constructor(
                     failAdd(context.getString(R.string.external_unsupported_host))
                     return@launch
                 }
-                val base = ExternalApp(
-                    provider = provider,
-                    host = ref.host,
-                    owner = ref.owner,
-                    repo = ref.repo,
-                    // A new source takes the default pre-release choice.
-                    prereleases = settingsRepository.getInitial().defaultPrereleases,
-                )
+                val base = ExternalApp(provider = provider, host = ref.host, owner = ref.owner, repo = ref.repo)
                 added = block(base)
                 if (added.isNotEmpty()) toast(context.getString(R.string.external_added, added.joinToString()))
             } finally {

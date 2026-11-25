@@ -1212,7 +1212,7 @@ internal fun AddExternalSourceDialog(
     onDismiss: () -> Unit,
     onAdd: (
         url: String,
-        prereleases: PrereleaseMode,
+        prereleases: PrereleaseMode?,
         customName: String,
         muteUpdates: Boolean,
         apkFilter: String,
@@ -1222,7 +1222,7 @@ internal fun AddExternalSourceDialog(
     onAddFamilies: (
         url: String,
         families: List<ReleaseFamily>,
-        prereleases: PrereleaseMode,
+        prereleases: PrereleaseMode?,
         customName: String,
         muteUpdates: Boolean,
         apkFilter: String,
@@ -1241,7 +1241,8 @@ internal fun AddExternalSourceDialog(
     val submit = {
         onAdd(
             url,
-            // Chosen on the app's page once added; only a shared Obtainium link brings one along.
+            // Chosen on the app's page once added; only a shared Obtainium link brings one along, the
+            // default one in Settings otherwise.
             initial.prereleases,
             name,
             muteUpdates,

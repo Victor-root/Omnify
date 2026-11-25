@@ -12,7 +12,8 @@ import kotlinx.parcelize.Parcelize
 data class SourceDraft(
     val url: String = "",
     val name: String = "",
-    val prereleases: PrereleaseMode = PrereleaseMode.HIDDEN,
+    // Null when the link says nothing about pre-releases: the source then takes the default choice.
+    val prereleases: PrereleaseMode? = null,
     val apkFilter: String = "",
     val versionIncludeFilter: String = "",
 ) : Parcelable
