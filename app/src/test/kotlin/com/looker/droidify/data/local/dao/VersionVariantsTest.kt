@@ -52,6 +52,7 @@ class VersionVariantsTest : BaseDatabaseTest() {
         versionCode: Long,
         apkName: String,
         nativeCode: List<String>,
+        isPrerelease: Boolean = false,
     ) = VersionEntity(
         added = 0L,
         whatsNew = emptyMap(),
@@ -67,7 +68,7 @@ class VersionVariantsTest : BaseDatabaseTest() {
         signer = emptyList(),
         permissions = emptyList(),
         permissionsSdk23 = emptyList(),
-        isPrerelease = false,
+        isPrerelease = isPrerelease,
         appId = appId,
     )
 
@@ -115,6 +116,23 @@ class VersionVariantsTest : BaseDatabaseTest() {
         indexDao.insertVersions(listOf(version(appId, 10, "/app_arm64.apk", arm64)))
 
         assertEquals(emptyList<AppDao.AppVersionCodeRow>(), appDao.deviceCompatibleVersions(31, device32Bit))
+    }
+
+    @Test
+    fun aRepositoryPublishingBetasGivesItsNewestBetaAndItsNewestStableRelease() = runDbTest {
+        val appId = insertApp()
+        indexDao.insertVersions(
+            listOf(
+                version(appId, 30, "/app_30.apk", arm64, isPrerelease = true),
+                version(appId, 20, "/app_20.apk", arm64),
+                version(appId, 10, "/app_10.apk", arm64),
+            ),
+        )
+
+        assertEquals(
+            setOf(30L to true, 20L to false),
+            appDao.deviceCompatibleVersions(31, arm64).map { it.versionCode to it.isPrerelease }.toSet(),
+        )
     }
 
     @Test

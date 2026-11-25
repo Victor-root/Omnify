@@ -62,24 +62,31 @@ class RealRepoMultiAbiTest : BaseDatabaseTest() {
         assertEquals(listOf("[\"arm64-v8a\"]", "[\"armeabi-v7a\"]"), nativeCodesOf(386))
     }
 
+    /** The newest beta and the newest stable release offered to a device running [abis]. */
+    private suspend fun newestFor(abis: List<String>): Set<Pair<Long, Boolean>> =
+        appDao.deviceCompatibleVersions(sdk = 31, abis = abis).map { it.versionCode to it.isPrerelease }.toSet()
+
+    // The repository recommends 7.0.4 (384): 7.1-beta.6 (386) above it is a beta.
+    private val latest = setOf(386L to true, 384L to false)
+
     @Test
     fun a32BitDeviceGetsTheLatestRelease() = runDbTest {
         syncSimplex(arm64ListedLast = false)
 
-        assertEquals(386L, appDao.deviceCompatibleVersions(sdk = 31, abis = device32Bit).single().versionCode)
+        assertEquals(latest, newestFor(device32Bit))
     }
 
     @Test
     fun a32BitDeviceGetsTheLatestReleaseWhenTheIndexListsTheArm64ApkLast() = runDbTest {
         syncSimplex(arm64ListedLast = true)
 
-        assertEquals(386L, appDao.deviceCompatibleVersions(sdk = 31, abis = device32Bit).single().versionCode)
+        assertEquals(latest, newestFor(device32Bit))
     }
 
     @Test
     fun a64BitDeviceGetsTheLatestReleaseInEitherOrder() = runDbTest {
         syncSimplex(arm64ListedLast = true)
 
-        assertEquals(386L, appDao.deviceCompatibleVersions(sdk = 31, abis = device64Bit).single().versionCode)
+        assertEquals(latest, newestFor(device64Bit))
     }
 }

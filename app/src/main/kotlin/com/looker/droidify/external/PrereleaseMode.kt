@@ -30,15 +30,23 @@ enum class PrereleaseMode {
 
     /** Whether [release] may be offered as the version to install under this mode, [onlyPrereleases]
      *  being true when the repository publishes nothing else. */
-    fun offers(release: Release, onlyPrereleases: Boolean): Boolean = when {
-        onlyPrereleases || this == BOTH -> true
-        this == ONLY -> release.isPrerelease
-        else -> !release.isPrerelease
-    }
+    fun offers(release: Release, onlyPrereleases: Boolean): Boolean =
+        onlyPrereleases || offers(isPrerelease = release.isPrerelease)
 
     /** Whether [release] shows in the app's version list under this mode (see [offers]). */
     fun lists(release: Release, onlyPrereleases: Boolean): Boolean =
-        onlyPrereleases || listsPrereleases || !release.isPrerelease
+        onlyPrereleases || lists(isPrerelease = release.isPrerelease)
+
+    /** Whether a version, a pre-release or not ([isPrerelease]), may be offered as the one to install,
+     *  among versions of both kinds. */
+    fun offers(isPrerelease: Boolean): Boolean = when (this) {
+        BOTH -> true
+        ONLY -> isPrerelease
+        else -> !isPrerelease
+    }
+
+    /** Whether a version, a pre-release or not ([isPrerelease]), shows in a list holding both kinds. */
+    fun lists(isPrerelease: Boolean): Boolean = listsPrereleases || !isPrerelease
 }
 
 /** Whether these releases are all pre-releases: a repository with no stable release to fall back on. */

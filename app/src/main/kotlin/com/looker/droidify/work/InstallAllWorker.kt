@@ -19,6 +19,7 @@ import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.selectForDevice
+import com.looker.droidify.data.offeredUnder
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.network.ApkFileDownloader
@@ -75,6 +76,7 @@ class InstallAllWorker @AssistedInject constructor(
             ?: return
         val target = app.packages.orEmpty()
             .map { pkg -> pkg to repo }
+            .offeredUnder(appRepository.prereleasesOf(packageName))
             .selectForDevice(app.metadata.suggestedVersionCode)
             ?: return
         val (pkg, _) = target

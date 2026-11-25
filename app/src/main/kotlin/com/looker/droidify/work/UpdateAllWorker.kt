@@ -23,6 +23,7 @@ import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.selectForDevice
+import com.looker.droidify.data.offeredUnder
 import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
@@ -217,7 +218,8 @@ class UpdateAllWorker @AssistedInject constructor(
             if (repo != null) app.packages.orEmpty().map { pkg -> pkg to repo } else emptyList()
         }
         val suggested = apps.maxOfOrNull { it.metadata.suggestedVersionCode } ?: 0L
-        val target = candidates.selectForDevice(suggested)
+        // Among the builds its pre-release choice offers, like the Updates tab that listed it.
+        val target = candidates.offeredUnder(appRepository.prereleasesOf(packageName)).selectForDevice(suggested)
         if (target == null) {
             Log.w(TAG, "No compatible release for $packageName")
             return

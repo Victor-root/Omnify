@@ -8,13 +8,13 @@ import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.datastore.model.TranslationEngine
+import com.looker.droidify.external.PrereleaseMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.*
 import kotlin.time.Duration
-import com.looker.droidify.external.PrereleaseMode
 
 interface SettingsRepository {
 

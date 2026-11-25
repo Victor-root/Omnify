@@ -19,6 +19,9 @@ import com.looker.droidify.data.InstalledRepository
 import com.looker.droidify.data.RepoRepository
 import com.looker.droidify.data.externalSourceOwns
 import com.looker.droidify.data.followedSourceOf
+import com.looker.droidify.data.listedUnder
+import com.looker.droidify.data.mixesPrereleases
+import com.looker.droidify.data.offeredUnder
 import com.looker.droidify.data.takesUpdates
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.signerMismatch
@@ -33,6 +36,7 @@ import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.installSourceChoice
 import com.looker.droidify.datastore.model.CustomButton
+import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.installer.ApkDownloads
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.installers.shizuku.ShizukuState
@@ -241,9 +245,10 @@ class AppDetailViewModel @Inject constructor(
     // Diagnostics only: when the page was asked for, to time each step of opening it.
     private val openedAt = if (BuildConfig.DIAGNOSTICS) SystemClock.elapsedRealtime() else 0L
 
-    val state: StateFlow<AppDetailState> = appRepository
-        .getApp(PackageName(packageName))
-        .map { apps ->
+    val state: StateFlow<AppDetailState> = combine(
+        appRepository.getApp(PackageName(packageName)),
+        settingsRepository.get { cataloguePrereleasesOf(packageName) }.distinctUntilChanged(),
+    ) { apps, prereleases ->
             if (BuildConfig.DIAGNOSTICS) {
                 DiagnosticLog.log(
                     "App detail: catalogue read ${SystemClock.elapsedRealtime() - openedAt} ms after opening " +
@@ -253,7 +258,7 @@ class AppDetailViewModel @Inject constructor(
             when {
                 apps.isEmpty() -> AppDetailState.NotFound(packageName)
                 else -> {
-                    val packages = apps.flatMap {
+                    val allPackages = apps.flatMap {
                         val repo = repoRepository.getRepo(it.repoId.toInt())
                         if (repo != null && it.packages != null) {
                             it.packages.map { pkg -> pkg to repo }
@@ -266,9 +271,10 @@ class AppDetailViewModel @Inject constructor(
                     // is only that repo's own max — so if the older repo wins, Install/Update would cap
                     // there and ignore a newer build elsewhere. Use the newest version across all repos as
                     // the suggested version, so the whole screen offers the most recent build wherever it
-                    // lives (device-compatibility is still applied later by selectForDevice).
+                    // lives (device-compatibility is still applied later by selectForDevice), among the
+                    // builds the app's pre-release choice offers: a beta above it is not one to install.
                     val base = apps.first()
-                    val newest = packages.firstOrNull()?.first?.manifest
+                    val newest = allPackages.offeredUnder(prereleases).firstOrNull()?.first?.manifest
                     val app = if (newest != null) {
                         base.copy(
                             metadata = base.metadata.copy(
@@ -279,7 +285,13 @@ class AppDetailViewModel @Inject constructor(
                     } else {
                         base
                     }
-                    AppDetailState.Success(app = app, packages = packages)
+                    AppDetailState.Success(
+                        app = app,
+                        // The versions the pre-release choice shows: betas hidden leave the list too.
+                        packages = allPackages.listedUnder(prereleases),
+                        prereleases = prereleases,
+                        hasPrereleaseChoice = allPackages.mixesPrereleases(),
+                    )
                 }
             }.also {
                 if (BuildConfig.DIAGNOSTICS) {
@@ -340,6 +352,11 @@ class AppDetailViewModel @Inject constructor(
     /** Follows [source] for this app's updates. */
     fun follow(source: FollowedSource) {
         viewModelScope.launch { settingsRepository.setFollowedSource(packageName, source.stored) }
+    }
+
+    /** Sets what this app's betas do in the catalogue (see Settings.cataloguePrereleases). */
+    fun setPrereleases(mode: PrereleaseMode) {
+        viewModelScope.launch { settingsRepository.setCataloguePrereleases(packageName, mode) }
     }
 
     /**
@@ -1331,5 +1348,9 @@ sealed interface AppDetailState {
     data class Success(
         val app: App,
         val packages: List<Pair<Package, Repo>>,
+        // What the app's betas do (see Settings.cataloguePrereleases), and whether it publishes betas
+        // and stable releases both, the only case where that choice changes anything.
+        val prereleases: PrereleaseMode,
+        val hasPrereleaseChoice: Boolean,
     ) : AppDetailState
 }

@@ -15,6 +15,7 @@ import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.model.SortOrder
+import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.external.compareVersionStrings
 import com.looker.droidify.external.dottedVersionOrNull
 import com.looker.droidify.model.Repository
@@ -105,26 +106,36 @@ class AppRepository @Inject constructor(
      * Highest version *installable on this device* for every app, keyed by packageName, used to detect
      * updates so the Updates tab matches what the detail screen will actually install (filtered by ABI +
      * minSdk): from the repository the user follows for that app ([followed], see [FollowedSources]),
-     * else the newest build wherever it lives. Each entry also carries that version's signer
+     * else the newest build wherever it lives, among the ones its pre-release choice offers (see
+     * [offeredUnder]). Each entry also carries that version's signer
      * fingerprint(s) so callers can tell whether the update can replace the installed app in place (same
      * signer) or not (different signer).
      */
     suspend fun suggestedVersions(
         followed: Map<String, FollowedSource>,
     ): Map<String, SuggestedVersion> = withContext(Dispatchers.Default) {
+        val settings = settingsRepository.getInitial()
         appDao.deviceCompatibleVersions(
             sdk = Build.VERSION.SDK_INT,
             abis = Build.SUPPORTED_ABIS.toList(),
         )
             .groupBy { it.packageName }
             .mapNotNull { (packageName, rows) ->
-                val byRepo = rows.associate { row ->
-                    row.repoId to SuggestedVersion(row.versionCode, row.versionName, row.signer.toSet())
+                val mixes = rows.any { it.isPrerelease } && rows.any { !it.isPrerelease }
+                val mode = settings.cataloguePrereleasesOf(packageName)
+                val offered = if (mixes) rows.filter { mode.offers(isPrerelease = it.isPrerelease) } else rows
+                val byRepo = offered.groupBy { it.repoId }.mapValues { (_, repoRows) ->
+                    val row = repoRows.maxBy { it.versionCode }
+                    SuggestedVersion(row.versionCode, row.versionName, row.signer.toSet())
                 }
                 suggestedVersionOf(byRepo, followed[packageName])?.let { packageName to it }
             }
             .toMap()
     }
+
+    /** What [packageName]'s pre-releases do in the catalogue: its own choice, else the default one. */
+    suspend fun prereleasesOf(packageName: String): PrereleaseMode =
+        settingsRepository.getInitial().cataloguePrereleasesOf(packageName)
 
     /** The repositories offering each of [packageNames], by repository id. */
     suspend fun repoIdsOffering(packageNames: Collection<String>): Map<String, Set<Int>> =

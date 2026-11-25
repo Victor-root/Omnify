@@ -21,6 +21,7 @@ import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.selectForDevice
+import com.looker.droidify.data.offeredUnder
 import com.looker.droidify.installer.InstallManager
 import com.looker.droidify.installer.model.InstallItem
 import com.looker.droidify.network.ApkFileDownloader
@@ -82,7 +83,7 @@ class UnarchiveWorker @AssistedInject constructor(
         // legacy worker we'd also reject releases whose signer differs from the archived app's own
         // signature — but reading that requires the archived PackageInfo (MATCH_ARCHIVED_PACKAGES),
         // which the installed-apps scan doesn't capture, so for now we still trust the enabled repos.
-        val target = candidates.selectForDevice(suggested)
+        val target = candidates.offeredUnder(appRepository.prereleasesOf(packageName)).selectForDevice(suggested)
         if (target == null) {
             Log.e(TAG, "doWork: no compatible release found for $packageName")
             return@withContext Result.failure()

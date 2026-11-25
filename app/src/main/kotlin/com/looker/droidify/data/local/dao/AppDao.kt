@@ -566,6 +566,9 @@ interface AppDao {
         // Signing-certificate fingerprint(s) of that exact version (lowercase hex SHA-256), in the
         // same format as the installed app's stored signature so the two can be compared directly.
         val signer: List<String>,
+        // A beta, see com.looker.droidify.data.model.Package.isPrerelease: each repo gets a row for its
+        // newest beta and one for its newest stable release, for the app's pre-release choice to pick.
+        val isPrerelease: Boolean,
     )
 
     @RawQuery
@@ -584,7 +587,8 @@ interface AppDao {
      * One row per repo, because the same app can be in several repos (e.g. F-Droid + IzzyOnDroid) that
      * publish different newest versions, and which one counts is the caller's choice: the newest
      * wherever it lives, like the detail screen installs, unless the user follows one repo for that app
-     * (see [com.looker.droidify.data.suggestedVersionOf]).
+     * (see [com.looker.droidify.data.suggestedVersionOf]). Two rows for a repo publishing betas too, its
+     * newest beta and its newest stable release, which the app's pre-release choice picks between.
      *
      * Multi-ABI apps (e.g. RustDesk) publish one APK per ABI under *different* versionCodes, so the
      * device-compatibility filter runs first, otherwise a device-blind MAX would pick another
@@ -609,9 +613,11 @@ interface AppDao {
         val query = SimpleSQLiteQuery(
             "SELECT app.packageName AS packageName, app.repoId AS repoId, " +
                 "MAX(version.versionCode) AS versionCode, " +
-                "version.versionName AS versionName, version.signer AS signer FROM version " +
+                "version.versionName AS versionName, version.signer AS signer, " +
+                "version.isPrerelease AS isPrerelease FROM version " +
                 "JOIN app ON app.id = version.appId " +
-                "WHERE version.minSdkVersion <= ? AND $compatible GROUP BY app.packageName, app.repoId",
+                "WHERE version.minSdkVersion <= ? AND $compatible " +
+                "GROUP BY app.packageName, app.repoId, version.isPrerelease",
             (listOf<Any>(sdk) + abis).toTypedArray(),
         )
         return _rawDeviceCompatibleVersionCodes(query)
