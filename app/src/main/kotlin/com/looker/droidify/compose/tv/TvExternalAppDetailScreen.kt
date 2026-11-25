@@ -2,6 +2,7 @@ package com.looker.droidify.compose.tv
 
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.rememberInstalledCodeCapabilities
+import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.SupportedLanguagesSection
@@ -43,7 +44,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
@@ -67,8 +67,6 @@ import com.looker.droidify.external.RELEASE_HISTORY_TARGET
 import com.looker.droidify.external.Release
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.rememberIconAccent
-import androidx.compose.ui.Alignment
-import com.looker.droidify.compose.externalApps.PrereleaseModeChooser
 import com.looker.droidify.compose.externalApps.rememberCapabilities
 import com.looker.droidify.compose.externalApps.rememberInstalledSigner
 import com.looker.droidify.compose.externalApps.cardVersion
@@ -368,28 +366,11 @@ fun TvExternalAppDetailScreen(
                     // source's as pills, opened on this one.
                     val ownReleases = releaseHistory?.takeIf { it.isNotEmpty() }
                     if (catalogue != null || ownReleases != null) {
-                        // On one baseline: a choice wrapping onto two lines starts level with the title.
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Box(modifier = Modifier.alignByBaseline()) {
-                                TvSectionTitle(stringResource(R.string.versions))
-                            }
-                            // The title keeps its own width: a long choice wraps beside it instead.
-                            Box(
-                                modifier = Modifier.weight(1f).alignByBaseline(),
-                                contentAlignment = Alignment.CenterEnd,
-                            ) {
-                                if (offersPrereleaseChoice(app.prereleases, hasPrereleaseChoice)) {
-                                    PrereleaseModeChooser(
-                                        mode = app.prereleases,
-                                        onModeChange = { viewModel.setPrereleaseMode(app, it) },
-                                        textStyle = MaterialTheme.typography.titleLarge.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            textAlign = TextAlign.End,
-                                        ),
-                                    )
-                                }
-                            }
-                        }
+                        TvVersionsTitle(
+                            mode = app.prereleases,
+                            onModeChange = { mode: PrereleaseMode -> viewModel.setPrereleaseMode(app, mode) }
+                                .takeIf { offersPrereleaseChoice(app.prereleases, hasPrereleaseChoice) },
+                        )
                         val ownVersions: @Composable () -> Unit = {
                             ownReleases?.let { releases ->
                                 TvExternalVersionsList(

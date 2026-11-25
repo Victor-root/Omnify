@@ -9,6 +9,8 @@ import com.looker.droidify.compose.appDetail.updateBuild
 import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.rememberInstalledCodeCapabilities
+import com.looker.droidify.compose.externalApps.PrereleaseModeChooser
+import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.utility.common.extension.openAppInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -422,7 +424,10 @@ fun TvAppDetailScreen(
                             }
 
                             if (packages.isNotEmpty()) {
-                                TvSectionTitle(stringResource(R.string.versions))
+                                TvVersionsTitle(
+                                    mode = current.prereleases,
+                                    onModeChange = viewModel::setPrereleases.takeIf { current.hasPrereleaseChoice },
+                                )
                                 TvAppSourcesVersions(
                                     catalogue = viewModel,
                                     external = externalViewModel,
@@ -858,8 +863,8 @@ private fun TvVersionsList(
                 onClick = { onVersionClick(pkg, repo) },
                 onLongClick = {},
                 highlighted = isSuggested,
-                // Both chips can apply at once (the installed version is also the suggested one).
-                label = if (isSuggested || pkg.installed) {
+                // Several chips can apply at once (the installed version is also the suggested one).
+                label = if (isSuggested || pkg.installed || pkg.isPrerelease) {
                     {
                         if (isSuggested) {
                             TvVersionChip(
@@ -873,6 +878,13 @@ private fun TvVersionsList(
                                 text = stringResource(R.string.installed),
                                 container = MaterialTheme.colorScheme.secondaryContainer,
                                 content = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        }
+                        if (pkg.isPrerelease) {
+                            TvVersionChip(
+                                text = stringResource(R.string.external_prerelease_label),
+                                container = MaterialTheme.colorScheme.errorContainer,
+                                content = MaterialTheme.colorScheme.onErrorContainer,
                             )
                         }
                     }
@@ -894,6 +906,36 @@ private fun TvVersionChip(text: String, container: androidx.compose.ui.graphics.
             .background(container, shape = androidx.compose.foundation.shape.CircleShape)
             .padding(horizontal = 8.dp, vertical = 6.dp),
     )
+}
+
+/**
+ * The "Versions" title of an app's page, with its pre-release choice ([mode]) at its end when it can be
+ * changed there ([onModeChange]).
+ */
+@Composable
+internal fun TvVersionsTitle(mode: PrereleaseMode, onModeChange: ((PrereleaseMode) -> Unit)?) {
+    // On one baseline: a choice wrapping onto two lines starts level with the title.
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.alignByBaseline()) {
+            TvSectionTitle(stringResource(R.string.versions))
+        }
+        // The title keeps its own width: a long choice wraps beside it instead.
+        Box(
+            modifier = Modifier.weight(1f).alignByBaseline(),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            if (onModeChange != null) {
+                PrereleaseModeChooser(
+                    mode = mode,
+                    onModeChange = onModeChange,
+                    textStyle = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.End,
+                    ),
+                )
+            }
+        }
+    }
 }
 
 @Composable

@@ -128,6 +128,7 @@ import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.HideAppAction
 import com.looker.droidify.compose.components.InstallConflictDialog
+import com.looker.droidify.compose.externalApps.PrereleaseInCard
 import com.looker.droidify.compose.theme.SOURCE_SWITCH_MS
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.ExternalSourceReleases
@@ -177,6 +178,7 @@ import com.looker.droidify.data.model.isInstallableOnDevice
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.datastore.model.CustomButton
+import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.model.TestRepository
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.AppCapabilities
@@ -574,6 +576,7 @@ fun AppDetailScreen(
                         choice = updateSource,
                         updater = externalUpdater,
                         onFollow = viewModel::follow,
+                        prereleases = (state as AppDetailState.Success).prereleaseChoice(viewModel::setPrereleases),
                     ),
                     externalDownloads = externalDownloads,
                     remoteIcon = remoteIcon,
@@ -1445,7 +1448,8 @@ internal fun VersionInstallDialogs(
  * external sources of the same package ([external], read through [externalViewModel]), the source the
  * user follows ([choice]) and the tracked source taking the updates ([updater]). [updating] and
  * [onFollowTab] are the page's own reading of those against what is installed: the tab with the star,
- * and following another tab, null while the app isn't installed.
+ * and following another tab, null while the app isn't installed. [prereleases] is what the app's betas
+ * do in the catalogue, offered on its repositories' tabs.
  */
 internal data class VersionSources(
     val external: List<ExternalApp>,
@@ -1455,7 +1459,19 @@ internal data class VersionSources(
     val onFollow: (FollowedSource) -> Unit,
     val updating: FollowedSource? = null,
     val onFollowTab: ((SourceTab) -> Unit)? = null,
+    val prereleases: CataloguePrereleaseChoice? = null,
 )
+
+/** A catalogue app's pre-release choice ([mode]), changed through [onModeChange]. */
+internal data class CataloguePrereleaseChoice(
+    val mode: PrereleaseMode,
+    val onModeChange: (PrereleaseMode) -> Unit,
+)
+
+/** The app's pre-release choice, offered only while it publishes betas and stable releases both. */
+internal fun AppDetailState.Success.prereleaseChoice(
+    onModeChange: (PrereleaseMode) -> Unit,
+): CataloguePrereleaseChoice? = if (hasPrereleaseChoice) CataloguePrereleaseChoice(prereleases, onModeChange) else null
 
 /**
  * The version list, as one card ([VersionsCard]), wrapped in a single [onGloballyPositioned] anchor for
@@ -1486,7 +1502,7 @@ private fun VersionsSection(
     // The source it opens on, when it is not the catalogue page's: a tracked source's own page opens on
     // that source.
     openOn: FollowedSource? = null,
-    // Beside the title: a tracked source's own page offers its pre-release choice there.
+    // Beside the title, on [openOn]'s tab: a tracked source's own page offers its pre-release choice there.
     titleAction: (@Composable () -> Unit)? = null,
 ) {
     val tabs = remember(packages, sources.external) { sourceTabs(packages, sources.external) }
@@ -1551,7 +1567,13 @@ private fun VersionsSection(
     ) {
         VersionsCard(
             modifier = Modifier.onSizeChanged { cardHeightPx = it.height },
-            titleAction = titleAction,
+            // The pre-release choice of the source on screen: the app's own on a repository's tab.
+            titleAction = when (selectedSource) {
+                is FollowedSource.Repository -> sources.prereleases?.let { choice ->
+                    { PrereleaseInCard(mode = choice.mode, onModeChange = choice.onModeChange) }
+                }
+                else -> titleAction.takeIf { selectedSource == openOn }
+            },
             header = header,
         ) {
             SourcePanels(tabs = tabs, selected = selectedSource) { tab ->
@@ -1575,6 +1597,19 @@ private fun VersionsSection(
             }
         }
     }
+}
+
+/** One of a version row's chips ("suggested", "installed"...), [text] on [container]. */
+@Composable
+private fun VersionRowChip(text: String, container: Color, content: Color) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        color = content,
+        modifier = Modifier
+            .background(container, shape = CircleShape)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+    )
 }
 
 /**
@@ -1736,6 +1771,7 @@ internal fun AppSourcesVersions(
             onFollow = catalogue::follow,
             updating = updatingSource,
             onFollowTab = followState.followTab(installedInfo, packages, updatingName),
+            prereleases = success.prereleaseChoice(catalogue::setPrereleases),
         ),
         installableRepo = installableRepo,
         onSelectRepo = catalogue::setPreferredRepo,
@@ -1876,47 +1912,37 @@ private fun RepositoryVersions(
             onCancel = if (isThisRowDownloading) onCancel else null,
             // Several chips can apply at once (the installed version is also the suggested one), so
             // they show side by side instead of one excluding the other.
-            label = if (isSuggested || pkg.installed || !pkg.isInstallableOnDevice()) {
+            label = if (isSuggested || pkg.installed || pkg.isPrerelease || !pkg.isInstallableOnDevice()) {
                 {
                     if (isSuggested) {
-                        Text(
-                            text = stringResource(R.string.suggested).uppercase(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.tertiaryContainer,
-                                    shape = CircleShape,
-                                )
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        VersionRowChip(
+                            text = stringResource(R.string.suggested),
+                            container = MaterialTheme.colorScheme.tertiaryContainer,
+                            content = MaterialTheme.colorScheme.onTertiaryContainer,
                         )
                     }
                     if (pkg.installed) {
-                        Text(
-                            text = stringResource(R.string.installed).uppercase(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.secondaryContainer,
-                                    shape = CircleShape,
-                                )
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        VersionRowChip(
+                            text = stringResource(R.string.installed),
+                            container = MaterialTheme.colorScheme.secondaryContainer,
+                            content = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
+                    // A beta of its repository, listed because the app's pre-release choice shows them.
+                    if (pkg.isPrerelease) {
+                        VersionRowChip(
+                            text = stringResource(R.string.external_prerelease_label),
+                            container = MaterialTheme.colorScheme.errorContainer,
+                            content = MaterialTheme.colorScheme.onErrorContainer,
                         )
                     }
                     // Only ever reachable with the setting on, since such a row is otherwise absent.
                     // Saying so matters: tapping it would hand Android a build it will refuse.
                     if (!pkg.isInstallableOnDevice()) {
-                        Text(
-                            text = stringResource(R.string.incompatible_version).uppercase(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.errorContainer,
-                                    shape = CircleShape,
-                                )
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        VersionRowChip(
+                            text = stringResource(R.string.incompatible_version),
+                            container = MaterialTheme.colorScheme.errorContainer,
+                            content = MaterialTheme.colorScheme.onErrorContainer,
                         )
                     }
                 }
