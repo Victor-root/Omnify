@@ -1149,7 +1149,14 @@ class ExternalAppsViewModel @Inject constructor(
                     failAdd(context.getString(R.string.external_unsupported_host))
                     return@launch
                 }
-                val base = ExternalApp(provider = provider, host = ref.host, owner = ref.owner, repo = ref.repo)
+                val base = ExternalApp(
+                    provider = provider,
+                    host = ref.host,
+                    owner = ref.owner,
+                    repo = ref.repo,
+                    // A new source takes the default pre-release choice.
+                    prereleases = settingsRepository.getInitial().defaultPrereleases,
+                )
                 added = block(base)
                 if (added.isNotEmpty()) toast(context.getString(R.string.external_added, added.joinToString()))
             } finally {
@@ -1183,10 +1190,6 @@ class ExternalAppsViewModel @Inject constructor(
                     context.getString(R.string.external_no_release, app.path),
                 )
                 failAdd(message, urgent)
-                return null
-            }
-            ReleaseLookup.NoPrereleases -> {
-                failAdd(context.getString(R.string.external_no_prereleases, app.path))
                 return null
             }
             ReleaseLookup.AllExcludedByFilter -> {
@@ -1754,10 +1757,6 @@ class ExternalAppsViewModel @Inject constructor(
                         context.getString(R.string.external_unreachable, app.sourceLabel),
                     )
                     toast(message = message, long = urgent)
-                    return
-                }
-                ReleaseLookup.NoPrereleases -> {
-                    toast(context.getString(R.string.external_no_prereleases, app.path))
                     return
                 }
                 ReleaseLookup.AllExcludedByFilter -> {

@@ -33,10 +33,6 @@ sealed class ReleaseLookup {
     /** The request itself failed (network/HTTP/parse error), or GitHub's rate limit was hit. */
     data object FetchFailed : ReleaseLookup()
 
-    /** The source follows pre-releases only ([PrereleaseMode.ONLY]) and the repository has published
-     *  none in the recent window, only stable releases. */
-    data object NoPrereleases : ReleaseLookup()
-
     /** Every release the pre-release setting allowed through was then excluded by the source's own
      *  [ExternalApp.versionExcludeFilter] — nothing else disqualified them. */
     data object AllExcludedByFilter : ReleaseLookup()

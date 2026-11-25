@@ -192,7 +192,7 @@ class ReleaseSelectionPropertiesTest {
             )
             for (mode in listOf(PrereleaseMode.HIDDEN, PrereleaseMode.SHOWN)) {
                 assertFalse(
-                    mode.offers(release, onlyPrereleases = false) && release.isPrerelease,
+                    mode.offers(release, oneKindOnly = false) && release.isPrerelease,
                     "$mode let the prerelease ${release.tag} through",
                 )
             }

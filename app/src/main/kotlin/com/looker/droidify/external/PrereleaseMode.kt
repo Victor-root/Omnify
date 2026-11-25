@@ -7,8 +7,8 @@ import kotlinx.serialization.Serializable
  * they are listed among its versions, and whether one is ever offered as the version to install or
  * update to.
  *
- * A repository publishing nothing but pre-releases has no choice to make: they are listed and offered
- * whatever this says, marked as pre-releases ([onlyPrereleases]).
+ * A repository publishing one kind only, nothing but pre-releases or nothing but stable releases, has no
+ * choice to make: all of them are listed and offered whatever this says ([mixesPrereleases]).
  */
 @Serializable
 enum class PrereleaseMode {
@@ -28,14 +28,14 @@ enum class PrereleaseMode {
     val listsPrereleases: Boolean
         get() = this != HIDDEN
 
-    /** Whether [release] may be offered as the version to install under this mode, [onlyPrereleases]
-     *  being true when the repository publishes nothing else. */
-    fun offers(release: Release, onlyPrereleases: Boolean): Boolean =
-        onlyPrereleases || offers(isPrerelease = release.isPrerelease)
+    /** Whether [release] may be offered as the version to install under this mode, [oneKindOnly] being
+     *  true when the repository publishes pre-releases only or stable releases only. */
+    fun offers(release: Release, oneKindOnly: Boolean): Boolean =
+        oneKindOnly || offers(isPrerelease = release.isPrerelease)
 
     /** Whether [release] shows in the app's version list under this mode (see [offers]). */
-    fun lists(release: Release, onlyPrereleases: Boolean): Boolean =
-        onlyPrereleases || lists(isPrerelease = release.isPrerelease)
+    fun lists(release: Release, oneKindOnly: Boolean): Boolean =
+        oneKindOnly || lists(isPrerelease = release.isPrerelease)
 
     /** Whether a version, a pre-release or not ([isPrerelease]), may be offered as the one to install,
      *  among versions of both kinds. */
@@ -48,9 +48,6 @@ enum class PrereleaseMode {
     /** Whether a version, a pre-release or not ([isPrerelease]), shows in a list holding both kinds. */
     fun lists(isPrerelease: Boolean): Boolean = listsPrereleases || !isPrerelease
 }
-
-/** Whether these releases are all pre-releases: a repository with no stable release to fall back on. */
-fun List<Release>.onlyPrereleases(): Boolean = isNotEmpty() && all { it.isPrerelease }
 
 /** Whether these releases hold both pre-releases and stable ones: the only case where choosing between
  *  them means anything. */

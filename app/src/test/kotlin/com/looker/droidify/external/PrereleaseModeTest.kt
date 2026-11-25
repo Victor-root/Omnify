@@ -37,14 +37,13 @@ class PrereleaseModeTest {
     }
 
     @Test
-    fun `a repository publishing only pre-releases has them listed and offered whatever the mode`() {
+    fun `a repository publishing one kind only has it all listed and offered whatever the mode`() {
         for (mode in PrereleaseMode.entries) {
-            assertTrue(mode.lists(beta, onlyPrereleases = true), "$mode")
-            assertTrue(mode.offers(beta, onlyPrereleases = true), "$mode")
+            for (release in listOf(beta, stable)) {
+                assertTrue(mode.lists(release, oneKindOnly = true), "$mode")
+                assertTrue(mode.offers(release, oneKindOnly = true), "$mode")
+            }
         }
-        assertTrue(listOf(beta, release("v2.0-beta0", true)).onlyPrereleases())
-        assertFalse(listOf(beta, stable).onlyPrereleases())
-        assertFalse(emptyList<Release>().onlyPrereleases())
     }
 
     @Test

@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.looker.droidify.BuildConfig
+import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.network.Downloader
 import com.looker.droidify.sync.SyncProgress
 import com.looker.droidify.utility.apk.ApkBinaryManifest
@@ -46,6 +47,7 @@ class ExternalRefresher @Inject constructor(
     private val remoteApk: RemoteApkCache,
     @param:ApplicationContext private val context: Context,
     private val syncProgress: SyncProgress,
+    private val settingsRepository: SettingsRepository,
 ) {
 
     /** Serialises refreshes: the screen-entry one and the scheduled one can otherwise overlap, and two
@@ -472,6 +474,8 @@ class ExternalRefresher @Inject constructor(
         val includeFilter = versionIncludeFilter.trim().ifEmpty { null }
         val excludeFilter = versionExcludeFilter.trim().ifEmpty { null }
         val result = mutableListOf<ExternalApp>()
+        // Found apps are new sources, which take the default pre-release choice.
+        val prereleases = settingsRepository.getInitial().defaultPrereleases
         for (ref in repos) {
             val candidate = ExternalApp(
                 provider = account.provider,
@@ -485,6 +489,7 @@ class ExternalRefresher @Inject constructor(
                 enabled = account.enabled,
                 accountKey = account.key,
                 label = prettifyRepoName(ref.repo),
+                prereleases = prereleases,
             )
             if (candidate.key in skipKeys) continue
             val release = externalApi.latestReleaseFor(candidate) ?: continue

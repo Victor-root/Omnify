@@ -717,7 +717,6 @@
     <string name="external_all_excluded_by_filter">All recent releases of %s match your exclude filter. Clear or adjust it to add this source.</string>
     <string name="external_none_match_include_filter">No recent release of %s contains the words of your \"Versions to keep\" filter. Clear or adjust it.</string>
     <string name="external_prerelease_label">Pre-release</string>
-    <string name="external_no_prereleases">%s has not published any pre-release.</string>
     <string name="prereleases_title">Pre-releases</string>
     <string name="prereleases_button_FORMAT">Pre-releases: %s</string>
     <string name="prereleases_warning">Pre-releases are test builds published ahead of a release: they can be unstable.</string>
