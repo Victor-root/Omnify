@@ -48,7 +48,7 @@ import com.looker.droidify.data.local.model.ScreenshotEntity
 import com.looker.droidify.data.local.model.VersionEntity
 
 @Database(
-    version = 6,
+    version = 7,
     exportSchema = true,
     entities = [
         AntiFeatureEntity::class,
@@ -114,13 +114,25 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+/**
+ * Marks which versions a repository publishes as betas ([VersionEntity.isPrerelease]), and clears each
+ * repository's sync timestamp so the next sync downloads the whole index again: only it says which
+ * versions already stored are betas.
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `version` ADD COLUMN `isPrerelease` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("UPDATE `repository` SET `timestamp` = NULL")
+    }
+}
+
 fun droidifyDatabase(context: Context): DroidifyDatabase = Room
     .databaseBuilder(
         context = context,
         klass = DroidifyDatabase::class.java,
         name = "droidify_room",
     )
-    .addMigrations(MIGRATION_5_6)
+    .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
     .fallbackToDestructiveMigration(true)
     .addCallback(
         object : RoomDatabase.Callback() {

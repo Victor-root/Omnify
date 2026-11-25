@@ -67,6 +67,7 @@ class VersionVariantsTest : BaseDatabaseTest() {
         signer = emptyList(),
         permissions = emptyList(),
         permissionsSdk23 = emptyList(),
+        isPrerelease = false,
         appId = appId,
     )
 

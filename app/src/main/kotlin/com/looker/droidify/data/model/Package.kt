@@ -9,6 +9,9 @@ data class Package(
     val apk: ApkFile,
     val platforms: Platforms,
     val features: List<String>,
+    // Published by its repository as a beta, newer than the version it recommends: offered or not as
+    // the app's pre-release choice says (see PrereleaseMode).
+    val isPrerelease: Boolean,
     val antiFeatures: List<String>,
     val manifest: Manifest,
     val whatsNew: String,

@@ -53,7 +53,13 @@ data class VersionV2(
     val whatsNew: LocalizedString = emptyMap(),
     val manifest: ManifestV2,
     val antiFeatures: Map<Tag, AntiFeatureReason> = emptyMap(),
+    // The channels this version is published to besides the stable one ("Beta"): none for a stable
+    // release.
+    val releaseChannels: List<String> = emptyList(),
 )
+
+/** The release channel F-Droid marks a version with when it is newer than the one it recommends. */
+const val RELEASE_CHANNEL_BETA = "Beta"
 
 @Serializable
 data class ManifestV2(

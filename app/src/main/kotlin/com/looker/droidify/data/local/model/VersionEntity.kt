@@ -1,5 +1,6 @@
 package com.looker.droidify.data.local.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -59,6 +60,9 @@ data class VersionEntity(
     val signer: List<String>,
     val permissions: List<PermissionV2>,
     val permissionsSdk23: List<PermissionV2>,
+    // Published to a release channel other than the stable one (a beta), see [Package.isPrerelease].
+    @ColumnInfo(defaultValue = "0")
+    val isPrerelease: Boolean,
     val appId: Int,
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
@@ -81,6 +85,7 @@ fun PackageV2.versionEntities(appId: Int): Map<VersionEntity, List<AntiFeatureAp
             signer = version.manifest.signer?.sha256 ?: emptyList(),
             permissions = version.manifest.usesPermission,
             permissionsSdk23 = version.manifest.usesPermissionSdk23,
+            isPrerelease = version.releaseChannels.isNotEmpty(),
             appId = appId,
         ) to version.antiFeatures.map { (tag, reason) ->
             AntiFeatureAppRelation(
@@ -118,6 +123,7 @@ fun List<VersionEntity>.toPackages(
         ),
         platforms = Platforms(version.nativeCode),
         features = version.features,
+        isPrerelease = version.isPrerelease,
         // Anti-features are stored per (appId, versionCode) in anti_features_app_relation; pick this
         // version's. The rewrite had dropped this (emptyList()), so the detail screen showed no
         // Tracking/Ads/NonFree/KnownVuln warnings the old Droidify did.

@@ -25,6 +25,7 @@ import com.looker.droidify.sync.v2.model.RepoV2
 import com.looker.droidify.sync.v2.model.ScreenshotsV2
 import com.looker.droidify.sync.v2.model.SignerV2
 import com.looker.droidify.sync.v2.model.UsesSdkV2
+import com.looker.droidify.sync.v2.model.RELEASE_CHANNEL_BETA
 import com.looker.droidify.sync.v2.model.VersionV2
 
 private const val V1_LOCALE = "en-US"
@@ -42,10 +43,12 @@ internal fun IndexV1.toV2(): IndexV2 {
         val preferredSigner = versions?.firstOrNull()?.signer
         val whatsNew: LocalizedString? = app.localized
             ?.localizedString(null) { it.whatsNew }
+        val suggestedVersionCode = app.suggestedVersionCode?.toLongOrNull()
         val packageV2 = PackageV2(
             versions = versions?.associate { packageV1 ->
                 packageV1.hash to packageV1.toVersionV2(
                     whatsNew = whatsNew,
+                    suggestedVersionCode = suggestedVersionCode,
                     packageAntiFeatures = app.antiFeatures + (
                         packageV1.antiFeatures
                             ?: emptyList()
@@ -162,8 +165,13 @@ private fun Map<String, Localized>.screenshotV2(
     },
 ).takeIf { !it.isNull }
 
+/**
+ * [suggestedVersionCode] is the version the repository recommends: one newer than it is a beta, which is
+ * how the old index format says what the new one says with a release channel.
+ */
 private fun PackageV1.toVersionV2(
     whatsNew: LocalizedString?,
+    suggestedVersionCode: Long?,
     packageAntiFeatures: List<String>,
 ): VersionV2 = VersionV2(
     added = added ?: 0L,
@@ -175,6 +183,11 @@ private fun PackageV1.toVersionV2(
     src = srcName?.let { FileV2("/$it") },
     whatsNew = whatsNew ?: emptyMap(),
     antiFeatures = packageAntiFeatures.associateWith { mapOf(V1_LOCALE to it) },
+    releaseChannels = if (suggestedVersionCode != null && (versionCode ?: 0L) > suggestedVersionCode) {
+        listOf(RELEASE_CHANNEL_BETA)
+    } else {
+        emptyList()
+    },
     manifest = ManifestV2(
         versionName = versionName,
         versionCode = versionCode ?: 0L,
