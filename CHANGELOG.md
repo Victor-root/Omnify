@@ -11,6 +11,7 @@
 ### 🔄 Changed
 - **The pre-release choice only applies to a project publishing both kinds**: one with stable releases only can now be added while following pre-releases alone, and gets its stable releases.
 - **"Unstable updates" is gone from Settings**: it no longer did anything, and Default pre-releases now covers F-Droid repositories too.
+- **Changing a source's pre-release choice answers at once**: the choice shows the moment it is tapped, the version list fades under a loading bar while it is fetched again, then the new one fades in. A catalogue app's list fades from one to the other too.
 - **An app turning up in the Updates tab grows into place**, once "Everything is up to date" has faded away, instead of appearing all at once.
 - **"Match accent to app icon" takes the colour a logo reads as**: a logo drawn in relief or as a gradient gave its brightest highlight, which looked lighter on the page than the logo itself (Melyxar's red). Its shades are now taken together; a logo of one flat colour keeps exactly that colour.
 

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -164,6 +165,7 @@ import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.EmphasizedAccelerate
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
+import com.looker.droidify.compose.theme.VERSION_LIST_SWAP_MS
 import com.looker.droidify.data.FollowedSource
 import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.App
@@ -1875,89 +1877,99 @@ private fun RepositoryVersions(
     // whole page an endless scroll. Collapses back on switching repo tabs, since that's a new list.
     var versionsExpanded by remember(repoId) { mutableStateOf(false) }
     val visibleCount = if (versionsExpanded) MAX_VERSIONS_SHOWN else VERSIONS_COLLAPSED_COUNT
-    // Where "see all versions" (see the hero card link) lands focus, so D-pad "up" from there walks
-    // back up through the list normally instead of jumping straight back to that now off-screen link.
-    val lastVisibleIndex = minOf(visibleCount, shownPackages.size) - 1
-    shownPackages.take(visibleCount).forEachIndexed { index, (pkg, repo) ->
-        val isSuggested = suggestedVersion != null && pkg.manifest.versionCode == suggestedVersion
-        val isThisRowDownloading = downloadTargetVersionCode == pkg.manifest.versionCode &&
-            (downloadStatus != null || installing)
-        VersionsCardDivider()
-        PackageItem(
-            item = pkg,
-            repo = repo,
-            onClick = { onVersionClick(pkg, repo) },
-            onLongClick = {},
-            inList = true,
-            modifier = Modifier
-                .then(
-                    if (index == lastVisibleIndex && lastVersionFocusRequester != null) {
-                        Modifier.focusRequester(lastVersionFocusRequester)
+    // A pre-release choice changing which versions are listed, and which one is suggested, fades the new
+    // list in rather than swapping it in one frame.
+    Crossfade(
+        targetState = shownPackages to suggestedVersion,
+        animationSpec = tween(durationMillis = VERSION_LIST_SWAP_MS),
+        label = "versionsSwap",
+    ) { (rows, suggested) ->
+        Column {
+            // Where "see all versions" (see the hero card link) lands focus, so D-pad "up" from there walks
+            // back up through the list normally instead of jumping straight back to that now off-screen link.
+            val lastVisibleIndex = minOf(visibleCount, rows.size) - 1
+            rows.take(visibleCount).forEachIndexed { index, (pkg, repo) ->
+                val isSuggested = suggested != null && pkg.manifest.versionCode == suggested
+                val isThisRowDownloading = downloadTargetVersionCode == pkg.manifest.versionCode &&
+                    (downloadStatus != null || installing)
+                VersionsCardDivider()
+                PackageItem(
+                    item = pkg,
+                    repo = repo,
+                    onClick = { onVersionClick(pkg, repo) },
+                    onLongClick = {},
+                    inList = true,
+                    modifier = Modifier
+                        .then(
+                            if (index == lastVisibleIndex && lastVersionFocusRequester != null) {
+                                Modifier.focusRequester(lastVersionFocusRequester)
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .tvBringIntoViewOnFocus()
+                        .onFocusChanged {
+                            if (it.isFocused) {
+                                tvFocusDebugLog {
+                                    "FOCUS -> version-row[$index] (${pkg.manifest.versionName}) at " +
+                                        "${System.currentTimeMillis()}"
+                                }
+                            }
+                        },
+                    highlighted = isSuggested,
+                    downloadStatus = if (isThisRowDownloading) downloadStatus else null,
+                    installing = isThisRowDownloading && downloadStatus == null,
+                    onCancel = if (isThisRowDownloading) onCancel else null,
+                    // Several chips can apply at once (the installed version is also the suggested one), so
+                    // they show side by side instead of one excluding the other.
+                    label = if (isSuggested || pkg.installed || pkg.isPrerelease || !pkg.isInstallableOnDevice()) {
+                        {
+                            if (isSuggested) {
+                                VersionRowChip(
+                                    text = stringResource(R.string.suggested),
+                                    container = MaterialTheme.colorScheme.tertiaryContainer,
+                                    content = MaterialTheme.colorScheme.onTertiaryContainer,
+                                )
+                            }
+                            if (pkg.installed) {
+                                VersionRowChip(
+                                    text = stringResource(R.string.installed),
+                                    container = MaterialTheme.colorScheme.secondaryContainer,
+                                    content = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                            }
+                            // A beta of its repository, listed because the app's pre-release choice shows them.
+                            if (pkg.isPrerelease) {
+                                VersionRowChip(
+                                    text = stringResource(R.string.external_prerelease_label),
+                                    container = MaterialTheme.colorScheme.errorContainer,
+                                    content = MaterialTheme.colorScheme.onErrorContainer,
+                                )
+                            }
+                            // Only ever reachable with the setting on, since such a row is otherwise absent.
+                            // Saying so matters: tapping it would hand Android a build it will refuse.
+                            if (!pkg.isInstallableOnDevice()) {
+                                VersionRowChip(
+                                    text = stringResource(R.string.incompatible_version),
+                                    container = MaterialTheme.colorScheme.errorContainer,
+                                    content = MaterialTheme.colorScheme.onErrorContainer,
+                                )
+                            }
+                        }
                     } else {
-                        Modifier
+                        null
                     },
                 )
-                .tvBringIntoViewOnFocus()
-                .onFocusChanged {
-                    if (it.isFocused) {
-                        tvFocusDebugLog {
-                            "FOCUS -> version-row[$index] (${pkg.manifest.versionName}) at " +
-                                "${System.currentTimeMillis()}"
-                        }
-                    }
-                },
-            highlighted = isSuggested,
-            downloadStatus = if (isThisRowDownloading) downloadStatus else null,
-            installing = isThisRowDownloading && downloadStatus == null,
-            onCancel = if (isThisRowDownloading) onCancel else null,
-            // Several chips can apply at once (the installed version is also the suggested one), so
-            // they show side by side instead of one excluding the other.
-            label = if (isSuggested || pkg.installed || pkg.isPrerelease || !pkg.isInstallableOnDevice()) {
-                {
-                    if (isSuggested) {
-                        VersionRowChip(
-                            text = stringResource(R.string.suggested),
-                            container = MaterialTheme.colorScheme.tertiaryContainer,
-                            content = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
-                    }
-                    if (pkg.installed) {
-                        VersionRowChip(
-                            text = stringResource(R.string.installed),
-                            container = MaterialTheme.colorScheme.secondaryContainer,
-                            content = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                    }
-                    // A beta of its repository, listed because the app's pre-release choice shows them.
-                    if (pkg.isPrerelease) {
-                        VersionRowChip(
-                            text = stringResource(R.string.external_prerelease_label),
-                            container = MaterialTheme.colorScheme.errorContainer,
-                            content = MaterialTheme.colorScheme.onErrorContainer,
-                        )
-                    }
-                    // Only ever reachable with the setting on, since such a row is otherwise absent.
-                    // Saying so matters: tapping it would hand Android a build it will refuse.
-                    if (!pkg.isInstallableOnDevice()) {
-                        VersionRowChip(
-                            text = stringResource(R.string.incompatible_version),
-                            container = MaterialTheme.colorScheme.errorContainer,
-                            content = MaterialTheme.colorScheme.onErrorContainer,
-                        )
-                    }
-                }
-            } else {
-                null
-            },
-        )
-    }
-    if (shownPackages.size > VERSIONS_COLLAPSED_COUNT) {
-        VersionsCardDivider()
-        ShowMoreRow(
-            hiddenCount = minOf(shownPackages.size, MAX_VERSIONS_SHOWN) - VERSIONS_COLLAPSED_COUNT,
-            expanded = versionsExpanded,
-            onToggle = { versionsExpanded = !versionsExpanded },
-        )
+            }
+            if (rows.size > VERSIONS_COLLAPSED_COUNT) {
+                VersionsCardDivider()
+                ShowMoreRow(
+                    hiddenCount = minOf(rows.size, MAX_VERSIONS_SHOWN) - VERSIONS_COLLAPSED_COUNT,
+                    expanded = versionsExpanded,
+                    onToggle = { versionsExpanded = !versionsExpanded },
+                )
+            }
+        }
     }
 }
 

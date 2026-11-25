@@ -493,6 +493,11 @@ class ExternalAppsViewModel @Inject constructor(
     /** Whose list [releaseHistory] holds, so a reload of that same list can keep it on screen. */
     private var releaseHistoryKey: String? = null
 
+    /** Whether the list on screen is being fetched again (its pre-release choice changed, or it is
+     *  being shown in full), kept in view until the new one replaces it. */
+    private val _releaseHistoryReloading = MutableStateFlow(false)
+    val releaseHistoryReloading: StateFlow<Boolean> = _releaseHistoryReloading
+
     /** One [releaseHistoryCache] entry: when it was fetched, the [limit] it was fetched with, and what
      *  came back. [limit] is what lets a later call tell whether the cache already answers it, or is
      *  too small a fetch to trust for a bigger ask (see [loadReleaseHistory]). */
@@ -518,9 +523,14 @@ class ExternalAppsViewModel @Inject constructor(
         val cached = releaseHistoryCache[app.key]
         // The list on screen reloaded under new settings (its pre-release choice) stays until the new one
         // arrives: emptied, the section shrank to a loading row and the page jumped under the reader.
+        val keptOnScreen = cached == null && releaseHistoryKey == app.key && _releaseHistory.value != null
         if (cached != null || releaseHistoryKey != app.key) showReleaseHistory(cached?.history)
         releaseHistoryKey = app.key
-        fetchReleaseHistory(app, limit, onFetched = ::showReleaseHistory)
+        val fetching = fetchReleaseHistory(app, limit) { history ->
+            showReleaseHistory(history)
+            _releaseHistoryReloading.value = false
+        }
+        _releaseHistoryReloading.value = fetching && keptOnScreen
     }
 
     /** Every source's releases fetched so far, by key: see [releaseHistoryOf]. */
@@ -539,20 +549,22 @@ class ExternalAppsViewModel @Inject constructor(
         fetchReleaseHistory(app, limit, onFetched = {})
     }
 
-    /** The fetch behind [loadReleaseHistory] and [loadReleaseHistoryOf], skipped when the cache answers. */
-    private fun fetchReleaseHistory(app: ExternalApp, limit: Int, onFetched: (ReleaseHistory) -> Unit) {
+    /** The fetch behind [loadReleaseHistory] and [loadReleaseHistoryOf], skipped when the cache answers:
+     *  whether it went to the provider. */
+    private fun fetchReleaseHistory(app: ExternalApp, limit: Int, onFetched: (ReleaseHistory) -> Unit): Boolean {
         val cached = releaseHistoryCache[app.key]
         cached?.let { entry -> releaseHistories.update { it + (app.key to entry.history.releases) } }
         val fresh = cached != null && SystemClock.elapsedRealtime() - cached.fetchedAt < README_FRESHNESS_MS
         val cacheAnswersThis = cached != null &&
             (cached.limit >= limit || cached.history.releases.size < cached.limit)
-        if (fresh && cacheAnswersThis) return
+        if (fresh && cacheAnswersThis) return false
         viewModelScope.launch {
             val history = externalApi.releaseHistory(app, limit)
             releaseHistoryCache[app.key] = ReleaseHistoryCacheEntry(SystemClock.elapsedRealtime(), limit, history)
             releaseHistories.update { it + (app.key to history.releases) }
             onFetched(history)
         }
+        return true
     }
 
     private fun showReleaseHistory(history: ReleaseHistory?) {
@@ -1622,12 +1634,22 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    /** Sets what [app] does with its repository's pre-releases (see [PrereleaseMode]), chosen on its
-     *  page, and re-resolves the release it offers under it. */
+    /**
+     * Sets what [app] does with its repository's pre-releases (see [PrereleaseMode]), chosen on its page,
+     * then re-resolves the release it offers under it. Saved before that lookup, so the choice and the
+     * version list reloading under it follow the tap rather than a round trip to the provider later.
+     */
     fun setPrereleaseMode(app: ExternalApp, mode: PrereleaseMode) {
         if (mode == app.prereleases) return
         viewModelScope.launch {
-            repository.upsertApp(withOfferedRelease(app.copy(prereleases = mode)))
+            val chosen = app.copy(prereleases = mode)
+            releaseHistoryCache.remove(app.key)
+            repository.upsertApp(chosen)
+            val release = externalApi.latestReleaseFor(chosen)
+            // Onto the source as it now stands, unless another choice was made meanwhile.
+            repository.updateApp(app.key) { current ->
+                if (current.prereleases == mode) current.offering(release) else current
+            }
         }
     }
 
@@ -1641,16 +1663,18 @@ class ExternalAppsViewModel @Inject constructor(
      */
     private suspend fun withOfferedRelease(app: ExternalApp): ExternalApp {
         releaseHistoryCache.remove(app.key)
-        val release = externalApi.latestReleaseFor(app)
-        return app.copy(
-            latestTag = release?.tag,
-            latestApkToken = release?.apkVersionToken(filter = app.apkFilter),
-            latestApkName = release?.apkFileName(filter = app.apkFilter),
-            latestApkSize = release?.apkFileSize(filter = app.apkFilter),
-            latestApkUrl = release?.apkDownloadUrl(filter = app.apkFilter),
-            latestReleaseAt = release?.apkUpdatedAtMillis(filter = app.apkFilter),
-        )
+        return app.offering(externalApi.latestReleaseFor(app))
     }
+
+    /** This source with [release] as the one it offers, or none when null. */
+    private fun ExternalApp.offering(release: Release?): ExternalApp = copy(
+        latestTag = release?.tag,
+        latestApkToken = release?.apkVersionToken(filter = apkFilter),
+        latestApkName = release?.apkFileName(filter = apkFilter),
+        latestApkSize = release?.apkFileSize(filter = apkFilter),
+        latestApkUrl = release?.apkDownloadUrl(filter = apkFilter),
+        latestReleaseAt = release?.apkUpdatedAtMillis(filter = apkFilter),
+    )
 
     /** Forces a re-query of which tracked apps are installed (e.g. after returning to the screen). */
     fun refreshInstalled() {

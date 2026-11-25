@@ -102,6 +102,17 @@ class ExternalAppRepository @Inject constructor(
         }
     }
 
+    /** Replaces the source [key] with what [transform] makes of it, in one write; nothing once it is gone. */
+    suspend fun updateApp(key: String, transform: (ExternalApp) -> ExternalApp) {
+        mutex.withLock {
+            ensureLoadedInternal()
+            if (_apps.value.none { it.key == key }) return
+            val updated = _apps.value.map { if (it.key == key) transform(it) else it }
+            saveToFile(updated)
+            _apps.value = updated
+        }
+    }
+
     /** Gives every source the pre-release choice [mode], in one write. */
     suspend fun setPrereleasesOfAll(mode: PrereleaseMode) {
         mutex.withLock {

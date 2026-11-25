@@ -2,6 +2,15 @@ package com.looker.droidify.compose.externalApps
 
 import android.content.Intent
 import android.content.res.Configuration
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.focusGroup
@@ -53,6 +62,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -83,6 +93,8 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
+import com.looker.droidify.compose.theme.EmphasizedDecelerate
+import com.looker.droidify.compose.theme.VERSION_LIST_SWAP_MS
 import com.looker.droidify.data.FollowedSource
 import com.looker.droidify.compose.appDetail.catalogueSourceNote
 import com.looker.droidify.compose.appDetail.catalogueViewModel
@@ -182,6 +194,7 @@ fun ExternalAppDetailScreen(
     val readmeJavaScriptEnabled by viewModel.readmeJavaScriptEnabled.collectAsStateWithLifecycle()
     val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
     val hasPrereleaseChoice by viewModel.hasPrereleaseChoice.collectAsStateWithLifecycle()
+    val releaseHistoryReloading by viewModel.releaseHistoryReloading.collectAsStateWithLifecycle()
     val sdkInfoByApkUrl by viewModel.sdkInfoByApkUrl.collectAsStateWithLifecycle()
     val googleServicesByApkUrl by viewModel.googleServicesByApkUrl.collectAsStateWithLifecycle()
     val declaredCapabilitiesByApkUrl by viewModel.declaredCapabilitiesByApkUrl.collectAsStateWithLifecycle()
@@ -584,6 +597,7 @@ fun ExternalAppDetailScreen(
             ExternalVersionsSection(
                 app = app,
                 releaseHistory = releaseHistory,
+                reloading = releaseHistoryReloading,
                 installedVersion = installedVersion,
                 onVersionClick = { releasePick = ReleasePick.Version(it) },
                 onPickFile = { release, asset -> releasePick = ReleasePick.File(release, asset) },
@@ -1335,6 +1349,9 @@ private fun ExternalLinksSection(
 private fun ExternalVersionsSection(
     app: ExternalApp,
     releaseHistory: List<Release>?,
+    // The list being fetched again, its pre-release choice just changed: kept in view, faded, under a
+    // loading bar, until the new one fades in in its place.
+    reloading: Boolean,
     // The real on-device versionName (from the package manager) — NOT app.installedTag. That field is
     // only ever written once a tracked install genuinely reaches InstallState.Installed, but Android can
     // still report a false success on a silently-failed install (most commonly a signing-key conflict
@@ -1392,25 +1409,54 @@ private fun ExternalVersionsSection(
                 VersionsCardDivider()
                 ReleasesLoadingRow()
             } else {
-                ExternalReleaseList(
-                    app = app,
-                    releaseHistory = releaseHistory,
-                    installedVersion = installedVersion,
-                    onVersionClick = onVersionClick,
-                    onPickFile = onPickFile,
-                    onExpandVersions = onExpandVersions,
-                    downloadStatus = downloadStatus,
-                    installing = installing,
-                    activeDownloadTag = activeDownloadTag,
-                    onCancel = onCancel,
-                    sdkInfoByApkUrl = sdkInfoByApkUrl,
-                    onRequestSdkInfo = onRequestSdkInfo,
+                AnimatedVisibility(
+                    visible = reloading,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    LoadingBar(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp))
+                }
+                val shown = animateFloatAsState(
+                    targetValue = if (reloading) RELOADING_ALPHA else 1f,
+                    animationSpec = tween(durationMillis = VERSION_LIST_SWAP_MS),
+                    label = "releasesReloading",
                 )
+                Crossfade(
+                    targetState = releaseHistory,
+                    animationSpec = tween(durationMillis = VERSION_LIST_SWAP_MS),
+                    label = "releasesSwap",
+                    modifier = Modifier
+                        .graphicsLayer { alpha = shown.value }
+                        .animateContentSize(
+                            tween(durationMillis = VERSION_LIST_SWAP_MS, easing = EmphasizedDecelerate),
+                        ),
+                ) { releases ->
+                    // A Column of its own: Crossfade stacks what it holds, and the list is several rows.
+                    Column {
+                        ExternalReleaseList(
+                            app = app,
+                            releaseHistory = releases,
+                            installedVersion = installedVersion,
+                            onVersionClick = onVersionClick,
+                            onPickFile = onPickFile,
+                            onExpandVersions = onExpandVersions,
+                            downloadStatus = downloadStatus,
+                            installing = installing,
+                            activeDownloadTag = activeDownloadTag,
+                            onCancel = onCancel,
+                            sdkInfoByApkUrl = sdkInfoByApkUrl,
+                            onRequestSdkInfo = onRequestSdkInfo,
+                        )
+                    }
+                }
             }
         }
         Spacer(Modifier.height(16.dp))
     }
 }
+
+/** How visible the version list stays while it is fetched again. */
+private const val RELOADING_ALPHA = 0.4f
 
 /** A tracked source's pre-release choice, at the end of its [VersionsCard]'s title. */
 @Composable
