@@ -74,7 +74,8 @@ class PendingUpdates @Inject constructor(
         appRepository.throttledCatalogChanges,
         installedRepository.getAllStream(),
         externalAppRepository.apps,
-        settingsRepository.get { hiddenApps }.distinctUntilChanged(),
+        // The apps hidden, and the pre-release choices deciding which builds count as an update.
+        settingsRepository.get { Triple(hiddenApps, defaultPrereleases, cataloguePrereleases) },
         followedSources.stored,
     ) { _, _, _, _, _ -> }
         .mapLatest {
