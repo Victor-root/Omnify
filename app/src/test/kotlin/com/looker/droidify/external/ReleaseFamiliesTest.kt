@@ -160,6 +160,32 @@ class ReleaseFamiliesTest {
     }
 
     @Test
+    fun `builds of one app numbered before their version are one app`() {
+        // gsantner/markor, which once published two builds of 2.1.5 side by side.
+        val releases = listOf(
+            apks("v2026.10.0", "net.gsantner.markor-v164-2026.10.0-flavorDefault-release.apk"),
+            apks(
+                "v2.1.5",
+                "net.gsantner.markor-v97-2.1.5-flavorDefault-release.apk",
+                "net.gsantner.markor-v98-2.1.5-flavorDefault-release.apk",
+            ),
+        )
+        assertTrue(apkFamilies(releases).isEmpty())
+    }
+
+    @Test
+    fun `apps numbering their builds keep their own APK filter for the next build`() {
+        val releases = listOf(apks("r1", "appA-v10-1.0.apk", "appB-v20-2.0.apk"))
+        val families = apkFamilies(releases)
+        assertEquals(listOf("appA", "appB"), families.map { it.name })
+        val next = listOf("appA-v11-1.1.apk", "appB-v21-2.1.apk")
+        for (family in families) {
+            val regex = Regex(family.apkFilter!!, RegexOption.IGNORE_CASE)
+            assertEquals(next.filter { it.startsWith(family.name) }, next.filter(regex::containsMatchIn))
+        }
+    }
+
+    @Test
     fun `an APK renamed over the years is still one app`() {
         val releases = listOf(apks("v3.0", "NewName-3.0.apk"), apks("v2.0", "OldName-2.0.apk"))
         assertTrue(apkFamilies(releases).isEmpty())

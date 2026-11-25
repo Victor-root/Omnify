@@ -56,15 +56,18 @@ fun releaseFamilies(releases: List<Release>, unmarkedName: String): List<Release
 /**
  * Groups the APKs of [releases] (newest first) by the app they are, for a repository whose every release
  * carries several apps side by side. An APK is known by the text before its version number, minus any
- * architecture, build-type or store-flavour word ("meesho-debakarr-v29.6-arm64-v8a.apk" is
- * "meesho-debakarr", "MyApp-fdroid-1.2.apk" is "MyApp"), so the builds of one app stay one app. An APK
- * whose name carries no version is left out: "app-release.apk" says nothing about which app it is.
+ * architecture, build-type or store-flavour word, or build number ("meesho-debakarr-v29.6-arm64-v8a.apk"
+ * is "meesho-debakarr", "MyApp-fdroid-1.2.apk" is "MyApp", "net.gsantner.markor-v164-2.16.1.apk" is
+ * "net.gsantner.markor"), so the builds of one app stay one app. An APK whose name carries no version is
+ * left out: "app-release.apk" says nothing about which app it is.
  *
  * Empty unless at least one release carries two different apps at once: a project that renamed its APK
  * at some point has two names across its history, never side by side, and is still a single app.
  */
 fun apkFamilies(releases: List<Release>): List<ReleaseFamily> {
-    class Found(val stem: String, val latest: Release, val extraWords: MutableSet<String>)
+    class Found(val stem: String, val latest: Release, val extraWords: MutableSet<String>) {
+        var buildNumber = false
+    }
     val found = LinkedHashMap<String, Found>()
     var sideBySide = false
     for (release in releases) {
@@ -73,16 +76,20 @@ fun apkFamilies(releases: List<Release>): List<ReleaseFamily> {
             .mapNotNull { apkName(it.name) }
         if (names.distinctBy { it.stem.lowercase() }.size > 1) sideBySide = true
         for (name in names) {
-            found.getOrPut(name.stem.lowercase()) { Found(name.stem, release, mutableSetOf()) }
-                .extraWords += name.extraWords
+            val family = found.getOrPut(name.stem.lowercase()) { Found(name.stem, release, mutableSetOf()) }
+            family.extraWords += name.extraWords
+            family.buildNumber = family.buildNumber || name.hasBuildNumber
         }
     }
     if (!sideBySide || found.size < 2) return emptyList()
     return found.values.map {
         // The words seen between the name and the version are allowed there, and nothing else: so
-        // "instagram-hushgram" doesn't also take "instagram-hushgram-clone-v451.apk".
-        val extra = it.extraWords.sorted().takeIf { words -> words.isNotEmpty() }
-            ?.joinToString("|", prefix = "(?:[-_](?:", postfix = "))*") { word -> word.escapedForRegex() }
+        // "instagram-hushgram" doesn't also take "instagram-hushgram-clone-v451.apk". A build number
+        // seen there is allowed as any, since the next build carries the next one.
+        val allowed = it.extraWords.sorted().map { word -> word.escapedForRegex() } +
+            listOfNotNull(BUILD_NUMBER_PATTERN.takeIf { _ -> it.buildNumber })
+        val extra = allowed.takeIf { words -> words.isNotEmpty() }
+            ?.joinToString("|", prefix = "(?:[-_](?:", postfix = "))*")
             .orEmpty()
         ReleaseFamily(
             name = prettifyRepoName(it.stem),
@@ -94,8 +101,9 @@ fun apkFamilies(releases: List<Release>): List<ReleaseFamily> {
 }
 
 /** An APK's file name split into what names the app ([stem], as written) and the architecture,
- *  build-type or flavour words after it and before the version ([extraWords], lower case). */
-private class ApkName(val stem: String, val extraWords: List<String>)
+ *  build-type or flavour words after it and before the version ([extraWords], lower case), a build
+ *  number among them aside ([hasBuildNumber]). */
+private class ApkName(val stem: String, val extraWords: List<String>, val hasBuildNumber: Boolean)
 
 /** [ApkName] of [fileName], or null when it carries no version or nothing but such words before it. */
 private fun apkName(fileName: String): ApkName? {
@@ -104,9 +112,11 @@ private fun apkName(fileName: String): ApkName? {
     val words = NAME_WORD.findAll(prefix).toList()
     val kept = words.indexOfLast { !it.value.isBuildWord() } + 1
     if (kept == 0) return null
+    val extra = words.drop(kept).map { it.value }
     return ApkName(
         stem = prefix.substring(0, words[kept - 1].range.last + 1),
-        extraWords = words.drop(kept).map { it.value.lowercase() },
+        extraWords = extra.filterNot(BUILD_NUMBER::matches).map { it.lowercase() },
+        hasBuildNumber = extra.any(BUILD_NUMBER::matches),
     )
 }
 
@@ -116,7 +126,15 @@ private val VERSION_IN_APK_NAME = Regex("""(?<=[-_])[vV]?\d+(?:\.\d+)+""")
 
 private val NAME_WORD = Regex("[^-_]+")
 
-private fun String.isBuildWord(): Boolean = lowercase().let { it in BUILD_WORDS || it in ABI_WORDS }
+private fun String.isBuildWord(): Boolean =
+    lowercase().let { it in BUILD_WORDS || it in ABI_WORDS } || BUILD_NUMBER.matches(this)
+
+/** A build number written before the version ("v164" in "net.gsantner.markor-v164-2.16.1.apk"): it tells
+ *  one build of the app from the next, and two builds of a release apart, never two apps. */
+private val BUILD_NUMBER = Regex("""[vV]?\d+""")
+
+/** [BUILD_NUMBER] as written in an APK filter. */
+private const val BUILD_NUMBER_PATTERN = "[vV]?\\d+"
 
 /** Words telling builds of one app apart rather than naming it: build types and store flavours. */
 private val BUILD_WORDS = setOf(
