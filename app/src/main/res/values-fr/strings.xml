@@ -710,6 +710,12 @@
     <string name="prereleases_both_DESC">Les mises à jour vont vers la version la plus récente, stable ou préversion.</string>
     <string name="prereleases_only">Préversions uniquement</string>
     <string name="prereleases_only_DESC">Les mises à jour ne proposent que des préversions.</string>
+    <string name="default_prereleases">Préversions par défaut</string>
+    <string name="default_prereleases_summary">Pour les applis et sources sans réglage propre</string>
+    <string name="prereleases_apply_all_title">Appliquer à toutes les applis ?</string>
+    <string name="prereleases_apply_all_FORMAT">Certaines applis et sources ont déjà leur propre réglage des préversions. Les passer toutes sur « %1$s » aussi ?</string>
+    <string name="prereleases_apply_all">Toutes</string>
+    <string name="prereleases_apply_new_only">Seulement les nouvelles</string>
     <string name="external_no_website">Aucun site web trouvé</string>
     <string name="external_no_issue_tracker">Aucun suivi des problèmes trouvé</string>
     <string name="external_no_changelog">Aucun changelog trouvé</string>

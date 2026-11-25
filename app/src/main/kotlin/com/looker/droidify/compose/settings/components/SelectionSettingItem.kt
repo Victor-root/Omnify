@@ -37,6 +37,9 @@ fun <T> SelectionSettingItem(
     supportingText: String? = null,
     // The choice to point people to, marked "Recommended" in the list; none when null.
     recommended: T? = null,
+    // Under each choice in the list, what it does; and above the list, what they all are about.
+    valueDescription: @Composable (T) -> String? = { null },
+    dialogMessage: String? = null,
 ) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -91,6 +94,8 @@ fun <T> SelectionSettingItem(
             values = values,
             valueToString = valueToString,
             recommended = recommended,
+            message = dialogMessage,
+            valueDescription = valueDescription,
             onValueSelected = {
                 onValueSelected(it)
                 showDialog = false

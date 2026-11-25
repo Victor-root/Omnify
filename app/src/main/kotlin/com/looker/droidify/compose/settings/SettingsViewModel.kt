@@ -26,6 +26,9 @@ import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.Theme
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.external.ExternalApi
+import com.looker.droidify.external.ExternalAppRepository
+import com.looker.droidify.external.ExternalRefresher
+import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.installer.InstallerSelection
 import com.looker.droidify.translation.ModelPreparation
 import com.looker.droidify.translation.TranslationManager
@@ -55,6 +58,8 @@ class SettingsViewModel @Inject constructor(
     private val externalApi: ExternalApi,
     private val installerSelection: InstallerSelection,
     private val translationManager: TranslationManager,
+    private val externalAppRepository: ExternalAppRepository,
+    private val externalRefresher: ExternalRefresher,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -144,6 +149,37 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.enableNotifyUpdates(enabled)
         }
+    }
+
+    private val _prereleasesToApply = MutableStateFlow<PrereleaseMode?>(null)
+
+    /** A new default pre-release choice, while asking whether apps with one of their own take it too. */
+    val prereleasesToApply: StateFlow<PrereleaseMode?> = _prereleasesToApply.asStateFlow()
+
+    /** Sets the default pre-release choice, then asks about the apps and sources with another of their own. */
+    fun setDefaultPrereleases(mode: PrereleaseMode) {
+        viewModelScope.launch {
+            settingsRepository.setDefaultPrereleases(mode)
+            val ownChoices = settingsRepository.getInitial().cataloguePrereleases.values.any { it != mode } ||
+                externalAppRepository.getApps().any { it.prereleases != mode }
+            if (ownChoices) _prereleasesToApply.value = mode
+        }
+    }
+
+    /** Gives every app and source the new default choice, then checks the sources for the release it offers. */
+    fun applyPrereleasesToAll() {
+        val mode = _prereleasesToApply.value ?: return
+        _prereleasesToApply.value = null
+        viewModelScope.launch {
+            settingsRepository.clearCataloguePrereleases()
+            externalAppRepository.setPrereleasesOfAll(mode)
+            externalRefresher.refresh(force = true)
+        }
+    }
+
+    /** Leaves the apps and sources with a choice of their own as they are. */
+    fun keepOwnPrereleases() {
+        _prereleasesToApply.value = null
     }
 
     fun setIncompatibleUpdates(enabled: Boolean) {

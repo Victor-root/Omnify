@@ -107,7 +107,7 @@ internal fun ExternalApp.cardVersion(history: List<Release>?): CardVersion {
 }
 
 @Composable
-private fun prereleaseModeName(mode: PrereleaseMode): String = stringResource(
+internal fun prereleaseModeName(mode: PrereleaseMode): String = stringResource(
     when (mode) {
         PrereleaseMode.HIDDEN -> R.string.prereleases_hidden
         PrereleaseMode.SHOWN -> R.string.prereleases_shown
@@ -117,7 +117,7 @@ private fun prereleaseModeName(mode: PrereleaseMode): String = stringResource(
 )
 
 @Composable
-private fun prereleaseModeDescription(mode: PrereleaseMode): String = stringResource(
+internal fun prereleaseModeDescription(mode: PrereleaseMode): String = stringResource(
     when (mode) {
         PrereleaseMode.HIDDEN -> R.string.prereleases_hidden_DESC
         PrereleaseMode.SHOWN -> R.string.prereleases_shown_DESC

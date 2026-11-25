@@ -27,11 +27,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ViewCarousel
 import androidx.compose.material.icons.filled.ViewColumn
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +57,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
+import com.looker.droidify.compose.externalApps.prereleaseModeDescription
+import com.looker.droidify.compose.externalApps.prereleaseModeName
 import com.looker.droidify.compose.tv.TvAccentBackground
 import com.looker.droidify.compose.tv.TvAccentHeader
 import androidx.core.net.toUri
@@ -97,6 +101,7 @@ import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
 import com.looker.droidify.datastore.model.TranslationEngine
 import com.looker.droidify.datastore.model.Theme
+import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.translation.ModelPreparation
 import com.looker.droidify.translation.bergamot.bergamotSupported
 import com.looker.droidify.utility.common.SYSTEM_LANGUAGE
@@ -197,6 +202,25 @@ fun SettingsScreen(
     val isBackgroundAllowed by viewModel.isBackgroundAllowed.collectAsStateWithLifecycle()
     val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     val translationModelPreparation by viewModel.translationModelPreparation.collectAsStateWithLifecycle()
+    // A new default pre-release choice: whether the apps and sources with one of their own take it too.
+    val prereleasesToApply by viewModel.prereleasesToApply.collectAsStateWithLifecycle()
+    prereleasesToApply?.let { mode ->
+        AlertDialog(
+            onDismissRequest = viewModel::keepOwnPrereleases,
+            title = { Text(stringResource(R.string.prereleases_apply_all_title)) },
+            text = { Text(stringResource(R.string.prereleases_apply_all_FORMAT, prereleaseModeName(mode))) },
+            confirmButton = {
+                TextButton(onClick = viewModel::applyPrereleasesToAll) {
+                    Text(stringResource(R.string.prereleases_apply_all))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::keepOwnPrereleases) {
+                    Text(stringResource(R.string.prereleases_apply_new_only))
+                }
+            },
+        )
+    }
 
     val settingsListState = rememberLazyListState()
     // True once the row's been scrolled to and it's time to pulse it — see GITHUB_TOKEN_ITEM_KEY.
@@ -438,6 +462,21 @@ fun SettingsScreen(
                     icon = painterResource(R.drawable.ic_tabler_bell),
                     checked = settings.notifyUpdate,
                     onCheckedChange = viewModel::setNotifyUpdates,
+                )
+            }
+
+            item {
+                SelectionSettingItem(
+                    title = stringResource(R.string.default_prereleases),
+                    icon = painterResource(R.drawable.ic_bug_report),
+                    selectedValue = settings.defaultPrereleases,
+                    values = PrereleaseMode.entries,
+                    onValueSelected = viewModel::setDefaultPrereleases,
+                    valueToString = { prereleaseModeName(it) },
+                    supportingText = stringResource(R.string.default_prereleases_summary),
+                    dialogTitle = stringResource(R.string.prereleases_title),
+                    valueDescription = { prereleaseModeDescription(it) },
+                    dialogMessage = stringResource(R.string.prereleases_warning),
                 )
             }
 

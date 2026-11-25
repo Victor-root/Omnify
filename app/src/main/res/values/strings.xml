@@ -728,6 +728,12 @@
     <string name="prereleases_both_DESC">Updates go to the newest version, stable or pre-release.</string>
     <string name="prereleases_only">Pre-releases only</string>
     <string name="prereleases_only_DESC">Updates only ever go to pre-releases.</string>
+    <string name="default_prereleases">Default pre-releases</string>
+    <string name="default_prereleases_summary">For apps and sources without a choice of their own</string>
+    <string name="prereleases_apply_all_title">Apply to every app?</string>
+    <string name="prereleases_apply_all_FORMAT">Some apps and sources already have a pre-release choice of their own. Set them all to “%1$s” too?</string>
+    <string name="prereleases_apply_all">All of them</string>
+    <string name="prereleases_apply_new_only">New ones only</string>
     <string name="external_no_website">No website found</string>
     <string name="external_no_issue_tracker">No issue tracker found</string>
     <string name="external_no_changelog">No changelog found</string>

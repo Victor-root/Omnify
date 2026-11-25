@@ -102,6 +102,16 @@ class ExternalAppRepository @Inject constructor(
         }
     }
 
+    /** Gives every source the pre-release choice [mode], in one write. */
+    suspend fun setPrereleasesOfAll(mode: PrereleaseMode) {
+        mutex.withLock {
+            ensureLoadedInternal()
+            val updated = _apps.value.map { it.copy(prereleases = mode) }
+            saveToFile(updated)
+            _apps.value = updated
+        }
+    }
+
     /** Adds or replaces several apps in one write (used when an account discovers many repos). */
     suspend fun upsertApps(apps: List<ExternalApp>) {
         if (apps.isEmpty()) return
