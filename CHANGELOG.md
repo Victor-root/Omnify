@@ -15,6 +15,7 @@
 - **"Match accent to app icon" takes the colour a logo reads as**: a logo drawn in relief or as a gradient gave its brightest highlight, which looked lighter on the page than the logo itself (Melyxar's red). Its shades are now taken together; a logo of one flat colour keeps exactly that colour.
 
 ### 🐛 Fixed
+- **Markor is added as one app**: its APK names carry a build number ("markor-v164-2.16.1"), and since one of its releases once held two builds, each build was taken for an app of its own, about ten to tick, of which only one ever got updates.
 - **Omnify comes back after updating itself every time, not only now and then**: with Shizuku or root, it was opened again the moment its new version was in place, which can be just before Android stops the old one. The old one then came back to the front only to be stopped. Omnify now waits for it to be stopped, and tries again if Android refuses.
 - **An external source's icon keeps its background when the project draws it as a plain shape**: AukDialer's white handset showed on nothing instead of on its violet square, before it was installed.
 
