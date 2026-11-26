@@ -61,9 +61,8 @@ private class NonScrollingWebView(context: Context) : WebView(context) {
 private const val WheelScrollFactorPx = 60f
 
 /**
- * The tallest a README can be laid out, in pixels: Compose cannot measure a layout any taller. A very
- * long one at a large font size went past it (thedjchi/Shizuku's, 348,550 pixels) and crashed its page;
- * past this height it is cut off instead.
+ * The tallest a README can be laid out, in pixels: Compose cannot measure a layout any taller, and a
+ * README reported taller crashed its page. Past this height it is cut off instead.
  */
 internal const val MAX_README_HEIGHT_PX = 262_142
 

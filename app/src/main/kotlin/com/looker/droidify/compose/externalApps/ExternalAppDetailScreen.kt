@@ -1126,9 +1126,10 @@ private fun ExternalAppDetailBody(
         var readmeTopY by remember(app.key) { mutableStateOf(0) }
         val fullReadmeHeight = if (readmeHeightPx > 0) with(density) { readmeHeightPx.toDp() } else 600.dp
         val collapsedReadmeHeight = if (viewportPx > 0 && readmeTopY > 0) {
-            with(density) {
-                ((viewportPx - readmeTopY).coerceAtLeast(0) * README_COLLAPSED_VIEWPORTS).toDp()
-            }
+            // Never less than the fallback: a README starting below the fold (a tall hero card at a
+            // large font size) had no space left at all, and a README zero pixels tall is no preview.
+            with(density) { maxOf((viewportPx - readmeTopY).toDp(), README_COLLAPSED_HEIGHT) } *
+                README_COLLAPSED_VIEWPORTS
         } else {
             README_COLLAPSED_HEIGHT * README_COLLAPSED_VIEWPORTS
         }
@@ -1270,8 +1271,9 @@ private fun ExternalAppDetailBody(
 }
 
 /** How tall the collapsed README preview is before a "Show more" tap reveals the rest, for the brief
- *  moment before the screen has been measured. Multiplied by [README_COLLAPSED_VIEWPORTS] like the
- *  measured height it stands in for, so both paths preview the same amount. */
+ *  moment before the screen has been measured, and the least it is once measured. Multiplied by
+ *  [README_COLLAPSED_VIEWPORTS] like the measured height it stands in for, so both paths preview the
+ *  same amount. */
 private val README_COLLAPSED_HEIGHT = 320.dp
 
 /**
