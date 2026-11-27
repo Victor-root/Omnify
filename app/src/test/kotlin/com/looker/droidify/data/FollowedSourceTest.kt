@@ -17,6 +17,7 @@ class FollowedSourceTest {
     private val packageName = "com.beemdevelopment.aegis"
     private val fdroid = 1
     private val izzy = 2
+    private val official = setOf(fdroid)
     private val github = ExternalApp(owner = "beemdevelopment", repo = "Aegis", packageName = packageName)
 
     private val byRepo = mapOf(
@@ -33,34 +34,46 @@ class FollowedSourceTest {
 
     @Test
     fun `without a choice the newest build wherever it lives is the one to install`() {
-        assertEquals("3.4.3", suggestedVersionOf(byRepo, followed = null, installedSigner = null)?.versionName)
+        assertEquals("3.4.3", suggestedVersionOf(byRepo, followed = null, installedSigner = null, official)?.versionName)
     }
 
     @Test
     fun `without a choice an installed app keeps to the builds signed with its own key`() {
         // KeePassDX installed from F-Droid: IzzyOnDroid's newer build, signed by its developer, would
         // only install after uninstalling it.
-        assertEquals("3.4.2", suggestedVersionOf(byRepo, followed = null, installedSigner = "F-DROID")?.versionName)
+        assertEquals("3.4.2", suggestedVersionOf(byRepo, followed = null, installedSigner = "F-DROID", official)?.versionName)
         // Installed from IzzyOnDroid, it takes IzzyOnDroid's.
-        assertEquals("3.4.3", suggestedVersionOf(byRepo, followed = null, installedSigner = "developer")?.versionName)
+        assertEquals("3.4.3", suggestedVersionOf(byRepo, followed = null, installedSigner = "developer", official)?.versionName)
+    }
+
+    @Test
+    fun `of two builds of the same version the official F-Droid repository's is the one to install`() {
+        // Listed in IzzyOnDroid first, the same 3.4.3 is taken from F-Droid's own repository.
+        val tie = mapOf(
+            izzy to SuggestedVersion(versionCode = 77, versionName = "3.4.3 (Izzy)", signers = setOf("developer")),
+            fdroid to SuggestedVersion(versionCode = 77, versionName = "3.4.3", signers = setOf("developer")),
+        )
+        assertEquals("3.4.3", suggestedVersionOf(tie, followed = null, installedSigner = null, official)?.versionName)
+        // A newer build elsewhere still wins over it.
+        assertEquals("3.4.3", suggestedVersionOf(byRepo, followed = null, installedSigner = null, official)?.versionName)
     }
 
     @Test
     fun `an installed app no repository signs like still gets the newest build`() {
-        assertEquals("3.4.3", suggestedVersionOf(byRepo, followed = null, installedSigner = "play")?.versionName)
+        assertEquals("3.4.3", suggestedVersionOf(byRepo, followed = null, installedSigner = "play", official)?.versionName)
     }
 
     @Test
     fun `a followed repository's own build counts even when another has a newer one`() {
         assertEquals(
             "3.4.2",
-            suggestedVersionOf(byRepo, FollowedSource.Repository(fdroid), installedSigner = "developer")?.versionName,
+            suggestedVersionOf(byRepo, FollowedSource.Repository(fdroid), installedSigner = "developer", official)?.versionName,
         )
     }
 
     @Test
     fun `a followed repository with nothing for this device offers no update from elsewhere`() {
-        assertNull(suggestedVersionOf(byRepo, FollowedSource.Repository(repoId = 9), installedSigner = null))
+        assertNull(suggestedVersionOf(byRepo, FollowedSource.Repository(repoId = 9), installedSigner = null, official))
     }
 
     @Test

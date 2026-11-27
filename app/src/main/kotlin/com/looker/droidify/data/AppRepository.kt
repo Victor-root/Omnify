@@ -11,6 +11,7 @@ import com.looker.droidify.data.model.AppMinimal
 import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.data.model.FilePath
 import com.looker.droidify.data.model.MadeForTv
+import com.looker.droidify.data.model.OfficialFdroidFingerprint
 import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
@@ -117,6 +118,9 @@ class AppRepository @Inject constructor(
         installedSigners: Map<String, String?>,
     ): Map<String, SuggestedVersion> = withContext(Dispatchers.Default) {
         val settings = settingsRepository.getInitial()
+        val officialRepoIds = repoDao.stream().first()
+            .filter { it.fingerprint.assert(OfficialFdroidFingerprint) }
+            .mapTo(HashSet()) { it.id }
         appDao.deviceCompatibleVersions(
             sdk = Build.VERSION.SDK_INT,
             abis = Build.SUPPORTED_ABIS.toList(),
@@ -130,7 +134,7 @@ class AppRepository @Inject constructor(
                     val row = repoRows.maxBy { it.versionCode }
                     SuggestedVersion(row.versionCode, row.versionName, row.signer.toSet())
                 }
-                suggestedVersionOf(byRepo, followed[packageName], installedSigners[packageName])
+                suggestedVersionOf(byRepo, followed[packageName], installedSigners[packageName], officialRepoIds)
                     ?.let { packageName to it }
             }
             .toMap()
@@ -315,18 +319,23 @@ data class SuggestedVersion(
  * the followed repository's own when [followed] is one, nothing when it has nothing this device can run
  * (following a repository means taking its updates, not another's), else the newest of them all, among
  * the ones signed with the key of the copy on the device ([installedSigner]) when any is (see
- * [preferringInstalledKey]).
+ * [preferringInstalledKey]); of two of the same version, the one of F-Droid's official repository
+ * ([officialRepoIds]), as [selectForDevice] does on the detail screen.
  */
 fun suggestedVersionOf(
     byRepo: Map<Int, SuggestedVersion>,
     followed: FollowedSource?,
     installedSigner: String?,
+    officialRepoIds: Set<Int>,
 ): SuggestedVersion? =
     if (followed is FollowedSource.Repository) {
         byRepo[followed.repoId]
     } else {
-        val builds = byRepo.values
-        builds.filter { signedWith(installedSigner, it.signers) }.ifEmpty { builds }.maxByOrNull { it.versionCode }
+        val builds = byRepo.entries
+        builds.filter { (_, build) -> signedWith(installedSigner, build.signers) }
+            .ifEmpty { builds }
+            .maxWithOrNull(compareBy({ it.value.versionCode }, { it.key in officialRepoIds }))
+            ?.value
     }
 
 /**

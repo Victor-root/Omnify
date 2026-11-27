@@ -46,3 +46,7 @@ data class VersionInfo(
     val timestamp: Long,
     val etag: String?,
 )
+
+/** Whether this is one of F-Droid's own repositories (see [OfficialFdroidFingerprint]). */
+val Repo.isOfficialFdroid: Boolean
+    get() = fingerprint?.assert(OfficialFdroidFingerprint) == true

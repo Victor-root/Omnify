@@ -1,5 +1,6 @@
 package com.looker.droidify.model
 
+import com.looker.droidify.data.model.OfficialFdroidFingerprint
 import java.net.URL
 
 data class Repository(
@@ -95,7 +96,7 @@ data class Repository(
                     "itory. Everything in this repository is always buil" +
                     "t from the source code.",
                 enabled = true,
-                fingerprint = "43238D512C1E5EB2D6569F4A3AFBF5523418B82E0A3ED1552770ABB9A9C9CCAB",
+                fingerprint = OfficialFdroidFingerprint.value,
             ),
             defaultRepository(
                 address = "https://f-droid.org/archive",
@@ -103,7 +104,7 @@ data class Repository(
                 description = "The archive of the official F-Droid Free" +
                     " Software repository. Apps here are old and can co" +
                     "ntain known vulnerabilities and security issues!",
-                fingerprint = "43238D512C1E5EB2D6569F4A3AFBF5523418B82E0A3ED1552770ABB9A9C9CCAB",
+                fingerprint = OfficialFdroidFingerprint.value,
             ),
             defaultRepository(
                 address = "https://guardianproject.info/fdroid/repo",

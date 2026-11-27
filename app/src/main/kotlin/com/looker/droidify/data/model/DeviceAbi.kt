@@ -36,7 +36,20 @@ fun Package.isInstallableOnDevice(sdk: Int = Build.VERSION.SDK_INT): Boolean {
  * newest at or below [suggested], breaking ties toward the primary (64-bit) ABI and then the most
  * specific APK. This mirrors the legacy engine's release selection.
  */
-fun <T> List<Pair<Package, T>>.selectForDevice(suggested: Long): Pair<Package, T>? {
+fun <T> List<Pair<Package, T>>.selectForDevice(suggested: Long): Pair<Package, T>? =
+    selectForDevice(suggested, preferred = { false })
+
+/**
+ * [selectForDevice] among the builds of several repositories: between builds of the same version for
+ * this device, F-Droid's official repository's, rather than whichever repository the catalogue happens
+ * to list first.
+ */
+@JvmName("selectForDeviceAcrossRepos")
+fun List<Pair<Package, Repo>>.selectForDevice(suggested: Long): Pair<Package, Repo>? =
+    selectForDevice(suggested, preferred = { it.isOfficialFdroid })
+
+/** [selectForDevice], ties between builds broken towards the ones whose source is [preferred]. */
+private fun <T> List<Pair<Package, T>>.selectForDevice(suggested: Long, preferred: (T) -> Boolean): Pair<Package, T>? {
     val compatible = filter { (pkg, _) -> pkg.isInstallableOnDevice() }
     return compatible
         .filter { (pkg, _) -> suggested <= 0 || pkg.manifest.versionCode <= suggested }
@@ -46,6 +59,7 @@ fun <T> List<Pair<Package, T>>.selectForDevice(suggested: Long): Pair<Package, T
                 .thenBy { (pkg, _) ->
                     if (devicePrimaryAbi != null && devicePrimaryAbi in pkg.platforms.value) 1 else 0
                 }
+                .thenBy { (_, source) -> preferred(source) }
                 .thenByDescending { (pkg, _) -> pkg.platforms.value.size },
         )
 }

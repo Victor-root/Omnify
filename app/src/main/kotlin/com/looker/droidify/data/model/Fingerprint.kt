@@ -11,6 +11,12 @@ import java.security.cert.Certificate
 import java.util.*
 import java.util.jar.JarEntry
 
+/**
+ * The key F-Droid signs its own repositories' indexes with (its repository and its archive), whatever
+ * address they are reached at.
+ */
+val OfficialFdroidFingerprint = Fingerprint("43238D512C1E5EB2D6569F4A3AFBF5523418B82E0A3ED1552770ABB9A9C9CCAB")
+
 @JvmInline
 value class Fingerprint(val value: String) {
 
