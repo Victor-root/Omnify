@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +70,7 @@ import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.AccentAlertDialog
 import com.looker.droidify.compose.components.PageIndicator
 import com.looker.droidify.compose.components.VersionsCardHeaderPadding
 import com.looker.droidify.compose.components.tvFocusScale
@@ -668,7 +668,7 @@ internal fun FollowSourceDialog(
 ) {
     val name = request.tab.name
     if (request.signing == SigningMatch.OTHER) {
-        AlertDialog(
+        AccentAlertDialog(
             onDismissRequest = onDismiss,
             icon = {
                 Icon(
@@ -737,7 +737,7 @@ internal fun FollowSourceDialog(
         )
         return
     }
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.follow_source_FORMAT, name)) },
         text = {

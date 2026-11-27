@@ -28,7 +28,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -73,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.looker.droidify.R
 import com.looker.droidify.compose.appList.CatalogAppTile
+import com.looker.droidify.compose.components.AccentAlertDialog
 import com.looker.droidify.compose.components.AccentTabs
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.errorButtonColors
@@ -577,7 +577,7 @@ internal fun InstallAllButton(
     // Asked first: a repository can hold thousands of apps (F-Droid's), one stray tap or OK away.
     var confirming by rememberSaveable { mutableStateOf(false) }
     if (confirming) {
-        AlertDialog(
+        AccentAlertDialog(
             onDismissRequest = { confirming = false },
             title = { Text(stringResource(R.string.install_all_confirm_title)) },
             text = { Text(pluralStringResource(R.plurals.install_all_confirm_DESC, count, count)) },
@@ -639,7 +639,7 @@ internal fun DeleteRepositoryDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = onDismiss,
         icon = {
             Icon(

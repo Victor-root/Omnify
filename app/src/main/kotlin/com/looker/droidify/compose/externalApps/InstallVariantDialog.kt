@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -15,6 +14,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.AccentAlertDialog
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.external.ReleaseAsset
 import com.looker.droidify.network.DataSize
@@ -33,7 +33,7 @@ internal fun InstallVariantDialog(
     onInstall: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(

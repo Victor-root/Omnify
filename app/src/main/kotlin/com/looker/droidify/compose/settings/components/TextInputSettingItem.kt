@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -36,6 +35,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.AccentAlertDialog
 import com.looker.droidify.compose.components.animatedBackground
 import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvFocusFill
@@ -158,7 +158,7 @@ private fun TextInputDialog(
         focusRequester.requestFocus()
     }
 
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(text = title) },
         text = {

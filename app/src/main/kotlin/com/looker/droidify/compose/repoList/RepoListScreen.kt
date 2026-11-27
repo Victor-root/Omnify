@@ -69,6 +69,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -86,8 +87,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.AccentAlertDialog
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
+import com.looker.droidify.compose.components.accentDialogBackground
 import com.looker.droidify.compose.components.forFloatingBackground
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.rememberTvTyping
@@ -1081,9 +1084,9 @@ internal fun AddSourceChooserDialog(
     // between the scrolling options and Cancel, cutting the list off well above the dialog's bottom.
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
+            modifier = accentDialogBackground(),
             shape = AlertDialogDefaults.shape,
-            color = AlertDialogDefaults.containerColor,
-            tonalElevation = AlertDialogDefaults.TonalElevation,
+            color = Color.Transparent,
         ) {
             Column(modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)) {
                 Text(
@@ -1266,7 +1269,7 @@ internal fun AddExternalSourceDialog(
             versionExcludeFilter,
         )
     }
-    AlertDialog(
+    AccentAlertDialog(
         // Stay cancellable even while loading, so a slow/stuck request can't trap the user.
         onDismissRequest = onDismiss,
         modifier = SourceDialogMargin,
@@ -1446,7 +1449,7 @@ internal fun AddExternalAccountDialog(
     var apkFilter by rememberSaveable { mutableStateOf("") }
     var versionIncludeFilter by rememberSaveable { mutableStateOf("") }
     var versionExcludeFilter by rememberSaveable { mutableStateOf("") }
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = onDismiss,
         modifier = SourceDialogMargin,
         title = { Text(stringResource(R.string.external_add_account)) },
@@ -1565,7 +1568,7 @@ internal fun EditExternalSourceDialog(
     }
     // The chosen icon URL; null means "use the account avatar / automatic".
     var selectedIcon by rememberSaveable(app.key) { mutableStateOf(app.repoIconUrl) }
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = onDismiss,
         modifier = SourceDialogMargin,
         title = { Text(stringResource(R.string.external_edit_source)) },

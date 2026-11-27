@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -24,6 +23,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.AccentAlertDialog
 import com.looker.droidify.compose.settings.transfer.Message
 import com.looker.droidify.compose.settings.transfer.PairedDevicesDialog
 import com.looker.droidify.compose.settings.transfer.WorkingRow
@@ -55,7 +55,7 @@ fun QuickShareSendDialog(
     val needsPairing = state is QuickShareSendState.Choosing && devices.isEmpty()
     val failed = (state as? QuickShareSendState.Done)?.result?.let { it != QuickShareResult.SENT } == true
 
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.quick_share_title)) },
         text = {
@@ -126,7 +126,7 @@ fun QuickShareInbox(viewModel: QuickShareViewModel = hiltViewModel()) {
     }
     val incoming by viewModel.incoming.collectAsStateWithLifecycle()
     val share = incoming ?: return
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = { viewModel.declineIncoming(share) },
         title = { Text(stringResource(R.string.quick_share_received_title)) },
         text = {

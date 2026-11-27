@@ -3,7 +3,6 @@ package com.looker.droidify.migration
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +18,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.AccentAlertDialog
 import com.looker.droidify.compose.components.tvFocusScale
 
 /**
@@ -42,7 +42,7 @@ fun MigrationPrompt(viewModel: MigrationViewModel = hiltViewModel()) {
 
         // Carries the switch out from here rather than sending the user off to find the source's page:
         // the download is the whole app, so the prompt stays up and shows it running.
-        is MigrationState.MoveToStable -> AlertDialog(
+        is MigrationState.MoveToStable -> AccentAlertDialog(
             onDismissRequest = { if (!current.installing) viewModel.dismiss() },
             title = { Text(stringResource(R.string.migration_to_stable_title)) },
             text = {
@@ -73,7 +73,7 @@ fun MigrationPrompt(viewModel: MigrationViewModel = hiltViewModel()) {
 
         // The stable build is already installed: nothing else happens in this app, so the way out is
         // the only action offered.
-        MigrationState.OpenStable -> AlertDialog(
+        MigrationState.OpenStable -> AccentAlertDialog(
             onDismissRequest = viewModel::dismiss,
             title = { Text(stringResource(R.string.migration_open_stable_title)) },
             text = { Text(stringResource(R.string.migration_open_stable_DESC)) },
@@ -108,7 +108,7 @@ private fun ImportDialog(
     // While the transfer runs there is nothing to answer, so the dialog stops being dismissable
     // rather than offering buttons that would interrupt it half way.
     val running = step == ImportStep.RUNNING
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = { if (!running) onDismiss() },
         title = {
             Text(

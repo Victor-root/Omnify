@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.looker.droidify.compose.components.AccentAlertDialog
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.LocalIsTelevision
@@ -244,7 +244,7 @@ private fun CustomButtonItem(
     }
 
     if (showDeleteConfirmation) {
-        AlertDialog(
+        AccentAlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
             title = { Text(stringResource(R.string.confirmation)) },
             text = {

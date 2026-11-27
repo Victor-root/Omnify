@@ -10,7 +10,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.AccentAlertDialog
 import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.tvTypeOnOk
 import com.looker.droidify.compose.settings.components.BackupCategoryChecklist
@@ -65,7 +65,7 @@ fun DeviceTransferReceiveDialog(
         onDispose { viewModel.stopReceiving() }
     }
 
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.transfer_receive_title)) },
         text = {
@@ -187,7 +187,7 @@ fun DeviceTransferSendDialog(
         onDispose { viewModel.resetSending() }
     }
 
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.transfer_send_title)) },
         text = {

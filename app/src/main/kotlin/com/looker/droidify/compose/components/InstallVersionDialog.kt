@@ -1,6 +1,5 @@
 package com.looker.droidify.compose.components
 
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -22,7 +21,7 @@ fun InstallVersionDialog(
     onUninstall: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.install_version_FORMAT, versionName)) },
         text = if (isDowngrade) {

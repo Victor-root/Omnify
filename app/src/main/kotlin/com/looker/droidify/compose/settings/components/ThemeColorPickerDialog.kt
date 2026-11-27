@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.accentDialogBackground
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.theme.accentColorPalette
@@ -58,9 +59,9 @@ fun ThemeColorPickerDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(
+            modifier = accentDialogBackground(MaterialTheme.shapes.extraLarge),
             shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 6.dp,
+            color = Color.Transparent,
         ) {
             Column(
                 modifier = Modifier

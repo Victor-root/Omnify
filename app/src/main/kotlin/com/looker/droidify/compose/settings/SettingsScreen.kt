@@ -27,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ViewCarousel
 import androidx.compose.material.icons.filled.ViewColumn
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +56,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
+import com.looker.droidify.compose.components.AccentAlertDialog
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.externalApps.prereleaseModeDescription
 import com.looker.droidify.compose.externalApps.prereleaseModeName
@@ -213,7 +213,7 @@ fun SettingsScreen(
     // A new default pre-release choice: whether the apps and sources with one of their own take it too.
     val prereleasesToApply by viewModel.prereleasesToApply.collectAsStateWithLifecycle()
     prereleasesToApply?.let { mode ->
-        AlertDialog(
+        AccentAlertDialog(
             onDismissRequest = viewModel::keepOwnPrereleases,
             title = { Text(stringResource(R.string.prereleases_apply_all_title)) },
             text = { Text(stringResource(R.string.prereleases_apply_all_FORMAT, prereleaseModeName(mode))) },

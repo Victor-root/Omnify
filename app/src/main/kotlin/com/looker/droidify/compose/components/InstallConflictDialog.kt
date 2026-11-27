@@ -1,6 +1,5 @@
 package com.looker.droidify.compose.components
 
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,7 +37,7 @@ fun InstallConflictDialog(
             R.string.install_failed_version_downgrade
         else -> R.string.install_failed_signature_mismatch
     }
-    AlertDialog(
+    AccentAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(titleRes)) },
         text = { Text(stringResource(messageRes, appName)) },
