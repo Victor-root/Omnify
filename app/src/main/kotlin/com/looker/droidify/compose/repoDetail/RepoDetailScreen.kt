@@ -79,7 +79,7 @@ import com.looker.droidify.compose.components.errorButtonColors
 import com.looker.droidify.compose.components.FingerprintCard
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
-import com.looker.droidify.compose.components.premiumCardFrame
+import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.TvOverscan
@@ -401,14 +401,14 @@ private fun RepoInfoTab(
         Spacer(modifier = Modifier.height(16.dp))
 
         val repoCardShape = MaterialTheme.shapes.large
-        // The frame lives on this outer Box, not inside Surface's own modifier — see the doc
-        // comment on premiumCardFrame's HeroCard usage for why (Surface's own background paints
-        // over a frame passed straight into its modifier).
-        Box(modifier = Modifier.fillMaxWidth().then(premiumCardFrame(repoCardShape))) {
+        // The border lives on this outer Box, not inside Surface's own modifier — see the doc
+        // comment on premiumCardBorder's HeroCard usage for why (Surface's own background paints
+        // over a border passed straight into its modifier).
+        Box(modifier = Modifier.fillMaxWidth().then(premiumCardBorder(repoCardShape))) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = repoCardShape,
-                // White instead of a flat bordered grey card — the accent halo above is what
+                // White instead of a flat bordered grey card — the gradient border above is what
                 // ties it to the theme, not a flat colour fill.
                 color = MaterialTheme.colorScheme.surface,
             ) {

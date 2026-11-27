@@ -137,7 +137,7 @@ import com.looker.droidify.compose.components.InstallVersionDialog
 import com.looker.droidify.compose.components.InstallingRow
 import com.looker.droidify.compose.components.LinkRow
 import com.looker.droidify.compose.components.LoadingSpinner
-import com.looker.droidify.compose.components.premiumCardFrame
+import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.ScrollToTopFab
 import com.looker.droidify.compose.components.SectionSeparator
@@ -2236,12 +2236,12 @@ fun GoogleServicesCard(
 ) {
     val hasHardGap = dependencies.any { it.coverage == MicrogCoverage.NONE }
     val shape = MaterialTheme.shapes.medium
-    // See the doc comment on premiumCardFrame's HeroCard usage: the frame must live on this
+    // See the doc comment on premiumCardBorder's HeroCard usage: the border must live on this
     // outer Box, not inside Surface's own modifier, or its own background paints over it.
-    Box(modifier = modifier.fillMaxWidth().then(premiumCardFrame(shape))) {
+    Box(modifier = modifier.fillMaxWidth().then(premiumCardBorder(shape))) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            // White instead of a flat grey card — the accent halo above is what ties it to
+            // White instead of a flat grey card — the gradient border above is what ties it to
             // the theme, not a flat colour fill.
             color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,

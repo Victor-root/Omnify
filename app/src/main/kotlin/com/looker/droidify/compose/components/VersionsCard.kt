@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,13 +41,12 @@ fun VersionsCard(
     header: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val primary = MaterialTheme.colorScheme.primary
     Surface(
         shape = VersionsCardShape,
         color = MaterialTheme.colorScheme.surface,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .then(premiumCardFrame(VersionsCardShape)),
+        border = BorderStroke(1.5.dp, primary.copy(alpha = 0.35f)),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp),
     ) {
         Column {
             Column(

@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.CompactInstallProgressRow
-import com.looker.droidify.compose.components.premiumCardFrame
+import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.versionRowColor
 import com.looker.droidify.data.model.Package
@@ -45,7 +45,7 @@ fun PackageItem(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     // The one version this screen wants to draw the eye to (typically "suggested") — white like
-    // every other row, but in the same frame as the hero card (see premiumCardFrame)
+    // every other row, but with the same gradient border as the hero card (see premiumCardBorder)
     // instead of the old flat grey fill, so it doesn't drown out in a long version list.
     highlighted: Boolean = false,
     // Download/install progress for THIS specific version, when the user picked it from the list —
@@ -77,11 +77,11 @@ fun PackageItem(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (inList) Modifier else Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
-            // TV only: visible focus ring (no-op on touch), on the same bounds as the card's own frame.
+            // TV only: visible focus ring (no-op on touch), on the same bounds as the card's own border.
             // First in the chain, because a modifier earlier in the chain draws after (over) the ones
-            // below it: the ring then covers the frame instead of letting it show on top.
+            // below it: the ring then covers the border instead of letting it show on top.
             .tvFocusOutline(shape)
-            .then(if (highlighted && !inList) premiumCardFrame(shape) else Modifier),
+            .then(if (highlighted && !inList) premiumCardBorder(shape) else Modifier),
     ) {
         Surface(
             shape = shape,

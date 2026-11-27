@@ -55,7 +55,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.components.HeroStatItem
 import com.looker.droidify.compose.components.PremiumCard
 import com.looker.droidify.compose.components.SectionHeading
-import com.looker.droidify.compose.components.premiumCardFrame
+import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
@@ -286,7 +286,7 @@ private fun RecentUpdates(
             val shape = MaterialTheme.shapes.large
             Box(
                 Modifier
-                    .then(premiumCardFrame(shape))
+                    .then(premiumCardBorder(shape))
                     .background(MaterialTheme.colorScheme.surface, shape),
             )
         },

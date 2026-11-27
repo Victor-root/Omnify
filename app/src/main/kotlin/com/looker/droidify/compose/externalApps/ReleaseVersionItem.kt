@@ -51,7 +51,7 @@ import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.DownloadStatus
 import com.looker.droidify.compose.components.CompactInstallProgressRow
-import com.looker.droidify.compose.components.premiumCardFrame
+import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvFocusOutline
 import com.looker.droidify.compose.components.versionRowColor
@@ -181,11 +181,11 @@ fun ReleaseVersionItem(
             // Same treatment as the hero card, only for the one suggested release — that's the
             // pick this screen wants to draw the eye to, not every entry in a long version list,
             // which would drown the highlight out.
-            // TV only: visible focus ring (no-op on touch), on the same bounds as the card's own frame.
+            // TV only: visible focus ring (no-op on touch), on the same bounds as the card's own border.
             // First in the chain, because a modifier earlier in the chain draws after (over) the ones
-            // below it: the ring then covers the frame instead of letting it show on top.
+            // below it: the ring then covers the border instead of letting it show on top.
             .tvFocusOutline(cardShape)
-            .then(if (isSuggested && !inList) premiumCardFrame(cardShape) else Modifier),
+            .then(if (isSuggested && !inList) premiumCardBorder(cardShape) else Modifier),
     ) {
         Surface(
             shape = cardShape,
