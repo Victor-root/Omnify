@@ -65,7 +65,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.components.MutedButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.PageIndicator
-import com.looker.droidify.compose.components.premiumCardBorder
+import com.looker.droidify.compose.components.premiumCardFrame
 import com.looker.droidify.compose.components.verticalScrollbar
 import com.looker.droidify.compose.externalApps.ExternalAppIcon
 import com.looker.droidify.compose.repoList.AppLauncherIcon
@@ -575,9 +575,9 @@ private fun WelcomeCard(
     content: @Composable () -> Unit,
 ) {
     val shape = MaterialTheme.shapes.large
-    // The border lives on the outer Box: the Surface's own background would paint over it (see
-    // premiumCardBorder's use in HeroCard).
-    Box(modifier = modifier.fillMaxWidth().then(premiumCardBorder(shape))) {
+    // The frame lives on the outer Box: the Surface's own background would paint over it (see
+    // premiumCardFrame's use in HeroCard).
+    Box(modifier = modifier.fillMaxWidth().then(premiumCardFrame(shape))) {
         Surface(
             modifier = Modifier.fillMaxWidth().then(if (fillHeight) Modifier.fillMaxHeight() else Modifier),
             shape = shape,

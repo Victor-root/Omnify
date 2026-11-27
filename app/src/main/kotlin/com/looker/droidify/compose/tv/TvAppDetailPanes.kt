@@ -62,7 +62,7 @@ import com.looker.droidify.R
 import com.looker.droidify.compose.appDetail.ScreenshotsRow
 import com.looker.droidify.compose.components.LoadingSpinner
 import com.looker.droidify.compose.components.TvOverscan
-import com.looker.droidify.compose.components.premiumCardBorder
+import com.looker.droidify.compose.components.premiumCardFrame
 import com.looker.droidify.compose.components.tvFocusFill
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.externalApps.ReadmeWebView
@@ -107,7 +107,7 @@ internal fun TvAppDetailPanes(
                 .weight(0.4f)
                 .fillMaxHeight()
                 .padding(start = TvOverscan + 16.dp, end = 16.dp, top = TvOverscan, bottom = TvOverscan)
-                .then(premiumCardBorder(cardShape)),
+                .then(premiumCardFrame(cardShape)),
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),

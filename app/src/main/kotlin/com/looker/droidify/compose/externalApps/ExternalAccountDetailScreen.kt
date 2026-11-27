@@ -49,7 +49,7 @@ import com.looker.droidify.compose.components.AccentTabs
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
-import com.looker.droidify.compose.components.premiumCardBorder
+import com.looker.droidify.compose.components.premiumCardFrame
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
@@ -270,13 +270,13 @@ private fun AccountInfoTab(
         Spacer(modifier = Modifier.height(16.dp))
 
         val accountCardShape = MaterialTheme.shapes.large
-        // See the doc comment on premiumCardBorder's HeroCard usage: the border must live on this
+        // See the doc comment on premiumCardFrame's HeroCard usage: the frame must live on this
         // outer Box, not inside Surface's own modifier, or its own background paints over it.
-        Box(modifier = Modifier.fillMaxWidth().then(premiumCardBorder(accountCardShape))) {
+        Box(modifier = Modifier.fillMaxWidth().then(premiumCardFrame(accountCardShape))) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = accountCardShape,
-                // White instead of a flat bordered grey card — the gradient border above is what
+                // White instead of a flat bordered grey card — the accent halo above is what
                 // ties it to the theme, not a flat colour fill.
                 color = MaterialTheme.colorScheme.surface,
             ) {

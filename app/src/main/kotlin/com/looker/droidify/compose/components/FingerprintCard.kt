@@ -41,9 +41,9 @@ fun FingerprintCard(
     onClick: (() -> Unit)? = null,
 ) {
     val shape = MaterialTheme.shapes.large
-    // See the doc comment on premiumCardBorder's HeroCard usage: the border must live on this
+    // See the doc comment on premiumCardFrame's HeroCard usage: the frame must live on this
     // outer Box, not inside Surface's own modifier, or its own background paints over it.
-    Box(modifier = modifier.fillMaxWidth().then(premiumCardBorder(shape))) {
+    Box(modifier = modifier.fillMaxWidth().then(premiumCardFrame(shape))) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
