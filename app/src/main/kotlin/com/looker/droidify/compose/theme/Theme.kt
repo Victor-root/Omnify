@@ -470,12 +470,15 @@ fun DroidifyTheme(
                 // painting its default, theme-neutral containerColor under the bar while their real
                 // content stayed padded away from it.
                 if (!edgeToEdge) {
+                    // Stepping aside for what fills the status bar on purpose, the home menu's top sheet.
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .fillMaxWidth()
                             .windowInsetsTopHeight(WindowInsets.statusBars)
-                            .drawBehind { drawRect(systemBarColor.value) },
+                            .drawBehind {
+                                if (!statusBarContent.showsContent) drawRect(systemBarColor.value)
+                            },
                     )
                     Box(
                         modifier = Modifier
