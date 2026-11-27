@@ -14,39 +14,38 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.ColorUtils
 
 /**
  * The styled frame shared by every "big white card" (hero card, repo settings sections, the
- * version list, …): a thin gradient border sweeping between the user's own accent colour and a
- * hue-shifted sibling of it, instead of a flat single-colour outline or a plain drop shadow — the
- * card itself stays plain white and legible, but its edge reads as deliberately styled rather than
- * a generic Material card that happens to sit on the aurora background (see
- * [FloatingAppCardsBackground]).
+ * version list, the settings sections, …): a thin gradient border sweeping from the user's own
+ * accent to a lighter (or, for an already light accent, deeper) tone of that same hue and back,
+ * instead of a flat single-colour outline or a plain drop shadow. The card itself stays plain white
+ * and legible, but its edge reads as deliberately styled rather than a generic Material card that
+ * happens to sit on the backdrop (see [FloatingAppCardsBackground]). It keeps to the accent's own
+ * hue: a sibling turned round the colour wheel put green into a red theme's border.
  */
 @Composable
 fun premiumCardBorder(shape: Shape, width: Dp = 1.dp): Modifier {
     val accent = MaterialTheme.colorScheme.primary
     val brush = remember(accent) {
-        val hsv = FloatArray(3)
-        android.graphics.Color.colorToHSV(accent.toArgb(), hsv)
-        // A wide hue swing (70°, not the original 35°) so the two ends of the gradient actually read
-        // as two different colours rather than a single flat tone with a barely-perceptible shift:
-        // confirmed too subtle on a saturated green accent, where a 35° shift still looks like plain
-        // green. A touch less saturation/value on the sibling too, so it doesn't just look like a
-        // brighter or dimmer version of the same hue.
-        val sibling = Color(
-            android.graphics.Color.HSVToColor(
-                floatArrayOf(
-                    (hsv[0] + 70f).mod(360f),
-                    (hsv[1] * 0.85f).coerceIn(0f, 1f),
-                    (hsv[2] * 0.9f).coerceIn(0f, 1f),
-                ),
-            ),
-        )
-        Brush.linearGradient(colors = listOf(accent, sibling, accent))
+        val hsl = FloatArray(3)
+        ColorUtils.colorToHSL(accent.toArgb(), hsl)
+        val lightness = if (hsl[2] > LIGHT_ACCENT) hsl[2] - TONE_STEP else hsl[2] + TONE_STEP
+        val tone = Color.hsl(hsl[0], hsl[1] * TONE_SATURATION, lightness.coerceIn(0f, 1f))
+        Brush.linearGradient(colors = listOf(accent, tone, accent))
     }
     return Modifier.border(width = width, brush = brush, shape = shape)
 }
+
+/** Above this lightness an accent's border sweeps to a deeper tone of it rather than a lighter one. */
+private const val LIGHT_ACCENT = 0.6f
+
+/** How far the border's middle tone sits from the accent, in lightness. */
+private const val TONE_STEP = 0.2f
+
+/** The middle tone's share of the accent's saturation: a deep teal turned neon cyan at its full one. */
+private const val TONE_SATURATION = 0.75f
 
 /** A plain white card in [premiumCardBorder]'s frame, the app page's own card (see [HeroCard]). */
 @Composable
