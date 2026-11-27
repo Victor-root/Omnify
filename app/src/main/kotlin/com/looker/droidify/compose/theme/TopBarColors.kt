@@ -67,6 +67,31 @@ class StatusBarContent {
 val LocalStatusBarContent = staticCompositionLocalOf { StatusBarContent() }
 
 /**
+ * With edge-to-edge off: the screens whose collapsing header has slid even partly away, which would bring
+ * the page, or the header's own title, under the status bar. While any such screen is composed, a
+ * leaving one included, [DroidifyTheme] paints the status bar the accent; otherwise the header itself
+ * fills it, in the screen's own accent, so that a screen opening over another in a different accent stays
+ * one band with its status bar all along.
+ */
+@Stable
+class HeaderAway {
+    private val owners = mutableStateListOf<Any>()
+
+    /** True while some screen's header has slid away. */
+    val any: Boolean get() = owners.isNotEmpty()
+
+    fun publish(owner: Any, away: Boolean) {
+        if (!away) owners -= owner else if (owner !in owners) owners += owner
+    }
+
+    fun release(owner: Any) {
+        owners -= owner
+    }
+}
+
+val LocalHeaderAway = staticCompositionLocalOf { HeaderAway() }
+
+/**
  * The accents screens have taken over with [ScopedAccentColor], each with how far its screen is shown
  * (0 to 1, following its own enter and exit animation). Only the system-bar chrome needs this:
  * [DroidifyTheme] draws the navigation-bar overlay, and sets both bars' icon appearance, above every

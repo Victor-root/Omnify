@@ -424,6 +424,7 @@ fun DroidifyTheme(
 
     // A screen whose header has collapsed off the top says so here (see StatusBarContent).
     val statusBarContent = remember { StatusBarContent() }
+    val headerAway = remember { HeaderAway() }
 
     SystemBarAppearance(systemBarColor, statusBarContent, darkTheme, edgeToEdge)
 
@@ -452,13 +453,14 @@ fun DroidifyTheme(
             LocalBackgroundStyle provides backgroundStyle,
             LocalScopedBarAccents provides scopedBarAccents,
             LocalStatusBarContent provides statusBarContent,
+            LocalHeaderAway provides headerAway,
             LocalIsTelevision provides isTelevision,
             LocalDensity provides scaledDensity,
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 content()
-                // When edge-to-edge is OFF, paint an opaque accent bar over the status-bar area, which a
-                // header sliding off the top as the page scrolls would otherwise leave to the page, and
+                // When edge-to-edge is OFF, paint an opaque accent bar over the status-bar area once a
+                // header has started sliding off the top as the page scrolls (see LocalHeaderAway), and
                 // over the navigation-bar area so it looks like a solid coloured bar matching the top
                 // bar. When ON, leave them out so the app shows through the transparent bars (immersive,
                 // content behind them) — this
@@ -477,7 +479,9 @@ fun DroidifyTheme(
                             .fillMaxWidth()
                             .windowInsetsTopHeight(WindowInsets.statusBars)
                             .drawBehind {
-                                if (!statusBarContent.showsContent) drawRect(systemBarColor.value)
+                                if (headerAway.any && !statusBarContent.showsContent) {
+                                    drawRect(systemBarColor.value)
+                                }
                             },
                     )
                     Box(

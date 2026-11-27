@@ -15,6 +15,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import com.looker.droidify.compose.theme.LocalEdgeToEdge
+import com.looker.droidify.compose.theme.LocalHeaderAway
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalStatusBarContent
 import com.looker.droidify.compose.theme.accentHeaderShape
@@ -62,9 +63,7 @@ fun rememberCollapsibleHeader(endsWithTabs: Boolean = false): CollapsibleHeader 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val isTelevision = LocalIsTelevision.current
     val enabled = !isTelevision
-    // Only under edge-to-edge does the content then reach the status bar; otherwise the bar stays the
-    // theme's own solid accent.
-    if (enabled && LocalEdgeToEdge.current) CollapsingHeaderStatusBar(scrollBehavior)
+    if (enabled) CollapsingHeaderStatusBar(scrollBehavior, LocalEdgeToEdge.current)
     return remember(scrollBehavior, enabled, isTelevision, endsWithTabs) {
         CollapsibleHeader(scrollBehavior, enabled, shaped = endsWithTabs && !isTelevision)
     }
@@ -90,26 +89,36 @@ private fun Modifier.collapsingHeader(scrollBehavior: TopAppBarScrollBehavior): 
     }
 
 /**
- * Tells the theme whenever this screen's content, rather than its collapsing header, fills most of the
- * status bar, so the status-bar icons switch from contrasting with the header's accent to contrasting
- * with that content (white icons would otherwise land on a white page in light mode). Driven off the
- * scroll state through a snapshotFlow, so the screen doesn't recompose on every frame of the scroll.
+ * Tells the theme what the status bar shows as this screen's header slides away. Under [edgeToEdge],
+ * whenever the screen's content rather than the header fills most of it, so the status-bar icons switch
+ * from contrasting with the header's accent to contrasting with that content (white icons would otherwise
+ * land on a white page in light mode); otherwise, once the header has moved at all, so the theme paints
+ * the status bar itself (see [LocalHeaderAway]). Driven off the scroll state through a snapshotFlow, so
+ * the screen doesn't recompose on every frame of the scroll.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CollapsingHeaderStatusBar(scrollBehavior: TopAppBarScrollBehavior) {
+private fun CollapsingHeaderStatusBar(scrollBehavior: TopAppBarScrollBehavior, edgeToEdge: Boolean) {
     val statusBarContent = LocalStatusBarContent.current
+    val headerAway = LocalHeaderAway.current
     val statusBarPx = WindowInsets.statusBars.getTop(LocalDensity.current)
     val owner = remember { Any() }
-    LaunchedEffect(scrollBehavior, statusBarContent, statusBarPx) {
+    LaunchedEffect(scrollBehavior, statusBarContent, headerAway, statusBarPx, edgeToEdge) {
         try {
             snapshotFlow {
                 val headerHeightPx = -scrollBehavior.state.heightOffsetLimit
-                val headerBottomPx = scrollBehavior.state.heightOffset + headerHeightPx
-                headerHeightPx > 0f && statusBarPx > 0 && statusBarPx - headerBottomPx > statusBarPx / 2f
-            }.collect { showsContent -> statusBarContent.publish(owner, showsContent) }
+                val offsetPx = scrollBehavior.state.heightOffset
+                val headerBottomPx = offsetPx + headerHeightPx
+                headerHeightPx > 0f && if (edgeToEdge) {
+                    statusBarPx > 0 && statusBarPx - headerBottomPx > statusBarPx / 2f
+                } else {
+                    offsetPx < 0f
+                }
+            }.collect { away ->
+                if (edgeToEdge) statusBarContent.publish(owner, away) else headerAway.publish(owner, away)
+            }
         } finally {
-            statusBarContent.release(owner)
+            if (edgeToEdge) statusBarContent.release(owner) else headerAway.release(owner)
         }
     }
 }
