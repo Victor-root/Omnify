@@ -9,6 +9,7 @@
 - **Default pre-releases**, in Settings: what apps and sources without a choice of their own do with pre-releases. Changing it offers to give it to every app at once.
 
 ### 🔄 Changed
+- **Updates keep to the key an app is signed with**: with no source chosen for it, an installed app is only offered builds signed like the copy on the device, when any repository publishes one. KeePassDX installed from F-Droid was offered IzzyOnDroid's newer build, signed by its developer, and Update all asked every time to uninstall it first. Choosing that repository on the app's page still takes its builds, after saying so.
 - **The pre-release choice only applies to a project publishing both kinds**: one with stable releases only can now be added while following pre-releases alone, and gets its stable releases.
 - **"Unstable updates" is gone from Settings**: it no longer did anything, and Default pre-releases now covers F-Droid repositories too.
 - **Changing a source's pre-release choice answers at once**: the choice shows the moment it is tapped, the version list fades under a loading bar while it is fetched again, then the new one fades in. A catalogue app's list fades from one to the other too.

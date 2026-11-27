@@ -1,5 +1,6 @@
 package com.looker.droidify.data
 
+import com.looker.droidify.data.model.Package
 import com.looker.droidify.di.ApplicationScope
 import com.looker.droidify.model.InstalledItem
 import kotlinx.coroutines.CoroutineScope
@@ -28,6 +29,27 @@ fun signerMismatch(installedSigner: String?, declaredSigners: Collection<String>
     if (declaredSigners.isEmpty()) return false
     return declaredSigners.none { it.equals(signer, ignoreCase = true) }
 }
+
+/**
+ * Whether one of [declaredSigners] (a build's) is the key the copy on the device is signed with
+ * ([installedSigner]), so that the build installs over it in place. False when either side has nothing to
+ * compare: unlike [signerMismatch], this says yes only when it can be sure.
+ */
+fun signedWith(installedSigner: String?, declaredSigners: Collection<String>): Boolean {
+    val signer = installedSigner?.takeIf { it.isNotBlank() } ?: return false
+    return declaredSigners.any { it.equals(signer, ignoreCase = true) }
+}
+
+/**
+ * The builds of an app ([this], from every repository offering it) its automatic choice picks among, no
+ * source being followed for it: for a copy on the device signed with [installedSigner], only the ones
+ * signed with that same key, when any repository publishes one. A build signed with another key installs
+ * only once that copy is uninstalled, its data with it, which is no update to offer on its own: KeePassDX,
+ * installed from F-Droid, was offered IzzyOnDroid's newer build, signed by its developer, and Update all
+ * asked to uninstall it every time. Following that repository on the app's page still takes its builds.
+ */
+fun <T> List<Pair<Package, T>>.preferringInstalledKey(installedSigner: String?): List<Pair<Package, T>> =
+    filter { (pkg, _) -> signedWith(installedSigner, pkg.manifest.signer) }.ifEmpty { this }
 
 /**
  * The single source of truth for "which catalogue apps count as installed on this device" — by package

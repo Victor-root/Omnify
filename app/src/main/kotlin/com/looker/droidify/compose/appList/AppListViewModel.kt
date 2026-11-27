@@ -357,17 +357,19 @@ class AppListViewModel @Inject constructor(
 
     // The source each app's updates come from where the user chose one, and packageName -> the catalogue
     // version we'd install on this device (versionCode + signer fingerprints), from that repo or else the
-    // newest across all repos, among the ones its pre-release choice offers, re-queried whenever the
-    // catalogue, the tracked sources or a choice changes.
+    // newest across all repos, among the ones its pre-release choice offers and signed with the installed
+    // copy's key when any is, re-queried whenever the catalogue, the tracked sources, a choice or what is
+    // installed changes.
     private val suggestedVersions: StateFlow<FollowedVersions> = combine(
         catalogChanges,
         externalAppRepository.apps,
         followedSources.stored,
         settingsRepository.get { defaultPrereleases to cataloguePrereleases },
-    ) { _, _, _, _ -> }
-        .mapLatest {
+        installedInfo.map { it.signatures }.distinctUntilChanged(),
+    ) { _, _, _, _, signatures -> signatures }
+        .mapLatest { signatures ->
             val followed = followedSources.current()
-            FollowedVersions(followed, appRepository.suggestedVersions(followed))
+            FollowedVersions(followed, appRepository.suggestedVersions(followed, signatures))
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)

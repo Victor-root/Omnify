@@ -107,12 +107,14 @@ class AppRepository @Inject constructor(
      * updates so the Updates tab matches what the detail screen will actually install (filtered by ABI +
      * minSdk): from the repository the user follows for that app ([followed], see [FollowedSources]),
      * else the newest build wherever it lives, among the ones its pre-release choice offers (see
-     * [offeredUnder]). Each entry also carries that version's signer
+     * [offeredUnder]) and, for an installed app, signed with its key ([installedSigners], by package, see
+     * [suggestedVersionOf]). Each entry also carries that version's signer
      * fingerprint(s) so callers can tell whether the update can replace the installed app in place (same
      * signer) or not (different signer).
      */
     suspend fun suggestedVersions(
         followed: Map<String, FollowedSource>,
+        installedSigners: Map<String, String?>,
     ): Map<String, SuggestedVersion> = withContext(Dispatchers.Default) {
         val settings = settingsRepository.getInitial()
         appDao.deviceCompatibleVersions(
@@ -128,7 +130,8 @@ class AppRepository @Inject constructor(
                     val row = repoRows.maxBy { it.versionCode }
                     SuggestedVersion(row.versionCode, row.versionName, row.signer.toSet())
                 }
-                suggestedVersionOf(byRepo, followed[packageName])?.let { packageName to it }
+                suggestedVersionOf(byRepo, followed[packageName], installedSigners[packageName])
+                    ?.let { packageName to it }
             }
             .toMap()
     }
@@ -310,13 +313,20 @@ data class SuggestedVersion(
 /**
  * Which of the builds each repository offers ([byRepo], by repository id) counts as the one to install:
  * the followed repository's own when [followed] is one, nothing when it has nothing this device can run
- * (following a repository means taking its updates, not another's), else the newest of them all.
+ * (following a repository means taking its updates, not another's), else the newest of them all, among
+ * the ones signed with the key of the copy on the device ([installedSigner]) when any is (see
+ * [preferringInstalledKey]).
  */
-fun suggestedVersionOf(byRepo: Map<Int, SuggestedVersion>, followed: FollowedSource?): SuggestedVersion? =
+fun suggestedVersionOf(
+    byRepo: Map<Int, SuggestedVersion>,
+    followed: FollowedSource?,
+    installedSigner: String?,
+): SuggestedVersion? =
     if (followed is FollowedSource.Repository) {
         byRepo[followed.repoId]
     } else {
-        byRepo.values.maxByOrNull { it.versionCode }
+        val builds = byRepo.values
+        builds.filter { signedWith(installedSigner, it.signers) }.ifEmpty { builds }.maxByOrNull { it.versionCode }
     }
 
 /**

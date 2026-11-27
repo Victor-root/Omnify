@@ -107,8 +107,11 @@ class PendingUpdates @Inject constructor(
     suspend fun cataloguePackages(): Set<String> {
         val hidden = settingsRepository.get { hiddenApps }.first()
         val followed = followedSources.current()
-        val suggested = appRepository.suggestedVersions(followed)
         val installedApps = installedRepository.getAllStream().first()
+        val suggested = appRepository.suggestedVersions(
+            followed = followed,
+            installedSigners = installedApps.associate { it.packageName to it.signature },
+        )
         val externallyOwned = externallySourcedPackages(
             installedSigners = installedApps.associate { it.packageName to it.signature },
             suggested = suggested,

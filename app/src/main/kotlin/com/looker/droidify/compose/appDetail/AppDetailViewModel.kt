@@ -22,6 +22,7 @@ import com.looker.droidify.data.followedSourceOf
 import com.looker.droidify.data.listedUnder
 import com.looker.droidify.data.mixesPrereleases
 import com.looker.droidify.data.offeredUnder
+import com.looker.droidify.data.preferringInstalledKey
 import com.looker.droidify.data.takesUpdates
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.signerMismatch
@@ -1054,7 +1055,8 @@ class AppDetailViewModel @Inject constructor(
         val preferredRepoId = (updateSource.value.followed as? FollowedSource.Repository)?.repoId
             ?: _preferredRepoId.value
         val pool = if (preferredRepoId == null) {
-            current.packages
+            // Signed with the installed copy's key when any repository publishes one (see automaticBuild).
+            current.packages.preferringInstalledKey(installedInfo.value?.signer)
         } else {
             current.packages.filter { it.second.id == preferredRepoId }
         }

@@ -4,6 +4,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.ui.platform.LocalContext
 import com.looker.droidify.compose.appDetail.PermissionsSection
+import com.looker.droidify.compose.appDetail.automaticBuild
 import com.looker.droidify.compose.appDetail.capabilities
 import com.looker.droidify.compose.appDetail.updateBuild
 import com.looker.droidify.compose.components.CapabilityBadges
@@ -193,8 +194,9 @@ fun TvAppDetailScreen(
                 // when not installed, or on the rare PackageManager read failure. Read off the main thread
                 // along with the rest of installedInfo (see InstalledInfo.signer).
                 val installedSignerRaw = installedInfo?.signer
-                val installable = remember(packages, app.metadata.suggestedVersionCode) {
-                    packages.selectForDevice(app.metadata.suggestedVersionCode)
+                // Signed with the installed copy's key when any repository publishes one (see automaticBuild).
+                val installable = remember(packages, app.metadata.suggestedVersionCode, installedSignerRaw) {
+                    packages.automaticBuild(app.metadata.suggestedVersionCode, installedSignerRaw)
                 }
                 val installablePackage = installable?.first
                 // The certificate(s) the repository index declares for the version we'd actually install/
@@ -215,8 +217,13 @@ fun TvAppDetailScreen(
                 // a tracked external source is responsible for is not this catalogue entry's to update, and
                 // the comparison below says nothing about which build is newer across two numberings. The
                 // build compared is the followed repository's, when one is followed for updates.
-                val updatePackage = remember(packages, updateSource.followed, app.metadata.suggestedVersionCode) {
-                    packages.updateBuild(updateSource.followed, app.metadata.suggestedVersionCode)
+                val updatePackage = remember(
+                    packages,
+                    updateSource.followed,
+                    app.metadata.suggestedVersionCode,
+                    installedSignerRaw,
+                ) {
+                    packages.updateBuild(updateSource.followed, app.metadata.suggestedVersionCode, installedSignerRaw)
                 }?.first
                 // A tracked source taking the updates offers its own, as on the phone page.
                 val updater = externalUpdater
@@ -356,7 +363,11 @@ fun TvAppDetailScreen(
                                 )
                                 // Version and size as the phone's card shows them, not as tags.
                                 HeroStatsRow(
-                                    version = app.metadata.suggestedVersionName.takeIf { it.isNotBlank() },
+                                    // Of the build Omnify would install, like the size beside it.
+                                    version = (
+                                        installablePackage?.manifest?.versionName
+                                            ?: app.metadata.suggestedVersionName
+                                        ).takeIf { it.isNotBlank() },
                                     size = installablePackage?.apk?.size?.toString(),
                                     onSourceCodeClick = null,
                                 )
@@ -677,8 +688,8 @@ internal fun TvAppSourcesVersions(
     val externalSources by catalogue.externalSources.collectAsStateWithLifecycle()
     val updateSource by catalogue.updateSource.collectAsStateWithLifecycle()
     val updater by catalogue.externalUpdater.collectAsStateWithLifecycle()
-    val installableRepo = remember(packages, app.metadata.suggestedVersionCode) {
-        packages.selectForDevice(app.metadata.suggestedVersionCode)?.second
+    val installableRepo = remember(packages, app.metadata.suggestedVersionCode, installedInfo?.signer) {
+        packages.automaticBuild(app.metadata.suggestedVersionCode, installedInfo?.signer)?.second
     }
     // Tapping a version confirms, then installs that exact release: the same engine
     // (catalogue.installVersion) and confirm/downgrade flow the phone screen uses.

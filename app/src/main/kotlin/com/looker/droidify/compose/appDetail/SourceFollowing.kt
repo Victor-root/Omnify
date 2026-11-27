@@ -82,6 +82,7 @@ import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.Package
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.selectForDevice
+import com.looker.droidify.data.preferringInstalledKey
 import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.releaseVersionLabel
@@ -101,12 +102,25 @@ internal data class SourceTab(
 
 /**
  * The build an update of the app takes among [this], every repository's: the followed repository's own
- * when [followed] is one, which stays true even when another repository has a newer one.
+ * when [followed] is one, which stays true even when another repository has a newer one, else Omnify's
+ * own choice ([automaticBuild]).
  */
-internal fun List<Pair<Package, Repo>>.updateBuild(followed: FollowedSource?, suggested: Long): Pair<Package, Repo>? {
-    val repoId = (followed as? FollowedSource.Repository)?.repoId
-    return (if (repoId == null) this else filter { it.second.id == repoId }).selectForDevice(suggested)
+internal fun List<Pair<Package, Repo>>.updateBuild(
+    followed: FollowedSource?,
+    suggested: Long,
+    installedSigner: String?,
+): Pair<Package, Repo>? {
+    val repoId = (followed as? FollowedSource.Repository)?.repoId ?: return automaticBuild(suggested, installedSigner)
+    return filter { it.second.id == repoId }.selectForDevice(suggested)
 }
+
+/**
+ * The build Omnify picks among [this], every repository's, no source being followed: the newest this
+ * device runs, among the ones signed with the key of the copy on it ([installedSigner]) when any is (see
+ * [preferringInstalledKey]).
+ */
+internal fun List<Pair<Package, Repo>>.automaticBuild(suggested: Long, installedSigner: String?): Pair<Package, Repo>? =
+    preferringInstalledKey(installedSigner).selectForDevice(suggested)
 
 /**
  * The tabs of an app's version list: each repository offering it ([packages], newest build this device

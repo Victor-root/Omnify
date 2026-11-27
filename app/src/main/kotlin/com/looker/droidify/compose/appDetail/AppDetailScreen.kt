@@ -821,13 +821,19 @@ private fun AppDetail(
     // The newest release this device can actually install (device-aware; see [selectForDevice]).
     // Comparing against the raw suggested code would keep flagging an update on, say, an x86 device,
     // because VLC's suggested code belongs to its (un-installable) arm64 build.
-    val installable = remember(packages, app.metadata.suggestedVersionCode) {
-        packages.selectForDevice(app.metadata.suggestedVersionCode)
+    // Signed with the installed copy's key when any repository publishes one (see automaticBuild).
+    val installable = remember(packages, app.metadata.suggestedVersionCode, installedInfo?.signer) {
+        packages.automaticBuild(app.metadata.suggestedVersionCode, installedInfo?.signer)
     }
     val installablePackage = installable?.first
     val installableRepo = installable?.second
-    val updateTarget = remember(packages, sources.choice.followed, app.metadata.suggestedVersionCode) {
-        packages.updateBuild(sources.choice.followed, app.metadata.suggestedVersionCode)
+    val updateTarget = remember(
+        packages,
+        sources.choice.followed,
+        app.metadata.suggestedVersionCode,
+        installedInfo?.signer,
+    ) {
+        packages.updateBuild(sources.choice.followed, app.metadata.suggestedVersionCode, installedInfo?.signer)
     }?.first
     // Compared against installedInfo (the real installed versionCode), not installedPackage: an app
     // installed from a different channel that's ahead of this repo, Google Play shipping a build newer
@@ -1739,8 +1745,8 @@ internal fun AppSourcesVersions(
     val updateSource by catalogue.updateSource.collectAsStateWithLifecycle()
     val updater by catalogue.externalUpdater.collectAsStateWithLifecycle()
     CatalogueInstallConflictDialog(catalogue, app.metadata.name)
-    val installableRepo = remember(packages, app.metadata.suggestedVersionCode) {
-        packages.selectForDevice(app.metadata.suggestedVersionCode)?.second
+    val installableRepo = remember(packages, app.metadata.suggestedVersionCode, installedInfo?.signer) {
+        packages.automaticBuild(app.metadata.suggestedVersionCode, installedInfo?.signer)?.second
     }
     val installedPackage = remember(packages) { packages.map { it.first }.firstOrNull { it.installed } }
     val versionInstall = rememberVersionInstallState()
@@ -1816,8 +1822,8 @@ internal fun catalogueSourceNote(catalogue: AppDetailViewModel): String? {
     val updateSource by catalogue.updateSource.collectAsStateWithLifecycle()
     val updater by catalogue.externalUpdater.collectAsStateWithLifecycle()
     val success = state as? AppDetailState.Success ?: return null
-    val installableRepo = remember(success) {
-        success.packages.selectForDevice(success.app.metadata.suggestedVersionCode)?.second
+    val installableRepo = remember(success, installedInfo?.signer) {
+        success.packages.automaticBuild(success.app.metadata.suggestedVersionCode, installedInfo?.signer)?.second
     }
     val updatingSource = updatingSourceOf(installedInfo != null, updater, updateSource.followed, installableRepo)
     val sourceCount = success.packages.distinctBy { it.second.id }.size + externalSources.size
@@ -2015,7 +2021,9 @@ private fun AppHeaderCard(
     // like TwinHelix ship no icon in their index, so without the launcher-icon fallback the header
     // showed a blank placeholder even though the list (which has this fallback) showed the real logo.
     val minimal = remember(app) { app?.minimal() }
-    val version = app?.metadata?.suggestedVersionName?.nonBlank()
+    // The version the size beside it is of: the build Omnify would install, which for an installed app
+    // keeps to its own key and need not be the newest anywhere.
+    val version = (installablePackage?.manifest?.versionName ?: app?.metadata?.suggestedVersionName)?.nonBlank()
     val size = installablePackage?.apk?.size?.toString()
     val heroContext = LocalContext.current
     // Hardware bitmaps (Coil's own default) can't be redrawn into the safe bitmap onIconBitmap needs

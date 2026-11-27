@@ -33,17 +33,34 @@ class FollowedSourceTest {
 
     @Test
     fun `without a choice the newest build wherever it lives is the one to install`() {
-        assertEquals("3.4.3", suggestedVersionOf(byRepo, followed = null)?.versionName)
+        assertEquals("3.4.3", suggestedVersionOf(byRepo, followed = null, installedSigner = null)?.versionName)
+    }
+
+    @Test
+    fun `without a choice an installed app keeps to the builds signed with its own key`() {
+        // KeePassDX installed from F-Droid: IzzyOnDroid's newer build, signed by its developer, would
+        // only install after uninstalling it.
+        assertEquals("3.4.2", suggestedVersionOf(byRepo, followed = null, installedSigner = "F-DROID")?.versionName)
+        // Installed from IzzyOnDroid, it takes IzzyOnDroid's.
+        assertEquals("3.4.3", suggestedVersionOf(byRepo, followed = null, installedSigner = "developer")?.versionName)
+    }
+
+    @Test
+    fun `an installed app no repository signs like still gets the newest build`() {
+        assertEquals("3.4.3", suggestedVersionOf(byRepo, followed = null, installedSigner = "play")?.versionName)
     }
 
     @Test
     fun `a followed repository's own build counts even when another has a newer one`() {
-        assertEquals("3.4.2", suggestedVersionOf(byRepo, FollowedSource.Repository(fdroid))?.versionName)
+        assertEquals(
+            "3.4.2",
+            suggestedVersionOf(byRepo, FollowedSource.Repository(fdroid), installedSigner = "developer")?.versionName,
+        )
     }
 
     @Test
     fun `a followed repository with nothing for this device offers no update from elsewhere`() {
-        assertNull(suggestedVersionOf(byRepo, FollowedSource.Repository(repoId = 9)))
+        assertNull(suggestedVersionOf(byRepo, FollowedSource.Repository(repoId = 9), installedSigner = null))
     }
 
     @Test

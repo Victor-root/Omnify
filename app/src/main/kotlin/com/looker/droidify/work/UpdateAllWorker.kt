@@ -24,6 +24,7 @@ import com.looker.droidify.data.model.PackageName
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.data.offeredUnder
+import com.looker.droidify.data.preferringInstalledKey
 import com.looker.droidify.data.signerMismatch
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.ExternalAppRepository
@@ -218,8 +219,11 @@ class UpdateAllWorker @AssistedInject constructor(
             if (repo != null) app.packages.orEmpty().map { pkg -> pkg to repo } else emptyList()
         }
         val suggested = apps.maxOfOrNull { it.metadata.suggestedVersionCode } ?: 0L
-        // Among the builds its pre-release choice offers, like the Updates tab that listed it.
-        val target = candidates.offeredUnder(appRepository.prereleasesOf(packageName)).selectForDevice(suggested)
+        // Among the builds its pre-release choice offers, like the Updates tab that listed it, and with no
+        // repository followed, signed with the installed copy's key when any is.
+        val offered = candidates.offeredUnder(appRepository.prereleasesOf(packageName))
+        val target = (if (followed == null) offered.preferringInstalledKey(installedSigner(packageName)) else offered)
+            .selectForDevice(suggested)
         if (target == null) {
             Log.w(TAG, "No compatible release for $packageName")
             return
@@ -301,13 +305,14 @@ class UpdateAllWorker @AssistedInject constructor(
      * nothing-to-compare cases (not installed, no declared signer, unreadable signature) as "no
      * conflict" rather than skipping on uncertainty.
      */
-    private fun installedWithDifferentSignature(packageName: String, pkg: Package): Boolean {
-        val installedSigner = applicationContext.packageManager
-            .getPackageInfoCompat(packageName)
-            ?.singleSignature
-            ?.calculateHash()
-        return signerMismatch(installedSigner, pkg.manifest.signer)
-    }
+    private fun installedWithDifferentSignature(packageName: String, pkg: Package): Boolean =
+        signerMismatch(installedSigner(packageName), pkg.manifest.signer)
+
+    /** The fingerprint of the key [packageName]'s copy on the device is signed with, if it is installed. */
+    private fun installedSigner(packageName: String): String? = applicationContext.packageManager
+        .getPackageInfoCompat(packageName)
+        ?.singleSignature
+        ?.calculateHash()
 
     companion object {
         private const val TAG = "UpdateAllWorker"
