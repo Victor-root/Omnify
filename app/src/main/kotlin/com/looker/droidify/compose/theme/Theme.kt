@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -455,9 +457,11 @@ fun DroidifyTheme(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 content()
-                // When edge-to-edge is OFF, paint an opaque accent bar over the navigation-bar area so
-                // it looks like a solid coloured bar matching the top bar. When ON, leave it out so the
-                // app shows through the transparent navigation bar (immersive, content behind it) — this
+                // When edge-to-edge is OFF, paint an opaque accent bar over the status-bar area, which a
+                // header sliding off the top as the page scrolls would otherwise leave to the page, and
+                // over the navigation-bar area so it looks like a solid coloured bar matching the top
+                // bar. When ON, leave them out so the app shows through the transparent bars (immersive,
+                // content behind them) — this
                 // only actually works, though, when every screen's own content genuinely reaches that
                 // area instead of stopping short of it: see
                 // [com.looker.droidify.compose.components.forFloatingBackground]'s doc comment for a real
@@ -466,6 +470,13 @@ fun DroidifyTheme(
                 // painting its default, theme-neutral containerColor under the bar while their real
                 // content stayed padded away from it.
                 if (!edgeToEdge) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .windowInsetsTopHeight(WindowInsets.statusBars)
+                            .drawBehind { drawRect(systemBarColor.value) },
+                    )
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)

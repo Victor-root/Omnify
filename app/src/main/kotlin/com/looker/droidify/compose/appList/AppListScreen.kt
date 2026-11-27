@@ -272,7 +272,7 @@ fun AppListScreen(
             AppTab.EXTERNAL -> externalGridState
         }
     }
-    // The whole header (toolbar + tabs + banner) collapses on scroll under edge-to-edge. A carousel's
+    // The whole header (toolbar + tabs + banner) collapses on scroll. A carousel's
     // "see all" page has no tabs under its title bar.
     val header = rememberCollapsibleHeader(endsWithTabs = openedSection == null)
     var searchExpanded by rememberSaveable { mutableStateOf(false) }

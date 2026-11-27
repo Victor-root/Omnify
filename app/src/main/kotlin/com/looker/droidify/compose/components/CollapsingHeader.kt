@@ -21,9 +21,9 @@ import com.looker.droidify.compose.theme.accentHeaderShape
 import kotlin.math.roundToInt
 
 /**
- * The header behaviour every screen shares: under edge-to-edge the whole header slides off the top as
- * the page scrolls down and comes back on the slightest scroll up (Material 3 "enter always"). Pinned
- * otherwise, and always on TV, where a remote couldn't bring it back. Hand [scaffoldModifier] to the
+ * The header behaviour every screen shares: the whole header slides off the top as the page scrolls down
+ * and comes back on the slightest scroll up (Material 3 "enter always"), edge-to-edge or not. Pinned on
+ * TV, where a remote couldn't bring it back. Hand [scaffoldModifier] to the
  * screen's Scaffold and [headerModifier] to the outermost element of its top bar slot.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,8 +61,10 @@ class CollapsibleHeader internal constructor(
 fun rememberCollapsibleHeader(endsWithTabs: Boolean = false): CollapsibleHeader {
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val isTelevision = LocalIsTelevision.current
-    val enabled = LocalEdgeToEdge.current && !isTelevision
-    if (enabled) CollapsingHeaderStatusBar(scrollBehavior)
+    val enabled = !isTelevision
+    // Only under edge-to-edge does the content then reach the status bar; otherwise the bar stays the
+    // theme's own solid accent.
+    if (enabled && LocalEdgeToEdge.current) CollapsingHeaderStatusBar(scrollBehavior)
     return remember(scrollBehavior, enabled, isTelevision, endsWithTabs) {
         CollapsibleHeader(scrollBehavior, enabled, shaped = endsWithTabs && !isTelevision)
     }

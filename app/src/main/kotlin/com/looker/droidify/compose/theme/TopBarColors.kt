@@ -28,9 +28,8 @@ val LocalAccentBarColor = staticCompositionLocalOf { Color.Red }
 val LocalOnAccentBarColor = staticCompositionLocalOf { Color.White }
 
 /**
- * Whether the app is drawing edge-to-edge (the "Edge-to-edge" setting). Screens read this to make
- * their header collapse on scroll while edge-to-edge is on, and stay pinned when it's off. Provided
- * by [DroidifyTheme].
+ * Whether the app is drawing edge-to-edge (the "Edge-to-edge" setting): content behind the status and
+ * navigation bars. Provided by [DroidifyTheme].
  */
 val LocalEdgeToEdge = staticCompositionLocalOf { true }
 
