@@ -92,7 +92,6 @@ import com.looker.droidify.compose.settings.components.RestoreCategoriesDialog
 import com.looker.droidify.compose.settings.components.rememberRestoreFilePicker
 import com.looker.droidify.compose.settings.components.CustomButtonsSettingItem
 import com.looker.droidify.compose.settings.components.SelectionSettingItem
-import com.looker.droidify.compose.settings.components.SettingHeader
 import com.looker.droidify.compose.settings.components.SwitchSettingItem
 import com.looker.droidify.compose.settings.components.TextInputSettingItem
 import com.looker.droidify.compose.settings.components.ThemeColorPickerDialog
@@ -349,11 +348,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SettingHeader(title = stringResource(R.string.prefs_personalization))
-            }
-
-            settingsCard {
+            settingsCard(title = R.string.prefs_personalization, icon = R.drawable.ic_tabler_palette) {
                 row {
                     LanguageSetting(
                         icon = painterResource(R.drawable.ic_language),
@@ -468,11 +463,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SettingHeader(title = stringResource(R.string.updates))
-            }
-
-            settingsCard {
+            settingsCard(title = R.string.updates, icon = R.drawable.ic_home_tab_updates) {
                 row {
                     SwitchSettingItem(
                         title = stringResource(R.string.auto_update),
@@ -519,11 +510,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SettingHeader(title = stringResource(R.string.sync_repositories))
-            }
-
-            settingsCard {
+            settingsCard(title = R.string.sync_repositories, icon = R.drawable.ic_tabler_refresh) {
                 row {
                     AutoSyncSetting(
                         icon = painterResource(R.drawable.ic_sync),
@@ -582,11 +569,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SettingHeader(title = stringResource(R.string.install_types))
-            }
-
-            settingsCard {
+            settingsCard(title = R.string.install_types, icon = R.drawable.ic_apk_install) {
                 row {
                     InstallerTypeSetting(
                         icon = painterResource(R.drawable.ic_apk_install),
@@ -630,11 +613,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SettingHeader(title = stringResource(R.string.proxy))
-            }
-
-            settingsCard {
+            settingsCard(title = R.string.proxy, icon = R.drawable.ic_public) {
                 row {
                     ProxyTypeSetting(
                         icon = painterResource(R.drawable.ic_proxy),
@@ -664,10 +643,6 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SettingHeader(title = stringResource(R.string.external_sources_title))
-            }
-
             // A token GitHub is actively rejecting silently stops every GitHub-backed source from
             // refreshing otherwise (no other error surfaces from a background refresh), so it's called
             // out right here, next to the field that fixes it, not just on the External tab where the
@@ -682,7 +657,7 @@ fun SettingsScreen(
                 }
             }
 
-            settingsCard {
+            settingsCard(title = R.string.external_sources_title, icon = R.drawable.ic_home_tab_external) {
                 row(key = GITHUB_TOKEN_ITEM_KEY) {
                     TextInputSettingItem(
                         title = stringResource(R.string.github_token),
@@ -723,11 +698,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SettingHeader(title = stringResource(R.string.translation_section))
-            }
-
-            settingsCard {
+            settingsCard(title = R.string.translation_section, icon = R.drawable.ic_language) {
                 row {
                     SelectionSettingItem(
                         title = stringResource(R.string.translation_engine),
@@ -794,11 +765,7 @@ fun SettingsScreen(
             }
 
             if (BuildConfig.TRACES) {
-                item {
-                    SettingHeader(title = stringResource(R.string.debug_section))
-                }
-
-                settingsCard {
+                settingsCard(title = R.string.debug_section, icon = R.drawable.ic_bug_report) {
                     row {
                         SwitchSettingItem(
                             title = stringResource(R.string.show_diagnostics_button),
@@ -811,11 +778,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SettingHeader(title = stringResource(R.string.import_export))
-            }
-
-            settingsCard {
+            settingsCard(title = R.string.import_export, icon = R.drawable.ic_save) {
                 row {
                     ActionSettingItem(
                         title = stringResource(R.string.backup_title),
@@ -868,11 +831,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SettingHeader(title = stringResource(R.string.custom_buttons_section))
-            }
-
-            settingsCard {
+            settingsCard(title = R.string.custom_buttons_section, icon = R.drawable.ic_tabler_link) {
                 row {
                     CustomButtonsSettingItem(
                         buttons = customButtons,
@@ -883,11 +842,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SettingHeader(title = stringResource(R.string.author))
-            }
-
-            settingsCard {
+            settingsCard(title = R.string.author, icon = R.drawable.ic_person) {
                 row {
                     AuthorRow(
                         icon = painterResource(R.drawable.ic_person),
@@ -907,11 +862,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SettingHeader(title = stringResource(R.string.special_credits))
-            }
-
-            settingsCard {
+            settingsCard(title = R.string.special_credits, icon = R.drawable.ic_github) {
                 row {
                     ActionSettingItem(
                         title = FOXY_DROID_TITLE,
@@ -931,8 +882,7 @@ fun SettingsScreen(
                 }
             }
 
-            // The version on a card of its own, no heading above it to set it apart from the credits.
-            item { Spacer(Modifier.height(16.dp)) }
+            // The version on a card of its own, without a band.
             settingsCard {
                 row { VersionFooter(onEasterEgg = onOpenEasterEgg) }
             }
