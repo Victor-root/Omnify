@@ -54,7 +54,9 @@ fun SwitchSettingItem(
         return
     }
 
-    // The whole row toggles the switch, which only shows the state: one target, as on TV.
+    // The whole row toggles the switch, which only shows the state: one target, as on TV. The title
+    // runs the row's whole width; the switch sits beside the description under it, so a title doesn't
+    // wrap early for a column the switch only needs further down.
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
@@ -65,10 +67,12 @@ fun SwitchSettingItem(
         SettingLeadingIcon(icon, enabled)
         Column(modifier = Modifier.weight(1f)) {
             SwitchTitle(title, enabled)
-            SwitchDescription(description, enabled)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SwitchDescription(description, enabled, Modifier.weight(1f))
+                Spacer(modifier = Modifier.width(16.dp))
+                Switch(checked = checked, onCheckedChange = null, enabled = enabled, colors = settingSwitchColors())
+            }
         }
-        Spacer(modifier = Modifier.width(16.dp))
-        Switch(checked = checked, onCheckedChange = null, enabled = enabled, colors = settingSwitchColors())
     }
 }
 
@@ -86,9 +90,10 @@ private fun SwitchTitle(title: String, enabled: Boolean) {
 }
 
 @Composable
-private fun SwitchDescription(description: String, enabled: Boolean) {
+private fun SwitchDescription(description: String, enabled: Boolean, modifier: Modifier = Modifier) {
     Text(
         text = description,
+        modifier = modifier,
         style = MaterialTheme.typography.bodyMedium,
         color = if (enabled) {
             MaterialTheme.colorScheme.onSurfaceVariant
