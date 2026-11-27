@@ -3,7 +3,6 @@ package com.looker.droidify.compose.settings.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
@@ -89,14 +88,14 @@ fun TextInputSettingItem(
             .animatedBackground { highlightColor.copy(alpha = highlightAlpha.value * 0.24f) }
             // TV only: a soft accent fill behind the focused row (no-op on touch).
             .tvFocusFill(RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled) { showDialog = true }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .settingRowClick(enabled) { showDialog = true }
+            .padding(settingRowPadding),
     ) {
         SettingLeadingIcon(icon, enabled)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = settingTitleStyle,
                 color = if (enabled) {
                     MaterialTheme.colorScheme.onSurface
                 } else {

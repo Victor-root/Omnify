@@ -58,7 +58,7 @@ fun CustomButtonsSettingItem(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(settingRowPadding),
     ) {
         // On TV the only focusable element used to be the small "+" at the far right, which the D-pad's
         // downward search skipped over (it's not aligned under the full-width rows above), so this whole
@@ -71,6 +71,7 @@ fun CustomButtonsSettingItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            SettingLeadingIcon(painterResource(R.drawable.ic_tabler_link), enabled = true)
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -90,7 +91,7 @@ fun CustomButtonsSettingItem(
             ) {
                 Text(
                     text = stringResource(R.string.custom_buttons),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = settingTitleStyle,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(

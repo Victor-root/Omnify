@@ -9,7 +9,6 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
@@ -17,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -59,6 +60,12 @@ import androidx.compose.ui.graphics.Color
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.externalApps.prereleaseModeDescription
 import com.looker.droidify.compose.externalApps.prereleaseModeName
+import com.looker.droidify.compose.settings.components.SettingIconTile
+import com.looker.droidify.compose.settings.components.SettingLeadingIcon
+import com.looker.droidify.compose.settings.components.settingRowClick
+import com.looker.droidify.compose.settings.components.settingRowPadding
+import com.looker.droidify.compose.settings.components.settingTitleStyle
+import com.looker.droidify.compose.settings.components.settingsCard
 import com.looker.droidify.compose.tv.TvAccentBackground
 import com.looker.droidify.compose.tv.TvAccentHeader
 import androidx.core.net.toUri
@@ -346,272 +353,280 @@ fun SettingsScreen(
                 SettingHeader(title = stringResource(R.string.prefs_personalization))
             }
 
-            item {
-                LanguageSetting(
-                    icon = painterResource(R.drawable.ic_language),
-                    selectedLanguage = settings.language,
-                    onLanguageSelected = viewModel::setLanguage,
-                )
-            }
+            settingsCard {
+                row {
+                    LanguageSetting(
+                        icon = painterResource(R.drawable.ic_language),
+                        selectedLanguage = settings.language,
+                        onLanguageSelected = viewModel::setLanguage,
+                    )
+                }
 
-            item {
-                ThemeSetting(
-                    icon = painterResource(R.drawable.ic_tabler_paint),
-                    selectedTheme = settings.theme,
-                    onThemeSelected = viewModel::setTheme,
-                )
-            }
+                row {
+                    ThemeSetting(
+                        icon = painterResource(R.drawable.ic_tabler_paint),
+                        selectedTheme = settings.theme,
+                        onThemeSelected = viewModel::setTheme,
+                    )
+                }
 
-            item {
-                ActionSettingItem(
-                    title = stringResource(R.string.theme_color),
-                    description = stringResource(R.string.theme_color_DESC),
-                    icon = painterResource(R.drawable.ic_tabler_palette),
-                    onClick = { showColorPicker = true },
-                )
-            }
+                row {
+                    ActionSettingItem(
+                        title = stringResource(R.string.theme_color),
+                        description = stringResource(R.string.theme_color_DESC),
+                        icon = painterResource(R.drawable.ic_tabler_palette),
+                        onClick = { showColorPicker = true },
+                    )
+                }
 
-            item {
-                BackgroundStyleSetting(
-                    selectedStyle = settings.backgroundStyle,
-                    onStyleSelected = viewModel::setBackgroundStyle,
-                )
-            }
+                row {
+                    BackgroundStyleSetting(
+                        selectedStyle = settings.backgroundStyle,
+                        onStyleSelected = viewModel::setBackgroundStyle,
+                    )
+                }
 
-            item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.accent_matches_app_icon_title),
-                    description = stringResource(R.string.accent_matches_app_icon_DESC),
-                    icon = painterResource(R.drawable.ic_tabler_palette),
-                    checked = settings.accentMatchesAppIcon,
-                    onCheckedChange = viewModel::setAccentMatchesAppIcon,
-                )
-            }
-
-            // Page-swiping and edge-to-edge are phone/tablet concerns — neither applies to a D-pad TV,
-            // so they're hidden there.
-            if (!isTelevision) {
-                item {
+                row {
                     SwitchSettingItem(
-                        title = stringResource(R.string.home_screen_swiping),
-                        description = stringResource(R.string.home_screen_swiping_DESC),
-                        icon = painterResource(R.drawable.ic_tabler_arrows_horizontal),
-                        checked = settings.homeScreenSwiping,
-                        onCheckedChange = viewModel::setHomeScreenSwiping,
+                        title = stringResource(R.string.accent_matches_app_icon_title),
+                        description = stringResource(R.string.accent_matches_app_icon_DESC),
+                        icon = painterResource(R.drawable.ic_tabler_palette),
+                        checked = settings.accentMatchesAppIcon,
+                        onCheckedChange = viewModel::setAccentMatchesAppIcon,
                     )
                 }
 
-                item {
-                    SelectionSettingItem(
-                        title = stringResource(R.string.home_tabs_style),
-                        icon = painterResource(R.drawable.ic_home_tab_installed),
-                        selectedValue = settings.homeTabsStyle,
-                        values = HomeTabsStyle.entries,
-                        onValueSelected = viewModel::setHomeTabsStyle,
-                        valueToString = { style ->
-                            when (style) {
-                                HomeTabsStyle.TEXT -> stringResource(R.string.home_tabs_style_text)
-                                HomeTabsStyle.ICONS -> stringResource(R.string.home_tabs_style_icons)
-                                HomeTabsStyle.ICONS_AND_TEXT -> stringResource(R.string.home_tabs_style_icons_and_text)
-                            }
-                        },
+                // Page-swiping and edge-to-edge are phone/tablet concerns — neither applies to a D-pad TV,
+                // so they're hidden there.
+                if (!isTelevision) {
+                    row {
+                        SwitchSettingItem(
+                            title = stringResource(R.string.home_screen_swiping),
+                            description = stringResource(R.string.home_screen_swiping_DESC),
+                            icon = painterResource(R.drawable.ic_tabler_arrows_horizontal),
+                            checked = settings.homeScreenSwiping,
+                            onCheckedChange = viewModel::setHomeScreenSwiping,
+                        )
+                    }
+
+                    row {
+                        SelectionSettingItem(
+                            title = stringResource(R.string.home_tabs_style),
+                            icon = painterResource(R.drawable.ic_home_tab_installed),
+                            selectedValue = settings.homeTabsStyle,
+                            values = HomeTabsStyle.entries,
+                            onValueSelected = viewModel::setHomeTabsStyle,
+                            valueToString = { style ->
+                                when (style) {
+                                    HomeTabsStyle.TEXT -> stringResource(R.string.home_tabs_style_text)
+                                    HomeTabsStyle.ICONS -> stringResource(R.string.home_tabs_style_icons)
+                                    HomeTabsStyle.ICONS_AND_TEXT -> stringResource(R.string.home_tabs_style_icons_and_text)
+                                }
+                            },
+                        )
+                    }
+
+                    row {
+                        SwitchSettingItem(
+                            title = stringResource(R.string.edge_to_edge),
+                            description = stringResource(R.string.edge_to_edge_summary),
+                            icon = painterResource(R.drawable.ic_tabler_maximize),
+                            checked = settings.edgeToEdge,
+                            onCheckedChange = viewModel::setEdgeToEdge,
+                        )
+                    }
+                }
+
+                if (isTablet) {
+                    row {
+                        SwitchSettingItem(
+                            title = stringResource(R.string.split_view_title),
+                            description = stringResource(R.string.split_view_DESC),
+                            icon = rememberVectorPainter(Icons.Filled.ViewColumn),
+                            checked = settings.splitViewEnabled,
+                            onCheckedChange = viewModel::setSplitViewEnabled,
+                        )
+                    }
+                }
+
+                row {
+                    ActionSettingItem(
+                        title = stringResource(R.string.hidden_apps_title),
+                        description = stringResource(R.string.hidden_apps_DESC),
+                        icon = rememberVectorPainter(Icons.Filled.VisibilityOff),
+                        onClick = onNavigateToHiddenApps,
                     )
                 }
 
-                item {
-                    SwitchSettingItem(
-                        title = stringResource(R.string.edge_to_edge),
-                        description = stringResource(R.string.edge_to_edge_summary),
-                        icon = painterResource(R.drawable.ic_tabler_maximize),
-                        checked = settings.edgeToEdge,
-                        onCheckedChange = viewModel::setEdgeToEdge,
+                row {
+                    ActionSettingItem(
+                        title = stringResource(R.string.explore_carousels_title),
+                        description = stringResource(R.string.explore_carousels_DESC),
+                        icon = rememberVectorPainter(Icons.Filled.ViewCarousel),
+                        onClick = onNavigateToExploreCarousels,
                     )
                 }
-            }
-
-            if (isTablet) {
-                item {
-                    SwitchSettingItem(
-                        title = stringResource(R.string.split_view_title),
-                        description = stringResource(R.string.split_view_DESC),
-                        icon = rememberVectorPainter(Icons.Filled.ViewColumn),
-                        checked = settings.splitViewEnabled,
-                        onCheckedChange = viewModel::setSplitViewEnabled,
-                    )
-                }
-            }
-
-            item {
-                ActionSettingItem(
-                    title = stringResource(R.string.hidden_apps_title),
-                    description = stringResource(R.string.hidden_apps_DESC),
-                    icon = rememberVectorPainter(Icons.Filled.VisibilityOff),
-                    onClick = onNavigateToHiddenApps,
-                )
-            }
-
-            item {
-                ActionSettingItem(
-                    title = stringResource(R.string.explore_carousels_title),
-                    description = stringResource(R.string.explore_carousels_DESC),
-                    icon = rememberVectorPainter(Icons.Filled.ViewCarousel),
-                    onClick = onNavigateToExploreCarousels,
-                )
             }
 
             item {
                 SettingHeader(title = stringResource(R.string.updates))
             }
 
-            item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.auto_update),
-                    description = stringResource(R.string.auto_update_apps),
-                    icon = painterResource(R.drawable.ic_tabler_refresh),
-                    checked = settings.autoUpdate,
-                    onCheckedChange = viewModel::setAutoUpdate,
-                )
-            }
+            settingsCard {
+                row {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.auto_update),
+                        description = stringResource(R.string.auto_update_apps),
+                        icon = painterResource(R.drawable.ic_tabler_refresh),
+                        checked = settings.autoUpdate,
+                        onCheckedChange = viewModel::setAutoUpdate,
+                    )
+                }
 
-            item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.notify_about_updates),
-                    description = stringResource(R.string.notify_about_updates_summary),
-                    icon = painterResource(R.drawable.ic_tabler_bell),
-                    checked = settings.notifyUpdate,
-                    onCheckedChange = viewModel::setNotifyUpdates,
-                )
-            }
+                row {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.notify_about_updates),
+                        description = stringResource(R.string.notify_about_updates_summary),
+                        icon = painterResource(R.drawable.ic_tabler_bell),
+                        checked = settings.notifyUpdate,
+                        onCheckedChange = viewModel::setNotifyUpdates,
+                    )
+                }
 
-            item {
-                SelectionSettingItem(
-                    title = stringResource(R.string.default_prereleases),
-                    icon = painterResource(R.drawable.ic_bug_report),
-                    selectedValue = settings.defaultPrereleases,
-                    values = PrereleaseMode.entries,
-                    onValueSelected = viewModel::setDefaultPrereleases,
-                    valueToString = { prereleaseModeName(it) },
-                    supportingText = stringResource(R.string.default_prereleases_summary),
-                    dialogTitle = stringResource(R.string.prereleases_title),
-                    valueDescription = { prereleaseModeDescription(it) },
-                    dialogMessage = stringResource(R.string.prereleases_warning),
-                )
-            }
+                row {
+                    SelectionSettingItem(
+                        title = stringResource(R.string.default_prereleases),
+                        icon = painterResource(R.drawable.ic_bug_report),
+                        selectedValue = settings.defaultPrereleases,
+                        values = PrereleaseMode.entries,
+                        onValueSelected = viewModel::setDefaultPrereleases,
+                        valueToString = { prereleaseModeName(it) },
+                        supportingText = stringResource(R.string.default_prereleases_summary),
+                        dialogTitle = stringResource(R.string.prereleases_title),
+                        valueDescription = { prereleaseModeDescription(it) },
+                        dialogMessage = stringResource(R.string.prereleases_warning),
+                    )
+                }
 
-            item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.incompatible_versions),
-                    description = stringResource(R.string.incompatible_versions_summary),
-                    icon = painterResource(R.drawable.ic_tabler_alert_triangle),
-                    checked = settings.incompatibleVersions,
-                    onCheckedChange = viewModel::setIncompatibleUpdates,
-                )
+                row {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.incompatible_versions),
+                        description = stringResource(R.string.incompatible_versions_summary),
+                        icon = painterResource(R.drawable.ic_tabler_alert_triangle),
+                        checked = settings.incompatibleVersions,
+                        onCheckedChange = viewModel::setIncompatibleUpdates,
+                    )
+                }
             }
 
             item {
                 SettingHeader(title = stringResource(R.string.sync_repositories))
             }
 
-            item {
-                AutoSyncSetting(
-                    icon = painterResource(R.drawable.ic_sync),
-                    selectedAutoSync = settings.autoSync,
-                    onAutoSyncSelected = viewModel::setAutoSync,
-                )
-            }
+            settingsCard {
+                row {
+                    AutoSyncSetting(
+                        icon = painterResource(R.drawable.ic_sync),
+                        selectedAutoSync = settings.autoSync,
+                        onAutoSyncSelected = viewModel::setAutoSync,
+                    )
+                }
 
-            if (settings.autoSync != AutoSync.NEVER) {
-                item {
-                    SyncIntervalSetting(
+                if (settings.autoSync != AutoSync.NEVER) {
+                    row {
+                        SyncIntervalSetting(
+                            icon = painterResource(R.drawable.ic_time),
+                            selectedInterval = settings.syncInterval,
+                            onIntervalSelected = viewModel::setSyncInterval,
+                        )
+                    }
+                }
+
+                row {
+                    CleanUpIntervalSetting(
                         icon = painterResource(R.drawable.ic_time),
-                        selectedInterval = settings.syncInterval,
-                        onIntervalSelected = viewModel::setSyncInterval,
+                        selectedInterval = settings.cleanUpInterval,
+                        onIntervalSelected = viewModel::setCleanUpInterval,
                     )
                 }
-            }
 
-            item {
-                CleanUpIntervalSetting(
-                    icon = painterResource(R.drawable.ic_time),
-                    selectedInterval = settings.cleanUpInterval,
-                    onIntervalSelected = viewModel::setCleanUpInterval,
-                )
-            }
+                if (settings.cleanUpInterval == Duration.INFINITE) {
+                    row {
+                        ActionSettingItem(
+                            title = stringResource(R.string.force_clean_up),
+                            description = stringResource(R.string.force_clean_up_DESC),
+                            icon = painterResource(R.drawable.ic_tabler_trash),
+                            onClick = { viewModel.forceCleanup(context) },
+                        )
+                    }
+                }
 
-            if (settings.cleanUpInterval == Duration.INFINITE) {
-                item {
-                    ActionSettingItem(
-                        title = stringResource(R.string.force_clean_up),
-                        description = stringResource(R.string.force_clean_up_DESC),
-                        icon = painterResource(R.drawable.ic_tabler_trash),
-                        onClick = { viewModel.forceCleanup(context) },
+                row {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.download_stats),
+                        description = stringResource(R.string.download_statistics_summary),
+                        icon = painterResource(R.drawable.ic_download),
+                        checked = settings.dlStatsEnabled,
+                        onCheckedChange = viewModel::setDownloadStatisticsEnabled,
                     )
                 }
-            }
 
-            item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.download_stats),
-                    description = stringResource(R.string.download_statistics_summary),
-                    icon = painterResource(R.drawable.ic_download),
-                    checked = settings.dlStatsEnabled,
-                    onCheckedChange = viewModel::setDownloadStatisticsEnabled,
-                )
-            }
-
-            item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.reproducibility_logs),
-                    description = stringResource(R.string.reproducibility_logs_summary),
-                    icon = painterResource(R.drawable.ic_code),
-                    checked = settings.rbLogsEnabled,
-                    onCheckedChange = viewModel::setReproducibilityLogsEnabled,
-                )
+                row {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.reproducibility_logs),
+                        description = stringResource(R.string.reproducibility_logs_summary),
+                        icon = painterResource(R.drawable.ic_code),
+                        checked = settings.rbLogsEnabled,
+                        onCheckedChange = viewModel::setReproducibilityLogsEnabled,
+                    )
+                }
             }
 
             item {
                 SettingHeader(title = stringResource(R.string.install_types))
             }
 
-            item {
-                InstallerTypeSetting(
-                    icon = painterResource(R.drawable.ic_apk_install),
-                    selectedInstaller = settings.installerType,
-                    onInstallerSelected = viewModel::setInstaller,
-                )
-            }
-
-            if (settings.installerType.canSetInstallSource) {
-                item {
-                    SwitchSettingItem(
-                        title = stringResource(R.string.play_store_install_source),
-                        description = stringResource(R.string.play_store_install_source_summary),
-                        icon = painterResource(R.drawable.ic_tabler_rubber_stamp),
-                        checked = settings.playStoreInstallSource,
-                        onCheckedChange = viewModel::setPlayStoreInstallSource,
+            settingsCard {
+                row {
+                    InstallerTypeSetting(
+                        icon = painterResource(R.drawable.ic_apk_install),
+                        selectedInstaller = settings.installerType,
+                        onInstallerSelected = viewModel::setInstaller,
                     )
                 }
-            }
 
-            if (settings.installerType == InstallerType.LEGACY) {
-                item {
-                    LegacyInstallerComponentSetting(
-                        icon = painterResource(R.drawable.ic_tabler_package),
-                        selectedComponent = settings.legacyInstallerComponent,
-                        onComponentSelected = viewModel::setLegacyInstallerComponent,
-                    )
+                if (settings.installerType.canSetInstallSource) {
+                    row {
+                        SwitchSettingItem(
+                            title = stringResource(R.string.play_store_install_source),
+                            description = stringResource(R.string.play_store_install_source_summary),
+                            icon = painterResource(R.drawable.ic_tabler_rubber_stamp),
+                            checked = settings.playStoreInstallSource,
+                            onCheckedChange = viewModel::setPlayStoreInstallSource,
+                        )
+                    }
                 }
-            }
 
-            if (settings.installerType != InstallerType.LEGACY) {
-                item {
-                    SwitchSettingItem(
-                        title = stringResource(R.string.delete_apk_on_install),
-                        description = stringResource(R.string.delete_apk_on_install_summary),
-                        icon = painterResource(R.drawable.ic_delete),
-                        checked = settings.deleteApkOnInstall,
-                        onCheckedChange = viewModel::setDeleteApkOnInstall,
-                    )
+                if (settings.installerType == InstallerType.LEGACY) {
+                    row {
+                        LegacyInstallerComponentSetting(
+                            icon = painterResource(R.drawable.ic_tabler_package),
+                            selectedComponent = settings.legacyInstallerComponent,
+                            onComponentSelected = viewModel::setLegacyInstallerComponent,
+                        )
+                    }
+                }
+
+                if (settings.installerType != InstallerType.LEGACY) {
+                    row {
+                        SwitchSettingItem(
+                            title = stringResource(R.string.delete_apk_on_install),
+                            description = stringResource(R.string.delete_apk_on_install_summary),
+                            icon = painterResource(R.drawable.ic_delete),
+                            checked = settings.deleteApkOnInstall,
+                            onCheckedChange = viewModel::setDeleteApkOnInstall,
+                        )
+                    }
                 }
             }
 
@@ -619,31 +634,33 @@ fun SettingsScreen(
                 SettingHeader(title = stringResource(R.string.proxy))
             }
 
-            item {
-                ProxyTypeSetting(
-                    icon = painterResource(R.drawable.ic_proxy),
-                    selectedProxyType = settings.proxy.type,
-                    onProxyTypeSelected = viewModel::setProxyType,
-                )
-            }
-
-            if (settings.proxy.type != ProxyType.DIRECT) {
-                item {
-                    TextInputSettingItem(
-                        title = stringResource(R.string.proxy_host),
-                        value = settings.proxy.host,
-                        icon = painterResource(R.drawable.ic_public),
-                        onValueChange = viewModel::setProxyHost,
+            settingsCard {
+                row {
+                    ProxyTypeSetting(
+                        icon = painterResource(R.drawable.ic_proxy),
+                        selectedProxyType = settings.proxy.type,
+                        onProxyTypeSelected = viewModel::setProxyType,
                     )
                 }
 
-                item {
-                    TextInputSettingItem(
-                        title = stringResource(R.string.proxy_port),
-                        value = settings.proxy.port.toString(),
-                        icon = painterResource(R.drawable.ic_public),
-                        onValueChange = viewModel::setProxyPort,
-                    )
+                if (settings.proxy.type != ProxyType.DIRECT) {
+                    row {
+                        TextInputSettingItem(
+                            title = stringResource(R.string.proxy_host),
+                            value = settings.proxy.host,
+                            icon = painterResource(R.drawable.ic_public),
+                            onValueChange = viewModel::setProxyHost,
+                        )
+                    }
+
+                    row {
+                        TextInputSettingItem(
+                            title = stringResource(R.string.proxy_port),
+                            value = settings.proxy.port.toString(),
+                            icon = painterResource(R.drawable.ic_public),
+                            onValueChange = viewModel::setProxyPort,
+                        )
+                    }
                 }
             }
 
@@ -665,108 +682,114 @@ fun SettingsScreen(
                 }
             }
 
-            item(key = GITHUB_TOKEN_ITEM_KEY) {
-                TextInputSettingItem(
-                    title = stringResource(R.string.github_token),
-                    value = settings.githubToken,
-                    valueDisplay = when {
-                        settings.githubToken.isBlank() -> stringResource(R.string.github_token_unset)
-                        githubTokenInvalid -> stringResource(R.string.github_token_invalid)
-                        else -> stringResource(R.string.github_token_verified)
-                    },
-                    valueDisplayIsError = githubTokenInvalid && settings.githubToken.isNotBlank(),
-                    valueDisplayIsVerified = !githubTokenInvalid && settings.githubToken.isNotBlank(),
-                    icon = painterResource(R.drawable.ic_github),
-                    dialogTitle = stringResource(R.string.github_token),
-                    helpText = stringResource(R.string.github_token_help),
-                    onValueChange = viewModel::setGithubToken,
-                    highlighted = pulseGithubToken,
-                )
-            }
+            settingsCard {
+                row(key = GITHUB_TOKEN_ITEM_KEY) {
+                    TextInputSettingItem(
+                        title = stringResource(R.string.github_token),
+                        value = settings.githubToken,
+                        valueDisplay = when {
+                            settings.githubToken.isBlank() -> stringResource(R.string.github_token_unset)
+                            githubTokenInvalid -> stringResource(R.string.github_token_invalid)
+                            else -> stringResource(R.string.github_token_verified)
+                        },
+                        valueDisplayIsError = githubTokenInvalid && settings.githubToken.isNotBlank(),
+                        valueDisplayIsVerified = !githubTokenInvalid && settings.githubToken.isNotBlank(),
+                        icon = painterResource(R.drawable.ic_github),
+                        dialogTitle = stringResource(R.string.github_token),
+                        helpText = stringResource(R.string.github_token_help),
+                        onValueChange = viewModel::setGithubToken,
+                        highlighted = pulseGithubToken,
+                    )
+                }
 
-            item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.readme_javascript_title),
-                    description = stringResource(R.string.readme_javascript_DESC),
-                    checked = settings.readmeJavaScriptEnabled,
-                    onCheckedChange = viewModel::setReadmeJavaScriptEnabled,
-                )
-            }
+                row {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.readme_javascript_title),
+                        description = stringResource(R.string.readme_javascript_DESC),
+                        icon = painterResource(R.drawable.ic_source_code),
+                        checked = settings.readmeJavaScriptEnabled,
+                        onCheckedChange = viewModel::setReadmeJavaScriptEnabled,
+                    )
+                }
 
-            item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.confirm_badge_add_title),
-                    description = stringResource(R.string.confirm_badge_add_DESC),
-                    icon = painterResource(R.drawable.ic_tabler_link),
-                    checked = settings.confirmBadgeAdd,
-                    onCheckedChange = viewModel::setConfirmBadgeAdd,
-                )
+                row {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.confirm_badge_add_title),
+                        description = stringResource(R.string.confirm_badge_add_DESC),
+                        icon = painterResource(R.drawable.ic_tabler_link),
+                        checked = settings.confirmBadgeAdd,
+                        onCheckedChange = viewModel::setConfirmBadgeAdd,
+                    )
+                }
             }
 
             item {
                 SettingHeader(title = stringResource(R.string.translation_section))
             }
 
-            item {
-                SelectionSettingItem(
-                    title = stringResource(R.string.translation_engine),
-                    icon = painterResource(R.drawable.ic_language),
-                    selectedValue = settings.translationEngine,
-                    // Mozilla's engine only where it runs (see bergamotSupported).
-                    values = TranslationEngine.entries.filter {
-                        it != TranslationEngine.BERGAMOT || bergamotSupported()
-                    },
-                    onValueSelected = viewModel::setTranslationEngine,
-                    valueToString = { translationEngineLabel(it) },
-                    recommended = TranslationEngine.BERGAMOT,
-                    supportingText = translationModelPreparation?.let { preparation ->
-                        stringResource(
-                            when (preparation) {
-                                ModelPreparation.DOWNLOADING -> R.string.translation_model_downloading
-                                ModelPreparation.READY -> R.string.translation_model_ready
-                                ModelPreparation.FAILED -> R.string.translation_model_failed
-                            },
-                        )
-                    },
-                )
-            }
-
-            item {
-                SwitchSettingItem(
-                    title = stringResource(R.string.auto_translate),
-                    description = stringResource(R.string.auto_translate_DESC),
-                    checked = settings.autoTranslate,
-                    onCheckedChange = viewModel::setAutoTranslate,
-                    // No point auto-translating when no engine is selected.
-                    enabled = settings.translationEngine != TranslationEngine.NONE,
-                )
-            }
-
-            if (settings.translationEngine == TranslationEngine.LIBRETRANSLATE) {
-                item {
-                    TextInputSettingItem(
-                        title = stringResource(R.string.libretranslate_url),
-                        value = settings.libreTranslateUrl,
-                        valueDisplay = settings.libreTranslateUrl.ifBlank {
-                            stringResource(R.string.libretranslate_url_unset)
+            settingsCard {
+                row {
+                    SelectionSettingItem(
+                        title = stringResource(R.string.translation_engine),
+                        icon = painterResource(R.drawable.ic_language),
+                        selectedValue = settings.translationEngine,
+                        // Mozilla's engine only where it runs (see bergamotSupported).
+                        values = TranslationEngine.entries.filter {
+                            it != TranslationEngine.BERGAMOT || bergamotSupported()
                         },
-                        icon = painterResource(R.drawable.ic_public),
-                        helpText = stringResource(R.string.libretranslate_url_help),
-                        onValueChange = viewModel::setLibreTranslateUrl,
+                        onValueSelected = viewModel::setTranslationEngine,
+                        valueToString = { translationEngineLabel(it) },
+                        recommended = TranslationEngine.BERGAMOT,
+                        supportingText = translationModelPreparation?.let { preparation ->
+                            stringResource(
+                                when (preparation) {
+                                    ModelPreparation.DOWNLOADING -> R.string.translation_model_downloading
+                                    ModelPreparation.READY -> R.string.translation_model_ready
+                                    ModelPreparation.FAILED -> R.string.translation_model_failed
+                                },
+                            )
+                        },
                     )
                 }
-                item {
-                    TextInputSettingItem(
-                        title = stringResource(R.string.libretranslate_api_key),
-                        value = settings.libreTranslateApiKey,
-                        valueDisplay = if (settings.libreTranslateApiKey.isBlank()) {
-                            stringResource(R.string.unspecified)
-                        } else {
-                            stringResource(R.string.github_token_set)
-                        },
-                        icon = painterResource(R.drawable.ic_public),
-                        onValueChange = viewModel::setLibreTranslateApiKey,
+
+                row {
+                    SwitchSettingItem(
+                        title = stringResource(R.string.auto_translate),
+                        description = stringResource(R.string.auto_translate_DESC),
+                        icon = painterResource(R.drawable.ic_language),
+                        checked = settings.autoTranslate,
+                        onCheckedChange = viewModel::setAutoTranslate,
+                        // No point auto-translating when no engine is selected.
+                        enabled = settings.translationEngine != TranslationEngine.NONE,
                     )
+                }
+
+                if (settings.translationEngine == TranslationEngine.LIBRETRANSLATE) {
+                    row {
+                        TextInputSettingItem(
+                            title = stringResource(R.string.libretranslate_url),
+                            value = settings.libreTranslateUrl,
+                            valueDisplay = settings.libreTranslateUrl.ifBlank {
+                                stringResource(R.string.libretranslate_url_unset)
+                            },
+                            icon = painterResource(R.drawable.ic_public),
+                            helpText = stringResource(R.string.libretranslate_url_help),
+                            onValueChange = viewModel::setLibreTranslateUrl,
+                        )
+                    }
+                    row {
+                        TextInputSettingItem(
+                            title = stringResource(R.string.libretranslate_api_key),
+                            value = settings.libreTranslateApiKey,
+                            valueDisplay = if (settings.libreTranslateApiKey.isBlank()) {
+                                stringResource(R.string.unspecified)
+                            } else {
+                                stringResource(R.string.github_token_set)
+                            },
+                            icon = painterResource(R.drawable.ic_public),
+                            onValueChange = viewModel::setLibreTranslateApiKey,
+                        )
+                    }
                 }
             }
 
@@ -775,14 +798,16 @@ fun SettingsScreen(
                     SettingHeader(title = stringResource(R.string.debug_section))
                 }
 
-                item {
-                    SwitchSettingItem(
-                        title = stringResource(R.string.show_diagnostics_button),
-                        description = stringResource(R.string.show_diagnostics_button_summary),
-                        icon = painterResource(R.drawable.ic_bug_report),
-                        checked = settings.showDiagnosticsButton,
-                        onCheckedChange = viewModel::setShowDiagnosticsButton,
-                    )
+                settingsCard {
+                    row {
+                        SwitchSettingItem(
+                            title = stringResource(R.string.show_diagnostics_button),
+                            description = stringResource(R.string.show_diagnostics_button_summary),
+                            icon = painterResource(R.drawable.ic_bug_report),
+                            checked = settings.showDiagnosticsButton,
+                            onCheckedChange = viewModel::setShowDiagnosticsButton,
+                        )
+                    }
                 }
             }
 
@@ -790,115 +815,128 @@ fun SettingsScreen(
                 SettingHeader(title = stringResource(R.string.import_export))
             }
 
-            item {
-                ActionSettingItem(
-                    title = stringResource(R.string.backup_title),
-                    description = stringResource(
-                        if (canPickFiles) R.string.backup_row_DESC else R.string.backup_no_file_picker_DESC,
-                    ),
-                    icon = painterResource(R.drawable.ic_save),
-                    onClick = { showBackupDialog = true },
-                    enabled = canPickFiles,
-                )
-            }
+            settingsCard {
+                row {
+                    ActionSettingItem(
+                        title = stringResource(R.string.backup_title),
+                        description = stringResource(
+                            if (canPickFiles) R.string.backup_row_DESC else R.string.backup_no_file_picker_DESC,
+                        ),
+                        icon = painterResource(R.drawable.ic_save),
+                        onClick = { showBackupDialog = true },
+                        enabled = canPickFiles,
+                    )
+                }
 
-            item {
-                ActionSettingItem(
-                    title = stringResource(R.string.restore_title),
-                    description = stringResource(
-                        if (canPickFiles) R.string.restore_row_DESC else R.string.restore_no_file_picker_DESC,
-                    ),
-                    icon = painterResource(R.drawable.ic_download),
-                    onClick = pickRestoreFile,
-                    enabled = canPickFiles,
-                )
-            }
+                row {
+                    ActionSettingItem(
+                        title = stringResource(R.string.restore_title),
+                        description = stringResource(
+                            if (canPickFiles) R.string.restore_row_DESC else R.string.restore_no_file_picker_DESC,
+                        ),
+                        icon = painterResource(R.drawable.ic_download),
+                        onClick = pickRestoreFile,
+                        enabled = canPickFiles,
+                    )
+                }
 
-            item {
-                ActionSettingItem(
-                    title = stringResource(R.string.transfer_send_title),
-                    description = stringResource(R.string.transfer_send_row_DESC),
-                    icon = painterResource(R.drawable.ic_tabler_home_up),
-                    onClick = { showTransferSend = true },
-                )
-            }
+                row {
+                    ActionSettingItem(
+                        title = stringResource(R.string.transfer_send_title),
+                        description = stringResource(R.string.transfer_send_row_DESC),
+                        icon = painterResource(R.drawable.ic_tabler_home_up),
+                        onClick = { showTransferSend = true },
+                    )
+                }
 
-            item {
-                ActionSettingItem(
-                    title = stringResource(R.string.transfer_receive_title),
-                    description = stringResource(R.string.transfer_receive_row_DESC),
-                    icon = painterResource(R.drawable.ic_tabler_home_down),
-                    onClick = { showTransferReceive = true },
-                )
-            }
+                row {
+                    ActionSettingItem(
+                        title = stringResource(R.string.transfer_receive_title),
+                        description = stringResource(R.string.transfer_receive_row_DESC),
+                        icon = painterResource(R.drawable.ic_tabler_home_down),
+                        onClick = { showTransferReceive = true },
+                    )
+                }
 
-            item {
-                ActionSettingItem(
-                    title = stringResource(R.string.paired_devices_title),
-                    description = stringResource(R.string.paired_devices_row_DESC),
-                    icon = painterResource(R.drawable.ic_share),
-                    onClick = { showPairedDevices = true },
-                )
+                row {
+                    ActionSettingItem(
+                        title = stringResource(R.string.paired_devices_title),
+                        description = stringResource(R.string.paired_devices_row_DESC),
+                        icon = painterResource(R.drawable.ic_share),
+                        onClick = { showPairedDevices = true },
+                    )
+                }
             }
 
             item {
                 SettingHeader(title = stringResource(R.string.custom_buttons_section))
             }
 
-            item {
-                CustomButtonsSettingItem(
-                    buttons = customButtons,
-                    onAddButton = viewModel::addCustomButton,
-                    onUpdateButton = viewModel::updateCustomButton,
-                    onRemoveButton = viewModel::removeCustomButton,
-                )
+            settingsCard {
+                row {
+                    CustomButtonsSettingItem(
+                        buttons = customButtons,
+                        onAddButton = viewModel::addCustomButton,
+                        onUpdateButton = viewModel::updateCustomButton,
+                        onRemoveButton = viewModel::removeCustomButton,
+                    )
+                }
             }
 
             item {
                 SettingHeader(title = stringResource(R.string.author))
             }
 
-            item {
-                AuthorRow(
-                    icon = painterResource(R.drawable.ic_person),
-                    title = AUTHOR_NAME,
-                    subtitle = stringResource(R.string.author_repo_subtitle),
-                    onClick = { context.openLink(AUTHOR_REPO_URL) },
-                )
-            }
+            settingsCard {
+                row {
+                    AuthorRow(
+                        icon = painterResource(R.drawable.ic_person),
+                        title = AUTHOR_NAME,
+                        subtitle = stringResource(R.string.author_repo_subtitle),
+                        onClick = { context.openLink(AUTHOR_REPO_URL) },
+                    )
+                }
 
-            item {
-                AuthorRow(
-                    icon = painterResource(R.drawable.ic_github),
-                    title = stringResource(R.string.follow_on_github),
-                    subtitle = null,
-                    onClick = { context.openLink(AUTHOR_GITHUB_URL) },
-                )
+                row {
+                    AuthorRow(
+                        icon = painterResource(R.drawable.ic_github),
+                        title = stringResource(R.string.follow_on_github),
+                        subtitle = null,
+                        onClick = { context.openLink(AUTHOR_GITHUB_URL) },
+                    )
+                }
             }
 
             item {
                 SettingHeader(title = stringResource(R.string.special_credits))
             }
 
-            item {
-                ActionSettingItem(
-                    title = FOXY_DROID_TITLE,
-                    description = FOXY_DROID_AUTHOR,
-                    icon = painterResource(R.drawable.ic_github),
-                    onClick = { context.openLink(FOXY_DROID_URL) },
-                )
+            settingsCard {
+                row {
+                    ActionSettingItem(
+                        title = FOXY_DROID_TITLE,
+                        description = FOXY_DROID_AUTHOR,
+                        icon = painterResource(R.drawable.ic_github),
+                        onClick = { context.openLink(FOXY_DROID_URL) },
+                    )
+                }
+
+                row {
+                    ActionSettingItem(
+                        title = DROID_IFY_AUTHOR,
+                        description = DROID_IFY_ORIGINAL,
+                        icon = painterResource(R.drawable.ic_github),
+                        onClick = { context.openLink(DROID_IFY_URL) },
+                    )
+                }
             }
 
-            item {
-                ActionSettingItem(
-                    title = DROID_IFY_AUTHOR,
-                    description = DROID_IFY_ORIGINAL,
-                    icon = painterResource(R.drawable.ic_github),
-                    onClick = { context.openLink(DROID_IFY_URL) },
-                )
+            // The version on a card of its own, no heading above it to set it apart from the credits.
+            item { Spacer(Modifier.height(16.dp)) }
+            settingsCard {
+                row { VersionFooter(onEasterEgg = onOpenEasterEgg) }
             }
-
-            item { VersionFooter(onEasterEgg = onOpenEasterEgg) }
+            item { Spacer(Modifier.height(16.dp)) }
         }
     }
     }
@@ -975,7 +1013,7 @@ private fun VersionFooter(onEasterEgg: () -> Unit) {
             // sit at the very bottom of a long list). Both no-op on touch.
             .tvFocusFill(RoundedCornerShape(12.dp))
             .tvBringIntoViewOnFocus()
-            .clickable {
+            .settingRowClick {
                 val now = SystemClock.elapsedRealtime()
                 tapCount = if (now - lastTapAt > EASTER_EGG_TAP_TIMEOUT_MS) 1 else tapCount + 1
                 lastTapAt = now
@@ -1000,7 +1038,7 @@ private fun VersionFooter(onEasterEgg: () -> Unit) {
                     }
                 }
             }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(settingRowPadding),
     ) {
         // The app's own launcher icon (its colour foreground layer), shown as an Image so the footer
         // reads as "this is Omnify". We use the foreground drawable, not R.mipmap.ic_launcher: the
@@ -1013,22 +1051,34 @@ private fun VersionFooter(onEasterEgg: () -> Unit) {
         // to a circle/square/etc. on the home screen) — drawn at 1:1 in a 24dp box, the actual glyph
         // came out tiny. Scale the image up around its centre and clip it to the 24dp box, cropping
         // away that safe-zone padding so the glyph itself fills the row icon like the others do.
-        Image(
-            painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = null,
-            modifier = Modifier
-                .size(24.dp)
-                .graphicsLayer {
-                    scaleX = 2.3f
-                    scaleY = 2.3f
-                    clip = true
-                },
-        )
-        Spacer(Modifier.width(20.dp))
+        if (LocalIsTelevision.current) {
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(24.dp)
+                    .graphicsLayer {
+                        scaleX = 2.3f
+                        scaleY = 2.3f
+                        clip = true
+                    },
+            )
+            Spacer(Modifier.width(20.dp))
+        } else {
+            // On touch, the logo itself on its launcher icon's dark ground, as in the home header.
+            SettingIconTile(colorResource(R.color.ic_launcher_background)) {
+                Image(
+                    painter = painterResource(R.drawable.ic_omnify_logo),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+        }
         Column {
             Text(
                 text = stringResource(R.string.application_name),
-                style = MaterialTheme.typography.bodyLarge,
+                style = settingTitleStyle,
             )
             Text(
                 text = stringResource(R.string.version_FORMAT, BuildConfig.VERSION_NAME) +
@@ -1062,18 +1112,12 @@ private fun AuthorRow(
             .fillMaxWidth()
             // TV only: a soft accent fill behind the focused row (no-op on touch).
             .tvFocusFill(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .settingRowClick(onClick = onClick)
+            .padding(settingRowPadding),
     ) {
-        Icon(
-            painter = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(28.dp),
-        )
-        Spacer(Modifier.width(20.dp))
+        SettingLeadingIcon(icon, enabled = true)
         Column {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(text = title, style = settingTitleStyle)
             if (subtitle != null) {
                 Text(
                     text = subtitle,

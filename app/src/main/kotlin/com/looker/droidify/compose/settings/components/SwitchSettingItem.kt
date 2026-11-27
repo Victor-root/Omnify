@@ -1,7 +1,6 @@
 package com.looker.droidify.compose.settings.components
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,9 +30,8 @@ fun SwitchSettingItem(
     enabled: Boolean = true,
 ) {
     // On Android TV the whole row is a single D-pad focus target: the accent highlight spans the entire
-    // row — icon, text AND the switch — with roomy padding so it never hugs the text, and the switch is
-    // display-only (center toggles the row). The phone layout is left exactly as it was: a focusGroup
-    // with a separate label click target and an independently interactive switch.
+    // row (icon, text and the switch) with roomy padding so it never hugs the text, and the switch is
+    // display-only (center toggles the row).
     if (LocalIsTelevision.current) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -56,38 +54,21 @@ fun SwitchSettingItem(
         return
     }
 
-    // Not directly focusable/clickable itself: the Switch at the end is its own independently focusable
-    // control (Material3's Switch is always interactive), so a row that's ALSO directly focusable/
-    // clickable put two focus targets in the same space — confusing on TV (which one is "it"?) and
-    // unreachable-by-D-pad for the Switch, since Compose's directional focus search won't descend into
-    // the currently-focused node's own subtree. A focusGroup instead, with the label area carrying its
-    // own dedicated click target as a true sibling of the Switch.
+    // The whole row toggles the switch, which only shows the state: one target, as on TV.
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .focusGroup()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .settingRowToggle(checked, enabled, onCheckedChange)
+            .padding(settingRowPadding),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .weight(1f)
-                .clickable(enabled = enabled) { onCheckedChange(!checked) }
-                .padding(vertical = 4.dp),
-        ) {
-            SettingLeadingIcon(icon, enabled)
-            Column(modifier = Modifier.weight(1f)) {
-                SwitchTitle(title, enabled)
-                SwitchDescription(description, enabled)
-            }
+        SettingLeadingIcon(icon, enabled)
+        Column(modifier = Modifier.weight(1f)) {
+            SwitchTitle(title, enabled)
+            SwitchDescription(description, enabled)
         }
         Spacer(modifier = Modifier.width(16.dp))
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled,
-        )
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled, colors = settingSwitchColors())
     }
 }
 
@@ -95,7 +76,7 @@ fun SwitchSettingItem(
 private fun SwitchTitle(title: String, enabled: Boolean) {
     Text(
         text = title,
-        style = MaterialTheme.typography.bodyLarge,
+        style = settingTitleStyle,
         color = if (enabled) {
             MaterialTheme.colorScheme.onSurface
         } else {

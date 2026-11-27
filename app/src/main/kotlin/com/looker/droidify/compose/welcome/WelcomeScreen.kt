@@ -535,7 +535,7 @@ private fun WelcomeAppearanceCards(
         modifier = modifier.verticalScroll(rememberScrollState()),
     ) {
         WelcomeCard {
-            Column {
+            Column(modifier = Modifier.padding(8.dp)) {
                 ThemeSetting(
                     icon = painterResource(R.drawable.ic_tabler_paint),
                     selectedTheme = appearance.theme,

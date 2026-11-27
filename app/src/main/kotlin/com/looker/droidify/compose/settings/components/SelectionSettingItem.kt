@@ -1,6 +1,5 @@
 package com.looker.droidify.compose.settings.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,14 +52,14 @@ fun <T> SelectionSettingItem(
             .then(if (isTv) Modifier.padding(horizontal = 8.dp, vertical = 2.dp) else Modifier)
             // TV only: a soft accent fill behind the focused row (no-op on touch).
             .tvFocusFill(RoundedCornerShape(if (isTv) 18.dp else 12.dp))
-            .clickable(enabled = enabled) { showDialog = true }
-            .padding(horizontal = 16.dp, vertical = if (isTv) 16.dp else 12.dp),
+            .settingRowClick(enabled) { showDialog = true }
+            .then(if (isTv) Modifier.padding(16.dp) else Modifier.padding(settingRowPadding)),
     ) {
         SettingLeadingIcon(icon, enabled)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = settingTitleStyle,
                 color = if (enabled) {
                     MaterialTheme.colorScheme.onSurface
                 } else {
