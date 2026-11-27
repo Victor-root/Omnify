@@ -1664,7 +1664,7 @@ private fun OmnifyLogoBadge() {
         Image(
             painter = painterResource(R.drawable.ic_omnify_logo),
             contentDescription = null,
-            modifier = Modifier.size(28.dp),
+            modifier = Modifier.size(33.dp),
         )
     }
 }
