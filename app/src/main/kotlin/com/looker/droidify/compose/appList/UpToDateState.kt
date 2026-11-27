@@ -284,7 +284,11 @@ private fun RecentUpdates(
         card = {
             // The same frame as PremiumCard, drawn behind the rows that fit.
             val shape = MaterialTheme.shapes.large
-            Box(Modifier.then(premiumCardFrame(shape)))
+            Box(
+                Modifier
+                    .then(premiumCardFrame(shape))
+                    .background(MaterialTheme.colorScheme.surface, shape),
+            )
         },
         heading = {
             SectionHeading(

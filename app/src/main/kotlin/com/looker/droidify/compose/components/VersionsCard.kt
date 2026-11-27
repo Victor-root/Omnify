@@ -42,7 +42,7 @@ fun VersionsCard(
 ) {
     Surface(
         shape = VersionsCardShape,
-        color = Color.Transparent,
+        color = MaterialTheme.colorScheme.surface,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
@@ -91,17 +91,16 @@ fun VersionsCardDivider() {
 }
 
 /**
- * A version row's background: the card's own, except the suggested one ([highlighted]): in a list card
- * ([inList]), tinted with the accent; standing on its own, none, its frame (premiumCardFrame) laying
- * the ground under it.
+ * A version row's background: the card's own, except the suggested one ([highlighted]) in a list card
+ * ([inList]), tinted with the accent. A version standing on its own marks it with a border instead.
  */
 @Composable
 fun versionRowColor(highlighted: Boolean, inList: Boolean): Color {
     val surface = MaterialTheme.colorScheme.surface
-    return when {
-        highlighted && inList -> MaterialTheme.colorScheme.primary.copy(alpha = 0.07f).compositeOver(surface)
-        highlighted -> Color.Transparent
-        else -> surface
+    return if (highlighted && inList) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.07f).compositeOver(surface)
+    } else {
+        surface
     }
 }
 

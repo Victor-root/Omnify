@@ -35,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
@@ -277,8 +276,9 @@ private fun AccountInfoTab(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = accountCardShape,
-                // No colour of its own: the frame above lays the card's ground and ties it to the theme.
-                color = Color.Transparent,
+                // White instead of a flat bordered grey card — the accent halo above is what
+                // ties it to the theme, not a flat colour fill.
+                color = MaterialTheme.colorScheme.surface,
             ) {
                 SwitchSettingItem(
                     title = stringResource(R.string.repo_enabled_title),
