@@ -47,7 +47,6 @@ import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentHeaderShape
-import com.looker.droidify.compose.theme.accentTitleBarWindowInsets
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import kotlinx.coroutines.delay
 
@@ -98,7 +97,6 @@ fun ChangelogDialog(
                     topBar = {
                         TopAppBar(
                             colors = accentTopAppBarColors(),
-                            windowInsets = accentTitleBarWindowInsets(),
                             expandedHeight = AccentBarHeight,
                             modifier = if (isTelevision) {
                                 Modifier.tvDpadDownTo(contentFocusRequester, debugLabel = "changelog-topappbar")

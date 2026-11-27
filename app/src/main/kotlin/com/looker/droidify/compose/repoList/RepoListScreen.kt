@@ -102,7 +102,6 @@ import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
 import com.looker.droidify.compose.externalApps.PendingSharedSource
 import com.looker.droidify.compose.externalApps.rememberObtainiumImportPicker
 import com.looker.droidify.compose.quickshare.QuickShareSendDialog
-import com.looker.droidify.compose.theme.accentTitleBarWindowInsets
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.trailRepoIcon
 import com.looker.droidify.external.ExternalAccount
@@ -265,7 +264,6 @@ fun RepoListScreen(
         topBar = {
             TopAppBar(
                 colors = accentTopAppBarColors(),
-                windowInsets = accentTitleBarWindowInsets(),
                 expandedHeight = AccentBarHeight,
                 modifier = header.headerModifier.tvDpadDownTo(contentFocusRequester),
                 title = { Text(text = stringResource(R.string.repositories)) },

@@ -56,7 +56,6 @@ import com.looker.droidify.compose.components.tvTypeOnOk
 import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
-import com.looker.droidify.compose.theme.accentTitleBarWindowInsets
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.compose.theme.tvTopAppBarColors
 import com.looker.droidify.compose.tv.TvAccentBackground
@@ -126,7 +125,6 @@ fun RepoEditScreen(
         topBar = {
             TopAppBar(
                 colors = if (isTelevision) tvTopAppBarColors() else accentTopAppBarColors(),
-                windowInsets = accentTitleBarWindowInsets(),
                 expandedHeight = if (isTelevision) TopAppBarDefaults.TopAppBarExpandedHeight else AccentBarHeight,
                 modifier = header.headerModifier.tvDpadDownTo(contentFocusRequester),
                 title = {

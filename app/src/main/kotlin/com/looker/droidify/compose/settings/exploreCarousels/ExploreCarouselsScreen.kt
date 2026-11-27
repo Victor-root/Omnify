@@ -56,7 +56,6 @@ import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.settings.components.SettingHeader
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
-import com.looker.droidify.compose.theme.accentTitleBarWindowInsets
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.compose.tv.TvAccentBackground
 import com.looker.droidify.compose.tv.TvAccentHeader
@@ -94,7 +93,6 @@ fun ExploreCarouselsScreen(
                 } else {
                     TopAppBar(
                         colors = accentTopAppBarColors(),
-                        windowInsets = accentTitleBarWindowInsets(),
                         expandedHeight = AccentBarHeight,
                         modifier = header.headerModifier.tvDpadDownTo(contentFocusRequester),
                         title = { Text(text = title) },

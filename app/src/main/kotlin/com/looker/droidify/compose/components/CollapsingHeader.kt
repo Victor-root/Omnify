@@ -32,6 +32,7 @@ class CollapsibleHeader internal constructor(
     private val scrollBehavior: TopAppBarScrollBehavior,
     enabled: Boolean,
     shaped: Boolean,
+    endsWithTabs: Boolean,
 ) {
     /** Lets the screen's scrolling content drive the header. */
     val scaffoldModifier: Modifier =
@@ -41,7 +42,7 @@ class CollapsibleHeader internal constructor(
      *  (see [accentHeaderShape]). */
     val headerModifier: Modifier =
         (if (enabled) Modifier.collapsingHeader(scrollBehavior) else Modifier)
-            .then(if (shaped) Modifier.accentHeaderShape() else Modifier)
+            .then(if (shaped) Modifier.accentHeaderShape(endsWithTabs) else Modifier)
 
     /** How many pixels of the header have slid away: 0 while it is fully shown. */
     val collapsedPx: Int get() = -scrollBehavior.state.heightOffset.roundToInt()
@@ -54,16 +55,17 @@ class CollapsibleHeader internal constructor(
 }
 
 /** The [CollapsibleHeader] for the screen calling it. Created unconditionally so the call site stays
- *  stable, and only wired up when the header may actually collapse. */
+ *  stable, and only wired up when the header may actually collapse. [endsWithTabs] when the header ends
+ *  with pill tabs rather than its title bar (see [accentHeaderShape]). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun rememberCollapsibleHeader(): CollapsibleHeader {
+fun rememberCollapsibleHeader(endsWithTabs: Boolean = false): CollapsibleHeader {
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val isTelevision = LocalIsTelevision.current
     val enabled = LocalEdgeToEdge.current && !isTelevision
     if (enabled) CollapsingHeaderStatusBar(scrollBehavior)
-    return remember(scrollBehavior, enabled, isTelevision) {
-        CollapsibleHeader(scrollBehavior, enabled, shaped = !isTelevision)
+    return remember(scrollBehavior, enabled, isTelevision, endsWithTabs) {
+        CollapsibleHeader(scrollBehavior, enabled, shaped = !isTelevision, endsWithTabs = endsWithTabs)
     }
 }
 

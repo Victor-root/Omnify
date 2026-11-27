@@ -143,7 +143,7 @@ fun RepoDetailScreen(
     // the nearest thing below it instead of skipping the tabs entirely.
     val tabsFocusRequester = remember { FocusRequester() }
     val contentFocusRequester = remember { FocusRequester() }
-    val header = rememberCollapsibleHeader()
+    val header = rememberCollapsibleHeader(endsWithTabs = true)
     // A tab too short to scroll would otherwise leave a hidden header no way back.
     LaunchedEffect(selectedTab) { header.reveal() }
     val isTelevision = LocalIsTelevision.current

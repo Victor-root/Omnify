@@ -101,7 +101,7 @@ fun ExternalAccountDetailScreen(
 
     // TV / D-pad: drop focus from the header (top bar or tab row) into the content below.
     val contentFocusRequester = remember { FocusRequester() }
-    val header = rememberCollapsibleHeader()
+    val header = rememberCollapsibleHeader(endsWithTabs = true)
     // A tab too short to scroll would otherwise leave a hidden header no way back.
     LaunchedEffect(selectedTab) { header.reveal() }
 

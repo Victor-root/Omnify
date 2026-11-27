@@ -59,7 +59,6 @@ import androidx.compose.ui.graphics.Color
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.externalApps.prereleaseModeDescription
 import com.looker.droidify.compose.externalApps.prereleaseModeName
-import com.looker.droidify.compose.theme.accentTitleBarWindowInsets
 import com.looker.droidify.compose.tv.TvAccentBackground
 import com.looker.droidify.compose.tv.TvAccentHeader
 import androidx.core.net.toUri
@@ -303,7 +302,6 @@ fun SettingsScreen(
             } else {
                 TopAppBar(
                     colors = accentTopAppBarColors(),
-                    windowInsets = accentTitleBarWindowInsets(),
                     expandedHeight = AccentBarHeight,
                     modifier = header.headerModifier.tvDpadDownTo(contentFocusRequester),
                     title = { Text(text = stringResource(R.string.settings)) },

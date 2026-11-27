@@ -81,7 +81,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButtonDefaults.IconButtonWidthOption.Companion.Narrow
 import androidx.compose.material3.IconButtonDefaults.smallContainerSize
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -161,7 +160,6 @@ import com.looker.droidify.compose.components.updateDeparture
 import com.looker.droidify.compose.theme.EmphasizedAccelerate
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
 import com.looker.droidify.compose.theme.LocalAccentBarColor
-import com.looker.droidify.compose.theme.accentTitleBarWindowInsets
 import com.looker.droidify.compose.trailUpdatesNav
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -274,8 +272,9 @@ fun AppListScreen(
             AppTab.EXTERNAL -> externalGridState
         }
     }
-    // The whole header (toolbar + tabs + banner) collapses on scroll under edge-to-edge.
-    val header = rememberCollapsibleHeader()
+    // The whole header (toolbar + tabs + banner) collapses on scroll under edge-to-edge. A carousel's
+    // "see all" page has no tabs under its title bar.
+    val header = rememberCollapsibleHeader(endsWithTabs = openedSection == null)
     var searchExpanded by rememberSaveable { mutableStateOf(false) }
     // The Explore tab shows the Discover home (3 curated carousels + the categories list) by default;
     // once the user is searching or has opened a category, it shows a flat list of apps instead. Derived
@@ -2188,22 +2187,14 @@ private fun AppListMainTopBar(
             }
             IconButton(
                 onClick = onToggleSearch,
-                // Touch: on a light disc, standing out from the other actions as the way into search, now
-                // that the header has no search field of its own. TV: a square button so the focus halo is
-                // a clean circle; the focused icon also scales up.
-                colors = if (LocalIsTelevision.current) {
-                    IconButtonDefaults.iconButtonColors()
-                } else {
-                    IconButtonDefaults.iconButtonColors(
-                        containerColor = LocalOnAccentBarColor.current.copy(alpha = 0.16f),
-                    )
-                },
                 modifier = Modifier
+                    // TV: a square button so the focus halo is a clean circle (the narrow expressive
+                    // size makes it an oval); the focused icon also scales up. Unchanged on touch.
                     .then(
                         if (LocalIsTelevision.current) {
                             Modifier.size(48.dp)
                         } else {
-                            Modifier.size(smallContainerSize())
+                            Modifier.size(smallContainerSize(Narrow))
                         },
                     )
                     .tvFocusScale(),
@@ -2462,7 +2453,6 @@ private fun SectionTopBar(
 ) {
     TopAppBar(
         colors = accentTopAppBarColors(),
-        windowInsets = accentTitleBarWindowInsets(),
         expandedHeight = AccentBarHeight,
         // No tabs on a section page, so "down" from the back arrow drops straight into the content.
         modifier = Modifier.tvDpadDownTo(contentFocusRequester),
