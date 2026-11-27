@@ -95,6 +95,7 @@ import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
 import com.looker.droidify.compose.theme.VERSION_LIST_SWAP_MS
+import com.looker.droidify.compose.theme.accentTitleBarWindowInsets
 import com.looker.droidify.data.FollowedSource
 import com.looker.droidify.compose.appDetail.catalogueSourceNote
 import com.looker.droidify.compose.appDetail.catalogueViewModel
@@ -446,6 +447,7 @@ fun ExternalAppDetailScreen(
         topBar = {
             TopAppBar(
                 colors = accentTopAppBarColors(),
+                windowInsets = accentTitleBarWindowInsets(),
                 expandedHeight = AccentBarHeight,
                 modifier = if (isTelevision) {
                     Modifier

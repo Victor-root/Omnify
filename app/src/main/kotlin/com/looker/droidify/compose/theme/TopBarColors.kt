@@ -1,5 +1,7 @@
 package com.looker.droidify.compose.theme
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -126,6 +128,22 @@ private val AccentHeaderShape = RoundedCornerShape(
  * across it. Touch screens only: a TV header is transparent (see [tvTopAppBarColors]).
  */
 fun Modifier.accentHeaderShape(): Modifier = shadow(elevation = 6.dp, shape = AccentHeaderShape)
+
+/**
+ * Accent added under the title of a header that ends with its title bar (no tabs below it): the rounded
+ * corners take their room from the bottom, which left the title looking pressed against the top.
+ */
+private val TitleBarBottomSpace = 12.dp
+
+/** The window insets of a header ending with its title bar: the system's, and [TitleBarBottomSpace] on a
+ *  touch screen, where the header is rounded (see [accentHeaderShape]). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun accentTitleBarWindowInsets(): WindowInsets = if (LocalIsTelevision.current) {
+    TopAppBarDefaults.windowInsets
+} else {
+    TopAppBarDefaults.windowInsets.add(WindowInsets(bottom = TitleBarBottomSpace))
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

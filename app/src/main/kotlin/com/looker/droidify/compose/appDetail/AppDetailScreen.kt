@@ -166,6 +166,7 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.EmphasizedAccelerate
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
 import com.looker.droidify.compose.theme.VERSION_LIST_SWAP_MS
+import com.looker.droidify.compose.theme.accentTitleBarWindowInsets
 import com.looker.droidify.data.FollowedSource
 import com.looker.droidify.data.catalogueBuildIsOlder
 import com.looker.droidify.data.model.App
@@ -426,6 +427,7 @@ fun AppDetailScreen(
         topBar = {
             TopAppBar(
                 colors = accentTopAppBarColors(),
+                windowInsets = accentTitleBarWindowInsets(),
                 expandedHeight = AccentBarHeight,
                 modifier = header.headerModifier
                     .onPreviewKeyEvent { event ->

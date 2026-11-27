@@ -161,6 +161,7 @@ import com.looker.droidify.compose.components.updateDeparture
 import com.looker.droidify.compose.theme.EmphasizedAccelerate
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
 import com.looker.droidify.compose.theme.LocalAccentBarColor
+import com.looker.droidify.compose.theme.accentTitleBarWindowInsets
 import com.looker.droidify.compose.trailUpdatesNav
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -2461,6 +2462,7 @@ private fun SectionTopBar(
 ) {
     TopAppBar(
         colors = accentTopAppBarColors(),
+        windowInsets = accentTitleBarWindowInsets(),
         expandedHeight = AccentBarHeight,
         // No tabs on a section page, so "down" from the back arrow drops straight into the content.
         modifier = Modifier.tvDpadDownTo(contentFocusRequester),
