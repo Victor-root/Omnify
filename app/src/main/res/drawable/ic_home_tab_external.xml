@@ -22,7 +22,7 @@
                 android:strokeLineJoin="round" />
         </group>
         <path
-            android:pathData="M12 9.6v4.8M13.1 9.1l1.8 1.8M10.9 6.9l-2.2 -2.2M10.6 8a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0M14.6 12a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0M10.6 16a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0"
+            android:pathData="M12 9.6v4.8M13.1 9.1l1.8 1.8M10.9 6.9l-1.8 -1.8M10.6 8a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0M14.6 12a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0M10.6 16a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0"
             android:strokeColor="#FF000000"
             android:strokeWidth="1.72"
             android:strokeLineCap="round"

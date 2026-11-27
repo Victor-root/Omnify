@@ -1649,16 +1649,17 @@ private fun TabCount(count: Int, modifier: Modifier = Modifier, ring: (() -> Col
     }
 }
 
-/** Omnify's own logo in full colour on its launcher icon's dark disc, so it reads the same on any accent. */
+/** Omnify's own logo in full colour on its launcher icon's dark ground, so it reads the same on any accent,
+ *  in a rounded square matching the home tabs below it. */
 @Composable
 private fun OmnifyLogoBadge() {
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(42.dp)
-            .background(LocalOnAccentBarColor.current.copy(alpha = 0.22f), CircleShape)
+            .background(LocalOnAccentBarColor.current.copy(alpha = 0.22f), RoundedCornerShape(14.dp))
             .padding(2.dp)
-            .background(colorResource(R.color.ic_launcher_background), CircleShape),
+            .background(colorResource(R.color.ic_launcher_background), RoundedCornerShape(12.dp)),
     ) {
         Image(
             painter = painterResource(R.drawable.ic_omnify_logo),
