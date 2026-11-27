@@ -149,6 +149,14 @@ class PreferenceSettingsRepositoryTest {
     }
 
     @Test
+    fun `edge-to-edge is on until turned off`() = runTest {
+        assertTrue(repository.getInitial().edgeToEdge)
+
+        repository.setEdgeToEdge(false)
+        assertFalse(repository.getInitial().edgeToEdge)
+    }
+
+    @Test
     fun `home tabs show icons and text until another style is chosen`() = runTest {
         assertEquals(HomeTabsStyle.ICONS_AND_TEXT, repository.getInitial().homeTabsStyle)
 

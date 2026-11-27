@@ -50,7 +50,7 @@ data class Settings(
     val theme: Theme = Theme.SYSTEM,
     val dynamicTheme: Boolean = false,
     val themeColor: Int = DEFAULT_THEME_COLOR,
-    val edgeToEdge: Boolean = false,
+    val edgeToEdge: Boolean = true,
     /** The abstract backdrop behind the app's screens. */
     val backgroundStyle: BackgroundStyle = BackgroundStyle.DUNES,
     val installerType: InstallerType = InstallerType.Default,

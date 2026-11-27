@@ -354,7 +354,7 @@ class PreferenceSettingsRepository(
         val themeColor = preferences[THEME_COLOR]
             ?.let { if (it == FORMER_ACCENT_RED) ACCENT_RED else it }
             ?: DEFAULT_THEME_COLOR
-        val edgeToEdge = preferences[EDGE_TO_EDGE] ?: false
+        val edgeToEdge = preferences[EDGE_TO_EDGE] ?: true
         val backgroundStyle = runCatching {
             BackgroundStyle.valueOf(preferences[BACKGROUND_STYLE] ?: defaultBackgroundStyle.name)
         }.getOrDefault(defaultBackgroundStyle)
