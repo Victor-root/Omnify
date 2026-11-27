@@ -112,26 +112,21 @@ val LocalScopedBarAccents = staticCompositionLocalOf { ScopedBarAccents() }
  */
 val AccentBarHeight = 56.dp
 
-/** How far up from its bottom edge a header's corners round off at most (see [accentHeaderShape]). */
+/** How far up from its bottom edge a header with tabs rounds off (see [accentHeaderShape]). */
 val AccentHeaderCornerRadius = 28.dp
 
-private val TabbedHeaderShape = RoundedCornerShape(
+private val AccentHeaderShape = RoundedCornerShape(
     bottomStart = AccentHeaderCornerRadius,
     bottomEnd = AccentHeaderCornerRadius,
 )
 
-/** A header ending with its title bar is only slightly rounded: deep corners left its title looking
- *  pressed against the top of so short a band. */
-private val TitleBarHeaderShape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-
 /**
- * The bottom of every screen's accent header, tabs and banners included: rounded off and lifted over the
- * page by a soft shadow, so the header reads as one band laid over the content rather than a strip cut
- * across it. Deeply rounded under pill tabs ([endsWithTabs]), slightly under a title bar. Touch screens
- * only: a TV header is transparent (see [tvTopAppBarColors]).
+ * The bottom of an accent header ending with pill tabs: rounded off and lifted over the page by a soft
+ * shadow, so the header reads as one band laid over the content rather than a strip cut across it. A
+ * header ending with its title bar stays flat: rounded, so short a band looked wrong. Touch screens only:
+ * a TV header is transparent (see [tvTopAppBarColors]).
  */
-fun Modifier.accentHeaderShape(endsWithTabs: Boolean = false): Modifier =
-    shadow(elevation = 6.dp, shape = if (endsWithTabs) TabbedHeaderShape else TitleBarHeaderShape)
+fun Modifier.accentHeaderShape(): Modifier = shadow(elevation = 6.dp, shape = AccentHeaderShape)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
