@@ -14,6 +14,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -55,7 +56,7 @@ fun FingerprintCard(
                 .tvBringIntoViewOnFocus()
                 .let { if (onClick != null) it.clickable(onClick = onClick) else it },
             shape = shape,
-            color = MaterialTheme.colorScheme.surface,
+            color = Color.Transparent,
         ) {
             Column(
                 modifier = Modifier

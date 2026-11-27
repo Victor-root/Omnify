@@ -1,6 +1,5 @@
 package com.looker.droidify.compose.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,12 +40,13 @@ fun VersionsCard(
     header: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val primary = MaterialTheme.colorScheme.primary
     Surface(
         shape = VersionsCardShape,
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.5.dp, primary.copy(alpha = 0.35f)),
-        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        color = Color.Transparent,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .then(premiumCardFrame(VersionsCardShape)),
     ) {
         Column {
             Column(
@@ -91,16 +91,17 @@ fun VersionsCardDivider() {
 }
 
 /**
- * A version row's background: the card's own, except the suggested one ([highlighted]) in a list card
- * ([inList]), tinted with the accent. A version standing on its own marks it with a border instead.
+ * A version row's background: the card's own, except the suggested one ([highlighted]): in a list card
+ * ([inList]), tinted with the accent; standing on its own, none, its frame (premiumCardFrame) laying
+ * the ground under it.
  */
 @Composable
 fun versionRowColor(highlighted: Boolean, inList: Boolean): Color {
     val surface = MaterialTheme.colorScheme.surface
-    return if (highlighted && inList) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.07f).compositeOver(surface)
-    } else {
-        surface
+    return when {
+        highlighted && inList -> MaterialTheme.colorScheme.primary.copy(alpha = 0.07f).compositeOver(surface)
+        highlighted -> Color.Transparent
+        else -> surface
     }
 }
 

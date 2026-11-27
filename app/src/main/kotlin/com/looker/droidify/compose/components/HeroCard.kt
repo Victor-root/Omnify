@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -85,11 +86,10 @@ fun HeroCard(
     Box(modifier = modifier.fillMaxWidth().then(premiumCardFrame(shape))) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            // Plain white (not the grey surfaceContainerHigh): against the aurora background
-            // behind it (see FloatingAppCardsBackground), a flat grey card read as washed-out and
-            // didn't stand out. The accent halo (premiumCardFrame) above is what ties it
-            // back to the theme instead of a flat colour fill.
-            color = MaterialTheme.colorScheme.surface,
+            // No colour of its own: the frame (premiumCardFrame) above lays the card's ground, white
+            // with a touch of the accent at the top, and its halo is what ties it back to the theme. A
+            // flat grey card read as washed-out against the backdrop behind it.
+            color = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = shape,
         ) {

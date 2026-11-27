@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
@@ -21,13 +23,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * The frame shared by every "big white card" (hero card, repo settings sections, the version list,
- * the settings sections, …): no outline, the card lifted off the page by a soft halo in the user's
- * own accent, so it reads as deliberately styled rather than a generic Material card that happens to
- * sit on the backdrop (see [FloatingAppCardsBackground]). Drawn by hand, a wide soft layer under a
- * close one: Material's elevation shadows are kept faint by the system whatever colour they are
- * given. A halo barely shows on a dark page, so the dark themes add a faint outline in the accent to
- * keep the card's edge. Clips nothing: the halo is drawn around the card, which draws its own shape.
+ * The frame shared by every big card (hero card, repo settings sections, the version list, the
+ * settings sections, …): no outline, the card lifted off the page by a soft halo in the user's own
+ * accent, on the dialogs' own ground ([accentGroundBrush]), so it reads as deliberately styled rather
+ * than a generic Material card that happens to sit on the backdrop (see [FloatingAppCardsBackground]).
+ * The card inside takes no colour of its own (a transparent Surface), so the ground shows. The halo
+ * is drawn by hand, a wide soft layer under a close one: Material's elevation shadows are kept faint
+ * by the system whatever colour they are given. A halo barely shows on a dark page, so the dark
+ * themes add a faint outline in the accent to keep the card's edge. Clips nothing: the halo is drawn
+ * around the card, which draws its own shape.
  */
 @Composable
 fun premiumCardFrame(shape: Shape): Modifier {
@@ -52,6 +56,7 @@ fun premiumCardFrame(shape: Shape): Modifier {
                 }
             }
         }
+        .background(accentGroundBrush(), shape)
         .then(if (dark) Modifier.border(1.dp, accent.copy(alpha = DARK_EDGE_ALPHA), shape) else Modifier)
 }
 
@@ -65,7 +70,7 @@ private val HaloLayers = listOf(
 
 private const val DARK_EDGE_ALPHA = 0.3f
 
-/** A plain white card in [premiumCardFrame]'s frame, the app page's own card (see [HeroCard]). */
+/** A card in [premiumCardFrame]'s frame, the app page's own card (see [HeroCard]). */
 @Composable
 fun PremiumCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val shape = MaterialTheme.shapes.large
@@ -74,7 +79,7 @@ fun PremiumCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) 
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = shape,
-            color = MaterialTheme.colorScheme.surface,
+            color = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onSurface,
             content = content,
         )

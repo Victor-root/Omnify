@@ -15,24 +15,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 
 /**
- * The ground every dialog of the app shares: the surface tinted with the accent at the top, fading
- * to the plain surface lower down, inside a fine outline in the accent. Give it to the dialog's own
- * container, with a transparent colour of its own so the gradient shows through.
+ * The ground the app's dialogs and big cards share: the surface tinted with the accent at the top,
+ * fading to the plain surface lower down.
  */
 @Composable
-fun accentDialogBackground(shape: Shape = AlertDialogDefaults.shape): Modifier {
-    val accent = MaterialTheme.colorScheme.primary
+fun accentGroundBrush(): Brush {
     val surface = MaterialTheme.colorScheme.surface
-    val tinted = accent.copy(alpha = TOP_TINT).compositeOver(surface)
-    return Modifier
-        .background(Brush.verticalGradient(0f to tinted, FADE_END to surface), shape)
-        .border(1.dp, accent.copy(alpha = OUTLINE_ALPHA), shape)
+    val tinted = MaterialTheme.colorScheme.primary.copy(alpha = TOP_TINT).compositeOver(surface)
+    return Brush.verticalGradient(0f to tinted, FADE_END to surface)
 }
 
-/** How much of the accent the top of a dialog takes. */
+/**
+ * The ground every dialog of the app shares ([accentGroundBrush]), inside a fine outline in the
+ * accent. Give it to the dialog's own container, with a transparent colour of its own so the
+ * gradient shows through.
+ */
+@Composable
+fun accentDialogBackground(shape: Shape = AlertDialogDefaults.shape): Modifier = Modifier
+    .background(accentGroundBrush(), shape)
+    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = OUTLINE_ALPHA), shape)
+
+/** How much of the accent the top of the ground takes. */
 private const val TOP_TINT = 0.16f
 
-/** Where, down a dialog, the tint has faded into the plain surface. */
+/** Where, down the ground, the tint has faded into the plain surface. */
 private const val FADE_END = 0.6f
 
 private const val OUTLINE_ALPHA = 0.45f

@@ -74,13 +74,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -2241,9 +2241,8 @@ fun GoogleServicesCard(
     Box(modifier = modifier.fillMaxWidth().then(premiumCardFrame(shape))) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            // White instead of a flat grey card — the accent halo above is what ties it to
-            // the theme, not a flat colour fill.
-            color = MaterialTheme.colorScheme.surface,
+            // No colour of its own: the frame above lays the card's ground and ties it to the theme.
+            color = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = shape,
         ) {

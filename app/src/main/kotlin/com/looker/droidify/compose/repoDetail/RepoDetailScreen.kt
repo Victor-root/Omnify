@@ -55,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -97,7 +98,6 @@ import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.compose.theme.tvTopAppBarColors
 import com.looker.droidify.compose.tv.TvAccentBackground
-import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.text.font.FontWeight
 import com.looker.droidify.data.model.AppMinimal
@@ -408,9 +408,8 @@ private fun RepoInfoTab(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = repoCardShape,
-                // White instead of a flat bordered grey card — the accent halo above is what
-                // ties it to the theme, not a flat colour fill.
-                color = MaterialTheme.colorScheme.surface,
+                // No colour of its own: the frame above lays the card's ground and ties it to the theme.
+                color = Color.Transparent,
             ) {
                 SwitchSettingItem(
                     title = stringResource(R.string.repo_enabled_title),

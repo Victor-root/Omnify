@@ -581,7 +581,7 @@ private fun WelcomeCard(
         Surface(
             modifier = Modifier.fillMaxWidth().then(if (fillHeight) Modifier.fillMaxHeight() else Modifier),
             shape = shape,
-            color = MaterialTheme.colorScheme.surface,
+            color = Color.Transparent,
             content = content,
         )
     }
