@@ -22,7 +22,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -46,7 +45,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
-import com.looker.droidify.compose.components.AccentTabRow
+import com.looker.droidify.compose.components.AccentTabs
 import com.looker.droidify.compose.components.BackButton
 import com.looker.droidify.compose.components.FloatingAppCardsBackground
 import com.looker.droidify.compose.components.forFloatingBackground
@@ -54,14 +53,12 @@ import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.TvOverscan
 import com.looker.droidify.compose.components.rememberCollapsibleHeader
 import com.looker.droidify.compose.components.tvDpadDownTo
-import com.looker.droidify.compose.components.tvFocusScale
 import com.looker.droidify.compose.components.aroundScroll
 import com.looker.droidify.compose.repoList.OmnifyLogoIcon
 import com.looker.droidify.compose.repoList.RepoIcon
 import com.looker.droidify.compose.settings.components.SwitchSettingItem
 import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
-import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
 import com.looker.droidify.external.ExternalAccount
 import com.looker.droidify.external.ExternalApp
@@ -194,31 +191,13 @@ private fun AccountDetailTabRow(
     onSelectTab: (AccountDetailTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    AccentTabRow(selectedTabIndex = selectedTab.ordinal, modifier = modifier) {
-        Tab(
-            selected = selectedTab == AccountDetailTab.INFO,
-            onClick = { onSelectTab(AccountDetailTab.INFO) },
-            modifier = Modifier.tvFocusScale(),
-            selectedContentColor = LocalOnAccentBarColor.current,
-            unselectedContentColor = LocalOnAccentBarColor.current.copy(alpha = 0.7f),
-            text = { Text(stringResource(R.string.repo_tab_info)) },
-        )
-        Tab(
-            selected = selectedTab == AccountDetailTab.APPS,
-            onClick = { onSelectTab(AccountDetailTab.APPS) },
-            modifier = Modifier.tvFocusScale(),
-            selectedContentColor = LocalOnAccentBarColor.current,
-            unselectedContentColor = LocalOnAccentBarColor.current.copy(alpha = 0.7f),
-            text = {
-                val label = if (appCount > 0) {
-                    "${stringResource(R.string.repo_tab_apps)} ($appCount)"
-                } else {
-                    stringResource(R.string.repo_tab_apps)
-                }
-                Text(label)
-            },
-        )
-    }
+    val apps = stringResource(R.string.repo_tab_apps)
+    AccentTabs(
+        labels = listOf(stringResource(R.string.repo_tab_info), if (appCount > 0) "$apps ($appCount)" else apps),
+        selectedIndex = selectedTab.ordinal,
+        onSelect = { onSelectTab(AccountDetailTab.entries[it]) },
+        modifier = modifier,
+    )
 }
 
 @Composable

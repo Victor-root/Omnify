@@ -2,6 +2,7 @@ package com.looker.droidify.datastore
 
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.BackgroundStyle
+import com.looker.droidify.datastore.model.HomeTabsStyle
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
@@ -70,6 +71,8 @@ interface SettingsRepository {
     suspend fun updateLastModifiedDownloadStats(date: Date)
 
     suspend fun setHomeScreenSwiping(value: Boolean)
+
+    suspend fun setHomeTabsStyle(style: HomeTabsStyle)
 
     /** Null goes back to Omnify's own arrangement. */
     suspend fun setExploreCarousels(keys: List<String>?)

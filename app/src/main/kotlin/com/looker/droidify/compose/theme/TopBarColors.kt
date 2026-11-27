@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBarColors
@@ -12,6 +13,8 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
@@ -108,6 +111,21 @@ val LocalScopedBarAccents = staticCompositionLocalOf { ScopedBarAccents() }
  * so the logo + wordmark stay prominent.
  */
 val AccentBarHeight = 56.dp
+
+/** How far up from its bottom edge the corners of every header round off (see [accentHeaderShape]). */
+val AccentHeaderCornerRadius = 28.dp
+
+private val AccentHeaderShape = RoundedCornerShape(
+    bottomStart = AccentHeaderCornerRadius,
+    bottomEnd = AccentHeaderCornerRadius,
+)
+
+/**
+ * The bottom of every screen's accent header, tabs and banners included: rounded off and lifted over the
+ * page by a soft shadow, so the header reads as one band laid over the content rather than a strip cut
+ * across it. Touch screens only: a TV header is transparent (see [tvTopAppBarColors]).
+ */
+fun Modifier.accentHeaderShape(): Modifier = shadow(elevation = 6.dp, shape = AccentHeaderShape)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

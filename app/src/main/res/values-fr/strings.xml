@@ -469,6 +469,10 @@
     <string name="follow_on_github">Suivre sur GitHub</string>
     <string name="home_screen_swiping">Balayage de page</string>
     <string name="home_screen_swiping_DESC">Balayer à gauche ou à droite pour changer de page</string>
+    <string name="home_tabs_style">Onglets de l\'accueil</string>
+    <string name="home_tabs_style_text">Texte</string>
+    <string name="home_tabs_style_icons">Icônes</string>
+    <string name="home_tabs_style_icons_and_text">Icônes et texte</string>
     <string name="repository_not_found">Le dépôt n\'a pas été trouvé</string>
     <string name="repository_save_failed">Le dépôt n\'a pas pu être enregistré</string>
     <string name="add_without_checking">Ajouter sans vérifier</string>

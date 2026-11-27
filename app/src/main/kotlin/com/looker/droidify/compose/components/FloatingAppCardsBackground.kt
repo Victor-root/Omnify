@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
+import com.looker.droidify.compose.theme.AccentHeaderCornerRadius
 import com.looker.droidify.compose.theme.LocalBackgroundStyle
 import com.looker.droidify.compose.theme.LocalEdgeToEdge
 import com.looker.droidify.compose.theme.LocalIsTelevision
@@ -198,7 +199,12 @@ private fun AuroraBackground(modifier: Modifier, accent: Color, dark: Boolean, i
  */
 @Composable
 fun PaddingValues.forFloatingBackground(): PaddingValues = PaddingValues(
-    top = calculateTopPadding(),
+    // Up behind the header's rounded corners, which would otherwise show the plain container there.
+    top = if (LocalIsTelevision.current) {
+        calculateTopPadding()
+    } else {
+        (calculateTopPadding() - AccentHeaderCornerRadius).coerceAtLeast(0.dp)
+    },
     bottom = if (LocalEdgeToEdge.current) 0.dp else calculateBottomPadding(),
 )
 

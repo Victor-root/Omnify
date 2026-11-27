@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,6 +53,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -79,6 +81,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButtonDefaults.IconButtonWidthOption.Companion.Narrow
 import androidx.compose.material3.IconButtonDefaults.smallContainerSize
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -101,9 +104,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -113,12 +120,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -136,6 +145,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
+import com.looker.droidify.compose.components.AccentPillFace
+import com.looker.droidify.compose.components.AccentPillLabel
+import com.looker.droidify.compose.components.AccentPillTab
+import com.looker.droidify.compose.components.AccentPillTabRow
 import com.looker.droidify.compose.components.SyncPercent
 import com.looker.droidify.compose.components.rememberTvTyping
 import com.looker.droidify.compose.components.shrinkToFit
@@ -147,6 +160,7 @@ import com.looker.droidify.compose.components.rememberEmptyStateExit
 import com.looker.droidify.compose.components.updateDeparture
 import com.looker.droidify.compose.theme.EmphasizedAccelerate
 import com.looker.droidify.compose.theme.EmphasizedDecelerate
+import com.looker.droidify.compose.theme.LocalAccentBarColor
 import com.looker.droidify.compose.trailUpdatesNav
 import com.looker.droidify.compose.externalApps.ExternalAppTile
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -172,6 +186,7 @@ import com.looker.droidify.compose.theme.AccentBarHeight
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalOnAccentBarColor
 import com.looker.droidify.compose.theme.accentTopAppBarColors
+import com.looker.droidify.datastore.model.HomeTabsStyle
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.external.shownOnExternalTab
 import com.looker.droidify.compose.welcome.backgroundActivityHint
@@ -179,6 +194,7 @@ import com.looker.droidify.utility.common.hasOwnBackgroundControls
 import com.looker.droidify.utility.common.isIgnoreBatteryEnabled
 import com.looker.droidify.utility.common.openBackgroundActivitySettings
 import com.looker.droidify.work.BatchUpdateProgress
+import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.drop
@@ -242,6 +258,7 @@ fun AppListScreen(
     val installedVersionNames by viewModel.installedVersionNames.collectAsStateWithLifecycle()
     val externallyInstalled by viewModel.externallyInstalledPackages.collectAsStateWithLifecycle()
     val homeScreenSwiping by viewModel.homeScreenSwiping.collectAsStateWithLifecycle()
+    val homeTabsStyle by viewModel.homeTabsStyle.collectAsStateWithLifecycle()
     val activeSearch by viewModel.activeSearch.collectAsStateWithLifecycle()
     // One grid per tab, each keeping its own scroll position across swipes.
     val exploreGridState = rememberLazyGridState()
@@ -745,21 +762,14 @@ fun AppListScreen(
                             },
                             searchState = viewModel.searchQuery,
                                 title = {
-                                // Pull the whole logo+wordmark left, past the top bar's default title inset.
                                 // fillMaxWidth so the second child's weight(1f) below has the bar's true
                                 // available width (up to the action buttons) to divide, on any screen size.
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .offset(x = (-16).dp),
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_launcher_monochrome),
-                                        contentDescription = null,
-                                        tint = LocalOnAccentBarColor.current,
-                                        modifier = Modifier.size(60.dp),
-                                    )
+                                    OmnifyLogoBadge()
+                                    Spacer(Modifier.width(12.dp))
                                     // While a sync runs, this same spot hands itself over to a status bar
                                     // instead of a second strip elsewhere competing with the app list for
                                     // space (see TitleOrSyncIndicator). The wordmark isn't needed to orient
@@ -777,30 +787,37 @@ fun AppListScreen(
                             onToggleTvOnly = viewModel::toggleTvOnly,
                             showDiagnosticsButton = showDiagnosticsButton,
                         )
-                        AppTabRow(
-                            selectedTab = selectedTab,
-                            updatesCount = updatesCount,
-                            onSelectTab = viewModel::selectTab,
-                            position = {
-                                if (pillGliding) {
-                                    pillPosition.value
-                                } else {
-                                    pagerState.currentPage + pagerState.currentPageOffsetFraction
-                                }
-                            },
-                            // TV: the tab row is the startup focus target (see tabsFocusRequester), and a
-                            // focus group so requesting focus here lands on a tab. "Down" from a tab drops
-                            // into the content grid (the tab row won't release focus down on its own). No
-                            // effect on touch.
-                            modifier = if (isTelevision) {
-                                Modifier
+                        val tabsPosition = {
+                            if (pillGliding) {
+                                pillPosition.value
+                            } else {
+                                pagerState.currentPage + pagerState.currentPageOffsetFraction
+                            }
+                        }
+                        if (isTelevision) {
+                            AppTabRow(
+                                selectedTab = selectedTab,
+                                updatesCount = updatesCount,
+                                onSelectTab = viewModel::selectTab,
+                                position = tabsPosition,
+                                // The tab row is the startup focus target (see tabsFocusRequester), and a
+                                // focus group so requesting focus here lands on a tab. "Down" from a tab
+                                // drops into the content grid (the tab row won't release focus down on its
+                                // own).
+                                modifier = Modifier
                                     .focusRequester(tabsFocusRequester)
                                     .focusGroup()
-                                    .tvDpadDownTo(contentFocusRequester)
-                            } else {
-                                Modifier
-                            },
-                        )
+                                    .tvDpadDownTo(contentFocusRequester),
+                            )
+                        } else {
+                            HomeTabRow(
+                                selectedTab = selectedTab,
+                                updatesCount = updatesCount,
+                                style = homeTabsStyle,
+                                onSelectTab = viewModel::selectTab,
+                                position = tabsPosition,
+                            )
+                        }
                         // Banners are glued directly under the tabs (not inside the grid below, whose own
                         // content padding leaves a small gap meant for tile breathing room, wrong for a
                         // banner that should read as part of the header).
@@ -1447,6 +1464,7 @@ fun AppListScreen(
     }
 }
 
+/** The home tabs on a television: the accent header's own tab row, its pill following the pages. */
 @Composable
 private fun AppTabRow(
     selectedTab: AppTab,
@@ -1462,22 +1480,15 @@ private fun AppTabRow(
             Tab(
                 selected = selected,
                 onClick = { onSelectTab(tab) },
-                // TV only: the focused tab scales up. No-op on touch.
+                // The focused tab scales up.
                 modifier = Modifier.tvFocusScale(),
                 selectedContentColor = LocalOnAccentBarColor.current,
                 unselectedContentColor = LocalOnAccentBarColor.current.copy(alpha = 0.7f),
                 text = {
-                    val label = when (tab) {
-                        AppTab.AVAILABLE -> stringResource(R.string.available)
-                        AppTab.INSTALLED -> stringResource(R.string.installed)
-                        // Short label ("MàJ") so the count fits on one line — a wrapping label would
-                        // otherwise make the whole tab bar taller.
-                        AppTab.UPDATES -> if (updatesCount > 0) {
-                            "${stringResource(R.string.tab_updates_short)} ($updatesCount)"
-                        } else {
-                            stringResource(R.string.tab_updates_short)
-                        }
-                        AppTab.EXTERNAL -> stringResource(R.string.tab_external)
+                    val label = if (tab == AppTab.UPDATES && updatesCount > 0) {
+                        "${tabName(tab)} ($updatesCount)"
+                    } else {
+                        tabName(tab)
                     }
                     // Never wrap: one line keeps every tab — and the bar — the same height. Shrunk to fit
                     // rather than cut where large text left "Expl…".
@@ -1490,6 +1501,170 @@ private fun AppTabRow(
                 },
             )
         }
+    }
+}
+
+/** A home tab's name. The updates one is short ("MàJ") so it still fits one line beside its count. */
+@Composable
+private fun tabName(tab: AppTab): String = stringResource(
+    when (tab) {
+        AppTab.AVAILABLE -> R.string.available
+        AppTab.INSTALLED -> R.string.installed
+        AppTab.UPDATES -> R.string.tab_updates_short
+        AppTab.EXTERNAL -> R.string.tab_external
+    },
+)
+
+private val AppTab.icon: Int
+    get() = when (this) {
+        AppTab.AVAILABLE -> R.drawable.ic_home_tab_explore
+        AppTab.INSTALLED -> R.drawable.ic_home_tab_installed
+        AppTab.UPDATES -> R.drawable.ic_home_tab_updates
+        AppTab.EXTERNAL -> R.drawable.ic_home_tab_external
+    }
+
+/** The updates count on its tab: amber, so it stands out on any accent and on a picked tab's white. */
+private val TabCountColor = Color(0xFFF59E0B)
+private val OnTabCountColor = Color(0xFF1F1300)
+
+/**
+ * The home tabs on a touch screen, as pills (see [AccentPillTabRow]), each showing its name, its icon or
+ * both, as the user chose ([HomeTabsStyle]). While the pages are dragged, the two tabs they lie between
+ * trade colours as far as the drag has come.
+ */
+@Composable
+private fun HomeTabRow(
+    selectedTab: AppTab,
+    updatesCount: Int,
+    style: HomeTabsStyle,
+    onSelectTab: (AppTab) -> Unit,
+    // Where the pages stand (see AccentTabRow). Read only while drawing, so a drag recolours the tabs
+    // without recomposing them.
+    position: () -> Float,
+) {
+    val accent = LocalAccentBarColor.current
+    val onAccent = LocalOnAccentBarColor.current
+    AccentPillTabRow {
+        AppTab.entries.forEach { tab ->
+            val name = tabName(tab)
+            val count = if (tab == AppTab.UPDATES) updatesCount else 0
+            AccentPillTab(
+                selected = tab == selectedTab,
+                onClick = { onSelectTab(tab) },
+                description = if (count > 0) "$name ($count)" else name,
+                shown = { (1f - abs(position() - tab.ordinal)).coerceIn(0f, 1f) },
+                height = when (style) {
+                    HomeTabsStyle.TEXT -> 44.dp
+                    HomeTabsStyle.ICONS -> 48.dp
+                    HomeTabsStyle.ICONS_AND_TEXT -> 62.dp
+                },
+                shape = if (style == HomeTabsStyle.ICONS_AND_TEXT) RoundedCornerShape(20.dp) else CircleShape,
+            ) { shown ->
+                if (style == HomeTabsStyle.TEXT) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 6.dp)) {
+                        Box(Modifier.weight(1f, fill = false)) {
+                            AccentPillFace(shown) { color, modifier -> AccentPillLabel(name, color, modifier) }
+                        }
+                        if (count > 0) {
+                            Spacer(Modifier.width(6.dp))
+                            TabCount(count)
+                        }
+                    }
+                } else {
+                    AccentPillFace(shown) { color, modifier -> TabFace(tab, name, style, color, modifier) }
+                    if (count > 0) {
+                        TabCount(
+                            count = count,
+                            ring = { lerp(accent, onAccent, shown()) },
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .offset(x = 15.dp, y = if (style == HomeTabsStyle.ICONS) 5.dp else 4.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** A home tab's icon, alone or above its name. */
+@Composable
+private fun TabFace(tab: AppTab, name: String, style: HomeTabsStyle, color: Color, modifier: Modifier) {
+    if (style == HomeTabsStyle.ICONS) {
+        Icon(
+            painter = painterResource(tab.icon),
+            contentDescription = null,
+            tint = color,
+            modifier = modifier.size(24.dp),
+        )
+    } else {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = modifier.padding(horizontal = 6.dp),
+        ) {
+            Icon(
+                painter = painterResource(tab.icon),
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(22.dp),
+            )
+            AccentPillLabel(name, color, size = 12.5.sp)
+        }
+    }
+}
+
+/** The updates count on its tab, ringed in the tab's own colour ([ring]) when it sits on the icon. */
+@Composable
+private fun TabCount(count: Int, modifier: Modifier = Modifier, ring: (() -> Color)? = null) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .then(
+                if (ring != null) {
+                    Modifier.drawBehind {
+                        val width = 2.dp.toPx()
+                        drawRoundRect(
+                            color = ring(),
+                            topLeft = Offset(-width, -width),
+                            size = Size(size.width + 2 * width, size.height + 2 * width),
+                            cornerRadius = CornerRadius(size.height / 2 + width),
+                        )
+                    }
+                } else {
+                    Modifier
+                },
+            )
+            .defaultMinSize(minWidth = 19.dp, minHeight = 19.dp)
+            .background(TabCountColor, CircleShape)
+            .padding(horizontal = 5.dp),
+    ) {
+        Text(
+            text = if (count > 99) "99+" else count.toString(),
+            color = OnTabCountColor,
+            fontSize = 11.sp,
+            lineHeight = 11.sp,
+            fontWeight = FontWeight.ExtraBold,
+        )
+    }
+}
+
+/** Omnify's own logo in full colour on its launcher icon's dark disc, so it reads the same on any accent. */
+@Composable
+private fun OmnifyLogoBadge() {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(42.dp)
+            .background(LocalOnAccentBarColor.current.copy(alpha = 0.22f), CircleShape)
+            .padding(2.dp)
+            .background(colorResource(R.color.ic_launcher_background), CircleShape),
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_omnify_logo),
+            contentDescription = null,
+            modifier = Modifier.size(28.dp),
+        )
     }
 }
 
@@ -1579,12 +1754,6 @@ private fun TitleOrSyncIndicator(
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
         AnimatedVisibility(
             visible = !syncing,
-            // The monochrome logo has a wide built-in safe-zone margin, so nudge the wordmark left to
-            // sit right next to the glyph instead of after the gap left by that margin. Kept on this
-            // outer node, not on the Text below: the clip mask reads the Text's own local coordinates
-            // (0 to size.width), and anything placed between the Text and that mask would shift what
-            // those coordinates actually line up with on screen.
-            modifier = Modifier.offset(x = (-12).dp),
             enter = EnterTransition.None,
             exit = ExitTransition.None,
         ) {
@@ -2018,14 +2187,22 @@ private fun AppListMainTopBar(
             }
             IconButton(
                 onClick = onToggleSearch,
+                // Touch: on a light disc, standing out from the other actions as the way into search, now
+                // that the header has no search field of its own. TV: a square button so the focus halo is
+                // a clean circle; the focused icon also scales up.
+                colors = if (LocalIsTelevision.current) {
+                    IconButtonDefaults.iconButtonColors()
+                } else {
+                    IconButtonDefaults.iconButtonColors(
+                        containerColor = LocalOnAccentBarColor.current.copy(alpha = 0.16f),
+                    )
+                },
                 modifier = Modifier
-                    // TV: a square button so the focus halo is a clean circle (the narrow expressive
-                    // size makes it an oval); the focused icon also scales up. Unchanged on touch.
                     .then(
                         if (LocalIsTelevision.current) {
                             Modifier.size(48.dp)
                         } else {
-                            Modifier.size(smallContainerSize(Narrow))
+                            Modifier.size(smallContainerSize())
                         },
                     )
                     .tvFocusScale(),

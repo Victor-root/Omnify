@@ -25,6 +25,7 @@ import com.looker.droidify.data.model.CatalogCategory
 import com.looker.droidify.data.model.MadeForTv
 import com.looker.droidify.data.model.Repo
 import com.looker.droidify.data.model.excludingHidden
+import com.looker.droidify.datastore.model.HomeTabsStyle
 import com.looker.droidify.model.Repository
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
@@ -233,6 +234,9 @@ class AppListViewModel @Inject constructor(
 
     /** Whether a left/right swipe on the home grid switches tab (user setting, off by default). */
     val homeScreenSwiping = settingsRepository.get { homeScreenSwiping }.asHomeState(false)
+
+    /** How the home tabs show which is which (user setting, see [HomeTabsStyle]). */
+    val homeTabsStyle = settingsRepository.get { homeTabsStyle }.asHomeState(HomeTabsStyle.ICONS_AND_TEXT)
 
     /** The Explore tab's carousels in the order they show: the user's own arrangement, else Omnify's
      *  ([CURATED_CAROUSELS]). Empty until the settings have answered, rather than Omnify's arrangement

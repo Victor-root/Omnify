@@ -4,6 +4,7 @@ import androidx.datastore.core.Serializer
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.BackgroundStyle
+import com.looker.droidify.datastore.model.HomeTabsStyle
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyPreference
@@ -75,6 +76,7 @@ data class Settings(
      *  as [favouriteApps]. */
     val hiddenApps: Set<String> = emptySet(),
     val homeScreenSwiping: Boolean = false,
+    val homeTabsStyle: HomeTabsStyle = HomeTabsStyle.ICONS_AND_TEXT,
     /** The Explore tab's carousels in the order the user arranged them, or null for Omnify's own
      *  arrangement. Each key is a curated carousel's or a category's (see ExploreCarousels). */
     val exploreCarousels: List<String>? = null,

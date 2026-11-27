@@ -312,6 +312,10 @@
     <string name="has_tethered_network">Depends on a certain instance of a network service</string>
     <string name="home_screen_swiping">Page swiping</string>
     <string name="home_screen_swiping_DESC">Swipe left or right to switch the page</string>
+    <string name="home_tabs_style">Home tabs</string>
+    <string name="home_tabs_style_text">Text</string>
+    <string name="home_tabs_style_icons">Icons</string>
+    <string name="home_tabs_style_icons_and_text">Icons and text</string>
     <plurals name="hours">
         <item quantity="one">hour</item>
         <item quantity="other">hours</item>

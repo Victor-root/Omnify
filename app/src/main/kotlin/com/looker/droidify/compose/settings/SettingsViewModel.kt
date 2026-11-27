@@ -20,6 +20,7 @@ import com.looker.droidify.datastore.chooseAccentColor
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.BackgroundStyle
 import com.looker.droidify.datastore.model.CustomButton
+import com.looker.droidify.datastore.model.HomeTabsStyle
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
@@ -136,6 +137,12 @@ class SettingsViewModel @Inject constructor(
     fun setHomeScreenSwiping(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setHomeScreenSwiping(enabled)
+        }
+    }
+
+    fun setHomeTabsStyle(style: HomeTabsStyle) {
+        viewModelScope.launch {
+            settingsRepository.setHomeTabsStyle(style)
         }
     }
 

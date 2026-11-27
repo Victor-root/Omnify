@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalDensity
 import com.looker.droidify.compose.theme.LocalEdgeToEdge
 import com.looker.droidify.compose.theme.LocalIsTelevision
 import com.looker.droidify.compose.theme.LocalStatusBarContent
+import com.looker.droidify.compose.theme.accentHeaderShape
 import kotlin.math.roundToInt
 
 /**
@@ -30,14 +31,17 @@ import kotlin.math.roundToInt
 class CollapsibleHeader internal constructor(
     private val scrollBehavior: TopAppBarScrollBehavior,
     enabled: Boolean,
+    shaped: Boolean,
 ) {
     /** Lets the screen's scrolling content drive the header. */
     val scaffoldModifier: Modifier =
         if (enabled) Modifier.nestedScroll(scrollBehavior.nestedScrollConnection) else Modifier
 
-    /** Slides the header off the top as the content scrolls. */
+    /** Slides the header off the top as the content scrolls, and gives it the shape every header shares
+     *  (see [accentHeaderShape]). */
     val headerModifier: Modifier =
-        if (enabled) Modifier.collapsingHeader(scrollBehavior) else Modifier
+        (if (enabled) Modifier.collapsingHeader(scrollBehavior) else Modifier)
+            .then(if (shaped) Modifier.accentHeaderShape() else Modifier)
 
     /** How many pixels of the header have slid away: 0 while it is fully shown. */
     val collapsedPx: Int get() = -scrollBehavior.state.heightOffset.roundToInt()
@@ -55,9 +59,12 @@ class CollapsibleHeader internal constructor(
 @Composable
 fun rememberCollapsibleHeader(): CollapsibleHeader {
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
-    val enabled = LocalEdgeToEdge.current && !LocalIsTelevision.current
+    val isTelevision = LocalIsTelevision.current
+    val enabled = LocalEdgeToEdge.current && !isTelevision
     if (enabled) CollapsingHeaderStatusBar(scrollBehavior)
-    return remember(scrollBehavior, enabled) { CollapsibleHeader(scrollBehavior, enabled) }
+    return remember(scrollBehavior, enabled, isTelevision) {
+        CollapsibleHeader(scrollBehavior, enabled, shaped = !isTelevision)
+    }
 }
 
 /**

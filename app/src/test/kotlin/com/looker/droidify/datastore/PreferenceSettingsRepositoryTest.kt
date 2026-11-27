@@ -3,6 +3,7 @@ package com.looker.droidify.datastore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import app.cash.turbine.test
 import com.looker.droidify.datastore.model.AutoSync
+import com.looker.droidify.datastore.model.HomeTabsStyle
 import com.looker.droidify.datastore.model.SortOrder
 import com.looker.droidify.datastore.model.Theme
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -145,6 +146,14 @@ class PreferenceSettingsRepositoryTest {
         repository.setHomeScreenSwiping(false)
         val settings = repository.getInitial()
         assertFalse(settings.homeScreenSwiping)
+    }
+
+    @Test
+    fun `home tabs show icons and text until another style is chosen`() = runTest {
+        assertEquals(HomeTabsStyle.ICONS_AND_TEXT, repository.getInitial().homeTabsStyle)
+
+        repository.setHomeTabsStyle(HomeTabsStyle.ICONS)
+        assertEquals(HomeTabsStyle.ICONS, repository.getInitial().homeTabsStyle)
     }
 
     @Test

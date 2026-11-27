@@ -96,6 +96,7 @@ import com.looker.droidify.compose.settings.transfer.PairedDevicesDialog
 import com.looker.droidify.data.backup.BackupCategory
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.BackgroundStyle
+import com.looker.droidify.datastore.model.HomeTabsStyle
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyType
@@ -397,6 +398,23 @@ fun SettingsScreen(
                         icon = painterResource(R.drawable.ic_tabler_arrows_horizontal),
                         checked = settings.homeScreenSwiping,
                         onCheckedChange = viewModel::setHomeScreenSwiping,
+                    )
+                }
+
+                item {
+                    SelectionSettingItem(
+                        title = stringResource(R.string.home_tabs_style),
+                        icon = painterResource(R.drawable.ic_home_tab_installed),
+                        selectedValue = settings.homeTabsStyle,
+                        values = HomeTabsStyle.entries,
+                        onValueSelected = viewModel::setHomeTabsStyle,
+                        valueToString = { style ->
+                            when (style) {
+                                HomeTabsStyle.TEXT -> stringResource(R.string.home_tabs_style_text)
+                                HomeTabsStyle.ICONS -> stringResource(R.string.home_tabs_style_icons)
+                                HomeTabsStyle.ICONS_AND_TEXT -> stringResource(R.string.home_tabs_style_icons_and_text)
+                            }
+                        },
                     )
                 }
 

@@ -13,6 +13,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.looker.droidify.datastore.model.AutoSync
 import com.looker.droidify.datastore.model.BackgroundStyle
+import com.looker.droidify.datastore.model.HomeTabsStyle
 import com.looker.droidify.datastore.model.InstallerType
 import com.looker.droidify.datastore.model.LegacyInstallerComponent
 import com.looker.droidify.datastore.model.ProxyPreference
@@ -168,6 +169,9 @@ class PreferenceSettingsRepository(
 
     override suspend fun setHomeScreenSwiping(value: Boolean) =
         HOME_SCREEN_SWIPING.update(value)
+
+    override suspend fun setHomeTabsStyle(style: HomeTabsStyle) =
+        HOME_TABS_STYLE.update(style.name)
 
     override suspend fun setExploreCarousels(keys: List<String>?) {
         dataStore.edit { preferences ->
@@ -376,6 +380,9 @@ class PreferenceSettingsRepository(
         }.getOrDefault(PrereleaseMode.HIDDEN)
         val cataloguePrereleases = preferences.cataloguePrereleases()
         val homeScreenSwiping = preferences[HOME_SCREEN_SWIPING] ?: false
+        val homeTabsStyle = runCatching {
+            HomeTabsStyle.valueOf(preferences[HOME_TABS_STYLE] ?: HomeTabsStyle.ICONS_AND_TEXT.name)
+        }.getOrDefault(HomeTabsStyle.ICONS_AND_TEXT)
         val exploreCarousels = preferences[EXPLORE_CAROUSELS]?.let {
             runCatching { Json.decodeFromString<List<String>>(it) }.getOrNull()
         }
@@ -425,6 +432,7 @@ class PreferenceSettingsRepository(
             hiddenApps = hiddenApps,
             followedSources = followedSources,
             homeScreenSwiping = homeScreenSwiping,
+            homeTabsStyle = homeTabsStyle,
             exploreCarousels = exploreCarousels,
             tvOnly = tvOnly,
             enabledRepoIds = enabledRepoIds,
@@ -473,6 +481,7 @@ class PreferenceSettingsRepository(
         val HIDDEN_APPS = stringSetPreferencesKey("key_hidden_apps")
         val FOLLOWED_SOURCES = stringPreferencesKey("key_followed_sources")
         val HOME_SCREEN_SWIPING = booleanPreferencesKey("key_home_swiping")
+        val HOME_TABS_STYLE = stringPreferencesKey("key_home_tabs_style")
         val EXPLORE_CAROUSELS = stringPreferencesKey("key_explore_carousels")
         val TV_ONLY = booleanPreferencesKey("key_tv_only")
         val DELETE_APK_ON_INSTALL = booleanPreferencesKey("key_delete_apk_on_install")
@@ -559,6 +568,7 @@ class PreferenceSettingsRepository(
             set(HIDDEN_APPS, settings.hiddenApps)
             set(FOLLOWED_SOURCES, Json.encodeToString(settings.followedSources))
             set(HOME_SCREEN_SWIPING, settings.homeScreenSwiping)
+            set(HOME_TABS_STYLE, settings.homeTabsStyle.name)
             if (settings.exploreCarousels == null) {
                 remove(EXPLORE_CAROUSELS)
             } else {
