@@ -4,12 +4,17 @@ import android.content.Context
 import android.text.format.DateUtils
 import androidx.compose.animation.core.EaseOutBack
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,15 +25,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -40,20 +49,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.HeroStatItem
-import com.looker.droidify.compose.components.PremiumCard
 import com.looker.droidify.compose.components.SectionHeading
 import com.looker.droidify.compose.components.premiumCardBorder
 import com.looker.droidify.compose.components.tvFocusFill
@@ -120,8 +130,8 @@ internal fun followedApps(catalogue: List<AppMinimal>, external: List<ExternalAp
  * Fits in [maxHeight], the room the tab has, when it is known: the latest updates then show only as
  * many as fit whole, so that nothing below them needs a scroll to be reached.
  *
- * When [entrance] is due, it makes one: the card rises into place, the check pops in just after and the
- * latest updates follow, for the moment the last update has just been installed. Read in layer blocks,
+ * When [entrance] is due, it makes one: the card rises into place, its refresh button pops in just after
+ * and the latest updates follow, for the moment the last update has just been installed. Read in layer blocks,
  * so the entrance redraws the card without recomposing it.
  */
 @Composable
@@ -172,69 +182,22 @@ internal fun UpToDateState(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.widthIn(max = 560.dp),
         ) {
-            // Shaped like an app page's hero card: the state, then its figures, then the action.
-            PremiumCard(modifier = Modifier.rise(card)) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(20.dp),
-                ) {
-                    CheckBadge(
-                        modifier = Modifier.graphicsLayer {
-                            alpha = badge.value.coerceIn(0f, 1f)
-                            scaleX = BADGE_START_SCALE + (1f - BADGE_START_SCALE) * badge.value
-                            scaleY = scaleX
-                        },
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = stringResource(R.string.everything_up_to_date),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                    )
-                    if (followedApps.isNotEmpty()) {
-                        Text(
-                            text = pluralStringResource(
-                                R.plurals.up_to_date_apps,
-                                followedApps.size,
-                                followedApps.size,
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        HeroStatItem(
-                            label = stringResource(R.string.up_to_date_checked),
-                            value = lastCheck?.let { relativeTime(it, now) }
-                                ?: stringResource(R.string.up_to_date_not_checked_yet),
-                            modifier = Modifier.weight(1f),
-                        )
-                        VerticalDivider(
-                            modifier = Modifier.height(28.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant,
-                        )
-                        HeroStatItem(
-                            label = stringResource(R.string.up_to_date_auto_check),
-                            value = checkInterval?.let { checkFrequency(it) }
-                                ?: stringResource(R.string.up_to_date_auto_off),
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    FilledTonalButton(onClick = onCheckNow, enabled = !isChecking, modifier = Modifier.tvFocusScale()) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_sync),
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(Modifier.size(8.dp))
-                        Text(stringResource(R.string.up_to_date_check_now))
-                    }
-                }
-            }
+            // A card in the accent, carrying on from the header: the state and its refresh at the top, its
+            // figures on a darker strip below.
+            UpToDateCard(
+                followedCount = followedApps.size,
+                checked = lastCheck?.let { relativeTime(it, now) }
+                    ?: stringResource(R.string.up_to_date_not_checked_yet),
+                frequency = checkInterval?.let { checkFrequency(it) } ?: stringResource(R.string.up_to_date_auto_off),
+                isChecking = isChecking,
+                onCheckNow = onCheckNow,
+                refreshModifier = Modifier.graphicsLayer {
+                    alpha = badge.value.coerceIn(0f, 1f)
+                    scaleX = BADGE_START_SCALE + (1f - BADGE_START_SCALE) * badge.value
+                    scaleY = scaleX
+                },
+                modifier = Modifier.rise(card),
+            )
             if (recentUpdates.isNotEmpty()) {
                 RecentUpdates(
                     updates = recentUpdates,
@@ -255,18 +218,110 @@ private fun Modifier.rise(progress: State<Float>): Modifier = graphicsLayer {
 }
 
 @Composable
-private fun CheckBadge(modifier: Modifier = Modifier) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .size(64.dp)
-            .background(MaterialTheme.colorScheme.primary, CircleShape),
+private fun UpToDateCard(
+    followedCount: Int,
+    checked: String,
+    frequency: String,
+    isChecking: Boolean,
+    onCheckNow: () -> Unit,
+    refreshModifier: Modifier,
+    modifier: Modifier = Modifier,
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    val onAccent = MaterialTheme.colorScheme.onPrimary
+    val shape = MaterialTheme.shapes.large
+    CompositionLocalProvider(LocalContentColor provides onAccent) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(listOf(accent, lerp(accent, Color.Black, GRADIENT_DARKENING))),
+                    shape,
+                )
+                .padding(20.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = stringResource(R.string.everything_up_to_date),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (followedCount > 0) {
+                        Text(
+                            text = pluralStringResource(R.plurals.up_to_date_apps, followedCount, followedCount),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = onAccent.copy(alpha = SECONDARY_ALPHA),
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                RefreshButton(isChecking = isChecking, onClick = onCheckNow, modifier = refreshModifier)
+            }
+            Spacer(Modifier.height(16.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = STRIP_ALPHA), RoundedCornerShape(14.dp))
+                    .padding(vertical = 10.dp),
+            ) {
+                val labelColor = onAccent.copy(alpha = SECONDARY_ALPHA)
+                HeroStatItem(
+                    label = stringResource(R.string.up_to_date_checked),
+                    value = checked,
+                    labelColor = labelColor,
+                    modifier = Modifier.weight(1f),
+                )
+                VerticalDivider(modifier = Modifier.height(28.dp), color = onAccent.copy(alpha = DIVIDER_ALPHA))
+                HeroStatItem(
+                    label = stringResource(R.string.up_to_date_auto_check),
+                    value = frequency,
+                    labelColor = labelColor,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+/** Checks for updates now, its arrows turning while a check runs. */
+@Composable
+private fun RefreshButton(isChecking: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    // Only while a check runs, so an idle tab draws no frames for it.
+    val angle = if (isChecking) {
+        rememberInfiniteTransition(label = "refresh").animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(tween(REFRESH_TURN_MS, easing = LinearEasing)),
+            label = "angle",
+        )
+    } else {
+        null
+    }
+    // Brighter while focused, so the D-pad landing on it shows on the accent.
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val container = LocalContentColor.current.copy(alpha = if (focused) BUTTON_FOCUSED_ALPHA else BUTTON_ALPHA)
+    FilledIconButton(
+        onClick = onClick,
+        enabled = !isChecking,
+        shape = RoundedCornerShape(14.dp),
+        colors = IconButtonDefaults.filledIconButtonColors(
+            containerColor = container,
+            contentColor = LocalContentColor.current,
+            disabledContainerColor = container,
+            disabledContentColor = LocalContentColor.current,
+        ),
+        interactionSource = interaction,
+        modifier = modifier.size(48.dp).tvFocusScale(),
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_check),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(34.dp),
+            painter = painterResource(R.drawable.ic_sync),
+            contentDescription = stringResource(R.string.up_to_date_check_now),
+            modifier = Modifier
+                .size(22.dp)
+                .graphicsLayer { rotationZ = angle?.value ?: 0f },
         )
     }
 }
@@ -425,6 +480,13 @@ private const val ENTRANCE_MS = 420
 private const val BADGE_DELAY_MS = 140
 private const val RECENT_DELAY_MS = 240
 private const val BADGE_START_SCALE = 0.4f
+private const val REFRESH_TURN_MS = 1000
+private const val GRADIENT_DARKENING = 0.28f
+private const val SECONDARY_ALPHA = 0.85f
+private const val STRIP_ALPHA = 0.16f
+private const val DIVIDER_ALPHA = 0.3f
+private const val BUTTON_ALPHA = 0.18f
+private const val BUTTON_FOCUSED_ALPHA = 0.4f
 private val RISE = 24.dp
 
 private val RECENT_WINDOW = 30.days

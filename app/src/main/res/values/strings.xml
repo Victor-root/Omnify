@@ -337,7 +337,7 @@
     installed on your device</string>
     <string name="incompatible_version">Incompatible version</string>
     <string name="incompatible_versions">Incompatible versions</string>
-    <string name="incompatible_versions_summary">Show app versions incompatible with the device</string>
+    <string name="incompatible_versions_summary">In the version list of an app from a repository (F-Droid, IzzyOnDroid…), also show the versions this device can\'t install, marked as such. Only to see why fewer versions are offered: installs and updates are unchanged</string>
     <string name="incompatible_with_FORMAT">Incompatible with %s</string>
     <string name="install">Install</string>
     <string name="install_version_FORMAT">Install version %s?</string>

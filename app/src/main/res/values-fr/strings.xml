@@ -301,7 +301,7 @@
     <string name="light">Clair</string>
     <string name="loading">Chargement…</string>
     <string name="incompatible_versions">Versions incompatibles</string>
-    <string name="incompatible_versions_summary">Afficher les versions d’applis incompatibles avec l’appareil</string>
+    <string name="incompatible_versions_summary">Dans la liste des versions d\'une appli d\'un dépôt (F-Droid, IzzyOnDroid…), afficher aussi celles que cet appareil ne peut pas installer, signalées comme telles. Sert seulement à voir pourquoi moins de versions sont proposées : installations et mises à jour ne changent pas</string>
     <string name="license">Licence</string>
     <string name="password">Mot de passe</string>
     <string name="has_security_vulnerabilities">Présente des failles de sécurité connues</string>

@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -408,14 +409,19 @@ private fun FooterLink(text: String, icon: ImageVector, onClick: () -> Unit, deb
 
 /** One label-over-value stat, e.g. "Version" / "1.18_beta". */
 @Composable
-fun HeroStatItem(label: String, value: String, modifier: Modifier = Modifier) {
+fun HeroStatItem(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
     // A touch of side padding so a wrapped two-line value (a long version string, say) doesn't butt
     // right up against the divider to its neighbour.
     Column(modifier = modifier.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = labelColor,
         )
         Text(
             text = value,
