@@ -112,6 +112,40 @@ interface AppDao {
     suspend fun _rawQueryAppMinimal(query: SimpleSQLiteQuery): List<AppMinimalRow>
 
     /**
+     * For each installed app several repositories offer, the one whose builds are signed with the key of
+     * the copy on the device (the newest such build's, when several are): where the app came from.
+     */
+    @Query(
+        """
+        SELECT app.packageName AS packageName, app.repoId AS repoId, MAX(version.versionCode) AS versionCode
+        FROM app
+        JOIN installed ON installed.packageName = app.packageName
+        JOIN version ON version.appId = app.id
+        WHERE installed.signature != ''
+            AND version.signer LIKE '%"' || installed.signature || '"%'
+            AND app.packageName IN (SELECT packageName FROM app GROUP BY packageName HAVING COUNT(*) > 1)
+        GROUP BY app.packageName
+        """,
+    )
+    suspend fun installedKeyRepositories(): List<InstalledKeyRepositoryRow>
+
+    data class InstalledKeyRepositoryRow(val packageName: String, val repoId: Int, val versionCode: Long)
+
+    /** Each app of [inRepository] (package name to repository id) as that repository has it. */
+    suspend fun inRepositories(inRepository: Map<String, Int>, locales: String): List<AppMinimal> =
+        inRepository.entries.chunked(IN_REPOSITORIES_CHUNK).flatMap { chunk ->
+            val query = SimpleSQLiteQuery(
+                """
+                ${appMinimalSelect()}
+                WHERE ${chunk.joinToString(" OR ") { "(app.packageName = ? AND app.repoId = ?)" }}
+                GROUP BY app.packageName
+                """.trimIndent(),
+                arrayOf<Any>(*localeArgs(locales, 3), *chunk.flatMap { listOf<Any>(it.key, it.value) }.toTypedArray()),
+            )
+            _rawQueryAppMinimal(query).map { it.toAppMinimal() }
+        }
+
+    /**
      * Top apps by total download count (IzzyOnDroid stats), most-downloaded first — the data behind
      * F-Droid v2's "Most downloaded" carousel. The inner JOIN to the aggregated download_stats means
      * only apps that *both* have stats and exist in the catalogue come back, so the carousel is simply
@@ -728,6 +762,9 @@ private fun bestLocale(table: String, alias: String, appRef: String) =
 
 /** The arguments of [joins] [bestLocale] clauses, in order. */
 private fun localeArgs(locales: String, joins: Int): Array<String> = Array(joins * 2) { locales }
+
+/** How many apps [AppDao.inRepositories] asks for at a time, within SQLite's limit on arguments. */
+private const val IN_REPOSITORIES_CHUNK = 400
 
 /** How many apps [AppDao.rootApps] reads at a time. */
 private const val ROOT_CANDIDATES_PAGE = 200

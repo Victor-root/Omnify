@@ -28,6 +28,7 @@
 - **"Match accent to app icon" takes the colour a logo reads as**: a logo drawn in relief or as a gradient gave its brightest highlight, which looked lighter on the page than the logo itself (Melyxar's red). Its shades are now taken together; a logo of one flat colour keeps exactly that colour.
 
 ### 🐛 Fixed
+- **An app offered by several repositories looks like the one it comes from**: its icon, name and summary, in the lists and on its page, are those of the repository followed for it, or else of the one whose builds are signed like the copy on the device. A fork installed from a repository of one's own wore the upstream's icon from F-Droid.
 - **A source page no longer crashes with a large font size** (thedjchi's Shizuku fork): its hero card pushed the README below the bottom of the screen, which left the README preview no height at all, and the README, measured at zero pixels tall, then claimed to be hundreds of thousands of pixels long.
 - **Markor is added as one app**: its APK names carry a build number ("markor-v164-2.16.1"), and since one of its releases once held two builds, each build was taken for an app of its own, about ten to tick, of which only one ever got updates.
 - **Omnify comes back after updating itself every time, not only now and then**: with Shizuku or root, it was opened again the moment its new version was in place, which can be just before Android stops the old one. The old one then came back to the front only to be stopped. Omnify now waits for it to be stopped, and tries again if Android refuses.

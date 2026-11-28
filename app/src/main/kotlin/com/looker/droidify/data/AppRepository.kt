@@ -91,7 +91,23 @@ class AppRepository @Inject constructor(
             packageNames = packageNames,
             shippedAddressesLast = if (ownReposFirst) Repository.defaultAddresses.toList() else null,
             locales = locales,
-        )
+        ).let { apps -> if (repoId == null) apps.asPresented(locales) else apps }
+    }
+
+    /**
+     * [this], each app several repositories offer shown as the one it is taken from has it: its icon, name
+     * and summary (see [presentingRepositories]). One of them otherwise stood for it, picked by nothing
+     * the user did, and a fork the user installs from a repository of their own wore the upstream's icon.
+     */
+    private suspend fun List<AppMinimal>.asPresented(locales: String): List<AppMinimal> {
+        val listed = mapTo(HashSet()) { it.packageName.name }
+        val presenting = presentingRepositories(
+            followed = settingsRepository.getInitial().followedSources,
+            installedKeyRepositories = appDao.installedKeyRepositories().associate { it.packageName to it.repoId },
+        ).filterKeys { it in listed }
+        if (presenting.isEmpty()) return this
+        val own = appDao.inRepositories(presenting, locales).associateBy { it.packageName.name }
+        return map { own[it.packageName.name] ?: it }
     }
 
     /** The newest [limit] apps by [sortOrder], for a row that shows no more than that (see [AppDao.latest]). */
@@ -100,7 +116,8 @@ class AppRepository @Inject constructor(
         limit: Int,
         updatedOnly: Boolean = false,
     ): List<AppMinimal> = withContext(Dispatchers.Default) {
-        appDao.latest(sortOrder, updatedOnly, limit, rankedLocales())
+        val locales = rankedLocales()
+        appDao.latest(sortOrder, updatedOnly, limit, locales).asPresented(locales)
     }
 
     /**
@@ -181,7 +198,7 @@ class AppRepository @Inject constructor(
      */
     suspend fun mostDownloadedApps(limit: Int): List<AppMinimal> = withContext(Dispatchers.Default) {
         val locales = rankedLocales()
-        runCatching { appDao.mostDownloaded(locales = locales, limit = limit) }
+        runCatching { appDao.mostDownloaded(locales = locales, limit = limit).asPresented(locales) }
             .getOrDefault(emptyList())
     }
 
@@ -192,7 +209,7 @@ class AppRepository @Inject constructor(
      */
     suspend fun rootApps(limit: Int): List<AppMinimal> = withContext(Dispatchers.Default) {
         val locales = rankedLocales()
-        runCatching { appDao.rootApps(locales = locales, limit = limit) }
+        runCatching { appDao.rootApps(locales = locales, limit = limit).asPresented(locales) }
             .getOrDefault(emptyList())
     }
 
@@ -203,7 +220,7 @@ class AppRepository @Inject constructor(
      */
     suspend fun appsByPackageNames(packageNames: List<String>): List<AppMinimal> = withContext(Dispatchers.Default) {
         val locales = rankedLocales()
-        runCatching { appDao.byPackageNames(packageNames, locales) }.getOrDefault(emptyList())
+        runCatching { appDao.byPackageNames(packageNames, locales).asPresented(locales) }.getOrDefault(emptyList())
     }
 
     /**

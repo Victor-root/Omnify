@@ -25,6 +25,7 @@ import com.looker.droidify.data.listedUnder
 import com.looker.droidify.data.mixesPrereleases
 import com.looker.droidify.data.offeredUnder
 import com.looker.droidify.data.preferringInstalledKey
+import com.looker.droidify.data.presentingRepository
 import com.looker.droidify.data.takesUpdates
 import com.looker.droidify.data.model.App
 import com.looker.droidify.data.signerMismatch
@@ -256,7 +257,9 @@ class AppDetailViewModel @Inject constructor(
     val state: StateFlow<AppDetailState> = combine(
         appRepository.getApp(PackageName(packageName)),
         settingsRepository.get { cataloguePrereleasesOf(packageName) }.distinctUntilChanged(),
-    ) { apps, prereleases ->
+        settingsRepository.get { followedSources[packageName] }.distinctUntilChanged(),
+        installedRepository.getStream(packageName).map { it?.signature }.distinctUntilChanged(),
+    ) { apps, prereleases, followed, installedSigner ->
             if (BuildConfig.DIAGNOSTICS) {
                 DiagnosticLog.log(
                     "App detail: catalogue read ${SystemClock.elapsedRealtime() - openedAt} ms after opening " +
@@ -281,7 +284,14 @@ class AppDetailViewModel @Inject constructor(
                     // the suggested version, so the whole screen offers the most recent build wherever it
                     // lives (device-compatibility is still applied later by selectForDevice), among the
                     // builds the app's pre-release choice offers: a beta above it is not one to install.
-                    val base = apps.first()
+                    // The page wears the look of the repository the app is taken from, the same one its rows
+                    // in the lists wear (see presentingRepository), else that of the first one.
+                    val presenting = presentingRepository(
+                        followed = followed?.let(FollowedSource::parse),
+                        installedSigner = installedSigner,
+                        packages = allPackages,
+                    )
+                    val base = apps.firstOrNull { it.repoId.toInt() == presenting } ?: apps.first()
                     val newest = allPackages.offeredUnder(prereleases).firstOrNull()?.first?.manifest
                     val app = if (newest != null) {
                         base.copy(

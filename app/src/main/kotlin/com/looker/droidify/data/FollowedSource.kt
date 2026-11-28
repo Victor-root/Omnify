@@ -1,5 +1,7 @@
 package com.looker.droidify.data
 
+import com.looker.droidify.data.model.Package
+import com.looker.droidify.data.model.Repo
 import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.external.ExternalApp
@@ -37,6 +39,28 @@ sealed interface FollowedSource {
         }
     }
 }
+
+/**
+ * The repository each app several repositories offer is shown as, by package name: the one followed for it
+ * ([followed], as stored), else the one its installed copy came from ([installedKeyRepositories], signed
+ * with its key). Any other app keeps whichever of its repositories the catalogue reads first.
+ */
+fun presentingRepositories(
+    followed: Map<String, String>,
+    installedKeyRepositories: Map<String, Int>,
+): Map<String, Int> = installedKeyRepositories + followed.mapNotNull { (packageName, stored) ->
+    (FollowedSource.parse(stored) as? FollowedSource.Repository)?.let { packageName to it.repoId }
+}
+
+/** [presentingRepositories] for one app, from its builds ([packages], every repository's). */
+fun presentingRepository(
+    followed: FollowedSource?,
+    installedSigner: String?,
+    packages: List<Pair<Package, Repo>>,
+): Int? = (followed as? FollowedSource.Repository)?.repoId?.takeIf { id -> packages.any { it.second.id == id } }
+    ?: packages.filter { signedWith(installedSigner, it.first.manifest.signer) }
+        .maxByOrNull { it.first.manifest.versionCode }
+        ?.second?.id
 
 /**
  * The source the user follows for [packageName], as long as it can still be followed: a repository
