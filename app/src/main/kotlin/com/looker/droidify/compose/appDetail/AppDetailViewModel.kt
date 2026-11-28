@@ -6,10 +6,12 @@ import android.content.pm.ApplicationInfo
 import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
-import androidx.core.text.HtmlCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.looker.droidify.compose.components.PageTranslation
+import com.looker.droidify.compose.components.htmlPlainText
+import com.looker.droidify.compose.externalApps.ChangelogPage
 import com.looker.droidify.data.encryption.sha256Hex
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
@@ -37,6 +39,7 @@ import com.looker.droidify.datastore.SettingsRepository
 import com.looker.droidify.datastore.get
 import com.looker.droidify.datastore.installSourceChoice
 import com.looker.droidify.datastore.model.CustomButton
+import com.looker.droidify.external.LinkedChangelog
 import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.installer.ApkDownloads
 import com.looker.droidify.installer.InstallManager
@@ -142,7 +145,7 @@ class AppDetailViewModel @Inject constructor(
             if (!settings.autoTranslate) return@launch
             val target = java.util.Locale.getDefault().language
             val detected = runCatching {
-                translationManager.detectLanguage(plainText(descriptionHtml))
+                translationManager.detectLanguage(htmlPlainText(descriptionHtml))
             }.getOrNull()
             if (detected != null && detected != "und" && detected != target) {
                 translateBoth(summary, descriptionHtml, whatsNew, notifyError = false, source = detected)
@@ -160,7 +163,7 @@ class AppDetailViewModel @Inject constructor(
     ) {
         _descriptionTranslation.value = DescriptionTranslation.Loading
         val target = java.util.Locale.getDefault().language
-        val description = plainText(descriptionHtml)
+        val description = htmlPlainText(descriptionHtml)
         // One language for all three, read off the description since it is by far the longest of them.
         // A summary of a few words, or a what's-new line that is just a version number, gets identified
         // as almost anything on its own, and an on-device engine would then load a different language
@@ -203,13 +206,17 @@ class AppDetailViewModel @Inject constructor(
         }
     }
 
-    /** Strips the description's HTML to plain text for translation/detection. */
-    private fun plainText(html: String): String =
-        HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
-
     fun showOriginalDescription() {
         _descriptionTranslation.value = DescriptionTranslation.Original
     }
+
+    /** The changelog page, read in the app when the app's changelog link allows it ([linkedChangelog]). */
+    val changelog = ChangelogPage(
+        viewModelScope,
+        PageTranslation(viewModelScope, translationManager, settingsRepository, context, "Changelog"),
+    )
+
+    fun openChangelog(linked: LinkedChangelog) = changelog.load { externalApi.fetchLinkedChangelogHtml(linked) }
 
     val packageName: String = requireNotNull(savedStateHandle[CATALOGUE_PACKAGE_ARG]) {
         "Required argument '$CATALOGUE_PACKAGE_ARG' was not found in SavedStateHandle"

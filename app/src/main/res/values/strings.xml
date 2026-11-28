@@ -278,7 +278,7 @@
     <string name="libretranslate_url_help">LibreTranslate has no public instance. You need to host your own (or use a third-party one) and enter its URL here, e.g. https://translate.example.org</string>
     <string name="libretranslate_api_key">LibreTranslate API key (optional)</string>
     <string name="auto_translate">Translate automatically</string>
-    <string name="auto_translate_DESC">Translate a description on open when it isn\'t already in your language</string>
+    <string name="auto_translate_DESC">Translate a description or a changelog on open when it isn\'t already in your language</string>
     <string name="enable_repo">Enable repository</string>
     <string name="favourites">Favourites</string>
     <string name="explore_carousels_title">Explore carousels</string>
@@ -743,6 +743,7 @@
     <string name="external_no_website">No website found</string>
     <string name="external_no_issue_tracker">No issue tracker found</string>
     <string name="external_no_changelog">No changelog found</string>
+    <string name="open_in_browser">Open in browser</string>
     <string name="external_edit_source">Edit source</string>
     <string name="external_custom_name">Custom name (optional)</string>
     <string name="external_advanced_options">Advanced options</string>

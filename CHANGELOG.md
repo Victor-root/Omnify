@@ -9,6 +9,8 @@
 - **Default pre-releases**, in Settings: what apps and sources without a choice of their own do with pre-releases. Changing it offers to give it to every app at once.
 - **Home tabs**, in Settings: the home screen's tabs show their names, their icons, or both (the default).
 - **Stop a sync from the header**: tap the sync bar twice and it stops, the bar going flat and giving way to "Cancelled" before the name comes back. A scheduled sync stopped this way stays scheduled.
+- **Translate a changelog**: the changelog page has the same Translate button as the description and the README, and "Translate automatically" translates it on opening when it isn't in your language.
+- **A catalogue app's changelog opens in the app**: when it is a changelog file or a releases page on GitHub, GitLab or Codeberg, it opens in the same page as an external source's, instead of the browser. Any other link still opens in the browser. Android TV gets a Changelog button on both kinds of app pages.
 
 ### 🔄 Changed
 - **A new header**: on the home screen and on a repository's or an account's page, the header ends in rounded corners over a soft shadow, and its tabs are pills that follow the page as it is swiped. The home header shows Omnify's own logo in colour, and the updates count sits in an amber badge. The sync bar still takes the name's place while a sync runs. Android TV keeps its own layout.

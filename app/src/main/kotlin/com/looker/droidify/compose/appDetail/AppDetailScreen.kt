@@ -129,6 +129,7 @@ import com.looker.droidify.compose.components.HeroCard
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.HideAppAction
 import com.looker.droidify.compose.components.InstallConflictDialog
+import com.looker.droidify.compose.externalApps.ChangelogDialog
 import com.looker.droidify.compose.externalApps.PrereleaseInCard
 import com.looker.droidify.compose.theme.SOURCE_SWITCH_MS
 import com.looker.droidify.compose.externalApps.ExternalAppsViewModel
@@ -180,7 +181,9 @@ import com.looker.droidify.data.model.isInstallableOnDevice
 import com.looker.droidify.data.model.selectForDevice
 import com.looker.droidify.external.ExternalApp
 import com.looker.droidify.datastore.model.CustomButton
+import com.looker.droidify.external.LinkedChangelog
 import com.looker.droidify.external.PrereleaseMode
+import com.looker.droidify.external.linkedChangelog
 import com.looker.droidify.model.TestRepository
 import com.looker.droidify.installer.model.InstallState
 import com.looker.droidify.utility.common.AppCapabilities
@@ -255,6 +258,23 @@ fun AppDetailScreen(
     val pushCapabilityConfirmedAbsent by viewModel.pushCapabilityConfirmedAbsent.collectAsStateWithLifecycle()
     val descriptionTranslation by viewModel.descriptionTranslation.collectAsStateWithLifecycle()
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
+    // The changelog read in the app (null = closed).
+    var showChangelog by remember { mutableStateOf<LinkedChangelog?>(null) }
+    showChangelog?.let { linked ->
+        val changelogUrl = (state as? AppDetailState.Success)?.app?.links?.changelog.orEmpty()
+        ChangelogDialog(
+            page = viewModel.changelog,
+            translationEnabled = translationEnabled,
+            baseUrl = linked.baseUrl,
+            javaScriptEnabled = false,
+            webUrl = changelogUrl,
+            fallbackUrl = changelogUrl,
+            onDismiss = {
+                showChangelog = null
+                viewModel.changelog.dismiss()
+            },
+        )
+    }
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val splitViewSettingEnabled by viewModel.splitViewEnabled.collectAsStateWithLifecycle()
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
@@ -599,6 +619,10 @@ fun AppDetailScreen(
                         } catch (_: Exception) {
                         }
                     },
+                    onChangelogClick = { linked ->
+                        showChangelog = linked
+                        viewModel.openChangelog(linked)
+                    },
                     descriptionTranslation = descriptionTranslation,
                     supportedLanguages = supportedLanguages,
                     primaryActionFocusRequester = primaryActionFocusRequester,
@@ -794,6 +818,8 @@ private fun AppDetail(
     onUninstall: () -> Unit,
     onCancel: () -> Unit,
     onCustomButtonClick: (url: String) -> Unit,
+    // Opens the changelog in the app, for a link that allows it (see linkedChangelog).
+    onChangelogClick: (LinkedChangelog) -> Unit,
     descriptionTranslation: DescriptionTranslation,
     supportedLanguages: SupportedLanguages,
     primaryActionFocusRequester: FocusRequester,
@@ -987,7 +1013,7 @@ private fun AppDetail(
                 headerCard()
                 if (app.hasLinks()) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    LinksSection(app = app)
+                    LinksSection(app = app, onChangelogClick = onChangelogClick)
                 }
                 if (permissions.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -1041,6 +1067,7 @@ private fun AppDetail(
                     customButtons = customButtons,
                     pushCapabilityConfirmedAbsent = pushCapabilityConfirmedAbsent,
                     onCustomButtonClick = onCustomButtonClick,
+                    onChangelogClick = onChangelogClick,
                     descriptionTranslation = descriptionTranslation,
                     supportedLanguages = supportedLanguages,
                     sources = listSources,
@@ -1136,6 +1163,7 @@ private fun AppDetail(
                     customButtons = customButtons,
                     pushCapabilityConfirmedAbsent = pushCapabilityConfirmedAbsent,
                     onCustomButtonClick = onCustomButtonClick,
+                    onChangelogClick = onChangelogClick,
                     descriptionTranslation = descriptionTranslation,
                     supportedLanguages = supportedLanguages,
                     sources = listSources,
@@ -1178,6 +1206,8 @@ private fun AppDetailBody(
     customButtons: List<CustomButton>,
     pushCapabilityConfirmedAbsent: Boolean,
     onCustomButtonClick: (url: String) -> Unit,
+    // Opens the changelog in the app, for a link that allows it (see linkedChangelog).
+    onChangelogClick: (LinkedChangelog) -> Unit,
     descriptionTranslation: DescriptionTranslation,
     supportedLanguages: SupportedLanguages,
     sources: VersionSources,
@@ -1328,7 +1358,7 @@ private fun AppDetailBody(
 
     if (showSidebarSections && app.hasLinks()) {
         Spacer(modifier = Modifier.height(8.dp))
-        LinksSection(app = app)
+        LinksSection(app = app, onChangelogClick = onChangelogClick)
     }
 
     val antiFeatures = suggestedPackage?.antiFeatures.orEmpty()
@@ -2175,7 +2205,7 @@ private fun WhatsNewSection(whatsNew: String) {
 }
 
 @Composable
-private fun LinksSection(app: App) {
+private fun LinksSection(app: App, onChangelogClick: (LinkedChangelog) -> Unit) {
     val uriHandler = LocalUriHandler.current
     val open: (String) -> Unit = { url ->
         try {
@@ -2197,7 +2227,10 @@ private fun LinksSection(app: App) {
             LinkRow(R.drawable.ic_bug_report, stringResource(R.string.issue_tracker), url) { open(url) }
         }
         links?.changelog?.nonBlank()?.let { url ->
-            LinkRow(R.drawable.ic_history, stringResource(R.string.changelog), url) { open(url) }
+            val linked = remember(url) { linkedChangelog(url) }
+            LinkRow(R.drawable.ic_history, stringResource(R.string.changelog), url) {
+                if (linked != null) onChangelogClick(linked) else open(url)
+            }
         }
         links?.translation?.nonBlank()?.let { url ->
             LinkRow(R.drawable.ic_language, stringResource(R.string.translation), url) { open(url) }

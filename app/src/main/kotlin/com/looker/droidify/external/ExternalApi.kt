@@ -834,11 +834,22 @@ class ExternalApi @Inject constructor(
      * boilerplate as one would be worse than reporting none. A single release's notes are always trusted
      * as-is (nothing to compare against). Empty when there's nothing genuine, or on any failure.
      */
-    private suspend fun genuineReleaseNotes(app: ExternalApp): List<Release> {
-        val notes = fetchReleases(app.provider, app.effectiveHost, app.owner, app.repo)
+    private suspend fun genuineReleaseNotes(app: ExternalApp): List<Release> =
+        // One app among several in the repository: the other apps' notes aren't its changelog.
+        genuineReleaseNotes(app.provider, app.effectiveHost, app.owner, app.repo) {
+            app.variant.isEmpty() || it.isListableBySettings(app)
+        }
+
+    private suspend fun genuineReleaseNotes(
+        provider: SourceProvider,
+        host: String,
+        owner: String,
+        repo: String,
+        belongs: (Release) -> Boolean = { true },
+    ): List<Release> {
+        val notes = fetchReleases(provider, host, owner, repo)
             .filterNot { it.body.isNullOrBlank() }
-            // One app among several in the repository: the other apps' notes aren't its changelog.
-            .filter { app.variant.isEmpty() || it.isListableBySettings(app) }
+            .filter(belongs)
             .take(CHANGELOG_RELEASE_NOTES_LIMIT)
         val looksGenuine = notes.size <= 1 || notes.map { it.body }.distinct().size > 1
         return if (looksGenuine) notes else emptyList()
@@ -856,11 +867,29 @@ class ExternalApi @Inject constructor(
                 val markdown = getText(app.readmeBaseUrl + name) ?: continue
                 return@runCatching inlineRelativeImages(renderMarkdownToHtml(markdown), app)
             }
-            val releaseNotes = genuineReleaseNotes(app)
-            if (releaseNotes.isEmpty()) return@runCatching null
-            val markdown = releaseNotes.joinToString("\n\n---\n\n") { "## ${it.tag}\n\n${it.body}" }
-            inlineRelativeImages(renderMarkdownToHtml(markdown), app)
+            releaseNotesHtml(genuineReleaseNotes(app))?.let { inlineRelativeImages(it, app) }
         }.getOrNull()
+    }
+
+    /**
+     * A catalogue app's changelog, read from the link its metadata gives ([linkedChangelog]) and rendered
+     * like [fetchChangelogHtml], so it opens in the app as well. Null when it can't be read.
+     */
+    suspend fun fetchLinkedChangelogHtml(changelog: LinkedChangelog): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            when (changelog) {
+                is LinkedChangelog.File -> getText(changelog.rawUrl)?.let(::renderMarkdownToHtml)
+                is LinkedChangelog.Releases -> releaseNotesHtml(
+                    genuineReleaseNotes(changelog.provider, changelog.host, changelog.owner, changelog.repo),
+                )
+            }
+        }.getOrNull()
+    }
+
+    /** Release notes as one page, newest first, each under its tag. Null when there are none. */
+    private fun releaseNotesHtml(notes: List<Release>): String? {
+        if (notes.isEmpty()) return null
+        return renderMarkdownToHtml(notes.joinToString("\n\n---\n\n") { "## ${it.tag}\n\n${it.body}" })
     }
 
     /**

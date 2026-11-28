@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.externalApps
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -35,12 +36,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looker.droidify.R
 import com.looker.droidify.compose.components.AccentNavigationBarOverlay
 import com.looker.droidify.compose.components.BackButton
+import com.looker.droidify.compose.components.DescriptionTranslation
 import com.looker.droidify.compose.components.DialogSystemBarIcons
 import com.looker.droidify.compose.components.FullScreenDialogProperties
 import com.looker.droidify.compose.components.LoadingSpinner
+import com.looker.droidify.compose.components.TranslateAction
 import com.looker.droidify.compose.components.tvDpadDownTo
 import com.looker.droidify.compose.components.tvPageScroll
 import com.looker.droidify.compose.components.aroundScroll
@@ -51,22 +55,27 @@ import kotlinx.coroutines.delay
 
 /**
  * The project's changelog, rendered in its own full-screen in-app page — exactly like the README, so
- * checking what's new in a release doesn't send the user out to the browser. [html] null with
- * [unavailable] false means still loading; null with [unavailable] true means the repo genuinely has no
- * changelog file.
+ * checking what's new in a release doesn't send the user out to the browser. Shows [page], with a
+ * "Translate" action when [translationEnabled]. [fallbackUrl], when set, is offered in the browser if the
+ * changelog can't be read here.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChangelogDialog(
-    html: String?,
-    unavailable: Boolean,
+    page: ChangelogPage,
+    translationEnabled: Boolean,
     baseUrl: String,
     javaScriptEnabled: Boolean,
     // The project's own page, opened if the WebView's renderer process dies mid-render (see
     // ReadmeWebView's onRenderProcessGone) so there's still a way to read the changelog.
     webUrl: String,
     onDismiss: () -> Unit,
+    fallbackUrl: String? = null,
 ) {
+    val originalHtml by page.html.collectAsStateWithLifecycle()
+    val unavailable by page.unavailable.collectAsStateWithLifecycle()
+    val translation by page.translation.state.collectAsStateWithLifecycle()
+    val html = (translation as? DescriptionTranslation.Translated)?.description ?: originalHtml
     Dialog(onDismissRequest = onDismiss, properties = FullScreenDialogProperties) {
         DialogSystemBarIcons()
         val isTelevision = LocalIsTelevision.current
@@ -113,6 +122,15 @@ fun ChangelogDialog(
                                     },
                                 )
                             },
+                            actions = {
+                                originalHtml?.takeIf { translationEnabled }?.let { original ->
+                                    TranslateAction(
+                                        translation = translation,
+                                        onTranslate = { page.translation.translate(original) },
+                                        onShowOriginal = page.translation::showOriginal,
+                                    )
+                                }
+                            },
                         )
                     },
                 ) { contentPadding ->
@@ -135,6 +153,7 @@ fun ChangelogDialog(
                                                     scrollState,
                                                     (viewportPx * 0.85f).toInt(),
                                                     debugLabel = "changelog-content",
+                                                    upTarget = backFocusRequester,
                                                 )
                                         } else {
                                             Modifier
@@ -187,18 +206,26 @@ fun ChangelogDialog(
                             }
                         }
 
-                        unavailable -> Box(
+                        unavailable -> Column(
                             modifier = Modifier
                                 .padding(contentPadding)
                                 .fillMaxSize()
                                 .padding(32.dp),
-                            contentAlignment = Alignment.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
                         ) {
                             Text(
                                 text = stringResource(R.string.external_no_changelog),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
                             )
+                            fallbackUrl?.takeUnless { isTelevision }?.let { url ->
+                                Spacer(Modifier.height(12.dp))
+                                Button(onClick = { runCatching { uriHandler.openUri(url) } }) {
+                                    Text(stringResource(R.string.open_in_browser))
+                                }
+                            }
                         }
 
                         else -> Box(

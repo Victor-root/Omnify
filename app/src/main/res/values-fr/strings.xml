@@ -595,7 +595,7 @@
     <string name="libretranslate_url_help">LibreTranslate n\'a pas d\'instance publique. Vous devez héberger la vôtre (ou en utiliser une tierce) et saisir son URL ici, par ex. https://translate.example.org</string>
     <string name="libretranslate_api_key">Clé API LibreTranslate (facultatif)</string>
     <string name="auto_translate">Traduire automatiquement</string>
-    <string name="auto_translate_DESC">Traduire une description à l\'ouverture quand elle n\'est pas déjà dans votre langue</string>
+    <string name="auto_translate_DESC">Traduire une description ou un journal des modifications à l\'ouverture quand il n\'est pas déjà dans votre langue</string>
     <string name="cannot_open_link">Impossible d\'ouvrir le lien</string>
     <string name="has_tethered_network">Lié à une certaine instance de service de réseau</string>
     <string name="require_background_access">Désactiver l\'optimisation de batterie</string>
@@ -725,6 +725,7 @@
     <string name="external_no_website">Aucun site web trouvé</string>
     <string name="external_no_issue_tracker">Aucun suivi des problèmes trouvé</string>
     <string name="external_no_changelog">Aucun changelog trouvé</string>
+    <string name="open_in_browser">Ouvrir dans le navigateur</string>
     <string name="external_edit_source">Modifier le dépôt</string>
     <string name="external_custom_name">Nom personnalisé (facultatif)</string>
     <string name="external_advanced_options">Options avancées</string>

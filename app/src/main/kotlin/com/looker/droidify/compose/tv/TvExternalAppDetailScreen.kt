@@ -2,6 +2,7 @@ package com.looker.droidify.compose.tv
 
 import com.looker.droidify.compose.components.HeroStatsRow
 import com.looker.droidify.compose.components.rememberInstalledCodeCapabilities
+import com.looker.droidify.compose.externalApps.ChangelogDialog
 import com.looker.droidify.external.PrereleaseMode
 import com.looker.droidify.network.DataSize
 import com.looker.droidify.compose.components.CapabilityBadges
@@ -110,6 +111,8 @@ fun TvExternalAppDetailScreen(
     val readmeError by viewModel.readmeError.collectAsStateWithLifecycle()
     val githubTokenInvalid by viewModel.githubTokenInvalid.collectAsStateWithLifecycle()
     val accentMatchesAppIcon by viewModel.accentMatchesAppIcon.collectAsStateWithLifecycle()
+    val changelogLink by viewModel.changelogLink.collectAsStateWithLifecycle()
+    var showChangelog by remember { mutableStateOf(false) }
 
     BackHandler { onBackClick() }
 
@@ -165,6 +168,20 @@ fun TvExternalAppDetailScreen(
     // from any channel) is recognised as installed instead of showing "Install". Keyed on the resolved app
     // (not the raw key) so it runs once the app record has actually loaded. No-op once the id is known.
     LaunchedEffect(app.key) { viewModel.ensurePackageId(app.key) }
+    LaunchedEffect(app.key) { viewModel.loadChangelogLink(app) }
+    if (showChangelog) {
+        ChangelogDialog(
+            page = viewModel.changelog,
+            translationEnabled = translationEnabled,
+            baseUrl = app.readmeWebBaseUrl,
+            javaScriptEnabled = readmeJavaScriptEnabled,
+            webUrl = app.webUrl,
+            onDismiss = {
+                showChangelog = false
+                viewModel.dismissChangelog()
+            },
+        )
+    }
 
     // Expected certificate: read from the release APK itself, the only source available before the app
     // is ever installed (there's no F-Droid-style index declaring it ahead of time here).
@@ -350,6 +367,12 @@ fun TvExternalAppDetailScreen(
                             onShowOriginal = viewModel::showOriginalReadme,
                             onOtherSourcesClick = app.packageName?.takeIf { catalogueRepoNames.isNotEmpty() }
                                 ?.let { packageName -> { onOpenCatalogueApp(packageName) } },
+                            onChangelogClick = changelogLink?.url?.let {
+                                {
+                                    showChangelog = true
+                                    viewModel.loadChangelogHtml(app)
+                                }
+                            },
                         )
                     }
 

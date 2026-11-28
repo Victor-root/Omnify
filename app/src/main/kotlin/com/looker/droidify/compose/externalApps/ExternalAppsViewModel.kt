@@ -18,6 +18,7 @@ import com.looker.droidify.compose.appDetail.InstallConflictReason
 import com.looker.droidify.compose.appDetail.detectGoogleServicesDependencies
 import com.looker.droidify.compose.appDetail.pushCapabilityIsVestigial
 import com.looker.droidify.compose.components.DescriptionTranslation
+import com.looker.droidify.compose.components.PageTranslation
 import com.looker.droidify.compose.components.SupportedLanguages
 import com.looker.droidify.data.AppRepository
 import com.looker.droidify.data.RepoRepository
@@ -73,7 +74,6 @@ import com.looker.droidify.network.Downloader
 import com.looker.droidify.network.NetworkResponse
 import com.looker.droidify.network.ProgressListener
 import com.looker.droidify.translation.TranslationManager
-import com.looker.droidify.translation.translateHtml
 import com.looker.droidify.utility.apk.ApkBinaryManifest
 import com.looker.droidify.utility.apk.InstalledApkLocaleReader
 import com.looker.droidify.utility.apk.RemoteApkLocaleReader
@@ -475,10 +475,12 @@ class ExternalAppsViewModel @Inject constructor(
     private val _readmeError = MutableStateFlow<String?>(null)
     val readmeError: StateFlow<String?> = _readmeError
 
-    /** State of the README "Translate" toggle on the external detail screen. */
-    private val _readmeTranslation =
-        MutableStateFlow<DescriptionTranslation>(DescriptionTranslation.Original)
-    val readmeTranslation: StateFlow<DescriptionTranslation> = _readmeTranslation
+    /** The README "Translate" toggle on the external detail screen. */
+    private val readmeTranslator = pageTranslation("README")
+    val readmeTranslation: StateFlow<DescriptionTranslation> = readmeTranslator.state
+
+    private fun pageTranslation(label: String) =
+        PageTranslation(viewModelScope, translationManager, settingsRepository, context, label)
 
     /** Recent releases of the app shown on the detail screen, for the "choose a version to install"
      *  list — the external-app equivalent of the F-Droid catalogue's version list. Null while loading;
@@ -704,15 +706,7 @@ class ExternalAppsViewModel @Inject constructor(
                 _issueTrackerLink.value = LinkCheckState(url)
             }
         }
-        val cachedChangelog = changelogCache[app.key]
-        _changelogLink.value = cachedChangelog?.let { LinkCheckState(it.second) }
-        if (cachedChangelog == null || now - cachedChangelog.first >= README_FRESHNESS_MS) {
-            viewModelScope.launch {
-                val url = externalApi.fetchChangelogUrl(app)
-                changelogCache[app.key] = SystemClock.elapsedRealtime() to url
-                _changelogLink.value = LinkCheckState(url)
-            }
-        }
+        loadChangelogLink(app)
         val cachedWebsite = websiteCache[app.key]
         _websiteLink.value = cachedWebsite?.let { LinkCheckState(it.second) }
         if (cachedWebsite == null || now - cachedWebsite.first >= README_FRESHNESS_MS) {
@@ -724,39 +718,40 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    /** The changelog dialog's content: rendered HTML once loaded, an explanatory message if the repo
-     *  genuinely has none, or both null while still loading. Reset by [dismissChangelog]. */
-    private val _changelogHtml = MutableStateFlow<String?>(null)
-    val changelogHtml: StateFlow<String?> = _changelogHtml
-    private val _changelogUnavailable = MutableStateFlow(false)
-    val changelogUnavailable: StateFlow<Boolean> = _changelogUnavailable
+    /** Only the "Changelog" link of [loadIssueTrackerAndChangelog], for the TV page, which has no other link. */
+    fun loadChangelogLink(app: ExternalApp) {
+        val cached = changelogCache[app.key]
+        _changelogLink.value = cached?.let { LinkCheckState(it.second) }
+        if (cached == null || SystemClock.elapsedRealtime() - cached.first >= README_FRESHNESS_MS) {
+            viewModelScope.launch {
+                val url = externalApi.fetchChangelogUrl(app)
+                changelogCache[app.key] = SystemClock.elapsedRealtime() to url
+                _changelogLink.value = LinkCheckState(url)
+            }
+        }
+    }
+
+    /** The changelog dialog's content and its translation. Reset by [dismissChangelog]. */
+    val changelog = ChangelogPage(viewModelScope, pageTranslation("Changelog"))
 
     private val changelogHtmlCache = mutableMapOf<String, Pair<Long, String?>>()
 
     /** Opens the changelog dialog and loads its content — rendered in-app exactly like the README,
      *  instead of sending the user to the browser and out of the app to read what's new. */
-    fun loadChangelogHtml(app: ExternalApp) {
-        _changelogHtml.value = null
-        _changelogUnavailable.value = false
+    fun loadChangelogHtml(app: ExternalApp) = changelog.load {
         val cached = changelogHtmlCache[app.key]
-        if (cached != null && SystemClock.elapsedRealtime() - cached.first < README_FRESHNESS_MS) {
-            _changelogHtml.value = cached.second
-            _changelogUnavailable.value = cached.second == null
-            return
-        }
-        viewModelScope.launch {
-            val html = externalApi.fetchChangelogHtml(app)
-            changelogHtmlCache[app.key] = SystemClock.elapsedRealtime() to html
-            _changelogHtml.value = html
-            _changelogUnavailable.value = html == null
+            ?.takeIf { SystemClock.elapsedRealtime() - it.first < README_FRESHNESS_MS }
+        if (cached != null) {
+            cached.second
+        } else {
+            externalApi.fetchChangelogHtml(app).also {
+                changelogHtmlCache[app.key] = SystemClock.elapsedRealtime() to it
+            }
         }
     }
 
     /** Closes the changelog dialog. */
-    fun dismissChangelog() {
-        _changelogHtml.value = null
-        _changelogUnavailable.value = false
-    }
+    fun dismissChangelog() = changelog.dismiss()
 
     /**
      * The detail screen's "supported languages" section — the same reliable, real-UI-language check
@@ -944,7 +939,7 @@ class ExternalAppsViewModel @Inject constructor(
 
     fun loadReadme(app: ExternalApp) {
         // A different app's README is about to load, so drop any translation left on the previous one.
-        _readmeTranslation.value = DescriptionTranslation.Original
+        readmeTranslator.showOriginal()
         _readmeError.value = null
         viewModelScope.launch {
             // Show the cached README instantly (if any) so a re-open isn't blocked on the network.
@@ -977,32 +972,9 @@ class ExternalAppsViewModel @Inject constructor(
         }
     }
 
-    /** Translates the README's plain text into the device language. Never throws: on failure it reports
-     *  it and leaves the toggle in the "failed" state (tapping again retries). */
-    fun translateReadme(html: String) {
-        if (html.isBlank()) return
-        viewModelScope.launch {
-            _readmeTranslation.value = DescriptionTranslation.Loading
-            val target = java.util.Locale.getDefault().language
-            val result = runCatching { translationManager.translateHtml(html, target) }
-            _readmeTranslation.value = result.fold(
-                onSuccess = { DescriptionTranslation.Translated(summary = "", description = it) },
-                onFailure = { error ->
-                    if (error is CancellationException) throw error
-                    // The message the user gets can only ever say "it didn't work", so the reason has
-                    // to go somewhere: without this a failing engine, a missing model or a language it
-                    // doesn't support all look identical from outside.
-                    Log.w(TAG, "README translation failed (-> $target)", error)
-                    toast(context.getString(R.string.translation_failed))
-                    DescriptionTranslation.Failed
-                },
-            )
-        }
-    }
+    fun translateReadme(html: String) = readmeTranslator.translate(html)
 
-    fun showOriginalReadme() {
-        _readmeTranslation.value = DescriptionTranslation.Original
-    }
+    fun showOriginalReadme() = readmeTranslator.showOriginal()
 
     /** Launcher-icon candidates found in the source repo, for the icon picker (best first). Empty when
      *  none were found or the provider isn't supported (then the card uses the account avatar). */

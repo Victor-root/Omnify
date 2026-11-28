@@ -202,8 +202,6 @@ fun ExternalAppDetailScreen(
     val issueTrackerLink by viewModel.issueTrackerLink.collectAsStateWithLifecycle()
     val changelogLink by viewModel.changelogLink.collectAsStateWithLifecycle()
     val websiteLink by viewModel.websiteLink.collectAsStateWithLifecycle()
-    val changelogHtml by viewModel.changelogHtml.collectAsStateWithLifecycle()
-    val changelogUnavailable by viewModel.changelogUnavailable.collectAsStateWithLifecycle()
     var showChangelog by remember { mutableStateOf(false) }
     val supportedLanguages by viewModel.supportedLanguages.collectAsStateWithLifecycle()
     val splitViewSettingEnabled by viewModel.splitViewEnabled.collectAsStateWithLifecycle()
@@ -552,8 +550,8 @@ fun ExternalAppDetailScreen(
         }
         if (showChangelog) {
             ChangelogDialog(
-                html = changelogHtml,
-                unavailable = changelogUnavailable,
+                page = viewModel.changelog,
+                translationEnabled = translationEnabled,
                 baseUrl = app.readmeWebBaseUrl,
                 javaScriptEnabled = readmeJavaScriptEnabled,
                 webUrl = app.webUrl,

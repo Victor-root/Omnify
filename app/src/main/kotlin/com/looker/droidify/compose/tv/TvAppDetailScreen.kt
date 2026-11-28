@@ -1,5 +1,6 @@
 package com.looker.droidify.compose.tv
 
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.ui.platform.LocalContext
@@ -10,8 +11,10 @@ import com.looker.droidify.compose.appDetail.updateBuild
 import com.looker.droidify.compose.components.CapabilityBadges
 import com.looker.droidify.compose.components.SupportedLanguagesSection
 import com.looker.droidify.compose.components.rememberInstalledCodeCapabilities
+import com.looker.droidify.compose.externalApps.ChangelogDialog
 import com.looker.droidify.compose.externalApps.PrereleaseModeChooser
 import com.looker.droidify.external.PrereleaseMode
+import com.looker.droidify.external.linkedChangelog
 import com.looker.droidify.utility.common.extension.openAppInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -261,6 +264,24 @@ fun TvAppDetailScreen(
                 // Where "up" from the description goes: back to the screenshots above it.
                 val screenshotsFocus = remember { FocusRequester() }
 
+                // The changelog, read in its own page when its link allows it: there is no browser to send
+                // it to on a TV.
+                val linkedChangelog = remember(app.links?.changelog) { app.links?.changelog?.let(::linkedChangelog) }
+                var showChangelog by remember { mutableStateOf(false) }
+                if (showChangelog && linkedChangelog != null) {
+                    ChangelogDialog(
+                        page = viewModel.changelog,
+                        translationEnabled = translationEnabled,
+                        baseUrl = linkedChangelog.baseUrl,
+                        javaScriptEnabled = false,
+                        webUrl = app.links?.changelog.orEmpty(),
+                        onDismiss = {
+                            showChangelog = false
+                            viewModel.changelog.dismiss()
+                        },
+                    )
+                }
+
                 // An update Android won't apply in place (a differently-signed copy on the device). The
                 // phone screen and the TV external-source screen both showed this; this one never did, so
                 // updating such an app here did nothing at all and left the button offering the same
@@ -420,6 +441,12 @@ fun TvAppDetailScreen(
                                         )
                                     },
                                     onShowOriginal = viewModel::showOriginalDescription,
+                                    onChangelogClick = linkedChangelog?.let { linked ->
+                                        {
+                                            showChangelog = true
+                                            viewModel.openChangelog(linked)
+                                        }
+                                    },
                                 )
                             }
 
@@ -586,6 +613,8 @@ internal fun TvSecondaryActions(
     onShowOriginal: () -> Unit,
     // An external source's page: opens the catalogue page of the same app. Null hides it.
     onOtherSourcesClick: (() -> Unit)? = null,
+    // Opens the app's changelog. Null hides it.
+    onChangelogClick: (() -> Unit)? = null,
 ) {
     FlowRow(
         horizontalArrangement = spacedBy(8.dp, Alignment.CenterHorizontally),
@@ -608,6 +637,14 @@ internal fun TvSecondaryActions(
             TvSecondaryAction(
                 icon = Icons.Filled.Settings,
                 label = stringResource(R.string.manage),
+                active = false,
+                onClick = onClick,
+            )
+        }
+        onChangelogClick?.let { onClick ->
+            TvSecondaryAction(
+                icon = Icons.Filled.History,
+                label = stringResource(R.string.changelog),
                 active = false,
                 onClick = onClick,
             )
