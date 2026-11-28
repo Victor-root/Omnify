@@ -2,6 +2,7 @@ package com.looker.droidify.compose.appList
 
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
@@ -16,10 +17,12 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -110,6 +113,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -121,15 +126,18 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -779,6 +787,10 @@ fun AppListScreen(
                                     TitleOrSyncIndicator(
                                         syncing = headerSyncing,
                                         syncFraction = syncFraction,
+                                        onCancel = {
+                                            viewModel.cancelSync()
+                                            externalViewModel.cancelRefresh()
+                                        },
                                         modifier = Modifier.weight(1f),
                                     )
                                 }
@@ -1749,12 +1761,32 @@ private fun TitleOrSyncIndicator(
     // How far the whole synchronisation has come, repositories and external sources together; shown
     // beside the bar, and with it only.
     syncFraction: Float?,
+    // Stops the sync: the bar, tapped twice, says so for a moment before it gives way to the name.
+    onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val syncingLabel = stringResource(R.string.syncing)
+    val cancelLabel = stringResource(R.string.sync_cancel_action)
+    val haptics = LocalHapticFeedback.current
+    var cancelled by remember { mutableStateOf(false) }
+    LaunchedEffect(cancelled) {
+        if (cancelled) {
+            delay(CANCELLED_SHOWN_MS)
+            cancelled = false
+        }
+    }
+    val cancel = {
+        if (!cancelled) {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            cancelled = true
+            onCancel()
+        }
+    }
+    // Shown on past the sync's end while the cancellation is said, so the bar leaves only after that.
+    val shown = syncing || cancelled
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
         AnimatedVisibility(
-            visible = !syncing,
+            visible = !shown,
             enter = EnterTransition.None,
             exit = ExitTransition.None,
         ) {
@@ -1788,27 +1820,90 @@ private fun TitleOrSyncIndicator(
             }
         }
         AnimatedVisibility(
-            visible = syncing,
+            visible = shown,
             enter = expandHorizontally(tween(260), expandFrom = Alignment.Start) + fadeIn(tween(260)),
             exit = shrinkHorizontally(tween(260), shrinkTowards = Alignment.End) + fadeOut(tween(260)),
+            modifier = Modifier
+                .pointerInput(Unit) { detectTapGestures(onDoubleTap = { cancel() }) }
+                .semantics { onClick(label = cancelLabel) { cancel(); true } },
         ) {
-            // The same wavy bar shown while an app installs, so the two read as the same kind of
-            // work. Fills the width the caller's weight(1f) hands this composable (see the title
-            // block above), so it reaches to (almost) the action buttons on any screen size instead
-            // of a fixed dp guess that undershoots a wide bar and risks overflowing a narrow one.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                LinearWavyProgressIndicator(
-                    modifier = Modifier
-                        .weight(1f)
-                        .semantics { contentDescription = syncingLabel },
-                    color = LocalOnAccentBarColor.current,
-                    trackColor = LocalOnAccentBarColor.current.copy(alpha = 0.24f),
-                )
-                if (syncFraction != null) {
-                    Spacer(Modifier.width(8.dp))
-                    SyncPercent(fraction = syncFraction, color = LocalOnAccentBarColor.current)
+            AnimatedContent(
+                targetState = cancelled,
+                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(180)) },
+                label = "syncCancelled",
+            ) { isCancelled ->
+                if (isCancelled) {
+                    SyncCancelled()
+                } else {
+                    // The same wavy bar shown while an app installs, so the two read as the same kind of
+                    // work. Fills the width the caller's weight(1f) hands this composable (see the title
+                    // block above), so it reaches to (almost) the action buttons on any screen size
+                    // instead of a fixed dp guess that undershoots a wide bar and risks overflowing a
+                    // narrow one.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        LinearWavyProgressIndicator(
+                            modifier = Modifier
+                                .weight(1f)
+                                .semantics { contentDescription = syncingLabel },
+                            color = LocalOnAccentBarColor.current,
+                            trackColor = LocalOnAccentBarColor.current.copy(alpha = 0.24f),
+                        )
+                        if (syncFraction != null) {
+                            Spacer(Modifier.width(8.dp))
+                            SyncPercent(fraction = syncFraction, color = LocalOnAccentBarColor.current)
+                        }
+                    }
                 }
             }
+        }
+    }
+}
+
+/** How long the header says a sync was cancelled before the name comes back. */
+private const val CANCELLED_SHOWN_MS = 1400L
+
+/**
+ * What the sync bar turns into once cancelled: the line, gone flat, draws back into its middle while
+ * a cross and "Cancelled" grow in its place.
+ */
+@Composable
+private fun SyncCancelled() {
+    val onAccent = LocalOnAccentBarColor.current
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { progress.animateTo(1f, tween(650, easing = EmphasizedDecelerate)) }
+    Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.fillMaxWidth().height(24.dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .graphicsLayer {
+                    scaleX = 1f - progress.value
+                    alpha = 1f - progress.value
+                }
+                .background(onAccent.copy(alpha = 0.8f), CircleShape),
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.graphicsLayer {
+                alpha = progress.value
+                val scale = 0.85f + 0.15f * progress.value
+                scaleX = scale
+                scaleY = scale
+                transformOrigin = TransformOrigin(0f, 0.5f)
+            },
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = null,
+                tint = onAccent,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = stringResource(R.string.sync_cancelled),
+                color = onAccent,
+                style = MaterialTheme.typography.titleMedium,
+            )
         }
     }
 }

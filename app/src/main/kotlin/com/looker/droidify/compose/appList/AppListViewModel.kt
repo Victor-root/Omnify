@@ -7,6 +7,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingPeriodicWorkPolicy
 import com.looker.droidify.BuildConfig
 import com.looker.droidify.R
 import com.looker.droidify.data.AppRepository
@@ -1173,6 +1174,22 @@ class AppListViewModel @Inject constructor(
      * Manually re-syncs all enabled repositories through the same worker as every other sync, so the
      * in-app bar and the notification both show. Lists refresh automatically afterwards.
      */
+    /** Stops the sync running now (the header's sync bar, tapped twice). A scheduled run stopped this
+     *  way goes back on the schedule. */
+    fun cancelSync() {
+        viewModelScope.launch {
+            if (SyncWorker.cancelRunning(context)) {
+                val settings = settingsRepository.getInitial()
+                SyncWorker.schedulePeriodicSync(
+                    context = context,
+                    repeatInterval = settings.syncInterval,
+                    autoSync = settings.autoSync,
+                    existing = ExistingPeriodicWorkPolicy.KEEP,
+                )
+            }
+        }
+    }
+
     fun sync() {
         SyncWorker.enqueueUserSync(context)
     }

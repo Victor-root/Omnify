@@ -35,6 +35,7 @@ import com.looker.droidify.utility.diagnostics.DiagnosticLog
 import com.looker.droidify.utility.notifications.showUpdatesAvailableNotification
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -370,6 +371,20 @@ class SyncWorker @AssistedInject constructor(
                     request = request,
                 )
             Log.i(TAG, "Periodic sync scheduled every $repeatInterval ($autoSync)")
+        }
+
+        /**
+         * Stops the sync running now, whichever started it: the user's, a catch-up or the scheduled one.
+         * Returns whether the scheduled one was among them: stopping a periodic work takes it off the
+         * schedule too, so the caller puts it back.
+         */
+        suspend fun cancelRunning(context: Context): Boolean {
+            val workManager = WorkManager.getInstance(context)
+            val running = workManager.getWorkInfosByTagFlow(TAG).first()
+                .filter { it.state == WorkInfo.State.RUNNING }
+            running.forEach { workManager.cancelWorkById(it.id) }
+            DiagnosticLog.log("sync stopped by the user: ${running.size} running")
+            return running.any { it.periodicityInfo != null }
         }
 
         fun cancelAll(context: Context) {

@@ -369,6 +369,8 @@
     <string name="background_checks_stalled_allow">Aucune vérification n\'a eu lieu en arrière-plan depuis un moment. Touchez pour autoriser l\'activité en arrière-plan.</string>
     <string name="background_checks_stalled_conditions">Aucune vérification n\'a eu lieu en arrière-plan depuis un moment. La condition de connexion ou de charge choisie dans les paramètres n\'a peut-être pas été remplie. Touchez pour la revoir.</string>
     <string name="syncing">Synchronisation en cours</string>
+    <string name="sync_cancel_action">Arrêter la synchronisation</string>
+    <string name="sync_cancelled">Annulée</string>
     <string name="syncing_FORMAT">Synchronisation de %s en cours…</string>
     <string name="fetching_repositories">Récupération des dépôts d\'applications…</string>
     <string name="first_sync_hint">Le premier démarrage peut prendre quelques minutes, le temps de télécharger le catalogue. Patientez, ne fermez pas l\'application.</string>

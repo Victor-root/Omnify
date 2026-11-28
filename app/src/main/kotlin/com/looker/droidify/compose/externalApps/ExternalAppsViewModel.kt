@@ -1547,6 +1547,11 @@ class ExternalAppsViewModel @Inject constructor(
         job.invokeOnCompletion { _isRefreshing.value = false }
     }
 
+    /** Stops the [refresh] pass in flight, if any (the header's sync bar, tapped twice). */
+    fun cancelRefresh() {
+        refreshJob?.cancel()
+    }
+
     /** Enables or disables a source — like toggling an F-Droid repo. Disabled sources are hidden
      *  from the External tab and the Updates tab, and skipped when checking for new releases. */
     fun setSourceEnabled(app: ExternalApp, enabled: Boolean) {

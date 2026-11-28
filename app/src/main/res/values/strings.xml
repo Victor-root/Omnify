@@ -574,6 +574,8 @@
     <string name="background_checks_stalled_allow">No check has run in the background for a while. Tap to allow background activity.</string>
     <string name="background_checks_stalled_conditions">No check has run in the background for a while. The connection or charging condition chosen in Settings may not have been met. Tap to review it.</string>
     <string name="syncing">Syncing</string>
+    <string name="sync_cancel_action">Stop syncing</string>
+    <string name="sync_cancelled">Cancelled</string>
     <string name="syncing_FORMAT">Syncing %s…</string>
     <string name="fetching_repositories">Fetching application repositories…</string>
     <string name="first_sync_hint">The first launch can take a few minutes while the catalogue downloads. Please wait, and don\'t close the app.</string>

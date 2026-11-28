@@ -8,6 +8,7 @@
 - **Betas of F-Droid repositories are no longer offered as ordinary updates**: a version a repository publishes as a beta, newer than the one it recommends (Termux, Magisk and a few others on F-Droid), wears a "Pre-release" badge, and the app's page offers the same pre-release choice as an external source: hidden, shown, followed with stable releases or followed alone. Hidden by default.
 - **Default pre-releases**, in Settings: what apps and sources without a choice of their own do with pre-releases. Changing it offers to give it to every app at once.
 - **Home tabs**, in Settings: the home screen's tabs show their names, their icons, or both (the default).
+- **Stop a sync from the header**: tap the sync bar twice and it stops, the bar going flat and giving way to "Cancelled" before the name comes back. A scheduled sync stopped this way stays scheduled.
 
 ### 🔄 Changed
 - **A new header**: on the home screen and on a repository's or an account's page, the header ends in rounded corners over a soft shadow, and its tabs are pills that follow the page as it is swiped. The home header shows Omnify's own logo in colour, and the updates count sits in an amber badge. The sync bar still takes the name's place while a sync runs. Android TV keeps its own layout.
