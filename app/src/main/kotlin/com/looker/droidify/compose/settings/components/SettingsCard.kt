@@ -54,10 +54,10 @@ fun LazyListScope.settingsCard(
                 card.rows.forEach { it() }
             }
         } else {
-            PremiumCard(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp)) {
+            PremiumCard(modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 14.dp)) {
                 Column {
                     if (title != null) SettingsCardBand(title, icon)
-                    Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
                         card.rows.forEach { it() }
                     }
                 }
